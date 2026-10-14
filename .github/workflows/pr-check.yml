@@ -133,6 +133,15 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # The emulator needs ~7.4 GB free for its data partition (a smaller disk-size is ignored). Once the
+      # Gradle caches of main are restored, the runner has only ~5.5-6.4 GB left. Remove preinstalled
+      # toolchains this job never uses.
+      - name: Giải phóng đĩa cho emulator
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - name: Bật KVM cho emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -146,9 +155,6 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          # The default AVD needs ~7.4 GB free for its data partition; once Gradle caches are restored the
-          # runner has only ~5.5-6 GB left and the emulator fails to start. 2 GB is plenty for the app under test.
-          disk-size: 2048M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash -c 'set -o pipefail; ./gradlew --no-daemon --console=plain :app:connectedStagingDebugAndroidTest 2>&1 | tee ui-test.log'
 
