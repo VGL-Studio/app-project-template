@@ -26,9 +26,9 @@ AI không được merge bằng bất kỳ cách nào khác, kể cả nút merg
 
 **2. Gác nhánh chính sau khi merge.** Workflow `main-guard.yml` chạy lại cổng chất lượng mỗi khi nhánh chính thay đổi. Nếu đỏ:
 
-- Tự động tạo PR revert commit vừa gây lỗi và gắn nhãn `main-broken`.
+- Tạo issue gắn nhãn `main-broken`, kèm đoạn cuối log, và đẩy sẵn nhánh `revert/<commit>` chứa commit revert.
 - Phiên tự chạy đang chạy phát hiện nhãn này thì dừng ngay, theo điều kiện "nhánh chính đỏ" trong `docs/auto-run.md`.
-- Dev quyết định merge PR revert hay sửa tiếp.
+- Dev quyết định mở PR từ nhánh revert hay sửa tiếp. Khi issue còn mở, script merge từ chối mọi PR, trừ PR từ nhánh `revert/`. Đóng issue khi nhánh chính xanh trở lại.
 
 **3. Quy ước cho người.** Không đẩy thẳng lên nhánh chính. Mọi thay đổi, kể cả tài liệu, đều đi qua PR và script merge.
 

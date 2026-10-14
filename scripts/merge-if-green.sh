@@ -45,10 +45,11 @@ TITLE="$(jq -r .title <<<"$PR_JSON")"
 [[ "$DRAFT" == "false" ]] || die "PR #$PR đang là bản nháp."
 [[ "$BASE" == "$BASE_BRANCH" ]] || die "PR #$PR nhắm vào '$BASE', không phải '$BASE_BRANCH'."
 
-# Nhánh chính đang có sự cố thì không merge thêm gì, trừ chính PR revert.
-BROKEN="$(gh api "repos/$REPO/issues?state=open&labels=main-broken&per_page=10" --jq '[.[] | select(.pull_request != null) | .number] | join(",")')"
-if [[ -n "$BROKEN" && ",$BROKEN," != *",$PR,"* ]]; then
-  die "nhánh chính đang đỏ (PR mang nhãn main-broken: #$BROKEN). Xử lý xong rồi mới merge tiếp."
+# Nhánh chính đang có sự cố (issue hoặc PR mang nhãn main-broken, do main-guard.yml tạo)
+# thì không merge thêm gì, trừ PR sửa sự cố đi từ nhánh revert/.
+BROKEN="$(gh api "repos/$REPO/issues?state=open&labels=main-broken&per_page=10" --jq '[.[].number] | join(",")')"
+if [[ -n "$BROKEN" && "$HEAD_REF" != revert/* ]]; then
+  die "nhánh chính đang đỏ (mục mang nhãn main-broken: #$BROKEN). Xử lý xong rồi mới merge tiếp."
 fi
 
 # Nhánh của PR phải chứa commit mới nhất của nhánh chính.
