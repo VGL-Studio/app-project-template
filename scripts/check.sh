@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-GRADLE="./gradlew --no-daemon --console=plain"
+GRADLE="./gradlew --no-daemon --console=plain --continue"
 
 echo "== 1. Quy tắc phụ thuộc module và định dạng code"
 $GRADLE checkModuleDependencies ktlintCheck
