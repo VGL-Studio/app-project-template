@@ -21,7 +21,7 @@ App không có backend, nên "staging" là một bản build phát cho nhóm. Nh
 | R2 | Bucket hoặc thư mục staging | Bucket production |
 
 - Hai môi trường gắn với hai biến thể build (build flavor) `staging` và `production`.
-- Cấu hình production (file cấu hình Firebase, mã quảng cáo, khóa truy cập R2) không nằm trong repo, được đưa vào ở bước build phát hành.
+- Cấu hình production (file cấu hình Firebase, mã quảng cáo, khóa truy cập R2) không nằm trong repo hay trên GitHub, được đưa vào ở bước build phát hành do người thực hiện trên máy của mình (xem ADR-0009).
 - Bản staging được phân phối qua Firebase App Distribution hoặc kênh Internal testing của Google Play.
 - Khóa ký ứng dụng giao cho Play App Signing quản lý.
 

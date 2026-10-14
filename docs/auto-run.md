@@ -13,9 +13,9 @@ Bốn nguyên tắc của phiên tự chạy:
 
 1. Sau họp đánh giá rủi ro, AI lập danh sách chạy `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md): các plan đã duyệt, thứ tự chạy, số task tối đa, thời điểm muốn có bản staging (nếu có).
 2. Dev xem lại danh sách, chuyển trạng thái sang `approved`.
-3. Dev kích hoạt phiên: chạy ngay, hoặc hẹn giờ bắt đầu (ví dụ để rơi vào lúc hạn mức sử dụng được làm mới).
+3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine.
 4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính.
-5. Phiên chạy dưới tài khoản Claude và tài khoản GitHub riêng dành cho phiên tự chạy (ADR-0009).
+5. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
 ## 2. Kiểm tra đầu phiên
 
@@ -89,8 +89,8 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 
 ### Bước 7. Commit và đẩy
 
-- Nội dung commit theo dạng `<loại>(T-NNN): <mô tả ngắn>`, với loại là `test`, `feat`, `fix`, `refactor` hoặc `docs`.
-- PR có tiêu đề `T-NNN: <tên task>`, phần mô tả gồm đường dẫn tới plan, tóm tắt thay đổi và kết quả rà soát độc lập.
+- Nội dung commit theo dạng `<loại>(T-NNN): <mô tả ngắn>`, với loại là `test`, `feat`, `fix`, `refactor` hoặc `docs`. Mỗi commit có dòng `Co-Authored-By: Claude`.
+- PR có tiêu đề `T-NNN: <tên task>`, phần mô tả gồm đường dẫn tới plan, tóm tắt thay đổi, kết quả rà soát độc lập và đường dẫn tới phiên chạy. Vì PR mang tên tài khoản của người, các dấu hiệu này giúp phân biệt việc của AI.
 
 ### Bước 8. CI đầy đủ
 
@@ -143,7 +143,8 @@ Báo cáo phiên là thứ dev đọc đầu tiên khi bắt đầu làm việc 
 ## 6. Vùng an toàn của phiên
 
 - Phiên chỉ có cấu hình staging. Không có mã quảng cáo thật, cấu hình Firebase production, khóa R2 production hay khóa ký ứng dụng.
-- Phiên chạy dưới tài khoản GitHub riêng, chỉ có quyền ghi, không có quyền quản trị repo.
+- Phiên không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo. Bí mật trên GitHub chỉ gồm cấu hình staging và mã kích hoạt routine.
+- Phiên không chạm vào `scripts/release.sh`. Phát hành production do người làm từ máy của mình (ADR-0009).
 - Phiên không đẩy thẳng lên nhánh chính. Mọi thay đổi đi qua nhánh của task, PR, CI và script merge.
 - Phiên không sửa `.github/`, `scripts/merge-if-green.sh` hay quyền truy cập, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo.
 - Vì repo dùng gói GitHub Free, GitHub không chặn merge ở mức hệ thống. Lớp bảo vệ là script merge và workflow `main-guard.yml` (ADR-0010).
