@@ -58,10 +58,12 @@ class SampleViewModelTest {
             viewModel.onIncrement()
             assertEquals(SampleUiState.Ready(0, saveFailed = true), awaitItem())
 
-            // A new attempt clears the error first, then shows the saved value.
+            // A new attempt clears the error and shows the saved value. The intermediate state
+            // Ready(0, saveFailed = false) may be conflated away, so it is optional here.
             viewModel.onIncrement()
-            assertEquals(SampleUiState.Ready(0, saveFailed = false), awaitItem())
-            assertEquals(SampleUiState.Ready(1, saveFailed = false), awaitItem())
+            var next = awaitItem()
+            if (next == SampleUiState.Ready(0, saveFailed = false)) next = awaitItem()
+            assertEquals(SampleUiState.Ready(1, saveFailed = false), next)
         }
         assertEquals(listOf(AnalyticsEvent(SampleViewModel.EVENT_INCREMENT)), analytics.events)
     }
