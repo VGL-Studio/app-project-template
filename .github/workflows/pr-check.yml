@@ -11,6 +11,11 @@ concurrency:
   group: pr-check-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# Bắt buộc: shell bash có pipefail, để `lệnh | tee log` vẫn báo lỗi khi lệnh thất bại.
+defaults:
+  run:
+    shell: bash
+
 permissions:
   contents: read
   pull-requests: write
@@ -106,9 +111,9 @@ jobs:
           {
             echo "### build-and-test thất bại"
             echo
-            echo "Các test thất bại:"
+            echo "Task thất bại và lỗi:"
             echo '```'
-            grep -A 12 " FAILED$" build.log | head -n 120 || true
+            grep -E " FAILED$|^e: |Lint error|\.kt:[0-9]+:[0-9]+|error:|What went wrong" -A 6 build.log | head -n 150 || true
             echo '```'
             echo "Cuối log:"
             echo '```'
@@ -146,7 +151,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew --no-daemon :app:connectedStagingDebugAndroidTest 2>&1 | tee ui-test.log
+          script: bash -c 'set -o pipefail; ./gradlew --no-daemon --console=plain :app:connectedStagingDebugAndroidTest 2>&1 | tee ui-test.log'
 
       - name: Bình luận lỗi vào PR
         if: failure()

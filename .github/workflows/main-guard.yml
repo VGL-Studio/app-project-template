@@ -15,6 +15,11 @@ concurrency:
   group: main-guard
   cancel-in-progress: false
 
+# Bắt buộc: shell bash có pipefail, để `lệnh | tee log` vẫn báo lỗi khi lệnh thất bại.
+defaults:
+  run:
+    shell: bash
+
 permissions:
   contents: write
   issues: write
