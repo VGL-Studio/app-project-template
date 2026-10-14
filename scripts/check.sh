@@ -17,6 +17,7 @@ $GRADLE checkModuleDependencies ktlintCheck
 
 echo "== 2. Unit test và test giao diện trên JVM"
 $GRADLE testDebugUnitTest testStagingDebugUnitTest
+scripts/test-summary.sh
 
 echo "== 3. Screenshot test"
 # Có ảnh chuẩn thì so sánh; chưa có (module mới) thì ghi ảnh chuẩn và cảnh báo để người xem.
@@ -33,4 +34,5 @@ $GRADLE :app:lintStagingDebug
 echo "== 5. Build bản staging"
 $GRADLE :app:assembleStagingDebug
 
+scripts/test-summary.sh
 echo "== Cổng chất lượng: QUA"
