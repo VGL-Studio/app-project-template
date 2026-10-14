@@ -17,7 +17,7 @@ defaults:
     shell: bash
 
 permissions:
-  contents: write  # TẠM THỜI cho bước commit ảnh chuẩn; trả về read trước khi merge
+  contents: read
   pull-requests: write
 
 jobs:
@@ -89,23 +89,6 @@ jobs:
             **/build/reports/
             **/build/outputs/roborazzi/
             **/src/test/screenshots/*.png
-
-      - name: "TẠM THỜI: commit ảnh chuẩn screenshot vừa ghi (gỡ trước khi merge)"
-        if: success() && needs.changes.outputs.code == 'true'
-        run: |
-          mkdir -p /tmp/shots
-          git ls-files --others --exclude-standard -- '*/src/test/screenshots/*.png' | while read -r f; do
-            mkdir -p "/tmp/shots/$(dirname "$f")"; cp "$f" "/tmp/shots/$f"
-          done
-          if [ -z "$(ls -A /tmp/shots)" ]; then echo "Không có ảnh mới."; exit 0; fi
-          git fetch origin "${{ github.head_ref }}"
-          git checkout -B shots "origin/${{ github.head_ref }}"
-          cp -r /tmp/shots/. .
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- '*/src/test/screenshots/*.png'
-          git commit -m "test: ảnh chuẩn screenshot ban đầu (ghi trên CI)"
-          git push origin "shots:${{ github.head_ref }}"
 
       - name: Bình luận lỗi vào PR
         if: failure() && needs.changes.outputs.code == 'true'
