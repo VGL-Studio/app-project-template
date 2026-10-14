@@ -146,6 +146,9 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
+          # The default AVD needs ~7.4 GB free for its data partition; once Gradle caches are restored the
+          # runner has only ~5.5-6 GB left and the emulator fails to start. 2 GB is plenty for the app under test.
+          disk-size: 2048M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash -c 'set -o pipefail; ./gradlew --no-daemon --console=plain :app:connectedStagingDebugAndroidTest 2>&1 | tee ui-test.log'
 
