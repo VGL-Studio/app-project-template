@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+# Minimal stand-in for `gh api` used by scripts/tests. Serves commits and main-guard
+# check runs from the JSON fixture in $FIXTURE; a commit's "states" list is consumed one
+# entry per query, so a test can make a run go from pending to finished.
+import json, os, sys, subprocess, re
+fx = json.load(open(os.environ["FIXTURE"]))
+args = sys.argv[1:]
+assert args[0] == "api"
+path = args[1]
+jq = args[args.index("--jq")+1] if "--jq" in args else "."
+m = re.match(r"repos/[^/]+/[^/]+/commits/([0-9a-f]+)/check-runs", path)
+calls_file = os.environ["FIXTURE"] + ".calls"
+calls = json.load(open(calls_file)) if os.path.exists(calls_file) else {}
+if m:
+    sha = m.group(1); c = fx[sha]
+    n = calls.get(sha, 0); calls[sha] = n + 1; json.dump(calls, open(calls_file, "w"))
+    states = c.get("states", [])
+    st = states[min(n, len(states)-1)] if states else None
+    runs = [] if st is None else [{"started_at":"2026-01-01T00:00:00Z","status": "in_progress" if st=="pending" else "completed","conclusion": None if st=="pending" else st}]
+    data = {"check_runs": runs}
+else:
+    sha = re.match(r"repos/[^/]+/[^/]+/commits/([0-9a-f]+)$", path).group(1); c = fx[sha]
+    data = {"parents": ([{"sha": c["parent"]}] if c.get("parent") else []), "files": [{"filename": f} for f in c.get("files", ["app/x.kt"])]}
+out = subprocess.run(["jq", "-r", jq], input=json.dumps(data), capture_output=True, text=True)
+sys.stdout.write(out.stdout); sys.exit(out.returncode)

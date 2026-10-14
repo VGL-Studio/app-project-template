@@ -23,7 +23,7 @@ AI chuyển trạng thái phiên sang `running` và kiểm tra:
 
 | Điều kiện | Không thỏa thì |
 | --- | --- |
-| Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có PR nào mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
 | Các ticket phụ thuộc đã `on-staging`, hoặc được merge trước đó trong cùng phiên | Bỏ qua task, ghi lý do |
@@ -41,7 +41,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 | 5. Kiểm tra cục bộ | Build, lint, unit test, screenshot test, quy tắc phụ thuộc module, đối chiếu danh sách file | Sẵn sàng rà soát |
 | 6. Rà soát độc lập | Phiên AI khác rà soát thay đổi | Danh sách điểm phát hiện đã xử lý |
 | 7. Commit và đẩy | Commit theo quy ước, đẩy nhánh, mở PR | PR liên kết tới plan |
-| 8. CI đầy đủ | `pr-check.yml` chạy cổng chất lượng, thêm test trên emulator khi PR chạm vào giao diện | CI xanh |
+| 8. CI đầy đủ | `pr-check.yml` chạy cổng chất lượng, thêm test trên emulator khi PR chạm vào code chạy trong app | CI xanh |
 | 9. Merge | Merge bằng `scripts/merge-if-green.sh` | Nhánh chính có thay đổi của task |
 | 10. Ghi nhật ký | Ghi vào cuối plan, cập nhật trạng thái | Người đọc được kết quả |
 
@@ -52,7 +52,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 - Test nào qua ngay khi chưa có code là test không kiểm tra gì, phải viết lại.
 - Commit test riêng, trước commit code, để lịch sử cho thấy test có trước.
 - Chỉ được bỏ qua bước này với phần thay đổi nằm trong mục ngoại lệ đã được người duyệt đồng ý trong plan.
-- Screenshot test cho màn hình mới: tạo ảnh chuẩn mới và đánh dấu trong báo cáo để người xem. Ảnh chuẩn của màn hình cũ chỉ được cập nhật khi plan nêu rõ.
+- Screenshot test cho màn hình mới: mỗi lệnh `captureRoboImage` ghi rõ đường dẫn ảnh, dạng `"src/test/screenshots/<Ten>.png"`. Chạy cục bộ, `scripts/check.sh` tự ghi ảnh chuẩn cho những ảnh còn thiếu và giữ nguyên ảnh đã có. Commit ảnh chuẩn cùng PR (CI báo lỗi cho từng ảnh thiếu) và đánh dấu trong báo cáo để người xem. Ảnh chuẩn của màn hình cũ chỉ được cập nhật khi plan nêu rõ.
 
 ### Bước 4. Viết code
 
@@ -61,7 +61,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 ### Bước 5. Kiểm tra cục bộ
 
-- Chạy build, ktlint, detekt, Android Lint, unit test, screenshot test và kiểm tra quy tắc phụ thuộc module.
+- Chạy `scripts/check.sh`. Script gồm quy tắc phụ thuộc module, ktlint, unit test, test giao diện trên JVM, screenshot test, Android Lint và build bản staging. CI dùng đúng script này, nên qua ở bước 5 thì thường cũng qua ở bước 8.
 - So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Có file ngoài danh sách thì dừng task.
 
 ### Bước 6. Rà soát độc lập
@@ -103,7 +103,7 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 - Chỉ merge bằng `scripts/merge-if-green.sh <số PR>`. Script tự kiểm tra mọi điều kiện của cổng chất lượng và từ chối merge nếu thiếu điều kiện nào (ADR-0010). AI không merge bằng bất kỳ cách nào khác.
 - Script báo nhánh chưa cập nhật theo nhánh chính thì cập nhật nhánh, đợi CI chạy lại rồi gọi lại script.
 - Script từ chối vì lý do khác thì không tìm cách vượt qua, mà dừng task và ghi lý do vào nhật ký.
-- Trước khi bắt đầu task tiếp theo, kiểm tra lại không có PR nào mang nhãn `main-broken`. Có thì kết thúc phiên.
+- Trước khi bắt đầu task tiếp theo, kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Có thì kết thúc phiên.
 
 ### Bước 10. Ghi nhật ký
 
@@ -122,7 +122,7 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 | Hết task trong danh sách, hoặc đạt số task tối đa | Không có |
 | Gần đến thời điểm muốn có bản staging, không đủ thời gian cho task tiếp theo | Không bắt đầu task mới |
 | Hết hạn mức sử dụng | Commit phần đang làm vào nhánh của task, không merge, ghi nhật ký |
-| Nhánh chính đỏ sau một lần merge (xuất hiện PR mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào |
+| Nhánh chính đỏ sau một lần merge (xuất hiện issue mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào |
 
 Sau đó AI:
 

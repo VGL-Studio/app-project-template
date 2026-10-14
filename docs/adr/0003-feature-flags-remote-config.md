@@ -14,8 +14,10 @@ Mọi thứ AI làm ra trong mỗi phiên tự chạy đều vào nhánh chính,
 
 ## Quyết định
 
-- Tính năng chưa được duyệt phát hành nằm sau cờ tính năng, mặc định tắt trong bản production.
+- Tính năng chưa được duyệt phát hành nằm sau cờ tính năng. Mọi cờ mặc định tắt; một unit test trong `:core:config` kiểm tra điều này.
+- Để nhóm thấy tính năng đang làm, cờ được bật riêng cho bản staging qua `StagingFeatureFlagsModule` trong source set `staging` của `:app`. Bản production không có module này.
 - Cờ được quản lý tập trung trong module `:core:config`, giá trị lấy từ Firebase Remote Config.
+- `FeatureFlags.enabled(flag)` trả về một luồng giá trị (`Flow<Boolean>`), không phải giá trị đọc một lần. Remote Config tải xong sau khi app mở, nên ViewModel phải theo dõi luồng này để màn hình tự cập nhật khi cờ đổi. Khi cờ tắt, ViewModel bỏ qua mọi hành động của người dùng thuộc tính năng đó.
 - Các tham số kinh doanh có thể điều chỉnh (vị trí và tần suất quảng cáo, quảng cáo cá nhân hóa ở châu Âu) cũng đi qua Remote Config.
 
 ## Các phương án đã cân nhắc

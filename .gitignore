@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+.kotlin/
+
+# Secrets and production configuration: never commit (ADR-0007, ADR-0009)
+*.jks
+*.keystore
+keystore.properties
+release.properties
+google-services.json
+
+# CI artifacts
+build.log
