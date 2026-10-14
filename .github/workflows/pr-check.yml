@@ -103,6 +103,18 @@ jobs:
           } > comment.md
           gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file comment.md
 
+      - name: "TẠM THỜI: gửi diff của ktlintFormat (gỡ trước khi merge)"
+        if: failure() && needs.changes.outputs.code == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./gradlew --no-daemon --console=plain --continue ktlintFormat > /dev/null 2>&1 || true
+          git diff > ktlint.diff
+          if [ -s ktlint.diff ]; then
+            { echo "### ktlintFormat diff (tạm thời)"; echo '```diff'; cat ktlint.diff; echo '```'; } > fmt.md
+            gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file fmt.md
+          fi
+
       - name: Bình luận lỗi vào PR
         if: failure() && needs.changes.outputs.code == 'true'
         env:
