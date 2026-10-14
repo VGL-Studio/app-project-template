@@ -40,7 +40,7 @@ Làm theo đúng mẫu `:feature:sample`:
 4. `<Ten>ViewModel`: nhận repository, `Analytics`, `FeatureFlags`; trả `StateFlow<UiState>`; hành động của người dùng là hàm thường.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`.
-7. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, mặc định tắt.
+7. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
 8. Test, viết trước code (docs/auto-run.md, bước 3):
    - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`.
    - Test giao diện cho `<Ten>Screen` chạy bằng Robolectric.
@@ -58,6 +58,6 @@ Làm theo đúng mẫu `:feature:sample`:
 
 - Không sửa `.github/`, `scripts/check.sh`, `scripts/merge-if-green.sh`, `build-logic/` hay `gradle/libs.versions.toml`, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo.
 - Không thêm quyền truy cập vào `AndroidManifest.xml`, không thêm SDK, vị trí quảng cáo hay sự kiện phân tích ngoài spec đã duyệt.
-- Không merge bằng cách nào khác ngoài `scripts/merge-if-green.sh`.
+- Không merge bằng cách nào khác ngoài `scripts/merge-if-green.sh`. Không đóng, sửa hay bình luận để gỡ issue mang nhãn `main-broken`.
 - Không đọc, in ra hay chuyển đi bí mật của repo. Không tạo hay sửa cấu hình production (ADR-0007, ADR-0009).
 - Không làm cho test qua bằng cách sửa test, xóa test, cập nhật ảnh chuẩn screenshot ngoài plan, hay tắt quy tắc lint.

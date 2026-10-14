@@ -20,11 +20,13 @@ Khi dựng khung dự án mẫu, cần chốt phiên bản công cụ build, cá
 - minSdk 26, compileSdk và targetSdk 36.
 - Chưa dùng Android Gradle Plugin 9 vì thay đổi lớn về cấu hình Kotlin. Nâng cấp là một plan rủi ro cao riêng.
 
+**Một lần gọi Gradle:** `scripts/check.sh` gọi Gradle đúng một lần cho toàn bộ kiểm tra, nên unit test chỉ chạy một lần (task Roborazzi dùng lại lần chạy đó).
+
 **Một script cho mọi nơi:** `scripts/check.sh` là cổng chất lượng trên JVM, gồm quy tắc phụ thuộc module, ktlint, unit test, test giao diện Robolectric, screenshot test Roborazzi, Android Lint và build bản staging. AI chạy script này ở bước 5, CI chạy đúng script này trong `pr-check.yml` và `main-guard.yml`.
 
 **Định dạng code:** ktlint theo kiểu Android Studio, cho phép dấu phẩy cuối danh sách, độ dài dòng tối đa 120 ký tự (xem `.editorconfig`). Chạy `./gradlew ktlintFormat` để tự sửa.
 
-**Screenshot test:** ảnh chuẩn lưu ở `src/test/screenshots/` của từng module. Có ảnh chuẩn thì CI so sánh; chưa có thì CI ghi ảnh mới và cảnh báo. Ảnh chuẩn mới hoặc thay đổi phải được người xem trước khi merge.
+**Screenshot test:** ảnh chuẩn lưu ở `src/test/screenshots/` của từng module, xét riêng từng module có test chụp màn hình. Module có ảnh chuẩn thì so sánh. Module chưa có ảnh chuẩn: CI báo lỗi, vì ảnh chuẩn phải được commit cùng PR; chạy cục bộ (người hoặc AI) thì ghi ảnh chuẩn mới để xem và commit. CI không bao giờ tự ghi ảnh chuẩn, để không có trường hợp CI luôn xanh mà không so sánh gì. Ảnh chuẩn mới hoặc thay đổi phải được người xem trước khi merge.
 
 **Bắt buộc `pipefail` trong CI:** mọi workflow đặt `defaults.run.shell: bash`. Nếu không, GitHub Actions chạy bash không có `pipefail`, và lệnh `scripts/check.sh | tee build.log` luôn báo thành công kể cả khi build hỏng. Lỗi này đã xảy ra thật khi dựng khung và được phát hiện nhờ kiểm tra log.
 

@@ -1,17 +1,28 @@
 package com.vglstudio.template.core.config
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DefaultFeatureFlagsTest {
-    private val flags = DefaultFeatureFlags()
+    @Test
+    fun everyFlag_isOffByDefault() {
+        // Rule (ADR-0003): a feature stays hidden in production until it is approved for release.
+        FeatureFlag.entries.forEach { flag ->
+            assertFalse("Flag ${flag.name} must default to off", flag.defaultValue)
+        }
+    }
 
     @Test
-    fun everyFlag_returnsItsDefaultValue() {
-        FeatureFlag.entries.forEach { flag ->
-            assertEquals(flag.defaultValue, flags.isEnabled(flag))
-        }
+    fun withoutLocalOverrides_everyFlagIsOff() {
+        val flags = DefaultFeatureFlags(locallyEnabled = emptySet())
+        FeatureFlag.entries.forEach { flag -> assertFalse(flags.isEnabled(flag)) }
+    }
+
+    @Test
+    fun locallyEnabledFlag_isOn() {
+        val flags = DefaultFeatureFlags(locallyEnabled = setOf(FeatureFlag.SAMPLE))
+        assertTrue(flags.isEnabled(FeatureFlag.SAMPLE))
     }
 
     @Test

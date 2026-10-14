@@ -1,6 +1,8 @@
 # Gác nhánh chính (ADR-0010). Chạy lại cổng chất lượng trên JVM sau mỗi lần nhánh chính thay đổi.
-# Nếu đỏ: tạo issue gắn nhãn main-broken (phiên tự chạy và merge-if-green.sh sẽ dừng)
-# và đẩy sẵn nhánh revert/<commit> chứa commit revert.
+# - Bước kiểm tra đỏ: mở issue main-broken (nếu chưa có) và đẩy sẵn nhánh revert/<commit>;
+#   nếu issue đã mở thì chỉ ghi thêm bình luận, không tạo issue trùng.
+# - Bước kiểm tra xanh: tự đóng các issue main-broken đang mở.
+# - Lỗi hạ tầng (checkout, cài Java, mạng) không bị coi là nhánh chính đỏ.
 # Thay đổi file này là plan rủi ro cao, bắt buộc duyệt chéo.
 name: main-guard
 
@@ -41,34 +43,62 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Cổng chất lượng (scripts/check.sh)
+        id: check
         run: scripts/check.sh 2>&1 | tee build.log
 
       - name: Đánh dấu nhánh chính đang đỏ
-        if: failure()
+        # Chỉ khi chính bước kiểm tra thất bại, không phải khi một bước hạ tầng phía trước lỗi.
+        if: failure() && steps.check.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           short="${GITHUB_SHA::7}"
+          gh label create main-broken --color B60205 --description "Nhánh chính không qua cổng chất lượng" --force
+          log_tail="$(tail -n 60 build.log 2>/dev/null || echo 'Không có build.log.')"
+          open_issue="$(gh issue list --label main-broken --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "${open_issue}" ]; then
+            # Nhánh chính đã đỏ từ trước: chỉ ghi thêm, không tạo issue hay nhánh revert mới.
+            {
+              echo "Commit ${GITHUB_SHA} vẫn không qua cổng chất lượng."
+              echo '```'
+              echo "${log_tail}"
+              echo '```'
+            } > comment.md
+            gh issue comment "${open_issue}" --body-file comment.md
+            exit 0
+          fi
+
+          # Lần đầu nhánh chính đỏ: tạo issue trước, rồi mới thử đẩy nhánh revert.
+          {
+            echo "Commit ${GITHUB_SHA} làm nhánh chính không qua cổng chất lượng."
+            echo
+            echo "Khi issue này còn mở, phiên tự chạy dừng và \`scripts/merge-if-green.sh\` từ chối mọi PR."
+            echo "Người phụ trách quyết định revert hay sửa tiếp, đóng issue này rồi merge bản revert hoặc bản sửa."
+            echo "Issue tự đóng khi một lần chạy main-guard sau đó xanh."
+            echo
+            echo '```'
+            echo "${log_tail}"
+            echo '```'
+          } > body.md
+          issue_url="$(gh issue create --title "main-broken: ${short}" --label main-broken --body-file body.md)"
+
           branch="revert/${short}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "${branch}"
           if git revert --no-edit "${GITHUB_SHA}" && git push origin "${branch}"; then
-            revert_note="Nhánh \`${branch}\` đã có sẵn commit revert. Mở PR từ nhánh này nếu quyết định revert."
+            note="Nhánh \`${branch}\` đã có sẵn commit revert. Mở PR từ nhánh này nếu quyết định revert."
           else
-            revert_note="Không tự revert được, cần sửa tay."
+            note="Không tự revert được, cần sửa tay."
           fi
-          gh label create main-broken --color B60205 --description "Nhánh chính không qua cổng chất lượng" --force
-          {
-            echo "Commit ${GITHUB_SHA} làm nhánh chính không qua cổng chất lượng."
-            echo
-            echo "${revert_note}"
-            echo
-            echo "Khi issue này còn mở, phiên tự chạy dừng và \`scripts/merge-if-green.sh\` từ chối mọi PR, trừ PR từ nhánh \`revert/\`."
-            echo "Đóng issue sau khi nhánh chính xanh trở lại."
-            echo
-            echo '```'
-            tail -n 60 build.log
-            echo '```'
-          } > body.md
-          gh issue create --title "main-broken: ${short}" --label main-broken --body-file body.md
+          gh issue comment "${issue_url}" --body "${note}"
+
+      - name: Đóng issue main-broken khi nhánh chính xanh trở lại
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for n in $(gh issue list --label main-broken --state open --json number --jq '.[].number'); do
+            gh issue close "${n}" --comment "Nhánh chính xanh trở lại tại commit ${GITHUB_SHA}."
+          done

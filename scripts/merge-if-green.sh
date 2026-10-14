@@ -23,10 +23,16 @@ SKIPPABLE_CHECKS=("ui-test")
 die()  { echo "TỪ CHỐI: $*" >&2; exit 1; }
 wait_() { echo "CHƯA XONG: $*" >&2; exit 2; }
 
-[[ $# -ge 1 && "$1" =~ ^[0-9]+$ ]] || die "tham số đầu tiên phải là số PR."
-PR="$1"
+# Tham số được kiểm tra chặt: bất kỳ tham số lạ nào (kể cả gõ sai --dry-run) đều bị từ chối,
+# để không bao giờ merge thật khi người gọi chỉ muốn chạy thử.
 DRY_RUN="no"
-[[ "${2:-}" == "--dry-run" ]] && DRY_RUN="yes"
+case "$#" in
+  1) ;;
+  2) [[ "$2" == "--dry-run" ]] || die "tham số thứ hai không hợp lệ: '$2'. Chỉ chấp nhận --dry-run." ; DRY_RUN="yes" ;;
+  *) die "cách dùng: scripts/merge-if-green.sh <số PR> [--dry-run]" ;;
+esac
+[[ "$1" =~ ^[0-9]+$ ]] || die "tham số đầu tiên phải là số PR, nhận được '$1'."
+PR="$1"
 
 command -v gh >/dev/null || die "không tìm thấy gh."
 command -v jq >/dev/null || die "không tìm thấy jq."
@@ -48,11 +54,11 @@ TITLE="$(jq -r .title <<<"$PR_JSON")"
 [[ "$DRAFT" == "false" ]] || die "PR #$PR đang là bản nháp."
 [[ "$BASE" == "$BASE_BRANCH" ]] || die "PR #$PR nhắm vào '$BASE', không phải '$BASE_BRANCH'."
 
-# Nhánh chính đang có sự cố (issue hoặc PR mang nhãn main-broken, do main-guard.yml tạo)
-# thì không merge thêm gì, trừ PR sửa sự cố đi từ nhánh revert/.
+# Nhánh chính đang có sự cố (issue mang nhãn main-broken, do main-guard.yml tạo) thì không merge gì,
+# không có ngoại lệ. Muốn merge bản sửa hay bản revert, người phải chủ động đóng issue trước (ADR-0010).
 BROKEN="$(gh api "repos/$REPO/issues?state=open&labels=main-broken&per_page=10" --jq '[.[].number] | join(",")')"
-if [[ -n "$BROKEN" && "$HEAD_REF" != revert/* ]]; then
-  die "nhánh chính đang đỏ (mục mang nhãn main-broken: #$BROKEN). Xử lý xong rồi mới merge tiếp."
+if [[ -n "$BROKEN" ]]; then
+  die "nhánh chính đang đỏ (mục mang nhãn main-broken: #$BROKEN). Người phụ trách xử lý và đóng mục đó rồi mới merge tiếp."
 fi
 
 # Nhánh của PR phải chứa commit mới nhất của nhánh chính.

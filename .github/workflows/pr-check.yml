@@ -31,6 +31,9 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # code: mọi thứ ảnh hưởng tới build hoặc tới cổng chất lượng.
+          # ui: mọi thứ chạy trong app hoặc ảnh hưởng tới cách app được build (kể cả core không có giao diện,
+          #     vì lỗi ở đó vẫn có thể làm app hỏng lúc khởi động).
           filters: |
             code:
               - 'app/**'
@@ -41,16 +44,19 @@ jobs:
               - '*.gradle.kts'
               - 'gradle.properties'
               - 'gradlew'
+              - '.editorconfig'
               - 'scripts/check.sh'
+              - 'scripts/test-summary.sh'
               - '.github/workflows/pr-check.yml'
             ui:
               - 'app/**'
+              - 'core/**'
               - 'feature/**'
-              - 'core/designsystem/**'
-              - 'core/ads/**'
               - 'build-logic/**'
               - 'gradle/**'
               - '*.gradle.kts'
+              - 'gradle.properties'
+              - 'gradlew'
               - '.github/workflows/pr-check.yml'
 
   build-and-test:
