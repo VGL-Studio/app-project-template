@@ -41,13 +41,14 @@ for dir in core/*/ feature/*/; do
   dir="${dir%/}"
   [ -f "${dir}/build.gradle.kts" ] || continue
   [ -d "${dir}/src/test" ] || continue
-  calls="$(grep -rho 'captureRoboImage(' "${dir}/src/test" | wc -l | tr -d ' ')"
+  # grep exits 1 when nothing matches; under pipefail that must not stop the script.
+  calls="$({ grep -rho 'captureRoboImage(' "${dir}/src/test" || true; } | wc -l | tr -d ' ')"
   [ "${calls}" -gt 0 ] || continue
   module=":${dir//\//:}"
 
-  expected="$(grep -rhoE 'captureRoboImage\("src/test/screenshots/[^"]+\.png"' "${dir}/src/test" \
+  expected="$({ grep -rhoE 'captureRoboImage\("src/test/screenshots/[^"]+\.png"' "${dir}/src/test" || true; } \
     | sed -E 's/^captureRoboImage\("//; s/"$//' | sort -u)"
-  named="$(grep -rhoE 'captureRoboImage\("src/test/screenshots/[^"]+\.png"' "${dir}/src/test" | wc -l | tr -d ' ')"
+  named="$({ grep -rhoE 'captureRoboImage\("src/test/screenshots/[^"]+\.png"' "${dir}/src/test" || true; } | wc -l | tr -d ' ')"
   if [ "${named}" -ne "${calls}" ]; then
     echo "::error::${module}: mọi captureRoboImage phải ghi rõ đường dẫn \"src/test/screenshots/<Tên>.png\" (ADR-0011)."
     exit 1
