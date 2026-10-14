@@ -1,7 +1,7 @@
 ---
 id: ADR-0013
 title: Quảng cáo AdMob chỉ khởi động sau hộp thoại đồng ý UMP, mã quảng cáo production đưa vào lúc build phát hành
-status: proposed
+status: accepted
 date: 2026-10-15
 deciders: [Nhóm phát triển]
 ---
