@@ -85,6 +85,19 @@ jobs:
             **/build/outputs/roborazzi/
             **/src/test/screenshots/*.png
 
+      - name: "TẠM THỜI: bình luận log khi thành công (gỡ trước khi merge)"
+        if: success() && needs.changes.outputs.code == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### build-and-test log (tạm thời)"
+            echo '```'
+            grep -E "^== |Task .*(test|Test|Roborazzi|lint)|tests completed|Test JVM|BUILD|warning::|NO-SOURCE|SKIPPED" build.log | head -n 150
+            echo '```'
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file comment.md
+
       - name: Bình luận lỗi vào PR
         if: failure() && needs.changes.outputs.code == 'true'
         env:
