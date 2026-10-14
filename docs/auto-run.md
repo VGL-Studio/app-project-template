@@ -13,8 +13,9 @@ Bốn nguyên tắc của phiên tự chạy:
 
 1. Sau họp đánh giá rủi ro, AI lập danh sách chạy `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md): các plan đã duyệt, thứ tự chạy, số task tối đa, thời điểm muốn có bản staging (nếu có).
 2. Dev xem lại danh sách, chuyển trạng thái sang `approved`.
-3. Dev kích hoạt phiên: chạy ngay, hoặc hẹn giờ bắt đầu (ví dụ để rơi vào lúc hạn mức sử dụng được làm mới).
-4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge thủ công vào nhánh chính.
+3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine.
+4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính.
+5. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
 ## 2. Kiểm tra đầu phiên
 
@@ -22,7 +23,7 @@ AI chuyển trạng thái phiên sang `running` và kiểm tra:
 
 | Điều kiện | Không thỏa thì |
 | --- | --- |
-| Nhánh chính đang xanh (lần CI gần nhất qua) | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có PR nào mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
 | Các ticket phụ thuộc đã `on-staging`, hoặc được merge trước đó trong cùng phiên | Bỏ qua task, ghi lý do |
@@ -33,15 +34,15 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 | Bước | Việc làm | Kết quả |
 | --- | --- | --- |
-| 1. Tạo nhánh | Tạo nhánh `ai/T-NNN-<tu-khoa>` từ nhánh chính mới nhất | Nhánh riêng của task |
+| 1. Tạo nhánh | Tạo nhánh `claude/T-NNN-<tu-khoa>` từ nhánh chính mới nhất | Nhánh riêng của task |
 | 2. Đọc tài liệu | Đọc theo thứ tự trong [CLAUDE.md](CLAUDE.md) | Đủ ngữ cảnh |
 | 3. Viết test trước | Viết test theo mục Kiểm thử của plan, chạy và xác nhận test thất bại đúng lý do | Commit chứa test |
 | 4. Viết code | Viết code cho đến khi test qua, chỉ trong danh sách file của plan | Code chạy được |
 | 5. Kiểm tra cục bộ | Build, lint, unit test, screenshot test, quy tắc phụ thuộc module, đối chiếu danh sách file | Sẵn sàng rà soát |
 | 6. Rà soát độc lập | Phiên AI khác rà soát thay đổi | Danh sách điểm phát hiện đã xử lý |
 | 7. Commit và đẩy | Commit theo quy ước, đẩy nhánh, mở PR | PR liên kết tới plan |
-| 8. CI đầy đủ | Thêm test giao diện trên emulator | CI xanh |
-| 9. Merge | Merge vào nhánh chính | Nhánh chính có thay đổi của task |
+| 8. CI đầy đủ | `pr-check.yml` chạy cổng chất lượng, thêm test trên emulator khi PR chạm vào giao diện | CI xanh |
+| 9. Merge | Merge bằng `scripts/merge-if-green.sh` | Nhánh chính có thay đổi của task |
 | 10. Ghi nhật ký | Ghi vào cuối plan, cập nhật trạng thái | Người đọc được kết quả |
 
 ### Bước 3. Viết test trước
@@ -88,18 +89,21 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 
 ### Bước 7. Commit và đẩy
 
-- Nội dung commit theo dạng `<loại>(T-NNN): <mô tả ngắn>`, với loại là `test`, `feat`, `fix`, `refactor` hoặc `docs`.
-- PR có tiêu đề `T-NNN: <tên task>`, phần mô tả gồm đường dẫn tới plan, tóm tắt thay đổi và kết quả rà soát độc lập.
+- Nội dung commit theo dạng `<loại>(T-NNN): <mô tả ngắn>`, với loại là `test`, `feat`, `fix`, `refactor` hoặc `docs`. Mỗi commit có dòng `Co-Authored-By: Claude`.
+- PR có tiêu đề `T-NNN: <tên task>`, phần mô tả gồm đường dẫn tới plan, tóm tắt thay đổi, kết quả rà soát độc lập và đường dẫn tới phiên chạy. Vì PR mang tên tài khoản của người, các dấu hiệu này giúp phân biệt việc của AI.
 
 ### Bước 8. CI đầy đủ
 
-- CI chạy toàn bộ kiểm tra ở bước 5, thêm test giao diện trên emulator.
+- `pr-check.yml` chạy toàn bộ kiểm tra ở bước 5. Test trên emulator chỉ chạy khi PR chạm vào code giao diện hoặc test giao diện (ADR-0010).
+- AI theo dõi kết quả CI qua GitHub cho đến khi mọi kiểm tra kết thúc.
 - CI đỏ thì AI đọc log để phân biệt lỗi thật với lỗi chập chờn. Lỗi chập chờn được chạy lại một lần. Lỗi thật thì quay lại bước 4, tối đa 3 lần cho cùng một lỗi, sau đó dừng task.
 
 ### Bước 9. Merge
 
-- CI xanh thì merge vào nhánh chính theo kiểu gộp một commit (squash).
-- Nếu nhánh chính đã thay đổi kể từ khi tạo nhánh, cập nhật nhánh theo nhánh chính và chạy lại CI trước khi merge.
+- Chỉ merge bằng `scripts/merge-if-green.sh <số PR>`. Script tự kiểm tra mọi điều kiện của cổng chất lượng và từ chối merge nếu thiếu điều kiện nào (ADR-0010). AI không merge bằng bất kỳ cách nào khác.
+- Script báo nhánh chưa cập nhật theo nhánh chính thì cập nhật nhánh, đợi CI chạy lại rồi gọi lại script.
+- Script từ chối vì lý do khác thì không tìm cách vượt qua, mà dừng task và ghi lý do vào nhật ký.
+- Trước khi bắt đầu task tiếp theo, kiểm tra lại không có PR nào mang nhãn `main-broken`. Có thì kết thúc phiên.
 
 ### Bước 10. Ghi nhật ký
 
@@ -118,11 +122,11 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 | Hết task trong danh sách, hoặc đạt số task tối đa | Không có |
 | Gần đến thời điểm muốn có bản staging, không đủ thời gian cho task tiếp theo | Không bắt đầu task mới |
 | Hết hạn mức sử dụng | Commit phần đang làm vào nhánh của task, không merge, ghi nhật ký |
-| Nhánh chính đỏ sau một lần merge | Dừng ngay, không làm thêm task nào |
+| Nhánh chính đỏ sau một lần merge (xuất hiện PR mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào |
 
 Sau đó AI:
 
-1. Build bản staging từ nhánh chính, nếu trong phiên có ít nhất một task được merge, và phát cho nhóm qua kênh staging.
+1. Nếu trong phiên có ít nhất một task được merge, khởi động workflow `staging.yml` để build bản staging từ nhánh chính và phát cho nhóm qua Firebase App Distribution, rồi chờ workflow kết thúc.
 2. Viết báo cáo phiên vào file danh sách chạy.
 3. Chuyển trạng thái phiên sang `finished`.
 
@@ -139,8 +143,11 @@ Báo cáo phiên là thứ dev đọc đầu tiên khi bắt đầu làm việc 
 ## 6. Vùng an toàn của phiên
 
 - Phiên chỉ có cấu hình staging. Không có mã quảng cáo thật, cấu hình Firebase production, khóa R2 production hay khóa ký ứng dụng.
-- Phiên không đẩy thẳng lên nhánh chính. Mọi thay đổi đi qua nhánh của task, PR và CI.
-- Phiên không sửa cấu hình CI, quy tắc bảo vệ nhánh hay quyền truy cập, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo.
+- Phiên không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo. Bí mật trên GitHub chỉ gồm cấu hình staging và mã kích hoạt routine.
+- Phiên không chạm vào `scripts/release.sh`. Phát hành production do người làm từ máy của mình (ADR-0009).
+- Phiên không đẩy thẳng lên nhánh chính. Mọi thay đổi đi qua nhánh của task, PR, CI và script merge.
+- Phiên không sửa `.github/`, `scripts/merge-if-green.sh` hay quyền truy cập, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo.
+- Vì repo dùng gói GitHub Free, GitHub không chặn merge ở mức hệ thống. Lớp bảo vệ là script merge và workflow `main-guard.yml` (ADR-0010).
 - Mọi việc phiên làm đều để lại dấu vết trong nhánh, PR, nhật ký plan và báo cáo phiên.
 
 ## 7. Những điểm sẽ hiệu chỉnh

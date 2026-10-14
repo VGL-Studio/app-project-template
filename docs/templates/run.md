@@ -27,7 +27,7 @@ staging_build:               # phiên bản bản staging được phát cuối 
 
 <!-- AI điền khi bắt đầu phiên. -->
 
-- [ ] Nhánh chính đang xanh.
+- [ ] Nhánh chính đang xanh, không có PR mang nhãn `main-broken`.
 - [ ] Mọi plan và ticket trong danh sách có trạng thái `approved`.
 - [ ] Các ticket phụ thuộc đã sẵn sàng.
 
