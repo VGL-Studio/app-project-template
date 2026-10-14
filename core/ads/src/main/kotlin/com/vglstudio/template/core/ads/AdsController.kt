@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -187,14 +189,22 @@ class AdsController @Inject internal constructor(
                 // Google recommends starting the SDK off the main thread.
                 withContext(Dispatchers.IO) { MobileAds.initialize(context) }
                 _canRequestAds.value = true
-                AdPlacement.entries.filter { it.format == AdFormat.INTERSTITIAL }.forEach(::preloadInterstitial)
+                AdPlacement.entries.filter { it.format == AdFormat.INTERSTITIAL }.forEach(::preloadWhenEnabled)
             }
+        }
+    }
+
+    /** Placements are off by default (ADR-0014): load an ad only once the placement is switched on remotely. */
+    private fun preloadWhenEnabled(placement: AdPlacement) {
+        scope.launch {
+            isEnabled(placement).distinctUntilChanged().filter { it }.collect { preloadInterstitial(placement) }
         }
     }
 
     private fun preloadInterstitial(placement: AdPlacement) {
         val unitId = unitId(placement) ?: return
         scope.launch {
+            if (placement in loadedInterstitials || !isEnabled(placement).first()) return@launch
             InterstitialAd.load(
                 context,
                 unitId,
