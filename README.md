@@ -18,6 +18,7 @@ Dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo 
 | Các quyết định kỹ thuật | [docs/adr/](docs/adr/) |
 | Hướng dẫn cho AI về code | [CLAUDE.md](CLAUDE.md) |
 | Hướng dẫn cho AI về tài liệu | [docs/CLAUDE.md](docs/CLAUDE.md) |
+| Phần còn phải làm của dự án mẫu | [TEMPLATE-ROADMAP.md](TEMPLATE-ROADMAP.md) |
 
 ## Merge
 
