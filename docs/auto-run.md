@@ -52,7 +52,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 - Test nào qua ngay khi chưa có code là test không kiểm tra gì, phải viết lại.
 - Commit test riêng, trước commit code, để lịch sử cho thấy test có trước.
 - Chỉ được bỏ qua bước này với phần thay đổi nằm trong mục ngoại lệ đã được người duyệt đồng ý trong plan.
-- Screenshot test cho màn hình mới: `scripts/check.sh` tự ghi ảnh chuẩn cho module chưa có ảnh. Commit ảnh chuẩn cùng PR (CI báo lỗi nếu thiếu) và đánh dấu trong báo cáo để người xem. Ảnh chuẩn của màn hình cũ chỉ được cập nhật khi plan nêu rõ.
+- Screenshot test cho màn hình mới: mỗi lệnh `captureRoboImage` ghi rõ đường dẫn ảnh, dạng `"src/test/screenshots/<Ten>.png"`. Chạy cục bộ, `scripts/check.sh` tự ghi ảnh chuẩn cho những ảnh còn thiếu và giữ nguyên ảnh đã có. Commit ảnh chuẩn cùng PR (CI báo lỗi cho từng ảnh thiếu) và đánh dấu trong báo cáo để người xem. Ảnh chuẩn của màn hình cũ chỉ được cập nhật khi plan nêu rõ.
 
 ### Bước 4. Viết code
 

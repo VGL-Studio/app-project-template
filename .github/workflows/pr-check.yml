@@ -1,6 +1,6 @@
-# Cổng chất lượng cho mọi PR vào nhánh chính (ADR-0002, ADR-0010).
-# Tên các job (changes, build-and-test, ui-test) được scripts/merge-if-green.sh kiểm tra: đổi tên phải sửa cả hai nơi.
-# Thay đổi file này là plan rủi ro cao, bắt buộc duyệt chéo.
+# Quality gate for every PR into main (ADR-0002, ADR-0010).
+# Job names (changes, build-and-test, ui-test) are checked by scripts/merge-if-green.sh: rename in both places.
+# Changing this file is a high-risk plan and needs cross-review.
 name: pr-check
 
 on:
@@ -11,7 +11,7 @@ concurrency:
   group: pr-check-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# Bắt buộc: shell bash có pipefail, để `lệnh | tee log` vẫn báo lỗi khi lệnh thất bại.
+# Required: bash with pipefail, so `command | tee log` still fails when the command fails.
 defaults:
   run:
     shell: bash
@@ -26,14 +26,14 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
       ui: ${{ steps.filter.outputs.ui }}
+    # No checkout needed: on pull_request events paths-filter reads the changed files from the API.
     steps:
-      - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-          # code: mọi thứ ảnh hưởng tới build hoặc tới cổng chất lượng.
-          # ui: mọi thứ chạy trong app hoặc ảnh hưởng tới cách app được build (kể cả core không có giao diện,
-          #     vì lỗi ở đó vẫn có thể làm app hỏng lúc khởi động).
+          # code: anything that affects the build or the quality gate itself.
+          # ui: anything that runs in the app or changes how it is built (core modules without UI too,
+          #     since a bug there can still crash the app at startup).
           filters: |
             code:
               - 'app/**'
@@ -47,6 +47,8 @@ jobs:
               - '.editorconfig'
               - 'scripts/check.sh'
               - 'scripts/test-summary.sh'
+              - 'scripts/tests/**'
+              - 'scripts/find-breaking-commit.sh'
               - '.github/workflows/pr-check.yml'
             ui:
               - 'app/**'
@@ -57,6 +59,7 @@ jobs:
               - '*.gradle.kts'
               - 'gradle.properties'
               - 'gradlew'
+              - 'scripts/test-summary.sh'
               - '.github/workflows/pr-check.yml'
 
   build-and-test:
@@ -148,28 +151,7 @@ jobs:
 
       - name: Tóm tắt test trên emulator
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          t=0; f=0
-          while IFS= read -r -d '' xml; do
-            t=$((t + $(grep -o 'tests="[0-9]*"' "$xml" | head -1 | tr -dc 0-9)))
-            f=$((f + $(grep -o 'failures="[0-9]*"' "$xml" | head -1 | tr -dc 0-9)))
-          done < <(find app/build/outputs/androidTest-results -name '*.xml' -print0 2>/dev/null)
-          echo "::notice title=Tóm tắt test emulator::Test emulator: ${t} test, ${f} lỗi."
-          if [ "$t" -eq 0 ]; then
-            echo "::error::Không có test nào chạy trên emulator."
-            {
-              echo "### ui-test: không có test nào chạy"
-              echo '```'
-              find app/build/outputs -maxdepth 4 2>/dev/null | head -n 40
-              echo "---"
-              tail -n 60 ui-test.log 2>/dev/null || echo "Không có ui-test.log."
-              echo '```'
-            } > zero.md
-            gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file zero.md
-            exit 1
-          fi
+        run: scripts/test-summary.sh android 2>&1 | tee ui-summary.log
 
       - name: Bình luận lỗi vào PR
         if: failure()
@@ -179,6 +161,8 @@ jobs:
           {
             echo "### ui-test thất bại"
             echo '```'
+            cat ui-summary.log 2>/dev/null || echo "Không có tóm tắt test."
+            echo "---"
             tail -n 80 ui-test.log 2>/dev/null || echo "Không có log."
             echo '```'
           } > comment.md

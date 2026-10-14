@@ -13,32 +13,41 @@ plugins {
 }
 
 /**
- * Module dependency rule (ADR-0001): a feature module may depend on core modules only,
- * never on another feature module. Run by scripts/check.sh and CI.
+ * Module dependency rule (ADR-0001), checked for every module except :app:
+ * - no module depends on :app or on a :feature:* module (other than itself);
+ * - a :core:* module depends on other :core:* modules only.
+ * Run by scripts/check.sh and CI.
  */
 tasks.register("checkModuleDependencies") {
     group = "verification"
-    description = "Fails if any :feature:* module depends on another :feature:* module."
+    description = "Fails if a module breaks the module dependency rule (ADR-0001)."
     val violations = provider {
         subprojects
-            .filter { it.path.startsWith(":feature:") }
-            .flatMap { feature ->
-                feature.configurations
+            .filter { it.path != ":app" }
+            .flatMap { module ->
+                val isCore = module.path.startsWith(":core:")
+                module.configurations
                     .flatMap { configuration ->
                         configuration.dependencies
                             .withType(ProjectDependency::class.java)
                             .map { it.path }
                     }
-                    .filter { it.startsWith(":feature:") && it != feature.path }
+                    .filter { it != module.path }
+                    .filter { dep ->
+                        dep == ":app" ||
+                            dep.startsWith(":feature:") ||
+                            (isCore && !dep.startsWith(":core:"))
+                    }
                     .distinct()
-                    .map { "${feature.path} -> $it" }
+                    .map { "${module.path} -> $it" }
             }
     }
     doLast {
         val found = violations.get()
         if (found.isNotEmpty()) {
             throw GradleException(
-                "Feature modules must not depend on other feature modules (ADR-0001):\n" +
+                "Module dependency rule broken (ADR-0001). Only :app may depend on features, " +
+                    "features depend only on core, core depends only on core:\n" +
                     found.joinToString("\n") { "  $it" },
             )
         }

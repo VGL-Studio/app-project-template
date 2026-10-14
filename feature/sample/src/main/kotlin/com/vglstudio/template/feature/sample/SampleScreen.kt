@@ -59,6 +59,13 @@ internal fun SampleScreen(uiState: SampleUiState, onIncrement: () -> Unit, modif
                         onClick = onIncrement,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (uiState.saveFailed) {
+                        Text(
+                            text = stringResource(R.string.sample_save_failed),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.testTag(SampleTestTags.SAVE_ERROR),
+                        )
+                    }
                 }
             }
             AdSlot(placement = AdPlacement.SAMPLE_BOTTOM_BANNER, modifier = Modifier.fillMaxWidth())
@@ -69,6 +76,7 @@ internal fun SampleScreen(uiState: SampleUiState, onIncrement: () -> Unit, modif
 internal object SampleTestTags {
     const val SCREEN = "sample_screen"
     const val COUNT = "sample_count"
+    const val SAVE_ERROR = "sample_save_error"
 }
 
 @Preview

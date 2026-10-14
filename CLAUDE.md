@@ -21,7 +21,7 @@
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
-Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDependencies`): feature chỉ phụ thuộc core, không bao giờ phụ thuộc feature khác. Cần dùng chung giữa các feature thì đề xuất đưa vào một module core.
+Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDependencies` cho mọi module): feature chỉ phụ thuộc core, không bao giờ phụ thuộc feature khác; core chỉ phụ thuộc core; không module nào phụ thuộc `:app`. Cần dùng chung giữa các feature thì đề xuất đưa vào một module core.
 
 ## Lệnh
 
@@ -38,17 +38,19 @@ Làm theo đúng mẫu `:feature:sample`:
 2. `data/`: interface repository và lớp cài đặt `internal`, gắn bằng một Hilt module trong `di/`.
 3. `<Ten>UiState`: sealed interface mô tả mọi trạng thái màn hình.
 4. `<Ten>ViewModel`: nhận repository, `Analytics`, `FeatureFlags`; trả `StateFlow<UiState>`; hành động của người dùng là hàm thường.
+   - `FeatureFlags.enabled()` là một `Flow`: theo dõi nó, không đọc một lần (ADR-0003).
+   - Ghi dữ liệu có thể ném `IOException`: bắt lỗi trong ViewModel, đưa vào `UiState` để màn hình báo cho người dùng, không để app dừng đột ngột. Luồng đọc DataStore tự thử lại khi gặp `IOException`.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`.
 7. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
 8. Test, viết trước code (docs/auto-run.md, bước 3):
    - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`.
    - Test giao diện cho `<Ten>Screen` chạy bằng Robolectric.
-   - Screenshot test bằng Roborazzi, ảnh lưu ở `src/test/screenshots/`.
+   - Screenshot test bằng Roborazzi. Mỗi lệnh `captureRoboImage` ghi rõ đường dẫn, dạng `"src/test/screenshots/<Ten>.png"`; `scripts/check.sh` báo lỗi nếu thiếu.
 
 ## Quy ước code
 
-- Tên lớp, hàm, biến và chú thích trong code viết bằng tiếng Anh. Tài liệu trong `docs/` viết bằng tiếng Việt.
+- Tên lớp, hàm, biến và chú thích trong code viết bằng tiếng Anh, kể cả chú thích trong script và workflow. Thông báo mà script in ra cho nhóm và tài liệu trong `docs/` viết bằng tiếng Việt.
 - Chữ hiển thị cho người dùng đặt trong `res/values/strings.xml`, không viết cứng trong code.
 - Màu, chữ, khoảng cách lấy từ `:core:designsystem` (`AppTheme`, `MaterialTheme`, `Spacing`). Không viết cứng mã màu hay cỡ chữ.
 - Feature không gọi trực tiếp SDK quảng cáo, phân tích hay Remote Config; luôn đi qua `:core:ads`, `:core:analytics`, `:core:config`.

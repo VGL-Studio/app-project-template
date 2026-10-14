@@ -24,14 +24,15 @@ ADR-0002 quyết định chỉ merge vào nhánh chính khi qua cổng chất l�
 
 AI không được merge bằng bất kỳ cách nào khác, kể cả nút merge, `gh pr merge` hay gọi thẳng API.
 
-**2. Gác nhánh chính sau khi merge.** Workflow `main-guard.yml` chạy lại cổng chất lượng mỗi khi nhánh chính thay đổi. Nếu đỏ:
+**2. Gác nhánh chính sau khi merge.** Workflow `main-guard.yml` chạy lại cổng chất lượng cho từng commit trên nhánh chính, kể cả khi nhiều commit vào liên tiếp (không hủy lần chạy cũ). Commit chỉ sửa tài liệu thì bỏ qua. Nếu đỏ:
 
 - Chỉ tính là đỏ khi chính bước kiểm tra thất bại. Lỗi hạ tầng (checkout, cài Java, mạng) làm workflow lỗi nhưng không đánh dấu nhánh chính đỏ.
-- Lần đầu đỏ: tạo issue gắn nhãn `main-broken` kèm đoạn cuối log, rồi đẩy sẵn nhánh `revert/<commit>` chứa commit revert. Nếu đã có issue `main-broken` đang mở thì chỉ ghi thêm bình luận, không tạo issue hay nhánh revert mới.
+- Tìm commit gây lỗi bằng `scripts/find-breaking-commit.sh`: lần ngược từ commit đỏ về commit xanh gần nhất, chờ các lần kiểm tra còn đang chạy, và lấy commit đỏ cũ nhất. Commit đỏ mới nhất chưa chắc là commit gây lỗi, nên không revert nó một cách máy móc.
+- Lần đầu đỏ: tạo issue gắn nhãn `main-broken` ghi rõ commit gây lỗi, kèm đoạn cuối log, rồi đẩy sẵn nhánh `revert/<commit>` chứa commit revert của đúng commit đó. Nếu đã có issue `main-broken` đang mở thì chỉ ghi thêm bình luận, không tạo issue hay nhánh revert mới.
 - Phiên tự chạy phát hiện issue này thì dừng ngay, theo điều kiện "nhánh chính đỏ" trong `docs/auto-run.md`.
 - Khi issue còn mở, script merge từ chối mọi PR, **không có ngoại lệ**, kể cả PR từ nhánh `revert/`. Tên nhánh không phải là bằng chứng tin cậy, ai cũng đặt được.
 - Người phụ trách quyết định revert hay sửa tiếp, chủ động đóng issue (ghi lý do), rồi merge bản revert hoặc bản sửa bằng script như mọi PR khác. AI không bao giờ đóng hay sửa issue `main-broken`.
-- Lần chạy `main-guard.yml` tiếp theo mà xanh thì tự đóng mọi issue `main-broken` còn mở. Nếu bản sửa vẫn đỏ, một issue mới được tạo.
+- Một lần chạy `main-guard.yml` xanh chỉ tự đóng issue `main-broken` khi commit xanh đó nằm sau commit gây lỗi ghi trong issue. Kết quả xanh của một commit cũ hơn, đến muộn, không đóng nhầm issue. Nếu bản sửa vẫn đỏ, một issue mới được tạo.
 
 **3. Quy ước cho người.** Không đẩy thẳng lên nhánh chính. Mọi thay đổi, kể cả tài liệu, đều đi qua PR và script merge.
 

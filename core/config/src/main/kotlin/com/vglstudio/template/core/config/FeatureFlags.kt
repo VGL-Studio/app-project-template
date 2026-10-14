@@ -1,6 +1,11 @@
 package com.vglstudio.template.core.config
 
-/** Read access to feature flags. Feature modules use this interface, never Remote Config directly. */
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * Read access to feature flags. Feature modules use this interface, never Remote Config directly.
+ * Values are flows: a value fetched remotely after start-up reaches the screen without restarting the app.
+ */
 interface FeatureFlags {
-    fun isEnabled(flag: FeatureFlag): Boolean
+    fun enabled(flag: FeatureFlag): Flow<Boolean>
 }

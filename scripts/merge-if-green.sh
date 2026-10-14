@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
-# Merge một PR vào nhánh chính, chỉ khi qua đủ cổng chất lượng (ADR-0010).
-# Đây là cách DUY NHẤT được phép merge vào nhánh chính, cho cả người và AI.
+# Merges a PR into the main branch, only when it passes the whole quality gate (ADR-0010).
+# This is the ONLY allowed way to merge into main, for people and AI alike.
 #
-# Cách dùng:   scripts/merge-if-green.sh <số PR> [--dry-run]
-#              --dry-run: chỉ kiểm tra điều kiện, không merge.
-# Mã thoát:    0 đã merge
-#              1 từ chối (thiếu điều kiện, xem thông báo)
-#              2 kiểm tra còn đang chạy, gọi lại sau
-#              3 nhánh chưa cập nhật theo nhánh chính, cần cập nhật rồi chờ CI chạy lại
+# Usage:       scripts/merge-if-green.sh <PR number> [--dry-run]
+#              --dry-run: check the conditions only, do not merge.
+# Exit codes:  0 merged
+#              1 refused (a condition is not met, see the message)
+#              2 checks still running, call again later
+#              3 branch is behind main: update it, wait for CI, then call again
 #
-# Chỉ dùng REST API của GitHub qua `gh api`.
-# Thay đổi file này là thay đổi cổng chất lượng: plan rủi ro cao, bắt buộc duyệt chéo.
+# Uses only the GitHub REST API through `gh api`.
+# Changing this file changes the quality gate: high-risk plan, cross-review required.
+# Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
 
 BASE_BRANCH="main"
-# Kiểm tra bắt buộc phải xanh. Tên trùng với tên job trong .github/workflows/pr-check.yml.
+# Checks that must be green. Names match the job names in .github/workflows/pr-check.yml.
 REQUIRED_CHECKS=("changes" "build-and-test")
-# Kiểm tra được phép ở trạng thái bỏ qua (khi PR không chạm vào giao diện).
+# Checks that may be skipped (when the PR does not touch code that runs in the app).
 SKIPPABLE_CHECKS=("ui-test")
 
 die()  { echo "TỪ CHỐI: $*" >&2; exit 1; }
 wait_() { echo "CHƯA XONG: $*" >&2; exit 2; }
 
-# Tham số được kiểm tra chặt: bất kỳ tham số lạ nào (kể cả gõ sai --dry-run) đều bị từ chối,
-# để không bao giờ merge thật khi người gọi chỉ muốn chạy thử.
+# Strict argument check: any unknown argument (including a mistyped --dry-run) is refused,
+# so a real merge never happens when the caller only wanted a dry run.
 DRY_RUN="no"
 case "$#" in
   1) ;;
@@ -37,7 +38,7 @@ PR="$1"
 command -v gh >/dev/null || die "không tìm thấy gh."
 command -v jq >/dev/null || die "không tìm thấy jq."
 
-# Lấy owner/repo từ remote origin.
+# owner/repo from the origin remote.
 REMOTE_URL="$(git config --get remote.origin.url)"
 REPO="$(echo "$REMOTE_URL" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
 [[ "$REPO" =~ ^[^/]+/[^/]+$ ]] || die "không xác định được repo từ remote: $REMOTE_URL"
@@ -54,24 +55,24 @@ TITLE="$(jq -r .title <<<"$PR_JSON")"
 [[ "$DRAFT" == "false" ]] || die "PR #$PR đang là bản nháp."
 [[ "$BASE" == "$BASE_BRANCH" ]] || die "PR #$PR nhắm vào '$BASE', không phải '$BASE_BRANCH'."
 
-# Nhánh chính đang có sự cố (issue mang nhãn main-broken, do main-guard.yml tạo) thì không merge gì,
-# không có ngoại lệ. Muốn merge bản sửa hay bản revert, người phải chủ động đóng issue trước (ADR-0010).
+# While main is broken (an open issue labelled main-broken, created by main-guard.yml), nothing is merged,
+# with no exceptions. To merge a fix or a revert, a person closes the issue first (ADR-0010).
 BROKEN="$(gh api "repos/$REPO/issues?state=open&labels=main-broken&per_page=10" --jq '[.[].number] | join(",")')"
 if [[ -n "$BROKEN" ]]; then
   die "nhánh chính đang đỏ (mục mang nhãn main-broken: #$BROKEN). Người phụ trách xử lý và đóng mục đó rồi mới merge tiếp."
 fi
 
-# Nhánh của PR phải chứa commit mới nhất của nhánh chính.
+# The PR branch must contain the latest commit of main.
 BEHIND_BY="$(gh api "repos/$REPO/compare/$BASE_BRANCH...$HEAD_SHA" --jq .behind_by)"
 if [[ "$BEHIND_BY" != "0" ]]; then
   echo "CẦN CẬP NHẬT: nhánh '$HEAD_REF' chậm $BEHIND_BY commit so với '$BASE_BRANCH'. Cập nhật nhánh, chờ CI chạy lại rồi gọi lại script." >&2
   exit 3
 fi
 
-# Kết quả các kiểm tra trên đúng commit cuối của PR.
+# Check results on the exact head commit of the PR.
 RUNS="$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs')"
 
-# Không chấp nhận bất kỳ kiểm tra nào thất bại, kể cả kiểm tra không có trong danh sách.
+# No failed check is accepted, including checks not in the lists above.
 FAILED="$(jq -r '[.[] | select(.status=="completed" and (.conclusion|IN("failure","cancelled","timed_out","action_required","startup_failure"))) | .name] | unique | join(", ")' <<<"$RUNS")"
 [[ -z "$FAILED" ]] || die "có kiểm tra không qua: $FAILED."
 
@@ -95,14 +96,14 @@ if [[ "$DRY_RUN" == "yes" ]]; then
   exit 0
 fi
 
-# Merge gộp một commit, kèm mã commit đã kiểm tra: GitHub từ chối nếu PR có commit mới.
+# Squash merge pinned to the checked sha: GitHub refuses if the PR got a new commit.
 gh api -X PUT "repos/$REPO/pulls/$PR/merge" \
   -f merge_method=squash \
   -f sha="$HEAD_SHA" \
   -f commit_title="$TITLE (#$PR)" >/dev/null \
   || die "GitHub từ chối merge PR #$PR."
 
-# Xóa nhánh đã merge nếu đó là nhánh của phiên tự chạy.
+# Delete the merged branch if it belongs to an auto-run session.
 if [[ "$HEAD_REF" == claude/* ]]; then
   gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null 2>&1 || true
 fi

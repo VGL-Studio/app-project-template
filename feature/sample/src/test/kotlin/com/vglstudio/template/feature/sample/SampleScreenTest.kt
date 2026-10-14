@@ -42,6 +42,23 @@ class SampleScreenTest {
     }
 
     @Test
+    fun whenSaveFailed_thenShowsErrorMessage() {
+        composeRule.setContent {
+            AppTheme { SampleScreen(uiState = SampleUiState.Ready(count = 2, saveFailed = true), onIncrement = {}) }
+        }
+        composeRule.onNodeWithTag(SampleTestTags.SAVE_ERROR).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.sample_save_failed)).assertIsDisplayed()
+    }
+
+    @Test
+    fun whenSaveSucceeded_thenNoErrorMessage() {
+        composeRule.setContent {
+            AppTheme { SampleScreen(uiState = SampleUiState.Ready(count = 2), onIncrement = {}) }
+        }
+        composeRule.onNodeWithTag(SampleTestTags.SAVE_ERROR).assertDoesNotExist()
+    }
+
+    @Test
     fun whenDisabled_thenShowsNotAvailableMessage() {
         composeRule.setContent {
             AppTheme { SampleScreen(uiState = SampleUiState.Disabled, onIncrement = {}) }

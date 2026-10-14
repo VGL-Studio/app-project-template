@@ -1,5 +1,7 @@
 package com.vglstudio.template.core.config
 
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,15 +16,15 @@ class DefaultFeatureFlagsTest {
     }
 
     @Test
-    fun withoutLocalOverrides_everyFlagIsOff() {
+    fun withoutLocalOverrides_everyFlagIsOff() = runTest {
         val flags = DefaultFeatureFlags(locallyEnabled = emptySet())
-        FeatureFlag.entries.forEach { flag -> assertFalse(flags.isEnabled(flag)) }
+        FeatureFlag.entries.forEach { flag -> assertFalse(flags.enabled(flag).first()) }
     }
 
     @Test
-    fun locallyEnabledFlag_isOn() {
+    fun locallyEnabledFlag_isOn() = runTest {
         val flags = DefaultFeatureFlags(locallyEnabled = setOf(FeatureFlag.SAMPLE))
-        assertTrue(flags.isEnabled(FeatureFlag.SAMPLE))
+        assertTrue(flags.enabled(FeatureFlag.SAMPLE).first())
     }
 
     @Test

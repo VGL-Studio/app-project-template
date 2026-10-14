@@ -1,33 +1,39 @@
 #!/usr/bin/env bash
-# Setup script cho môi trường cloud của routine phiên tự chạy (ADR-0009).
-# Dán nội dung file này vào ô "Setup script" của cloud environment.
-# Yêu cầu mức mạng Custom: danh sách mặc định + dl.google.com.
-# Môi trường đã có sẵn JDK 21 và Gradle; script chỉ cài Android SDK.
+# Setup script for the cloud environment of the auto-run routine (ADR-0009).
+# Paste this file into the "Setup script" field of the cloud environment.
+# Needs the Custom network level: the default allowlist plus dl.google.com.
+# The environment already ships JDK and Gradle; this script only installs the Android SDK.
+# Safe to run any number of times: every step checks what is already there.
 
 set -euo pipefail
 
 SDK_ROOT="${HOME}/android-sdk"
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-13114758_latest.zip"
+SDKMANAGER="${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
 
-if [ ! -x "${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" ]; then
+if [ ! -x "${SDKMANAGER}" ]; then
+  # Download and unpack in a temp dir, then move into place in one step,
+  # so a failed earlier run never leaves a half-installed directory behind.
+  work_dir="$(mktemp -d)"
+  trap 'rm -rf "${work_dir}"' EXIT
+  curl -fsSL "https://dl.google.com/android/repository/${CMDLINE_TOOLS_ZIP}" -o "${work_dir}/tools.zip"
+  unzip -q -o "${work_dir}/tools.zip" -d "${work_dir}/unpacked"
   mkdir -p "${SDK_ROOT}/cmdline-tools"
-  curl -fsSL "https://dl.google.com/android/repository/${CMDLINE_TOOLS_ZIP}" -o /tmp/cmdline-tools.zip
-  unzip -q /tmp/cmdline-tools.zip -d "${SDK_ROOT}/cmdline-tools"
-  mv "${SDK_ROOT}/cmdline-tools/cmdline-tools" "${SDK_ROOT}/cmdline-tools/latest"
-  rm /tmp/cmdline-tools.zip
+  rm -rf "${SDK_ROOT}/cmdline-tools/latest"
+  mv "${work_dir}/unpacked/cmdline-tools" "${SDK_ROOT}/cmdline-tools/latest"
 fi
 
 export ANDROID_HOME="${SDK_ROOT}"
-yes | "${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
-"${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --install \
+yes | "${SDKMANAGER}" --licenses > /dev/null || true
+# sdkmanager skips packages that are already installed.
+"${SDKMANAGER}" --install \
   "platform-tools" \
   "platforms;android-36" \
   "build-tools;36.0.0" > /dev/null
 
-# Cho Gradle và các phiên sau biết vị trí SDK.
-{
-  echo "export ANDROID_HOME=${SDK_ROOT}"
-  echo "export ANDROID_SDK_ROOT=${SDK_ROOT}"
-} >> "${HOME}/.bashrc"
+# Tell Gradle and later shells where the SDK is. Each line is added only once.
+for line in "export ANDROID_HOME=${SDK_ROOT}" "export ANDROID_SDK_ROOT=${SDK_ROOT}"; do
+  grep -qxF "${line}" "${HOME}/.bashrc" 2>/dev/null || echo "${line}" >> "${HOME}/.bashrc"
+done
 
 echo "Android SDK đã sẵn sàng tại ${SDK_ROOT}"

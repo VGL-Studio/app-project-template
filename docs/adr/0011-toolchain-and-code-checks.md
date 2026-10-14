@@ -26,11 +26,15 @@ Khi dựng khung dự án mẫu, cần chốt phiên bản công cụ build, cá
 
 **Định dạng code:** ktlint theo kiểu Android Studio, cho phép dấu phẩy cuối danh sách, độ dài dòng tối đa 120 ký tự (xem `.editorconfig`). Chạy `./gradlew ktlintFormat` để tự sửa.
 
-**Screenshot test:** ảnh chuẩn lưu ở `src/test/screenshots/` của từng module, xét riêng từng module có test chụp màn hình. Module có ảnh chuẩn thì so sánh. Module chưa có ảnh chuẩn: CI báo lỗi, vì ảnh chuẩn phải được commit cùng PR; chạy cục bộ (người hoặc AI) thì ghi ảnh chuẩn mới để xem và commit. CI không bao giờ tự ghi ảnh chuẩn, để không có trường hợp CI luôn xanh mà không so sánh gì. Ảnh chuẩn mới hoặc thay đổi phải được người xem trước khi merge.
+**Screenshot test:** ảnh chuẩn lưu ở `src/test/screenshots/` của từng module. Mỗi lệnh `captureRoboImage` phải ghi rõ đường dẫn ảnh; script báo lỗi nếu thiếu, vì đó là cách duy nhất để biết test cần những ảnh nào. Script xét riêng từng ảnh, không phải từng module: ảnh đã có thì so sánh; ảnh còn thiếu thì CI báo lỗi cho từng file, còn chạy cục bộ (người hoặc AI) thì chỉ ghi các ảnh thiếu, ảnh chuẩn cũ được giữ nguyên để vẫn so sánh được. CI không bao giờ tự ghi ảnh chuẩn, để không có trường hợp CI luôn xanh mà không so sánh gì. Ảnh chuẩn mới hoặc thay đổi phải được người xem trước khi merge.
+
+**Kiểm thử script:** các script của cổng chất lượng (`find-breaking-commit.sh`, `merge-if-green.sh`) có test riêng trong `scripts/tests/`, chạy bằng một bản giả lập `gh api`. `scripts/check.sh` chạy các test này trước Gradle.
+
+**Chú thích trong script và workflow:** viết bằng tiếng Anh như code. Thông báo in ra cho nhóm viết bằng tiếng Việt.
 
 **Bắt buộc `pipefail` trong CI:** mọi workflow đặt `defaults.run.shell: bash`. Nếu không, GitHub Actions chạy bash không có `pipefail`, và lệnh `scripts/check.sh | tee build.log` luôn báo thành công kể cả khi build hỏng. Lỗi này đã xảy ra thật khi dựng khung và được phát hiện nhờ kiểm tra log.
 
-**Phản hồi từ CI:** khi job đỏ, CI bình luận vào PR các dòng lỗi và đoạn cuối log. Khi xanh, CI ghi chú thích tóm tắt số test. Cả hai đọc được qua API GitHub, không cần tải log.
+**Phản hồi từ CI:** khi job đỏ, CI bình luận vào PR các dòng lỗi và đoạn cuối log. CI luôn ghi chú thích tóm tắt số test, do `scripts/test-summary.sh` tạo cho cả test JVM và test emulator (đếm cả lỗi `failures` và `errors`; test emulator mà không có test nào chạy thì tính là đỏ). Cả hai đọc được qua API GitHub, không cần tải log.
 
 **Chưa dùng detekt:** detekt bản ổn định hiện tại được build với Kotlin cũ hơn, dễ xung đột. Xem xét lại khi có bản tương thích.
 

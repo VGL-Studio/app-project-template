@@ -1,11 +1,14 @@
 package com.vglstudio.template.feature.sample
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import com.vglstudio.template.core.analytics.Analytics
 import com.vglstudio.template.core.analytics.AnalyticsEvent
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.FeatureFlags
 import com.vglstudio.template.feature.sample.data.CounterRepository
+import java.io.IOException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
@@ -19,11 +22,12 @@ class SampleViewModelTest {
 
     private val repository = FakeCounterRepository()
     private val analytics = FakeAnalytics()
+    private val featureFlags = FakeFeatureFlags(enabled = true)
 
-    private fun viewModel(enabled: Boolean = true) = SampleViewModel(
+    private fun viewModel() = SampleViewModel(
         repository = repository,
         analytics = analytics,
-        featureFlags = FakeFeatureFlags(enabled),
+        featureFlags = featureFlags,
     )
 
     @Test
@@ -46,8 +50,26 @@ class SampleViewModelTest {
     }
 
     @Test
+    fun whenSaveFails_thenShowsErrorWithoutCrashingOrLogging() = runTest {
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            assertEquals(SampleUiState.Ready(0), awaitItemAfterLoading())
+            repository.failNextWrite = true
+            viewModel.onIncrement()
+            assertEquals(SampleUiState.Ready(0, saveFailed = true), awaitItem())
+
+            // A new attempt clears the error first, then shows the saved value.
+            viewModel.onIncrement()
+            assertEquals(SampleUiState.Ready(0, saveFailed = false), awaitItem())
+            assertEquals(SampleUiState.Ready(1, saveFailed = false), awaitItem())
+        }
+        assertEquals(listOf(AnalyticsEvent(SampleViewModel.EVENT_INCREMENT)), analytics.events)
+    }
+
+    @Test
     fun whenFlagIsOff_thenScreenIsDisabledAndIncrementDoesNothing() = runTest {
-        val viewModel = viewModel(enabled = false)
+        featureFlags.enabled.value = false
+        val viewModel = viewModel()
         viewModel.uiState.test {
             assertEquals(SampleUiState.Disabled, awaitItemAfterLoading())
         }
@@ -55,18 +77,34 @@ class SampleViewModelTest {
         assertEquals(0, repository.counter.value)
         assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
     }
+
+    @Test
+    fun whenFlagTurnsOnLater_thenScreenBecomesReady() = runTest {
+        featureFlags.enabled.value = false
+        val viewModel = viewModel()
+        viewModel.uiState.test {
+            assertEquals(SampleUiState.Disabled, awaitItemAfterLoading())
+            featureFlags.enabled.value = true
+            assertEquals(SampleUiState.Ready(0), awaitItem())
+        }
+    }
 }
 
-private suspend fun app.cash.turbine.ReceiveTurbine<SampleUiState>.awaitItemAfterLoading(): SampleUiState {
+private suspend fun ReceiveTurbine<SampleUiState>.awaitItemAfterLoading(): SampleUiState {
     val first = awaitItem()
     return if (first == SampleUiState.Loading) awaitItem() else first
 }
 
 private class FakeCounterRepository : CounterRepository {
     val counter = MutableStateFlow(0)
+    var failNextWrite = false
     override val count: StateFlow<Int> = counter
 
     override suspend fun increment() {
+        if (failNextWrite) {
+            failNextWrite = false
+            throw IOException("disk full")
+        }
         counter.value += 1
     }
 }
@@ -79,6 +117,8 @@ private class FakeAnalytics : Analytics {
     }
 }
 
-private class FakeFeatureFlags(private val enabled: Boolean) : FeatureFlags {
-    override fun isEnabled(flag: FeatureFlag): Boolean = enabled
+private class FakeFeatureFlags(enabled: Boolean) : FeatureFlags {
+    val enabled = MutableStateFlow(enabled)
+
+    override fun enabled(flag: FeatureFlag): Flow<Boolean> = enabled
 }
