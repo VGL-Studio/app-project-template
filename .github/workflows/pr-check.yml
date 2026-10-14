@@ -142,13 +142,28 @@ jobs:
 
       - name: Tóm tắt test trên emulator
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           t=0; f=0
-          for xml in $(find app/build/outputs/androidTest-results -name 'TEST-*.xml' 2>/dev/null); do
+          while IFS= read -r -d '' xml; do
             t=$((t + $(grep -o 'tests="[0-9]*"' "$xml" | head -1 | tr -dc 0-9)))
             f=$((f + $(grep -o 'failures="[0-9]*"' "$xml" | head -1 | tr -dc 0-9)))
-          done
+          done < <(find app/build/outputs/androidTest-results -name '*.xml' -print0 2>/dev/null)
           echo "::notice title=Tóm tắt test emulator::Test emulator: ${t} test, ${f} lỗi."
+          if [ "$t" -eq 0 ]; then
+            echo "::error::Không có test nào chạy trên emulator."
+            {
+              echo "### ui-test: không có test nào chạy"
+              echo '```'
+              find app/build/outputs -maxdepth 4 2>/dev/null | head -n 40
+              echo "---"
+              tail -n 60 ui-test.log 2>/dev/null || echo "Không có ui-test.log."
+              echo '```'
+            } > zero.md
+            gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file zero.md
+            exit 1
+          fi
 
       - name: Bình luận lỗi vào PR
         if: failure()
