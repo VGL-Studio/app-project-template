@@ -20,7 +20,8 @@ class SampleScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private fun string(id: Int): String = ApplicationProvider.getApplicationContext<android.content.Context>().getString(id)
+    private fun string(id: Int): String =
+        ApplicationProvider.getApplicationContext<android.content.Context>().getString(id)
 
     @Test
     fun whenReady_thenShowsCount() {

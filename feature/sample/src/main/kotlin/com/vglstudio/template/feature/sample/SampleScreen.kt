@@ -33,11 +33,7 @@ internal fun SampleRoute(viewModel: SampleViewModel = hiltViewModel()) {
 
 /** Stateless screen: everything it shows comes from [uiState]. Tested on the JVM and by screenshots. */
 @Composable
-internal fun SampleScreen(
-    uiState: SampleUiState,
-    onIncrement: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+internal fun SampleScreen(uiState: SampleUiState, onIncrement: () -> Unit, modifier: Modifier = Modifier) {
     Surface(modifier = modifier.fillMaxSize().testTag(SampleTestTags.SCREEN)) {
         Column(
             modifier = Modifier.padding(Spacing.md),

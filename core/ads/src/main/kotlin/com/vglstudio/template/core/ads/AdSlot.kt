@@ -9,9 +9,6 @@ import androidx.compose.ui.Modifier
  * For now it renders nothing; the AdMob implementation (test ad units only in staging) comes later.
  */
 @Composable
-fun AdSlot(
-    placement: AdPlacement,
-    modifier: Modifier = Modifier,
-) {
+fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
     Box(modifier = modifier)
 }

@@ -8,13 +8,13 @@ import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.FeatureFlags
 import com.vglstudio.template.feature.sample.data.CounterRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Reference implementation of a feature ViewModel. New features follow this shape:
