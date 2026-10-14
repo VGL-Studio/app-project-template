@@ -6,3 +6,8 @@ plugins {
 android {
     namespace = "com.vglstudio.template.core.analytics"
 }
+
+dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+}

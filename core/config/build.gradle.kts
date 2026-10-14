@@ -6,3 +6,8 @@ plugins {
 android {
     namespace = "com.vglstudio.template.core.config"
 }
+
+dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.config)
+}
