@@ -140,6 +140,16 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash -c 'set -o pipefail; ./gradlew --no-daemon --console=plain :app:connectedStagingDebugAndroidTest 2>&1 | tee ui-test.log'
 
+      - name: Tóm tắt test trên emulator
+        if: always()
+        run: |
+          t=0; f=0
+          for xml in $(find app/build/outputs/androidTest-results -name 'TEST-*.xml' 2>/dev/null); do
+            t=$((t + $(grep -o 'tests="[0-9]*"' "$xml" | head -1 | tr -dc 0-9)))
+            f=$((f + $(grep -o 'failures="[0-9]*"' "$xml" | head -1 | tr -dc 0-9)))
+          done
+          echo "::notice title=Tóm tắt test emulator::Test emulator: ${t} test, ${f} lỗi."
+
       - name: Bình luận lỗi vào PR
         if: failure()
         env:
