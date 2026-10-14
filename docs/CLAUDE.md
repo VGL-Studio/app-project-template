@@ -52,6 +52,8 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Làm đúng các bước trong [auto-run.md](auto-run.md), lần lượt từng task, không chạy song song.
 - Chỉ thực hiện plan có trạng thái `approved` có trong danh sách chạy đã duyệt.
 - Tuân thủ điều kiện dừng ở mục 4 của [risk-scoring.md](risk-scoring.md).
+- Đặt tên nhánh theo dạng `claude/T-NNN-<tu-khoa>`.
+- Chỉ merge bằng `scripts/merge-if-green.sh`. Không dùng nút merge, `gh pr merge` hay gọi thẳng API để merge.
 - Sau mỗi task, ghi nhật ký vào cuối plan và cập nhật trạng thái ticket: `on-staging` khi đã merge, `stopped` khi dừng.
 - Cuối phiên, viết báo cáo vào file phiên chạy.
 

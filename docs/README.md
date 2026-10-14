@@ -53,7 +53,7 @@ docs/
 10. **Nghiệm thu (ngày 3).** Dev nghiệm thu chéo, người phụ trách sản phẩm nghiệm thu cuối. Ticket đạt chuyển sang `accepted`.
 11. **Phát hành và vận hành.** Người phụ trách sản phẩm quyết định phát hành. AI tổng hợp định kỳ số liệu từ store thành [báo cáo vận hành](templates/ops-report.md) trong `ops/`. Vấn đề cần xử lý được tách thành phản hồi, ghi vào feature tương ứng hoặc vào `inbox/`.
 
-Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đưa ra ở bất kỳ bước nào, ghi lại thành ADR theo [mẫu ADR](templates/adr.md). Các quyết định nền tảng đã chốt khi thiết lập quy trình được ghi sẵn từ ADR-0001 đến ADR-0008, mọi app clone từ dự án mẫu đều kế thừa.
+Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đưa ra ở bất kỳ bước nào, ghi lại thành ADR theo [mẫu ADR](templates/adr.md). Các quyết định nền tảng đã chốt khi thiết lập quy trình được ghi sẵn từ ADR-0001 đến ADR-0010, mọi app clone từ dự án mẫu đều kế thừa.
 
 ## Quy ước đặt tên
 
@@ -72,6 +72,7 @@ Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đ�
 
 - Tên feature viết thường, nối bằng dấu gạch ngang, trùng với tên module `:feature:<ten>`.
 - Từ khóa trong tên file viết không dấu, ngắn gọn.
+- Nhánh của task đặt tên theo dạng `claude/T-NNN-<tu-khoa>`.
 - **Mã ticket đánh số chung cho cả app**, không đánh lại cho từng feature, để "T-012" luôn chỉ đúng một task.
 - Mã số tăng dần, không dùng lại mã đã cấp, kể cả khi ticket bị hủy.
 - Phản hồi trong `inbox/` được chuyển vào thư mục feature khi phân loại xong. Phản hồi liên quan cả app (ví dụ tốc độ khởi động) ở lại `inbox/` và được liên kết tới ticket xử lý.

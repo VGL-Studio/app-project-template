@@ -4,6 +4,7 @@ title: Merge thẳng vào nhánh chính, chỉ sau khi qua cổng chất lượn
 status: accepted
 date: 2026-10-14
 deciders: [Nhóm phát triển]
+amended_by: ADR-0010
 ---
 
 # ADR-0002: MERGE THẲNG VÀO NHÁNH CHÍNH, CHỈ SAU KHI QUA CỔNG CHẤT LƯỢNG
@@ -18,7 +19,7 @@ Phiên AI tự chạy tự động merge code của AI để cuối phiên có b
 - CI chạy trên nhánh của task: build, lint, unit test, screenshot test, test giao diện trên emulator.
 - Chỉ khi qua toàn bộ cổng chất lượng, nhánh mới được tự động merge vào nhánh chính.
 - Task không qua thì không merge, được đánh dấu trong báo cáo phiên để dev xem.
-- Nhánh chính được bảo vệ, không nhận merge chưa qua kiểm tra.
+- Nhánh chính được bảo vệ, không nhận merge chưa qua kiểm tra. (Trên gói GitHub Free, việc bảo vệ được thực hiện theo ADR-0010.)
 
 ## Các phương án đã cân nhắc
 
