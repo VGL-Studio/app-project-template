@@ -3,7 +3,9 @@ package com.vglstudio.template.core.config.di
 import com.vglstudio.template.core.config.DefaultFeatureFlags
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.FeatureFlags
+import com.vglstudio.template.core.config.FirebaseRemoteFlagSource
 import com.vglstudio.template.core.config.LocallyEnabledFlags
+import com.vglstudio.template.core.config.RemoteFlagSource
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,6 +17,9 @@ import dagger.multibindings.Multibinds
 internal abstract class ConfigModule {
     @Binds
     abstract fun bindFeatureFlags(impl: DefaultFeatureFlags): FeatureFlags
+
+    @Binds
+    abstract fun bindRemoteFlagSource(impl: FirebaseRemoteFlagSource): RemoteFlagSource
 
     /** Declares the set so it exists (empty) in builds that enable nothing locally, such as production. */
     @Multibinds

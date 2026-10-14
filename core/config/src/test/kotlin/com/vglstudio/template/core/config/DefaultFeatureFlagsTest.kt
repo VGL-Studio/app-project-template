@@ -1,12 +1,20 @@
 package com.vglstudio.template.core.config
 
+import app.cash.turbine.test
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DefaultFeatureFlagsTest {
+    private val remote = FakeRemoteFlagSource()
+
+    private fun flags(locallyEnabled: Set<FeatureFlag> = emptySet()) = DefaultFeatureFlags(locallyEnabled, remote)
+
     @Test
     fun everyFlag_isOffByDefault() {
         // Rule (ADR-0003): a feature stays hidden in production until it is approved for release.
@@ -16,15 +24,37 @@ class DefaultFeatureFlagsTest {
     }
 
     @Test
-    fun withoutLocalOverrides_everyFlagIsOff() = runTest {
-        val flags = DefaultFeatureFlags(locallyEnabled = emptySet())
+    fun withoutLocalOrRemoteValues_everyFlagIsOff() = runTest {
+        val flags = flags()
         FeatureFlag.entries.forEach { flag -> assertFalse(flags.enabled(flag).first()) }
     }
 
     @Test
     fun locallyEnabledFlag_isOn() = runTest {
-        val flags = DefaultFeatureFlags(locallyEnabled = setOf(FeatureFlag.SAMPLE))
-        assertTrue(flags.enabled(FeatureFlag.SAMPLE).first())
+        assertTrue(flags(locallyEnabled = setOf(FeatureFlag.SAMPLE)).enabled(FeatureFlag.SAMPLE).first())
+    }
+
+    @Test
+    fun locallyEnabledFlag_staysOnWhenRemoteSaysOff() = runTest {
+        remote.values.value = mapOf(FeatureFlag.SAMPLE.key to false)
+        assertTrue(flags(locallyEnabled = setOf(FeatureFlag.SAMPLE)).enabled(FeatureFlag.SAMPLE).first())
+    }
+
+    @Test
+    fun remoteValueTrue_turnsFlagOn() = runTest {
+        remote.values.value = mapOf(FeatureFlag.SAMPLE.key to true)
+        assertTrue(flags().enabled(FeatureFlag.SAMPLE).first())
+    }
+
+    @Test
+    fun remoteValueActivatedLater_reachesCollectors() = runTest {
+        flags().enabled(FeatureFlag.SAMPLE).test {
+            assertFalse(awaitItem())
+            remote.values.value = mapOf(FeatureFlag.SAMPLE.key to true)
+            assertTrue(awaitItem())
+            remote.values.value = emptyMap()
+            assertFalse(awaitItem())
+        }
     }
 
     @Test
@@ -36,4 +66,11 @@ class DefaultFeatureFlagsTest {
             )
         }
     }
+}
+
+/** Remote values held in memory: a key missing from [values] has no remote value. */
+private class FakeRemoteFlagSource : RemoteFlagSource {
+    val values = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+
+    override fun boolean(key: String): Flow<Boolean?> = values.map { it[key] }
 }

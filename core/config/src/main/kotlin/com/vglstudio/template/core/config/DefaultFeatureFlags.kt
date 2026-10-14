@@ -3,13 +3,19 @@ package com.vglstudio.template.core.config
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 /**
- * A flag is on when the current build enables it locally, otherwise it takes its default value (off).
- * Replaced by a Firebase Remote Config implementation when Firebase is wired in.
+ * A flag is on when the current build enables it locally, or when its remote value is `true`.
+ * Without a remote value, the flag takes its default value (off).
  */
-class DefaultFeatureFlags @Inject constructor(
+internal class DefaultFeatureFlags @Inject constructor(
     @param:LocallyEnabledFlags private val locallyEnabled: Set<@JvmSuppressWildcards FeatureFlag>,
+    private val remote: RemoteFlagSource,
 ) : FeatureFlags {
-    override fun enabled(flag: FeatureFlag): Flow<Boolean> = flowOf(flag in locallyEnabled || flag.defaultValue)
+    override fun enabled(flag: FeatureFlag): Flow<Boolean> = if (flag in locallyEnabled) {
+        flowOf(true)
+    } else {
+        remote.boolean(flag.key).map { it ?: flag.defaultValue }
+    }
 }

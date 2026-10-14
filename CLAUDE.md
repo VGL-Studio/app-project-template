@@ -12,11 +12,11 @@
 
 | Module | Vai trò |
 | --- | --- |
-| `:app` | Vỏ ứng dụng, điều hướng, ghép các feature. Hai biến thể `staging` và `production` (ADR-0007) |
+| `:app` | Vỏ ứng dụng, điều hướng, ghép các feature, Crashlytics. Hai biến thể `staging` và `production` (ADR-0007, ADR-0012) |
 | `:core:designsystem` | Theme, màu, chữ, khoảng cách, thành phần giao diện dùng chung. Bản gốc của hệ thống thiết kế (ADR-0008) |
 | `:core:data` | DataStore dùng chung |
-| `:core:config` | Cờ tính năng (ADR-0003) |
-| `:core:analytics` | Ghi sự kiện phân tích |
+| `:core:config` | Cờ tính năng, giá trị từ Firebase Remote Config (ADR-0003, ADR-0012) |
+| `:core:analytics` | Ghi sự kiện phân tích vào Firebase Analytics (ADR-0012) |
 | `:core:ads` | Vị trí quảng cáo (ADR-0004) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
@@ -28,6 +28,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Kiểm tra toàn bộ, giống hệt CI: `scripts/check.sh`.
 - Ghi lại ảnh chuẩn screenshot khi plan cho phép: `./gradlew recordRoborazziDebug`.
 - Môi trường cloud chưa có `ANDROID_HOME` thì đặt `export ANDROID_HOME=$HOME/android-sdk` (SDK do `scripts/cloud-setup.sh` cài).
+- `app/src/staging/google-services.json` là file cấu hình Firebase giả, chỉ để build qua được; bản build từ file này không gửi số liệu nào (ADR-0012). Không sửa, không thay bằng file thật.
 - Môi trường cloud không có emulator. Test trên emulator (`app/src/androidTest`) chỉ chạy trong CI.
 
 ## Viết một feature mới
