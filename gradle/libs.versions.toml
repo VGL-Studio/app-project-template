@@ -31,6 +31,10 @@ firebaseBom = "34.19.0"
 googleServices = "4.5.0"
 firebaseCrashlyticsGradle = "3.0.8"
 
+# Ads
+playServicesAds = "25.5.0"
+userMessagingPlatform = "4.0.0"
+
 # Testing
 junit4 = "4.13.2"
 mockk = "1.14.5"
@@ -70,6 +74,9 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-config = { group = "com.google.firebase", name = "firebase-config" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
+play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
+user-messaging-platform = { group = "com.google.android.ump", name = "user-messaging-platform", version.ref = "userMessagingPlatform" }
 
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }

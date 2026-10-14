@@ -17,6 +17,35 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
+
+    // Ads configuration per environment (ADR-0004, ADR-0007). Staging uses Google's public test app id;
+    // production values are given by the person building the release, never stored in the repo (ADR-0009):
+    //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
+    productFlavors {
+        named("staging") {
+            manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
+        }
+        named("production") {
+            manifestPlaceholders["admobAppId"] = providers.gradleProperty("admobAppId").getOrElse("")
+            buildConfigField("String", "AD_UNITS", "\"${providers.gradleProperty("adUnits").getOrElse("")}\"")
+        }
+    }
+}
+
+// Building production without the real ads configuration fails at once, rather than shipping an app without ads.
+// Checked when a production variant is built, not at configuration, so other builds and IDE sync work without it.
+val missingProductionAdsProperties = listOf("admobAppId", "adUnits").filterNot {
+    providers.gradleProperty(it).isPresent
+}
+tasks.matching { it.name.startsWith("preProduction") && it.name.endsWith("Build") }.configureEach {
+    doFirst {
+        if (missingProductionAdsProperties.isNotEmpty()) {
+            throw GradleException(
+                "Build production cần tham số quảng cáo thật: " +
+                    missingProductionAdsProperties.joinToString { "-P$it" } + " (ADR-0013).",
+            )
+        }
+    }
 }
 
 // The google-services task picks its config file when it runs, and the build cache can return the output made

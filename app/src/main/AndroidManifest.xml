@@ -12,6 +12,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.App">
+        <!-- Set per build flavor in app/build.gradle.kts: Google's test app id in staging (ADR-0013). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
