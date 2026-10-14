@@ -3,6 +3,7 @@ package com.vglstudio.template.feature.sample.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -10,7 +11,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.io.IOException
 
 class DataStoreCounterRepositoryTest {
     @Test
@@ -52,4 +52,3 @@ private class UnreadableDataStore : DataStore<Preferences> {
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
         throw IOException("disk write failed")
 }
-

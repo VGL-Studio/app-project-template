@@ -7,7 +7,7 @@ import javax.inject.Inject
  * Replaced by a Firebase Remote Config implementation when Firebase is wired in.
  */
 class DefaultFeatureFlags @Inject constructor(
-    @LocallyEnabledFlags private val locallyEnabled: Set<@JvmSuppressWildcards FeatureFlag>,
+    @param:LocallyEnabledFlags private val locallyEnabled: Set<@JvmSuppressWildcards FeatureFlag>,
 ) : FeatureFlags {
     override fun isEnabled(flag: FeatureFlag): Boolean = flag in locallyEnabled || flag.defaultValue
 }
