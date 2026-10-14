@@ -2,7 +2,8 @@
 # Merge một PR vào nhánh chính, chỉ khi qua đủ cổng chất lượng (ADR-0010).
 # Đây là cách DUY NHẤT được phép merge vào nhánh chính, cho cả người và AI.
 #
-# Cách dùng:   scripts/merge-if-green.sh <số PR>
+# Cách dùng:   scripts/merge-if-green.sh <số PR> [--dry-run]
+#              --dry-run: chỉ kiểm tra điều kiện, không merge.
 # Mã thoát:    0 đã merge
 #              1 từ chối (thiếu điều kiện, xem thông báo)
 #              2 kiểm tra còn đang chạy, gọi lại sau
@@ -22,8 +23,10 @@ SKIPPABLE_CHECKS=("ui-test")
 die()  { echo "TỪ CHỐI: $*" >&2; exit 1; }
 wait_() { echo "CHƯA XONG: $*" >&2; exit 2; }
 
-[[ $# -eq 1 && "$1" =~ ^[0-9]+$ ]] || die "cần đúng một tham số là số PR."
+[[ $# -ge 1 && "$1" =~ ^[0-9]+$ ]] || die "tham số đầu tiên phải là số PR."
 PR="$1"
+DRY_RUN="no"
+[[ "${2:-}" == "--dry-run" ]] && DRY_RUN="yes"
 
 command -v gh >/dev/null || die "không tìm thấy gh."
 command -v jq >/dev/null || die "không tìm thấy jq."
@@ -80,6 +83,11 @@ check_one() {
 
 for c in "${REQUIRED_CHECKS[@]}"; do check_one "$c" no; done
 for c in "${SKIPPABLE_CHECKS[@]}"; do check_one "$c" yes; done
+
+if [[ "$DRY_RUN" == "yes" ]]; then
+  echo "SẴN SÀNG: PR #$PR ($TITLE) tại commit ${HEAD_SHA:0:7} đủ điều kiện merge (chạy thử, chưa merge)."
+  exit 0
+fi
 
 # Merge gộp một commit, kèm mã commit đã kiểm tra: GitHub từ chối nếu PR có commit mới.
 gh api -X PUT "repos/$REPO/pulls/$PR/merge" \
