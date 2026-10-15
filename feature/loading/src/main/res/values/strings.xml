@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading_message">Đang chuẩn bị</string>
+    <string name="loading_percent">%1$d%%</string>
+    <string name="loading_error">Không chuẩn bị được. Hãy kiểm tra kết nối mạng rồi thử lại.</string>
+    <string name="loading_retry">Thử lại</string>
+</resources>

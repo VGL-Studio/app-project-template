@@ -152,7 +152,7 @@ Sau đó AI:
 
 1. Nếu trong phiên có ít nhất một task được merge, khởi động workflow `staging.yml` để build bản staging từ nhánh chính và phát cho nhóm qua Firebase App Distribution, rồi chờ workflow kết thúc.
 2. Cập nhật nhánh báo cáo theo nhánh chính, viết báo cáo phiên vào file danh sách chạy, chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
-3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket.
+3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, bài học mới trong `docs/lessons.md` (mục 6).
 4. Merge PR báo cáo bằng `scripts/merge-if-green.sh`. Script từ chối (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
 
 ## 5. Báo cáo phiên
@@ -164,21 +164,49 @@ Báo cáo phiên là thứ dev đọc đầu tiên khi bắt đầu làm việc 
 - Task bị dừng: dừng ở bước nào, vì sao, đề xuất hướng xử lý.
 - Thông tin bản staging: phiên bản, kênh phát.
 - Thời gian chạy và mức sử dụng của phiên.
+- Số liệu của phiên (mẫu danh sách chạy, mục Số liệu).
+- Bài học của phiên, và kết quả kiểm chứng các bài học `applied` liên quan tới phiên này (mục 6).
 
-## 6. Vùng an toàn của phiên
+## 6. Bài học và cải tiến quy trình
+
+Mỗi phiên là một lần học. Bài học được ghi trong phiên, quyết định ở retro, làm thành PR cải tiến, rồi kiểm chứng ở phiên sau. Sổ bài học là [lessons.md](lessons.md).
+
+**Trong phiên, AI ghi bài học** vào mục Bài học của báo cáo phiên khi gặp một trong các tình huống sau, kể cả khi task thành công:
+
+- Task dừng, hoặc phiên kết thúc sớm.
+- Lỗi hạ tầng, kể cả khi thử lại thì qua.
+- Phải đoán vì tài liệu, plan hay mẫu không nói rõ, hoặc tài liệu nói sai so với thực tế.
+- Một bước tốn thời gian bất thường so với mục Số liệu của các phiên trước.
+- Một cách làm hiệu quả đáng ghi thành hướng dẫn cho lần sau.
+
+Mỗi bài học ghi: chuyện gì đã xảy ra, bằng chứng (log, PR, thời gian), đề xuất sửa tài liệu nào và sửa gì, loại và phạm vi theo [lessons.md](lessons.md). PR báo cáo thêm các bài học này vào sổ với trạng thái `proposed`.
+
+**Phiên kiểm chứng bài học cũ:** đọc các bài học `applied` trong sổ; bài học nào liên quan tới việc phiên vừa làm thì ghi vào báo cáo cải tiến đó có hiệu quả hay không, kèm bằng chứng, và cập nhật dòng **Kiểm chứng** trong sổ.
+
+**Phiên không tự sửa quy trình.** Trong phiên tự chạy, AI không sửa `CLAUDE.md`, `docs/CLAUDE.md`, `docs/auto-run.md`, `docs/risk-scoring.md`, `docs/templates/`, `scripts/` hay `.github/`, dù thấy chỗ cần sửa, trừ khi plan đã duyệt nêu rõ. AI chỉ đề xuất qua bài học. Như vậy các hàng rào an toàn không bị nới lỏng khi không có người theo dõi.
+
+**Retro sau mỗi phiên**, khoảng 15 phút, khi dev đọc báo cáo phiên:
+
+1. Với mỗi bài học `proposed`: nhận (`accepted`) hoặc bỏ (`rejected`, ghi lý do).
+2. Với mỗi bài học có bằng chứng kiểm chứng: xác nhận `verified`, hoặc mở bài học mới nếu cải tiến chưa đủ.
+3. AI, trong phiên có người theo dõi, làm các bài học `accepted` thành một PR cải tiến. Bài học phạm vi `chung` làm trong repo dự án mẫu. Sau khi merge, AI cập nhật bài học sang `applied` và ghi số PR.
+4. Mỗi vài phiên, xem mục Số liệu của các phiên để hiệu chỉnh các con số ở mục 8.
+
+## 7. Vùng an toàn của phiên
 
 - Phiên chỉ có cấu hình staging. Không có mã quảng cáo thật, cấu hình Firebase production, khóa R2 production hay khóa ký ứng dụng.
 - Phiên không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo. Bí mật trên GitHub chỉ gồm cấu hình staging và mã kích hoạt routine.
 - Phiên không chạm vào `scripts/release.sh`. Phát hành production do người làm từ máy của mình (ADR-0009).
 - Phiên không đẩy thẳng lên nhánh chính. Mọi thay đổi đi qua nhánh của task, PR, CI và script merge.
-- Phiên không sửa `.github/`, `scripts/merge-if-green.sh` hay quyền truy cập, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo.
+- Phiên không sửa `.github/`, `scripts/merge-if-green.sh` hay quyền truy cập, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo. Phiên không sửa tài liệu quy trình (mục 6).
 - Vì repo dùng gói GitHub Free, GitHub không chặn merge ở mức hệ thống. Lớp bảo vệ là script merge và workflow `main-guard.yml` (ADR-0010).
 - Mọi việc phiên làm đều để lại dấu vết trong nhánh, PR, nhật ký plan và báo cáo phiên.
 
-## 7. Những điểm sẽ hiệu chỉnh
+## 8. Những điểm sẽ hiệu chỉnh
 
-Các con số dưới đây được đặt tạm và sẽ hiệu chỉnh qua retro dựa trên số liệu thực tế của các phiên:
+Các con số dưới đây được đặt tạm và sẽ hiệu chỉnh qua retro (mục 6) dựa trên mục Số liệu của các phiên:
 
 - Số task tối đa mỗi phiên.
 - Giới hạn 3 lần sửa cho cùng một lỗi.
 - Thời gian dự trù để build và phát bản staging cuối phiên.
+- Lịch thử lại khi lỗi hạ tầng (bước 5).

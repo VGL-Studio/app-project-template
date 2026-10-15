@@ -121,7 +121,8 @@ if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=tes
   expect "new-app.sh sets the staging id of staging.yml" 1 \
     "$(grep -c 'STAGING_APPLICATION_ID: com.example.notes.staging$' "$new_app/.github/workflows/staging.yml")"
   expect "new-app.sh drops links to template-only files" 0 \
-    "$(grep -cE 'TEMPLATE-ROADMAP|new-app' "$new_app/README.md" || true)"
+    "$(grep -cE 'TEMPLATE-ROADMAP|ops/new-app\.md' "$new_app/README.md" || true)"
+  expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"
   expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
 else
   expect "new-app.sh succeeds" ok failed

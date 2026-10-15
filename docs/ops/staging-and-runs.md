@@ -11,7 +11,14 @@ Bí mật thêm ở **Settings > Secrets and variables > Actions > Secrets** c�
 1. Tạo project Firebase riêng cho staging (ADR-0007), thêm app Android với package `com.vglstudio.template.staging` (app mới: `<applicationId>.staging`).
 2. Tải `google-services.json` của app đó.
 3. Trong **App Distribution**, tạo nhóm người test tên `team` và mời các thành viên. Muốn dùng tên nhóm khác, hoặc nhiều nhóm, thì đặt biến `STAGING_TESTER_GROUPS` (ví dụ `team,qa`).
-4. Trong Google Cloud của project staging, tạo một tài khoản dịch vụ (service account) có vai trò **Firebase App Distribution Admin**, tạo khóa JSON cho nó.
+4. Tạo tài khoản dịch vụ (service account) để GitHub Actions tải bản build lên App Distribution:
+   1. Firebase Console, project staging, bánh răng > **Project settings** > tab **Service accounts** > liên kết **Manage service account permissions**. Google Cloud Console mở đúng project.
+   2. **+ Create service account**, tên ví dụ `app-distribution-ci`, **Create and continue**.
+   3. **Select a role**: gõ `App Distribution`, chọn **Firebase App Distribution Admin** (`roles/firebaseappdistro.admin`). Không gán vai trò nào khác. **Continue**, **Done**.
+   4. Bấm vào email của tài khoản vừa tạo > tab **Keys** > **Add key** > **Create new key** > **JSON** > **Create**. File khóa được tải về.
+   5. Gặp lỗi `Service account key creation is disabled` thì quản trị viên tổ chức Google Cloud tắt chính sách `iam.disableServiceAccountKeyCreation` cho project staging.
+   6. Cất file khóa vào trình quản lý mật khẩu, xóa bản trong thư mục tải về sau khi thêm bí mật (mục 1.3). Lộ khóa thì xóa khóa ở tab **Keys**, tạo khóa mới, cập nhật bí mật.
+5. Kiểm tra `google-services.json` có app với package `<applicationId>.staging`; workflow `staging` báo lỗi nếu không có.
 
 ### 1.2. Khóa ký staging
 
@@ -35,6 +42,18 @@ Cất `staging.keystore` và mật khẩu vào trình quản lý mật khẩu c�
 | `STAGING_KEYSTORE_PASSWORD` | Mật khẩu keystore (cũng là mật khẩu của khóa) |
 | `STAGING_KEY_ALIAS` | `staging` |
 
+Thêm bằng terminal của mình (lệnh không in giá trị ra):
+
+```sh
+gh secret set STAGING_GOOGLE_SERVICES_JSON < google-services.json
+gh secret set STAGING_APP_DISTRIBUTION_CREDENTIALS < <file khóa JSON>
+gh secret set STAGING_KEYSTORE_BASE64 < staging.keystore.b64
+gh secret set STAGING_KEYSTORE_PASSWORD     # nhập mật khẩu khi được hỏi
+gh secret set STAGING_KEY_ALIAS --body staging
+```
+
+Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra khỏi thư mục repo.
+
 ### 1.4. Chạy thử
 
 **Actions > staging > Run workflow**, chọn nhánh `main`. Workflow báo rõ bí mật nào còn thiếu. Khi xong, người trong nhóm `team` nhận email mời cài bản mới. Bản đầu tiên cần cài ứng dụng Firebase App Tester theo hướng dẫn trong email.
@@ -55,7 +74,7 @@ Cất `staging.keystore` và mật khẩu vào trình quản lý mật khẩu c�
    Không đặt bí mật vào biến môi trường: ai dùng môi trường cũng đọc được.
 
    Mỗi khi `scripts/cloud-setup.sh` thay đổi trên nhánh chính, mở lại môi trường (biểu tượng cài đặt cạnh tên môi trường), dán lại toàn bộ nội dung mới vào Setup script và lưu. Môi trường được dựng lại từ script ở phiên kế tiếp.
-3. Trên https://claude.ai/code/routines, bấm **New routine**: chọn repo này, môi trường vừa tạo, trigger **API** (không đặt lịch). Ở mục **Connectors**, gỡ hết các connector; phiên tự chạy không cần connector nào.
+3. Trên https://claude.ai/code/routines, bấm **New routine**: chọn repo này, môi trường vừa tạo, trigger **API** (không đặt lịch), model **Opus 5.5** (chọn ở ô model trong khung prompt). Ở mục **Connectors**, gỡ hết các connector; phiên tự chạy không cần connector nào.
 4. Prompt của routine (chép nguyên văn):
 
    ```text
@@ -79,6 +98,8 @@ Cất `staging.keystore` và mật khẩu vào trình quản lý mật khẩu c�
 | --- | --- |
 | `ROUTINE_FIRE_URL` | Địa chỉ kích hoạt của routine |
 | `ROUTINE_FIRE_TOKEN` | Mã kích hoạt (bắt đầu bằng `sk-ant-oat01-`) |
+
+Thêm bằng `gh secret set ROUTINE_FIRE_URL` và `gh secret set ROUTINE_FIRE_TOKEN`, dán giá trị khi được hỏi.
 
 Mã này chỉ kích hoạt được đúng routine đó, không đọc được dữ liệu nào. Lộ mã thì vào lại routine bấm **Regenerate** rồi cập nhật bí mật.
 

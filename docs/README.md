@@ -22,6 +22,7 @@ docs/
 ├── ops/                     báo cáo vận hành định kỳ
 ├── templates/               các mẫu tài liệu
 ├── auto-run.md              quy trình phiên AI tự chạy
+├── lessons.md               sổ bài học, đầu vào của retro
 ├── risk-scoring.md          thang điểm rủi ro và điều kiện dừng
 ├── CLAUDE.md                hướng dẫn AI làm việc với bộ tài liệu
 └── README.md

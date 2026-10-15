@@ -104,6 +104,7 @@ dependencies {
     implementation(project(":core:logging"))
 
     implementation(project(":feature:sample"))
+    implementation(project(":feature:loading"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

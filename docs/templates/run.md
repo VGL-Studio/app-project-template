@@ -71,6 +71,30 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 - Bắt đầu: <...>, kết thúc: <...>, lý do kết thúc: <hết danh sách / đến giờ / hết hạn mức / nhánh chính đỏ>
 - Mức sử dụng: <nếu đo được>
 
+### Số liệu
+
+<!-- Đầu vào để hiệu chỉnh auto-run.md, mục 8. Ghi "không đo được" nếu không có. -->
+
+| Chỉ số | Giá trị |
+| --- | --- |
+| Thời gian kiểm tra đầu phiên (gồm `scripts/check.sh`) | |
+| Thời gian từng task, từ tạo nhánh tới merge hoặc dừng | T-NNN: |
+| Số vòng CI của từng task | T-NNN: |
+| Số lần sửa vì lỗi thật | |
+| Số lần thử lại vì lỗi hạ tầng, tổng thời gian chờ | |
+| Thời gian build và phát staging | |
+| Mức sử dụng | |
+
+### Bài học
+
+<!-- auto-run.md, mục 6. Mỗi bài học cũng được thêm vào docs/lessons.md với trạng thái proposed trong PR báo cáo. Ghi "Không có" nếu không có. -->
+
+| Mã | Chuyện gì | Bằng chứng | Đề xuất sửa | Loại, phạm vi |
+| --- | --- | --- | --- | --- |
+| L-NNN | | | | |
+
+**Kiểm chứng bài học cũ:** <bài học `applied` nào liên quan tới phiên này, có hiệu quả không, bằng chứng; hoặc "Không có">
+
 ### Đề xuất cho buổi họp tiếp theo
 
 1. <...>

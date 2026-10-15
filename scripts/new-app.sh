@@ -103,6 +103,12 @@ replace_in README.md '| Tạo app mới từ dự án mẫu | [docs/ops/new-app.
 replace_in CLAUDE.md 'Đây là dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo từ dự án này.' \
   "Đây là app $name, tạo từ dự án mẫu của nhóm."
 
+# The new app starts its own lessons log; the template's lessons stay in the template repo.
+grep -qxF '<!-- Các bài học ghi dưới dòng này. -->' docs/lessons.md ||
+  die "không thấy dòng đánh dấu trong docs/lessons.md. Script cần cập nhật theo dự án mẫu."
+LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của repo dự án mẫu (commit $template_commit)." \
+  perl -0pi -e 's/(<!-- Các bài học ghi dưới dòng này\. -->\n).*\z/$1\n$ENV{LESSONS_NOTE}\n/s' docs/lessons.md
+
 left="$(grep -rlIF "$TEMPLATE_PACKAGE" . --exclude-dir=.git --exclude-dir=adr || true)"
 [ -z "$left" ] || die "còn tên gói cũ trong: $left"
 
@@ -114,8 +120,6 @@ git commit --quiet -m "Khởi tạo $name từ dự án mẫu ($template_commit)
 cat << EOF
 == Xong: $dest
 Việc tiếp theo:
-   1. Tạo repo private trong tổ chức trên GitHub, đẩy nhánh main lên. Merge chỉ bằng scripts/merge-if-green.sh.
-   2. Cài đặt staging và phiên tự chạy: docs/ops/staging-and-runs.md (package staging: $package.staging).
-   3. Chuẩn bị thư mục phát hành production: docs/ops/release.md.
-   4. Chạy scripts/check.sh trên máy để chắc app mới build được.
+   Làm theo docs/ops/setup-new-app.md, từ phần 2 (package staging: $package.staging).
+   Trước hết chạy scripts/check.sh trong thư mục app mới để chắc app build được.
 EOF

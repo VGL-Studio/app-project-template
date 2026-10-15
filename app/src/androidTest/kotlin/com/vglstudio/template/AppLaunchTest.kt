@@ -1,21 +1,31 @@
 package com.vglstudio.template
 
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Smoke test on a real emulator: the app starts and shows its first screen. Runs in CI only. */
+/**
+ * Smoke test on a real emulator: the app starts, goes through loading and reaches its start screen. Runs in CI only.
+ * Checks only the stable end state: the loading screen is brief and covered by unit and JVM UI tests. A fresh
+ * staging install shows the ad consent form over the app, so the start screen is looked up in the semantics tree
+ * rather than asserted as displayed (CLAUDE.md, step 10).
+ */
 @RunWith(AndroidJUnit4::class)
 class AppLaunchTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun appStarts_andShowsStartScreen() {
-        composeRule.onNodeWithTag("sample_screen").assertIsDisplayed()
+    fun appStarts_andReachesStartScreen() {
+        composeRule.waitUntil(timeoutMillis = START_SCREEN_TIMEOUT_MILLIS) {
+            composeRule.onAllNodesWithTag("sample_screen").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private companion object {
+        const val START_SCREEN_TIMEOUT_MILLIS = 30_000L
     }
 }

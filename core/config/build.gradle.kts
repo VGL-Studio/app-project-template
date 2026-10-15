@@ -8,6 +8,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:logging"))
+
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.config)
 }
