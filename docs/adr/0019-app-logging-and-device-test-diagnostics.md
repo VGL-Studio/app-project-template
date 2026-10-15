@@ -1,7 +1,7 @@
 ---
 id: ADR-0019
 title: App ghi log hành vi qua :core:logging; CI giữ lại chi tiết lỗi và log khi test trên emulator đỏ
-status: proposed
+status: accepted
 date: 2026-10-15
 deciders: [Nhóm phát triển]
 ---

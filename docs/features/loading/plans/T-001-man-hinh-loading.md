@@ -1,8 +1,8 @@
 ---
 ticket: T-001
 title: Màn hình loading có thanh tiến trình khi mở app
-status: stopped
-version: 1
+status: approved
+version: 2
 risk_score:
 risk_level: high
 blocking_points: [analytics, core]
@@ -15,6 +15,13 @@ approved_at: 2026-10-15
 # PLAN T-001: MÀN HÌNH LOADING CÓ THANH TIẾN TRÌNH KHI MỞ APP
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-10-15)**, sau khi RUN-20261015-01 dừng ở bước 8 (mục 10). Thay đổi so với phiên bản 1:
+
+- `AppLaunchTest` chỉ chờ màn hình mẫu có trong cây giao diện, không kiểm tra màn hình loading thoáng qua và không dùng `assertIsDisplayed`, vì hộp thoại đồng ý quảng cáo phủ lên app mới cài (CLAUDE.md, bước 10).
+- ViewModel và `RemoteConfigRefresher` ghi log qua `AppLogger` (ADR-0019), có test.
+- Ghi rõ cách hiểu về lúc báo lỗi ở KB-2 (câu hỏi 7).
+- Cách tiếp tục: làm lại từ đầu. PR #13 đã đóng, nhánh đã xóa.
 
 Tạo module `:feature:loading` theo đúng mẫu `:feature:sample`. ViewModel chạy song song bốn phần việc (tải Remote Config qua `RemoteConfigRefresher` mới của `:core:config`, tải ba file qua `RemoteAssets`), mỗi phần xong cộng 25% tiến trình, giữ màn hình ít nhất 2 giây rồi báo cho `:app` chuyển sang màn hình mẫu. Kiểm chứng bằng unit test cho ViewModel, repository và `RemoteConfigRefresher`, test giao diện và screenshot bằng Robolectric, test khởi động app trên emulator trong CI, và kiểm tra thủ công trên bản staging.
 
@@ -31,7 +38,7 @@ Ticket xử lý mọi kịch bản trong `features/loading/spec.md` (đã xác n
 | KB-1 | Ghi `loading_completed` một lần khi chuyển | Ghi ngay trước khi chuyển sang `Finished`, chỉ trong ViewModel |
 | KB-1 | Bấm quay lại ở màn hình chính thì app đóng | Điều hướng sang màn hình mẫu với `popUpTo<LoadingDestination> { inclusive = true }` |
 | KB-1 | Xoay máy không chạy lại, không tính lại 2 giây | ViewModel sống qua đổi cấu hình, việc chạy bắt đầu trong `init` |
-| KB-2 | Một phần việc không xong thì báo lỗi, có "Thử lại", không vào màn hình chính | Khi mọi phần việc đã kết thúc mà còn phần thất bại thì trạng thái `Failed(progress)` |
+| KB-2 | Một phần việc không xong thì báo lỗi, có "Thử lại", không vào màn hình chính | Báo lỗi khi mọi phần việc đang chạy đã kết thúc (thành công, thất bại hay hết giờ) mà còn phần thất bại: trạng thái `Failed(progress)`. Lâu nhất 15 giây sau khi bắt đầu. Không báo lỗi giữa chừng khi các phần khác còn chạy, để "Thử lại" không chạy chồng (câu hỏi 7) |
 | KB-2 | "Thử lại" chỉ làm lại phần chưa xong, tiến trình tiếp tục | Giữ tập phần việc đã xong trong ViewModel |
 | KB-2 | Có mạng lại, bấm "Thử lại" thì vào màn hình chính | Như KB-1 sau khi thử lại thành công |
 | KB-2 | Cấu hình quá 10 giây, file quá 15 giây thì báo lỗi | 10 giây trong `RemoteConfigRefresher`; 15 giây là thời gian chờ sẵn có của `HttpAssetDownloader` (ADR-0015), không đổi |
@@ -48,6 +55,8 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
 
 ### 3.1. Cách làm
 
+Cách tiếp tục: làm lại từ đầu (auto-run.md, mục Tiếp tục task đã dừng). PR #13 của phiên bản 1 đã đóng, nhánh đã xóa; phiên làm đủ 10 bước trên nhánh mới `claude/T-001-loading`.
+
 **`:core:config`**
 
 - `RemoteConfigRefresher` (công khai): `suspend fun refresh(): Boolean`.
@@ -56,6 +65,7 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
   - Ngược lại gọi `remoteConfig.fetch(0)` rồi `activate()`, chờ bằng `suspendCancellableCoroutine` trên `Task` (không thêm thư viện), bọc trong `withTimeoutOrNull(10_000)`.
   - Kết quả: thành công thì `true`; `FirebaseRemoteConfigFetchThrottledException` thì `true` (ADR-0018); lỗi khác hoặc quá giờ thì `false`.
   - Phần quyết định tách thành một lớp internal nhận `isFakeConfig: () -> Boolean` và `fetchAndActivate: suspend () -> Unit` để unit test không cần Firebase.
+  - Ghi log qua `AppLogger` (thẻ `RemoteConfig`): `warn` khi tải lỗi hoặc hết giờ, `info` khi bị Firebase giới hạn hoặc cấu hình giả. `:core:config` phụ thuộc thêm `:core:logging`.
 - `FeatureFlag.LOADING("feature_loading_enabled")`, mặc định tắt.
 
 **`:feature:loading`** (theo đúng 10 bước trong `CLAUDE.md`)
@@ -65,11 +75,12 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
 - `data/DefaultPreparationRepository.kt` (internal): `REMOTE_CONFIG` gọi `RemoteConfigRefresher.refresh()`; ba task file gọi `RemoteAssets.load(AssetPath("test/v1/hello.txt"))`, `test/v1/content.txt`, `test/v1/goodbye.txt`; `Ready` là `true`, `Unavailable` là `false`.
 - `di/LoadingModule.kt`: gắn `PreparationRepository`; cung cấp `LoadingClock` (`fun interface`, trả `SystemClock.elapsedRealtime()`), để test dùng thời gian ảo.
 - `LoadingUiState`: `InProgress(progress: Float)`, `Failed(progress: Float)`, `Finished`.
-- `LoadingViewModel(repository, analytics, featureFlags, clock)`:
+- `LoadingViewModel(repository, analytics, logger, featureFlags, clock)`:
   - `init`: đọc giá trị đầu tiên của `featureFlags.enabled(FeatureFlag.LOADING)`. Tắt thì `Finished` (KB-4). Bật thì ghi mốc bắt đầu và chạy.
   - Chạy: mọi phần việc chưa xong chạy song song (`async`). Mỗi phần thành công thêm vào tập đã xong và cập nhật `InProgress`.
   - Khi tất cả kết thúc: còn phần thất bại thì `Failed(progress)`. Đủ bốn phần thì `delay` phần còn thiếu của 2 giây, ghi sự kiện, chuyển `Finished`.
   - `onRetry()`: chỉ khi đang `Failed`; tăng `retryCount`, chạy lại phần chưa xong.
+  - Log qua `AppLogger`, thẻ `Loading`: `info` khi bắt đầu (cờ bật) hoặc bỏ qua (cờ tắt); `info` khi một phần việc xong, `warn` khi một phần việc thất bại (tên phần việc, tên loại lỗi nếu có); `info` khi thử lại (lần thứ mấy) và khi xong (thời gian). Không ghi đường dẫn file hay nội dung.
   - Sự kiện: `AnalyticsEvent("loading_completed", mapOf("duration_ms" to ..., "retry_count" to ...))`, `duration_ms` tính từ mốc bắt đầu tới lúc chuyển.
   - Cờ được đọc một lần lúc mở màn hình, không theo dõi tiếp. Đây là chỗ khác với ghi chú "theo dõi, không đọc một lần" của `CLAUDE.md`, vì cờ chỉ quyết định có hiện màn hình loading lúc mở app hay không (xem câu hỏi 3).
 - `LoadingScreen.kt`:
@@ -92,6 +103,7 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
 | Tạo | `core/config/src/main/kotlin/.../config/RemoteConfigRefresher.kt` | Interface, lớp quyết định có thể test, bản cài đặt Firebase |
+| Sửa | `core/config/build.gradle.kts` | Thêm `implementation(project(":core:logging"))` |
 | Sửa | `core/config/src/main/kotlin/.../config/FeatureFlag.kt` | Thêm `LOADING("feature_loading_enabled")` |
 | Sửa | `core/config/src/main/kotlin/.../config/di/ConfigModule.kt` | Gắn `RemoteConfigRefresher` |
 | Tạo | `core/config/src/test/kotlin/.../config/RemoteConfigRefresherTest.kt` | Test mục 4 |
@@ -120,9 +132,8 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
 | Sửa | `app/src/main/kotlin/com/vglstudio/template/navigation/AppNavHost.kt` | Màn hình bắt đầu là loading |
 | Sửa | `app/src/staging/kotlin/com/vglstudio/template/di/StagingFeatureFlagsModule.kt` | Bật `LOADING` cho staging |
 | Sửa | `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt` | Xem mục 4 |
-| Sửa | `docs/features/loading/plans/T-001-man-hinh-loading.md` | Nhật ký thực hiện, trạng thái |
-| Sửa | `docs/features/loading/tickets/T-001-man-hinh-loading.md` | Trạng thái |
-| Sửa | `docs/runs/RUN-20261015-01.md` | Kiểm tra đầu phiên, báo cáo phiên |
+
+Nhật ký plan, trạng thái plan và ticket, báo cáo phiên không nằm trong PR của task; chúng đi qua nhánh báo cáo của phiên (auto-run.md, mục 4).
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
 
@@ -143,7 +154,9 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
 | KB-1, 1 (giao diện) | Compose UI test | `LoadingScreenTest.inProgress_showsProgressBarPercentAndMessage` |
 | KB-1, 6 | Kiểm tra thủ công | Trên bản staging: vào màn hình mẫu, bấm quay lại, app đóng |
 | KB-1, xoay máy | Kiểm tra thủ công | Trên bản staging: xoay máy khi đang loading, tiến trình không về 0 |
-| KB-1, chuyển màn hình | Test trên emulator (CI) | `AppLaunchTest.appStarts_showsLoadingThenStartScreen`: thấy `loading_screen`, rồi chờ tối đa 30 giây tới khi thấy `sample_screen` |
+| KB-1, chuyển màn hình | Test trên emulator (CI) | `AppLaunchTest.appStarts_andReachesStartScreen`: `waitUntil` tối đa 30 giây tới khi `onAllNodesWithTag("sample_screen").fetchSemanticsNodes()` không rỗng. Không kiểm tra `loading_screen`, không dùng `assertIsDisplayed` |
+| Log của loading | Unit test | `LoadingViewModelTest.logsStart_eachTaskResult_retry_andFinish` (dùng `RecordingAppLogger`: thứ tự mức và thẻ `Loading`, không có đường dẫn file) |
+| Log của cấu hình | Unit test | `RemoteConfigRefresherTest.fetchFails_logsWarning` |
 | KB-2, 1 | Unit test | `LoadingViewModelTest.taskFails_showsFailedWithProgress_andDoesNotFinish` |
 | KB-2, 1 (giao diện) | Compose UI test | `LoadingScreenTest.failed_showsErrorAndRetry_andRetryCallsOnRetry` |
 | KB-2, 2 | Unit test | `LoadingViewModelTest.retry_runsOnlyUnfinishedTasks_andProgressContinues` |
@@ -154,7 +167,7 @@ ADR liên quan: ADR-0001, ADR-0003, ADR-0012, ADR-0015, ADR-0018 (`proposed`, đ
 | KB-3, 1 | Test sẵn có | Test bộ nhớ đệm của `:core:assets` |
 | KB-3, 2 | Unit test | `RemoteConfigRefresherTest.fetchFails_returnsFalse` và `LoadingViewModelTest.taskFails_showsFailedWithProgress_andDoesNotFinish` |
 | KB-3 | Kiểm tra thủ công | Mở bản staging một lần có mạng, tắt mạng, mở lại: báo lỗi ở 75% |
-| KB-4 | Unit test | `LoadingViewModelTest.flagOff_finishesAtOnce_withoutRunningTasksOrLogging` |
+| KB-4 | Unit test | `LoadingViewModelTest.flagOff_finishesAtOnce_withoutRunningTasksOrEvent` |
 | Cấu hình giả | Unit test | `RemoteConfigRefresherTest.fakeConfig_returnsTrueWithoutFetching` |
 | Bị Firebase giới hạn | Unit test | `RemoteConfigRefresherTest.fetchThrottled_returnsTrue` |
 | Tải thành công | Unit test | `RemoteConfigRefresherTest.fetchSucceeds_returnsTrue` |
@@ -191,7 +204,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 ## 7. Điều kiện dừng riêng
 
 1. Cần thêm thư viện (ví dụ `kotlinx-coroutines-play-services`) hoặc sửa `gradle/libs.versions.toml`, `build-logic/`.
-2. `AppLaunchTest` trên CI thất bại vì không tải được file từ R2 sau một lần chạy lại.
+2. `AppLaunchTest` trên CI thất bại sau một lần chạy lại. Trước khi kết luận, đọc bước "Chi tiết test trên emulator" của job (auto-run.md, bước 8) và ghi lý do vào nhật ký.
 3. Firebase không cho tải với khoảng tối thiểu bằng 0 trên bản staging, hoặc báo bị giới hạn ngay từ lần mở đầu.
 4. Test sẵn có của `:feature:sample` hoặc `:core:config` thất bại sau khi đổi màn hình bắt đầu.
 
@@ -216,12 +229,29 @@ Bảng điểm dưới đây chỉ để tham khảo:
    - Đề xuất của AI: giữ một task. Các phần phụ thuộc chặt vào nhau, và đây là phiên tự chạy đầu tiên, một task dễ theo dõi hơn.
    - Trả lời: Giữ một task.
 
+Câu hỏi của phiên bản 2:
+
+7. **Lúc báo lỗi ở KB-2:** spec viết "khi một phần việc không xong thì báo lỗi". Phiên bản 1 báo lỗi khi mọi phần việc đang chạy đã kết thúc (rà soát độc lập của RUN-20261015-01 ghi nhận điểm khác này).
+   - Đề xuất của AI: giữ cách của phiên bản 1. Chậm nhất 15 giây sau khi bắt đầu là có thông báo, và "Thử lại" không chạy chồng lên phần việc còn đang chạy.
+   - Trả lời: giữ như cách của phiên 1.
+8. **Duyệt chéo phiên bản 2:** như phiên bản 1?
+   - Đề xuất của AI: Nhật duyệt và duyệt chéo, vì đây là dự án mẫu.
+   - Trả lời: Nhật duyệt và duyệt chéo.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
+Phiên bản 1:
+
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì đây là tính năng mẫu)
+- **Ghi chú:** 
+
+Phiên bản 2:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì là đang ở trên app template)
 - **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
