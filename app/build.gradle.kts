@@ -18,6 +18,18 @@ android {
         versionName = "0.1.0"
     }
 
+    // Staging builds sent to the team are signed with a fixed staging-only key, so each build installs over
+    // the previous one (ADR-0016). staging.yml provides it; without it, stagingRelease stays unsigned.
+    // The debug build type keeps the debug key.
+    providers.gradleProperty("stagingKeystoreFile").orNull?.let { keystore ->
+        signingConfigs.create("staging") {
+            storeFile = file(keystore)
+            storePassword = providers.gradleProperty("stagingKeystorePassword").get()
+            keyAlias = providers.gradleProperty("stagingKeyAlias").get()
+            keyPassword = storePassword
+        }
+    }
+
     // Configuration per environment (ADR-0007). Staging uses Google's public test app id and the staging folder
     // on R2; production values are given by the person building the release, never stored in the repo (ADR-0009):
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
@@ -26,6 +38,12 @@ android {
         named("staging") {
             manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
             buildConfigField("String", "ASSETS_BASE_URL", "\"https://app-project-template.vgl.io.vn/\"")
+            // Builds sent to the team by staging.yml carry the run number, so testers can tell them apart.
+            providers.gradleProperty("stagingBuildNumber").orNull?.toInt()?.let { buildNumber ->
+                versionCode = buildNumber
+                versionNameSuffix = "-staging.$buildNumber"
+            }
+            signingConfigs.findByName("staging")?.let { signingConfig = it }
         }
         named("production") {
             manifestPlaceholders["admobAppId"] = providers.gradleProperty("admobAppId").getOrElse("")
