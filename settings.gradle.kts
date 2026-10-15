@@ -34,3 +34,4 @@ include(":core:assets")
 include(":core:logging")
 
 include(":feature:sample")
+include(":feature:loading")

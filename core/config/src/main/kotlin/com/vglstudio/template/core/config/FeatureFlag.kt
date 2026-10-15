@@ -9,4 +9,5 @@ package com.vglstudio.template.core.config
  */
 enum class FeatureFlag(val key: String, val defaultValue: Boolean = false) {
     SAMPLE("feature_sample_enabled"),
+    LOADING("feature_loading_enabled"),
 }
