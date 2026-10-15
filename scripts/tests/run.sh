@@ -74,6 +74,68 @@ for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; 
   fi
 done
 
+# release.sh must refuse a release folder that is incomplete or holds staging/test values, before touching git.
+release_dir="$work/release"
+release_fails_with() {
+  local name="$1" pattern="$2" output
+  if output="$(scripts/release.sh --config "$release_dir" "${@:3}" 2>&1 < /dev/null)"; then
+    expect "release.sh refuses: $name" refused accepted
+  elif [[ "$output" == *"$pattern"* ]]; then
+    expect "release.sh refuses: $name" refused refused
+  else
+    expect "release.sh refuses: $name" "message with '$pattern'" "$output"
+  fi
+}
+write_release_properties() {
+  printf '%s\n' "admobAppId=$1" "adUnits=$2" "assetsBaseUrl=$3" "uploadKeyAlias=upload" > "$release_dir/release.properties"
+}
+mkdir -p "$release_dir"
+release_fails_with "missing files" "/release/google-services.json"
+touch "$release_dir/google-services.json" "$release_dir/upload.jks"
+write_release_properties "ca-app-pub-3940256099942544~3347511713" "" "https://cdn.example.vn/"
+release_fails_with "Google test app id" "mã thử của Google"
+write_release_properties "ca-app-pub-1234567890123456/1111111111" "" "https://cdn.example.vn/"
+release_fails_with "ad unit given as app id" "admobAppId phải có dạng"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner=ca-app-pub-3940256099942544/9214589741" "https://cdn.example.vn/"
+release_fails_with "Google test ad unit" "mã quảng cáo thử"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner" "https://cdn.example.vn/"
+release_fails_with "malformed ad unit entry" "mục adUnits"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/"
+release_fails_with "assets address without https" "assetsBaseUrl phải"
+release_fails_with "unknown argument" "tham số không hợp lệ" --upload
+
+# new-app.sh renames the template into a new repository and leaves out the template's own files.
+new_app="$work/new-app"
+# CI runners have no git identity; the new repository needs one for its first commit.
+if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com \
+  scripts/new-app.sh --dest "$new_app" --package com.example.notes --name "Ghi chú" \
+  --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1; then
+  expect "new-app.sh succeeds" ok ok
+  expect "new-app.sh leaves out the roadmap" absent "$([ -e "$new_app/TEMPLATE-ROADMAP.md" ] && echo present || echo absent)"
+  expect "new-app.sh leaves out itself" absent "$([ -e "$new_app/scripts/new-app.sh" ] && echo present || echo absent)"
+  expect "new-app.sh replaces the package outside ADRs" "" \
+    "$(grep -rlIF com.vglstudio.template "$new_app" --exclude-dir=.git --exclude-dir=adr || true)"
+  expect "new-app.sh moves sources" yes \
+    "$([ -f "$new_app/app/src/main/kotlin/com/example/notes/MainActivity.kt" ] && echo yes || echo no)"
+  expect "new-app.sh sets the app name" 1 "$(grep -c '>Ghi chú</string>' "$new_app/app/src/main/res/values/strings.xml")"
+  expect "new-app.sh sets the staging id of staging.yml" 1 \
+    "$(grep -c 'STAGING_APPLICATION_ID: com.example.notes.staging$' "$new_app/.github/workflows/staging.yml")"
+  expect "new-app.sh drops links to template-only files" 0 \
+    "$(grep -cE 'TEMPLATE-ROADMAP|new-app' "$new_app/README.md" || true)"
+  expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
+else
+  expect "new-app.sh succeeds" ok failed
+fi
+for args in "--package com.vglstudio.template.notes" "--package Notes" "--staging-assets-url https://app-project-template.vgl.io.vn/"; do
+  # shellcheck disable=SC2086
+  if scripts/new-app.sh --dest "$work/rejected" --package com.example.notes --name "Ghi chú" \
+    --staging-assets-url https://notes.example.vn/ $args > /dev/null 2>&1; then
+    expect "new-app.sh rejects '$args'" rejected accepted
+  else
+    expect "new-app.sh rejects '$args'" rejected rejected
+  fi
+done
+
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
   exit 1

@@ -30,6 +30,17 @@ android {
         }
     }
 
+    // Production releases are signed with the upload key; Play App Signing re-signs them for users (ADR-0007).
+    // Only scripts/release.sh provides it, from the release folder kept outside the repo (ADR-0017).
+    providers.gradleProperty("uploadKeystoreFile").orNull?.let { keystore ->
+        signingConfigs.create("upload") {
+            storeFile = file(keystore)
+            storePassword = providers.gradleProperty("uploadKeystorePassword").get()
+            keyAlias = providers.gradleProperty("uploadKeyAlias").get()
+            keyPassword = providers.gradleProperty("uploadKeyPassword").getOrElse(storePassword!!)
+        }
+    }
+
     // Configuration per environment (ADR-0007). Staging uses Google's public test app id and the staging folder
     // on R2; production values are given by the person building the release, never stored in the repo (ADR-0009):
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
@@ -53,6 +64,7 @@ android {
                 "ASSETS_BASE_URL",
                 "\"${providers.gradleProperty("assetsBaseUrl").getOrElse("")}\"",
             )
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
         }
     }
 }
