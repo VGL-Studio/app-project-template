@@ -27,6 +27,7 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
                 add("implementation", project(":core:analytics"))
                 add("implementation", project(":core:ads"))
                 add("implementation", project(":core:assets"))
+                add("implementation", project(":core:logging"))
 
                 add("implementation", libs.lib("androidx-lifecycle-runtime-compose"))
                 add("implementation", libs.lib("androidx-lifecycle-viewmodel-compose"))

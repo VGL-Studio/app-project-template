@@ -6,6 +6,8 @@ import com.vglstudio.template.core.analytics.Analytics
 import com.vglstudio.template.core.analytics.AnalyticsEvent
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.FeatureFlags
+import com.vglstudio.template.core.logging.LogLevel
+import com.vglstudio.template.core.logging.RecordingAppLogger
 import com.vglstudio.template.feature.sample.data.CounterRepository
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -23,10 +25,12 @@ class SampleViewModelTest {
     private val repository = FakeCounterRepository()
     private val analytics = FakeAnalytics()
     private val featureFlags = FakeFeatureFlags(enabled = true)
+    private val logger = RecordingAppLogger()
 
     private fun viewModel() = SampleViewModel(
         repository = repository,
         analytics = analytics,
+        logger = logger,
         featureFlags = featureFlags,
     )
 
@@ -66,6 +70,7 @@ class SampleViewModelTest {
             assertEquals(SampleUiState.Ready(1, saveFailed = false), next)
         }
         assertEquals(listOf(AnalyticsEvent(SampleViewModel.EVENT_INCREMENT)), analytics.events)
+        assertEquals(listOf(LogLevel.WARN, LogLevel.INFO), logger.entries.map { it.level })
     }
 
     @Test

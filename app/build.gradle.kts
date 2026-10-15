@@ -101,6 +101,7 @@ dependencies {
     implementation(project(":core:analytics"))
     implementation(project(":core:ads"))
     implementation(project(":core:assets"))
+    implementation(project(":core:logging"))
 
     implementation(project(":feature:sample"))
 
