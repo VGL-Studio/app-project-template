@@ -49,7 +49,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Cải tiến:** test emulator chỉ kiểm tra trạng thái ổn định sau khi chờ có giới hạn (CLAUDE.md, bước 10; mẫu plan).
 - **Trạng thái:** applied
 - **Áp dụng:** PR #14, plan T-001 phiên bản 2 (PR #15)
-- **Kiểm chứng:** chờ phiên chạy T-001 phiên bản 2.
+- **Kiểm chứng:** RUN-20261015-03: `AppLaunchTest` chỉ chờ màn hình mẫu, `ui-test` của PR #21 xanh ngay lần đầu (AI ghi bằng chứng, chờ retro xác nhận `verified`).
 
 ### L-004. Hộp thoại đồng ý quảng cáo che app mới cài trên staging
 
@@ -59,7 +59,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Cải tiến:** test emulator kiểm tra nút có trong cây giao diện, không dùng `assertIsDisplayed` (CLAUDE.md, bước 10).
 - **Trạng thái:** applied
 - **Áp dụng:** PR #14
-- **Kiểm chứng:** chờ phiên chạy T-001 phiên bản 2.
+- **Kiểm chứng:** RUN-20261015-03: không dùng `assertIsDisplayed`, `ui-test` của PR #21 xanh trên bản staging có hộp thoại đồng ý (AI ghi bằng chứng, chờ retro xác nhận `verified`).
 
 ### L-005. Không đọc được vì sao test emulator đỏ
 
@@ -89,7 +89,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Cải tiến:** setup script cho Gradle tải Maven Central qua mirror của Google; đầu phiên chạy `scripts/check.sh` để tải sẵn thư viện.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #17, setup script của môi trường đã dán lại
-- **Kiểm chứng:** chờ RUN-20261015-03: log Gradle không còn `repo.maven.apache.org`.
+- **Kiểm chứng:** RUN-20261015-03: log Gradle không còn `repo.maven.apache.org`. Robolectric vẫn tải thẳng từ Maven Central và nhận 429, xem L-014 (AI ghi bằng chứng, chờ retro).
 
 ### L-008. Thử lại khi lỗi hạ tầng quá ngắn cho phiên qua đêm
 
@@ -119,7 +119,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Cải tiến:** ghi model trong hướng dẫn tạo routine; người chọn model trong routine.
 - **Trạng thái:** accepted
 - **Áp dụng:** PR #19 (tài liệu); đổi model trong routine do người làm
-- **Kiểm chứng:** commit của phiên sau ghi model.
+- **Kiểm chứng:** RUN-20261015-03: commit của phiên ghi `Claude Opus 5.5` (AI ghi bằng chứng, chờ retro).
 
 ### L-011. API kích hoạt routine cần header beta
 
@@ -150,3 +150,33 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Trạng thái:** applied
 - **Áp dụng:** PR #19
 - **Kiểm chứng:** một dev nhóm khác thiết lập app thử theo tài liệu mà không phải hỏi.
+
+### L-014. Robolectric tải thẳng từ Maven Central, không qua mirror
+
+- **Ngày, nguồn:** 2026-10-15, RUN-20261015-03
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `scripts/check.sh` đầu phiên đỏ vì Robolectric tự tải `android-all-instrumented` từ `repo1.maven.org` và nhận 429. Mirror của setup script chỉ áp dụng cho Gradle. Phiên đặt `-Drobolectric.dependency.repo.url=https://maven-central.storage-download.googleapis.com/maven2/` vào `JAVA_TOOL_OPTIONS` rồi chạy lại thì qua.
+- **Cải tiến:** đề xuất `scripts/cloud-setup.sh` đặt sẵn thuộc tính đó; auto-run.md bước 5 ghi rõ được dùng mirror thay cho lịch thử lại.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
+
+### L-015. Người merge vào nhánh chính khi phiên đang chạy
+
+- **Ngày, nguồn:** 2026-10-15, RUN-20261015-03
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** PR #19 và #20 (tài liệu) được merge trong lúc phiên chạy. `merge-if-green.sh` báo nhánh task chậm 4 commit, phiên phải cập nhật nhánh và chạy lại CI một vòng (khoảng 11 phút).
+- **Cải tiến:** đề xuất nhắc lại quy tắc khi kích hoạt phiên, hoặc cho phép PR chỉ có tài liệu và ghi rõ chi phí một vòng CI.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
+
+### L-016. So sánh đúng đối tượng ngoại lệ trong test coroutine
+
+- **Ngày, nguồn:** 2026-10-15, RUN-20261015-03
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** `RemoteConfigRefresherTest.fetchFails_logsWarning` so sánh `assertEquals(error, entry.error)` và thất bại, vì coroutine chép lại ngoại lệ khi khôi phục stack trace. Phải sửa chi tiết test sau khi viết code.
+- **Cải tiến:** đề xuất CLAUDE.md, bước 10: unit test kiểm tra loại lỗi, không so sánh đúng đối tượng lỗi.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
