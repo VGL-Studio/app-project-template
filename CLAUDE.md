@@ -17,7 +17,7 @@
 | `:core:data` | DataStore dùng chung |
 | `:core:config` | Cờ tính năng và tham số kinh doanh (`RemoteSettings`), giá trị từ Firebase Remote Config (ADR-0003, ADR-0012) |
 | `:core:analytics` | Ghi sự kiện phân tích vào Firebase Analytics (ADR-0012) |
-| `:core:ads` | Vị trí quảng cáo, hộp thoại đồng ý, rào chắn chính sách, AdMob (ADR-0004, ADR-0013) |
+| `:core:ads` | Vị trí quảng cáo, hộp thoại đồng ý, rào chắn chính sách, AdMob (ADR-0004, ADR-0013, ADR-0014) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
@@ -43,7 +43,7 @@ Làm theo đúng mẫu `:feature:sample`:
    - Ghi dữ liệu có thể ném `IOException`: bắt lỗi trong ViewModel, đưa vào `UiState` để màn hình báo cho người dùng, không để app dừng đột ngột. Luồng đọc DataStore tự thử lại khi gặp `IOException`.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`.
-7. Quảng cáo chỉ qua `AdSlot(placement)` (banner) và `rememberShowInterstitial(placement)` (toàn màn hình, chỉ gọi ở điểm dừng tự nhiên) của `:core:ads`, với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013).
+7. Quảng cáo chỉ qua `AdSlot(placement)` (banner) và `rememberShowInterstitial(placement)` (toàn màn hình, chỉ gọi ở điểm dừng tự nhiên) của `:core:ads`, với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013). Vị trí mặc định tắt, chỉ hiện quảng cáo khi khóa `ads_<vị trí>_enabled` được bật trên Remote Config (ADR-0014).
 8. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
 9. Test, viết trước code (docs/auto-run.md, bước 3):
    - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`.

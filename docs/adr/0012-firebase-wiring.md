@@ -1,7 +1,7 @@
 ---
 id: ADR-0012
 title: Nối Firebase vào các module core, bản staging build bằng file cấu hình giả khi không có file thật
-status: proposed
+status: accepted
 date: 2026-10-14
 deciders: [Nhóm phát triển]
 ---
