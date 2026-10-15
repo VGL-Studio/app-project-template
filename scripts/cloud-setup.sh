@@ -2,6 +2,7 @@
 # Setup script for the cloud environment of the auto-run routine (ADR-0009).
 # Paste this file into the "Setup script" field of the cloud environment.
 # Needs the Custom network level: the default allowlist plus dl.google.com.
+# After changing this file, paste it again into the environment: the cached environment is rebuilt from it.
 # The environment already ships JDK and Gradle; this script only installs the Android SDK.
 # Safe to run any number of times: every step checks what is already there.
 
@@ -36,8 +37,35 @@ for line in "export ANDROID_HOME=${SDK_ROOT}" "export ANDROID_SDK_ROOT=${SDK_ROO
   grep -qxF "${line}" "${HOME}/.bashrc" 2>/dev/null || echo "${line}" >> "${HOME}/.bashrc"
 done
 
-# Maven Central answers 429 (too many requests) to cloud sessions now and then. Let Gradle retry longer, with
-# backoff, instead of failing the build. User-level properties, so the repo's gradle.properties stays unchanged.
+# Maven Central answers 429 (too many requests) to cloud sessions: their shared addresses hit its rate limit
+# (RUN-20261015-02 ended on it). Every Maven Central request goes to Google's mirror of Maven Central instead,
+# through an init script in the Gradle user home, so the repo's build files stay unchanged. The mirror's host
+# matches *.googleapis.com in the default allowlist of cloud environments.
+mkdir -p "${HOME}/.gradle/init.d"
+cat > "${HOME}/.gradle/init.d/maven-central-mirror.gradle" << 'GRADLE'
+// Written by scripts/cloud-setup.sh: cloud sessions only.
+def central = 'https://repo.maven.apache.org/maven2/'
+def mirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
+def useMirror = { RepositoryHandler repositories ->
+    repositories.withType(MavenArtifactRepository).configureEach { repository ->
+        if (repository.url.toString() == central) {
+            repository.url = mirror
+        }
+    }
+}
+beforeSettings { settings ->
+    useMirror(settings.buildscript.repositories)
+    useMirror(settings.pluginManagement.repositories)
+    useMirror(settings.dependencyResolutionManagement.repositories)
+}
+allprojects {
+    useMirror(buildscript.repositories)
+    useMirror(repositories)
+}
+GRADLE
+
+# Other hosts can still answer 429 or time out. Let Gradle retry longer, with backoff, instead of failing the
+# build. User-level properties, so the repo's gradle.properties stays unchanged.
 GRADLE_USER_PROPERTIES="${HOME}/.gradle/gradle.properties"
 mkdir -p "${HOME}/.gradle"
 for line in \

@@ -53,6 +53,8 @@ Cất `staging.keystore` và mật khẩu vào trình quản lý mật khẩu c�
    | Setup script | Toàn bộ nội dung `scripts/cloud-setup.sh` |
 
    Không đặt bí mật vào biến môi trường: ai dùng môi trường cũng đọc được.
+
+   Mỗi khi `scripts/cloud-setup.sh` thay đổi trên nhánh chính, mở lại môi trường (biểu tượng cài đặt cạnh tên môi trường), dán lại toàn bộ nội dung mới vào Setup script và lưu. Môi trường được dựng lại từ script ở phiên kế tiếp.
 3. Trên https://claude.ai/code/routines, bấm **New routine**: chọn repo này, môi trường vừa tạo, trigger **API** (không đặt lịch). Ở mục **Connectors**, gỡ hết các connector; phiên tự chạy không cần connector nào.
 4. Prompt của routine (chép nguyên văn):
 
