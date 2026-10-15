@@ -1,7 +1,7 @@
 ---
 ticket: T-001
 title: Màn hình loading có thanh tiến trình khi mở app
-status: done
+status: stopped
 version: 1
 risk_score:
 risk_level: high
@@ -239,3 +239,13 @@ Bảng điểm dưới đây chỉ để tham khảo:
 - **Lệch so với plan:** Hai chi tiết của test được sửa sau khi viết code, không đổi điều test kiểm tra: bộ thu trạng thái của `eachTaskDone_...` dùng `UnconfinedTestDispatcher` (bản đầu không chạy bộ thu); `fetchThrottled_returnsTrue` dùng `mockk(relaxed = true)` vì lớp ngoại lệ thật của Firebase gọi `TextUtils` của Android, không có trong test JVM. `RemoteConfigRefreshPolicy` có thêm tham số `onFailure` để ghi log mà không gọi `android.util.Log` trong test JVM. Nhánh làm việc do môi trường chỉ định
 - **Việc còn lại:** kiểm tra thủ công trên bản staging theo mục 4 (nút quay lại, xoay máy, máy bay, mất mạng lúc mở lại)
 - **Cần người xem:** ba ảnh chuẩn mới trong `feature/loading/src/test/screenshots/`; các điểm ghi chú ở trên
+
+### RUN-20261015-01, phiên bản plan 1 (cập nhật, thay cho mục ngay trên)
+
+- **Kết quả:** dừng ở bước 8 (CI). Không merge. Mục ngay trên ghi trước khi có kết quả CI, nay không còn đúng.
+- **Nhánh, PR:** `claude/trusting-ritchie-kr8pph`, PR #13 (giữ mở, không merge)
+- **Lý do dừng:** job `ui-test` thất bại ba lần liên tiếp (một lần chạy đầu, một lần chạy lại, một lần sau khi thêm chẩn đoán) ở cùng khẳng định: `AppLaunchTest.appStarts_showsLoadingThenStartScreen` báo `loading_screen` không hiển thị. Lần cuối ghi `App age: 13289 ms` lúc khẳng định chạy, nghĩa là màn hình loading (tối thiểu 2 giây) đã qua trước khi test kịp kiểm tra. Emulator của CI chậm, test khẳng định một màn hình thoáng qua nên không ổn định. `build-and-test` xanh, gồm mọi unit test và screenshot test của loading.
+- **Đã thử:** chạy lại job một lần (vẫn đỏ); thêm chẩn đoán vào thông báo lỗi (không đổi điều test kiểm tra). Chưa sửa điều test kiểm tra vì đó là điều kiện dừng 8 và CLAUDE.md cấm làm test qua bằng cách sửa test.
+- **Đề xuất hướng xử lý:** người chọn một trong hai. (a) Đổi tiêu chí của `AppLaunchTest` thành: chờ tối đa 30 giây tới khi thấy `sample_screen` (việc loading hiện ra đúng đã có unit test và test giao diện kiểm tra). (b) Giữ tiêu chí cũ nhưng cho test cách kéo dài hoặc giữ màn hình loading (cần thêm file ngoài danh sách plan, ví dụ một hook chỉ có trong bản debug). Phương án (a) nhỏ hơn; cần sửa plan mục 4 và duyệt lại vì thay đổi điều kiểm chứng.
+- **Việc còn lại:** quyết định phương án trên, sửa plan (tăng phiên bản), chạy lại CI, merge bằng `scripts/merge-if-green.sh`, kiểm tra thủ công mục 4.
+- **Cần người xem:** ba ảnh chuẩn screenshot mới, và các điểm rà soát mức ghi chú ở mục trên (mục "Rà soát độc lập" vẫn đúng).

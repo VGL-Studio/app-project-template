@@ -5,7 +5,7 @@ feature: loading
 spec: features/loading/spec.md
 scenarios: [KB-1, KB-2, KB-3, KB-4]
 owner: Nhật
-status: on-staging
+status: stopped
 risk: high
 size: L
 depends_on: []
