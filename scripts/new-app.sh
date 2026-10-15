@@ -114,8 +114,6 @@ git commit --quiet -m "Khởi tạo $name từ dự án mẫu ($template_commit)
 cat << EOF
 == Xong: $dest
 Việc tiếp theo:
-   1. Tạo repo private trong tổ chức trên GitHub, đẩy nhánh main lên. Merge chỉ bằng scripts/merge-if-green.sh.
-   2. Cài đặt staging và phiên tự chạy: docs/ops/staging-and-runs.md (package staging: $package.staging).
-   3. Chuẩn bị thư mục phát hành production: docs/ops/release.md.
-   4. Chạy scripts/check.sh trên máy để chắc app mới build được.
+   Làm theo docs/ops/setup-new-app.md, từ phần 2 (package staging: $package.staging).
+   Trước hết chạy scripts/check.sh trong thư mục app mới để chắc app build được.
 EOF

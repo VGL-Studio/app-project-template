@@ -30,6 +30,4 @@ Script làm những việc sau:
 ## 3. Sau khi chạy
 
 1. Chạy `scripts/check.sh` trong thư mục app mới.
-2. Tạo repo private trong tổ chức trên GitHub, đẩy nhánh `main` lên.
-3. Cài đặt staging và phiên tự chạy theo `docs/ops/staging-and-runs.md`.
-4. Chuẩn bị phát hành production theo `docs/ops/release.md`.
+2. Làm tiếp theo `docs/ops/setup-new-app.md` của app mới, từ phần 2.
