@@ -31,7 +31,9 @@ internal fun LoadingRoute(onFinished: () -> Unit, viewModel: LoadingViewModel = 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentOnFinished by rememberUpdatedState(onFinished)
     if (uiState == LoadingUiState.Finished) {
+        // Draw nothing: with the flag off, the app opens straight on the start screen (spec loading, KB-4).
         LaunchedEffect(Unit) { currentOnFinished() }
+        return
     }
     LoadingScreen(uiState = uiState, onRetry = viewModel::onRetry)
 }

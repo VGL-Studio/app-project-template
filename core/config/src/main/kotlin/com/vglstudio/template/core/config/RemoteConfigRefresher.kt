@@ -30,11 +30,11 @@ internal class RemoteConfigRefreshPolicy(
     private val timeoutMillis: Long = REFRESH_TIMEOUT_MILLIS,
 ) {
     suspend fun refresh(): Boolean {
-        if (isFakeConfig()) {
-            logger.info(LOG_TAG, "Placeholder Firebase config, refresh counted as done")
-            return true
-        }
         return try {
+            if (isFakeConfig()) {
+                logger.info(LOG_TAG, "Placeholder Firebase config, refresh counted as done")
+                return true
+            }
             val done = withTimeoutOrNull(timeoutMillis) {
                 fetchAndActivate()
                 true

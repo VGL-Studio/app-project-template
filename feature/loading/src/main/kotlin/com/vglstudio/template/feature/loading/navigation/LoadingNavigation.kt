@@ -1,5 +1,6 @@
 package com.vglstudio.template.feature.loading.navigation
 
+import androidx.compose.animation.ExitTransition
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.vglstudio.template.feature.loading.LoadingRoute
@@ -11,7 +12,8 @@ data object LoadingDestination
 
 /** [onFinished] is called once, when everything is ready (or the feature is off). */
 fun NavGraphBuilder.loadingScreen(onFinished: () -> Unit) {
-    composable<LoadingDestination> {
+    // No fade-out: loading leaves at once, so the start screen is not covered by a fading loading screen.
+    composable<LoadingDestination>(exitTransition = { ExitTransition.None }) {
         LoadingRoute(onFinished = onFinished)
     }
 }
