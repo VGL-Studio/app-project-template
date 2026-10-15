@@ -43,8 +43,18 @@ Cất `staging.keystore` và mật khẩu vào trình quản lý mật khẩu c�
 
 ### 2.1. Routine
 
-1. Trên Claude Code (bản web), tạo routine cho repo này theo ADR-0009: môi trường cloud có mạng mức **Custom** thêm `dl.google.com`, setup script là `scripts/cloud-setup.sh`, biến môi trường tăng thời gian chờ lệnh.
-2. Prompt của routine (chép nguyên văn):
+1. Cài Claude GitHub App cho tổ chức trên GitHub, cấp quyền cho repo này (repo private cần app được cài).
+2. Trên https://claude.ai/code, ở ô chọn môi trường dưới khung nhập, chọn **New environment** (ADR-0009):
+
+   | Trường | Giá trị |
+   | --- | --- |
+   | Network access | **Custom**; Allowed domains: `dl.google.com` và `maven.google.com`, mỗi dòng một tên miền; bật **Also include default list of common package managers** |
+   | Environment variables | `BASH_DEFAULT_TIMEOUT_MS=600000` và `BASH_MAX_TIMEOUT_MS=1800000`, mỗi dòng một biến |
+   | Setup script | Toàn bộ nội dung `scripts/cloud-setup.sh` |
+
+   Không đặt bí mật vào biến môi trường: ai dùng môi trường cũng đọc được.
+3. Trên https://claude.ai/code/routines, bấm **New routine**: chọn repo này, môi trường vừa tạo, trigger **API** (không đặt lịch). Ở mục **Connectors**, gỡ hết các connector; phiên tự chạy không cần connector nào.
+4. Prompt của routine (chép nguyên văn):
 
    ```text
    Bạn đang chạy một phiên tự chạy của repo này. Đọc CLAUDE.md, docs/CLAUDE.md và docs/auto-run.md, rồi làm đúng quy trình trong docs/auto-run.md.
@@ -55,7 +65,7 @@ Cất `staging.keystore` và mật khẩu vào trình quản lý mật khẩu c�
    - Danh sách chạy không có trạng thái approved thì không làm task nào, kết thúc phiên và báo lý do.
    ```
 
-3. Trong routine, **Add another trigger > API > Generate token**. Mã chỉ hiện một lần. Chép địa chỉ (dạng `https://api.anthropic.com/v1/claude_code/routines/trig_.../fire`) và mã.
+5. Mở routine, menu cạnh tên routine, **Edit**, mục **Select a trigger**, mở trigger **API** (chưa có thì **Add another trigger > API**), bấm **Generate token**. Mã chỉ hiện một lần. Chép địa chỉ (dạng `https://api.anthropic.com/v1/claude_code/routines/trig_.../fire`) và mã.
 
 ### 2.2. Bí mật cần thêm
 
@@ -75,8 +85,9 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 Lưu ý:
 
 - Mỗi lần chạy workflow thành công là một phiên mới. Không chạy lại workflow khi phiên trước còn đang chạy.
-- Routine giới hạn 30 lần kích hoạt mỗi giờ. API kích hoạt đang ở giai đoạn thử nghiệm của Anthropic, cách gọi có thể đổi.
+- Routine giới hạn 30 lần kích hoạt mỗi giờ. API kích hoạt đang ở giai đoạn thử nghiệm của Anthropic, gọi kèm header `anthropic-beta: experimental-cc-routine-2026-04-01`; cách gọi có thể đổi.
+- Phiên tự chạy dùng chung hạn mức với tài khoản Claude sở hữu routine.
 
 ## 3. Việc còn phải kiểm chứng
 
-- Cuối phiên, phiên tự chạy khởi động `staging.yml` (docs/auto-run.md, mục 4). Chưa kiểm chứng được môi trường cloud của routine có quyền khởi động workflow trên GitHub hay không. Nếu không, người khởi động `staging.yml` bằng tay khi đọc báo cáo phiên.
+- Cuối phiên, phiên tự chạy khởi động `staging.yml` (docs/auto-run.md, mục 4). Trong môi trường cloud, `gh pr` và `gh issue` không chạy được, chỉ REST qua `gh api` chạy được (docs/auto-run.md, bước 7). Tài liệu của Claude Code chưa nói rõ lệnh khởi động workflow qua `gh api` có được proxy GitHub cho qua hay không. Nếu không, người khởi động `staging.yml` bằng tay khi đọc báo cáo phiên.

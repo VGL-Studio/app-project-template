@@ -3,7 +3,8 @@
 # Secrets (added by people, never read or printed by AI):
 #   ROUTINE_FIRE_URL    https://api.anthropic.com/v1/claude_code/routines/<trig_ id>/fire, from the routine's API trigger
 #   ROUTINE_FIRE_TOKEN  bearer token of that trigger; it can only start this one routine
-# The fire endpoint has no idempotency key: every successful call starts a new session, so it is never retried.
+# The fire endpoint is a research preview behind a beta header, so its contract may still change.
+# It has no idempotency key: every successful call starts a new session, so it is never retried.
 # Changing this file is a high-risk plan; cross-review required.
 name: start-run
 
@@ -83,6 +84,7 @@ jobs:
           status="$(curl -sS -o response.json -w '%{http_code}' -X POST "${FIRE_URL}" \
             -H @"${RUNNER_TEMP}/auth-header" \
             -H 'anthropic-version: 2023-06-01' \
+            -H 'anthropic-beta: experimental-cc-routine-2026-04-01' \
             -H 'Content-Type: application/json' \
             -d "${payload}")" || status="000"
           rm -f "${RUNNER_TEMP}/auth-header"
