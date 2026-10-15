@@ -18,6 +18,7 @@
 | `:core:config` | Cờ tính năng và tham số kinh doanh (`RemoteSettings`), giá trị từ Firebase Remote Config (ADR-0003, ADR-0012) |
 | `:core:analytics` | Ghi sự kiện phân tích vào Firebase Analytics (ADR-0012) |
 | `:core:ads` | Vị trí quảng cáo, hộp thoại đồng ý, rào chắn chính sách, AdMob (ADR-0004, ADR-0013, ADR-0014) |
+| `:core:assets` | Tải file tĩnh từ R2, giữ trên máy để dùng khi mất mạng (ADR-0006, ADR-0015) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
@@ -44,8 +45,9 @@ Làm theo đúng mẫu `:feature:sample`:
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`.
 7. Quảng cáo chỉ qua `AdSlot(placement)` (banner) và `rememberShowInterstitial(placement)` (toàn màn hình, chỉ gọi ở điểm dừng tự nhiên) của `:core:ads`, với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013). Vị trí mặc định tắt, chỉ hiện quảng cáo khi khóa `ads_<vị trí>_enabled` được bật trên Remote Config (ADR-0014).
-8. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
-9. Test, viết trước code (docs/auto-run.md, bước 3):
+8. File tĩnh trên R2 chỉ qua `RemoteAssets.load(AssetPath(...))` của `:core:assets`, gọi từ ViewModel; kết quả `Unavailable` đưa vào `UiState` để người dùng thử lại. Đường dẫn tương đối, có phiên bản hoặc mã băm; nội dung đổi thì dùng đường dẫn mới (ADR-0015).
+9. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
+10. Test, viết trước code (docs/auto-run.md, bước 3):
    - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`.
    - Test giao diện cho `<Ten>Screen` chạy bằng Robolectric.
    - Screenshot test bằng Roborazzi. Mỗi lệnh `captureRoboImage` ghi rõ đường dẫn, dạng `"src/test/screenshots/<Ten>.png"`; `scripts/check.sh` báo lỗi nếu thiếu.
@@ -55,7 +57,7 @@ Làm theo đúng mẫu `:feature:sample`:
 - Tên lớp, hàm, biến và chú thích trong code viết bằng tiếng Anh, kể cả chú thích trong script và workflow. Thông báo mà script in ra cho nhóm và tài liệu trong `docs/` viết bằng tiếng Việt.
 - Chữ hiển thị cho người dùng đặt trong `res/values/strings.xml`, không viết cứng trong code.
 - Màu, chữ, khoảng cách lấy từ `:core:designsystem` (`AppTheme`, `MaterialTheme`, `Spacing`). Không viết cứng mã màu hay cỡ chữ.
-- Feature không gọi trực tiếp SDK quảng cáo, phân tích hay Remote Config; luôn đi qua `:core:ads`, `:core:analytics`, `:core:config`.
+- Feature không gọi trực tiếp SDK quảng cáo, phân tích, Remote Config hay tải file từ R2; luôn đi qua `:core:ads`, `:core:analytics`, `:core:config`, `:core:assets`.
 - Định dạng code theo ktlint (kiểu Android Studio, xem `.editorconfig`).
 
 ## Không được làm

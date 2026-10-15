@@ -1,7 +1,7 @@
 ---
 id: ADR-0014
 title: Giá trị mặc định của tham số quảng cáo, thay bảng mặc định trong ADR-0013
-status: proposed
+status: accepted
 date: 2026-10-15
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
 ---

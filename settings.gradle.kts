@@ -30,5 +30,6 @@ include(":core:data")
 include(":core:config")
 include(":core:analytics")
 include(":core:ads")
+include(":core:assets")
 
 include(":feature:sample")

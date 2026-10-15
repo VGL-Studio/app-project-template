@@ -18,31 +18,41 @@ android {
         versionName = "0.1.0"
     }
 
-    // Ads configuration per environment (ADR-0004, ADR-0007). Staging uses Google's public test app id;
-    // production values are given by the person building the release, never stored in the repo (ADR-0009):
+    // Configuration per environment (ADR-0007). Staging uses Google's public test app id and the staging folder
+    // on R2; production values are given by the person building the release, never stored in the repo (ADR-0009):
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
+    //   -PassetsBaseUrl=<https address of the production files on R2>
     productFlavors {
         named("staging") {
             manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
+            buildConfigField("String", "ASSETS_BASE_URL", "\"https://app-project-template.vgl.io.vn/\"")
         }
         named("production") {
             manifestPlaceholders["admobAppId"] = providers.gradleProperty("admobAppId").getOrElse("")
             buildConfigField("String", "AD_UNITS", "\"${providers.gradleProperty("adUnits").getOrElse("")}\"")
+            buildConfigField(
+                "String",
+                "ASSETS_BASE_URL",
+                "\"${providers.gradleProperty("assetsBaseUrl").getOrElse("")}\"",
+            )
         }
     }
 }
 
-// Building production without the real ads configuration fails at once, rather than shipping an app without ads.
-// Checked when a production variant is built, not at configuration, so other builds and IDE sync work without it.
-val missingProductionAdsProperties = listOf("admobAppId", "adUnits").filterNot {
-    providers.gradleProperty(it).isPresent
-}
+// Building production without the real configuration fails at once, rather than shipping an app without ads
+// or files. Checked when a production variant is built, not at configuration, so other builds and IDE sync work
+// without it.
+val missingProductionProperties = mapOf(
+    "admobAppId" to "ADR-0013",
+    "adUnits" to "ADR-0013",
+    "assetsBaseUrl" to "ADR-0015",
+).filterKeys { !providers.gradleProperty(it).isPresent }
 tasks.matching { it.name.startsWith("preProduction") && it.name.endsWith("Build") }.configureEach {
     doFirst {
-        if (missingProductionAdsProperties.isNotEmpty()) {
+        if (missingProductionProperties.isNotEmpty()) {
             throw GradleException(
-                "Build production cần tham số quảng cáo thật: " +
-                    missingProductionAdsProperties.joinToString { "-P$it" } + " (ADR-0013).",
+                "Build production cần tham số thật: " +
+                    missingProductionProperties.entries.joinToString { "-P${it.key} (${it.value})" } + ".",
             )
         }
     }
@@ -60,6 +70,7 @@ dependencies {
     implementation(project(":core:config"))
     implementation(project(":core:analytics"))
     implementation(project(":core:ads"))
+    implementation(project(":core:assets"))
 
     implementation(project(":feature:sample"))
 
