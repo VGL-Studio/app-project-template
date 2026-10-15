@@ -1,7 +1,7 @@
 ---
 ticket: T-001
 title: Màn hình loading có thanh tiến trình khi mở app
-status: approved
+status: done
 version: 2
 risk_score:
 risk_level: high
