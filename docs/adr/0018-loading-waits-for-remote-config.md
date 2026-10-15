@@ -1,7 +1,7 @@
 ---
 id: ADR-0018
 title: Màn hình loading chờ tải Remote Config khi mở app, các màn hình khác vẫn không chờ
-status: proposed
+status: accepted
 date: 2026-10-15
 deciders: [Nhóm phát triển]
 ---

@@ -1,7 +1,7 @@
 ---
 ticket: T-001
 title: Màn hình loading có thanh tiến trình khi mở app
-status: draft
+status: approved
 version: 1
 risk_score:
 risk_level: high
@@ -199,24 +199,30 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 1. **Duyệt chéo:** plan rủi ro cao cần dev còn lại duyệt chéo (risk-scoring.md, mục 3). Ai duyệt chéo plan này?
    - Đề xuất của AI: dev còn lại của nhóm. Nếu trong giai đoạn dự án mẫu anh Nhật duyệt một mình thì ghi rõ ở mục 9.
+   - Trả lời: Nhật duyệt (vì đây chỉ là dự án mẫu)
 2. **Firebase giới hạn số lần tải:** khi Firebase báo bị giới hạn, `refresh()` coi là thành công (ADR-0018).
    - Đề xuất của AI: đồng ý. Nếu coi là lỗi, người mở app nhiều lần trong thời gian ngắn có thể bị chặn dù có mạng.
+   - Trả lời: Đồng ý theo đề xuất của AI.
 3. **Cờ đọc một lần:** ViewModel đọc cờ `feature_loading_enabled` một lần khi mở màn hình, không theo dõi tiếp như `CLAUDE.md` hướng dẫn.
    - Đề xuất của AI: đồng ý, vì cờ chỉ quyết định có hiện loading lúc mở app hay không; đổi cờ giữa chừng không có ý nghĩa.
+   - Trả lời: Đồng ý.
 4. **Bốn phần việc chạy song song:** spec không nói thứ tự.
    - Đề xuất của AI: chạy song song cho nhanh. Thanh tiến trình vẫn tăng từng nấc 25%.
+   - Trả ời: Chạy song song.
 5. **Test trên emulator cần mạng tới R2 staging:** `AppLaunchTest` sẽ đi qua màn hình loading thật.
    - Đề xuất của AI: chấp nhận. CI đã có mạng; nếu lỗi do mạng thì chạy lại một lần, lỗi tiếp thì phiên dừng task (điều kiện dừng 2).
+   - Trả lời: Chấp nhận.
 6. **Cỡ task L trong một lượt:** risk-scoring khuyên cân nhắc tách task cỡ L.
    - Đề xuất của AI: giữ một task. Các phần phụ thuộc chặt vào nhau, và đây là phiên tự chạy đầu tiên, một task dễ theo dõi hơn.
+   - Trả lời: Giữ một task.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì đây là tính năng mẫu)
+- **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
 
