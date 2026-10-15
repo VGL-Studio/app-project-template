@@ -7,9 +7,9 @@ risk_score:
 risk_level: high
 blocking_points: [analytics, core]
 run_order: 1
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-15
 ---
 
 # PLAN T-001: MÀN HÌNH LOADING CÓ THANH TIẾN TRÌNH KHI MỞ APP
