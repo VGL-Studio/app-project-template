@@ -83,6 +83,10 @@ Làm theo `docs/ops/staging-and-runs.md`, mục 2.1 và 2.2: cài Claude GitHub 
 
 Kiểm tra: bấm **Run now** trên routine. Khi chưa có danh sách chạy `approved`, phiên chỉ kiểm tra đầu phiên rồi kết thúc và báo lý do. Phiên đó phải chạy được `scripts/check.sh`.
 
+## 6b. Hệ thống thiết kế trên công cụ thiết kế
+
+Khi app có feature cần thiết kế: dựng hệ thống thiết kế trên Claude Design hoặc Figma từ ảnh catalog và `docs/design-system/tokens.json` của app, theo `docs/ops/design-workflow.md`, mục 1. Trước đó, đổi màu thương hiệu của app trong `:core:designsystem` (plan riêng).
+
 ## 7. Phiên tự chạy đầu tiên
 
 Quy trình đầy đủ ở `docs/README.md` và `docs/auto-run.md`. Thứ tự một vòng:

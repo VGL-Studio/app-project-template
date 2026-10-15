@@ -26,7 +26,7 @@ Ticket xử lý các kịch bản sau trong `features/<ten-feature>/spec.md`:
 | --- | --- | --- |
 | KB-1 | Khi ... thì ... | <diễn giải ngắn, nêu giả định nếu có> |
 
-Thiết kế tham chiếu: `features/<ten-feature>/design/README.md`, các màn hình: <...>
+Thiết kế tham chiếu: `features/<ten-feature>/design/README.md`, các ảnh trong `design/screens/`: <...>, hoặc "Không có thiết kế riêng" (docs/ops/design-workflow.md)
 
 ADR liên quan: <ADR-NNNN, ...>
 
@@ -68,6 +68,8 @@ Test trên emulator chỉ kiểm tra trạng thái ổn định sau khi chờ c�
 | KB-1, tiêu chí 1 | Unit test | `XxxViewModelTest.whenXxx_thenYyy` |
 | KB-1, tiêu chí 2 | Compose UI test | <...> |
 | Giao diện màn hình X | Screenshot test | <...> |
+| Đúng thiết kế (khi có `design/screens/`) | Screenshot test cùng tên với từng ảnh thiết kế, ảnh so sánh `scripts/design-compare.sh <feature>`, rà soát độc lập theo mục 7 của mẫu thiết kế | `<Ten>Screen_<trạng thái>_<light\|dark>.png` |
+| Chữ đúng bảng chữ của thiết kế | Compose UI test | <...> |
 | <tiêu chí không tự động được> | Kiểm tra thủ công | <các bước dev làm khi kiểm tra bản staging> |
 
 **Ngoại lệ viết test trước:** <phần thay đổi không thể viết test trước, ví dụ chỉ đổi chuỗi văn bản hoặc tài nguyên, kèm lý do. Ghi "Không có" nếu không có. Người duyệt phải đồng ý với ngoại lệ.>

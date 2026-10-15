@@ -51,6 +51,7 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 ### Cần người kiểm tra
 
 - [ ] Ảnh chuẩn screenshot mới: <màn hình, đường dẫn ảnh>
+- [ ] Ảnh so sánh với thiết kế: <feature, `docs/features/<feature>/design/review/`, nhận xét của rà soát độc lập>
 - [ ] Tiêu chí kiểm tra thủ công: <ticket, tiêu chí, các bước>
 - [ ] Điểm rà soát mức ghi chú: <ticket, nội dung>
 
