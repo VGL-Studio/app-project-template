@@ -93,6 +93,7 @@ Quy trình đầy đủ ở `docs/README.md` và `docs/auto-run.md`. Thứ tự 
 4. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy. Phần tóm tắt của workflow có đường dẫn tới phiên.
 5. Trong lúc phiên chạy, không merge gì vào `main`.
 6. Sáng hôm sau, đọc báo cáo trong danh sách chạy (đã lên `main` qua PR báo cáo của phiên), xem ảnh chuẩn screenshot mới, làm các kiểm tra thủ công trên bản staging.
+7. Retro 15 phút: quyết định các bài học mới trong `docs/lessons.md`, nhờ AI làm các bài học được nhận thành PR cải tiến (`docs/auto-run.md`, mục 6).
 
 ## 8. Phát hành production
 
