@@ -33,3 +33,4 @@ include(":core:ads")
 include(":core:assets")
 
 include(":feature:sample")
+include(":feature:loading")
