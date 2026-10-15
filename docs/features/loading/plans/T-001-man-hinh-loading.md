@@ -279,3 +279,12 @@ Phiên bản 2:
 - **Đề xuất hướng xử lý:** người chọn một trong hai. (a) Đổi tiêu chí của `AppLaunchTest` thành: chờ tối đa 30 giây tới khi thấy `sample_screen` (việc loading hiện ra đúng đã có unit test và test giao diện kiểm tra). (b) Giữ tiêu chí cũ nhưng cho test cách kéo dài hoặc giữ màn hình loading (cần thêm file ngoài danh sách plan, ví dụ một hook chỉ có trong bản debug). Phương án (a) nhỏ hơn; cần sửa plan mục 4 và duyệt lại vì thay đổi điều kiểm chứng.
 - **Việc còn lại:** quyết định phương án trên, sửa plan (tăng phiên bản), chạy lại CI, merge bằng `scripts/merge-if-green.sh`, kiểm tra thủ công mục 4.
 - **Cần người xem:** ba ảnh chuẩn screenshot mới, và các điểm rà soát mức ghi chú ở mục trên (mục "Rà soát độc lập" vẫn đúng).
+
+### RUN-20261015-02, phiên bản plan 2
+
+- **Kết quả:** kết thúc phiên ở bước 3, không merge, không mở PR. Plan và ticket giữ trạng thái `approved` vì lý do là hạ tầng, không phải plan chưa đủ tốt.
+- **Nhánh, PR:** `claude/T-001-loading` chỉ tạo cục bộ, không đẩy lên. Không có PR.
+- **Lý do:** lần chạy test đầu tiên (`:core:config:testDebugUnitTest`, `:feature:loading:testDebugUnitTest`) thất bại khi Gradle tải plugin: 429 Too Many Requests từ `repo.maven.apache.org`. Đã chạy lại 3 lần (chờ 1 phút, rồi 90 giây), vẫn 429.
+- **Đã làm:** viết khung module và toàn bộ test theo mục 4 (chưa chạy được nên chưa xác nhận thất bại đúng lý do, chưa commit lên nhánh nào được đẩy).
+- **Việc còn lại:** toàn bộ task. Cần danh sách chạy mới.
+
