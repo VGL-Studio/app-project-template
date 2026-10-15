@@ -1,6 +1,7 @@
 package com.vglstudio.template.core.config
 
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigFetchThrottledException
+import io.mockk.mockk
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -10,6 +11,9 @@ import org.junit.Test
 
 class RemoteConfigRefresherTest {
     private var fetchCount = 0
+
+    // The real constructor calls Android's TextUtils, which is not available in JVM unit tests.
+    private val throttled = mockk<FirebaseRemoteConfigFetchThrottledException>(relaxed = true)
 
     private fun policy(isFake: Boolean = false, fetch: suspend () -> Unit = {}) = RemoteConfigRefreshPolicy(
         isFakeConfig = { isFake },
@@ -38,7 +42,7 @@ class RemoteConfigRefresherTest {
 
     @Test
     fun fetchThrottled_returnsTrue() = runTest {
-        assertTrue(policy(fetch = { throw FirebaseRemoteConfigFetchThrottledException(0L) }).refresh())
+        assertTrue(policy(fetch = { throw throttled }).refresh())
     }
 
     @Test

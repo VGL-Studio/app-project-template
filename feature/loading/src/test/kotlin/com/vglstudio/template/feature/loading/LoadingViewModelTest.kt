@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -54,7 +55,7 @@ class LoadingViewModelTest {
     fun eachTaskDone_addsAQuarter_andNeverDecreases() = runTest {
         val viewModel = viewModel()
         val seen = mutableListOf<LoadingUiState>()
-        backgroundScope.launch { viewModel.uiState.collect { seen += it } }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect { seen += it } }
 
         repository.complete(PreparationTask.HELLO_FILE, true)
         assertEquals(InProgress(0.25f), viewModel.uiState.value)
