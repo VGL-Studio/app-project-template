@@ -15,14 +15,16 @@ Bốn nguyên tắc của phiên tự chạy:
 2. Dev xem lại danh sách, chuyển trạng thái sang `approved`.
 3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine.
 4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính.
-5. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
+5. Một danh sách chạy chỉ chạy một lần. Danh sách đã `finished` không được kích hoạt lại; muốn chạy lại thì lập danh sách mới.
+6. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
 ## 2. Kiểm tra đầu phiên
 
-AI chuyển trạng thái phiên sang `running` và kiểm tra:
+AI tạo nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` từ nhánh chính, ghi trạng thái phiên `running` và giờ bắt đầu vào danh sách chạy trên nhánh đó, đẩy nhánh lên, rồi kiểm tra:
 
 | Điều kiện | Không thỏa thì |
 | --- | --- |
+| Danh sách chạy trên nhánh chính có trạng thái `approved` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
@@ -34,16 +36,16 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 | Bước | Việc làm | Kết quả |
 | --- | --- | --- |
-| 1. Tạo nhánh | Tạo nhánh `claude/T-NNN-<tu-khoa>` từ nhánh chính mới nhất | Nhánh riêng của task |
+| 1. Tạo nhánh | Tạo nhánh `claude/T-NNN-<tu-khoa>` từ nhánh chính mới nhất. Không dùng nhánh mặc định mà routine tạo cho phiên | Nhánh riêng của task |
 | 2. Đọc tài liệu | Đọc theo thứ tự trong [CLAUDE.md](CLAUDE.md) | Đủ ngữ cảnh |
 | 3. Viết test trước | Viết test theo mục Kiểm thử của plan, chạy và xác nhận test thất bại đúng lý do | Commit chứa test |
 | 4. Viết code | Viết code cho đến khi test qua, chỉ trong danh sách file của plan | Code chạy được |
 | 5. Kiểm tra cục bộ | Build, lint, unit test, screenshot test, quy tắc phụ thuộc module, đối chiếu danh sách file | Sẵn sàng rà soát |
 | 6. Rà soát độc lập | Phiên AI khác rà soát thay đổi | Danh sách điểm phát hiện đã xử lý |
-| 7. Commit và đẩy | Commit theo quy ước, đẩy nhánh, mở PR | PR liên kết tới plan |
+| 7. Commit và đẩy | Commit theo quy ước, đẩy nhánh, mở PR. PR của task chỉ có code, test và ảnh chuẩn | PR liên kết tới plan |
 | 8. CI đầy đủ | `pr-check.yml` chạy cổng chất lượng, thêm test trên emulator khi PR chạm vào code chạy trong app | CI xanh |
 | 9. Merge | Merge bằng `scripts/merge-if-green.sh` | Nhánh chính có thay đổi của task |
-| 10. Ghi nhật ký | Ghi vào cuối plan, cập nhật trạng thái | Người đọc được kết quả |
+| 10. Ghi nhật ký | Khi task có kết quả cuối, ghi vào cuối plan và cập nhật trạng thái trên nhánh báo cáo | Người đọc được kết quả |
 
 ### Bước 3. Viết test trước
 
@@ -63,6 +65,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 - Chạy `scripts/check.sh`. Script gồm quy tắc phụ thuộc module, ktlint, unit test, test giao diện trên JVM, screenshot test, Android Lint và build bản staging. CI dùng đúng script này, nên qua ở bước 5 thì thường cũng qua ở bước 8.
 - So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Có file ngoài danh sách thì dừng task.
+- Lỗi tải thư viện hay công cụ (mã 429, hết thời gian chờ, mất kết nối) là lỗi hạ tầng, không phải lỗi của code: chờ 1 phút rồi chạy lại, tối đa 3 lần, không tính vào giới hạn 3 lần sửa. Vẫn lỗi thì kết thúc phiên theo mục 4 và ghi lý do vào báo cáo.
 
 ### Bước 6. Rà soát độc lập
 
@@ -91,6 +94,7 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 
 - Nội dung commit theo dạng `<loại>(T-NNN): <mô tả ngắn>`, với loại là `test`, `feat`, `fix`, `refactor` hoặc `docs`. Mỗi commit có dòng `Co-Authored-By: Claude`.
 - PR có tiêu đề `T-NNN: <tên task>`, phần mô tả gồm đường dẫn tới plan, tóm tắt thay đổi, kết quả rà soát độc lập và đường dẫn tới phiên chạy. Vì PR mang tên tài khoản của người, các dấu hiệu này giúp phân biệt việc của AI.
+- PR của task không chứa nhật ký plan, trạng thái plan, ticket hay báo cáo phiên. Các tài liệu đó đi qua PR báo cáo cuối phiên (mục 4), để chúng lên nhánh chính kể cả khi task bị dừng.
 - Trong môi trường cloud của routine, `gh pr` và `gh issue` không chạy được (proxy GitHub chặn GraphQL, trả lỗi 403). Mọi thao tác với GitHub trong phiên đều dùng REST qua `gh api`, kể cả kiểm tra issue `main-broken` ở mục 2, bước 9 và khởi động `staging.yml` ở mục 4. Ví dụ:
   - Mở PR: `gh api -X POST repos/{owner}/{repo}/pulls -f title=... -f head=<nhánh> -f base=main -f body=...`
   - Tìm issue `main-broken` đang mở: `gh api "repos/{owner}/{repo}/issues?state=open&labels=main-broken"`
@@ -101,6 +105,8 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 - `pr-check.yml` chạy toàn bộ kiểm tra ở bước 5. Test trên emulator chỉ chạy khi PR chạm vào code giao diện hoặc test giao diện (ADR-0010).
 - AI theo dõi kết quả CI qua GitHub cho đến khi mọi kiểm tra kết thúc.
 - CI đỏ thì AI đọc log để phân biệt lỗi thật với lỗi chập chờn. Lỗi chập chờn được chạy lại một lần. Lỗi thật thì quay lại bước 4, tối đa 3 lần cho cùng một lỗi, sau đó dừng task.
+- Khi `ui-test` đỏ, log của job có bước "Chi tiết test trên emulator" in toàn văn lỗi của từng test và log của app trên emulator (ADR-0019). Đọc bước đó trước khi kết luận. Bản đầy đủ nằm trong artifact `ui-test-report` của lần chạy: `gh api repos/{owner}/{repo}/actions/runs/<id>/artifacts`, rồi tải tệp zip theo `archive_download_url`.
+- Không thêm lệnh in chẩn đoán vào test để tìm lỗi trên CI; đọc chi tiết và log nói trên.
 
 ### Bước 9. Merge
 
@@ -111,11 +117,22 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 
 ### Bước 10. Ghi nhật ký
 
-- Ghi vào mục Nhật ký thực hiện ở cuối plan theo mẫu.
+- Chỉ ghi khi task đã có kết quả cuối: đã merge, hoặc đã dừng. Không ghi trước khi biết kết quả CI.
+- Ghi trên nhánh báo cáo, không ghi trên nhánh của task. Ghi vào mục Nhật ký thực hiện ở cuối plan theo mẫu, cập nhật dòng của task trong báo cáo phiên, rồi đẩy nhánh báo cáo lên. Nhờ vậy nếu phiên dừng đột ngột (hết hạn mức), người vẫn đọc được kết quả các task đã xong trên nhánh báo cáo.
 - Plan chuyển sang `done`, ticket chuyển sang `on-staging`.
-- Task bị dừng: plan và ticket chuyển sang `stopped`, nhánh được giữ nguyên, không merge.
+- Task bị dừng: plan và ticket chuyển sang `stopped`, nhánh và PR của task được giữ nguyên, không merge.
 
 Sau đó AI chuyển sang task tiếp theo trong danh sách. Task phụ thuộc vào task bị dừng được bỏ qua.
+
+### Tiếp tục task đã dừng
+
+Task bị dừng không được chạy lại với cùng phiên bản plan.
+
+1. Nhóm trả lời "vì sao plan chưa đủ tốt" (risk-scoring.md, mục 4), AI sửa plan, tăng `version`, ghi rõ cách tiếp tục trong mục 3.1 của plan:
+   - **Tiếp tục trên nhánh cũ:** ghi tên nhánh và số PR. Phiên cập nhật nhánh theo nhánh chính, chỉ làm phần plan thay đổi, bước 3 chỉ áp dụng cho test mới hoặc test đổi điều kiểm tra.
+   - **Làm lại từ đầu:** người đóng PR cũ trước khi chạy. Phiên làm đủ 10 bước trên nhánh mới.
+2. Plan phiên bản mới được duyệt như plan mới, ticket chuyển lại `approved`.
+3. Plan được đưa vào một danh sách chạy mới.
 
 ## 4. Kết thúc phiên
 
@@ -131,8 +148,9 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 Sau đó AI:
 
 1. Nếu trong phiên có ít nhất một task được merge, khởi động workflow `staging.yml` để build bản staging từ nhánh chính và phát cho nhóm qua Firebase App Distribution, rồi chờ workflow kết thúc.
-2. Viết báo cáo phiên vào file danh sách chạy.
-3. Chuyển trạng thái phiên sang `finished`.
+2. Cập nhật nhánh báo cáo theo nhánh chính, viết báo cáo phiên vào file danh sách chạy, chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
+3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket.
+4. Merge PR báo cáo bằng `scripts/merge-if-green.sh`. Script từ chối (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
 
 ## 5. Báo cáo phiên
 

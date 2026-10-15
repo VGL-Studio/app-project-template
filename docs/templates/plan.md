@@ -34,6 +34,8 @@ ADR liên quan: <ADR-NNNN, ...>
 
 ### 3.1. Cách làm
 
+<!-- Plan phiên bản 2 trở lên của task đã dừng: ghi thêm dòng "Cách tiếp tục: tiếp tục trên nhánh <tên>, PR #<số>" hoặc "Cách tiếp tục: làm lại từ đầu" (auto-run.md, mục Tiếp tục task đã dừng). -->
+
 <Mô tả hướng kỹ thuật: cấu trúc ViewModel, nguồn dữ liệu, luồng trạng thái, điều hướng. Nêu mẫu có sẵn trong dự án mà plan sẽ làm theo.>
 
 ### 3.2. Danh sách file
@@ -58,6 +60,7 @@ ADR liên quan: <ADR-NNNN, ...>
 <!--
 Test được viết TRƯỚC code và phải thất bại đúng lý do trước khi viết code (xem auto-run.md).
 Mỗi dòng dưới đây phải đủ cụ thể để viết được test ngay từ plan.
+Test trên emulator chỉ kiểm tra trạng thái ổn định sau khi chờ có giới hạn, không khẳng định màn hình thoáng qua (CLAUDE.md, bước 10).
 -->
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
@@ -106,7 +109,7 @@ Mỗi dòng dưới đây phải đủ cụ thể để viết được test nga
 
 ## 10. Nhật ký thực hiện
 
-<!-- AI ghi sau mỗi lần chạy. Mục mới thêm vào cuối, không sửa mục cũ. -->
+<!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
 
 ### RUN-YYYYMMDD-NN, phiên bản plan 1
 
