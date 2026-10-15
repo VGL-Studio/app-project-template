@@ -18,7 +18,10 @@ Dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo 
 | Các quyết định kỹ thuật | [docs/adr/](docs/adr/) |
 | Hướng dẫn cho AI về code | [CLAUDE.md](CLAUDE.md) |
 | Hướng dẫn cho AI về tài liệu | [docs/CLAUDE.md](docs/CLAUDE.md) |
+| Cài đặt staging và phiên tự chạy | [docs/ops/staging-and-runs.md](docs/ops/staging-and-runs.md) |
+| Phát hành bản production | [docs/ops/release.md](docs/ops/release.md) |
 | Phần còn phải làm của dự án mẫu | [TEMPLATE-ROADMAP.md](TEMPLATE-ROADMAP.md) |
+| Tạo app mới từ dự án mẫu | [docs/ops/new-app.md](docs/ops/new-app.md) |
 
 ## Merge
 

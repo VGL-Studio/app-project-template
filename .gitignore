@@ -21,3 +21,6 @@ google-services.json
 
 # CI artifacts
 build.log
+
+# Bundles built by scripts/release.sh (ADR-0017)
+release-output/
