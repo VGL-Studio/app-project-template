@@ -103,6 +103,12 @@ replace_in README.md '| Tạo app mới từ dự án mẫu | [docs/ops/new-app.
 replace_in CLAUDE.md 'Đây là dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo từ dự án này.' \
   "Đây là app $name, tạo từ dự án mẫu của nhóm."
 
+# The new app starts its own lessons log; the template's lessons stay in the template repo.
+grep -qxF '<!-- Các bài học ghi dưới dòng này. -->' docs/lessons.md ||
+  die "không thấy dòng đánh dấu trong docs/lessons.md. Script cần cập nhật theo dự án mẫu."
+LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của repo dự án mẫu (commit $template_commit)." \
+  perl -0pi -e 's/(<!-- Các bài học ghi dưới dòng này\. -->\n).*\z/$1\n$ENV{LESSONS_NOTE}\n/s' docs/lessons.md
+
 left="$(grep -rlIF "$TEMPLATE_PACKAGE" . --exclude-dir=.git --exclude-dir=adr || true)"
 [ -z "$left" ] || die "còn tên gói cũ trong: $left"
 
