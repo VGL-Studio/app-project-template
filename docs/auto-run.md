@@ -189,8 +189,9 @@ Mỗi bài học ghi: chuyện gì đã xảy ra, bằng chứng (log, PR, thờ
 
 1. Với mỗi bài học `proposed`: nhận (`accepted`) hoặc bỏ (`rejected`, ghi lý do).
 2. Với mỗi bài học có bằng chứng kiểm chứng: xác nhận `verified`, hoặc mở bài học mới nếu cải tiến chưa đủ.
-3. AI, trong phiên có người theo dõi, làm các bài học `accepted` thành một PR cải tiến. Bài học phạm vi `chung` làm trong repo dự án mẫu. Sau khi merge, AI cập nhật bài học sang `applied` và ghi số PR.
-4. Mỗi vài phiên, xem mục Số liệu của các phiên để hiệu chỉnh các con số ở mục 8.
+3. AI, trong phiên có người theo dõi, làm các bài học `accepted` thành một PR cải tiến. Sau khi merge, AI cập nhật bài học sang `applied` và ghi số PR.
+4. Ở repo app, bài học phạm vi `chung` còn được đưa về dự án mẫu qua issue `from-app` (`docs/ops/from-app.md`).
+5. Mỗi vài phiên, xem mục Số liệu của các phiên để hiệu chỉnh các con số ở mục 8.
 
 ## 7. Vùng an toàn của phiên
 

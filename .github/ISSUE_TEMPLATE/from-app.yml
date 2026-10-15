@@ -1,0 +1,60 @@
+# Improvement found in an app made from this template, proposed back to the template (docs/ops/from-app.md).
+name: Cải tiến từ app
+description: Đề xuất đưa một cải tiến đã làm ở app về dự án mẫu
+title: "[from-app] "
+labels: [from-app]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dùng cho cải tiến đã chạy thật ở một app và có ích cho mọi app. Xem docs/ops/from-app.md.
+        Không dán bí mật, cấu hình production hay dữ liệu người dùng.
+  - type: input
+    id: app
+    attributes:
+      label: App nguồn
+      description: Tên repo của app, ví dụ VGL-Studio/notes
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Nguồn ở app
+      description: Link PR đã merge ở app, và mã bài học trong docs/lessons.md của app nếu có
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Phần bị ảnh hưởng
+      multiple: true
+      options:
+        - Quy trình và tài liệu (docs/, CLAUDE.md)
+        - Môi trường cloud, CI (.github/, scripts/cloud-setup.sh)
+        - Script khác (scripts/)
+        - Cấu hình build (build-logic/, gradle/)
+        - Module core
+        - Khác
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Vấn đề gặp ở app
+      description: Chuyện gì đã xảy ra, bằng chứng (log, phiên tự chạy, thời gian)
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Cải tiến đã làm
+      description: Đã sửa gì, kết quả sau khi sửa
+    validations:
+      required: true
+  - type: textarea
+    id: general
+    attributes:
+      label: Vì sao có ích cho mọi app, phần nào là riêng của app
+      description: Phần riêng (tên app, tên gói, giá trị cấu hình) cần bỏ khi đưa về dự án mẫu
+    validations:
+      required: true

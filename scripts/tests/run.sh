@@ -145,6 +145,8 @@ if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=tes
     "$(grep -c 'STAGING_APPLICATION_ID: com.example.notes.staging$' "$new_app/.github/workflows/staging.yml")"
   expect "new-app.sh drops links to template-only files" 0 \
     "$(grep -cE 'TEMPLATE-ROADMAP|ops/new-app\.md' "$new_app/README.md" || true)"
+  expect "new-app.sh leaves out the from-app issue form" absent \
+    "$([ -e "$new_app/.github/ISSUE_TEMPLATE/from-app.yml" ] && echo present || echo absent)"
   expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"
   expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
 else

@@ -15,7 +15,7 @@ Sổ này ghi những điều nhóm và AI học được khi làm việc, và �
 - Phạm vi: `chung` (đúng với mọi app, làm trong repo dự án mẫu trước), `app` (chỉ app này).
 - Chỉ người chuyển trạng thái sang `accepted`, `rejected` hay `verified`. AI chỉ ghi `proposed`, và ghi `applied` khi PR cải tiến đã merge.
 
-Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo trước đó đọc sổ của dự án mẫu để chép những cải tiến cần thiết về (chưa có cách đồng bộ tự động).
+Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue `from-app` (`docs/ops/from-app.md`). Ở dự án mẫu, bài học từ app ghi nguồn là app và số issue. Các app đã tạo trước đó đọc sổ của dự án mẫu để chép những cải tiến cần thiết về (chưa có cách đồng bộ tự động).
 
 ## Bài học
 
@@ -157,8 +157,8 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** `scripts/check.sh` đầu phiên đỏ vì Robolectric tự tải `android-all-instrumented` từ `repo1.maven.org` và nhận 429. Mirror của setup script chỉ áp dụng cho Gradle. Phiên đặt `-Drobolectric.dependency.repo.url=https://maven-central.storage-download.googleapis.com/maven2/` vào `JAVA_TOOL_OPTIONS` rồi chạy lại thì qua.
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` đặt sẵn thuộc tính đó; auto-run.md bước 5 ghi rõ được dùng mirror thay cho lịch thử lại.
-- **Trạng thái:** accepted (retro 2026-10-15)
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #23, setup script của môi trường cần dán lại
 - **Kiểm chứng:**
 
 ### L-015. Người merge vào nhánh chính khi phiên đang chạy
@@ -167,8 +167,8 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** PR #19 và #20 (tài liệu) được merge trong lúc phiên chạy. `merge-if-green.sh` báo nhánh task chậm 4 commit, phiên phải cập nhật nhánh và chạy lại CI một vòng (khoảng 11 phút).
 - **Cải tiến:** đề xuất nhắc lại quy tắc khi kích hoạt phiên, hoặc cho phép PR chỉ có tài liệu và ghi rõ chi phí một vòng CI.
-- **Trạng thái:** accepted (retro 2026-10-15)
-- **Áp dụng:** retro chọn cách chặn hẳn thay cho hai đề xuất trên: `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #23. Retro chọn cách chặn hẳn thay cho hai đề xuất trên: `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`.
 - **Kiểm chứng:**
 
 ### L-016. So sánh đúng đối tượng ngoại lệ trong test coroutine
@@ -177,6 +177,6 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy tắc code, chung
 - **Chuyện gì:** `RemoteConfigRefresherTest.fetchFails_logsWarning` so sánh `assertEquals(error, entry.error)` và thất bại, vì coroutine chép lại ngoại lệ khi khôi phục stack trace. Phải sửa chi tiết test sau khi viết code.
 - **Cải tiến:** đề xuất CLAUDE.md, bước 10: unit test kiểm tra loại lỗi, không so sánh đúng đối tượng lỗi.
-- **Trạng thái:** accepted (retro 2026-10-15)
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #23
 - **Kiểm chứng:**
