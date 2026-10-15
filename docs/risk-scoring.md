@@ -62,10 +62,11 @@ Khi dừng, AI làm ba việc:
 - Ghi vào mục Nhật ký thực hiện của plan: dừng ở đâu, vì sao, đã thử những gì, đề xuất hướng xử lý.
 - Chuyển trạng thái plan và ticket sang `stopped`.
 
-Khi bắt đầu làm việc lại, nhóm trả lời câu hỏi "vì sao plan chưa đủ tốt" và ghi bài học vào plan sửa lại. Nếu bài học mang tính chung, cập nhật vào thang điểm này hoặc vào `CLAUDE.md`, để lần sau AI tự tránh.
+Khi bắt đầu làm việc lại, nhóm trả lời câu hỏi "vì sao plan chưa đủ tốt" và ghi bài học vào plan sửa lại. Nếu bài học mang tính chung, ghi vào sổ bài học [lessons.md](lessons.md); retro quyết định cập nhật thang điểm này, `CLAUDE.md` hay tài liệu khác (auto-run.md, mục 6), để lần sau AI tự tránh.
 
 ## 5. Lịch sử thay đổi
 
 | Ngày | Thay đổi | Lý do |
 | --- | --- | --- |
 | 2026-10-14 | Phiên bản đầu tiên | Thiết lập quy trình |
+| 2026-10-15 | Mục 4: bài học chung ghi vào sổ bài học, retro quyết định sửa gì | Có vòng cải tiến khép kín sau mỗi phiên |
