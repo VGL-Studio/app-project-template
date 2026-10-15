@@ -1,7 +1,7 @@
 ---
 ticket: T-001
 title: Màn hình loading có thanh tiến trình khi mở app
-status: approved
+status: done
 version: 1
 risk_score:
 risk_level: high
@@ -227,3 +227,15 @@ Bảng điểm dưới đây chỉ để tham khảo:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi sau mỗi lần chạy. Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261015-01, phiên bản plan 1
+
+- **Kết quả:** gửi để merge bằng `scripts/merge-if-green.sh` sau khi CI xanh (nhật ký ghi trước khi merge vì phiên không được đẩy thẳng lên nhánh chính)
+- **Nhánh, PR:** `claude/trusting-ritchie-kr8pph` (nhánh do môi trường chỉ định, thay cho `claude/T-001-<tu-khoa>`), PR ghi trong báo cáo phiên
+- **Đã làm:** `RemoteConfigRefresher` trong `:core:config`, cờ `LOADING`, module `:feature:loading` (repository, ViewModel, màn hình, điều hướng), `AppNavHost` bắt đầu từ loading, bật cờ cho staging, cập nhật `AppLaunchTest`
+- **Test viết trước:** 20 test (6 `RemoteConfigRefresherTest`, 9 `LoadingViewModelTest`, 3 `DefaultPreparationRepositoryTest`, 2 `LoadingScreenTest`), đã thất bại đúng lý do (`NotImplementedError` hoặc khung màn hình chưa vẽ). Ba screenshot test chưa có ảnh chuẩn nên chưa thất bại, đúng ngoại lệ ở mục 4. `AppLaunchTest` chỉ chạy trong CI. Sau rà soát thêm 1 test: `taskThrows_isTreatedAsFailure_andShowsFailed`, đã thất bại trước khi sửa code
+- **Rà soát độc lập:** 0 chặn. Đã xử lý 2 điểm nên sửa: Task Firebase bị hủy làm màn hình kẹt, và lỗi bất ngờ từ `repository.run` làm dừng app. Còn để người xem: (1) lúc cờ tắt màn hình vẽ một khung 0% rồi mới chuyển; (2) khi Firebase báo bị giới hạn, `refresh()` trả thành công mà không gọi `activate()`, và `FirebaseRemoteFlagSource` cũng tải lúc khởi động nên quota có thể cạn nhanh hơn (điều kiện dừng 3, cần theo dõi trên staging); (3) bản cài mới ở production, cờ mặc định tắt nên lần mở đầu bỏ qua loading (hệ quả của ADR-0003, ADR-0012); (4) spec KB-2 nói báo lỗi ngay khi một phần việc không xong, plan và code chỉ báo khi mọi phần việc đã kết thúc (plan đã duyệt như vậy); (5) `FirebaseRemoteConfigRefresher` (gọi `fetch(0)`, nhận ra project giả) và nút quay lại không có test tự động
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (module, ktlint, unit test, screenshot, lint, build staging). CI trên GitHub xem PR
+- **Lệch so với plan:** Hai chi tiết của test được sửa sau khi viết code, không đổi điều test kiểm tra: bộ thu trạng thái của `eachTaskDone_...` dùng `UnconfinedTestDispatcher` (bản đầu không chạy bộ thu); `fetchThrottled_returnsTrue` dùng `mockk(relaxed = true)` vì lớp ngoại lệ thật của Firebase gọi `TextUtils` của Android, không có trong test JVM. `RemoteConfigRefreshPolicy` có thêm tham số `onFailure` để ghi log mà không gọi `android.util.Log` trong test JVM. Nhánh làm việc do môi trường chỉ định
+- **Việc còn lại:** kiểm tra thủ công trên bản staging theo mục 4 (nút quay lại, xoay máy, máy bay, mất mạng lúc mở lại)
+- **Cần người xem:** ba ảnh chuẩn mới trong `feature/loading/src/test/screenshots/`; các điểm ghi chú ở trên

@@ -126,6 +126,16 @@ class LoadingViewModelTest {
     }
 
     @Test
+    fun taskThrows_isTreatedAsFailure_andShowsFailed() = runTest {
+        val viewModel = viewModel()
+        repository.fail(PreparationTask.REMOTE_CONFIG, IllegalStateException("unexpected"))
+        repository.complete(PreparationTask.HELLO_FILE, true)
+        repository.complete(PreparationTask.CONTENT_FILE, true)
+        repository.complete(PreparationTask.GOODBYE_FILE, true)
+        assertEquals(Failed(0.75f), viewModel.uiState.value)
+    }
+
+    @Test
     fun retry_runsOnlyUnfinishedTasks_andProgressContinues() = runTest {
         val viewModel = viewModel()
         repository.complete(PreparationTask.REMOTE_CONFIG, true)
@@ -190,6 +200,10 @@ private class FakePreparationRepository : PreparationRepository {
 
     fun complete(task: PreparationTask, success: Boolean) {
         checkNotNull(pending.remove(task)) { "$task is not running" }.complete(success)
+    }
+
+    fun fail(task: PreparationTask, error: Throwable) {
+        checkNotNull(pending.remove(task)) { "$task is not running" }.completeExceptionally(error)
     }
 
     fun completeAll(success: Boolean) = pending.keys.toList().forEach { complete(it, success) }

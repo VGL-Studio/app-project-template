@@ -10,6 +10,7 @@ import com.vglstudio.template.feature.loading.data.PreparationRepository
 import com.vglstudio.template.feature.loading.data.PreparationTask
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -67,7 +68,7 @@ class LoadingViewModel @Inject constructor(
         coroutineScope {
             PreparationTask.entries.filter { it !in doneTasks }.map { task ->
                 async {
-                    if (repository.run(task)) {
+                    if (runSafely(task)) {
                         doneTasks += task
                         state.value = LoadingUiState.InProgress(progress())
                     }
@@ -90,6 +91,15 @@ class LoadingViewModel @Inject constructor(
             ),
         )
         state.value = LoadingUiState.Finished
+    }
+
+    /** An unexpected error in one task is a failed task, not a crash of the whole app. */
+    private suspend fun runSafely(task: PreparationTask): Boolean = try {
+        repository.run(task)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
     }
 
     private fun progress(): Float = doneTasks.size.toFloat() / PreparationTask.entries.size

@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigFetchThrottledException
+import java.io.IOException
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
@@ -71,5 +72,6 @@ internal class FirebaseRemoteConfigRefresher @Inject constructor() : RemoteConfi
 private suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T = suspendCancellableCoroutine { continuation ->
     addOnSuccessListener { continuation.resume(it) }
     addOnFailureListener { continuation.resumeWithException(it) }
-    addOnCanceledListener { continuation.cancel() }
+    // A cancelled Task is a failed fetch, not a cancelled caller: report it as an error.
+    addOnCanceledListener { continuation.resumeWithException(IOException("Remote Config task was cancelled")) }
 }
