@@ -48,12 +48,12 @@ class RemoteConfigRefresherTest {
 
     @Test
     fun fetchFails_logsWarning() = runTest {
-        val error = IOException("no network")
-        policy(fetch = { throw error }).refresh()
+        policy(fetch = { throw IOException("no network") }).refresh()
         val entry = logger.entries.single()
         assertEquals(LogLevel.WARN, entry.level)
         assertEquals(RemoteConfigRefreshPolicy.LOG_TAG, entry.tag)
-        assertEquals(error, entry.error)
+        // Coroutines may copy the exception to recover its stack trace, so compare its type.
+        assertTrue(entry.error is IOException)
     }
 
     @Test
