@@ -6,6 +6,7 @@ import com.vglstudio.template.core.analytics.Analytics
 import com.vglstudio.template.core.analytics.AnalyticsEvent
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.FeatureFlags
+import com.vglstudio.template.core.logging.AppLogger
 import com.vglstudio.template.feature.sample.data.CounterRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.IOException
@@ -25,13 +26,15 @@ import kotlinx.coroutines.launch
  * Reference implementation of a feature ViewModel. New features follow this shape:
  * - state exposed as a [StateFlow] of a sealed UI state, user actions as plain functions;
  * - the feature flag is observed as a flow, so a remote value fetched later takes effect without a restart;
- * - storage errors are caught and shown in the UI state, never left to crash the app.
+ * - storage errors are caught and shown in the UI state, never left to crash the app;
+ * - what happens (actions, caught errors) is logged through [AppLogger], without personal data (ADR-0019).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SampleViewModel @Inject constructor(
     private val repository: CounterRepository,
     private val analytics: Analytics,
+    private val logger: AppLogger,
     featureFlags: FeatureFlags,
 ) : ViewModel() {
     // null until the first flag value arrives, so the screen shows Loading instead of flashing "disabled".
@@ -62,9 +65,11 @@ class SampleViewModel @Inject constructor(
             try {
                 repository.increment()
             } catch (error: IOException) {
+                logger.warn(LOG_TAG, "Saving the counter failed", error)
                 saveFailed.value = true
                 return@launch
             }
+            logger.info(LOG_TAG, "Counter incremented")
             analytics.log(AnalyticsEvent(name = EVENT_INCREMENT))
         }
     }
@@ -72,5 +77,6 @@ class SampleViewModel @Inject constructor(
     internal companion object {
         const val STOP_TIMEOUT_MILLIS = 5_000L
         const val EVENT_INCREMENT = "sample_increment"
+        const val LOG_TAG = "Sample"
     }
 }

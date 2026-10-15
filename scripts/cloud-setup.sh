@@ -36,4 +36,14 @@ for line in "export ANDROID_HOME=${SDK_ROOT}" "export ANDROID_SDK_ROOT=${SDK_ROO
   grep -qxF "${line}" "${HOME}/.bashrc" 2>/dev/null || echo "${line}" >> "${HOME}/.bashrc"
 done
 
+# Maven Central answers 429 (too many requests) to cloud sessions now and then. Let Gradle retry longer, with
+# backoff, instead of failing the build. User-level properties, so the repo's gradle.properties stays unchanged.
+GRADLE_USER_PROPERTIES="${HOME}/.gradle/gradle.properties"
+mkdir -p "${HOME}/.gradle"
+for line in \
+  "systemProp.org.gradle.internal.repository.max.retries=8" \
+  "systemProp.org.gradle.internal.repository.initial.backoff=1000"; do
+  grep -qxF "${line}" "${GRADLE_USER_PROPERTIES}" 2>/dev/null || echo "${line}" >> "${GRADLE_USER_PROPERTIES}"
+done
+
 echo "Android SDK đã sẵn sàng tại ${SDK_ROOT}"

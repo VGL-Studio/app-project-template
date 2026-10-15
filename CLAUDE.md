@@ -19,6 +19,7 @@
 | `:core:analytics` | Ghi sự kiện phân tích vào Firebase Analytics (ADR-0012) |
 | `:core:ads` | Vị trí quảng cáo, hộp thoại đồng ý, rào chắn chính sách, AdMob (ADR-0004, ADR-0013, ADR-0014) |
 | `:core:assets` | Tải file tĩnh từ R2, giữ trên máy để dùng khi mất mạng (ADR-0006, ADR-0015) |
+| `:core:logging` | Ghi log hành vi của app vào logcat và Crashlytics để phân tích khi có lỗi (ADR-0019) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
@@ -28,6 +29,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 
 - Kiểm tra toàn bộ, giống hệt CI: `scripts/check.sh`.
 - Ghi lại ảnh chuẩn screenshot khi plan cho phép: `./gradlew recordRoborazziDebug`.
+- Xem log của app trên máy thật hoặc emulator: `adb logcat -v threadtime | grep ' VGL\.'` (ADR-0019).
 - Môi trường cloud chưa có `ANDROID_HOME` thì đặt `export ANDROID_HOME=$HOME/android-sdk` (SDK do `scripts/cloud-setup.sh` cài).
 - `app/src/staging/google-services.json` là file cấu hình Firebase giả, chỉ để build qua được; bản build từ file này không gửi số liệu nào (ADR-0012). Không sửa, không thay bằng file thật.
 - Môi trường cloud không có emulator. Test trên emulator (`app/src/androidTest`) chỉ chạy trong CI.
@@ -39,7 +41,8 @@ Làm theo đúng mẫu `:feature:sample`:
 1. `build.gradle.kts` chỉ áp dụng plugin `template.android.feature`, khai báo `namespace`.
 2. `data/`: interface repository và lớp cài đặt `internal`, gắn bằng một Hilt module trong `di/`.
 3. `<Ten>UiState`: sealed interface mô tả mọi trạng thái màn hình.
-4. `<Ten>ViewModel`: nhận repository, `Analytics`, `FeatureFlags`; trả `StateFlow<UiState>`; hành động của người dùng là hàm thường.
+4. `<Ten>ViewModel`: nhận repository, `Analytics`, `AppLogger`, `FeatureFlags`; trả `StateFlow<UiState>`; hành động của người dùng là hàm thường.
+   - Ghi log bằng `AppLogger` (ADR-0019): đổi trạng thái chính, kết quả hành động của người dùng, lỗi đã bắt, lần thử lại. Thẻ log là tên feature. Không ghi dữ liệu cá nhân, nội dung file hay chữ người dùng nhập. Unit test dùng `RecordingAppLogger`.
    - `FeatureFlags.enabled()` là một `Flow`: theo dõi nó, không đọc một lần (ADR-0003).
    - Ghi dữ liệu có thể ném `IOException`: bắt lỗi trong ViewModel, đưa vào `UiState` để màn hình báo cho người dùng, không để app dừng đột ngột. Luồng đọc DataStore tự thử lại khi gặp `IOException`.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
@@ -51,13 +54,14 @@ Làm theo đúng mẫu `:feature:sample`:
    - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`.
    - Test giao diện cho `<Ten>Screen` chạy bằng Robolectric.
    - Screenshot test bằng Roborazzi. Mỗi lệnh `captureRoboImage` ghi rõ đường dẫn, dạng `"src/test/screenshots/<Ten>.png"`; `scripts/check.sh` báo lỗi nếu thiếu.
+   - Test trên emulator (`app/src/androidTest`) chỉ kiểm tra trạng thái ổn định: màn hình đích sau khi chờ có giới hạn (`waitUntil`). Không khẳng định một màn hình hay trạng thái chỉ hiện thoáng qua (loading, hiệu ứng, thông báo tự ẩn); phần đó kiểm tra bằng test giao diện trên JVM, nơi điều khiển được thời gian. Bản staging mới cài hiện hộp thoại đồng ý quảng cáo phủ lên app (ADR-0013), nên kiểm tra màn hình có trong cây giao diện (`onAllNodesWithTag(...).fetchSemanticsNodes()`), không dùng `assertIsDisplayed`.
 
 ## Quy ước code
 
 - Tên lớp, hàm, biến và chú thích trong code viết bằng tiếng Anh, kể cả chú thích trong script và workflow. Thông báo mà script in ra cho nhóm và tài liệu trong `docs/` viết bằng tiếng Việt.
 - Chữ hiển thị cho người dùng đặt trong `res/values/strings.xml`, không viết cứng trong code.
 - Màu, chữ, khoảng cách lấy từ `:core:designsystem` (`AppTheme`, `MaterialTheme`, `Spacing`). Không viết cứng mã màu hay cỡ chữ.
-- Feature không gọi trực tiếp SDK quảng cáo, phân tích, Remote Config hay tải file từ R2; luôn đi qua `:core:ads`, `:core:analytics`, `:core:config`, `:core:assets`.
+- Feature không gọi trực tiếp SDK quảng cáo, phân tích, Remote Config, tải file từ R2 hay `android.util.Log`; luôn đi qua `:core:ads`, `:core:analytics`, `:core:config`, `:core:assets`, `:core:logging`.
 - Định dạng code theo ktlint (kiểu Android Studio, xem `.editorconfig`).
 
 ## Không được làm
