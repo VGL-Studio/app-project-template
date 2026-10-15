@@ -1,9 +1,13 @@
 package com.vglstudio.template
 
+import android.os.Process
+import android.os.SystemClock
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -17,11 +21,22 @@ class AppLaunchTest {
 
     @Test
     fun appStarts_showsLoadingThenStartScreen() {
-        composeRule.onNodeWithTag("loading_screen").assertIsDisplayed()
+        assertLoadingScreenDisplayed()
         // The loading screen downloads files from staging R2 and waits at least 2 seconds.
         composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithTag("sample_screen").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithTag("sample_screen").assertIsDisplayed()
+    }
+
+    /** On failure, adds the screen tree and the app age to the message, so a CI log shows what was on screen. */
+    private fun assertLoadingScreenDisplayed() {
+        try {
+            composeRule.onNodeWithTag("loading_screen").assertIsDisplayed()
+        } catch (e: AssertionError) {
+            val ageMs = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()
+            val tree = composeRule.onRoot(useUnmergedTree = true).printToString()
+            throw AssertionError("${e.message}\nApp age: $ageMs ms\n$tree", e)
+        }
     }
 }
