@@ -1,15 +1,15 @@
 ---
 ticket: T-001
 title: Màn hình loading có thanh tiến trình khi mở app
-status: draft
+status: approved
 version: 2
 risk_score:
 risk_level: high
 blocking_points: [analytics, core]
 run_order: 1
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-15
 ---
 
 # PLAN T-001: MÀN HÌNH LOADING CÓ THANH TIẾN TRÌNH KHI MỞ APP
@@ -233,10 +233,10 @@ Câu hỏi của phiên bản 2:
 
 7. **Lúc báo lỗi ở KB-2:** spec viết "khi một phần việc không xong thì báo lỗi". Phiên bản 1 báo lỗi khi mọi phần việc đang chạy đã kết thúc (rà soát độc lập của RUN-20261015-01 ghi nhận điểm khác này).
    - Đề xuất của AI: giữ cách của phiên bản 1. Chậm nhất 15 giây sau khi bắt đầu là có thông báo, và "Thử lại" không chạy chồng lên phần việc còn đang chạy.
-   - Trả lời:
+   - Trả lời: giữ như cách của phiên 1.
 8. **Duyệt chéo phiên bản 2:** như phiên bản 1?
    - Đề xuất của AI: Nhật duyệt và duyệt chéo, vì đây là dự án mẫu.
-   - Trả lời:
+   - Trả lời: Nhật duyệt và duyệt chéo.
 
 ## 9. Quyết định duyệt
 
@@ -250,9 +250,9 @@ Phiên bản 1:
 
 Phiên bản 2:
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì là đang ở trên app template)
+- **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
 
