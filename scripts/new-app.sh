@@ -60,7 +60,8 @@ echo "== Chép dự án mẫu (${template_commit}) sang $dest"
 mkdir -p "$dest"
 git archive --format=tar HEAD | tar -x -C "$dest"
 cd "$dest"
-rm -f TEMPLATE-ROADMAP.md scripts/new-app.sh docs/ops/new-app.md
+rm -f TEMPLATE-ROADMAP.md scripts/new-app.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
+rmdir .github/ISSUE_TEMPLATE 2> /dev/null || true
 
 # Replaces text in every file that contains it; fails when nothing matched, so a renamed template file is noticed.
 replace_in() {

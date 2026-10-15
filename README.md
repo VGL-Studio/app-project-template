@@ -21,6 +21,7 @@ Dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo 
 | Thiết lập app mới từ đầu tới phiên tự chạy đầu tiên | [docs/ops/setup-new-app.md](docs/ops/setup-new-app.md) |
 | Cài đặt staging và phiên tự chạy | [docs/ops/staging-and-runs.md](docs/ops/staging-and-runs.md) |
 | Phát hành bản production | [docs/ops/release.md](docs/ops/release.md) |
+| Đưa cải tiến từ app về dự án mẫu | [docs/ops/from-app.md](docs/ops/from-app.md) |
 | Phần còn phải làm của dự án mẫu | [TEMPLATE-ROADMAP.md](TEMPLATE-ROADMAP.md) |
 | Tạo app mới từ dự án mẫu | [docs/ops/new-app.md](docs/ops/new-app.md) |
 

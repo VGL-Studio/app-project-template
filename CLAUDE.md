@@ -66,7 +66,7 @@ Làm theo đúng mẫu `:feature:sample`:
 
 ## Không được làm
 
-- Không sửa `.github/`, `scripts/check.sh`, `scripts/merge-if-green.sh`, `build-logic/` hay `gradle/libs.versions.toml`, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo.
+- Không sửa `.github/`, `scripts/check.sh`, `scripts/merge-if-green.sh`, `build-logic/` hay `gradle/libs.versions.toml`, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo. Thay đổi có ích cho mọi app ở các phần dùng chung (quy trình, CI, script, cấu hình build, module core) phải được đề xuất về dự án mẫu (`docs/ops/from-app.md`); ghi điều này vào mô tả PR.
 - Không thêm quyền truy cập vào `AndroidManifest.xml`, không thêm SDK, vị trí quảng cáo hay sự kiện phân tích ngoài spec đã duyệt.
 - Không merge bằng cách nào khác ngoài `scripts/merge-if-green.sh`. Không đóng, sửa hay bình luận để gỡ issue mang nhãn `main-broken`.
 - Không đọc, in ra hay chuyển đi bí mật của repo. Không tạo hay sửa cấu hình production (ADR-0007, ADR-0009).
