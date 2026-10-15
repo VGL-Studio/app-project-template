@@ -27,9 +27,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** báo cáo phiên, nhật ký plan và trạng thái được commit vào PR #13 của T-001. Task dừng nên PR không merge; trên nhánh chính danh sách chạy vẫn `approved`, có thể bị chạy lại.
 - **Cải tiến:** tài liệu của phiên đi qua nhánh và PR báo cáo riêng, phiên tự merge; danh sách chạy chỉ chạy một lần.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #14
-- **Kiểm chứng:** RUN-20261015-02 tự merge PR báo cáo #16, danh sách chạy chuyển `finished` trên nhánh chính (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** RUN-20261015-02 và RUN-20261015-03 tự merge PR báo cáo (#16, #22), danh sách chạy chuyển `finished` trên nhánh chính. Retro 2026-10-15 xác nhận.
 
 ### L-002. Routine làm việc trên nhánh tên ngẫu nhiên
 
@@ -37,9 +37,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** phiên dùng nhánh `claude/trusting-ritchie-kr8pph` do routine tạo, khác `claude/T-NNN-<tu-khoa>`; một phiên nhiều task không có nhánh riêng cho từng task.
 - **Cải tiến:** prompt routine có dòng "Nhánh"; auto-run.md yêu cầu tạo nhánh riêng cho từng task.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #14, prompt routine cập nhật
-- **Kiểm chứng:** RUN-20261015-02 dùng `claude/T-001-loading` và `claude/RUN-20261015-02-report` (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** RUN-20261015-02 và RUN-20261015-03 dùng `claude/T-001-loading` và nhánh báo cáo riêng. Retro 2026-10-15 xác nhận.
 
 ### L-003. Test trên emulator khẳng định một màn hình thoáng qua
 
@@ -47,9 +47,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** plan T-001 phiên bản 1 yêu cầu `AppLaunchTest` thấy màn hình loading; màn hình đã qua hoặc bị che lúc test kiểm tra, `ui-test` đỏ 3 lần.
 - **Cải tiến:** test emulator chỉ kiểm tra trạng thái ổn định sau khi chờ có giới hạn (CLAUDE.md, bước 10; mẫu plan).
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #14, plan T-001 phiên bản 2 (PR #15)
-- **Kiểm chứng:** RUN-20261015-03: `AppLaunchTest` chỉ chờ màn hình mẫu, `ui-test` của PR #21 xanh ngay lần đầu (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** `AppLaunchTest` chỉ chờ màn hình mẫu có trong cây giao diện; `ui-test` xanh ngay lần đầu trên PR #21 (RUN-20261015-03). Retro 2026-10-15 xác nhận.
 
 ### L-004. Hộp thoại đồng ý quảng cáo che app mới cài trên staging
 
@@ -57,9 +57,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy tắc code, chung
 - **Chuyện gì:** bản stagingDebug giả lập vùng EEA nên hộp thoại UMP hiện sau vài giây, phủ lên app; `assertIsDisplayed` báo "không hiển thị".
 - **Cải tiến:** test emulator kiểm tra nút có trong cây giao diện, không dùng `assertIsDisplayed` (CLAUDE.md, bước 10).
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #14
-- **Kiểm chứng:** RUN-20261015-03: không dùng `assertIsDisplayed`, `ui-test` của PR #21 xanh trên bản staging có hộp thoại đồng ý (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** `ui-test` xanh ngay lần đầu trên PR #21 dù bản staging hiện hộp thoại đồng ý (RUN-20261015-03). Retro 2026-10-15 xác nhận.
 
 ### L-005. Không đọc được vì sao test emulator đỏ
 
@@ -77,9 +77,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** phiên ghi "gửi để merge" rồi phải thêm mục "thay cho mục ngay trên" khi CI đỏ.
 - **Cải tiến:** chỉ ghi nhật ký khi task có kết quả cuối (auto-run.md, bước 10).
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #14
-- **Kiểm chứng:** RUN-20261015-02 ghi một mục nhật ký sau khi có kết quả (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** RUN-20261015-02 và RUN-20261015-03 ghi nhật ký plan một lần, sau khi có kết quả. Retro 2026-10-15 xác nhận.
 
 ### L-007. Maven Central trả 429 cho môi trường cloud
 
@@ -89,7 +89,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Cải tiến:** setup script cho Gradle tải Maven Central qua mirror của Google; đầu phiên chạy `scripts/check.sh` để tải sẵn thư viện.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #17, setup script của môi trường đã dán lại
-- **Kiểm chứng:** RUN-20261015-03: log Gradle không còn `repo.maven.apache.org`. Robolectric vẫn tải thẳng từ Maven Central và nhận 429, xem L-014 (AI ghi bằng chứng, chờ retro).
+- **Kiểm chứng:** RUN-20261015-03: log Gradle không còn `repo.maven.apache.org`; Robolectric vẫn tải thẳng từ Maven Central, xử lý ở L-014.
 
 ### L-008. Thử lại khi lỗi hạ tầng quá ngắn cho phiên qua đêm
 
@@ -99,7 +99,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Cải tiến:** thử lại sau 1, 2, 4, 8, 15 phút (auto-run.md, bước 5).
 - **Trạng thái:** applied
 - **Áp dụng:** PR #17
-- **Kiểm chứng:** chờ lần lỗi hạ tầng tiếp theo.
+- **Kiểm chứng:** Chưa: RUN-20261015-03 dùng mirror thay vì chờ theo lịch.
 
 ### L-009. Mất phần việc khi phiên kết thúc sớm
 
@@ -117,9 +117,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** commit của phiên ghi `Claude Sonnet 5.5`; hướng dẫn dự kiến Opus 5.5 cho task rủi ro cao chạy qua đêm.
 - **Cải tiến:** ghi model trong hướng dẫn tạo routine; người chọn model trong routine.
-- **Trạng thái:** accepted
-- **Áp dụng:** PR #19 (tài liệu); đổi model trong routine do người làm
-- **Kiểm chứng:** RUN-20261015-03: commit của phiên ghi `Claude Opus 5.5` (AI ghi bằng chứng, chờ retro).
+- **Trạng thái:** verified
+- **Áp dụng:** PR #19 (tài liệu); anh Nhật đổi model của routine sang Opus 5.5
+- **Kiểm chứng:** Commit của RUN-20261015-03 ghi `Claude Opus 5.5`. Retro 2026-10-15 xác nhận.
 
 ### L-011. API kích hoạt routine cần header beta
 
@@ -127,9 +127,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** `start-run.yml` thiếu header `anthropic-beta`; lần thử bằng mã giả dừng ở lỗi 401 nên không lộ ra.
 - **Cải tiến:** thêm header.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #11
-- **Kiểm chứng:** `start-run` của RUN-20261015-01 và RUN-20261015-02 thành công (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** `start-run` thành công ở RUN-20261015-01, 02, 03. Retro 2026-10-15 xác nhận.
 
 ### L-012. Phiên cloud không dùng được `gh pr` và `gh issue`
 
@@ -137,9 +137,9 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** proxy GitHub của môi trường cloud chặn GraphQL.
 - **Cải tiến:** mọi thao tác GitHub trong phiên dùng `gh api` (auto-run.md, bước 7).
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #11
-- **Kiểm chứng:** RUN-20261015-01 mở PR #13, RUN-20261015-02 mở và merge PR #16 (AI ghi bằng chứng, chờ retro xác nhận `verified`).
+- **Kiểm chứng:** RUN-20261015-03 mở PR #21, #22, khởi động `staging.yml` và đọc issue `main-broken` bằng `gh api`. Retro 2026-10-15 xác nhận.
 
 ### L-013. Hướng dẫn thiết lập rời rạc, dev nhóm khác phải hỏi
 
@@ -157,7 +157,7 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** `scripts/check.sh` đầu phiên đỏ vì Robolectric tự tải `android-all-instrumented` từ `repo1.maven.org` và nhận 429. Mirror của setup script chỉ áp dụng cho Gradle. Phiên đặt `-Drobolectric.dependency.repo.url=https://maven-central.storage-download.googleapis.com/maven2/` vào `JAVA_TOOL_OPTIONS` rồi chạy lại thì qua.
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` đặt sẵn thuộc tính đó; auto-run.md bước 5 ghi rõ được dùng mirror thay cho lịch thử lại.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted (retro 2026-10-15)
 - **Áp dụng:**
 - **Kiểm chứng:**
 
@@ -167,8 +167,8 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** PR #19 và #20 (tài liệu) được merge trong lúc phiên chạy. `merge-if-green.sh` báo nhánh task chậm 4 commit, phiên phải cập nhật nhánh và chạy lại CI một vòng (khoảng 11 phút).
 - **Cải tiến:** đề xuất nhắc lại quy tắc khi kích hoạt phiên, hoặc cho phép PR chỉ có tài liệu và ghi rõ chi phí một vòng CI.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** accepted (retro 2026-10-15)
+- **Áp dụng:** retro chọn cách chặn hẳn thay cho hai đề xuất trên: `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`.
 - **Kiểm chứng:**
 
 ### L-016. So sánh đúng đối tượng ngoại lệ trong test coroutine
@@ -177,6 +177,6 @@ Bài học `chung` được làm trong repo dự án mẫu. Các app đã tạo 
 - **Loại, phạm vi:** quy tắc code, chung
 - **Chuyện gì:** `RemoteConfigRefresherTest.fetchFails_logsWarning` so sánh `assertEquals(error, entry.error)` và thất bại, vì coroutine chép lại ngoại lệ khi khôi phục stack trace. Phải sửa chi tiết test sau khi viết code.
 - **Cải tiến:** đề xuất CLAUDE.md, bước 10: unit test kiểm tra loại lỗi, không so sánh đúng đối tượng lỗi.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted (retro 2026-10-15)
 - **Áp dụng:**
 - **Kiểm chứng:**

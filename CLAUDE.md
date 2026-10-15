@@ -51,7 +51,7 @@ Làm theo đúng mẫu `:feature:sample`:
 8. File tĩnh trên R2 chỉ qua `RemoteAssets.load(AssetPath(...))` của `:core:assets`, gọi từ ViewModel; kết quả `Unavailable` đưa vào `UiState` để người dùng thử lại. Đường dẫn tương đối, có phiên bản hoặc mã băm; nội dung đổi thì dùng đường dẫn mới (ADR-0015).
 9. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
 10. Test, viết trước code (docs/auto-run.md, bước 3):
-   - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`.
+   - Unit test cho ViewModel, dùng repository giả và `MainDispatcherRule`. Khi kiểm tra lỗi, so loại lỗi (`assertTrue(error is IOException)`), không so đúng đối tượng lỗi: coroutine có thể chép lại ngoại lệ khi khôi phục stack trace.
    - Test giao diện cho `<Ten>Screen` chạy bằng Robolectric.
    - Screenshot test bằng Roborazzi. Mỗi lệnh `captureRoboImage` ghi rõ đường dẫn, dạng `"src/test/screenshots/<Ten>.png"`; `scripts/check.sh` báo lỗi nếu thiếu.
    - Test trên emulator (`app/src/androidTest`) chỉ kiểm tra trạng thái ổn định: màn hình đích sau khi chờ có giới hạn (`waitUntil`). Không khẳng định một màn hình hay trạng thái chỉ hiện thoáng qua (loading, hiệu ứng, thông báo tự ẩn); phần đó kiểm tra bằng test giao diện trên JVM, nơi điều khiển được thời gian. Bản staging mới cài hiện hộp thoại đồng ý quảng cáo phủ lên app (ADR-0013), nên kiểm tra màn hình có trong cây giao diện (`onAllNodesWithTag(...).fetchSemanticsNodes()`), không dùng `assertIsDisplayed`.

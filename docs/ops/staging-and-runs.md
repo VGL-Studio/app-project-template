@@ -117,4 +117,4 @@ Lưu ý:
 
 ## 3. Việc còn phải kiểm chứng
 
-- Cuối phiên, phiên tự chạy khởi động `staging.yml` (docs/auto-run.md, mục 4). Trong môi trường cloud, `gh pr` và `gh issue` không chạy được, chỉ REST qua `gh api` chạy được (docs/auto-run.md, bước 7). Tài liệu của Claude Code chưa nói rõ lệnh khởi động workflow qua `gh api` có được proxy GitHub cho qua hay không. Nếu không, người khởi động `staging.yml` bằng tay khi đọc báo cáo phiên.
+- Không còn mục nào. Phiên tự chạy khởi động được `staging.yml` qua `gh api` (đã kiểm chứng ở RUN-20261015-03, lần chạy 38765200550).

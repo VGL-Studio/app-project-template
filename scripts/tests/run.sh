@@ -74,6 +74,29 @@ for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; 
   fi
 done
 
+# merge-if-green.sh refuses other PRs while an auto-run session is running, but lets that session's PRs through.
+merge_during_run() {
+  local head_ref="$1" run_status="$2"
+  cat > "$work/merge.json" << JSON
+{"routes": {
+  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$head_ref"}, "title": "t"},
+  "issues?state=open&labels=main-broken&per_page=10": [],
+  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261015-01-report"}, {"name": "claude/RUN-20261016-01-report"}],
+  "contents/docs/runs/RUN-20261015-01.md?ref=claude/RUN-20261015-01-report": "---\nid: RUN-20261015-01\nstatus: finished\n---\n",
+  "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: $run_status   # draft | approved | running | finished\n---\n",
+  "compare/main...abc1234": {"behind_by": 2}
+}}
+JSON
+  local code=0
+  PATH="$work/bin:$PATH" FIXTURE="$work/merge.json" scripts/merge-if-green.sh 12 --dry-run > /dev/null 2>&1 || code=$?
+  echo "$code"
+}
+# Exit 3 ("branch is behind main") means the run check let the PR through; 1 means it was refused.
+expect "merge-if-green refuses a person's PR while a run is running" 1 "$(merge_during_run claude/template-x running)"
+expect "merge-if-green lets the session's task PR through" 3 "$(merge_during_run claude/T-001-loading running)"
+expect "merge-if-green lets the session's report PR through" 3 "$(merge_during_run claude/RUN-20261016-01-report running)"
+expect "merge-if-green ignores finished runs" 3 "$(merge_during_run claude/template-x finished)"
+
 # release.sh must refuse a release folder that is incomplete or holds staging/test values, before touching git.
 release_dir="$work/release"
 release_fails_with() {
