@@ -25,6 +25,7 @@ AI tạo nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` từ nhánh chính, gh
 | Điều kiện | Không thỏa thì |
 | --- | --- |
 | Danh sách chạy trên nhánh chính có trạng thái `approved` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Môi trường build được: `scripts/check.sh` qua trên nhánh chính. Chạy trước task đầu tiên, để lỗi môi trường lộ ra trước khi viết code, và để thư viện được tải sẵn | Lỗi hạ tầng: thử lại theo lịch ở bước 5. Lỗi khác: không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
@@ -65,7 +66,8 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 - Chạy `scripts/check.sh`. Script gồm quy tắc phụ thuộc module, ktlint, unit test, test giao diện trên JVM, screenshot test, Android Lint và build bản staging. CI dùng đúng script này, nên qua ở bước 5 thì thường cũng qua ở bước 8.
 - So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Có file ngoài danh sách thì dừng task.
-- Lỗi tải thư viện hay công cụ (mã 429, hết thời gian chờ, mất kết nối) là lỗi hạ tầng, không phải lỗi của code: chờ 1 phút rồi chạy lại, tối đa 3 lần, không tính vào giới hạn 3 lần sửa. Vẫn lỗi thì kết thúc phiên theo mục 4 và ghi lý do vào báo cáo.
+- Lỗi tải thư viện hay công cụ (mã 429, 5xx, hết thời gian chờ, mất kết nối) là lỗi hạ tầng, không phải lỗi của code, và không tính vào giới hạn 3 lần sửa. Phiên chạy qua đêm có thời gian, nên chờ lâu thay vì bỏ cuộc sớm: chạy lại sau 1, 2, 4, 8 rồi 15 phút (tổng khoảng 30 phút). Vẫn lỗi thì kết thúc phiên theo mục 4.
+- Môi trường cloud tải thư viện Maven Central qua mirror của Google (`scripts/cloud-setup.sh`). Log Gradle còn thấy `repo.maven.apache.org` nghĩa là môi trường chưa dùng setup script mới nhất: ghi vào báo cáo để người cập nhật môi trường.
 
 ### Bước 6. Rà soát độc lập
 
@@ -126,7 +128,7 @@ Sau đó AI chuyển sang task tiếp theo trong danh sách. Task phụ thuộc 
 
 ### Tiếp tục task đã dừng
 
-Task bị dừng không được chạy lại với cùng phiên bản plan.
+Task bị dừng không được chạy lại với cùng phiên bản plan. Task chưa xong vì hết hạn mức hay lỗi hạ tầng thì không bị coi là dừng: plan không cần sửa, đưa cùng phiên bản vào danh sách chạy mới, ghi trong danh sách chạy tên nhánh để phiên tiếp tục trên đó.
 
 1. Nhóm trả lời "vì sao plan chưa đủ tốt" (risk-scoring.md, mục 4), AI sửa plan, tăng `version`, ghi rõ cách tiếp tục trong mục 3.1 của plan:
    - **Tiếp tục trên nhánh cũ:** ghi tên nhánh và số PR. Phiên cập nhật nhánh theo nhánh chính, chỉ làm phần plan thay đổi, bước 3 chỉ áp dụng cho test mới hoặc test đổi điều kiểm tra.
@@ -142,7 +144,8 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 | --- | --- |
 | Hết task trong danh sách, hoặc đạt số task tối đa | Không có |
 | Gần đến thời điểm muốn có bản staging, không đủ thời gian cho task tiếp theo | Không bắt đầu task mới |
-| Hết hạn mức sử dụng | Commit phần đang làm vào nhánh của task, không merge, ghi nhật ký |
+| Hết hạn mức sử dụng | Commit phần đang làm vào nhánh của task, đẩy nhánh lên, không mở PR, không merge, ghi nhật ký |
+| Lỗi hạ tầng còn sau lịch thử lại ở bước 5 | Như trên. Plan và ticket giữ `approved`; báo cáo ghi tên nhánh để lần sau tiếp tục trên nhánh đó |
 | Nhánh chính đỏ sau một lần merge (xuất hiện issue mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào |
 
 Sau đó AI:
