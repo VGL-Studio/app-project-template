@@ -1,7 +1,7 @@
 ---
 id: ADR-0016
 title: Bản staging build bằng biến thể release ký khóa staging riêng, phiên tự chạy kích hoạt qua API của routine
-status: proposed
+status: accepted
 date: 2026-10-15
 deciders: [Nhóm phát triển]
 ---
