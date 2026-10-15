@@ -64,6 +64,11 @@ allprojects {
 }
 GRADLE
 
+# Robolectric downloads its Android jars itself, outside Gradle, from Maven Central (RUN-20261015-03 got 429).
+# JAVA_TOOL_OPTIONS reaches every JVM, including the forked test JVMs, so they use the same mirror.
+ROBOLECTRIC_MIRROR="export JAVA_TOOL_OPTIONS=-Drobolectric.dependency.repo.url=https://maven-central.storage-download.googleapis.com/maven2/"
+grep -qxF "${ROBOLECTRIC_MIRROR}" "${HOME}/.bashrc" 2>/dev/null || echo "${ROBOLECTRIC_MIRROR}" >> "${HOME}/.bashrc"
+
 # Other hosts can still answer 429 or time out. Let Gradle retry longer, with backoff, instead of failing the
 # build. User-level properties, so the repo's gradle.properties stays unchanged.
 GRADLE_USER_PROPERTIES="${HOME}/.gradle/gradle.properties"

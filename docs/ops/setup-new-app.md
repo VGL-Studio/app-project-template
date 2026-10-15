@@ -104,6 +104,8 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | Dấu hiệu | Nguyên nhân | Xử lý |
 | --- | --- | --- |
 | Phiên tự chạy kết thúc vì Gradle nhận 429 từ `repo.maven.apache.org` | Môi trường cloud dùng setup script cũ, chưa có mirror | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6), lập danh sách chạy mới |
+| Phiên nhận 429 từ `repo1.maven.org` khi chạy test Robolectric | Môi trường dùng setup script cũ, chưa có `JAVA_TOOL_OPTIONS` cho Robolectric | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6) |
+| `merge-if-green.sh` báo "phiên ... đang chạy" | Có phiên tự chạy đang chạy; chỉ PR của phiên đó được merge | Chờ phiên kết thúc |
 | Phiên làm việc trên nhánh `claude/<tên ngẫu nhiên>` | Prompt routine thiếu dòng "Nhánh" | Chép lại prompt ở `docs/ops/staging-and-runs.md`, mục 2.1 |
 | `start-run` báo lỗi 401 | Mã kích hoạt sai hoặc đã tạo lại | Tạo mã mới trong routine, cập nhật `ROUTINE_FIRE_TOKEN` |
 | `start-run` báo danh sách chưa `approved` hoặc nhánh chính đỏ | Đúng thiết kế | Duyệt danh sách chạy; hoặc xử lý issue `main-broken` trước |

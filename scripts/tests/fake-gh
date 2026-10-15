@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Minimal stand-in for `gh api` used by scripts/tests. Serves commits and main-guard
+# Minimal stand-in for `gh api` used by scripts/tests. Serves fixed routes, commits and main-guard
 # check runs from the JSON fixture in $FIXTURE; a commit's "states" list is consumed one
 # entry per query, so a test can make a run go from pending to finished.
 import json, os, sys, subprocess, re
@@ -8,6 +8,16 @@ args = sys.argv[1:]
 assert args[0] == "api"
 path = args[1]
 jq = args[args.index("--jq")+1] if "--jq" in args else "."
+# Fixed answers: "routes" maps a path below repos/<owner>/<repo>/ to JSON (filtered by --jq) or to raw text.
+route = re.sub(r"^repos/[^/]+/[^/]+/", "", path)
+if route in fx.get("routes", {}):
+    answer = fx["routes"][route]
+    if isinstance(answer, str):
+        sys.stdout.write(answer); sys.exit(0)
+    out = subprocess.run(["jq", "-r", jq], input=json.dumps(answer), capture_output=True, text=True)
+    sys.stdout.write(out.stdout); sys.exit(out.returncode)
+if route.startswith("contents/"):
+    sys.exit(1)
 m = re.match(r"repos/[^/]+/[^/]+/commits/([0-9a-f]+)/check-runs", path)
 calls_file = os.environ["FIXTURE"] + ".calls"
 calls = json.load(open(calls_file)) if os.path.exists(calls_file) else {}

@@ -62,6 +62,23 @@ if [[ -n "$BROKEN" ]]; then
   die "nhánh chính đang đỏ (mục mang nhãn main-broken: #$BROKEN). Người phụ trách xử lý và đóng mục đó rồi mới merge tiếp."
 fi
 
+# While an auto-run session runs, main must not move: only that session's own PRs (its task branches and its
+# report branch) are merged (docs/auto-run.md, section 1). A session is running when its report branch holds its
+# run file with status "running". Stale report branches of finished sessions do not block anything.
+RUN_BRANCHES="$(gh api "repos/$REPO/branches?per_page=100" --paginate \
+  --jq '.[].name | select(test("^claude/RUN-[0-9]{8}-[0-9]{2}-report$"))')"
+for RUN_BRANCH in $RUN_BRANCHES; do
+  RUN_ID="${RUN_BRANCH#claude/}"
+  RUN_ID="${RUN_ID%-report}"
+  RUN_STATUS="$( { gh api "repos/$REPO/contents/docs/runs/$RUN_ID.md?ref=$RUN_BRANCH" \
+    -H "Accept: application/vnd.github.raw" 2>/dev/null || true; } \
+    | sed -n '/^---$/,/^---$/s/^status:[[:space:]]*\([a-z]*\).*/\1/p' | head -n 1)"
+  [[ "$RUN_STATUS" == "running" ]] || continue
+  if [[ "$HEAD_REF" != "$RUN_BRANCH" && "$HEAD_REF" != claude/T-[0-9]* ]]; then
+    die "phiên $RUN_ID đang chạy. Trong lúc phiên chạy chỉ merge PR của chính phiên đó (docs/auto-run.md, mục 1). Chờ phiên kết thúc rồi gọi lại."
+  fi
+done
+
 # The PR branch must contain the latest commit of main.
 BEHIND_BY="$(gh api "repos/$REPO/compare/$BASE_BRANCH...$HEAD_SHA" --jq .behind_by)"
 if [[ "$BEHIND_BY" != "0" ]]; then

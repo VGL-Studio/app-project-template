@@ -14,7 +14,7 @@ Bốn nguyên tắc của phiên tự chạy:
 1. Sau họp đánh giá rủi ro, AI lập danh sách chạy `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md): các plan đã duyệt, thứ tự chạy, số task tối đa, thời điểm muốn có bản staging (nếu có).
 2. Dev xem lại danh sách, chuyển trạng thái sang `approved`.
 3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine.
-4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính.
+4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính, kể cả PR chỉ có tài liệu: mỗi commit mới trên nhánh chính bắt task đang làm chạy lại CI một vòng. `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`.
 5. Một danh sách chạy chỉ chạy một lần. Danh sách đã `finished` không được kích hoạt lại; muốn chạy lại thì lập danh sách mới.
 6. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
@@ -67,7 +67,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 - Chạy `scripts/check.sh`. Script gồm quy tắc phụ thuộc module, ktlint, unit test, test giao diện trên JVM, screenshot test, Android Lint và build bản staging. CI dùng đúng script này, nên qua ở bước 5 thì thường cũng qua ở bước 8.
 - So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Có file ngoài danh sách thì dừng task.
 - Lỗi tải thư viện hay công cụ (mã 429, 5xx, hết thời gian chờ, mất kết nối) là lỗi hạ tầng, không phải lỗi của code, và không tính vào giới hạn 3 lần sửa. Phiên chạy qua đêm có thời gian, nên chờ lâu thay vì bỏ cuộc sớm: chạy lại sau 1, 2, 4, 8 rồi 15 phút (tổng khoảng 30 phút). Vẫn lỗi thì kết thúc phiên theo mục 4.
-- Môi trường cloud tải thư viện Maven Central qua mirror của Google (`scripts/cloud-setup.sh`). Log Gradle còn thấy `repo.maven.apache.org` nghĩa là môi trường chưa dùng setup script mới nhất: ghi vào báo cáo để người cập nhật môi trường.
+- Môi trường cloud tải thư viện Maven Central qua mirror của Google (`scripts/cloud-setup.sh`): Gradle qua init script, Robolectric qua `JAVA_TOOL_OPTIONS`. Log còn thấy `repo.maven.apache.org` hay `repo1.maven.org` nghĩa là môi trường chưa dùng setup script mới nhất: ghi vào báo cáo để người cập nhật môi trường. Trong lúc chờ, phiên được trỏ công cụ đó sang mirror bằng biến môi trường của phiên (không sửa file trong repo) thay vì chờ theo lịch thử lại.
 
 ### Bước 6. Rà soát độc lập
 
