@@ -10,4 +10,7 @@ object Spacing {
     val md: Dp = 16.dp
     val lg: Dp = 24.dp
     val xl: Dp = 32.dp
+
+    /** Every step of the scale with its name, for the catalog and docs/design-system/tokens.json (ADR-0020). */
+    val scale: List<Pair<String, Dp>> = listOf("xs" to xs, "sm" to sm, "md" to md, "lg" to lg, "xl" to xl)
 }

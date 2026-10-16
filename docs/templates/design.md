@@ -2,7 +2,8 @@
 feature: <ten-feature>
 status: draft                # draft | approved
 spec: features/<ten-feature>/spec.md
-claude_design: <đường dẫn tới dự án trên Claude Design>
+tool: <claude-design | figma>
+link: <đường dẫn tới dự án trên Claude Design hoặc file Figma, chỉ để người tham khảo>
 designer: <chủ feature>
 approved_by: <người phụ trách sản phẩm>
 approved_at: YYYY-MM-DD
@@ -11,36 +12,47 @@ approved_at: YYYY-MM-DD
 # THIẾT KẾ: <TÊN FEATURE>
 
 <!--
+Quy trình: docs/ops/design-workflow.md. Quyết định: ADR-0008, ADR-0020.
 Thư mục features/<ten-feature>/design/ chứa:
 - README.md này.
-- Gói chuyển giao xuất từ Claude Design, giữ nguyên như khi xuất.
-- Ảnh chụp từng màn hình đã duyệt, đặt tên theo mã màn hình, ví dụ MH-1-default.png.
-Bản mẫu Claude Design dựng bằng công nghệ web. AI dùng nó làm ý đồ thiết kế để viết lại bằng Compose, không chép code.
+- screens/: ảnh PNG 1233 x 2673 (khung 411 x 891, xuất 3x), tên <Ten>Screen_<trạng thái>_<light|dark>.png,
+  trùng tên ảnh chuẩn screenshot mà plan sẽ tạo.
+- review/: do scripts/design-compare.sh sinh ra, không sửa tay.
+- handoff/ (tùy chọn): gói xuất từ công cụ, giữ nguyên như khi xuất.
+Phiên tự chạy chỉ đọc thư mục này, không mở được Claude Design hay Figma.
+Bản mẫu là ý đồ thiết kế. AI viết lại bằng Compose theo hệ thống thiết kế, không chép code web.
 -->
 
-## 1. Các màn hình
+## 1. Các màn hình và trạng thái
 
-| Mã | Tên màn hình | Kịch bản | Ảnh |
+| Màn hình (composable) | Trạng thái | Ảnh trong `screens/` | Kịch bản |
 | --- | --- | --- | --- |
-| MH-1 | <tên> | KB-1 | `MH-1-default.png` |
+| `<Ten>Screen` | Bình thường | `<Ten>Screen_default_light.png` | KB-1 |
+| `<Ten>Screen` | Đang tải | `<Ten>Screen_loading_light.png` | KB-1 |
+| `<Ten>Screen` | Lỗi | `<Ten>Screen_error_light.png` | KB-2 |
+| `<Ten>Screen` | Bình thường, chế độ tối | `<Ten>Screen_default_dark.png` | KB-1 |
 
-## 2. Trạng thái của từng màn hình
+## 2. Bảng chữ
 
-| Màn hình | Trạng thái | Ảnh | Ghi chú |
+<!-- Mọi chữ hiển thị trên thiết kế, để test giao diện kiểm tra và để đưa vào strings.xml. -->
+
+| Màn hình, trạng thái | Vị trí | Chữ | Kiểu chữ |
 | --- | --- | --- | --- |
-| MH-1 | Đang tải | `MH-1-loading.png` | |
-| MH-1 | Chưa có dữ liệu | `MH-1-empty.png` | |
-| MH-1 | Lỗi, không có mạng | `MH-1-error.png` | |
-| MH-1 | Chế độ tối | `MH-1-dark.png` | |
+| `<Ten>Screen`, bình thường | Tiêu đề | <chữ> | `titleLarge` |
 
-## 3. Thành phần dùng
+## 3. Ánh xạ sang hệ thống thiết kế
 
-- **Có sẵn trong `:core:designsystem`:** <tên thành phần>
-- **Thành phần mới cần thêm vào hệ thống thiết kế:** <tên, mô tả>. Thêm thành phần mới là thay đổi module core, plan sẽ được xếp rủi ro cao.
+<!-- Mỗi phần tử trên thiết kế dùng gì trong code. Tên lấy từ docs/design-system/tokens.json và :core:designsystem. -->
+
+| Phần tử trên thiết kế | Thành phần trong code | Màu (vai trò) | Kiểu chữ | Khoảng cách |
+| --- | --- | --- | --- | --- |
+| Nút chính | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` | `Spacing.md` phía trên |
+
+- **Thành phần mới cần thêm vào hệ thống thiết kế:** <tên, mô tả, hoặc "Không có">. Thêm thành phần mới là thay đổi module core, plan sẽ được xếp rủi ro cao.
 
 ## 4. Luồng thao tác
 
-<Từ màn hình nào sang màn hình nào, bằng thao tác gì. Có thể dùng danh sách: MH-1, bấm "Bắt đầu", sang MH-2.>
+<Từ màn hình nào sang màn hình nào, bằng thao tác gì. Ví dụ: `<Ten>Screen`, bấm "Bắt đầu", sang `<Khac>Screen`.>
 
 ## 5. Vị trí quảng cáo
 
@@ -48,13 +60,21 @@ Bản mẫu Claude Design dựng bằng công nghệ web. AI dùng nó làm ý �
 
 ## 6. Chuyển sang Compose
 
-- **Phải giống bản mẫu:** <bố cục, thứ tự thành phần, nội dung chữ, màu theo hệ thống thiết kế>
-- **Được phép khác:** <hiệu ứng chuyển động, khoảng cách nhỏ theo lưới của hệ thống thiết kế, cách hiển thị riêng của Android>
+- **Phải giống bản mẫu:** bố cục, thứ tự thành phần, chữ (mục 2), vai trò màu và kiểu chữ (mục 3).
+- **Được phép khác:** cách vẽ chữ và bóng của hệ thống, hiệu ứng chuyển động, chênh lệch nhỏ theo lưới 4 dp, <khác>.
 
 ## 7. Tiêu chí khi duyệt
 
-- [ ] Dùng đúng màu, chữ, thành phần của hệ thống thiết kế.
-- [ ] Đủ các trạng thái: đang tải, chưa có dữ liệu, lỗi, chế độ tối.
-- [ ] Vùng chạm đủ lớn, chữ dễ đọc.
+Dùng khi duyệt thiết kế (bước 3) và khi rà soát ảnh so sánh `review/` (bước 6, 7 của quy trình):
+
+- [ ] Dùng đúng màu, chữ, khoảng cách, thành phần của hệ thống thiết kế.
+- [ ] Đủ các trạng thái trong mục 1, kể cả chế độ tối.
+- [ ] Chữ đúng bảng chữ, không bị cắt hay tràn.
+- [ ] Bố cục và thứ tự thành phần giống bản mẫu; lệch về vị trí không quá một bước lưới 4 dp.
+- [ ] Vùng chạm đủ lớn (ít nhất 48 dp), chữ dễ đọc.
 - [ ] Vùng quảng cáo tách bạch, không gây bấm nhầm.
 - [ ] Giao diện và nội dung không được thiết kế để thu hút chủ yếu trẻ em.
+
+## 8. Kết quả đối chiếu
+
+<!-- AI dán review/summary.md sau mỗi lần chạy scripts/design-compare.sh, kèm nhận xét của rà soát độc lập. -->

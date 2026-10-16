@@ -12,7 +12,7 @@ docs/
 │   └── <feature>/
 │       ├── spec.md          spec hiện hành, lịch sử thay đổi ghi trong file
 │       ├── requests/        yêu cầu gốc, biên bản họp
-│       ├── design/          gói chuyển giao Claude Design, ảnh màn hình đã duyệt
+│       ├── design/          gói bàn giao thiết kế (Claude Design hoặc Figma), ảnh so sánh
 │       ├── tickets/         ticket của feature
 │       ├── plans/           plan của từng ticket, kèm nhật ký thực hiện
 │       └── feedback/        phản hồi đã phân loại về feature này
@@ -32,7 +32,7 @@ docs/
 | --- | --- | --- |
 | Yêu cầu | Người phụ trách sản phẩm, chủ feature | Không cần |
 | Spec | AI sinh từ yêu cầu | Người phụ trách sản phẩm |
-| Thiết kế | Chủ feature cùng Claude Design | Người phụ trách sản phẩm |
+| Thiết kế | Chủ feature cùng Claude Design hoặc Figma | Người phụ trách sản phẩm |
 | Ticket | AI sinh từ spec | Chủ feature |
 | Plan | AI sinh | Chủ feature, duyệt chéo nếu rủi ro cao |
 | Phản hồi | Bất kỳ ai trong nhóm | Chủ feature phân loại |
@@ -45,7 +45,7 @@ docs/
 1. **Yêu cầu.** Người phụ trách sản phẩm hoặc chủ feature ghi yêu cầu vào `features/<feature>/requests/`, viết tự nhiên, không bắt buộc theo mẫu. Có thể dán biên bản họp, hoặc dựa vào [mẫu gợi ý](templates/request.md). Chưa rõ thuộc feature nào, hoặc là feature mới chưa có tên, thì ghi vào `inbox/`.
 2. **Spec.** AI đọc yêu cầu, sinh hoặc cập nhật `features/<feature>/spec.md` theo [mẫu spec](templates/spec.md). Với feature mới, AI tạo thư mục feature. Chỗ nào chưa rõ, AI ghi vào mục câu hỏi còn mở, không tự đoán.
 3. **Xác nhận spec.** Người phụ trách sản phẩm đọc lại, trả lời câu hỏi, chuyển trạng thái spec sang `confirmed`.
-4. **Thiết kế.** Chủ feature dựng bản mẫu trên Claude Design, người phụ trách sản phẩm duyệt. Gói chuyển giao lưu vào `features/<feature>/design/` theo [mẫu thiết kế](templates/design.md).
+4. **Thiết kế.** Chủ feature dựng bản mẫu trên Claude Design hoặc Figma (tùy dự án), người phụ trách sản phẩm duyệt. Gói bàn giao (ảnh khung chuẩn, bảng chữ, ánh xạ thành phần) lưu vào `features/<feature>/design/` theo [mẫu thiết kế](templates/design.md) và [quy trình thiết kế](ops/design-workflow.md). Giao diện làm ra được đối chiếu với thiết kế bằng ảnh so sánh (ADR-0020).
 5. **Ticket.** AI tách spec thành các ticket trong `features/<feature>/tickets/` theo [mẫu ticket](templates/ticket.md). Ticket chỉ chuyển sang `ready` khi spec đã xác nhận và thiết kế (nếu cần) đã duyệt.
 6. **Plan (ngày 1).** AI sinh plan cho từng ticket được chọn vào sprint, theo [mẫu plan](templates/plan.md), kèm điểm rủi ro.
 7. **Họp đánh giá rủi ro.** Nhóm xem plan, đánh giá ảnh hưởng chéo, duyệt hoặc dừng. AI sắp thứ tự chạy các plan đã duyệt và lập danh sách chạy trong `runs/`.
