@@ -5,6 +5,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
+import com.vglstudio.template.core.designsystem.theme.AppTypography
 import com.vglstudio.template.core.designsystem.theme.DarkColors
 import com.vglstudio.template.core.designsystem.theme.LightColors
 import com.vglstudio.template.core.designsystem.theme.Spacing
@@ -33,11 +34,12 @@ class DesignTokensTest {
 
 internal fun tokensJson(): String = buildString {
     appendLine("{")
+    appendLine("  \"fontFamily\": \"Inter\",")
     appendLine("  \"color\": {")
     appendLine("    \"light\": ${colors(LightColors)},")
     appendLine("    \"dark\": ${colors(DarkColors)}")
     appendLine("  },")
-    val styles = typographyStyles(Typography())
+    val styles = typographyStyles(AppTypography)
     appendLine("  \"typography\": {")
     styles.forEachIndexed { index, (name, style) ->
         val comma = if (index < styles.lastIndex) "," else ""
@@ -62,6 +64,8 @@ private fun colors(scheme: ColorScheme): String = listOf(
     "onTertiary" to scheme.onTertiary,
     "error" to scheme.error,
     "onError" to scheme.onError,
+    "errorContainer" to scheme.errorContainer,
+    "onErrorContainer" to scheme.onErrorContainer,
     "background" to scheme.background,
     "onBackground" to scheme.onBackground,
     "surface" to scheme.surface,

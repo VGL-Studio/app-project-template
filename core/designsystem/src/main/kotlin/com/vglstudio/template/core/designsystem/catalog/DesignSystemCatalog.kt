@@ -80,6 +80,11 @@ fun SpacingAndComponentCatalog(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun BrandCatalog(modifier: Modifier = Modifier) {
+    CatalogPage(title = "Brand", modifier = modifier) {}
+}
+
+@Composable
 private fun CatalogPage(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(modifier = modifier.fillMaxSize()) {
         Column(
