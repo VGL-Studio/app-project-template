@@ -188,6 +188,21 @@ for args in "--package com.vglstudio.template.notes" "--package Notes" "--stagin
   fi
 done
 
+# cloud-env-check.sh passes only when the environment was built from the current cloud-setup.sh.
+setup_version="$(sed -n 's/^SETUP_VERSION=\([0-9][0-9]*\)$/\1/p' scripts/cloud-setup.sh)"
+mkdir -p "$work/gradle-home/init.d"
+touch "$work/gradle-home/init.d/maven-central-mirror.gradle"
+env_check() {
+  echo "$1" > "$work/cloud-setup-version"
+  if CLOUD_SETUP_VERSION_FILE="$work/cloud-setup-version" GRADLE_USER_HOME="$2" \
+    scripts/cloud-env-check.sh > /dev/null 2>&1; then echo pass; else echo stop; fi
+}
+expect "cloud-setup.sh has a version" yes "$([[ -n "$setup_version" ]] && echo yes || echo no)"
+expect "cloud-env-check.sh passes on the current version" pass "$(env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh stops on an older version" stop "$(env_check 1 "$work/gradle-home")"
+expect "cloud-env-check.sh stops without the mirror init script" stop \
+  "$(env_check "$setup_version" "$work/no-gradle-home")"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
   exit 1
