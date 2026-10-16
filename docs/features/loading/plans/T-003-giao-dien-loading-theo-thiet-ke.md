@@ -6,7 +6,7 @@ version: 1
 risk_score: 5
 risk_level: medium
 blocking_points: []
-run_order:
+run_order: 2
 reviewer: Nhật
 cross_reviewer: Nhật
 approved_at: 2026-10-16
