@@ -18,9 +18,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
+import com.vglstudio.template.core.designsystem.R
+import com.vglstudio.template.core.designsystem.component.BrandLogo
 import com.vglstudio.template.core.designsystem.component.PrimaryButton
+import com.vglstudio.template.core.designsystem.component.ProgressBar
 import com.vglstudio.template.core.designsystem.theme.Spacing
 
 /**
@@ -38,6 +43,7 @@ fun ColorCatalog(modifier: Modifier = Modifier) {
         Triple("secondaryContainer", colors.secondaryContainer, colors.onSecondaryContainer),
         Triple("tertiary", colors.tertiary, colors.onTertiary),
         Triple("error", colors.error, colors.onError),
+        Triple("errorContainer", colors.errorContainer, colors.onErrorContainer),
         Triple("background", colors.background, colors.onBackground),
         Triple("surface", colors.surface, colors.onSurface),
         Triple("surfaceVariant", colors.surfaceVariant, colors.onSurfaceVariant),
@@ -81,8 +87,21 @@ fun SpacingAndComponentCatalog(modifier: Modifier = Modifier) {
 
 @Composable
 fun BrandCatalog(modifier: Modifier = Modifier) {
-    CatalogPage(title = "Brand", modifier = modifier) {}
+    val colors = MaterialTheme.colorScheme
+    CatalogPage(title = "Brand", modifier = modifier) {
+        BrandLogo()
+        Text(
+            text = stringResource(R.string.brand_tagline),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+        )
+        ProgressBar(progress = { CATALOG_PROGRESS })
+        ProgressBar(progress = { CATALOG_PROGRESS }, color = colors.error, trackColor = colors.errorContainer)
+        PrimaryButton(text = "PrimaryButton", onClick = {}, icon = painterResource(R.drawable.brand_mark))
+    }
 }
+
+private const val CATALOG_PROGRESS = 0.68f
 
 @Composable
 private fun CatalogPage(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {

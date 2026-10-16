@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.designsystem
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -80,8 +81,10 @@ class ComponentsTest {
 
     @Test
     fun progressBar_height_is8dp() {
+        // The indicator widens its own semantics bounds for accessibility, so measure the laid-out size through a
+        // wrapping box instead.
         composeRule.setContent {
-            AppTheme { ProgressBar(progress = { 0.68f }, modifier = Modifier.testTag(PROGRESS)) }
+            AppTheme { Box(modifier = Modifier.testTag(PROGRESS)) { ProgressBar(progress = { 0.68f }) } }
         }
         composeRule.onNodeWithTag(PROGRESS).assertHeightIsEqualTo(8.dp)
     }
