@@ -1,6 +1,6 @@
 ---
 feature: loading
-status: changed
+status: confirmed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -144,10 +144,10 @@ Không có. Màn hình loading không hiện quảng cáo.
    - Trả lời: đã đưa lên. AI kiểm tra lại ngày 2026-10-15: cả ba file trong `test/v1/` đều tải được.
 6. **Tên app trên màn hình loading:** thiết kế ghi "Todo App".
    - Đề xuất của AI: màn hình hiện đúng tên của app đang chạy (với dự án mẫu là "App Template"); mỗi app tạo từ dự án mẫu tự có tên của mình. "Todo App" chỉ là chữ mẫu trên thiết kế, screenshot test dùng chữ này để so với ảnh thiết kế.
-   - Trả lời:
+   - Trả lời: Tên app là "App Template"
 7. **Khẩu hiệu "Mọi việc vào đúng nhịp." và logo:** thuộc thương hiệu, mỗi app thay bằng của mình.
    - Đề xuất của AI: dự án mẫu dùng khẩu hiệu và logo này làm mặc định, đặt trong hệ thống thiết kế cùng chỗ với màu thương hiệu; hướng dẫn tạo app mới ghi rõ phải thay.
-   - Trả lời:
+   - Trả lời: OK, theo đề xuất của AI.
 
 ## 10. Lịch sử
 

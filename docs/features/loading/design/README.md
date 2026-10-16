@@ -1,12 +1,12 @@
 ---
 feature: loading
-status: draft                # draft | approved
+status: approved                # draft | approved
 spec: features/loading/spec.md
 tool: figma
 link: https://www.figma.com/design/6Xyp5CRP04IzFSIwFHU8Df/Untitled?node-id=0-1
 designer: Nhật
-approved_by:
-approved_at:
+approved_by: Nhật
+approved_at: 2026-10-16
 ---
 
 # THIẾT KẾ: MÀN HÌNH LOADING
