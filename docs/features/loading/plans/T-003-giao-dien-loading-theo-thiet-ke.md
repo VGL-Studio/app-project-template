@@ -9,7 +9,7 @@ blocking_points: []
 run_order:
 reviewer: Nhật
 cross_reviewer: Nhật
-approved_at:
+approved_at: 2026-10-16
 ---
 
 # PLAN T-003: MÀN HÌNH LOADING THEO THIẾT KẾ FIGMA

@@ -186,7 +186,7 @@ Không file nào khác. Đặc biệt không sửa `build.gradle.kts` của modu
 2. **Độ tương phản của `onSurfaceVariant` #6D8079 trên nền #F7FAF8** khoảng 4,0:1, hơi dưới mức 4,5:1 cho chữ nhỏ theo WCAG AA (khẩu hiệu, dòng hướng dẫn, chân trang dùng màu này). Đề xuất: giữ đúng thiết kế ở lần này, ghi thành góp ý cho thiết kế; hoặc đậm lên #5F716B (khoảng 4,9:1) nếu anh muốn đạt AA ngay.
 - Trả lời: Dùng đúng thiết kế.
 3. **Phông Inter làm APK nặng thêm khoảng 1,2 MB** (ba file). Đề xuất: chấp nhận; app nào muốn nhẹ thì đổi sang phông tải về sau.
-- Trả ời: Chấp nhật.
+- Trả lời: Chấp nhật.
 4. **Ảnh catalog và ảnh `tokens.json` đổi** thì hệ thống thiết kế trên Figma cần dựng lại theo file mới (design-workflow.md, mục 1). Đề xuất: sau khi T-002 merge, anh tạo biến màu và kiểu chữ trên Figma theo `tokens.json` mới để các thiết kế sau dùng đúng token.
 - Trả lời: OK.
 
