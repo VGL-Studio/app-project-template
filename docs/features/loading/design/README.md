@@ -26,8 +26,7 @@ Phiên tự chạy chỉ đọc thư mục này, không mở được Figma.
 | `LoadingScreen` | Đang tải, 68% | `LoadingScreen_progress_light` | KB-1 |
 | `LoadingScreen` | Đang tải, 68%, chế độ tối | `LoadingScreen_progress_dark` | KB-1 |
 | `LoadingScreen` | Lỗi, dừng ở 68% | `LoadingScreen_failed_light` | KB-2, KB-3 |
-
-Trạng thái lỗi ở chế độ tối không có ảnh thiết kế. Màn hình dùng cùng vai trò màu như chế độ sáng (mục 3), nên giao diện tối tự suy ra từ bảng màu tối của hệ thống thiết kế; screenshot test vẫn có ảnh `LoadingScreen_failed_dark` để người duyệt xem.
+| `LoadingScreen` | Lỗi, dừng ở 68%, chế độ tối | `LoadingScreen_failed_dark` | KB-2, KB-3 |
 
 ## 2. Bảng chữ
 
@@ -61,8 +60,8 @@ Thiết kế dùng màu, phông và cỡ chữ chưa có trong hệ thống thi�
 | #FFFFFF | #101F1D | `onPrimary` | Dấu trên logo, chữ và biểu tượng của nút |
 | #EBF3EE | #192E27 | `primaryContainer` | Vòng tròn quanh logo |
 | #DFEAE4 | #293D36 | `surfaceVariant` | Rãnh của thanh tiến trình khi đang tải |
-| #BA5148 | (T-002) | `error` | Nhãn, phần trăm, phần đã chạy khi lỗi; biểu tượng cảnh báo |
-| #F0DEDA | (T-002) | `errorContainer` | Rãnh của thanh tiến trình khi lỗi |
+| #BA5148 | #F49A90 | `error` | Nhãn, phần trăm, phần đã chạy khi lỗi; biểu tượng cảnh báo |
+| #F0DEDA | #48332F | `errorContainer` | Rãnh của thanh tiến trình khi lỗi |
 
 **Phần tử.**
 
@@ -77,9 +76,9 @@ Thiết kế dùng màu, phông và cỡ chữ chưa có trong hệ thống thi�
 | Biểu tượng cảnh báo và tiêu đề lỗi | `Row`, `Icon` 18 | `error`, `onSurface` | `titleMedium` | Cách nhau `Spacing.sm` |
 | Nút "Thử lại" | `PrimaryButton` có biểu tượng (T-002) | `primary`, `onPrimary` | chữ của `PrimaryButton` | Rộng hết vùng nội dung, cao 52, bo góc 16, biểu tượng 18 cách chữ `Spacing.sm` |
 | Chân trang | `Row`, `Icon` 12 và `Text` | `onSurfaceVariant` | `labelSmall` | Biểu tượng cách chữ `Spacing.sm` (thiết kế 7) |
-| Lề trái phải của vùng nội dung | | | | `Spacing.xl + Spacing.xs` mỗi bên (thiết kế 36) |
+| Lề trái phải của vùng nội dung | | | | `Spacing.xl + Spacing.md` mỗi bên (thiết kế 46 và 47, vùng nội dung rộng 318) |
 
-**Vị trí theo chiều dọc.** Logo bắt đầu ở khoảng một phần tư chiều cao màn hình (thiết kế: 220 trên 891) và không đổi giữa trạng thái đang tải và lỗi: khối lỗi hiện thêm bên dưới thanh tiến trình, không đẩy logo lên. Chân trang bám đáy màn hình, khoảng cách tới đáy lấy theo `context/`.
+**Vị trí theo chiều dọc.** Logo bắt đầu ở khoảng một phần tư chiều cao màn hình (thiết kế: 220 trên 891) và không đổi giữa trạng thái đang tải và lỗi: khối lỗi hiện thêm bên dưới thanh tiến trình, không đẩy logo lên. Chân trang bám đáy màn hình, cách đáy `Spacing.xl` (thiết kế 32).
 
 **Tài nguyên trong `handoff/`:**
 
@@ -109,7 +108,6 @@ Không có.
   - Cách vẽ chữ của Android so với Figma; chiều cao dòng theo kiểu chữ của hệ thống thiết kế (lệch 1 đến 7 dp so với thiết kế).
   - Cỡ chữ lệch 1 sp do làm tròn về kiểu chữ có sẵn (nhãn tiến trình 13 thành 14, lời hướng dẫn 13 thành 14).
   - Khoảng cách lệch tới 3 dp do làm tròn về token (mục 3).
-  - Bốn góc bo 40 của khung Figma: đó là khung điện thoại, không phải giao diện.
   - Độ dày nét của biểu tượng (1,5 đến 1,8 trên thiết kế) theo vector drawable.
 
 ## 7. Tiêu chí khi duyệt
@@ -130,8 +128,9 @@ Không có.
 
 | Màn hình | Điểm ảnh khác |
 | --- | --- |
-| LoadingScreen_failed_light | 10.1% |
-| LoadingScreen_progress_dark | 3.9% |
-| LoadingScreen_progress_light | 3.9% |
+| LoadingScreen_failed_dark | chưa có (T-001 không có ảnh này) |
+| LoadingScreen_failed_light | 9.7% |
+| LoadingScreen_progress_dark | 4.0% |
+| LoadingScreen_progress_light | 3.5% |
 
 Hai màn hình khác hẳn nhau (màu, phông, logo, bố cục) mà tỷ lệ chỉ vài phần trăm, vì phần lớn ảnh là nền. Tỷ lệ chỉ để so giữa các lần chạy; độ giống thiết kế do người và rà soát độc lập đánh giá trên ảnh ghép.

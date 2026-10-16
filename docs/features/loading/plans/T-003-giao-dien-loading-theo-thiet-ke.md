@@ -30,7 +30,7 @@ Ticket xử lý các kịch bản sau trong `features/loading/spec.md`:
 
 Các tiêu chí còn lại của KB-1, KB-2, KB-3, KB-4 (thời gian, thử lại, sự kiện, cờ) đã làm ở T-001 và không đổi; test hiện có của T-001 phải vẫn qua.
 
-Thiết kế tham chiếu: `features/loading/design/README.md`; ảnh `design/screens/LoadingScreen_progress_light.png`, `LoadingScreen_progress_dark.png`, `LoadingScreen_failed_light.png`; số liệu trong `design/context/` cùng tên; biểu tượng trong `design/handoff/`.
+Thiết kế tham chiếu: `features/loading/design/README.md`; ảnh `design/screens/LoadingScreen_progress_light.png`, `LoadingScreen_progress_dark.png`, `LoadingScreen_failed_light.png`, `LoadingScreen_failed_dark.png`; số liệu trong `design/context/` cùng tên; biểu tượng trong `design/handoff/`.
 
 ADR liên quan: ADR-0008, ADR-0020.
 
@@ -43,7 +43,7 @@ ADR liên quan: ADR-0008, ADR-0020.
 **Bố cục** (`design/README.md`, mục 3; số liệu trong `context/`):
 
 - `Surface` toàn màn hình (`testTag` `SCREEN` như cũ), trong đó `BoxWithConstraints`.
-- Cột nội dung căn giữa ngang, lề trái phải `Spacing.xl + Spacing.xs`, bắt đầu từ `maxHeight * 0.25f` tính từ đỉnh (thiết kế: 220 trên 891). Vị trí này không phụ thuộc trạng thái.
+- Cột nội dung căn giữa ngang, lề trái phải `Spacing.xl + Spacing.md` (thiết kế 46 và 47), bắt đầu từ `maxHeight * 0.25f` tính từ đỉnh (thiết kế: 220 trên 891). Vị trí này không phụ thuộc trạng thái.
 - Trong cột, theo thứ tự:
   1. `BrandLogo()`;
   2. `Spacing.lg`, tên app (`headlineLarge`, `onSurface`, căn giữa, `testTag` `APP_NAME`);
@@ -56,7 +56,7 @@ ADR liên quan: ADR-0008, ADR-0020.
   - hàng tiêu đề: `Icon(ic_loading_alert)` 18 dp màu `error`, `Spacing.sm`, `loading_error_title` (`titleMedium`, `onSurface`);
   - `loading_error` (`bodyMedium`, `onSurfaceVariant`, căn giữa);
   - `PrimaryButton(text = loading_retry, icon = painterResource(ic_loading_retry), modifier = fillMaxWidth().testTag(RETRY))`.
-- **Chân trang:** `Row` căn giữa đáy (`Alignment.BottomCenter`), `Icon(ic_loading_lock)` 12 dp màu `onSurfaceVariant`, `Spacing.sm`, `loading_footer` (`labelSmall`, `onSurfaceVariant`). Khoảng cách tới đáy lấy từ `context/LoadingScreen_progress_light.md` (891 trừ đáy của "Footer note"), viết bằng tổng các token `Spacing`, lệch không quá 4 dp.
+- **Chân trang:** `Row` căn giữa đáy (`Alignment.BottomCenter`), `Icon(ic_loading_lock)` 12 dp màu `onSurfaceVariant`, `Spacing.sm`, `loading_footer` (`labelSmall`, `onSurfaceVariant`). Cách đáy `Spacing.xl` (thiết kế 32).
 - Phần trăm giữ cách tính hiện có (`(progress * PERCENT).roundToInt()`, chuỗi `loading_percent`).
 - Không viết cứng mã màu, cỡ chữ, khoảng cách. Kích thước biểu tượng (18, 12) là hằng số `private` có tên.
 
@@ -77,7 +77,7 @@ ADR liên quan: ADR-0008, ADR-0020.
 
 `loading_guidance` dùng ký tự `…` (U+2026). Xóa `loading_message` vì không còn dùng.
 
-**Đối chiếu.** Sau khi screenshot test qua: chạy `scripts/design-compare.sh loading`, commit `docs/features/loading/design/review/`, dán `review/summary.md` vào mô tả PR và vào `design/README.md`, mục 8. Rà soát độc lập xem ba ảnh `*_compare.png` theo mục 7 của `design/README.md` và ghi nhận xét vào mục 8. Tỷ lệ điểm ảnh khác chỉ để tham khảo: ảnh "trước" lúc lập plan là 3,9% dù hai màn hình khác hẳn nhau, vì phần lớn ảnh là nền.
+**Đối chiếu.** Sau khi screenshot test qua: chạy `scripts/design-compare.sh loading`, commit `docs/features/loading/design/review/`, dán `review/summary.md` vào mô tả PR và vào `design/README.md`, mục 8. Rà soát độc lập xem bốn ảnh `*_compare.png` theo mục 7 của `design/README.md` và ghi nhận xét vào mục 8. Tỷ lệ điểm ảnh khác chỉ để tham khảo: ảnh "trước" lúc lập plan là 3,9% dù hai màn hình khác hẳn nhau, vì phần lớn ảnh là nền.
 
 ### 3.2. Danh sách file
 
@@ -89,9 +89,9 @@ ADR liên quan: ADR-0008, ADR-0020.
 | Tạo | `feature/loading/src/main/res/drawable/ic_loading_retry.xml` | Biểu tượng trên nút |
 | Tạo | `feature/loading/src/main/res/drawable/ic_loading_lock.xml` | Biểu tượng khóa |
 | Sửa | `feature/loading/src/test/kotlin/com/vglstudio/template/feature/loading/LoadingScreenTest.kt` | Test theo bảng chữ (mục 4) |
-| Sửa | `feature/loading/src/test/kotlin/com/vglstudio/template/feature/loading/LoadingScreenScreenshotTest.kt` | Tiến độ 0,68, tên app "Todo App", thêm `failed_dark` |
+| Sửa | `feature/loading/src/test/kotlin/com/vglstudio/template/feature/loading/LoadingScreenScreenshotTest.kt` | Tiến độ 0,68, tên app "Todo App", thêm `failed_dark` cùng tên ảnh thiết kế |
 | Ghi lại | `feature/loading/src/test/screenshots/LoadingScreen_progress_light.png`, `LoadingScreen_progress_dark.png`, `LoadingScreen_failed_light.png` | Giao diện mới |
-| Tạo | `feature/loading/src/test/screenshots/LoadingScreen_failed_dark.png` | Trạng thái lỗi, chế độ tối (không có ảnh thiết kế) |
+| Tạo | `feature/loading/src/test/screenshots/LoadingScreen_failed_dark.png` | Trạng thái lỗi, chế độ tối |
 | Tạo | `docs/features/loading/design/review/` (ảnh `*_compare.png`, `summary.md`) | Sinh bởi `scripts/design-compare.sh loading` |
 | Sửa | `docs/features/loading/design/README.md` | Chỉ mục 8: kết quả đối chiếu và nhận xét rà soát |
 
@@ -112,7 +112,7 @@ Không sửa `:core:designsystem`, `LoadingViewModel`, `LoadingUiState`, dữ li
 | KB-2, tiêu chí 1: giao diện lỗi | Compose UI test | `LoadingScreenTest.failed_showsErrorTitleGuidanceAndRetry_andRetryCallsOnRetry`: `Failed(0.68f)`; có `loading_status_failed`, `loading_error_title`, `loading_error`; `PERCENT` là "68%"; không có `loading_guidance`; bấm `RETRY` gọi `onRetry` một lần |
 | Logo không đổi vị trí giữa hai trạng thái | Compose UI test | `LoadingScreenTest.appName_staysInPlace_whenFailed`: vị trí đỉnh của `APP_NAME` (`getBoundsInRoot().top`) ở `InProgress(0.68f)` bằng ở `Failed(0.68f)` |
 | Nút đủ lớn | Compose UI test | `LoadingScreenTest.retryButton_isAtLeast48dpHigh`: `RETRY` `assertHeightIsAtLeast(48.dp)` |
-| Đúng thiết kế | Screenshot test cùng tên ảnh thiết kế, ảnh so sánh, rà soát độc lập | `LoadingScreenScreenshotTest.progress_light`, `progress_dark`, `failed_light` ghi `LoadingScreen_progress_light.png`, `LoadingScreen_progress_dark.png`, `LoadingScreen_failed_light.png`, đều `appName = "Todo App"`, tiến độ 0,68; `failed_dark` ghi `LoadingScreen_failed_dark.png`; `scripts/design-compare.sh loading`; rà soát theo `design/README.md`, mục 7 |
+| Đúng thiết kế | Screenshot test cùng tên ảnh thiết kế, ảnh so sánh, rà soát độc lập | `LoadingScreenScreenshotTest.progress_light`, `progress_dark`, `failed_light`, `failed_dark` ghi `LoadingScreen_progress_light.png`, `LoadingScreen_progress_dark.png`, `LoadingScreen_failed_light.png`, `LoadingScreen_failed_dark.png`, đều `appName = "Todo App"`, tiến độ 0,68; `scripts/design-compare.sh loading`; rà soát theo `design/README.md`, mục 7 |
 | Luồng T-001 không đổi | Unit test, test trên emulator | `LoadingViewModelTest`, `DefaultPreparationRepositoryTest` và test trên emulator của `:app` qua, không sửa |
 | Giao diện trên máy thật | Kiểm tra thủ công | Mở bản staging, xem màn hình loading ở chế độ sáng và tối; tắt mạng, xóa dữ liệu app, mở lại để xem trạng thái lỗi |
 
@@ -146,8 +146,7 @@ Không sửa `:core:designsystem`, `LoadingViewModel`, `LoadingUiState`, dữ li
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **Ảnh lỗi ở chế độ tối** không có trên thiết kế. Đề xuất: vẫn ghi `LoadingScreen_failed_dark.png` để người duyệt xem; muốn so với thiết kế thì thêm frame `LoadingScreen_failed_dark` trên Figma và xuất lại trước khi duyệt plan.
-2. **Tiến độ trong ảnh là 68%** theo thiết kế, không phải 50% và 75% như T-001. Đề xuất: dùng 68% cho cả bốn ảnh, để so được với thiết kế.
+1. **Tiến độ trong ảnh là 68%** theo thiết kế, không phải 50% và 75% như T-001. Đề xuất: dùng 68% cho cả bốn ảnh, để so được với thiết kế.
 
 ## 9. Quyết định duyệt
 

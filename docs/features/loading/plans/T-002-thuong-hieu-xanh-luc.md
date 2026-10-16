@@ -50,9 +50,9 @@ ADR liên quan: ADR-0008 (code là gốc của hệ thống thiết kế, đổi
 | `onSecondaryContainer` | #082019 | #CEE9DE | AI |
 | `tertiary` | #3F6374 | #A7CCE0 | AI |
 | `onTertiary` | #FFFFFF | #0A3445 | AI |
-| `error` | #BA5148 | #F2A79E | sáng: thiết kế; tối: AI |
+| `error` | #BA5148 | #F49A90 | thiết kế |
 | `onError` | #FFFFFF | #5C1A14 | AI |
-| `errorContainer` | #F0DEDA | #4A2622 | sáng: thiết kế; tối: AI |
+| `errorContainer` | #F0DEDA | #48332F | thiết kế |
 | `onErrorContainer` | #5C1A14 | #F0DEDA | AI |
 | `background`, `surface` | #F7FAF8 | #101F1D | thiết kế |
 | `onBackground`, `onSurface` | #17352F | #EFF8F4 | thiết kế |

@@ -24,7 +24,7 @@ Vẽ lại màn hình loading theo thiết kế trong `features/loading/design/`
 
 - `:feature:loading`: `LoadingScreen` theo thiết kế, chữ mới trong `strings.xml`, ba biểu tượng vector.
 - Tên app lấy từ `app_name` của app đang chạy, truyền vào màn hình.
-- Screenshot test cùng tên ba ảnh thiết kế, thêm ảnh lỗi ở chế độ tối; test giao diện kiểm tra chữ theo bảng chữ.
+- Screenshot test cùng tên bốn ảnh thiết kế; test giao diện kiểm tra chữ theo bảng chữ.
 - `scripts/design-compare.sh loading`, đưa `design/review/` vào PR.
 
 **Không bao gồm:**
