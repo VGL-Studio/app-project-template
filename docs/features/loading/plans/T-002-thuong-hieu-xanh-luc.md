@@ -1,7 +1,7 @@
 ---
 ticket: T-002
 title: Hệ thống thiết kế theo thương hiệu mới (xanh lục, Inter, logo)
-status: approved
+status: stopped
 version: 1
 risk_score:
 risk_level: high
@@ -201,3 +201,20 @@ Không file nào khác. Đặc biệt không sửa `build.gradle.kts` của modu
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261016-02, phiên bản plan 1
+
+- **Kết quả:** dừng ở bước 5 (kiểm tra cục bộ), điều kiện dừng 1 và 5 (risk-scoring.md, mục 4).
+- **Nhánh, PR:** `claude/T-002-thuong-hieu-xanh-luc`, commit 9d23df1 (test) và 798245f (code). Không mở PR.
+- **Đã làm:** đủ mục 3.1: bảng màu xanh lục sáng và tối, phông Inter 4.1 (mã băm zip và bốn file đều khớp), `AppTypography`, `PrimaryButton` mới có `icon`, `BrandLogo`, `ProgressBar`, `brand_mark.xml`, `brand_tagline`, dòng `errorContainer` và trang `BrandCatalog` trong catalog, bước "Thương hiệu" trong `docs/ops/new-app.md`. `tokens.json` sinh lại trùng file sửa tay. Ghi lại đúng 12 ảnh ở mục 3.2, không ảnh nào khác đổi. Phông Inter vẽ được trong Robolectric (chữ "a" hai tầng, "y" thẳng, dấu tiếng Việt đủ); bố cục màn hình mẫu không đổi.
+- **Vì sao dừng:** `scripts/check.sh` đỏ ở phần test của script, 3 test thất bại: `figma-export: text style matched to a token`, `color matched to light roles`, `unknown values flagged`. Các test này trong `scripts/tests/run.sh` (dòng 120 đến 122) chạy `scripts/figma-export.py` trên `scripts/tests/fixtures/figma-nodes.json` với `docs/design-system/tokens.json` thật, và mong giá trị của hệ thống thiết kế cũ (`titleMedium` đậm 500, nền `#FEF7FF`). Sửa test này là sửa file ngoài danh sách file của plan, trong `scripts/`, và là sửa test để qua. Phần còn lại của cổng chất lượng chạy riêng thì qua: quy tắc phụ thuộc module, ktlint, 94 test JVM 0 lỗi, 12 ảnh screenshot khớp, Android Lint, build staging.
+- **Test viết trước:** 6 test (`DesignTokensTest` với `tokens.json` sửa tay, 5 test trong `ComponentsTest`), đều thất bại đúng lý do trước khi viết code. Hai lần sửa chi tiết test, không đổi điều test kiểm tra:
+  - Bước 3: `primaryButton_height_isAtLeast52dp` qua ngay khi chưa có code, vì Robolectric ở chế độ đồ họa cũ đo chữ cao 36 dp. Thêm `@GraphicsMode(GraphicsMode.Mode.NATIVE)` cho `ComponentsTest` (như test screenshot), sau đó test thất bại đúng lý do (48 dp).
+  - Bước 4: `progressBar_height_is8dp` đo được 28 dp vì `LinearProgressIndicator` tự nới vùng ngữ nghĩa thêm 10 dp mỗi phía cho trình đọc màn hình; thanh vẽ ra vẫn cao 8 dp. Test đo qua một `Box` bọc ngoài mang `testTag`.
+  - `primaryButton_withIcon_showsIconAndText_andClicks`: biểu tượng không có nút ngữ nghĩa, nên test kiểm tra có biểu tượng bằng vị trí chữ (chữ lùi vào 26 dp = 18 biểu tượng + 8 khoảng cách) so với nút không biểu tượng.
+- **Rà soát độc lập:** chưa làm (dừng trước bước 6).
+- **Kết quả CI:** chưa chạy (không mở PR).
+- **Lệch so với plan:** Không có trong code. Ghi chú: plan đặt dấu logo 56 x 52 dp (khung của SVG), README thiết kế ghi "dấu 52 x 48"; code theo plan.
+- **Việc còn lại:** cập nhật 3 test của `figma-export` để không phụ thuộc giá trị của hệ thống thiết kế, rồi chạy lại T-002 từ bước 5 trên nhánh cũ.
+- **Đề xuất hướng xử lý:** cách gọn nhất là một PR riêng (người làm, hoặc plan rủi ro cao duyệt chéo vì chạm `scripts/`) cho `figma-export.py` đọc đường dẫn `tokens.json` từ biến môi trường, và `scripts/tests/run.sh` dùng một `tokens.json` cố định trong `scripts/tests/fixtures/`. Sau khi merge, plan T-002 phiên bản 2 ghi "Tiếp tục trên nhánh cũ `claude/T-002-thuong-hieu-xanh-luc`", không đổi phần code. Bài học L-020.
+- **Cần người xem:** 12 ảnh chuẩn trên nhánh (`core/designsystem/src/test/screenshots/`, `feature/sample/src/test/screenshots/`, `feature/loading/src/test/screenshots/`), nhất là `DesignSystem_brand_light.png` cạnh ảnh thiết kế `LoadingScreen_progress_light.png`.
