@@ -108,7 +108,9 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | Dấu hiệu | Nguyên nhân | Xử lý |
 | --- | --- | --- |
 | Phiên tự chạy kết thúc vì Gradle nhận 429 từ `repo.maven.apache.org` | Môi trường cloud dùng setup script cũ, chưa có mirror | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6), lập danh sách chạy mới |
-| Phiên nhận 429 từ `repo1.maven.org` khi chạy test Robolectric | Môi trường dùng setup script cũ, chưa có `JAVA_TOOL_OPTIONS` cho Robolectric | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6) |
+| Phiên nhận 429 từ `repo1.maven.org` khi chạy test Robolectric | Môi trường dùng setup script cũ, chưa có mirror cho Robolectric | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6) |
+| Phiên kết thúc ngay đầu phiên, báo cáo ghi "Môi trường cloud chưa dùng scripts/cloud-setup.sh mới nhất" | `scripts/cloud-env-check.sh` thấy số phiên bản setup script của môi trường khác nhánh chính | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6), lập danh sách chạy mới |
+| Gradle báo `Could not find ...kotlin-stdlib...` khi build `build-logic`, chỉ tìm ở `plugins.gradle.org` | Setup script phiên bản 1: mirror chưa phủ thư viện tải qua plugin portal | Dán lại `scripts/cloud-setup.sh` (phiên bản 2 trở lên) |
 | `merge-if-green.sh` báo "phiên ... đang chạy" | Có phiên tự chạy đang chạy; chỉ PR của phiên đó được merge | Chờ phiên kết thúc |
 | Phiên làm việc trên nhánh `claude/<tên ngẫu nhiên>` | Prompt routine thiếu dòng "Nhánh" | Chép lại prompt ở `docs/ops/staging-and-runs.md`, mục 2.1 |
 | `start-run` báo lỗi 401 | Mã kích hoạt sai hoặc đã tạo lại | Tạo mã mới trong routine, cập nhật `ROUTINE_FIRE_TOKEN` |

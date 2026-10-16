@@ -25,6 +25,7 @@ AI tạo nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` từ nhánh chính, gh
 | Điều kiện | Không thỏa thì |
 | --- | --- |
 | Danh sách chạy trên nhánh chính có trạng thái `approved` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Môi trường cloud dựng từ `scripts/cloud-setup.sh` mới nhất: `scripts/cloud-env-check.sh` qua. Chạy trước `scripts/check.sh` | Không chờ, không thử lại: môi trường cũ không tự khỏi. Không chạy task nào, kết thúc phiên ngay, chép thông báo của script vào báo cáo để người dán lại setup script |
 | Môi trường build được: `scripts/check.sh` qua trên nhánh chính. Chạy trước task đầu tiên, để lỗi môi trường lộ ra trước khi viết code, và để thư viện được tải sẵn | Lỗi hạ tầng: thử lại theo lịch ở bước 5. Lỗi khác: không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
@@ -68,7 +69,8 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 - So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Có file ngoài danh sách thì dừng task.
 - Feature có thiết kế (`docs/features/<feature>/design/screens/`): chạy `scripts/design-compare.sh <feature>` sau `scripts/check.sh`. Kết quả trong `design/review/` để rà soát, không phải cổng chặn (ADR-0020). Ảnh thiết kế nào báo thiếu ảnh chuẩn screenshot là thiếu test, phải thêm theo plan.
 - Lỗi tải thư viện hay công cụ (mã 429, 5xx, hết thời gian chờ, mất kết nối) là lỗi hạ tầng, không phải lỗi của code, và không tính vào giới hạn 3 lần sửa. Phiên chạy qua đêm có thời gian, nên chờ lâu thay vì bỏ cuộc sớm: chạy lại sau 1, 2, 4, 8 rồi 15 phút (tổng khoảng 30 phút). Vẫn lỗi thì kết thúc phiên theo mục 4.
-- Môi trường cloud tải thư viện Maven Central qua mirror của Google (`scripts/cloud-setup.sh`): Gradle qua init script, Robolectric qua `JAVA_TOOL_OPTIONS`. Log còn thấy `repo.maven.apache.org` hay `repo1.maven.org` nghĩa là môi trường chưa dùng setup script mới nhất: ghi vào báo cáo để người cập nhật môi trường. Trong lúc chờ, phiên được trỏ công cụ đó sang mirror bằng biến môi trường của phiên (không sửa file trong repo) thay vì chờ theo lịch thử lại.
+- Mỗi lần chạy lại sau lỗi tải, dùng `GRADLE_REFRESH_DEPENDENCIES=true scripts/check.sh`. Gradle ghi nhớ lần tải lỗi và các lần sau báo "Could not find" mà không gọi lại mạng; biến này (đọc trong init script của `scripts/cloud-setup.sh`) buộc Gradle hỏi lại (RUN-20261016-01).
+- Môi trường cloud tải mọi thư viện Maven Central qua mirror của Google, nhờ init script do `scripts/cloud-setup.sh` ghi: kho `mavenCentral()`, thư viện mà plugin tải qua plugin portal, và Robolectric. Log còn thấy `repo.maven.apache.org` hay `repo1.maven.org` nghĩa là init script chưa phủ đường tải đó: ghi vào báo cáo kèm dòng log, đề xuất bài học. Phiên không tự thêm init script, không tự đổi kho tải hay biến môi trường để đi vòng: môi trường chặn các lệnh đó (RUN-20261016-01), và cấu hình tải phải nằm ở setup script để mọi phiên giống nhau.
 
 ### Bước 6. Rà soát độc lập
 

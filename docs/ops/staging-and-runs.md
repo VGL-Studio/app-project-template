@@ -74,6 +74,8 @@ Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra k
    Không đặt bí mật vào biến môi trường: ai dùng môi trường cũng đọc được.
 
    Mỗi khi `scripts/cloud-setup.sh` thay đổi trên nhánh chính, mở lại môi trường (biểu tượng cài đặt cạnh tên môi trường), dán lại toàn bộ nội dung mới vào Setup script và lưu. Môi trường được dựng lại từ script ở phiên kế tiếp.
+
+   Script có số phiên bản (`SETUP_VERSION`), tăng mỗi lần sửa. Đầu mỗi phiên, `scripts/cloud-env-check.sh` so số này với số mà môi trường đã chạy; khác nhau thì phiên kết thúc ngay và báo cáo ghi rõ cần dán lại, thay vì mất nửa giờ chờ lỗi tải. Kiểm tra nhanh sau khi dán: mở một phiên mới với môi trường này, chạy `scripts/cloud-env-check.sh`.
 3. Trên https://claude.ai/code/routines, bấm **New routine**: chọn repo này, môi trường vừa tạo, trigger **API** (không đặt lịch), model **Opus 5.5** (chọn ở ô model trong khung prompt). Ở mục **Connectors**, gỡ hết các connector; phiên tự chạy không cần connector nào.
 4. Prompt của routine (chép nguyên văn):
 
