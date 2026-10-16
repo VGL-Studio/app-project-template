@@ -159,7 +159,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` đặt sẵn thuộc tính đó; auto-run.md bước 5 ghi rõ được dùng mirror thay cho lịch thử lại.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #23, setup script của môi trường cần dán lại
-- **Kiểm chứng:** RUN-20261016-01: chưa kiểm chứng được, phiên không chạy tới Robolectric; `JAVA_TOOL_OPTIONS` của môi trường không có thuộc tính mirror (L-019).
+- **Kiểm chứng:** RUN-20261016-01: chưa kiểm chứng được, phiên không chạy tới Robolectric; `JAVA_TOOL_OPTIONS` của môi trường không có thuộc tính mirror (L-019). RUN-20261016-02: có hiệu quả. `scripts/check.sh` đầu phiên qua lần đầu (8 phút 38 giây), test Robolectric chạy được, log không có `repo.maven.apache.org` hay `repo1.maven.org`.
 
 ### L-015. Người merge vào nhánh chính khi phiên đang chạy
 
@@ -199,7 +199,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` thêm mirror vào đầu `settings.pluginManagement.repositories` (giữ `gradlePluginPortal()` phía sau); auto-run.md bước 5 ghi: thử lại sau lỗi tải thì dùng `--refresh-dependencies`, và phiên không tự thêm cấu hình mirror được nên mirror phải có sẵn trong setup script.
 - **Trạng thái:** proposed
 - **Áp dụng:**
-- **Kiểm chứng:**
+- **Kiểm chứng:** RUN-20261016-02: có hiệu quả. Setup script phiên bản 2 (PR #32); `scripts/check.sh` đầu phiên và của T-002 tải thư viện không lỗi, log không có `repo.maven.apache.org`. Dòng **Trạng thái** và **Áp dụng** chưa được cập nhật sau PR #32, để người chỉnh.
 
 ### L-019. JAVA_TOOL_OPTIONS của phiên thiếu mirror của Robolectric
 
@@ -207,6 +207,26 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** môi trường đặt `JAVA_TOOL_OPTIONS` cho proxy; thuộc tính `robolectric.dependency.repo.url` của L-014 không có, và `~/.bashrc` không có dòng `export JAVA_TOOL_OPTIONS=...` của setup script. Phiên phải tự nối thêm thuộc tính bằng biến môi trường.
 - **Cải tiến:** đề xuất setup script nối thêm vào `JAVA_TOOL_OPTIONS` hiện có thay vì gán đè, đặt ở file mà shell không tương tác cũng đọc; kiểm tra môi trường đã dán lại setup script mới nhất.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:** RUN-20261016-02: có hiệu quả. `scripts/cloud-env-check.sh` qua; Robolectric tải qua mirror mà phiên không phải tự đặt biến môi trường.
+
+### L-020. Test của figma-export đọc tokens.json thật, chặn mọi thay đổi hệ thống thiết kế
+
+- **Ngày, nguồn:** 2026-10-16, RUN-20261016-02
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** T-002 đổi hệ thống thiết kế đúng plan, `tokens.json` sinh lại khớp. `scripts/check.sh` đỏ vì 3 test của `figma-export` trong `scripts/tests/run.sh` (dòng 120 đến 122) chạy với `docs/design-system/tokens.json` thật và mong giá trị cũ (`titleMedium` đậm 500, nền `#FEF7FF`). File này ngoài danh sách file của plan, trong `scripts/`, nên task dừng ở bước 5 (điều kiện dừng 1 và 5). Plan không thấy được phụ thuộc này.
+- **Cải tiến:** đề xuất `figma-export.py` nhận đường dẫn `tokens.json` qua biến môi trường (như `FIGMA_EXPORT_FEATURES_DIR`), `scripts/tests/run.sh` dùng `scripts/tests/fixtures/tokens.json` cố định, để test của script không đổi theo thương hiệu của từng app. Khi viết plan đổi một file dùng chung (`tokens.json`, ảnh chuẩn), tìm mọi nơi đọc file đó (`grep -rn tokens.json scripts/ .github/`) và ghi vào danh sách file.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
+
+### L-021. Đo kích thước thành phần bằng Robolectric cần chế độ đồ họa thật
+
+- **Ngày, nguồn:** 2026-10-16, RUN-20261016-02
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** `ComponentsTest` của T-002 kiểm tra nút cao tối thiểu 52 dp. Ở chế độ đồ họa mặc định của Robolectric, chữ đo cao 36 dp nên nút cũ đã cao 52 dp và test qua khi chưa có code. Thêm `@GraphicsMode(GraphicsMode.Mode.NATIVE)` thì chữ đo đúng và test thất bại đúng lý do. Cũng trong task, `LinearProgressIndicator` tự nới vùng ngữ nghĩa thêm 10 dp mỗi phía, nên `assertHeightIsEqualTo` trên chính thanh đo được 28 dp thay vì 8 dp.
+- **Cải tiến:** đề xuất CLAUDE.md, mục Viết một feature mới, bước 10: test giao diện có kiểm tra kích thước dùng `@GraphicsMode(GraphicsMode.Mode.NATIVE)`; thành phần Material tự nới vùng chạm hay vùng ngữ nghĩa thì đo qua phần tử bọc ngoài. Mẫu plan, mục Kiểm thử: ghi rõ đo kích thước trên nút nào.
 - **Trạng thái:** proposed
 - **Áp dụng:**
 - **Kiểm chứng:**
