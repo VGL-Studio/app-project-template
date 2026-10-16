@@ -1,14 +1,14 @@
 ---
 ticket: T-003
 title: Màn hình loading theo thiết kế Figma
-status: draft
+status: approved
 version: 1
 risk_score: 5
 risk_level: medium
 blocking_points: []
 run_order:
-reviewer:
-cross_reviewer:
+reviewer: Nhật
+cross_reviewer: Nhật
 approved_at:
 ---
 
@@ -147,14 +147,15 @@ Không sửa `:core:designsystem`, `LoadingViewModel`, `LoadingUiState`, dữ li
 ## 8. Câu hỏi cho người duyệt
 
 1. **Tiến độ trong ảnh là 68%** theo thiết kế, không phải 50% và 75% như T-001. Đề xuất: dùng 68% cho cả bốn ảnh, để so được với thiết kế.
+- Trả lời: Dùng 68%
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
 

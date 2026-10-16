@@ -1,15 +1,15 @@
 ---
 ticket: T-002
 title: Hệ thống thiết kế theo thương hiệu mới (xanh lục, Inter, logo)
-status: draft
+status: approved
 version: 1
 risk_score:
 risk_level: high
 blocking_points: [core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-16
 ---
 
 # PLAN T-002: HỆ THỐNG THIẾT KẾ THEO THƯƠNG HIỆU MỚI (XANH LỤC, INTER, LOGO)
@@ -182,17 +182,21 @@ Không file nào khác. Đặc biệt không sửa `build.gradle.kts` của modu
 ## 8. Câu hỏi cho người duyệt
 
 1. **Các vai trò màu thiết kế không dùng** (cột "AI" ở mục 3.1): AI đề xuất cùng tông xanh lục để không còn màu tím mặc định. Đề xuất: duyệt bảng này; sau này chỉnh trên Figma thì làm plan mới.
+- Trả lời: Duyệt bản này.
 2. **Độ tương phản của `onSurfaceVariant` #6D8079 trên nền #F7FAF8** khoảng 4,0:1, hơi dưới mức 4,5:1 cho chữ nhỏ theo WCAG AA (khẩu hiệu, dòng hướng dẫn, chân trang dùng màu này). Đề xuất: giữ đúng thiết kế ở lần này, ghi thành góp ý cho thiết kế; hoặc đậm lên #5F716B (khoảng 4,9:1) nếu anh muốn đạt AA ngay.
+- Trả lời: Dùng đúng thiết kế.
 3. **Phông Inter làm APK nặng thêm khoảng 1,2 MB** (ba file). Đề xuất: chấp nhận; app nào muốn nhẹ thì đổi sang phông tải về sau.
+- Trả ời: Chấp nhật.
 4. **Ảnh catalog và ảnh `tokens.json` đổi** thì hệ thống thiết kế trên Figma cần dựng lại theo file mới (design-workflow.md, mục 1). Đề xuất: sau khi T-002 merge, anh tạo biến màu và kiểu chữ trên Figma theo `tokens.json` mới để các thiết kế sau dùng đúng token.
+- Trả lời: OK.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:**
 
 ## 10. Nhật ký thực hiện
 
