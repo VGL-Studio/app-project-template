@@ -112,6 +112,17 @@ expect "design-compare: light against dark differs" yes "$(grep -qE '^\| Dark \|
 expect "design-compare: missing screenshot is listed" 1 "$(grep -c '^| Missing | thiếu ảnh chuẩn' "$work/review/summary.md")"
 expect "design-compare: writes side-by-side images" yes "$([ -s "$work/review/Same_compare.png" ] && echo yes || echo no)"
 
+# figma-export.py (offline): context files match frames by name and map values to tokens.json.
+FIGMA_EXPORT_FEATURES_DIR="$work/features" python3 -I scripts/figma-export.py --offline \
+  scripts/tests/fixtures/figma-nodes.json loading > /dev/null
+context="$work/features/loading/design/context"
+expect "figma-export: only frames named like screenshots" "LoadingScreen_failed_light.md" "$(ls "$context")"
+expect "figma-export: text style matched to a token" 1 "$(grep -c 'kiểu titleMedium (16/24, đậm 500)' "$context/LoadingScreen_failed_light.md")"
+expect "figma-export: color matched to light roles" 1 "$(grep -c '| màu nền | #FEF7FF | background, surface |' "$context/LoadingScreen_failed_light.md")"
+expect "figma-export: unknown values flagged" 2 "$(grep -c '| ngoài hệ thống |' "$context/LoadingScreen_failed_light.md")"
+expect "figma-export: hidden layers left out" 0 "$(grep -c 'Hidden' "$context/LoadingScreen_failed_light.md")"
+expect "figma-export: spacing matched" 1 "$(grep -c 'cách nhau 16 (md)' "$context/LoadingScreen_failed_light.md")"
+
 # release.sh must refuse a release folder that is incomplete or holds staging/test values, before touching git.
 release_dir="$work/release"
 release_fails_with() {

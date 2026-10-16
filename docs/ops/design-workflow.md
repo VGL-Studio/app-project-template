@@ -59,19 +59,35 @@ docs/features/<feature>/design/
 Mỗi file `context/<tên ảnh>.md` gồm:
 
 1. **Nguồn:** link frame (Figma: link có `node-id`), ngày lấy, người lấy.
-2. **Biến dùng:** tên biến và giá trị (Figma: kết quả `get_variable_defs`), đối chiếu với `docs/design-system/tokens.json`. Giá trị không có trong `tokens.json` được đánh dấu "ngoài hệ thống" để plan quyết định.
-3. **Cấu trúc và số liệu:** cây phần tử theo thứ tự từ trên xuống, với kích thước, khoảng cách, căn lề, màu, kiểu chữ và chữ của từng phần tử (Figma: rút từ kết quả `get_design_context`).
+2. **Giá trị dùng:** màu, kiểu chữ, khoảng cách, đối chiếu theo giá trị với `docs/design-system/tokens.json` (Figma: `scripts/figma-export.py` làm việc này). Giá trị không có trong `tokens.json` được đánh dấu "ngoài hệ thống" để plan quyết định.
+3. **Cấu trúc và số liệu:** cây phần tử theo thứ tự từ trên xuống, với kích thước, khoảng cách, căn lề, màu, kiểu chữ và chữ của từng phần tử (Figma: do `scripts/figma-export.py` sinh).
 4. **Code tham khảo của công cụ** (nếu có), để nguyên trong khối code, ghi rõ "chỉ để đọc số liệu, không chép": công cụ sinh code web, app viết bằng Compose (ADR-0008).
 
 AI lập `context/` trong phiên có người theo dõi, cùng lúc với `screens/`; người duyệt xem file trước khi commit. Thiết kế đổi sau khi duyệt thì lấy lại cả ảnh và `context/`.
 
 Tên ảnh là `<Ten>Screen_<trạng thái>_<light|dark>.png`, trùng tên ảnh chuẩn screenshot mà plan sẽ tạo (ví dụ `LoadingScreen_failed_light.png` cho composable `LoadingScreen` ở trạng thái lỗi, giao diện sáng).
 
-**Xuất từ Figma (cách chính):** trong phiên Claude Code có người theo dõi đã nối Figma MCP, gửi AI link từng frame. AI dùng `get_screenshot` lưu ảnh vào `screens/` (kiểm tra đúng 1233 x 2673), và `get_design_context`, `get_variable_defs` để viết `context/`. Cách tay: chọn frame, thêm Export setting **PNG, 3x**, bấm **Export** (Shift+Cmd+E); khi đó vẫn nhờ AI lập `context/` qua MCP.
+**Xuất từ Figma (cách chính, mọi gói Figma):** đặt các frame trong một section hay trang, tên frame trùng tên ảnh (`LoadingScreen_failed_light`, khung 411 x 891). Chọn section, bấm **Copy link**, rồi chạy trên máy (hoặc nhờ AI chạy trong phiên có người theo dõi):
+
+```sh
+scripts/figma-export.py "<link section>" <feature>
+```
+
+Script gọi REST API của Figma, ghi `screens/<frame>.png` ở mức 3x (kiểm tra đúng 1233 x 2673) và `context/<frame>.md` (bố cục, khoảng cách, màu, chữ, đối chiếu với `tokens.json`). Frame có tên khác quy tắc bị bỏ qua, nên các bản nháp để cùng section không sao. REST API không bị giới hạn như Figma MCP, nên dùng được cả với gói Starter.
+
+Token: Figma > **Settings > Security > Personal access tokens > Generate new token**, chỉ chọn quyền **File content: Read-only**, hạn ngắn nhất đủ dùng. Lưu vào biến môi trường của máy, không lưu vào repo hay routine:
+
+```sh
+echo 'export FIGMA_TOKEN=<token>' >> ~/.zshrc   # rồi mở lại terminal và Claude Code
+```
+
+Script đọc token từ biến môi trường và không bao giờ in ra. Lộ token thì thu hồi ở cùng trang trong Figma.
+
+**Figma MCP (gói Professional trở lên):** dùng thêm khi cần đọc sâu hơn, ví dụ tên biến của Figma (`get_variable_defs`) hay Code Connect. Gói Starter chỉ có vài lượt gọi MCP mỗi tháng; gói Professional có 200 lượt mỗi ngày. Cách tay khi không có token: chọn frame, Export setting **PNG, 3x**, **Export**.
 
 **Xuất từ Claude Design:** tài liệu chưa có xuất PNG. Mở bản mẫu trong Chrome, bật DevTools > chế độ thiết bị, đặt kích thước 411 x 891 và DPR 3, mở menu (dấu ba chấm) > **Capture screenshot**. Ảnh ra đúng 1233 x 2673. Lưu kèm gói **Export > .zip** vào `design/handoff/`, rồi nhờ AI đọc HTML/CSS trong gói để viết `context/` theo cùng cấu trúc (không có tên biến thì ghi giá trị và token tương ứng trong `tokens.json`).
 
-**Nối Figma MCP vào Claude Code (chỉ cho phiên có người theo dõi):** `claude mcp add --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate. Gói Professional với Dev hoặc Full seat có 200 lượt mỗi ngày. Không thêm connector này vào routine.
+**Nối Figma MCP vào Claude Code (chỉ cho phiên có người theo dõi):** `claude mcp add --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate. Không thêm connector này vào routine.
 
 Kiểm tra gói: mỗi ảnh trong `screens/` đúng 1233 x 2673 (`sips -g pixelWidth -g pixelHeight <ảnh>` trên macOS) và có file `context/` cùng tên, tên đúng quy tắc, `README.md` có bảng chữ và bảng ánh xạ.
 
