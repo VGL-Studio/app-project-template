@@ -20,20 +20,20 @@ ADR-0008 quyết định code là gốc của hệ thống thiết kế và bả
 
 1. **Khung chuẩn:** mọi màn hình thiết kế dựng ở khung 411 x 891 dp, xuất PNG ở mức 3x (1233 x 2673 điểm ảnh). Đây đúng là khung của screenshot test (`@Config(qualifiers = "w411dp-h891dp-xxhdpi")`), nên ảnh thiết kế và ảnh màn hình thật so được với nhau.
 2. **Hệ thống thiết kế đi từ code sang công cụ:** `:core:designsystem` có catalog (màu, chữ, khoảng cách, thành phần) được chụp bằng screenshot test, và `docs/design-system/tokens.json` liệt kê các giá trị; test giữ file này khớp với code. Người thiết kế dựng hệ thống thiết kế trên Claude Design hoặc Figma từ hai nguồn này.
-3. **Bàn giao bằng một gói trong repo, giống nhau cho hai công cụ:** `docs/features/<feature>/design/` gồm `README.md` theo mẫu, ảnh từng màn hình và trạng thái trong `screens/`, đặt tên đúng bằng tên ảnh chuẩn screenshot sẽ có (`<Ten>Screen_<trạng thái>_<light|dark>.png`). Phiên tự chạy chỉ dùng gói này. Link tới công cụ chỉ để người tham khảo.
+3. **Bàn giao bằng một gói trong repo, giống nhau cho hai công cụ:** `docs/features/<feature>/design/` gồm `README.md` theo mẫu, ảnh từng màn hình và trạng thái trong `screens/`, đặt tên đúng bằng tên ảnh chuẩn screenshot sẽ có (`<Ten>Screen_<trạng thái>_<light|dark>.png`), và số liệu của từng màn hình trong `context/` cùng tên (bố cục, khoảng cách, màu, chữ, tên biến; với Figma lấy bằng `get_design_context` và `get_variable_defs`). Phiên tự chạy chỉ dùng gói này, không nối với công cụ thiết kế: repo giữ đúng bản đã duyệt, phiên không phụ thuộc công cụ lúc chạy, và không có quyền sửa thiết kế. Link tới công cụ chỉ để người tham khảo.
 4. **Đưa vào Compose:** AI viết lại bằng Compose theo token của hệ thống thiết kế (ADR-0008); không chép code web, không viết cứng giá trị.
 5. **Đối chiếu, ba lớp, không có cổng chặn theo điểm ảnh:**
    - Tự động, chặn được: screenshot test cho mọi ảnh trong `screens/`, test giao diện kiểm tra chữ theo bảng chữ của thiết kế, quy tắc không viết cứng giá trị.
    - Ảnh so sánh để tham khảo: `scripts/design-compare.sh <feature>` ghép ảnh thiết kế, ảnh màn hình thật, ảnh khác biệt và tỷ lệ điểm ảnh khác, ghi vào `design/review/`. Không chặn merge, vì phông chữ và cách vẽ luôn lệch vài điểm ảnh.
    - Rà soát: phiên rà soát độc lập xem từng cặp ảnh theo danh sách trong mẫu thiết kế; người phụ trách sản phẩm duyệt cuối trên ảnh so sánh và bản staging. Sau khi duyệt, ảnh chuẩn screenshot giữ giao diện đó.
-6. **Figma MCP** chỉ dùng trong phiên có người theo dõi (dựng gói bàn giao, xuất ảnh), không dùng trong phiên tự chạy.
+6. **Figma MCP** dùng trong phiên có người theo dõi để dựng gói bàn giao (ảnh và `context/`), không thêm vào routine của phiên tự chạy.
 
 ## Các phương án đã cân nhắc
 
 | Phương án | Ưu điểm | Nhược điểm |
 | --- | --- | --- |
 | Gói ảnh khung chuẩn trong repo | Phiên tự chạy đọc được; một quy trình cho hai công cụ; so được với screenshot test | Người phải xuất ảnh mỗi lần thiết kế đổi |
-| Phiên đọc trực tiếp Claude Design hoặc Figma | Luôn mới nhất | Cần đăng nhập trình duyệt, không chạy được trong phiên tự chạy |
+| Phiên tự chạy đọc trực tiếp Claude Design hoặc Figma qua connector | Luôn mới nhất, không phải lập gói | Có thể làm theo bản chưa duyệt; thêm điểm hỏng giữa phiên (lỗi, hết lượt, hết hạn đăng nhập); connector có quyền sửa mọi file thiết kế của nhóm |
 | Cổng chặn theo tỷ lệ điểm ảnh khác | Tự động hoàn toàn | Báo sai vì phông chữ và cách vẽ; phiên qua đêm dừng vì lỗi không có thật |
 
 ## Hệ quả

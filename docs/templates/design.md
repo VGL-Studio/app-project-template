@@ -17,6 +17,7 @@ Thư mục features/<ten-feature>/design/ chứa:
 - README.md này.
 - screens/: ảnh PNG 1233 x 2673 (khung 411 x 891, xuất 3x), tên <Ten>Screen_<trạng thái>_<light|dark>.png,
   trùng tên ảnh chuẩn screenshot mà plan sẽ tạo.
+- context/: số liệu của từng màn hình (nguồn, biến dùng, cấu trúc và số liệu), cùng tên với ảnh, đuôi .md.
 - review/: do scripts/design-compare.sh sinh ra, không sửa tay.
 - handoff/ (tùy chọn): gói xuất từ công cụ, giữ nguyên như khi xuất.
 Phiên tự chạy chỉ đọc thư mục này, không mở được Claude Design hay Figma.
@@ -25,12 +26,12 @@ Bản mẫu là ý đồ thiết kế. AI viết lại bằng Compose theo hệ 
 
 ## 1. Các màn hình và trạng thái
 
-| Màn hình (composable) | Trạng thái | Ảnh trong `screens/` | Kịch bản |
+| Màn hình (composable) | Trạng thái | Ảnh trong `screens/`, số liệu trong `context/` | Kịch bản |
 | --- | --- | --- | --- |
-| `<Ten>Screen` | Bình thường | `<Ten>Screen_default_light.png` | KB-1 |
-| `<Ten>Screen` | Đang tải | `<Ten>Screen_loading_light.png` | KB-1 |
-| `<Ten>Screen` | Lỗi | `<Ten>Screen_error_light.png` | KB-2 |
-| `<Ten>Screen` | Bình thường, chế độ tối | `<Ten>Screen_default_dark.png` | KB-1 |
+| `<Ten>Screen` | Bình thường | `<Ten>Screen_default_light` | KB-1 |
+| `<Ten>Screen` | Đang tải | `<Ten>Screen_loading_light` | KB-1 |
+| `<Ten>Screen` | Lỗi | `<Ten>Screen_error_light` | KB-2 |
+| `<Ten>Screen` | Bình thường, chế độ tối | `<Ten>Screen_default_dark` | KB-1 |
 
 ## 2. Bảng chữ
 
@@ -42,7 +43,7 @@ Bản mẫu là ý đồ thiết kế. AI viết lại bằng Compose theo hệ 
 
 ## 3. Ánh xạ sang hệ thống thiết kế
 
-<!-- Mỗi phần tử trên thiết kế dùng gì trong code. Tên lấy từ docs/design-system/tokens.json và :core:designsystem. -->
+<!-- Mỗi phần tử trên thiết kế dùng gì trong code. Tên lấy từ docs/design-system/tokens.json và :core:designsystem; số liệu lấy từ context/. Giá trị "ngoài hệ thống" trong context/ ghi rõ cách xử lý. -->
 
 | Phần tử trên thiết kế | Thành phần trong code | Màu (vai trò) | Kiểu chữ | Khoảng cách |
 | --- | --- | --- | --- | --- |

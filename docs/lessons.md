@@ -180,3 +180,13 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Trạng thái:** applied
 - **Áp dụng:** PR #23
 - **Kiểm chứng:**
+
+### L-017. Commit trong phiên có người theo dõi kéo theo file riêng của người
+
+- **Ngày, nguồn:** 2026-10-15, PR #25
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** AI dùng `git add -A`, đưa hai thư mục chưa từng commit của người (`.vscode/`, `build-logic/convention/bin/`) vào PR #25; phải đẩy đè nhánh để gỡ.
+- **Cải tiến:** đề xuất ghi vào CLAUDE.md, mục Quy ước code: chỉ `git add` theo đường dẫn, xem danh sách file của PR trước khi đẩy; cân nhắc thêm hai thư mục đó vào `.gitignore`.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
