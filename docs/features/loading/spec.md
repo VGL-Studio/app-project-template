@@ -1,11 +1,11 @@
 ---
 feature: loading
-status: confirmed
+status: changed
 owner: Nhật
 product_owner: Nhật
 requests:
   - requests/2026-10-15-man-hinh-loading.md
-design:
+design: features/loading/design/README.md
 created: 2026-10-15
 confirmed: 2026-10-15
 ---
@@ -23,6 +23,7 @@ confirmed: 2026-10-15
 **Trong phạm vi:**
 
 - Màn hình loading hiện mỗi lần mở app, có thanh tiến trình ngang và phần trăm từ 0% đến 100%.
+- Màn hình có nhận diện của app: logo, tên app, khẩu hiệu, và một dòng chân trang nói rằng đây là không gian riêng của người dùng.
 - Bốn phần việc chuẩn bị, mỗi phần chiếm 25% thanh tiến trình:
   1. Tải cấu hình mới nhất của app (Firebase Remote Config).
   2. Tải file `hello.txt` từ R2.
@@ -36,7 +37,7 @@ confirmed: 2026-10-15
 
 - Màn hình chào của hệ thống Android (biểu tượng app hiện trong lúc app khởi động) giữ nguyên.
 - Dùng nội dung của ba file ở màn hình khác. Lần này chỉ tải về và giữ trên máy.
-- Loading trong từng màn hình khác, hình ảnh hay hoạt ảnh riêng cho màn hình loading.
+- Loading trong từng màn hình khác, hoạt ảnh riêng cho màn hình loading.
 
 ## 3. Kịch bản sử dụng
 
@@ -46,7 +47,7 @@ Người dùng mở app khi có mạng.
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi mở app thì màn hình loading hiện đầu tiên, có thanh tiến trình ngang, phần trăm và dòng chữ cho biết app đang chuẩn bị.
+- [ ] Khi mở app thì màn hình loading hiện đầu tiên, có logo, tên app, khẩu hiệu, nhãn "Đang tải dữ liệu", thanh tiến trình ngang, phần trăm, dòng chữ cho biết app đang chuẩn bị, và dòng chân trang, đúng thiết kế.
 - [ ] Khi một phần việc xong thì thanh tiến trình tăng thêm 25%, không bao giờ lùi.
 - [ ] Khi cả bốn phần việc xong và màn hình đã hiện đủ 2 giây thì app tự chuyển sang màn hình chính, không cần bấm gì.
 - [ ] Khi cả bốn phần việc xong trước 2 giây thì thanh tiến trình đứng ở 100% cho tới đủ 2 giây rồi mới chuyển.
@@ -63,7 +64,7 @@ Người dùng cài app và mở lần đầu khi không có mạng.
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi một phần việc không xong được thì màn hình loading báo lỗi bằng lời dễ hiểu và có nút "Thử lại". App không vào màn hình chính.
+- [ ] Khi một phần việc không xong được thì màn hình loading báo lỗi gồm tiêu đề "Không thể tải dữ liệu" và lời hướng dẫn dễ hiểu; nhãn của thanh tiến trình đổi thành "Tiến độ đã dừng", thanh tiến trình và phần trăm chuyển màu báo lỗi, giữ ở mức đã đạt; có nút "Thử lại". App không vào màn hình chính.
 - [ ] Khi bấm "Thử lại" thì app chỉ làm lại những phần việc chưa xong, thanh tiến trình tiếp tục từ chỗ đã đạt.
 - [ ] Khi có mạng trở lại và bấm "Thử lại" thì app chuẩn bị xong và vào màn hình chính.
 - [ ] Khi tải cấu hình không có phản hồi sau 10 giây, hoặc tải một file không có phản hồi sau 15 giây, thì app coi phần việc đó là không xong được và báo lỗi như trên.
@@ -87,7 +88,7 @@ Tiêu chí chấp nhận:
 
 ## 4. Giao diện
 
-- **Thiết kế:** Dùng thành phần có sẵn, không cần thiết kế mới: thanh tiến trình ngang của hệ thống thiết kế, phần trăm, một dòng chữ; khi lỗi thì thêm thông báo và nút "Thử lại".
+- **Thiết kế:** [design/README.md](design/README.md), dựng trên Figma, ba trạng thái: đang tải (sáng, tối) và lỗi (sáng). Thiết kế đi kèm màu thương hiệu mới (xanh lục), phông Inter, logo, nên hệ thống thiết kế của dự án mẫu đổi theo trước (T-002), rồi màn hình loading làm theo thiết kế (T-003).
 - **Các màn hình:**
 
 | Màn hình | Mục đích | Kịch bản liên quan |
@@ -141,6 +142,12 @@ Không có. Màn hình loading không hiện quảng cáo.
    - Trả lời: đồng ý.
 5. **Hai file `content.txt` và `goodbye.txt` chưa có trên R2 staging:**
    - Trả lời: đã đưa lên. AI kiểm tra lại ngày 2026-10-15: cả ba file trong `test/v1/` đều tải được.
+6. **Tên app trên màn hình loading:** thiết kế ghi "Todo App".
+   - Đề xuất của AI: màn hình hiện đúng tên của app đang chạy (với dự án mẫu là "App Template"); mỗi app tạo từ dự án mẫu tự có tên của mình. "Todo App" chỉ là chữ mẫu trên thiết kế, screenshot test dùng chữ này để so với ảnh thiết kế.
+   - Trả lời:
+7. **Khẩu hiệu "Mọi việc vào đúng nhịp." và logo:** thuộc thương hiệu, mỗi app thay bằng của mình.
+   - Đề xuất của AI: dự án mẫu dùng khẩu hiệu và logo này làm mặc định, đặt trong hệ thống thiết kế cùng chỗ với màu thương hiệu; hướng dẫn tạo app mới ghi rõ phải thay.
+   - Trả lời:
 
 ## 10. Lịch sử
 
@@ -149,3 +156,4 @@ Không có. Màn hình loading không hiện quảng cáo.
 | 2026-10-15 | AI | Tạo bản đầu từ yêu cầu |
 | 2026-10-15 | AI | Cập nhật theo câu trả lời của anh Nhật: đo Remote Config và ba file R2, thanh ngang có phần trăm, báo lỗi và thử lại khi mất mạng lần đầu, hiện mỗi lần mở app, tối thiểu 2 giây, sự kiện `loading_completed`, tên feature `loading` |
 | 2026-10-15 | AI | Cập nhật theo câu trả lời mục 9: mở lại khi không có mạng cũng báo lỗi, tham số của `loading_completed`, thời gian chờ, cấu hình giả trên máy dev và CI, ba file đã có trên R2 |
+| 2026-10-16 | AI | Nhận thiết kế Figma theo quyết định của anh Nhật: thêm logo, tên app, khẩu hiệu, chân trang, tiêu đề lỗi, nhãn tiến trình (phạm vi, KB-1, KB-2, mục 4); thêm câu hỏi 6, 7. Chuyển sang `changed`, chờ xác nhận lại |
