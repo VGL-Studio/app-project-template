@@ -48,22 +48,36 @@ docs/features/<feature>/design/
 ├── screens/             ảnh PNG 1233 x 2673, mỗi màn hình và trạng thái một ảnh
 │   ├── LoadingScreen_progress_light.png
 │   └── LoadingScreen_failed_light.png
+├── context/             số liệu của từng màn hình lấy từ công cụ, cùng tên với ảnh, đuôi .md
+│   ├── LoadingScreen_progress_light.md
+│   └── LoadingScreen_failed_light.md
 └── review/              do scripts/design-compare.sh sinh ra (bước 6), không sửa tay
 ```
 
+`context/` cho AI số liệu chính xác của bản đã duyệt (bố cục, khoảng cách, màu, chữ, tên biến) mà không phải đọc công cụ thiết kế lúc làm. Phiên tự chạy không nối với Figma hay Claude Design: thiết kế có thể đổi sau khi duyệt, công cụ có thể lỗi hay hết lượt giữa phiên, và connector có cả quyền sửa thiết kế (ADR-0020).
+
+Mỗi file `context/<tên ảnh>.md` gồm:
+
+1. **Nguồn:** link frame (Figma: link có `node-id`), ngày lấy, người lấy.
+2. **Biến dùng:** tên biến và giá trị (Figma: kết quả `get_variable_defs`), đối chiếu với `docs/design-system/tokens.json`. Giá trị không có trong `tokens.json` được đánh dấu "ngoài hệ thống" để plan quyết định.
+3. **Cấu trúc và số liệu:** cây phần tử theo thứ tự từ trên xuống, với kích thước, khoảng cách, căn lề, màu, kiểu chữ và chữ của từng phần tử (Figma: rút từ kết quả `get_design_context`).
+4. **Code tham khảo của công cụ** (nếu có), để nguyên trong khối code, ghi rõ "chỉ để đọc số liệu, không chép": công cụ sinh code web, app viết bằng Compose (ADR-0008).
+
+AI lập `context/` trong phiên có người theo dõi, cùng lúc với `screens/`; người duyệt xem file trước khi commit. Thiết kế đổi sau khi duyệt thì lấy lại cả ảnh và `context/`.
+
 Tên ảnh là `<Ten>Screen_<trạng thái>_<light|dark>.png`, trùng tên ảnh chuẩn screenshot mà plan sẽ tạo (ví dụ `LoadingScreen_failed_light.png` cho composable `LoadingScreen` ở trạng thái lỗi, giao diện sáng).
 
-**Xuất từ Figma:** chọn frame, thêm Export setting **PNG, 3x**, bấm **Export** (Shift+Cmd+E). Hoặc trong phiên Claude Code có người theo dõi đã nối Figma MCP: dán link frame và nhờ AI dùng `get_screenshot` lưu ảnh vào `screens/`.
+**Xuất từ Figma (cách chính):** trong phiên Claude Code có người theo dõi đã nối Figma MCP, gửi AI link từng frame. AI dùng `get_screenshot` lưu ảnh vào `screens/` (kiểm tra đúng 1233 x 2673), và `get_design_context`, `get_variable_defs` để viết `context/`. Cách tay: chọn frame, thêm Export setting **PNG, 3x**, bấm **Export** (Shift+Cmd+E); khi đó vẫn nhờ AI lập `context/` qua MCP.
 
-**Xuất từ Claude Design:** tài liệu chưa có xuất PNG. Mở bản mẫu trong Chrome, bật DevTools > chế độ thiết bị, đặt kích thước 411 x 891 và DPR 3, mở menu (dấu ba chấm) > **Capture screenshot**. Ảnh ra đúng 1233 x 2673. Có thể lưu kèm gói **Export > .zip** vào `design/handoff/` để tham khảo.
+**Xuất từ Claude Design:** tài liệu chưa có xuất PNG. Mở bản mẫu trong Chrome, bật DevTools > chế độ thiết bị, đặt kích thước 411 x 891 và DPR 3, mở menu (dấu ba chấm) > **Capture screenshot**. Ảnh ra đúng 1233 x 2673. Lưu kèm gói **Export > .zip** vào `design/handoff/`, rồi nhờ AI đọc HTML/CSS trong gói để viết `context/` theo cùng cấu trúc (không có tên biến thì ghi giá trị và token tương ứng trong `tokens.json`).
 
 **Nối Figma MCP vào Claude Code (chỉ cho phiên có người theo dõi):** `claude mcp add --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate. Gói Professional với Dev hoặc Full seat có 200 lượt mỗi ngày. Không thêm connector này vào routine.
 
-Kiểm tra gói: mỗi ảnh trong `screens/` đúng 1233 x 2673 (`sips -g pixelWidth -g pixelHeight <ảnh>` trên macOS), tên đúng quy tắc, `README.md` có bảng chữ và bảng ánh xạ.
+Kiểm tra gói: mỗi ảnh trong `screens/` đúng 1233 x 2673 (`sips -g pixelWidth -g pixelHeight <ảnh>` trên macOS) và có file `context/` cùng tên, tên đúng quy tắc, `README.md` có bảng chữ và bảng ánh xạ.
 
 ## 5. AI viết giao diện
 
-Plan của ticket ghi trong mục 2 đường dẫn gói thiết kế, và trong mục 4 một screenshot test cho mỗi ảnh trong `screens/`, cùng tên. AI viết lại bằng Compose theo token, không chép code web của bản mẫu (ADR-0008).
+Plan của ticket ghi trong mục 2 đường dẫn gói thiết kế, và trong mục 4 một screenshot test cho mỗi ảnh trong `screens/`, cùng tên. AI lấy số liệu từ `context/`, nhìn ảnh trong `screens/` để hiểu tổng thể, viết lại bằng Compose theo token, không chép code web của bản mẫu (ADR-0008). Giá trị đánh dấu "ngoài hệ thống" trong `context/` được plan quyết định trước: làm tròn về token gần nhất, hoặc thêm token (thay đổi module core, rủi ro cao).
 
 ## 6. Đối chiếu
 

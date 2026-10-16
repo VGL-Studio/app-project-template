@@ -4,6 +4,7 @@
 #   design images:     docs/features/<feature>/design/screens/<name>.png
 #   screenshot images: feature/<feature>/src/test/screenshots/<name>.png
 #   result:            docs/features/<feature>/design/review/ (side-by-side images and summary.md)
+# A design image without its numbers in design/context/<name>.md is listed in the summary.
 # The result is for review, not a gate: it never fails because images differ.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -21,3 +22,16 @@ java_cmd="java"
 rm -rf "${review_dir}"
 "${java_cmd}" -Djava.awt.headless=true scripts/design-compare/DesignCompare.java \
   "${design_dir}" "${screenshot_dir}" "${review_dir}"
+
+context_dir="docs/features/${feature}/design/context"
+missing_context=()
+for image in "${design_dir}"/*.png; do
+  name="$(basename "${image}" .png)"
+  [ -f "${context_dir}/${name}.md" ] || missing_context+=("${name}")
+done
+if [ "${#missing_context[@]}" -gt 0 ]; then
+  {
+    echo
+    echo "Thiếu số liệu trong design/context/: ${missing_context[*]}"
+  } | tee -a "${review_dir}/summary.md"
+fi
