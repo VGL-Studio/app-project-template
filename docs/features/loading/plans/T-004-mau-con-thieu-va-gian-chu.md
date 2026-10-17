@@ -1,15 +1,15 @@
 ---
 ticket: T-004
 title: Đủ vai trò màu thương hiệu và giãn cách chữ như thiết kế
-status: draft
+status: approved
 version: 1
 risk_score:
 risk_level: high
 blocking_points: [core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật (vì là dự án mẫu)
+approved_at: 2026-10-17
 ---
 
 # PLAN T-004: ĐỦ VAI TRÒ MÀU THƯƠNG HIỆU VÀ GIÃN CÁCH CHỮ NHƯ THIẾT KẾ
@@ -133,9 +133,9 @@ Không sửa code của `:feature:loading`, `:feature:sample`, `build.gradle.kts
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì đây là dự án mẫu)
+- **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
 
