@@ -23,6 +23,12 @@ if [[ "${CANARY_CHECKOUT:-yes}" == "yes" ]]; then
   git checkout -q --detach origin/main
 fi
 
+# The routine runs this script from a non-interactive shell, which does not read ~/.bashrc where
+# scripts/cloud-setup.sh records the SDK location (first canary run, issue #37).
+if [[ -z "${ANDROID_HOME:-}" && -d "${HOME}/android-sdk" ]]; then
+  export ANDROID_HOME="${HOME}/android-sdk"
+fi
+
 REMOTE_URL="$(git config --get remote.origin.url)"
 REPO="$(echo "$REMOTE_URL" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
 COMMIT="$(git rev-parse --short HEAD)"
