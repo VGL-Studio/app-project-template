@@ -30,4 +30,11 @@ Script làm những việc sau:
 ## 3. Sau khi chạy
 
 1. Chạy `scripts/check.sh` trong thư mục app mới.
-2. Làm tiếp theo `docs/ops/setup-new-app.md` của app mới, từ phần 2.
+2. Thương hiệu. App mới dùng thương hiệu của dự án mẫu cho tới khi thay. Trong `:core:designsystem`, thay:
+   - Bảng màu sáng và tối trong `theme/Color.kt`.
+   - Dấu trên logo `res/drawable/brand_mark.xml`.
+   - Khẩu hiệu `brand_tagline` trong `res/values/strings.xml`.
+   - Phông trong `res/font` và `theme/Type.kt`, nếu app dùng phông khác Inter. Phông mới cần giấy phép cho phép đóng gói vào app; đặt giấy phép vào `third_party/`.
+
+   Sau đó sinh lại `docs/design-system/tokens.json` bằng `./gradlew :core:designsystem:testDebugUnitTest -PdesignTokens.update=true`, ghi lại ảnh chuẩn screenshot bằng `./gradlew recordRoborazziDebug`, xem lại ảnh catalog và các màn hình, rồi chạy lại `scripts/check.sh` (ADR-0008, ADR-0020).
+3. Làm tiếp theo `docs/ops/setup-new-app.md` của app mới, từ phần 2.
