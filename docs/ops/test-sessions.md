@@ -30,7 +30,9 @@ scripts/device-session.sh stop
 ```
 
 - `start` xóa log cũ của máy, bắt đầu ghi toàn bộ logcat (mọi bộ đệm, kể cả crash và log hệ thống), tạo thư mục `test-sessions/TS-YYYYMMDD-NN/` với `session.md` (máy, Android, phiên bản app) và `notes.md` để ghi chú.
-- Trong lúc thử, ghi vào `notes.md`: định thử gì, đã làm gì lúc mấy giờ, thấy lạ lúc mấy giờ. Giờ giúp AI tìm đúng đoạn log. Không ghi dữ liệu cá nhân.
+- Trong lúc thử, ghi vào `notes.md`: định thử gì, đã làm gì lúc mấy giờ, thấy lạ lúc mấy giờ. Giờ giúp AI tìm đúng đoạn log. Không ghi dữ liệu cá nhân. `stop` nhắc nếu file còn trống.
+- Muốn thử lần mở đầu như vừa cài: `scripts/device-session.sh reset` (sau `start`). Lệnh xóa dữ liệu của app và ghi dấu `action=clear_data` vào log, để AI biết từ đâu là lần mở đầu. Đừng xóa dữ liệu bằng tay trong Cài đặt: log không ghi lại việc đó.
+- Mã phiên `TS-YYYYMMDD-NN` không trùng thư mục nào trên máy và báo cáo nào trong `docs/test-sessions/` (kể cả phiên emulator của CI).
 - `stop` dừng ghi, lấy thêm số liệu khung hình (`gfxinfo`), bộ nhớ (`meminfo`), crash và ANR của hệ thống, rồi viết `summary.md` đếm crash, ANR, lỗi của app. Lệnh trả mã 1 khi có crash hay ANR.
 
 Muốn chạy kịch bản chuẩn trên chính máy này (khởi động nguội ba lần, mở lần đầu khi mất mạng, bấm ngẫu nhiên vài phút), giữa `start` và `stop`:
@@ -67,6 +69,7 @@ Cuối mỗi phiên tự chạy có task được merge, trước `staging.yml`,
 - **Có crash hoặc ANR:** workflow đỏ, phiên không phát bản staging, ghi phát hiện vào báo cáo phiên và soạn sẵn phản hồi mức chặn.
 - **Không có:** phiên phát staging, ghi tóm tắt và các phát hiện khác (lỗi đã bắt, lệch kịch bản) vào báo cáo phiên.
 - Số liệu thời gian và khung hình trên emulator không có GPU chỉ để so giữa các lần chạy, không dùng để chặn.
+- Hành vi đã biết của emulator: lần mở đầu sau khi xóa dữ liệu thường hết 10 giây tải cấu hình (TS-20261017-01); trên máy thật không lặp lại (TS-20261017-02, FB-20261017-02). Không ghi thành phát hiện mới, trừ khi xảy ra cả ở lần mở sau, khi app đã chạy một lúc.
 
 Chạy tay: **Actions > device-session > Run workflow** trên `main`. Mỗi lần khoảng 25 phút CI.
 
