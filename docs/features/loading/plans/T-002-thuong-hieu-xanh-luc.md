@@ -1,15 +1,15 @@
 ---
 ticket: T-002
 title: Hệ thống thiết kế theo thương hiệu mới (xanh lục, Inter, logo)
-status: draft
+status: approved
 version: 2
 risk_score:
 risk_level: high
 blocking_points: [core]
 run_order:
-reviewer:
+reviewer: Nhật
 cross_reviewer:
-approved_at:
+approved_at: 2026-10-17
 ---
 
 # PLAN T-002: HỆ THỐNG THIẾT KẾ THEO THƯƠNG HIỆU MỚI (XANH LỤC, INTER, LOGO)
