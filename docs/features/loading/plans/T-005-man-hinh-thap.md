@@ -1,7 +1,7 @@
 ---
 ticket: T-005
 title: Màn hình loading dùng được trên màn hình thấp
-status: approved
+status: done
 version: 1
 risk_score: 4
 risk_level: low
@@ -129,3 +129,16 @@ Không ghi lại bốn ảnh chuẩn hiện có (`LoadingScreen_progress_light.p
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261017-03, phiên bản plan 1
+
+- **Kết quả:** đã merge.
+- **Nhánh, PR:** `claude/T-005-man-hinh-thap`, PR #51, merge thành commit e21ed52 trên nhánh chính.
+- **Đã làm:** đủ mục 3.1. `LoadingScreen.kt`: cột cuộn ngoài, cột trong có chiều cao tối thiểu bằng màn hình và `SpaceBetween`, `topSpace` 25% khi cao từ 800 dp, 8% khi thấp hơn (hai hằng số `private` có chú thích). Phần nội dung tách thành `LoadingContent`, không đổi thành phần hay thứ tự. Chân trang `padding(top = Spacing.lg, bottom = Spacing.xl)`. `design/README.md` thêm một dòng ở mục 6, một tiêu chí ở mục 7. Hai ảnh chuẩn mới. 6 file thay đổi, đúng mục 3.2. Bốn ảnh chuẩn khung 411 x 891 không đổi (điều kiện dừng 7.1 không xảy ra); `design/review/` không đổi.
+- **Test viết trước:** commit 41d382a chỉ gồm hai file test (L-025). Trước khi có code: `failed_onShortScreen_footerBelowError` thất bại "footer top 592.0.dp overlaps error bottom 636.0.dp". `failed_onShortScreen_retryButtonFitsOnScreen` viết đúng như mục 4 thì **qua ngay** khi chưa có code: ở khung 360 x 640, đáy nút là 636 dp, vẫn trong màn hình 640 dp; lỗi ở khung này là chân trang che nút, không phải nút tràn khỏi màn hình (lỗi gốc của FB-20261017-01 ở chiều rộng 320). Theo bước 3, test được viết lại trước commit test: giữ điều kiện của plan, thêm điều kiện đáy nút không thấp hơn đỉnh chân trang; sau đó thất bại "retry bottom 636.0.dp is under footer top 592.0.dp". Sau khi sửa, cả hai qua mà không cần cuộn (đáy nút khoảng 527 dp, chân trang khoảng 590 dp), nên điều kiện dừng 7.2 không xảy ra.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 4 ghi chú. Hiểu spec giống plan; xác nhận điều kiện thêm vào test giữ đúng ý "thấy và bấm được". Nên sửa (không sửa, vì ngoài danh sách test của mục 4 và không viết trước được): chưa có test nào chạy qua trường hợp nội dung dài hơn màn hình, ví dụ khung `w320dp-h480dp` với `performScrollTo()`. Ghi chú: lý do thất bại plan đoán sai ở khung 360; `topSpace` nhảy bậc từ 64 dp lên 200 dp ở ngưỡng 800 dp, nhiều máy phổ thông sẽ dùng bố cục 8% (đã duyệt ở câu hỏi 2); chú thích lớp `LoadingScreenScreenshotTest` nói mọi test trùng tên ảnh thiết kế, nay không đúng với hai ảnh `_small`; kiểm tra thêm bằng `device-session.yml`.
+- **Kết quả CI:** một vòng, xanh: `changes`, `build-and-test`, `ui-test`.
+- **Đối chiếu thiết kế:** điểm ảnh khác 2,4% (đang tải, sáng và tối), 5,2% (lỗi, sáng), 5,6% (lỗi, tối), không đổi.
+- **Lệch so với plan:** điều kiện thêm vào `failed_onShortScreen_retryButtonFitsOnScreen` như trên.
+- **Việc còn lại:** test cuộn ở khung thấp hơn (đề xuất của rà soát); sửa chú thích lớp `LoadingScreenScreenshotTest`.
+- **Cần người xem:** `feature/loading/src/test/screenshots/LoadingScreen_failed_small.png`, `LoadingScreen_progress_small.png`; điều kiện thêm vào test nói trên.
