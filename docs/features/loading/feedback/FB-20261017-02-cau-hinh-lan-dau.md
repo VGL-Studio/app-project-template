@@ -7,7 +7,7 @@ build: 0.1.0-staging, commit caf0746
 feature: loading
 ticket: T-001
 severity: nang
-status: new
+status: wontfix
 created: 2026-10-17
 ---
 
