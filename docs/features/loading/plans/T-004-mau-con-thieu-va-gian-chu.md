@@ -1,7 +1,7 @@
 ---
 ticket: T-004
 title: Đủ vai trò màu thương hiệu và giãn cách chữ như thiết kế
-status: approved
+status: done
 version: 1
 risk_score:
 risk_level: high
@@ -140,3 +140,16 @@ Không sửa code của `:feature:loading`, `:feature:sample`, `build.gradle.kts
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261017-02, phiên bản plan 1
+
+- **Kết quả:** đã merge.
+- **Nhánh, PR:** `claude/T-004-mau-va-gian-chu`, PR #43, merge thành commit 050997e trên nhánh chính.
+- **Đã làm:** đủ mục 3.1. `Color.kt` thêm `tertiaryContainer`, `onTertiaryContainer` sáng và tối theo bảng. `Type.kt` đặt `letterSpacing = 0.sp` cho cả 15 kiểu chữ, sửa chú thích. `ColorCatalog` thêm dòng `tertiaryContainer`. `DesignTokensTest` tách `colorRoles` với 35 vai trò, thêm `colorRoles_listEveryRoleOfColorScheme`. Ghi lại đúng 13 ảnh chuẩn ở mục 3.2, không ảnh nào khác đổi. Chạy `scripts/design-compare.sh loading`, commit `design/review/`, thêm khối "Sau T-004" vào mục 8 của `design/README.md`. 24 file thay đổi, đều nằm trong mục 3.2.
+- **Test viết trước:** commit 8af8d26 gồm `tokens.json` sửa tay (35 vai trò mỗi chế độ, mọi `letterSpacingSp` là `0.0`) và test reflection, với `colorRoles` còn 21 vai trò. Cả hai test thất bại đúng lý do: file lệch giá trị; tập vai trò của `ColorScheme` có 35 tên, `colorRoles` mới có 21. Reflection không thấy vai trò nào ngoài 35 vai trò của plan (điều kiện dừng 7.1 không xảy ra). Sau khi sửa code, `tokens.json` sinh lại bằng `-PdesignTokens.update=true` trùng từng byte với bản sửa tay. Một lần sửa chi tiết test trước commit, không đổi điều test kiểm tra: xuống dòng cho ktlint.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa (khối "Sau T-004" trong `design/README.md` chưa có lúc rà soát; đã thêm), 6 ghi chú. Chân trang và dòng "Đang chuẩn bị không gian của bạn…" nay rộng gần bằng thiết kế. Lời hướng dẫn khi lỗi và nhãn tiến trình vẫn rộng hơn khoảng 8%, chỉ còn do cỡ chữ 14 sp so với 13 sp (mục 6 của thiết kế cho phép). Lời hướng dẫn nay xuống dòng sau "kiểm tra mạng" thay vì sau "kiểm tra" như thiết kế, vẫn 2 dòng. Bố cục không đổi. Test reflection chỉ so tên vai trò, gán nhầm thuộc tính chỉ bị test so `tokens.json` bắt. `tertiaryContainer` sáng tươi hơn `tertiary` nhưng cùng họ màu.
+- **Kết quả CI:** một vòng, xanh: `changes`, `build-and-test`, `ui-test`.
+- **Đối chiếu thiết kế:** điểm ảnh khác 2,4% (đang tải, sáng và tối, trước là 2,5%), 5,2% (lỗi, sáng), 5,6% (lỗi, tối), không đổi.
+- **Lệch so với plan:** Không có.
+- **Việc còn lại:** kiểm tra thủ công màu `tertiaryContainer` (mục 4).
+- **Cần người xem:** `DesignSystem_colors_light.png`, `DesignSystem_colors_dark.png`; bốn ảnh ghép trong `docs/features/loading/design/review/`; chỗ xuống dòng của lời hướng dẫn khi lỗi.

@@ -159,7 +159,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` đặt sẵn thuộc tính đó; auto-run.md bước 5 ghi rõ được dùng mirror thay cho lịch thử lại.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #23, setup script của môi trường cần dán lại
-- **Kiểm chứng:** RUN-20261016-01: chưa kiểm chứng được, phiên không chạy tới Robolectric; `JAVA_TOOL_OPTIONS` của môi trường không có thuộc tính mirror (L-019). RUN-20261016-02: có hiệu quả. `scripts/check.sh` đầu phiên qua lần đầu (8 phút 38 giây), test Robolectric chạy được, log không có `repo.maven.apache.org` hay `repo1.maven.org`.
+- **Kiểm chứng:** RUN-20261016-01: chưa kiểm chứng được, phiên không chạy tới Robolectric; `JAVA_TOOL_OPTIONS` của môi trường không có thuộc tính mirror (L-019). RUN-20261016-02: có hiệu quả. `scripts/check.sh` đầu phiên qua lần đầu (8 phút 38 giây), test Robolectric chạy được, log không có `repo.maven.apache.org` hay `repo1.maven.org`. RUN-20261017-02: có hiệu quả, như trên (`scripts/check.sh` đầu phiên 7 phút 27 giây).
 
 ### L-015. Người merge vào nhánh chính khi phiên đang chạy
 
@@ -249,7 +249,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `scripts/plan-check.py` báo lỗi khi plan `approved` mà mục 9 của phiên bản hiện tại (`version`) còn chữ mẫu hoặc thiếu người duyệt; docs/CLAUDE.md, mục Khi viết plan: plan phiên bản mới thêm sẵn khối duyệt trống cho phiên bản đó.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #42: `scripts/plan-check.py` báo lỗi khi plan approved mà mục 9 của phiên bản hiện tại còn chữ mẫu, kèm 3 test. Retro 2026-10-17 nhận
-- **Kiểm chứng:**
+- **Kiểm chứng:** RUN-20261017-02: có hiệu quả. `scripts/plan-check.py` chạy trước T-004 và qua, mục 9 của plan T-004 đã điền quyết định duyệt. Phiên không gặp plan còn chữ mẫu nên chưa thấy script báo lỗi trong thực tế.
 
 ### L-024. Bảng màu của plan bỏ sót vai trò, còn màu mặc định của Material 3
 
@@ -257,6 +257,26 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** plan T-002 ghi "Không vai trò nào còn giá trị mặc định tím của Material 3", nhưng bảng màu không có `tertiaryContainer` và `onTertiaryContainer`. Code làm đúng bảng, nên hai vai trò này vẫn là màu hồng tím mặc định ở cả bản sáng và tối. Rà soát độc lập phát hiện ở mức nên sửa; phiên không tự thêm màu vì cần người duyệt bảng.
 - **Cải tiến:** đề xuất mẫu plan (hoặc `docs/ops/new-app.md`, bước Thương hiệu): bảng màu liệt kê đủ mọi vai trò của `ColorScheme`; cân nhắc thêm vào `DesignTokensTest` một kiểm tra rằng không vai trò nào trùng giá trị mặc định của `lightColorScheme()` và `darkColorScheme()`.
-- **Trạng thái:** accepted
-- **Áp dụng:** Plan T-004 (`features/loading/plans/T-004-mau-con-thieu-va-gian-chu.md`): gán màu cho hai vai trò, `tokens.json` liệt kê đủ mọi vai trò của `ColorScheme` có test giữ. Retro 2026-10-17 nhận; ghi `applied` khi T-004 merge
+- **Trạng thái:** applied
+- **Áp dụng:** Plan T-004 (`features/loading/plans/T-004-mau-con-thieu-va-gian-chu.md`): gán màu cho hai vai trò, `tokens.json` liệt kê đủ mọi vai trò của `ColorScheme` có test giữ. Retro 2026-10-17 nhận; ghi `applied` khi T-004 merge. Đã merge ở PR #43 (RUN-20261017-02)
+- **Kiểm chứng:**
+
+### L-025. Plan không nói rõ phần nào của file test vào commit test
+
+- **Ngày, nguồn:** 2026-10-17, RUN-20261017-02
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** mục 3.1 của plan T-004 ghi hàm `colorRoles` trong `DesignTokensTest` liệt kê đủ 35 vai trò, còn mục 4 ghi test viết trước thất bại vì `colorRoles` mới có 21 vai trò. Hàm và test nằm cùng một file test. Phiên phải tự suy ra: commit test giữ 21 vai trò, commit code thêm 14 vai trò còn lại. Nếu đưa cả 35 vai trò vào commit test, test mới sẽ qua ngay khi chưa có code.
+- **Cải tiến:** đề xuất docs/CLAUDE.md, mục Khi viết plan: khi hàm phụ trợ nằm trong file test mà cũng là phần cần đổi, plan ghi rõ phần nào vào commit test, phần nào vào commit code.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
+
+### L-026. Thiếu ANDROID_HOME bị giấu khi chạy Gradle với -q và lọc kết quả
+
+- **Ngày, nguồn:** 2026-10-17, RUN-20261017-02
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phiên chạy `./gradlew -q ...ktlintCheck | grep ...` trong một lệnh shell chưa có `export ANDROID_HOME`. Lỗi "SDK location not found" bị bộ lọc giấu, lệnh không in gì, trông như kiểm tra đã qua. Phiên phát hiện khi chạy lại không có `-q`. Không ảnh hưởng kết quả vì `scripts/check.sh` sau đó chạy đủ.
+- **Cải tiến:** đề xuất `scripts/cloud-setup.sh` ghi `ANDROID_HOME` vào hồ sơ shell hoặc ghi `sdk.dir` vào `local.properties`, để mọi lệnh Gradle trong phiên đều thấy SDK.
+- **Trạng thái:** proposed
+- **Áp dụng:**
 - **Kiểm chứng:**
