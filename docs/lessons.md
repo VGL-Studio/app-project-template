@@ -248,7 +248,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Chuyện gì:** plan T-002 phiên bản 2 có `status: approved`, `approved_at: 2026-10-17`, nhưng mục 9, phần "Phiên bản 2", vẫn là chữ mẫu ("Duyệt / Dừng / Duyệt có điều kiện", "<tên>"). `scripts/plan-check.py` báo qua. Phiên chạy task vì phần đầu plan và danh sách chạy đã duyệt đều ghi `approved`; rà soát độc lập nêu điểm này ở mức ghi chú.
 - **Cải tiến:** đề xuất `scripts/plan-check.py` báo lỗi khi plan `approved` mà mục 9 của phiên bản hiện tại (`version`) còn chữ mẫu hoặc thiếu người duyệt; docs/CLAUDE.md, mục Khi viết plan: plan phiên bản mới thêm sẵn khối duyệt trống cho phiên bản đó.
 - **Trạng thái:** applied
-- **Áp dụng:** PR retro RUN-20261017-01: `scripts/plan-check.py` báo lỗi khi plan approved mà mục 9 của phiên bản hiện tại còn chữ mẫu, kèm 3 test. Retro 2026-10-17 nhận
+- **Áp dụng:** PR #42: `scripts/plan-check.py` báo lỗi khi plan approved mà mục 9 của phiên bản hiện tại còn chữ mẫu, kèm 3 test. Retro 2026-10-17 nhận
 - **Kiểm chứng:**
 
 ### L-024. Bảng màu của plan bỏ sót vai trò, còn màu mặc định của Material 3
