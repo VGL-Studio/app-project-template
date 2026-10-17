@@ -248,6 +248,16 @@ write_plan "$plans/T-910-a.md" medium draft "$(row Sửa feature/demo/New.kt)"
 expect "plan-check: a file created by a dependency passes" pass "$(plan_check "$plans/T-910-a.md")"
 write_plan "$plans/T-911-a.md" high draft "$(row Sửa scripts/release.sh)"
 expect "plan-check: release.sh is never allowed" stop "$(plan_check "$plans/T-911-a.md")"
+decision_v1=$'## 9. Quyết định duyệt\n\nPhiên bản 1:\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A'
+blank_decision='- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện'
+write_plan "$plans/T-912-a.md" medium approved "$(row Sửa feature/demo/A.kt)" \
+  $'## 9. Quyết định duyệt\n\n'"$blank_decision"
+expect "plan-check: approved plan with a blank decision stops" stop "$(plan_check "$plans/T-912-a.md")"
+write_plan "$plans/T-913-a.md" medium approved "$(row Sửa feature/demo/A.kt)" \
+  "$decision_v1"$'\n\nPhiên bản 2:\n\n'"$blank_decision"
+expect "plan-check: blank decision of the latest version stops" stop "$(plan_check "$plans/T-913-a.md")"
+write_plan "$plans/T-914-a.md" medium approved "$(row Sửa feature/demo/A.kt)" "$decision_v1"
+expect "plan-check: approved plan with its decision passes" pass "$(plan_check "$plans/T-914-a.md")"
 
 # env-canary.sh opens an env-broken issue when the environment is red and closes it when it is green again.
 printf '#!/usr/bin/env bash\nexit 0\n' > "$work/pass.sh"

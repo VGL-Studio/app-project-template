@@ -34,6 +34,8 @@ HIGH_RISK_PREFIXES = [".github/", "scripts/check.sh", "scripts/merge-if-green.sh
                       "gradle/libs.versions.toml", "core/"]
 NEVER = ["scripts/release.sh"]
 SELF = "scripts/plan-check.py"
+# Words of the plan template's section 9 that a reviewer replaces (docs/templates/plan.md).
+DECISION_PLACEHOLDERS = ["Duyệt / Dừng", "<tên>", "<tên, nếu rủi ro cao>"]
 
 
 def front_matter(text):
@@ -44,6 +46,17 @@ def front_matter(text):
             key, value = line.split(":", 1)
             fields[key.strip()] = value.split("#", 1)[0].strip()
     return fields
+
+
+def current_decision(text, version):
+    """Section 9 of the plan, or only the block of the current version when it has "Phiên bản <n>:" blocks."""
+    match = re.search(r"^## 9\..*?$(.*?)(?=^## |\Z)", text, re.S | re.M)
+    body = match.group(1) if match else ""
+    blocks = re.split(r"^Phiên bản (\d+):\s*$", body, flags=re.M)
+    if len(blocks) > 1:
+        by_version = dict(zip(blocks[1::2], blocks[2::2]))
+        return by_version.get(version, blocks[-1])
+    return body
 
 
 def section(text, heading):
@@ -170,6 +183,9 @@ def check(plan_path):
                 errors.append(f"plan approved nhưng thiếu {key}.")
         if risk == "high" and not fields.get("cross_reviewer"):
             errors.append("plan rủi ro cao approved nhưng thiếu cross_reviewer.")
+        decision = current_decision(text, fields.get("version", ""))
+        if any(placeholder in decision for placeholder in DECISION_PLACEHOLDERS):
+            errors.append("plan approved nhưng mục 9 (Quyết định duyệt) của phiên bản hiện tại còn chữ mẫu (L-023).")
     if "## 4. Kiểm thử" not in text:
         warnings.append("không thấy mục 4. Kiểm thử.")
     return errors, warnings
