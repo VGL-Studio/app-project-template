@@ -289,4 +289,14 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** `scripts/device-session.sh` ghi một phiên thử (logcat đầy đủ, khung hình, bộ nhớ, crash, ANR, ghi chú) và chạy kịch bản chuẩn; `device-session.yml` chạy kịch bản trên emulator trước khi phát staging, crash hay ANR thì không phát; mẫu `test-session.md` và mục Khi phân tích một phiên thử trong `docs/CLAUDE.md`; yêu cầu log có cấu trúc trong `docs/inbox/`.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #46 (anh Nhật đồng ý ngày 2026-10-17)
+- **Kiểm chứng:** 2026-10-17, phần emulator có hiệu quả: lần chạy đầu của `device-session.yml` (39044089126) tìm ra hai vấn đề của màn hình loading mà test hiện có không bắt được (`docs/test-sessions/TS-20261017-01.md`, FB-20261017-01, FB-20261017-02). Phần máy thật chưa thử.
+
+### L-028. Giao diện chỉ được kiểm tra ở khung chuẩn, lỗi trên màn hình thấp lọt qua
+
+- **Ngày, nguồn:** 2026-10-17, phiên thử TS-20261017-01
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** thiết kế, screenshot test và ảnh so sánh của màn hình loading đều ở khung 411 x 891. Trên emulator 320 x 640 dp của `device-session.yml`, chân trang đè lời hướng dẫn và nút "Thử lại" bị cắt (FB-20261017-01). Không bước nào của quy trình thiết kế yêu cầu thử khung thấp.
+- **Cải tiến:** đề xuất `docs/ops/design-workflow.md` và `CLAUDE.md` (bước 10): ngoài screenshot test ở khung chuẩn, mỗi màn hình có một screenshot test ở khung thấp (ví dụ `w360dp-h640dp`); bố cục dài hơn màn hình thì cuộn được. Mẫu thiết kế, mục 7: thêm tiêu chí "dùng được ở màn hình thấp".
+- **Trạng thái:** proposed
+- **Áp dụng:**
 - **Kiểm chứng:**
