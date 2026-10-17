@@ -1,20 +1,27 @@
 ---
 ticket: T-002
 title: Hệ thống thiết kế theo thương hiệu mới (xanh lục, Inter, logo)
-status: stopped
-version: 1
+status: approved
+version: 2
 risk_score:
 risk_level: high
 blocking_points: [core]
-run_order: 1
+run_order:
 reviewer: Nhật
-cross_reviewer: Nhật
-approved_at: 2026-10-16
+cross_reviewer: Nhật (vì là bản mẫu)
+approved_at: 2026-10-17
 ---
 
 # PLAN T-002: HỆ THỐNG THIẾT KẾ THEO THƯƠNG HIỆU MỚI (XANH LỤC, INTER, LOGO)
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-10-17)**, sau khi RUN-20261016-02 dừng ở bước 5 (mục 10). Thay đổi so với phiên bản 1:
+
+- Không đổi phần code. Lý do dừng nằm ngoài plan: ba test của `scripts/figma-export.py` đọc `tokens.json` thật và mong giá trị của hệ thống thiết kế cũ. Đã sửa trên nhánh chính bằng PR riêng (L-020): test dùng `scripts/tests/fixtures/tokens.json` cố định; đã thử với `tokens.json` của nhánh T-002, qua.
+- Vì sao plan chưa đủ tốt: plan đổi `docs/design-system/tokens.json` nhưng không tìm mọi nơi đọc file đó, nên không thấy test của script phụ thuộc vào nó.
+- Ghi rõ cỡ dấu logo (mục 3.1): khung 56 x 52 dp của SVG gồm cả nửa nét vẽ ở mỗi phía, phần nét nhìn thấy là 52 x 48 như README thiết kế. Code phiên bản 1 đã đúng.
+- Cách tiếp tục: tiếp tục trên nhánh cũ `claude/T-002-thuong-hieu-xanh-luc` (commit 9d23df1, 798245f), chưa có PR.
 
 Đổi `:core:designsystem` theo thiết kế Figma của màn hình loading: bảng màu xanh lục sáng và tối, phông Inter, `PrimaryButton` mới có biểu tượng, hai thành phần mới `BrandLogo` và `ProgressBar`, khẩu hiệu mặc định. Kiểm chứng bằng `DesignTokensTest` (giá trị khớp bảng ở mục 3), test giao diện của thành phần mới, và ảnh chuẩn screenshot ghi lại cho catalog, màn hình mẫu, màn hình loading. Bố cục màn hình loading không đổi ở plan này (T-003).
 
@@ -34,6 +41,8 @@ ADR liên quan: ADR-0008 (code là gốc của hệ thống thiết kế, đổi
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
+
+Cách tiếp tục: tiếp tục trên nhánh cũ `claude/T-002-thuong-hieu-xanh-luc`, chưa có PR (auto-run.md, mục Tiếp tục task đã dừng). Phiên cập nhật nhánh theo nhánh chính (đã có sửa L-020), chạy lại từ bước 5; không viết lại test của bước 3 vì không test nào đổi điều kiểm tra. Code trên nhánh đã làm đủ mục 3.1 dưới đây.
 
 **Màu (`Color.kt`).** Thay bảng màu thương hiệu bằng bảng dưới, dùng cho `lightColorScheme(...)` và `darkColorScheme(...)`. Cột "Nguồn": "thiết kế" là mã lấy từ `design/context/`, "AI" là giá trị AI đề xuất cho vai trò thiết kế không dùng, cùng tông xanh lục (mục 8, câu 1).
 
@@ -87,7 +96,7 @@ Mã băm của từng file sau khi giải nén: `Inter-Regular.ttf` 40d692fce188
 
 **`PrimaryButton`.** Thêm tham số `icon: Painter? = null` đặt sau `enabled`, giữ nguyên các tham số cũ để chỗ đang gọi không phải sửa. Nút cao tối thiểu 52 dp (vẫn trên 48), `shape = RoundedCornerShape(16.dp)`, chữ `MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)`. Có `icon` thì vẽ `Icon(painter = icon, contentDescription = null, modifier = Modifier.size(18.dp))`, cách chữ `Spacing.sm`; màu theo `contentColor` của nút (`onPrimary`).
 
-**`BrandLogo` (mới, `component/BrandLogo.kt`).** `fun BrandLogo(modifier: Modifier = Modifier)`: vòng tròn 132 dp màu `primaryContainer`, giữa là ô 88 dp bo góc 26 dp màu `primary`, giữa ô là `Icon(painterResource(R.drawable.brand_mark), contentDescription = null, tint = onPrimary)` cỡ 56 x 52 dp (khung của SVG, nét dày 4). Không có mô tả cho trình đọc màn hình vì tên app đứng ngay dưới. Kích thước là hằng số `private` có tên trong file, như `PrimaryButton` đang làm với 48 dp.
+**`BrandLogo` (mới, `component/BrandLogo.kt`).** `fun BrandLogo(modifier: Modifier = Modifier)`: vòng tròn 132 dp màu `primaryContainer`, giữa là ô 88 dp bo góc 26 dp màu `primary`, giữa ô là `Icon(painterResource(R.drawable.brand_mark), contentDescription = null, tint = onPrimary)` cỡ 56 x 52 dp (khung của SVG, nét dày 4; khung gồm nửa nét ở mỗi phía, nên phần nét nhìn thấy là 52 x 48 như README thiết kế). Không có mô tả cho trình đọc màn hình vì tên app đứng ngay dưới. Kích thước là hằng số `private` có tên trong file, như `PrimaryButton` đang làm với 48 dp.
 
 **`brand_mark.xml` (mới).** Vector drawable từ `docs/features/loading/design/handoff/brand_mark.svg`: `android:width="56dp" android:height="52dp" android:viewportWidth="56" android:viewportHeight="52"`, một `path` với `android:pathData` chép nguyên thuộc tính `d`, `android:strokeColor="#FFFFFFFF"`, `android:strokeWidth="4"`, `android:strokeLineCap="round"`, không `fillColor`.
 
@@ -131,6 +140,11 @@ Thứ tự làm: test (mục 4) trước, chạy để thấy thất bại đún
 | Sửa | `docs/ops/new-app.md` | Bước "Thương hiệu" |
 
 Không file nào khác. Đặc biệt không sửa `build.gradle.kts` của module, `gradle/libs.versions.toml`, code của `:feature:sample` và `:feature:loading`.
+
+**Nơi khác đọc các file trên** (docs/CLAUDE.md, mục Khi viết plan; L-020), không cần sửa:
+
+- `docs/design-system/tokens.json`: `core/designsystem/build.gradle.kts` chỉ truyền đường dẫn file cho `DesignTokensTest`; `scripts/figma-export.py` đọc file khi người lấy thiết kế, và test của nó trong `scripts/tests/run.sh` dùng `scripts/tests/fixtures/tokens.json` cố định.
+- `docs/ops/new-app.md`: `scripts/new-app.sh` chỉ xóa file này khỏi app mới, không đọc nội dung.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
 
@@ -194,8 +208,16 @@ Không file nào khác. Đặc biệt không sửa `build.gradle.kts` của modu
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
+Phiên bản 1:
+
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:**
+
+Phiên bản 2:
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
 - **Ghi chú:**
 
 ## 10. Nhật ký thực hiện

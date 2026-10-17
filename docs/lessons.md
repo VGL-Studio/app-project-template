@@ -187,8 +187,8 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** AI dùng `git add -A`, đưa hai thư mục chưa từng commit của người (`.vscode/`, `build-logic/convention/bin/`) vào PR #25; phải đẩy đè nhánh để gỡ.
 - **Cải tiến:** đề xuất ghi vào CLAUDE.md, mục Quy ước code: chỉ `git add` theo đường dẫn, xem danh sách file của PR trước khi đẩy; cân nhắc thêm hai thư mục đó vào `.gitignore`.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #35: CLAUDE.md, mục Quy ước code; `.vscode/` và `build-logic/convention/bin/` vào `.gitignore`. Retro 2026-10-17 nhận
 - **Kiểm chứng:**
 
 ### L-018. Thư viện plugin của build-logic tải qua plugin portal, không qua mirror
@@ -197,9 +197,9 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** `scripts/check.sh` đầu phiên đỏ suốt lịch thử lại (15:30 tới 16:03 UTC). Plugin `kotlin-dsl` của `build-logic` cần `kotlin-stdlib` và các thư viện Kotlin, tải qua `gradlePluginPortal()`; kho này chuyển hướng sang `repo.maven.apache.org`, nơi trả 429 rồi 404. Init script của setup script chỉ đổi kho `mavenCentral()`. Gradle ghi nhớ kết quả lỗi, các lần sau báo "Could not find" mà không gọi lại mạng. Phiên thử thêm init script riêng của phiên để dùng mirror, nhưng lệnh chạy sau đó bị bộ phân loại quyền chặn. Phiên kết thúc, không chạy task nào.
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` thêm mirror vào đầu `settings.pluginManagement.repositories` (giữ `gradlePluginPortal()` phía sau); auto-run.md bước 5 ghi: thử lại sau lỗi tải thì dùng `--refresh-dependencies`, và phiên không tự thêm cấu hình mirror được nên mirror phải có sẵn trong setup script.
-- **Trạng thái:** proposed
-- **Áp dụng:**
-- **Kiểm chứng:** RUN-20261016-02: có hiệu quả. Setup script phiên bản 2 (PR #32); `scripts/check.sh` đầu phiên và của T-002 tải thư viện không lỗi, log không có `repo.maven.apache.org`. Dòng **Trạng thái** và **Áp dụng** chưa được cập nhật sau PR #32, để người chỉnh.
+- **Trạng thái:** verified
+- **Áp dụng:** PR #32
+- **Kiểm chứng:** RUN-20261016-02: `scripts/cloud-env-check.sh` qua, `scripts/check.sh` đầu phiên xanh ngay lần đầu, log không có `repo.maven.apache.org` hay `repo1.maven.org`. Retro 2026-10-17 xác nhận.
 
 ### L-019. JAVA_TOOL_OPTIONS của phiên thiếu mirror của Robolectric
 
@@ -207,9 +207,9 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** môi trường đặt `JAVA_TOOL_OPTIONS` cho proxy; thuộc tính `robolectric.dependency.repo.url` của L-014 không có, và `~/.bashrc` không có dòng `export JAVA_TOOL_OPTIONS=...` của setup script. Phiên phải tự nối thêm thuộc tính bằng biến môi trường.
 - **Cải tiến:** đề xuất setup script nối thêm vào `JAVA_TOOL_OPTIONS` hiện có thay vì gán đè, đặt ở file mà shell không tương tác cũng đọc; kiểm tra môi trường đã dán lại setup script mới nhất.
-- **Trạng thái:** proposed
-- **Áp dụng:**
-- **Kiểm chứng:** RUN-20261016-02: có hiệu quả. `scripts/cloud-env-check.sh` qua; Robolectric tải qua mirror mà phiên không phải tự đặt biến môi trường.
+- **Trạng thái:** verified
+- **Áp dụng:** PR #32
+- **Kiểm chứng:** RUN-20261016-02: `scripts/cloud-env-check.sh` qua, `scripts/check.sh` đầu phiên xanh ngay lần đầu, log không có `repo.maven.apache.org` hay `repo1.maven.org`. Retro 2026-10-17 xác nhận.
 
 ### L-020. Test của figma-export đọc tokens.json thật, chặn mọi thay đổi hệ thống thiết kế
 
@@ -217,8 +217,8 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** T-002 đổi hệ thống thiết kế đúng plan, `tokens.json` sinh lại khớp. `scripts/check.sh` đỏ vì 3 test của `figma-export` trong `scripts/tests/run.sh` (dòng 120 đến 122) chạy với `docs/design-system/tokens.json` thật và mong giá trị cũ (`titleMedium` đậm 500, nền `#FEF7FF`). File này ngoài danh sách file của plan, trong `scripts/`, nên task dừng ở bước 5 (điều kiện dừng 1 và 5). Plan không thấy được phụ thuộc này.
 - **Cải tiến:** đề xuất `figma-export.py` nhận đường dẫn `tokens.json` qua biến môi trường (như `FIGMA_EXPORT_FEATURES_DIR`), `scripts/tests/run.sh` dùng `scripts/tests/fixtures/tokens.json` cố định, để test của script không đổi theo thương hiệu của từng app. Khi viết plan đổi một file dùng chung (`tokens.json`, ảnh chuẩn), tìm mọi nơi đọc file đó (`grep -rn tokens.json scripts/ .github/`) và ghi vào danh sách file.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #35: `figma-export.py` đọc `FIGMA_EXPORT_TOKENS`, test dùng `scripts/tests/fixtures/tokens.json`; docs/CLAUDE.md, mục Khi viết plan: tìm mọi nơi đọc file dùng chung. Retro 2026-10-17 nhận
 - **Kiểm chứng:**
 
 ### L-021. Đo kích thước thành phần bằng Robolectric cần chế độ đồ họa thật
@@ -227,6 +227,6 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** quy tắc code, chung
 - **Chuyện gì:** `ComponentsTest` của T-002 kiểm tra nút cao tối thiểu 52 dp. Ở chế độ đồ họa mặc định của Robolectric, chữ đo cao 36 dp nên nút cũ đã cao 52 dp và test qua khi chưa có code. Thêm `@GraphicsMode(GraphicsMode.Mode.NATIVE)` thì chữ đo đúng và test thất bại đúng lý do. Cũng trong task, `LinearProgressIndicator` tự nới vùng ngữ nghĩa thêm 10 dp mỗi phía, nên `assertHeightIsEqualTo` trên chính thanh đo được 28 dp thay vì 8 dp.
 - **Cải tiến:** đề xuất CLAUDE.md, mục Viết một feature mới, bước 10: test giao diện có kiểm tra kích thước dùng `@GraphicsMode(GraphicsMode.Mode.NATIVE)`; thành phần Material tự nới vùng chạm hay vùng ngữ nghĩa thì đo qua phần tử bọc ngoài. Mẫu plan, mục Kiểm thử: ghi rõ đo kích thước trên nút nào.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #35: CLAUDE.md, mục Viết một feature mới, bước 10. Retro 2026-10-17 nhận
 - **Kiểm chứng:**

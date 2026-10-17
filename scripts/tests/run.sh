@@ -113,7 +113,9 @@ expect "design-compare: missing screenshot is listed" 1 "$(grep -c '^| Missing |
 expect "design-compare: writes side-by-side images" yes "$([ -s "$work/review/Same_compare.png" ] && echo yes || echo no)"
 
 # figma-export.py (offline): context files match frames by name and map values to tokens.json.
-FIGMA_EXPORT_FEATURES_DIR="$work/features" python3 -I scripts/figma-export.py --offline \
+# The fixture tokens.json is a fixed copy, so changing the real design system never breaks these tests (L-020).
+FIGMA_EXPORT_FEATURES_DIR="$work/features" FIGMA_EXPORT_TOKENS=scripts/tests/fixtures/tokens.json \
+  python3 -I scripts/figma-export.py --offline \
   scripts/tests/fixtures/figma-nodes.json loading > /dev/null
 context="$work/features/loading/design/context"
 expect "figma-export: only frames named like screenshots" "LoadingScreen_failed_light.md" "$(ls "$context")"
