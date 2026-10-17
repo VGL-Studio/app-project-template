@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Minimal stand-in for adb used by scripts/tests: one connected device with the app installed, unless
+# FAKE_ADB_NO_DEVICE or FAKE_ADB_NO_APP is set. `logcat -v ...` prints $FAKE_ADB_LOGCAT, then waits to be killed
+# like the real streaming logcat.
+case "$1" in
+  get-state) [[ -n "${FAKE_ADB_NO_DEVICE:-}" ]] && exit 1; echo device ;;
+  logcat)
+    [[ " $* " == *" -c "* ]] && exit 0
+    cat "${FAKE_ADB_LOGCAT:-/dev/null}"
+    exec sleep 300 ;;
+  shell)
+    shift
+    case "$*" in
+      "pm path"*) [[ -n "${FAKE_ADB_NO_APP:-}" ]] && exit 1; echo "package:/data/app/base.apk" ;;
+      "getprop ro.build.version.sdk") echo 34 ;;
+      getprop*) echo Fake ;;
+      "dumpsys package"*) echo "    versionName=0.1.0-staging.4" ;;
+      "dumpsys gfxinfo"*) printf 'Total frames rendered: 400\nJanky frames: 3 (0.75%%)\n' ;;
+      "dumpsys meminfo"*) echo "        TOTAL PSS:    51234" ;;
+      *) exit 0 ;;
+    esac ;;
+  *) exit 0 ;;
+esac

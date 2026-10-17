@@ -108,6 +108,7 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
   - Mở PR: `gh api -X POST repos/{owner}/{repo}/pulls -f title=... -f head=<nhánh> -f base=main -f body=...`
   - Tìm issue `main-broken` đang mở: `gh api "repos/{owner}/{repo}/issues?state=open&labels=main-broken"`
   - Khởi động `staging.yml`: `gh api -X POST repos/{owner}/{repo}/actions/workflows/staging.yml/dispatches -f ref=main`
+  - Khởi động `device-session.yml`: `gh api -X POST repos/{owner}/{repo}/actions/workflows/device-session.yml/dispatches -f ref=main -f "inputs[reason]=RUN-YYYYMMDD-NN"`; tải artifact: `gh api repos/{owner}/{repo}/actions/runs/<id>/artifacts`, rồi tệp zip theo `archive_download_url`
   - Mở PR nháp sửa nguyên nhân khi task dừng: `gh api -X POST repos/{owner}/{repo}/pulls -f title=... -f head=<nhánh> -f base=main -f body=... -F draft=true`, rồi gắn nhãn: `gh api -X POST repos/{owner}/{repo}/issues/<số PR>/labels -f "labels[]=needs-human"`
 
 ### Bước 8. CI đầy đủ
@@ -169,7 +170,12 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 
 Sau đó AI:
 
-1. Nếu trong phiên có ít nhất một task được merge, khởi động workflow `staging.yml` để build bản staging từ nhánh chính và phát cho nhóm qua Firebase App Distribution, rồi chờ workflow kết thúc.
+1. Nếu trong phiên có ít nhất một task được merge, chạy kịch bản chuẩn trên emulator trước khi phát (`docs/ops/test-sessions.md`, mục 4; `docs/ops/staging-and-runs.md`, mục 2.5):
+   - Khởi động `device-session.yml` trên nhánh chính (`reason` là mã phiên), chờ kết thúc (khoảng 25 phút), tải artifact `device-session`.
+   - Phân tích thư mục phiên theo `docs/CLAUDE.md`, mục Khi phân tích một phiên thử, nhưng ghi kết quả vào mục Kiểm thử trên máy ảo của báo cáo phiên thay vì một file `docs/test-sessions/` riêng. Phản hồi `FB-...` soạn sẵn đi qua PR báo cáo.
+   - **Có crash hoặc ANR** (workflow đỏ, `summary.md` ghi "chặn"): không khởi động `staging.yml`. Ghi vào báo cáo dấu vết lỗi và commit nghi gây ra, soạn phản hồi mức `chan`. Nhánh chính vẫn xanh nên không mở `main-broken`; người quyết định sửa trước hay phát.
+   - Workflow đỏ mà không có `summary.md` (lỗi hạ tầng của emulator): chạy lại một lần; vẫn lỗi thì ghi vào báo cáo và vẫn phát staging, vì cổng chất lượng đã qua.
+   - Không có crash hay ANR: khởi động `staging.yml` để build bản staging từ nhánh chính và phát cho nhóm qua Firebase App Distribution, rồi chờ workflow kết thúc.
 2. Cập nhật nhánh báo cáo theo nhánh chính, viết báo cáo phiên vào file danh sách chạy, chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
 3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, bài học mới trong `docs/lessons.md` (mục 6), plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).
 4. Merge PR báo cáo bằng `scripts/merge-if-green.sh`. Script từ chối (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.

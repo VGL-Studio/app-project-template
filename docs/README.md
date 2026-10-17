@@ -19,6 +19,7 @@ docs/
 ├── adr/                     quyết định kỹ thuật, dùng chung cả app
 ├── inbox/                   yêu cầu và phản hồi chưa rõ thuộc feature nào
 ├── runs/                    các phiên AI tự chạy: danh sách chạy và báo cáo
+├── test-sessions/           báo cáo phân tích các phiên thử trên máy (log thô ở test-sessions/ ngoài docs, không vào git)
 ├── ops/                     báo cáo vận hành định kỳ
 ├── templates/               các mẫu tài liệu
 ├── auto-run.md              quy trình phiên AI tự chạy
@@ -70,6 +71,7 @@ Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đ�
 | ADR | `ADR-NNNN` | `adr/NNNN-<tu-khoa>.md` | `adr/0009-local-notifications.md` |
 | Phiên tự chạy | `RUN-YYYYMMDD-NN` | `runs/RUN-YYYYMMDD-NN.md` | `runs/RUN-20261020-01.md` |
 | Báo cáo vận hành | `OPS-YYYY-MM-DD` | `ops/OPS-YYYY-MM-DD.md` | `ops/OPS-2026-11-02.md` |
+| Phiên thử trên máy | `TS-YYYYMMDD-NN` | `test-sessions/TS-YYYYMMDD-NN.md` | `test-sessions/TS-20261018-01.md` |
 
 - Tên feature viết thường, nối bằng dấu gạch ngang, trùng với tên module `:feature:<ten>`.
 - Từ khóa trong tên file viết không dấu, ngắn gọn.

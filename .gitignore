@@ -28,3 +28,6 @@ release-output/
 # Local folders of a developer's IDE setup (L-017)
 .vscode/
 build-logic/convention/bin/
+
+# Test sessions recorded by scripts/device-session.sh: raw device logs stay on the machine (docs/ops/test-sessions.md)
+/test-sessions/

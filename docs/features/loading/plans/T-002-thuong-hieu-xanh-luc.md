@@ -216,8 +216,8 @@ Phiên bản 1:
 
 Phiên bản 2:
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì là bản mẫu)
 - **Ghi chú:**
 
 ## 10. Nhật ký thực hiện

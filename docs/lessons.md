@@ -280,3 +280,13 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Trạng thái:** applied
 - **Áp dụng:** PR #45: `scripts/cloud-setup.sh` phiên bản 3, init script ghi `sdk.dir` vào `local.properties` khi thiếu. Retro 2026-10-17 nhận; người dán lại setup script
 - **Kiểm chứng:**
+
+### L-027. Chưa có cách đưa log trên máy thử về cho AI phân tích
+
+- **Ngày, nguồn:** 2026-10-17, trao đổi với anh Nhật sau RUN-20261017-02
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** app đã ghi log hành vi (ADR-0019) và CI giữ log khi test emulator đỏ, nhưng khi dev hay người kiểm thử dùng thử bản staging trên máy thật, log không được gom về đâu; Crashlytics chỉ gửi log kèm crash. Lỗi không gây crash, chỗ chậm hay chỗ khó dùng không để lại dấu vết cho AI. Trước khi phát staging cũng không có bước chạy bản build thật trên thiết bị.
+- **Cải tiến:** `scripts/device-session.sh` ghi một phiên thử (logcat đầy đủ, khung hình, bộ nhớ, crash, ANR, ghi chú) và chạy kịch bản chuẩn; `device-session.yml` chạy kịch bản trên emulator trước khi phát staging, crash hay ANR thì không phát; mẫu `test-session.md` và mục Khi phân tích một phiên thử trong `docs/CLAUDE.md`; yêu cầu log có cấu trúc trong `docs/inbox/`.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #46 (anh Nhật đồng ý ngày 2026-10-17)
+- **Kiểm chứng:**

@@ -61,6 +61,15 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 | --- | --- | --- | --- | --- |
 | | | | | Plan phiên bản <n> (`draft`); PR sửa nguyên nhân #<số> (nháp, `needs-human`) hoặc "Không cần"; danh sách chạy `RUN-...` (`draft`) |
 
+### Kiểm thử trên máy ảo
+
+<!-- docs/ops/test-sessions.md, mục 4. Ghi "Không chạy (không có task merge)" khi không có task nào merge. -->
+
+- Workflow `device-session.yml`: <lần chạy, commit, kết quả>
+- Tín hiệu: crash <n>, ANR <n>, lỗi của app <n>, cảnh báo <n>; khởi động nguội <ms, ms, ms>
+- Phát hiện: <mỗi dòng một phát hiện, mức, bằng chứng ngắn, phản hồi FB-... đã soạn; hoặc "Không có">
+- Quyết định: phát staging / không phát vì <crash hoặc ANR>
+
 ### Bản staging
 
 - Phiên bản: <...>

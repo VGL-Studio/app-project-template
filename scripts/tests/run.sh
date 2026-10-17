@@ -278,6 +278,34 @@ expect "env-canary: green closes the open issue" "POST issues/7/comments;PATCH i
   "$(canary "$work/pass.sh" "$work/pass.sh" '[{"number": 7}]')"
 expect "env-canary: green with nothing open changes nothing" "" "$(canary "$work/pass.sh" "$work/pass.sh" '[]')"
 
+# device-session.sh records a test session and counts crashes and ANRs; adb is replaced by scripts/tests/fake-adb.
+cp scripts/tests/fake-adb "$work/bin/adb"
+chmod +x "$work/bin/adb"
+fixtures=scripts/tests/fixtures/device-session
+session() { # <logcat fixture> <command...>; prints the exit code
+  local code=0
+  PATH="$work/bin:$PATH" DEVICE_SESSION_DIR="$work/sessions" APP_PACKAGE=com.example.app.staging \
+    FAKE_ADB_LOGCAT="$1" scripts/device-session.sh "${@:2}" > "$work/session.out" 2>&1 || code=$?
+  echo "$code"
+}
+expect "device-session: start refuses without a device" 1 "$(FAKE_ADB_NO_DEVICE=1 session /dev/null start)"
+expect "device-session: start refuses when the app is missing" 1 "$(FAKE_ADB_NO_APP=1 session /dev/null start)"
+expect "device-session: start records" 0 "$(session "$fixtures/logcat-crash.txt" start ci)"
+first="$(find "$work/sessions" -maxdepth 1 -name "TS-*" | sort | head -n 1)"
+expect "device-session: session folder has notes and details" "notes.md session.md" \
+  "$( [[ -f "$first/notes.md" ]] && echo -n "notes.md "; [[ -f "$first/session.md" ]] && echo -n "session.md")"
+expect "device-session: a second start is refused while recording" 1 "$(session /dev/null start)"
+expect "device-session: scenarios need --yes" 1 "$(session /dev/null scenarios)"
+expect "device-session: stop reports a crash as blocking" 1 "$(session /dev/null stop)"
+expect "device-session: counts the crash" 1 "$(grep -c '^| App dừng đột ngột (crash) | 1 | chặn |' "$first/summary.md")"
+expect "device-session: counts the ANR" 1 "$(grep -c '^| App không phản hồi (ANR) | 1 | chặn |' "$first/summary.md")"
+expect "device-session: counts app errors" 1 "$(grep -F '| Log lỗi của app (' "$first/summary.md" | grep -cF '| 1 | xem |')"
+expect "device-session: keeps the crash trace in app-log.txt" 1 "$(grep -c 'Main.onCreate' "$first/app-log.txt")"
+expect "device-session: leaves out other apps' lines" 0 "$(grep -c 'com.android.settings' "$first/app-log.txt")"
+mkdir -p "$work/clean"
+cp "$fixtures/logcat-clean.txt" "$work/clean/logcat.txt"
+expect "device-session: a clean session is not blocking" 0 "$(session /dev/null summary "$work/clean" com.example.app.staging)"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
   exit 1

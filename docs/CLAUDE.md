@@ -62,6 +62,18 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Sau mỗi task, ghi nhật ký vào cuối plan và cập nhật trạng thái ticket: `on-staging` khi đã merge, `stopped` khi dừng.
 - Cuối phiên, viết báo cáo vào file phiên chạy.
 
+## Khi phân tích một phiên thử
+
+Phiên thử là log của một lần dùng thử bản staging trên máy thật hoặc emulator, ghi bằng `scripts/device-session.sh` vào `test-sessions/TS-YYYYMMDD-NN/` (`docs/ops/test-sessions.md`).
+
+- Đọc theo thứ tự: `summary.md`, `session.md`, `notes.md` của người thử, `app-log.txt`, `scenarios.txt` và ảnh nếu có, rồi các đoạn cần trong `logcat.txt`. Dòng `VGL.Session` chia log theo bước.
+- Đọc spec của feature đã thử. Dựng lại diễn biến theo thời gian và đối chiếu với từng kịch bản: luồng lệch kịch bản là một phát hiện.
+- Mỗi phát hiện phải có bằng chứng là dòng log có giờ. Tìm đoạn code liên quan và ghi rõ đâu là kết luận, đâu là giả thuyết. Không kết luận về tốc độ hay giật khung hình từ emulator.
+- Ngoài lỗi, tìm chỗ người dùng có vẻ lúng túng (bấm lại nhiều lần, quay ra quay vào, chờ lâu) và đề xuất cải tiến.
+- Log không đủ để kết luận thì ghi vào mục Log còn thiếu, không đoán.
+- Viết báo cáo `docs/test-sessions/TS-YYYYMMDD-NN.md` theo [mẫu phiên thử](templates/test-session.md). Mỗi phát hiện và đề xuất thành một phản hồi theo [mẫu phản hồi](templates/feedback.md), trạng thái `new`, trong `features/<feature>/feedback/`, liên kết về báo cáo.
+- Chỉ trích những dòng log làm bằng chứng. Bỏ mã định danh máy, tên tài khoản, tên mạng, đường dẫn có tên người và mọi dữ liệu người dùng. Không đưa log thô vào repo.
+
 ## Khi xử lý phản hồi
 
 - Phản hồi mới trong `inbox/` mà xác định được feature thì đề xuất chuyển vào `features/<feature>/feedback/`.

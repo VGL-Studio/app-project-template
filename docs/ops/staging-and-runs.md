@@ -135,6 +135,11 @@ Thiết lập một lần:
 
 Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường chưa dán setup script mới (dán lại theo mục 2.1); lỗi khác thì sửa nguyên nhân. Sau đó chạy lại **env-canary** bằng tay; lần chạy xanh tự đóng issue.
 
+### 2.5. Kịch bản trên emulator trước khi phát (`device-session.yml`)
+
+Không cần thiết lập thêm: workflow dùng các bí mật staging ở mục 1.3 (trừ khóa App Distribution). Phiên tự chạy khởi động nó cuối phiên, trước `staging.yml`; có crash hay ANR thì bản staging không được phát. Chi tiết ở `docs/ops/test-sessions.md`, mục 4.
+
 ## 3. Việc còn phải kiểm chứng
 
-- Không còn mục nào. Đã kiểm chứng: phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
+- `device-session.yml` (mục 2.5) chưa chạy lần nào: bản staging release trên emulator API 34, lệnh `cmd connectivity airplane-mode`, `monkey` và artifact. Chạy tay một lần trên `main` sau khi merge, xem `summary.md` trong phần tóm tắt của workflow.
+- Đã kiểm chứng: phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
