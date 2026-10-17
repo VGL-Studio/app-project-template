@@ -42,6 +42,7 @@ fun ColorCatalog(modifier: Modifier = Modifier) {
         Triple("secondary", colors.secondary, colors.onSecondary),
         Triple("secondaryContainer", colors.secondaryContainer, colors.onSecondaryContainer),
         Triple("tertiary", colors.tertiary, colors.onTertiary),
+        Triple("tertiaryContainer", colors.tertiaryContainer, colors.onTertiaryContainer),
         Triple("error", colors.error, colors.onError),
         Triple("errorContainer", colors.errorContainer, colors.onErrorContainer),
         Triple("background", colors.background, colors.onBackground),

@@ -30,6 +30,27 @@ class DesignTokensTest {
             if (file.exists()) file.readText() else "",
         )
     }
+
+    @Test
+    fun colorRoles_listEveryRoleOfColorScheme() {
+        // Color is a value class, so its getters return long and carry a mangled suffix, e.g. getPrimary-0d7_KjU.
+        val schemeRoles = ColorScheme::class.java.methods
+            .filter { method ->
+                method.name.startsWith("get") &&
+                    method.parameterCount == 0 &&
+                    method.returnType == Long::class.javaPrimitiveType
+            }
+            .map { method ->
+                method.name.removePrefix("get").substringBefore('-').replaceFirstChar { it.lowercaseChar() }
+            }
+            .filter { it != "scrim" }
+            .toSet()
+        assertEquals(
+            "tokens.json must list every color role of ColorScheme except scrim (L-024).",
+            schemeRoles.sorted(),
+            colorRoles(LightColors).map { it.first }.sorted(),
+        )
+    }
 }
 
 internal fun tokensJson(): String = buildString {
@@ -51,7 +72,10 @@ internal fun tokensJson(): String = buildString {
     appendLine("}")
 }
 
-private fun colors(scheme: ColorScheme): String = listOf(
+private fun colors(scheme: ColorScheme): String = colorRoles(scheme)
+    .joinToString(prefix = "{", postfix = "}", separator = ", ") { (name, color) -> "\"$name\": \"${hex(color)}\"" }
+
+internal fun colorRoles(scheme: ColorScheme): List<Pair<String, Color>> = listOf(
     "primary" to scheme.primary,
     "onPrimary" to scheme.onPrimary,
     "primaryContainer" to scheme.primaryContainer,
@@ -62,6 +86,8 @@ private fun colors(scheme: ColorScheme): String = listOf(
     "onSecondaryContainer" to scheme.onSecondaryContainer,
     "tertiary" to scheme.tertiary,
     "onTertiary" to scheme.onTertiary,
+    "tertiaryContainer" to scheme.tertiaryContainer,
+    "onTertiaryContainer" to scheme.onTertiaryContainer,
     "error" to scheme.error,
     "onError" to scheme.onError,
     "errorContainer" to scheme.errorContainer,
@@ -73,7 +99,19 @@ private fun colors(scheme: ColorScheme): String = listOf(
     "surfaceVariant" to scheme.surfaceVariant,
     "onSurfaceVariant" to scheme.onSurfaceVariant,
     "outline" to scheme.outline,
-).joinToString(prefix = "{", postfix = "}", separator = ", ") { (name, color) -> "\"$name\": \"${hex(color)}\"" }
+    "outlineVariant" to scheme.outlineVariant,
+    "inversePrimary" to scheme.inversePrimary,
+    "inverseSurface" to scheme.inverseSurface,
+    "inverseOnSurface" to scheme.inverseOnSurface,
+    "surfaceTint" to scheme.surfaceTint,
+    "surfaceBright" to scheme.surfaceBright,
+    "surfaceDim" to scheme.surfaceDim,
+    "surfaceContainerLowest" to scheme.surfaceContainerLowest,
+    "surfaceContainerLow" to scheme.surfaceContainerLow,
+    "surfaceContainer" to scheme.surfaceContainer,
+    "surfaceContainerHigh" to scheme.surfaceContainerHigh,
+    "surfaceContainerHighest" to scheme.surfaceContainerHighest,
+)
 
 private fun hex(color: Color): String = "#%06X".format(color.toArgb() and 0xFFFFFF)
 
