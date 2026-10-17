@@ -189,7 +189,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất ghi vào CLAUDE.md, mục Quy ước code: chỉ `git add` theo đường dẫn, xem danh sách file của PR trước khi đẩy; cân nhắc thêm hai thư mục đó vào `.gitignore`.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #35: CLAUDE.md, mục Quy ước code; `.vscode/` và `build-logic/convention/bin/` vào `.gitignore`. Retro 2026-10-17 nhận
-- **Kiểm chứng:**
+- **Kiểm chứng:** RUN-20261017-01: có hiệu quả. Phiên chỉ `git add` theo đường dẫn; PR #39 và #40 chỉ có đúng file trong danh sách của plan (30 và 17 file), không có file riêng của người.
 
 ### L-018. Thư viện plugin của build-logic tải qua plugin portal, không qua mirror
 
@@ -219,7 +219,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `figma-export.py` nhận đường dẫn `tokens.json` qua biến môi trường (như `FIGMA_EXPORT_FEATURES_DIR`), `scripts/tests/run.sh` dùng `scripts/tests/fixtures/tokens.json` cố định, để test của script không đổi theo thương hiệu của từng app. Khi viết plan đổi một file dùng chung (`tokens.json`, ảnh chuẩn), tìm mọi nơi đọc file đó (`grep -rn tokens.json scripts/ .github/`) và ghi vào danh sách file.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #35: `figma-export.py` đọc `FIGMA_EXPORT_TOKENS`, test dùng `scripts/tests/fixtures/tokens.json`; docs/CLAUDE.md, mục Khi viết plan: tìm mọi nơi đọc file dùng chung. Retro 2026-10-17 nhận
-- **Kiểm chứng:**
+- **Kiểm chứng:** RUN-20261017-01: có hiệu quả. T-002 không đổi code, `scripts/check.sh` trên nhánh cũ sau khi cập nhật theo nhánh chính qua ngay lần đầu, phần test của script không còn đỏ; PR #39 merge sau một vòng CI.
 
 ### L-021. Đo kích thước thành phần bằng Robolectric cần chế độ đồ họa thật
 
@@ -229,7 +229,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất CLAUDE.md, mục Viết một feature mới, bước 10: test giao diện có kiểm tra kích thước dùng `@GraphicsMode(GraphicsMode.Mode.NATIVE)`; thành phần Material tự nới vùng chạm hay vùng ngữ nghĩa thì đo qua phần tử bọc ngoài. Mẫu plan, mục Kiểm thử: ghi rõ đo kích thước trên nút nào.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #35: CLAUDE.md, mục Viết một feature mới, bước 10. Retro 2026-10-17 nhận
-- **Kiểm chứng:**
+- **Kiểm chứng:** RUN-20261017-01: có hiệu quả. `LoadingScreenTest` của T-003 dùng `@GraphicsMode(NATIVE)` ngay từ bước 3; test kích thước nút `RETRY` thất bại đúng lý do trước khi có code và qua sau khi có code, không phải sửa test.
 
 ### L-022. Lỗi của plan và môi trường chỉ lộ ra khi phiên qua đêm đang chạy
 
@@ -239,4 +239,24 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** bắt lỗi trước phiên và làm mỗi lần dừng rẻ hơn, không nới điều kiện dừng: (1) `scripts/plan-check.py` khi viết plan và ngay trước mỗi task; (2) kiểm tra môi trường hằng ngày `env-canary`, `start-run.yml` từ chối khi có issue `env-broken`; (3) khi task dừng, phiên soạn sẵn plan phiên bản mới, PR sửa nguyên nhân dạng nháp gắn `needs-human` (`merge-if-green.sh` từ chối) và danh sách chạy tiếp theo; (4) danh sách chạy xếp task độc lập trước chuỗi phụ thuộc.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #36 (anh Nhật đồng ý cả bốn ngày 2026-10-17)
+- **Kiểm chứng:** RUN-20261017-01: có hiệu quả ở (1) và (3). `scripts/plan-check.py` chạy ngay trước từng task, cả hai qua (T-003 có một chú ý không chặn). Plan phiên bản mới mà RUN-20261016-02 soạn sẵn cho T-002 được duyệt và chạy trọn: tiếp tục trên nhánh cũ, khoảng 14 phút từ lúc bắt đầu tới merge. Phiên không có task dừng nên chưa kiểm chứng được (3) lần nữa; (2) và (4) không được dùng tới trong phiên này: không có issue `env-broken`, danh sách chỉ có một chuỗi phụ thuộc.
+
+### L-023. Plan phiên bản mới có trạng thái duyệt nhưng mục quyết định duyệt còn để trống
+
+- **Ngày, nguồn:** 2026-10-17, RUN-20261017-01
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** plan T-002 phiên bản 2 có `status: approved`, `approved_at: 2026-10-17`, nhưng mục 9, phần "Phiên bản 2", vẫn là chữ mẫu ("Duyệt / Dừng / Duyệt có điều kiện", "<tên>"). `scripts/plan-check.py` báo qua. Phiên chạy task vì phần đầu plan và danh sách chạy đã duyệt đều ghi `approved`; rà soát độc lập nêu điểm này ở mức ghi chú.
+- **Cải tiến:** đề xuất `scripts/plan-check.py` báo lỗi khi plan `approved` mà mục 9 của phiên bản hiện tại (`version`) còn chữ mẫu hoặc thiếu người duyệt; docs/CLAUDE.md, mục Khi viết plan: plan phiên bản mới thêm sẵn khối duyệt trống cho phiên bản đó.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
+
+### L-024. Bảng màu của plan bỏ sót vai trò, còn màu mặc định của Material 3
+
+- **Ngày, nguồn:** 2026-10-17, RUN-20261017-01
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-002 ghi "Không vai trò nào còn giá trị mặc định tím của Material 3", nhưng bảng màu không có `tertiaryContainer` và `onTertiaryContainer`. Code làm đúng bảng, nên hai vai trò này vẫn là màu hồng tím mặc định ở cả bản sáng và tối. Rà soát độc lập phát hiện ở mức nên sửa; phiên không tự thêm màu vì cần người duyệt bảng.
+- **Cải tiến:** đề xuất mẫu plan (hoặc `docs/ops/new-app.md`, bước Thương hiệu): bảng màu liệt kê đủ mọi vai trò của `ColorScheme`; cân nhắc thêm vào `DesignTokensTest` một kiểm tra rằng không vai trò nào trùng giá trị mặc định của `lightColorScheme()` và `darkColorScheme()`.
+- **Trạng thái:** proposed
+- **Áp dụng:**
 - **Kiểm chứng:**
