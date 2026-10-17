@@ -141,6 +141,11 @@ Thứ tự làm: test (mục 4) trước, chạy để thấy thất bại đún
 
 Không file nào khác. Đặc biệt không sửa `build.gradle.kts` của module, `gradle/libs.versions.toml`, code của `:feature:sample` và `:feature:loading`.
 
+**Nơi khác đọc các file trên** (docs/CLAUDE.md, mục Khi viết plan; L-020), không cần sửa:
+
+- `docs/design-system/tokens.json`: `core/designsystem/build.gradle.kts` chỉ truyền đường dẫn file cho `DesignTokensTest`; `scripts/figma-export.py` đọc file khi người lấy thiết kế, và test của nó trong `scripts/tests/run.sh` dùng `scripts/tests/fixtures/tokens.json` cố định.
+- `docs/ops/new-app.md`: `scripts/new-app.sh` chỉ xóa file này khỏi app mới, không đọc nội dung.
+
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
 
 - Cờ tính năng: Không có.
