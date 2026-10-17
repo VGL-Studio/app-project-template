@@ -17,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.designsystem.R as DesignSystemR
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -100,7 +101,44 @@ class LoadingScreenTest {
         composeRule.onNodeWithTag(LoadingTestTags.RETRY).assertHeightIsAtLeast(48.dp)
     }
 
+    @Test
+    @Config(qualifiers = SHORT_SCREEN)
+    fun failed_onShortScreen_retryButtonFitsOnScreen() {
+        var retries = 0
+        composeRule.setContent {
+            AppTheme {
+                LoadingScreen(uiState = LoadingUiState.Failed(0.68f), appName = APP_NAME, onRetry = { retries++ })
+            }
+        }
+        val screenBottom = composeRule.onNodeWithTag(LoadingTestTags.SCREEN).getBoundsInRoot().bottom
+        val retryBottom = composeRule.onNodeWithTag(LoadingTestTags.RETRY).getBoundsInRoot().bottom
+        assertTrue("retry bottom $retryBottom is below screen bottom $screenBottom", retryBottom <= screenBottom)
+        // At 360 x 640 the button can end inside the screen yet sit under the pinned footer, so it must also
+        // end above the footer to be seen.
+        val footerTop = composeRule.onNodeWithText(string(R.string.loading_footer)).getBoundsInRoot().top
+        assertTrue("retry bottom $retryBottom is under footer top $footerTop", retryBottom <= footerTop)
+
+        composeRule.onNodeWithTag(LoadingTestTags.RETRY).performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test
+    @Config(qualifiers = SHORT_SCREEN)
+    fun failed_onShortScreen_footerBelowError() {
+        composeRule.setContent {
+            AppTheme {
+                LoadingScreen(uiState = LoadingUiState.Failed(0.68f), appName = APP_NAME, onRetry = {})
+            }
+        }
+        val errorBottom = composeRule.onNodeWithTag(LoadingTestTags.ERROR).getBoundsInRoot().bottom
+        val footerTop = composeRule.onNodeWithText(string(R.string.loading_footer)).getBoundsInRoot().top
+        assertTrue("footer top $footerTop overlaps error bottom $errorBottom", footerTop >= errorBottom)
+    }
+
     private companion object {
         const val APP_NAME = "Todo App"
+
+        // Short phone frame (L-028, FB-20261017-01).
+        const val SHORT_SCREEN = "w360dp-h640dp-xxhdpi"
     }
 }
