@@ -137,5 +137,4 @@ Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường
 
 ## 3. Việc còn phải kiểm chứng
 
-- Routine `env-canary` đóng được issue qua `gh api` (REST) trong môi trường cloud. Tạo issue đã kiểm chứng ở lần chạy đầu tiên (2026-10-17, issue #37); đóng issue kiểm chứng ở lần chạy xanh đầu tiên.
-- Phiên tự chạy khởi động được `staging.yml` qua `gh api` (đã kiểm chứng ở RUN-20261015-03, lần chạy 38765200550).
+- Không còn mục nào. Đã kiểm chứng: phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
