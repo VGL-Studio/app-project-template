@@ -73,6 +73,7 @@ Dùng khi duyệt thiết kế (bước 3) và khi rà soát ảnh so sánh `rev
 - [ ] Chữ đúng bảng chữ, không bị cắt hay tràn.
 - [ ] Bố cục và thứ tự thành phần giống bản mẫu; lệch về vị trí không quá một bước lưới 4 dp.
 - [ ] Vùng chạm đủ lớn (ít nhất 48 dp), chữ dễ đọc.
+- [ ] Dùng được ở màn hình thấp (360 x 640): nội dung cuộn được, chữ không chồng nhau, nút chính không bị che hay cắt.
 - [ ] Vùng quảng cáo tách bạch, không gây bấm nhầm.
 - [ ] Giao diện và nội dung không được thiết kế để thu hút chủ yếu trẻ em.
 
