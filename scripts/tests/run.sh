@@ -76,10 +76,10 @@ done
 
 # merge-if-green.sh refuses other PRs while an auto-run session is running, but lets that session's PRs through.
 merge_during_run() {
-  local head_ref="$1" run_status="$2"
+  local head_ref="$1" run_status="$2" labels="${3:-[]}"
   cat > "$work/merge.json" << JSON
 {"routes": {
-  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$head_ref"}, "title": "t"},
+  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$head_ref"}, "title": "t", "labels": $labels},
   "issues?state=open&labels=main-broken&per_page=10": [],
   "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261015-01-report"}, {"name": "claude/RUN-20261016-01-report"}],
   "contents/docs/runs/RUN-20261015-01.md?ref=claude/RUN-20261015-01-report": "---\nid: RUN-20261015-01\nstatus: finished\n---\n",
@@ -96,6 +96,9 @@ expect "merge-if-green refuses a person's PR while a run is running" 1 "$(merge_
 expect "merge-if-green lets the session's task PR through" 3 "$(merge_during_run claude/T-001-loading running)"
 expect "merge-if-green lets the session's report PR through" 3 "$(merge_during_run claude/RUN-20261016-01-report running)"
 expect "merge-if-green ignores finished runs" 3 "$(merge_during_run claude/template-x finished)"
+expect "merge-if-green refuses a PR labelled needs-human" 1 \
+  "$(merge_during_run claude/fix-T-002-x finished '[{"name": "needs-human"}]')"
+expect "merge-if-green accepts other labels" 3 "$(merge_during_run claude/template-x finished '[{"name": "docs"}]')"
 
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"
@@ -113,7 +116,9 @@ expect "design-compare: missing screenshot is listed" 1 "$(grep -c '^| Missing |
 expect "design-compare: writes side-by-side images" yes "$([ -s "$work/review/Same_compare.png" ] && echo yes || echo no)"
 
 # figma-export.py (offline): context files match frames by name and map values to tokens.json.
-FIGMA_EXPORT_FEATURES_DIR="$work/features" python3 -I scripts/figma-export.py --offline \
+# The fixture tokens.json is a fixed copy, so changing the real design system never breaks these tests (L-020).
+FIGMA_EXPORT_FEATURES_DIR="$work/features" FIGMA_EXPORT_TOKENS=scripts/tests/fixtures/tokens.json \
+  python3 -I scripts/figma-export.py --offline \
   scripts/tests/fixtures/figma-nodes.json loading > /dev/null
 context="$work/features/loading/design/context"
 expect "figma-export: only frames named like screenshots" "LoadingScreen_failed_light.md" "$(ls "$context")"
@@ -202,6 +207,66 @@ expect "cloud-env-check.sh passes on the current version" pass "$(env_check "$se
 expect "cloud-env-check.sh stops on an older version" stop "$(env_check 1 "$work/gradle-home")"
 expect "cloud-env-check.sh stops without the mirror init script" stop \
   "$(env_check "$setup_version" "$work/no-gradle-home")"
+
+# plan-check.py finds, from the plan alone, what would otherwise stop a task during the night (L-020).
+repo="$work/plan-repo"
+mkdir -p "$repo/scripts" "$repo/docs/data" "$repo/docs/features/demo/plans" "$repo/docs/features/demo/tickets" \
+  "$repo/docs/features/demo/design/screens" "$repo/feature/demo/src/test/screenshots" "$repo/core/x"
+echo '{}' > "$repo/docs/data/values.json"
+echo 'open("docs/data/values.json")' > "$repo/scripts/reader.py"
+touch "$repo/feature/demo/A.kt" "$repo/core/x/B.kt" "$repo/docs/features/demo/design/screens/DemoScreen_main_light.png"
+write_plan() { # <file> <risk> <status> <rows> [extra text]
+  printf -- '---\nticket: %s\nstatus: %s\nrisk_level: %s\nreviewer: A\ncross_reviewer:\napproved_at: 2026-10-17\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n%b\n\n%s\n\n## 4. Kiểm thử\n' \
+    "$(basename "$1" | cut -d- -f1-2)" "$3" "$2" "$4" "${5:-}" > "$1"
+}
+plan_check() { if PLAN_CHECK_ROOT="$repo" python3 -I scripts/plan-check.py "$1" > "$work/plan-check.out" 2>&1; then echo pass; else echo stop; fi; }
+# One row of the file list of a plan; the backticks are Markdown, not command substitution.
+# shellcheck disable=SC2016
+row() { printf '| %s | `%s` | x |' "$1" "$2"; }
+plans="$repo/docs/features/demo/plans"
+write_plan "$plans/T-901-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
+expect "plan-check: a correct plan passes" pass "$(plan_check "$plans/T-901-a.md")"
+write_plan "$plans/T-902-a.md" medium draft "$(row Sửa feature/demo/Missing.kt)"
+expect "plan-check: changing a missing file stops" stop "$(plan_check "$plans/T-902-a.md")"
+write_plan "$plans/T-903-a.md" medium draft "$(row Sửa docs/data/values.json)"
+expect "plan-check: a script reading a changed file stops" stop "$(plan_check "$plans/T-903-a.md")"
+expect "plan-check: names the reader" 1 "$(grep -c 'scripts/reader.py nhắc tới docs/data/values.json' "$work/plan-check.out")"
+write_plan "$plans/T-904-a.md" medium draft "$(row Sửa docs/data/values.json)" 'scripts/reader.py chỉ đọc khóa a, không đổi.'
+expect "plan-check: a reader the plan explains passes" pass "$(plan_check "$plans/T-904-a.md")"
+write_plan "$plans/T-905-a.md" medium draft "$(row Sửa core/x/B.kt)"
+expect "plan-check: core module needs a high-risk plan" stop "$(plan_check "$plans/T-905-a.md")"
+write_plan "$plans/T-906-a.md" high approved "$(row Sửa core/x/B.kt)"
+expect "plan-check: approved high-risk plan needs a cross reviewer" stop "$(plan_check "$plans/T-906-a.md")"
+write_plan "$plans/T-907-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Chạy scripts/design-compare.sh demo.'
+expect "plan-check: design image without screenshot stops" stop "$(plan_check "$plans/T-907-a.md")"
+write_plan "$plans/T-908-a.md" medium draft \
+  "$(row Tạo feature/demo/src/test/screenshots/DemoScreen_main_light.png)" 'Chạy scripts/design-compare.sh demo.'
+expect "plan-check: design image with its screenshot passes" pass "$(plan_check "$plans/T-908-a.md")"
+write_plan "$plans/T-909-a.md" medium draft "$(row Tạo feature/demo/New.kt)"
+printf -- '---\nid: T-910\ndepends_on: [T-909]\n---\n' > "$repo/docs/features/demo/tickets/T-910-a.md"
+write_plan "$plans/T-910-a.md" medium draft "$(row Sửa feature/demo/New.kt)"
+expect "plan-check: a file created by a dependency passes" pass "$(plan_check "$plans/T-910-a.md")"
+write_plan "$plans/T-911-a.md" high draft "$(row Sửa scripts/release.sh)"
+expect "plan-check: release.sh is never allowed" stop "$(plan_check "$plans/T-911-a.md")"
+
+# env-canary.sh opens an env-broken issue when the environment is red and closes it when it is green again.
+printf '#!/usr/bin/env bash\nexit 0\n' > "$work/pass.sh"
+printf '#!/usr/bin/env bash\necho "Could not GET https://repo.maven.apache.org/x"\nexit 1\n' > "$work/fail.sh"
+chmod +x "$work/pass.sh" "$work/fail.sh"
+canary() { # <env check> <check> <open issues JSON>; prints the writes, one per line
+  echo "{\"routes\": {\"issues?state=open&labels=env-broken&per_page=10\": $3}}" > "$work/canary.json"
+  rm -f "$work/canary.json.writes"
+  PATH="$work/bin:$PATH" FIXTURE="$work/canary.json" CANARY_CHECKOUT=no RETRY_WAIT_SECONDS=0 \
+    ENV_CHECK_CMD="$1" CHECK_CMD="$2" scripts/env-canary.sh > /dev/null 2>&1 || true
+  cat "$work/canary.json.writes" 2>/dev/null | tr '\n' ';'
+}
+expect "env-canary: red opens an env-broken issue" "POST issues;" "$(canary "$work/pass.sh" "$work/fail.sh" '[]')"
+expect "env-canary: red again comments on the open issue" "POST issues/7/comments;" \
+  "$(canary "$work/pass.sh" "$work/fail.sh" '[{"number": 7}]')"
+expect "env-canary: old setup script is red" "POST issues;" "$(canary "$work/fail.sh" "$work/pass.sh" '[]')"
+expect "env-canary: green closes the open issue" "POST issues/7/comments;PATCH issues/7;" \
+  "$(canary "$work/pass.sh" "$work/pass.sh" '[{"number": 7}]')"
+expect "env-canary: green with nothing open changes nothing" "" "$(canary "$work/pass.sh" "$work/pass.sh" '[]')"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"

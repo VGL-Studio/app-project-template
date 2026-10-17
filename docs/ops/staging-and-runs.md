@@ -109,7 +109,7 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 
 1. Danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md` có trạng thái `approved` đã được merge vào nhánh chính.
 2. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy.
-3. Workflow từ chối nếu danh sách chưa `approved`, hoặc nhánh chính đang đỏ (có issue `main-broken` đang mở). Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
+3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), hoặc môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4). Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
 
 Lưu ý:
 
@@ -117,6 +117,25 @@ Lưu ý:
 - Routine giới hạn 30 lần kích hoạt mỗi giờ. API kích hoạt đang ở giai đoạn thử nghiệm của Anthropic, gọi kèm header `anthropic-beta: experimental-cc-routine-2026-04-01`; cách gọi có thể đổi.
 - Phiên tự chạy dùng chung hạn mức với tài khoản Claude sở hữu routine.
 
+### 2.4. Kiểm tra môi trường hằng ngày (`env-canary.yml`)
+
+Lỗi môi trường (setup script cũ, kho thư viện chặn) từng làm hai phiên qua đêm kết thúc mà không làm được gì. Mỗi sáng 08:00 (giờ Việt Nam), workflow `env-canary` kích hoạt một routine nhỏ chạy `scripts/env-canary.sh` trên nhánh chính trong cùng môi trường cloud: `scripts/cloud-env-check.sh`, rồi `scripts/check.sh` (đỏ thì thử lại một lần, tải lại thư viện). Đỏ thì mở issue `env-broken` kèm 80 dòng log cuối; `start-run.yml` không bắt đầu phiên khi issue này còn mở. Xanh thì tự đóng issue. Workflow bỏ qua ngày có phiên tự chạy đang chạy.
+
+Thiết lập một lần:
+
+1. Trên https://claude.ai/code/routines, **New routine**: cùng repo, **cùng môi trường** với routine phiên tự chạy (mục 2.1), trigger **API**, model **Sonnet** (việc đơn giản, đỡ hạn mức), gỡ hết connector. Prompt (chép nguyên văn):
+
+   ```text
+   Đây là kiểm tra môi trường hằng ngày, không phải phiên tự chạy. Chạy đúng một lệnh: bash scripts/env-canary.sh
+   Không sửa file nào, không tạo nhánh, không mở PR, không làm việc gì khác. Lệnh chạy lâu (khoảng 10 đến 15 phút); đặt thời gian chờ của lệnh đủ dài. Kết thúc bằng một dòng: kết quả xanh hoặc đỏ, và số issue env-broken nếu script mở hay đóng issue.
+   ```
+
+2. Mở trigger **API** của routine này, **Generate token**, thêm hai bí mật: `gh secret set ENV_CANARY_FIRE_URL` và `gh secret set ENV_CANARY_FIRE_TOKEN`.
+3. Chạy thử: **Actions > env-canary > Run workflow**. Mở phiên trong đường dẫn ở phần tóm tắt, xem script báo xanh.
+
+Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường chưa dán setup script mới (dán lại theo mục 2.1); lỗi khác thì sửa nguyên nhân. Sau đó chạy lại **env-canary** bằng tay; lần chạy xanh tự đóng issue.
+
 ## 3. Việc còn phải kiểm chứng
 
-- Không còn mục nào. Phiên tự chạy khởi động được `staging.yml` qua `gh api` (đã kiểm chứng ở RUN-20261015-03, lần chạy 38765200550).
+- Routine `env-canary` đóng được issue qua `gh api` (REST) trong môi trường cloud. Tạo issue đã kiểm chứng ở lần chạy đầu tiên (2026-10-17, issue #37); đóng issue kiểm chứng ở lần chạy xanh đầu tiên.
+- Phiên tự chạy khởi động được `staging.yml` qua `gh api` (đã kiểm chứng ở RUN-20261015-03, lần chạy 38765200550).

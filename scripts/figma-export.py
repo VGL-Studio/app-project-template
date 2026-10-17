@@ -27,7 +27,8 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TOKENS = ROOT / "docs" / "design-system" / "tokens.json"
+# Tests point this at a fixed copy, so a change of the design system never breaks them (L-020).
+TOKENS = Path(os.environ.get("FIGMA_EXPORT_TOKENS", ROOT / "docs" / "design-system" / "tokens.json"))
 FRAME_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*Screen_[a-z0-9]+_(light|dark)$")
 FRAME_SIZE = (411, 891)
 IMAGE_SIZE = (1233, 2673)

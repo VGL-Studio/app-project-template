@@ -28,8 +28,10 @@ AI tạo nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` từ nhánh chính, gh
 | Môi trường cloud dựng từ `scripts/cloud-setup.sh` mới nhất: `scripts/cloud-env-check.sh` qua. Chạy trước `scripts/check.sh` | Không chờ, không thử lại: môi trường cũ không tự khỏi. Không chạy task nào, kết thúc phiên ngay, chép thông báo của script vào báo cáo để người dán lại setup script |
 | Môi trường build được: `scripts/check.sh` qua trên nhánh chính. Chạy trước task đầu tiên, để lỗi môi trường lộ ra trước khi viết code, và để thư viện được tải sẵn | Lỗi hạ tầng: thử lại theo lịch ở bước 5. Lỗi khác: không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Không có issue nào đang mở mang nhãn `env-broken` (kiểm tra môi trường hằng ngày, `docs/ops/staging-and-runs.md`, mục 2.4). `start-run.yml` đã kiểm tra; phiên kiểm tra lại vì phiên bắt đầu bằng Run now không qua workflow | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
+| Plan qua `scripts/plan-check.py <plan>`. Chạy ngay trước khi bắt đầu từng task, không chạy chung ở đầu phiên: plan có thể sửa file mà task trước trong cùng phiên tạo ra | Bỏ qua task trước khi tạo nhánh, chép thông báo của script vào báo cáo; plan và ticket giữ `approved`. Không tự sửa plan |
 | Các ticket phụ thuộc đã `on-staging`, hoặc được merge trước đó trong cùng phiên | Bỏ qua task, ghi lý do |
 
 ## 3. Các bước cho từng task
@@ -106,6 +108,7 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
   - Mở PR: `gh api -X POST repos/{owner}/{repo}/pulls -f title=... -f head=<nhánh> -f base=main -f body=...`
   - Tìm issue `main-broken` đang mở: `gh api "repos/{owner}/{repo}/issues?state=open&labels=main-broken"`
   - Khởi động `staging.yml`: `gh api -X POST repos/{owner}/{repo}/actions/workflows/staging.yml/dispatches -f ref=main`
+  - Mở PR nháp sửa nguyên nhân khi task dừng: `gh api -X POST repos/{owner}/{repo}/pulls -f title=... -f head=<nhánh> -f base=main -f body=... -F draft=true`, rồi gắn nhãn: `gh api -X POST repos/{owner}/{repo}/issues/<số PR>/labels -f "labels[]=needs-human"`
 
 ### Bước 8. CI đầy đủ
 
@@ -128,14 +131,25 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 - Ghi trên nhánh báo cáo, không ghi trên nhánh của task. Ghi vào mục Nhật ký thực hiện ở cuối plan theo mẫu, cập nhật dòng của task trong báo cáo phiên, rồi đẩy nhánh báo cáo lên. Nhờ vậy nếu phiên dừng đột ngột (hết hạn mức), người vẫn đọc được kết quả các task đã xong trên nhánh báo cáo.
 - Plan chuyển sang `done`, ticket chuyển sang `on-staging`.
 - Task bị dừng: plan và ticket chuyển sang `stopped`, nhánh và PR của task được giữ nguyên, không merge.
+- Task bị dừng: chuẩn bị sẵn cho người, để sáng hôm sau người chỉ cần xem và duyệt (mục Chuẩn bị cho người khi task dừng).
 
 Sau đó AI chuyển sang task tiếp theo trong danh sách. Task phụ thuộc vào task bị dừng được bỏ qua.
+
+### Chuẩn bị cho người khi task dừng
+
+Phiên không tự xoay xở khi dừng, nhưng soạn sẵn cách tiếp tục, để một lần dừng chỉ tốn vài phút của người thay vì một vòng làm lại:
+
+1. **Plan phiên bản mới, trạng thái `draft`:** trên nhánh báo cáo, ngay sau mục nhật ký của lần dừng. Tăng `version`, xóa `reviewer`, `cross_reviewer`, `approved_at`, `run_order`; mục 1 ghi "vì sao plan chưa đủ tốt" theo cách hiểu của phiên và thay đổi so với phiên bản trước; mục 3.1 ghi cách tiếp tục (thường là tiếp tục trên nhánh cũ); mục 9 thêm chỗ trống cho phiên bản mới. Plan mới phải qua `scripts/plan-check.py`. Plan vẫn ở trạng thái `stopped` cho tới khi người duyệt phiên bản mới.
+2. **PR sửa nguyên nhân, khi nguyên nhân nằm ngoài plan** (ví dụ test của script đọc file mà plan đổi, L-020) và cách sửa nhỏ, rõ: nhánh `claude/fix-T-NNN-<tu-khoa>` tạo từ nhánh chính, mở PR ở dạng nháp (`draft: true`), gắn nhãn `needs-human`, mô tả ghi lý do và cách đã thử. Phiên không merge PR này và không đổi nó sang sẵn sàng; `merge-if-green.sh` từ chối PR nháp và PR mang nhãn `needs-human`. PR này không được chạm cấu hình production, bí mật, `scripts/release.sh` hay tài liệu quy trình (tài liệu quy trình đổi qua retro, mục 6).
+3. **Danh sách chạy tiếp theo, trạng thái `draft`:** `runs/RUN-YYYYMMDD-NN.md` mới với task bị dừng (plan phiên bản mới) và các task bị bỏ qua vì phụ thuộc, ghi tên nhánh để tiếp tục.
+
+Ba thứ này đi qua PR báo cáo (trừ PR sửa nguyên nhân) và được liệt kê trong báo cáo phiên, mục Task bị dừng.
 
 ### Tiếp tục task đã dừng
 
 Task bị dừng không được chạy lại với cùng phiên bản plan. Task chưa xong vì hết hạn mức hay lỗi hạ tầng thì không bị coi là dừng: plan không cần sửa, đưa cùng phiên bản vào danh sách chạy mới, ghi trong danh sách chạy tên nhánh để phiên tiếp tục trên đó.
 
-1. Nhóm trả lời "vì sao plan chưa đủ tốt" (risk-scoring.md, mục 4), AI sửa plan, tăng `version`, ghi rõ cách tiếp tục trong mục 3.1 của plan:
+1. Nhóm trả lời "vì sao plan chưa đủ tốt" (risk-scoring.md, mục 4), AI sửa plan, tăng `version`, ghi rõ cách tiếp tục trong mục 3.1 của plan. Thường phiên đã soạn sẵn bản này (mục Chuẩn bị cho người khi task dừng); người xem, sửa nếu cần, merge PR sửa nguyên nhân (gỡ nhãn `needs-human` trước), rồi duyệt:
    - **Tiếp tục trên nhánh cũ:** ghi tên nhánh và số PR. Phiên cập nhật nhánh theo nhánh chính, chỉ làm phần plan thay đổi, bước 3 chỉ áp dụng cho test mới hoặc test đổi điều kiểm tra.
    - **Làm lại từ đầu:** người đóng PR cũ trước khi chạy. Phiên làm đủ 10 bước trên nhánh mới.
 2. Plan phiên bản mới được duyệt như plan mới, ticket chuyển lại `approved`.
@@ -157,7 +171,7 @@ Sau đó AI:
 
 1. Nếu trong phiên có ít nhất một task được merge, khởi động workflow `staging.yml` để build bản staging từ nhánh chính và phát cho nhóm qua Firebase App Distribution, rồi chờ workflow kết thúc.
 2. Cập nhật nhánh báo cáo theo nhánh chính, viết báo cáo phiên vào file danh sách chạy, chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
-3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, bài học mới trong `docs/lessons.md` (mục 6).
+3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, bài học mới trong `docs/lessons.md` (mục 6), plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).
 4. Merge PR báo cáo bằng `scripts/merge-if-green.sh`. Script từ chối (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
 
 ## 5. Báo cáo phiên

@@ -53,6 +53,11 @@ TITLE="$(jq -r .title <<<"$PR_JSON")"
 
 [[ "$STATE" == "open" ]] || die "PR #$PR không ở trạng thái mở ($STATE)."
 [[ "$DRAFT" == "false" ]] || die "PR #$PR đang là bản nháp."
+# A PR that an auto-run session prepared for a person (docs/auto-run.md, section 3, "Khi dừng") carries the
+# needs-human label. Only a person removes it, after reviewing the PR; until then nobody merges it.
+if jq -e '[(.labels // [])[].name] | index("needs-human")' <<<"$PR_JSON" > /dev/null; then
+  die "PR #$PR mang nhãn needs-human: phiên tự chạy soạn để người xem. Người xem xong, gỡ nhãn rồi mới merge."
+fi
 [[ "$BASE" == "$BASE_BRANCH" ]] || die "PR #$PR nhắm vào '$BASE', không phải '$BASE_BRANCH'."
 
 # While main is broken (an open issue labelled main-broken, created by main-guard.yml), nothing is merged,
