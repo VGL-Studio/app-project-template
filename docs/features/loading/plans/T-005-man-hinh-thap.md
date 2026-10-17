@@ -6,7 +6,7 @@ version: 1
 risk_score: 4
 risk_level: low
 blocking_points: []
-run_order:
+run_order: 1
 reviewer: Nhật
 cross_reviewer: Nhật (vì là app mẫu)
 approved_at: 2026-10-17

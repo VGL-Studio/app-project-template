@@ -46,4 +46,4 @@ Nút "Thử lại" luôn thấy và bấm được, chữ không chồng lên nh
 - **Lý do:** 
 - **Liên kết:** 
 
-AI đề xuất: lỗi so với spec (KB-2). Nguyên nhân trong `LoadingScreen.kt`: cột nội dung bắt đầu ở 25% chiều cao, không cuộn, chân trang ghim riêng ở đáy. Sửa bằng plan mới của T-003 (tăng phiên bản): nội dung và chân trang cùng một cột cuộn được, khoảng trống trên co lại khi màn hình thấp; thêm screenshot test ở khung thấp (ví dụ `w360dp-h640dp`), không đổi ảnh chuẩn của khung 411 x 891.
+AI đề xuất: lỗi so với spec (KB-2). Nguyên nhân trong `LoadingScreen.kt`: cột nội dung bắt đầu ở 25% chiều cao, không cuộn, chân trang ghim riêng ở đáy. Sửa bằng ticket mới T-005 (`features/loading/plans/T-005-man-hinh-thap.md`), vì T-003 đã xong: nội dung và chân trang cùng một cột cuộn được, khoảng trống trên co lại khi màn hình thấp; thêm screenshot test ở khung thấp (ví dụ `w360dp-h640dp`), không đổi ảnh chuẩn của khung 411 x 891.
