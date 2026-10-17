@@ -299,4 +299,24 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `docs/ops/design-workflow.md` và `CLAUDE.md` (bước 10): ngoài screenshot test ở khung chuẩn, mỗi màn hình có một screenshot test ở khung thấp (ví dụ `w360dp-h640dp`); bố cục dài hơn màn hình thì cuộn được. Mẫu thiết kế, mục 7: thêm tiêu chí "dùng được ở màn hình thấp".
 - **Trạng thái:** applied
 - **Áp dụng:** PR #48: `CLAUDE.md` bước 10, `docs/ops/design-workflow.md` mục 2, mẫu thiết kế mục 7, mẫu plan mục 4. Màn hình loading sửa ở T-005. Anh Nhật nhận ngày 2026-10-17
+- **Kiểm chứng:** 2026-10-17, RUN-20261017-03: có hiệu quả trên JVM. Test ở khung `w360dp-h640dp-xxhdpi` tái hiện lỗi chân trang che khối lỗi (chân trang 592 dp, đáy khối lỗi 636 dp) và giữ bản sửa T-005 (PR #51). Chưa kiểm chứng trên emulator vì không tải được artifact (L-030).
+
+### L-029. Plan đoán lý do test viết trước thất bại mà không đo, test viết đúng plan qua ngay khi chưa có code
+
+- **Ngày, nguồn:** 2026-10-17, RUN-20261017-03 (T-005, PR #51)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-005 ghi test `failed_onShortScreen_retryButtonFitsOnScreen` thất bại "vì nút tràn khỏi màn hình". Ở khung test 360 x 640, đáy nút là 636 dp, vẫn trong màn hình; lỗi ở khung này là chân trang che nút. Lỗi gốc của FB-20261017-01 ở chiều rộng 320, chữ xuống dòng nhiều hơn. Test viết đúng plan qua ngay khi chưa có code; phiên thêm điều kiện "đáy nút không thấp hơn đỉnh chân trang" theo auto-run.md bước 3, rà soát độc lập xác nhận.
+- **Cải tiến:** đề xuất docs/CLAUDE.md, mục Khi viết plan: với lỗi giao diện, khi viết plan chạy thử test dự kiến trên code hiện tại (không commit) và ghi số đo thật vào cột "Viết trước" của mục 4. Mẫu plan, mục 4: khung test phải tái hiện được lỗi gốc.
+- **Trạng thái:** proposed
+- **Áp dụng:**
+- **Kiểm chứng:**
+
+### L-030. Môi trường cloud không tải được artifact và log đầy đủ của GitHub Actions
+
+- **Ngày, nguồn:** 2026-10-17, RUN-20261017-03
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** cuối phiên, `device-session.yml` (lần chạy 39050721140) xanh, nhưng phiên không tải được artifact `device-session`: GitHub chuyển tới `productionresultssa7.blob.core.windows.net`, proxy của môi trường từ chối (`connect_rejected`), cả qua `gh api` lẫn công cụ GitHub MCP. Log đầy đủ của job cũng ở host này; chỉ đọc được 200 dòng cuối. Phiên không xem được `offline.png`, `app-log.txt`, nên bước phân tích phiên thử (auto-run.md, mục 4) chỉ dựa vào bản tóm tắt.
+- **Cải tiến:** đề xuất cho phép host blob của GitHub Actions trong chính sách mạng của môi trường cloud. Nếu không được: `device-session.yml` in thêm phần cần phân tích (log app đã lọc, kết quả kịch bản) vào tóm tắt của job, và auto-run.md mục 4 ghi cách làm khi không tải được artifact.
+- **Trạng thái:** proposed
+- **Áp dụng:**
 - **Kiểm chứng:**
