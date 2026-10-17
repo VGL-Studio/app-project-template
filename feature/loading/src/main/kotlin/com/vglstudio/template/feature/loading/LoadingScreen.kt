@@ -35,12 +35,17 @@ internal fun LoadingRoute(onFinished: () -> Unit, viewModel: LoadingViewModel = 
         LaunchedEffect(Unit) { currentOnFinished() }
         return
     }
-    LoadingScreen(uiState = uiState, onRetry = viewModel::onRetry)
+    LoadingScreen(uiState = uiState, appName = "", onRetry = viewModel::onRetry)
 }
 
 /** Stateless screen: everything it shows comes from [uiState]. Tested on the JVM and by screenshots. */
 @Composable
-internal fun LoadingScreen(uiState: LoadingUiState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+internal fun LoadingScreen(
+    uiState: LoadingUiState,
+    appName: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val progress = when (uiState) {
         is LoadingUiState.InProgress -> uiState.progress
         is LoadingUiState.Failed -> uiState.progress
@@ -84,12 +89,14 @@ internal object LoadingTestTags {
     const val PROGRESS = "loading_progress"
     const val PERCENT = "loading_percent"
     const val ERROR = "loading_error"
+    const val APP_NAME = "loading_app_name"
+    const val RETRY = "loading_retry"
 }
 
 @Preview
 @Composable
 private fun LoadingScreenPreview() {
     AppTheme {
-        LoadingScreen(uiState = LoadingUiState.InProgress(0.5f), onRetry = {})
+        LoadingScreen(uiState = LoadingUiState.InProgress(0.5f), appName = "", onRetry = {})
     }
 }
