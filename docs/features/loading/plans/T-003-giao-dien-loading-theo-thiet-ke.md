@@ -1,7 +1,7 @@
 ---
 ticket: T-003
 title: Màn hình loading theo thiết kế Figma
-status: approved
+status: done
 version: 1
 risk_score: 5
 risk_level: medium
@@ -160,3 +160,16 @@ Không sửa `:core:designsystem`, `LoadingViewModel`, `LoadingUiState`, dữ li
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261017-01, phiên bản plan 1
+
+- **Kết quả:** đã merge.
+- **Nhánh, PR:** `claude/T-003-giao-dien-loading`, PR #40, merge thành commit c7449da trên nhánh chính.
+- **Đã làm:** đủ mục 3.1. `LoadingScreen` theo bố cục của thiết kế, tham số `appName`, `LoadingRoute` lấy tên app qua `applicationInfo.loadLabel`, test tag `APP_NAME` và `RETRY`. Có hai preview (đang tải, lỗi). Ba vector drawable chép nguyên `d` và `strokeWidth` từ `handoff/`, bỏ `clipPath` của biểu tượng khóa. Chữ theo bảng chữ, xóa `loading_message`. Ghi lại ba ảnh chuẩn, thêm `LoadingScreen_failed_dark.png`. Chạy `scripts/design-compare.sh loading`, commit `design/review/`, ghi kết quả và nhận xét vào mục 8 của `design/README.md`. 17 file thay đổi, đều nằm trong mục 3.2.
+- **Test viết trước:** 4 test trong `LoadingScreenTest`, commit a428a4d, đều thất bại đúng lý do (không tìm thấy tag `APP_NAME`, `RETRY`; chữ "Tiến độ đã dừng" không hiện). Commit này có thêm khung rỗng để test biên dịch được: tham số `appName` chưa dùng, hai test tag, chữ mới trong `strings.xml`. Một lần sửa chi tiết test, không đổi điều test kiểm tra: ktlint sắp lại thứ tự import của `LoadingScreenTest`. Test có kiểm tra kích thước dùng `@GraphicsMode(NATIVE)` và khung 411 x 891.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 5 ghi chú. Phần dưới lệch dần xuống so với thiết kế, nhiều nhất khoảng 10 dp ở nút "Thử lại", do chiều cao dòng và khoảng cách làm tròn về token; mỗi phần lệch nằm trong mục 6 của thiết kế. Chữ ở chân trang và lời hướng dẫn rộng hơn một chút. Chiều cao nút do `PrimaryButton` quyết định. Màu báo lỗi chỉ kiểm qua screenshot. Cách lấy tên app chỉ kiểm được bằng đọc code và trên staging.
+- **Kết quả CI:** một vòng, xanh: `changes`, `build-and-test`, `ui-test` trên emulator. `LoadingViewModelTest`, `DefaultPreparationRepositoryTest` và test trên emulator của `:app` qua, không sửa.
+- **Đối chiếu thiết kế:** điểm ảnh khác 2,5% (đang tải, sáng và tối), 5,2% (lỗi, sáng), 5,6% (lỗi, tối). Trước khi làm: 3,5%, 4,0%, 9,7%, chưa có.
+- **Lệch so với plan:** Không có.
+- **Việc còn lại:** kiểm tra thủ công trên bản staging (mục 4).
+- **Cần người xem:** bốn ảnh ghép trong `docs/features/loading/design/review/`; bản staging ở chế độ sáng và tối, và trạng thái lỗi (tắt mạng, xóa dữ liệu app, mở lại).
