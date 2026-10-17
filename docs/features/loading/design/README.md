@@ -110,6 +110,7 @@ Không có.
   - Chỗ xuống dòng của chữ nhiều dòng: app tự xuống dòng theo chiều rộng (mục 2), không theo chỗ xuống dòng cứng trên Figma. Retro 2026-10-17 chọn cách này vì chữ đổi theo ngôn ngữ và cỡ màn hình.
   - Khoảng cách lệch tới 3 dp do làm tròn về token (mục 3).
   - Độ dày nét của biểu tượng (1,5 đến 1,8 trên thiết kế) theo vector drawable.
+  - Màn hình thấp hơn 800 dp: khoảng trống phía trên co lại còn 8% chiều cao; nội dung và chân trang cuộn chung khi dài hơn màn hình (T-005, L-028).
 
 ## 7. Tiêu chí khi duyệt
 
@@ -118,6 +119,7 @@ Không có.
 - [ ] Chữ đúng bảng chữ, không bị cắt hay tràn.
 - [ ] Bố cục và thứ tự thành phần giống bản mẫu; lệch về vị trí không quá một bước lưới 4 dp, trừ chỗ đã ghi ở mục 6.
 - [ ] Vùng chạm đủ lớn (ít nhất 48 dp), chữ dễ đọc.
+- [ ] Dùng được ở màn hình thấp (360 x 640).
 - [ ] Vùng quảng cáo tách bạch, không gây bấm nhầm.
 - [ ] Giao diện và nội dung không được thiết kế để thu hút chủ yếu trẻ em.
 
