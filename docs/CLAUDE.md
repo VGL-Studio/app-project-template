@@ -41,6 +41,7 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Mỗi tiêu chí chấp nhận trong spec phải có cách kiểm chứng tương ứng trong mục kiểm thử. Test được viết trước code, nên mục kiểm thử phải đủ cụ thể để viết được test ngay từ plan.
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
+- Hàm phụ trợ nằm trong file test mà cũng phải đổi (ví dụ danh sách mà test so sánh): ghi rõ phần nào vào commit test của bước 3, phần nào vào commit code của bước 4, để test viết trước thất bại đúng lý do (L-025).
 - Viết xong thì chạy `scripts/plan-check.py <plan>`, sửa hết lỗi trước khi đưa người duyệt, dán kết quả vào mô tả PR. Phiên tự chạy chạy lại script này ngay trước task và bỏ qua plan có lỗi.
 - Plan mới có trạng thái `draft`. Không bao giờ tự chuyển sang `approved`.
 
