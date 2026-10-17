@@ -267,8 +267,8 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** mục 3.1 của plan T-004 ghi hàm `colorRoles` trong `DesignTokensTest` liệt kê đủ 35 vai trò, còn mục 4 ghi test viết trước thất bại vì `colorRoles` mới có 21 vai trò. Hàm và test nằm cùng một file test. Phiên phải tự suy ra: commit test giữ 21 vai trò, commit code thêm 14 vai trò còn lại. Nếu đưa cả 35 vai trò vào commit test, test mới sẽ qua ngay khi chưa có code.
 - **Cải tiến:** đề xuất docs/CLAUDE.md, mục Khi viết plan: khi hàm phụ trợ nằm trong file test mà cũng là phần cần đổi, plan ghi rõ phần nào vào commit test, phần nào vào commit code.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #45: docs/CLAUDE.md, mục Khi viết plan. Retro 2026-10-17 nhận
 - **Kiểm chứng:**
 
 ### L-026. Thiếu ANDROID_HOME bị giấu khi chạy Gradle với -q và lọc kết quả
@@ -277,6 +277,6 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** phiên chạy `./gradlew -q ...ktlintCheck | grep ...` trong một lệnh shell chưa có `export ANDROID_HOME`. Lỗi "SDK location not found" bị bộ lọc giấu, lệnh không in gì, trông như kiểm tra đã qua. Phiên phát hiện khi chạy lại không có `-q`. Không ảnh hưởng kết quả vì `scripts/check.sh` sau đó chạy đủ.
 - **Cải tiến:** đề xuất `scripts/cloud-setup.sh` ghi `ANDROID_HOME` vào hồ sơ shell hoặc ghi `sdk.dir` vào `local.properties`, để mọi lệnh Gradle trong phiên đều thấy SDK.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #45: `scripts/cloud-setup.sh` phiên bản 3, init script ghi `sdk.dir` vào `local.properties` khi thiếu. Retro 2026-10-17 nhận; người dán lại setup script
 - **Kiểm chứng:**

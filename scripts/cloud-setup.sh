@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Bump on every change. The auto-run session compares it with ~/.cloud-setup-version
 # (scripts/cloud-env-check.sh) and stops at once when the environment still runs an older copy.
-SETUP_VERSION=2
+SETUP_VERSION=3
 
 SDK_ROOT="${HOME}/android-sdk"
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-13114758_latest.zip"
@@ -52,6 +52,9 @@ done
 #   through JAVA_TOOL_OPTIONS, which the environment already uses for its proxy (L-019).
 # GRADLE_REFRESH_DEPENDENCIES=true makes Gradle ask the network again after a failed download instead of
 # reusing the cached failure (auto-run.md, step 5).
+# The SDK location: shells that do not read ~/.bashrc have no ANDROID_HOME, and Gradle then fails with
+# "SDK location not found", easy to miss behind -q (L-026). The init script writes sdk.dir into the
+# build's local.properties (ignored by git) when neither the variable nor the file gives the SDK.
 mkdir -p "${HOME}/.gradle/init.d"
 cat > "${HOME}/.gradle/init.d/maven-central-mirror.gradle" << 'GRADLE'
 // Written by scripts/cloud-setup.sh: cloud sessions only.
@@ -68,6 +71,13 @@ if (System.getenv('GRADLE_REFRESH_DEPENDENCIES') == 'true') {
     gradle.startParameter.refreshDependencies = true
 }
 beforeSettings { settings ->
+    def sdk = new File(System.getenv('CLOUD_ANDROID_SDK') ?: "${System.getProperty('user.home')}/android-sdk")
+    def localProperties = new File(settings.rootDir, 'local.properties')
+    def knowsSdk = System.getenv('ANDROID_HOME') || System.getenv('ANDROID_SDK_ROOT') ||
+        (localProperties.exists() && localProperties.text.contains('sdk.dir='))
+    if (!knowsSdk && sdk.isDirectory()) {
+        localProperties << "sdk.dir=${sdk.absolutePath}\n"
+    }
     // Declared before the settings file runs, so the mirror comes first. The plugin portal is added again
     // because Gradle only falls back to it when pluginManagement declares no repository at all.
     settings.pluginManagement.repositories {

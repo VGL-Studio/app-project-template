@@ -106,7 +106,8 @@ Không có.
 - **Phải giống bản mẫu:** bố cục, thứ tự thành phần, chữ (mục 2), vai trò màu và kiểu chữ (mục 3), vị trí logo không đổi giữa hai trạng thái.
 - **Được phép khác:**
   - Cách vẽ chữ của Android so với Figma; chiều cao dòng theo kiểu chữ của hệ thống thiết kế (lệch 1 đến 7 dp so với thiết kế).
-  - Cỡ chữ lệch 1 sp do làm tròn về kiểu chữ có sẵn (nhãn tiến trình 13 thành 14, lời hướng dẫn 13 thành 14).
+  - Cỡ chữ lệch 1 sp do làm tròn về kiểu chữ có sẵn (nhãn tiến trình 13 thành 14, lời hướng dẫn 13 thành 14), nên hai dòng này rộng hơn thiết kế khoảng 8%. Retro 2026-10-17 chấp nhận, giữ thang chữ Material 3; thiết kế sau dùng kiểu chữ dựng từ `tokens.json`.
+  - Chỗ xuống dòng của chữ nhiều dòng: app tự xuống dòng theo chiều rộng (mục 2), không theo chỗ xuống dòng cứng trên Figma. Retro 2026-10-17 chọn cách này vì chữ đổi theo ngôn ngữ và cỡ màn hình.
   - Khoảng cách lệch tới 3 dp do làm tròn về token (mục 3).
   - Độ dày nét của biểu tượng (1,5 đến 1,8 trên thiết kế) theo vector drawable.
 
