@@ -5,6 +5,7 @@
 #
 # Usage:
 #   scripts/device-session.sh start [<name>]   start recording on the connected device
+#   scripts/device-session.sh reset           clear the app's data, as if just installed, and mark it in the log
 #   scripts/device-session.sh scenarios --yes  run the standard scenarios: cold starts, first launch offline,
 #                                              random taps (monkey). Clears the app's data and toggles airplane mode.
 #   scripts/device-session.sh stop             stop recording, collect device data, write summary.md
@@ -15,19 +16,21 @@
 #   ANDROID_SERIAL       device to use when several are connected (read by adb itself)
 #   APP_PACKAGE          package to test; default: STAGING_APPLICATION_ID of .github/workflows/staging.yml
 #   DEVICE_SESSION_DIR   where session folders go; default: test-sessions (ignored by git)
+#   DEVICE_SESSION_REPORTS  reports already written; their ids are not reused; default: docs/test-sessions
 #   MONKEY_EVENTS        random events in `scenarios`; default 1500
 # Messages are in Vietnamese for the team; comments are in English.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SESSIONS_DIR="${DEVICE_SESSION_DIR:-test-sessions}"
+REPORTS_DIR="${DEVICE_SESSION_REPORTS:-docs/test-sessions}"
 STATE_FILE="${SESSIONS_DIR}/.current"
 MONKEY_EVENTS="${MONKEY_EVENTS:-1500}"
 MONKEY_SEED=20261017
 MARKER_TAG="VGL.Session"
 
 fail() { echo "LỖI: $*" >&2; exit 1; }
-usage() { sed -n '5,10p' "$0" | sed 's/^# //' >&2; exit 2; }
+usage() { sed -n '5,11p' "$0" | sed 's/^# //' >&2; exit 2; }
 
 app_package() {
   if [[ -n "${APP_PACKAGE:-}" ]]; then echo "${APP_PACKAGE}"; return; fi
@@ -43,11 +46,17 @@ need_device() {
 # Writes a line into the device log, so the analysis can split the log by step.
 mark() { adb shell log -t "${MARKER_TAG}" "'$*'" > /dev/null 2>&1 || true; }
 
+# Next free id of the day. An id is taken by a session folder on this machine or by a report in the repo
+# (sessions recorded elsewhere, such as the emulator in CI, have reports but no folder here).
 next_session_dir() {
-  local day number=1
+  local day number=1 id
   day="$(date +%Y%m%d)"
-  while [[ -e "${SESSIONS_DIR}/TS-${day}-$(printf '%02d' "${number}")" ]]; do number=$((number + 1)); done
-  echo "${SESSIONS_DIR}/TS-${day}-$(printf '%02d' "${number}")"
+  while true; do
+    id="TS-${day}-$(printf '%02d' "${number}")"
+    [[ -e "${SESSIONS_DIR}/${id}" || -e "${REPORTS_DIR}/${id}.md" ]] || break
+    number=$((number + 1))
+  done
+  echo "${SESSIONS_DIR}/${id}"
 }
 
 cmd_start() {
@@ -91,6 +100,16 @@ cmd_start() {
 NOTES
   mark "session=start name=${name}"
   echo "Đang ghi phiên ${dir}. Thử app, ghi chú vào ${dir}/notes.md, xong thì chạy: scripts/device-session.sh stop"
+}
+
+cmd_reset() {
+  need_device
+  [[ -f "${STATE_FILE}" ]] || fail "chưa có phiên đang ghi. Chạy scripts/device-session.sh start trước."
+  local pkg
+  pkg="$(sed -n 3p "${STATE_FILE}")"
+  mark "action=clear_data"
+  adb shell pm clear "${pkg}" > /dev/null
+  echo "Đã xóa dữ liệu của ${pkg}, như vừa cài. Mở app để thử lần mở đầu."
 }
 
 cmd_scenarios() {
@@ -154,6 +173,9 @@ cmd_stop() {
   kill "${pid}" 2>/dev/null || true
   rm -f "${STATE_FILE}"
   echo "- Kết thúc: $(date '+%Y-%m-%d %H:%M:%S %z')" >> "${dir}/session.md"
+  if ! grep -qE '^- [0-9]{1,2}:[0-9]{2} +[^ ]' "${dir}/notes.md" 2>/dev/null; then
+    echo "CHÚ Ý: ${dir}/notes.md chưa có ghi chú. Ghi vài dòng 'HH:MM việc đã làm, điều thấy lạ' trước khi nhờ AI phân tích." >&2
+  fi
   local status=0
   cmd_summary "${dir}" "${pkg}" || status=$?
   echo "Đã lưu phiên vào ${dir}. Nhờ AI: \"Phân tích phiên thử ${dir}\" (docs/CLAUDE.md, mục Khi phân tích một phiên thử)."
@@ -221,6 +243,7 @@ cmd_summary() {
 
 case "${1:-}" in
   start) shift; cmd_start "$@" ;;
+  reset) cmd_reset ;;
   scenarios) shift; cmd_scenarios "$@" ;;
   stop) cmd_stop ;;
   summary) shift; [[ $# -ge 1 ]] || usage; cmd_summary "$1" "${2:-}" ;;

@@ -284,7 +284,8 @@ chmod +x "$work/bin/adb"
 fixtures=scripts/tests/fixtures/device-session
 session() { # <logcat fixture> <command...>; prints the exit code
   local code=0
-  PATH="$work/bin:$PATH" DEVICE_SESSION_DIR="$work/sessions" APP_PACKAGE=com.example.app.staging \
+  PATH="$work/bin:$PATH" DEVICE_SESSION_DIR="$work/sessions" DEVICE_SESSION_REPORTS="$work/reports" \
+    APP_PACKAGE=com.example.app.staging \
     FAKE_ADB_LOGCAT="$1" scripts/device-session.sh "${@:2}" > "$work/session.out" 2>&1 || code=$?
   echo "$code"
 }
@@ -295,6 +296,14 @@ first="$(find "$work/sessions" -maxdepth 1 -name "TS-*" | sort | head -n 1)"
 expect "device-session: session folder has notes and details" "notes.md session.md" \
   "$( [[ -f "$first/notes.md" ]] && echo -n "notes.md "; [[ -f "$first/session.md" ]] && echo -n "session.md")"
 expect "device-session: a second start is refused while recording" 1 "$(session /dev/null start)"
+expect "device-session: reset clears the app's data while recording" 0 "$(session /dev/null reset)"
+expect "device-session: stop reminds to write notes" 1 "$(session /dev/null stop > /dev/null; grep -c 'notes.md chưa có ghi chú' "$work/session.out")"
+mkdir -p "$work/reports"
+touch "$work/reports/TS-$(date +%Y%m%d)-02.md"
+expect "device-session: an id used by a report is skipped" 0 "$(session "$fixtures/logcat-crash.txt" start ci)"
+expect "device-session: new session gets the next free id" yes \
+  "$([[ -d "$work/sessions/TS-$(date +%Y%m%d)-03" && ! -e "$work/sessions/TS-$(date +%Y%m%d)-02" ]] && echo yes || echo no)"
+first="$work/sessions/TS-$(date +%Y%m%d)-03"
 expect "device-session: scenarios need --yes" 1 "$(session /dev/null scenarios)"
 expect "device-session: stop reports a crash as blocking" 1 "$(session /dev/null stop)"
 expect "device-session: counts the crash" 1 "$(grep -c '^| App dừng đột ngột (crash) | 1 | chặn |' "$first/summary.md")"
