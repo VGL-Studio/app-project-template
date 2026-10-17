@@ -62,6 +62,13 @@ jobs:
             exit 1
           fi
 
+          # Opened by the daily env-canary check: a session in this environment would stop on downloads.
+          open_env="$(gh api "repos/${GITHUB_REPOSITORY}/issues?state=open&labels=env-broken&per_page=10" --jq 'length')"
+          if [ "${open_env}" != "0" ]; then
+            echo "::error::Môi trường cloud đang lỗi (có issue env-broken đang mở). Sửa môi trường, chạy lại workflow env-canary, rồi bắt đầu phiên."
+            exit 1
+          fi
+
       - name: Kích hoạt routine
         env:
           FIRE_URL: ${{ secrets.ROUTINE_FIRE_URL }}
