@@ -1,7 +1,7 @@
 ---
 ticket: T-002
 title: Hệ thống thiết kế theo thương hiệu mới (xanh lục, Inter, logo)
-status: approved
+status: done
 version: 2
 risk_score:
 risk_level: high
@@ -240,3 +240,15 @@ Phiên bản 2:
 - **Việc còn lại:** cập nhật 3 test của `figma-export` để không phụ thuộc giá trị của hệ thống thiết kế, rồi chạy lại T-002 từ bước 5 trên nhánh cũ.
 - **Đề xuất hướng xử lý:** cách gọn nhất là một PR riêng (người làm, hoặc plan rủi ro cao duyệt chéo vì chạm `scripts/`) cho `figma-export.py` đọc đường dẫn `tokens.json` từ biến môi trường, và `scripts/tests/run.sh` dùng một `tokens.json` cố định trong `scripts/tests/fixtures/`. Sau khi merge, plan T-002 phiên bản 2 ghi "Tiếp tục trên nhánh cũ `claude/T-002-thuong-hieu-xanh-luc`", không đổi phần code. Bài học L-020.
 - **Cần người xem:** 12 ảnh chuẩn trên nhánh (`core/designsystem/src/test/screenshots/`, `feature/sample/src/test/screenshots/`, `feature/loading/src/test/screenshots/`), nhất là `DesignSystem_brand_light.png` cạnh ảnh thiết kế `LoadingScreen_progress_light.png`.
+
+### RUN-20261017-01, phiên bản plan 2
+
+- **Kết quả:** đã merge.
+- **Nhánh, PR:** `claude/T-002-thuong-hieu-xanh-luc`, PR #39, merge thành commit 2c55a03 trên nhánh chính.
+- **Đã làm:** cập nhật nhánh cũ theo nhánh chính (commit b8ecce4, đã có sửa L-020), chạy lại từ bước 5 như mục 3.1. Không đổi code. `scripts/plan-check.py` qua. Mã băm của ba file phông và `LICENSE.txt` vẫn khớp mục 3.1. `scripts/check.sh` qua lần đầu: 94 test JVM 0 lỗi, 12 ảnh screenshot khớp, không file nào đổi khi chạy. 30 file thay đổi so với nhánh chính đúng bằng danh sách ở mục 3.2.
+- **Test viết trước:** 6 test, commit 9d23df1 từ RUN-20261016-02, đã thất bại đúng lý do ở phiên đó. Phiên này không viết lại test.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 6 ghi chú. Nên sửa: `tertiaryContainer` và `onTertiaryContainer` vẫn giữ giá trị mặc định hồng tím của Material 3, vì bảng ở mục 3.1 không có hai vai trò này, trong khi mục 3.1 ghi "Không vai trò nào còn giá trị mặc định tím". Thêm màu cần người duyệt bảng, nên để người quyết. Ghi chú chính: mục 9 chưa điền quyết định duyệt cho phiên bản 2 (phần đầu plan ghi `approved`, ngày 2026-10-17); `DesignTokensTest` viết cứng `"Inter"`; chỗ nối giữa phần đã chạy và rãnh của thanh tiến trình có vết lõm nhỏ so với thiết kế.
+- **Kết quả CI:** một vòng, xanh: `changes`, `build-and-test` (gồm build, lint, unit test, screenshot test), `ui-test` trên emulator.
+- **Lệch so với plan:** Không có.
+- **Việc còn lại:** người quyết màu cho `tertiaryContainer`, `onTertiaryContainer` (plan mới nếu cần). Sau khi merge, dựng lại biến màu và kiểu chữ trên Figma theo `tokens.json` mới (mục 8, câu 4).
+- **Cần người xem:** 12 ảnh chuẩn trong PR #39, nhất là `DesignSystem_brand_light.png` cạnh ảnh thiết kế `LoadingScreen_progress_light.png`.
