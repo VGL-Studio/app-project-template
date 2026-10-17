@@ -33,6 +33,7 @@ Khi `:core:designsystem` đổi (plan rủi ro cao, ADR-0008), test `DesignToken
 - Chỉ dùng màu, chữ, khoảng cách, thành phần của hệ thống thiết kế. Cần thành phần mới thì ghi vào mục 3 của mẫu thiết kế; đó là thay đổi module core, rủi ro cao.
 - Đủ trạng thái có trong spec: thường là bình thường, đang tải, rỗng, lỗi, và chế độ tối.
 - Chữ trên thiết kế là chữ thật, đúng như sẽ hiện trong app.
+- Bố cục phải dùng được ở màn hình thấp (360 x 640): ghi trong mục 6 của mẫu thiết kế phần nào cuộn, phần nào ghim ở đáy, khoảng trống nào co lại. Không cần dựng thêm frame ở khung thấp; app kiểm tra bằng screenshot test `<Ten>Screen_<trạng thái>_small.png` (L-028). Emulator của `device-session.yml` có màn hình 320 x 640, nên lỗi bố cục ở màn hình thấp còn lộ ra ở đó.
 
 ## 3. Duyệt thiết kế
 
