@@ -238,5 +238,5 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Chuyện gì:** bốn trong năm phiên dừng hoặc không làm được task nào. Hai lần vì môi trường (RUN-20261015-02, RUN-20261016-01), hai lần vì plan thiếu (RUN-20261015-01: test khẳng định màn hình thoáng qua; RUN-20261016-02: test của script đọc file mà plan đổi). Mỗi lỗi chỉ lộ ra giữa đêm, tốn một phiên cộng một vòng người sửa và lập lại danh sách; một task dừng còn kéo theo task phụ thuộc.
 - **Cải tiến:** bắt lỗi trước phiên và làm mỗi lần dừng rẻ hơn, không nới điều kiện dừng: (1) `scripts/plan-check.py` khi viết plan và ngay trước mỗi task; (2) kiểm tra môi trường hằng ngày `env-canary`, `start-run.yml` từ chối khi có issue `env-broken`; (3) khi task dừng, phiên soạn sẵn plan phiên bản mới, PR sửa nguyên nhân dạng nháp gắn `needs-human` (`merge-if-green.sh` từ chối) và danh sách chạy tiếp theo; (4) danh sách chạy xếp task độc lập trước chuỗi phụ thuộc.
 - **Trạng thái:** applied
-- **Áp dụng:** PR cải tiến tính tự chạy (anh Nhật đồng ý cả bốn ngày 2026-10-17)
+- **Áp dụng:** PR #36 (anh Nhật đồng ý cả bốn ngày 2026-10-17)
 - **Kiểm chứng:**
