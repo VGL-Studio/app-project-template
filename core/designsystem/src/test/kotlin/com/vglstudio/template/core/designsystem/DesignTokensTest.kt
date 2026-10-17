@@ -30,6 +30,27 @@ class DesignTokensTest {
             if (file.exists()) file.readText() else "",
         )
     }
+
+    @Test
+    fun colorRoles_listEveryRoleOfColorScheme() {
+        // Color is a value class, so its getters return long and carry a mangled suffix, e.g. getPrimary-0d7_KjU.
+        val schemeRoles = ColorScheme::class.java.methods
+            .filter { method ->
+                method.name.startsWith("get") &&
+                    method.parameterCount == 0 &&
+                    method.returnType == Long::class.javaPrimitiveType
+            }
+            .map { method ->
+                method.name.removePrefix("get").substringBefore('-').replaceFirstChar { it.lowercaseChar() }
+            }
+            .filter { it != "scrim" }
+            .toSet()
+        assertEquals(
+            "tokens.json must list every color role of ColorScheme except scrim (L-024).",
+            schemeRoles.sorted(),
+            colorRoles(LightColors).map { it.first }.sorted(),
+        )
+    }
 }
 
 internal fun tokensJson(): String = buildString {
@@ -51,7 +72,10 @@ internal fun tokensJson(): String = buildString {
     appendLine("}")
 }
 
-private fun colors(scheme: ColorScheme): String = listOf(
+private fun colors(scheme: ColorScheme): String = colorRoles(scheme)
+    .joinToString(prefix = "{", postfix = "}", separator = ", ") { (name, color) -> "\"$name\": \"${hex(color)}\"" }
+
+internal fun colorRoles(scheme: ColorScheme): List<Pair<String, Color>> = listOf(
     "primary" to scheme.primary,
     "onPrimary" to scheme.onPrimary,
     "primaryContainer" to scheme.primaryContainer,
@@ -73,7 +97,7 @@ private fun colors(scheme: ColorScheme): String = listOf(
     "surfaceVariant" to scheme.surfaceVariant,
     "onSurfaceVariant" to scheme.onSurfaceVariant,
     "outline" to scheme.outline,
-).joinToString(prefix = "{", postfix = "}", separator = ", ") { (name, color) -> "\"$name\": \"${hex(color)}\"" }
+)
 
 private fun hex(color: Color): String = "#%06X".format(color.toArgb() and 0xFFFFFF)
 
