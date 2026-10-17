@@ -298,5 +298,5 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Chuyện gì:** thiết kế, screenshot test và ảnh so sánh của màn hình loading đều ở khung 411 x 891. Trên emulator 320 x 640 dp của `device-session.yml`, chân trang đè lời hướng dẫn và nút "Thử lại" bị cắt (FB-20261017-01). Không bước nào của quy trình thiết kế yêu cầu thử khung thấp.
 - **Cải tiến:** đề xuất `docs/ops/design-workflow.md` và `CLAUDE.md` (bước 10): ngoài screenshot test ở khung chuẩn, mỗi màn hình có một screenshot test ở khung thấp (ví dụ `w360dp-h640dp`); bố cục dài hơn màn hình thì cuộn được. Mẫu thiết kế, mục 7: thêm tiêu chí "dùng được ở màn hình thấp".
 - **Trạng thái:** applied
-- **Áp dụng:** PR áp dụng L-028: `CLAUDE.md` bước 10, `docs/ops/design-workflow.md` mục 2, mẫu thiết kế mục 7, mẫu plan mục 4. Màn hình loading sửa ở T-005. Anh Nhật nhận ngày 2026-10-17
+- **Áp dụng:** PR #48: `CLAUDE.md` bước 10, `docs/ops/design-workflow.md` mục 2, mẫu thiết kế mục 7, mẫu plan mục 4. Màn hình loading sửa ở T-005. Anh Nhật nhận ngày 2026-10-17
 - **Kiểm chứng:**
