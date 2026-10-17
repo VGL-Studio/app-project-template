@@ -134,3 +134,14 @@ Không có.
 | LoadingScreen_progress_light | 3.5% |
 
 Hai màn hình khác hẳn nhau (màu, phông, logo, bố cục) mà tỷ lệ chỉ vài phần trăm, vì phần lớn ảnh là nền. Tỷ lệ chỉ để so giữa các lần chạy; độ giống thiết kế do người và rà soát độc lập đánh giá trên ảnh ghép.
+
+**Sau T-003 (2026-10-17, RUN-20261017-01):**
+
+| Màn hình | Điểm ảnh khác |
+| --- | --- |
+| LoadingScreen_failed_dark | 5.6% |
+| LoadingScreen_failed_light | 5.2% |
+| LoadingScreen_progress_dark | 2.5% |
+| LoadingScreen_progress_light | 2.5% |
+
+Nhận xét của rà soát độc lập (0 chặn): bốn trạng thái (đang tải, lỗi, sáng, tối) đúng thứ tự thành phần, bảng chữ và vai trò màu của thiết kế; logo giữ nguyên vị trí giữa hai trạng thái, không có chữ bị cắt hay tràn ở khung 411 x 891. Các phần phía dưới lệch dần xuống so với thiết kế, nhiều nhất khoảng 10 dp ở nút "Thử lại", do chiều cao dòng của kiểu chữ và khoảng cách làm tròn về token; mỗi phần lệch đều nằm trong mục 6, chỉ tổng cộng dồn vượt một bước lưới 4 dp. Chữ ở chân trang và lời hướng dẫn khi lỗi rộng hơn một chút do khoảng cách chữ của kiểu chữ hệ thống, số dòng không đổi.
