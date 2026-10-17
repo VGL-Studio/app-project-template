@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -59,6 +62,7 @@ internal fun LoadingRoute(onFinished: () -> Unit, viewModel: LoadingViewModel = 
  * Stateless screen: everything it shows comes from [uiState]. Tested on the JVM and by screenshots.
  * Layout follows docs/features/loading/design/README.md, section 3: the content starts at a quarter of the
  * screen height in every state, so the logo does not move when the error block appears below the bar.
+ * On short screens the top space shrinks, and the content and footer scroll together (section 6, T-005).
  */
 @Composable
 internal fun LoadingScreen(
@@ -73,73 +77,105 @@ internal fun LoadingScreen(
         LoadingUiState.Finished -> 1f
     }
     val failed = uiState is LoadingUiState.Failed
-    val colors = MaterialTheme.colorScheme
-    val typography = MaterialTheme.typography
     Surface(modifier = modifier.fillMaxSize().testTag(LoadingTestTags.SCREEN)) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = maxHeight * CONTENT_TOP_FRACTION)
-                    .padding(horizontal = Spacing.xl + Spacing.md),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                BrandLogo()
-                Spacer(modifier = Modifier.height(Spacing.lg))
-                Text(
-                    text = appName,
-                    style = typography.headlineLarge,
-                    color = colors.onSurface,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.testTag(LoadingTestTags.APP_NAME),
-                )
-                Spacer(modifier = Modifier.height(Spacing.sm))
-                Text(
-                    text = stringResource(DesignSystemR.string.brand_tagline),
-                    style = typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(modifier = Modifier.height(Spacing.xl + Spacing.sm))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+            val screenHeight = maxHeight
+            // Does not depend on the state, so the logo stays in place when the error block appears.
+            val topSpace = if (screenHeight >= TALL_SCREEN_MIN_HEIGHT) {
+                screenHeight * CONTENT_TOP_FRACTION
+            } else {
+                screenHeight * SHORT_SCREEN_TOP_FRACTION
+            }
+            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                // At least the screen height, so the footer stays at the bottom while the content is short and
+                // moves below the content when it is longer than the screen.
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = screenHeight),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        text = stringResource(if (failed) R.string.loading_status_failed else R.string.loading_status),
-                        style = typography.labelLarge,
-                        color = if (failed) colors.error else colors.onSurfaceVariant,
+                    LoadingContent(
+                        progress = progress,
+                        failed = failed,
+                        appName = appName,
+                        onRetry = onRetry,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = topSpace)
+                            .padding(horizontal = Spacing.xl + Spacing.md),
                     )
-                    Text(
-                        text = stringResource(R.string.loading_percent, (progress * PERCENT).roundToInt()),
-                        style = typography.bodyMedium,
-                        color = if (failed) colors.error else colors.primary,
-                        modifier = Modifier.testTag(LoadingTestTags.PERCENT),
-                    )
-                }
-                Spacer(modifier = Modifier.height(Spacing.md))
-                if (failed) {
-                    ProgressBar(
-                        progress = { progress },
-                        modifier = Modifier.testTag(LoadingTestTags.PROGRESS),
-                        color = colors.error,
-                        trackColor = colors.errorContainer,
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.lg + Spacing.xs))
-                    LoadingError(onRetry = onRetry)
-                } else {
-                    ProgressBar(progress = { progress }, modifier = Modifier.testTag(LoadingTestTags.PROGRESS))
-                    Spacer(modifier = Modifier.height(Spacing.lg))
-                    Text(
-                        text = stringResource(R.string.loading_guidance),
-                        style = typography.bodySmall,
-                        color = colors.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
+                    LoadingFooter(modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.xl))
                 }
             }
-            LoadingFooter(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.xl))
+        }
+    }
+}
+
+/** Logo, app name, tagline, progress, and either the guidance line or the error block. */
+@Composable
+private fun LoadingContent(
+    progress: Float,
+    failed: Boolean,
+    appName: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val typography = MaterialTheme.typography
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        BrandLogo()
+        Spacer(modifier = Modifier.height(Spacing.lg))
+        Text(
+            text = appName,
+            style = typography.headlineLarge,
+            color = colors.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.testTag(LoadingTestTags.APP_NAME),
+        )
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        Text(
+            text = stringResource(DesignSystemR.string.brand_tagline),
+            style = typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(Spacing.xl + Spacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(if (failed) R.string.loading_status_failed else R.string.loading_status),
+                style = typography.labelLarge,
+                color = if (failed) colors.error else colors.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.loading_percent, (progress * PERCENT).roundToInt()),
+                style = typography.bodyMedium,
+                color = if (failed) colors.error else colors.primary,
+                modifier = Modifier.testTag(LoadingTestTags.PERCENT),
+            )
+        }
+        Spacer(modifier = Modifier.height(Spacing.md))
+        if (failed) {
+            ProgressBar(
+                progress = { progress },
+                modifier = Modifier.testTag(LoadingTestTags.PROGRESS),
+                color = colors.error,
+                trackColor = colors.errorContainer,
+            )
+            Spacer(modifier = Modifier.height(Spacing.lg + Spacing.xs))
+            LoadingError(onRetry = onRetry)
+        } else {
+            ProgressBar(progress = { progress }, modifier = Modifier.testTag(LoadingTestTags.PROGRESS))
+            Spacer(modifier = Modifier.height(Spacing.lg))
+            Text(
+                text = stringResource(R.string.loading_guidance),
+                style = typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -182,7 +218,7 @@ private fun LoadingError(onRetry: () -> Unit) {
     }
 }
 
-/** Footer pinned to the bottom of the screen: lock icon and privacy line. */
+/** Footer at the bottom of the screen, or below the content when it is longer: lock icon and privacy line. */
 @Composable
 private fun LoadingFooter(modifier: Modifier = Modifier) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -206,6 +242,11 @@ private const val PERCENT = 100
 
 // The content starts at about a quarter of the screen height (design: 220 of 891).
 private const val CONTENT_TOP_FRACTION = 0.25f
+
+// Below this height the quarter-height top space pushes the error block under the footer (FB-20261017-01), so
+// the top space shrinks to SHORT_SCREEN_TOP_FRACTION (L-028, T-005).
+private val TALL_SCREEN_MIN_HEIGHT = 800.dp
+private const val SHORT_SCREEN_TOP_FRACTION = 0.08f
 private val ALERT_ICON_SIZE = 18.dp
 private val LOCK_ICON_SIZE = 12.dp
 
