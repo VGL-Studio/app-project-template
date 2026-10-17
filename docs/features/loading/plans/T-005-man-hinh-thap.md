@@ -1,15 +1,15 @@
 ---
 ticket: T-005
 title: Màn hình loading dùng được trên màn hình thấp
-status: draft
+status: approved
 version: 1
 risk_score: 4
 risk_level: low
 blocking_points: []
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật (vì là app mẫu)
+approved_at: 2026-10-17
 ---
 
 # PLAN T-005: MÀN HÌNH LOADING DÙNG ĐƯỢC TRÊN MÀN HÌNH THẤP
@@ -114,15 +114,17 @@ Không ghi lại bốn ảnh chuẩn hiện có (`LoadingScreen_progress_light.p
 ## 8. Câu hỏi cho người duyệt
 
 1. **Phân loại FB-20261017-01:** AI đề xuất "lỗi so với spec", xử lý bằng ticket mới T-005 thay vì sửa plan T-003 (đã `done`). Anh xác nhận ở phần Phân loại của phản hồi.
+- Trả lời: Đồng ý với AI.
 2. **Ngưỡng 800 dp và tỷ lệ 8%:** ước tính trạng thái lỗi cao khoảng 620 dp ở chiều rộng 360. Trong khung test 360 x 640 (không có thanh hệ thống) nội dung vừa màn hình; trên máy thật, sau khi trừ thanh trạng thái và thanh điều hướng còn khoảng 570 dp, nên có thể phải cuộn một chút để thấy hết nút. Đề xuất: đồng ý; nếu muốn nút luôn thấy mà không cần cuộn trên máy 640 dp thì cần rút gọn nội dung (ví dụ ẩn khẩu hiệu ở màn hình thấp), là đổi thiết kế.
+- Trả lời: Đồng ý với AI.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì là app mẫu)
+- **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
 
