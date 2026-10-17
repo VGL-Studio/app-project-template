@@ -141,5 +141,4 @@ Không cần thiết lập thêm: workflow dùng các bí mật staging ở mụ
 
 ## 3. Việc còn phải kiểm chứng
 
-- `device-session.yml` (mục 2.5) chưa chạy lần nào: bản staging release trên emulator API 34, lệnh `cmd connectivity airplane-mode`, `monkey` và artifact. Chạy tay một lần trên `main` sau khi merge, xem `summary.md` trong phần tóm tắt của workflow.
-- Đã kiểm chứng: phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
+- Không còn mục nào. Đã kiểm chứng: `device-session.yml` chạy bản staging trên emulator API 34, chế độ máy bay, `monkey` và artifact (2026-10-17, lần chạy 39044089126, báo cáo `docs/test-sessions/TS-20261017-01.md`); phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
