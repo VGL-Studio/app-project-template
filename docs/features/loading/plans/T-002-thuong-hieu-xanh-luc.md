@@ -8,7 +8,7 @@ risk_level: high
 blocking_points: [core]
 run_order:
 reviewer: Nhật
-cross_reviewer:
+cross_reviewer: Nhật (vì là bản mẫu)
 approved_at: 2026-10-17
 ---
 
