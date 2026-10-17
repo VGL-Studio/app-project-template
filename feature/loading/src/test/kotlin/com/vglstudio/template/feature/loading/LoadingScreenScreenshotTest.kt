@@ -54,8 +54,30 @@ class LoadingScreenScreenshotTest {
         }
     }
 
+    // Short phone frame (L-028): the content must scroll and the retry button must not be cut or covered.
+    @Test
+    @Config(qualifiers = SHORT_SCREEN)
+    fun failed_small() {
+        captureRoboImage("src/test/screenshots/LoadingScreen_failed_small.png") {
+            AppTheme(darkTheme = false) {
+                LoadingScreen(uiState = LoadingUiState.Failed(PROGRESS), appName = APP_NAME, onRetry = {})
+            }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = SHORT_SCREEN)
+    fun progress_small() {
+        captureRoboImage("src/test/screenshots/LoadingScreen_progress_small.png") {
+            AppTheme(darkTheme = false) {
+                LoadingScreen(uiState = LoadingUiState.InProgress(PROGRESS), appName = APP_NAME, onRetry = {})
+            }
+        }
+    }
+
     private companion object {
         const val APP_NAME = "Todo App"
         const val PROGRESS = 0.68f
+        const val SHORT_SCREEN = "w360dp-h640dp-xxhdpi"
     }
 }
