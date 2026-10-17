@@ -2,6 +2,7 @@ package com.vglstudio.template.core.designsystem
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.vglstudio.template.core.designsystem.catalog.BrandCatalog
 import com.vglstudio.template.core.designsystem.catalog.ColorCatalog
 import com.vglstudio.template.core.designsystem.catalog.SpacingAndComponentCatalog
 import com.vglstudio.template.core.designsystem.catalog.TypographyCatalog
@@ -44,6 +45,20 @@ class DesignSystemCatalogScreenshotTest {
     fun spacingAndComponents_light() {
         captureRoboImage("src/test/screenshots/DesignSystem_spacing_components_light.png") {
             AppTheme(darkTheme = false) { SpacingAndComponentCatalog() }
+        }
+    }
+
+    @Test
+    fun brand_light() {
+        captureRoboImage("src/test/screenshots/DesignSystem_brand_light.png") {
+            AppTheme(darkTheme = false) { BrandCatalog() }
+        }
+    }
+
+    @Test
+    fun brand_dark() {
+        captureRoboImage("src/test/screenshots/DesignSystem_brand_dark.png") {
+            AppTheme(darkTheme = true) { BrandCatalog() }
         }
     }
 }
