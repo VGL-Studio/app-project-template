@@ -86,6 +86,8 @@ internal fun colorRoles(scheme: ColorScheme): List<Pair<String, Color>> = listOf
     "onSecondaryContainer" to scheme.onSecondaryContainer,
     "tertiary" to scheme.tertiary,
     "onTertiary" to scheme.onTertiary,
+    "tertiaryContainer" to scheme.tertiaryContainer,
+    "onTertiaryContainer" to scheme.onTertiaryContainer,
     "error" to scheme.error,
     "onError" to scheme.onError,
     "errorContainer" to scheme.errorContainer,
@@ -97,6 +99,18 @@ internal fun colorRoles(scheme: ColorScheme): List<Pair<String, Color>> = listOf
     "surfaceVariant" to scheme.surfaceVariant,
     "onSurfaceVariant" to scheme.onSurfaceVariant,
     "outline" to scheme.outline,
+    "outlineVariant" to scheme.outlineVariant,
+    "inversePrimary" to scheme.inversePrimary,
+    "inverseSurface" to scheme.inverseSurface,
+    "inverseOnSurface" to scheme.inverseOnSurface,
+    "surfaceTint" to scheme.surfaceTint,
+    "surfaceBright" to scheme.surfaceBright,
+    "surfaceDim" to scheme.surfaceDim,
+    "surfaceContainerLowest" to scheme.surfaceContainerLowest,
+    "surfaceContainerLow" to scheme.surfaceContainerLow,
+    "surfaceContainer" to scheme.surfaceContainer,
+    "surfaceContainerHigh" to scheme.surfaceContainerHigh,
+    "surfaceContainerHighest" to scheme.surfaceContainerHighest,
 )
 
 private fun hex(color: Color): String = "#%06X".format(color.toArgb() and 0xFFFFFF)

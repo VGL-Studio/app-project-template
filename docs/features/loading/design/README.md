@@ -145,3 +145,14 @@ Hai màn hình khác hẳn nhau (màu, phông, logo, bố cục) mà tỷ lệ c
 | LoadingScreen_progress_light | 2.5% |
 
 Nhận xét của rà soát độc lập (0 chặn): bốn trạng thái (đang tải, lỗi, sáng, tối) đúng thứ tự thành phần, bảng chữ và vai trò màu của thiết kế; logo giữ nguyên vị trí giữa hai trạng thái, không có chữ bị cắt hay tràn ở khung 411 x 891. Các phần phía dưới lệch dần xuống so với thiết kế, nhiều nhất khoảng 10 dp ở nút "Thử lại", do chiều cao dòng của kiểu chữ và khoảng cách làm tròn về token; mỗi phần lệch đều nằm trong mục 6, chỉ tổng cộng dồn vượt một bước lưới 4 dp. Chữ ở chân trang và lời hướng dẫn khi lỗi rộng hơn một chút do khoảng cách chữ của kiểu chữ hệ thống, số dòng không đổi.
+
+**Sau T-004 (2026-10-17, RUN-20261017-02):**
+
+| Màn hình | Điểm ảnh khác |
+| --- | --- |
+| LoadingScreen_failed_dark | 5.6% |
+| LoadingScreen_failed_light | 5.2% |
+| LoadingScreen_progress_dark | 2.4% |
+| LoadingScreen_progress_light | 2.4% |
+
+Nhận xét của rà soát độc lập (0 chặn): sau khi bỏ giãn cách chữ, chân trang và dòng "Đang chuẩn bị không gian của bạn…" nay rộng gần bằng thiết kế. Lời hướng dẫn khi lỗi và nhãn tiến trình vẫn rộng hơn khoảng 8%, chỉ còn do cỡ chữ 14 sp so với 13 sp trên thiết kế (đã cho phép ở mục 6). Vì chữ hẹp lại, lời hướng dẫn nay xuống dòng sau "kiểm tra mạng" thay vì sau "kiểm tra", vẫn 2 dòng. Bố cục, thứ tự thành phần và vai trò màu không đổi.
