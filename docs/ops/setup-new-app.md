@@ -83,6 +83,8 @@ Làm theo `docs/ops/staging-and-runs.md`, mục 2.1 và 2.2: cài Claude GitHub 
 
 Kiểm tra: bấm **Run now** trên routine. Khi chưa có danh sách chạy `approved`, phiên chỉ kiểm tra đầu phiên rồi kết thúc và báo lý do. Phiên đó phải chạy được `scripts/check.sh`.
 
+Sau đó tạo routine kiểm tra môi trường hằng ngày và hai bí mật của nó (`docs/ops/staging-and-runs.md`, mục 2.4), chạy thử workflow `env-canary`.
+
 ## 6b. Hệ thống thiết kế trên công cụ thiết kế
 
 Khi app có feature cần thiết kế: dựng hệ thống thiết kế trên Claude Design hoặc Figma từ ảnh catalog và `docs/design-system/tokens.json` của app, theo `docs/ops/design-workflow.md`, mục 1. Trước đó, đổi màu thương hiệu của app trong `:core:designsystem` (plan riêng).
@@ -111,6 +113,8 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | Phiên nhận 429 từ `repo1.maven.org` khi chạy test Robolectric | Môi trường dùng setup script cũ, chưa có mirror cho Robolectric | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6) |
 | Phiên kết thúc ngay đầu phiên, báo cáo ghi "Môi trường cloud chưa dùng scripts/cloud-setup.sh mới nhất" | `scripts/cloud-env-check.sh` thấy số phiên bản setup script của môi trường khác nhánh chính | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6), lập danh sách chạy mới |
 | Gradle báo `Could not find ...kotlin-stdlib...` khi build `build-logic`, chỉ tìm ở `plugins.gradle.org` | Setup script phiên bản 1: mirror chưa phủ thư viện tải qua plugin portal | Dán lại `scripts/cloud-setup.sh` (phiên bản 2 trở lên) |
+| `start-run` báo môi trường cloud đang lỗi (issue `env-broken`) | Kiểm tra môi trường hằng ngày đỏ | Đọc log trong issue, sửa (thường là dán lại `scripts/cloud-setup.sh`), chạy lại workflow `env-canary` |
+| `merge-if-green.sh` báo PR mang nhãn `needs-human` | PR do phiên tự chạy soạn sẵn khi task dừng | Xem PR, sửa nếu cần, gỡ nhãn, đổi sang sẵn sàng rồi merge |
 | `merge-if-green.sh` báo "phiên ... đang chạy" | Có phiên tự chạy đang chạy; chỉ PR của phiên đó được merge | Chờ phiên kết thúc |
 | Phiên làm việc trên nhánh `claude/<tên ngẫu nhiên>` | Prompt routine thiếu dòng "Nhánh" | Chép lại prompt ở `docs/ops/staging-and-runs.md`, mục 2.1 |
 | `start-run` báo lỗi 401 | Mã kích hoạt sai hoặc đã tạo lại | Tạo mã mới trong routine, cập nhật `ROUTINE_FIRE_TOKEN` |

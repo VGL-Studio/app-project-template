@@ -10,6 +10,13 @@ path = args[1]
 jq = args[args.index("--jq")+1] if "--jq" in args else "."
 # Fixed answers: "routes" maps a path below repos/<owner>/<repo>/ to JSON (filtered by --jq) or to raw text.
 route = re.sub(r"^repos/[^/]+/[^/]+/", "", path)
+# Writes (-X POST, PATCH, ...) are not served: each is appended to $FIXTURE.writes as "<METHOD> <route>",
+# so a test can check what a script would have changed on GitHub.
+method = args[args.index("-X")+1] if "-X" in args else "GET"
+if method != "GET":
+    with open(os.environ["FIXTURE"] + ".writes", "a") as log:
+        log.write(f"{method} {route}\n")
+    sys.stdout.write("{}"); sys.exit(0)
 if route in fx.get("routes", {}):
     answer = fx["routes"][route]
     if isinstance(answer, str):

@@ -57,9 +57,9 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 
 ### Task bị dừng
 
-| Ticket | Dừng ở bước | Lý do | Đề xuất hướng xử lý |
-| --- | --- | --- | --- |
-| | | | |
+| Ticket | Dừng ở bước | Lý do | Đề xuất hướng xử lý | Đã chuẩn bị cho người |
+| --- | --- | --- | --- | --- |
+| | | | | Plan phiên bản <n> (`draft`); PR sửa nguyên nhân #<số> (nháp, `needs-human`) hoặc "Không cần"; danh sách chạy `RUN-...` (`draft`) |
 
 ### Bản staging
 

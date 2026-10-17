@@ -41,11 +41,14 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Mỗi tiêu chí chấp nhận trong spec phải có cách kiểm chứng tương ứng trong mục kiểm thử. Test được viết trước code, nên mục kiểm thử phải đủ cụ thể để viết được test ngay từ plan.
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
+- Viết xong thì chạy `scripts/plan-check.py <plan>`, sửa hết lỗi trước khi đưa người duyệt, dán kết quả vào mô tả PR. Phiên tự chạy chạy lại script này ngay trước task và bỏ qua plan có lỗi.
 - Plan mới có trạng thái `draft`. Không bao giờ tự chuyển sang `approved`.
 
 ## Khi lập danh sách chạy
 
 - Sau họp đánh giá rủi ro, lập `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md), sắp các plan đã duyệt theo thứ tự đã thống nhất.
+- Một task dừng không được làm hỏng cả đêm: task phụ thuộc task bị dừng sẽ bị bỏ qua. Xếp các task độc lập trước, chuỗi task phụ thuộc nhau sau cùng. Danh sách chỉ có một chuỗi phụ thuộc thì ghi điều đó trong mục Lý do của thứ tự chạy và đề xuất thêm task độc lập đã sẵn sàng (ticket `ready` có plan duyệt được), nếu có.
+- Các plan trong danh sách đều qua `scripts/plan-check.py`.
 - Danh sách chạy có trạng thái `draft`. Chỉ dev mới chuyển sang `approved` và kích hoạt phiên.
 
 ## Trong phiên tự chạy
