@@ -24,3 +24,7 @@ build.log
 
 # Bundles built by scripts/release.sh (ADR-0017)
 release-output/
+
+# Local folders of a developer's IDE setup (L-017)
+.vscode/
+build-logic/convention/bin/

@@ -37,6 +37,7 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 
 - Dùng đúng [mẫu plan](templates/plan.md).
 - Danh sách file sẽ tạo và sửa phải đầy đủ và cụ thể. Danh sách này là ranh giới: trong phiên tự chạy, AI chỉ được chạm vào những file đã liệt kê.
+- Plan đổi một file mà nơi khác đọc (`docs/design-system/tokens.json`, ảnh chuẩn, cấu hình dùng chung): tìm mọi nơi đọc file đó (`grep -rn <tên file> scripts/ .github/ */src/test`) và đưa các file bị ảnh hưởng vào danh sách, hoặc ghi vì sao không ảnh hưởng (L-020).
 - Mỗi tiêu chí chấp nhận trong spec phải có cách kiểm chứng tương ứng trong mục kiểm thử. Test được viết trước code, nên mục kiểm thử phải đủ cụ thể để viết được test ngay từ plan.
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
