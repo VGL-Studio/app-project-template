@@ -314,6 +314,25 @@ expect "device-session: leaves out other apps' lines" 0 "$(grep -c 'com.android.
 mkdir -p "$work/clean"
 cp "$fixtures/logcat-clean.txt" "$work/clean/logcat.txt"
 expect "device-session: a clean session is not blocking" 0 "$(session /dev/null summary "$work/clean" com.example.app.staging)"
+# The offline scenario turns every radio off and runs only when the device really has no network (L-031).
+export DEVICE_SESSION_SLEEP=0 FAKE_ADB_CALLS="$work/adb-calls.txt"
+expect "device-session: scenarios run offline" 0 \
+  "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null; session /dev/null scenarios --yes)"
+offline="$(find "$work/sessions" -maxdepth 1 -name "TS-*" | sort | tail -n 1)"
+expect "device-session: Wi-Fi and mobile data are turned off, then on" "4" \
+  "$(grep -cE '^shell svc (wifi|data) (disable|enable)$' "$FAKE_ADB_CALLS")"
+expect "device-session: the offline launch is recorded" 1 "$(grep -c 'offline_first_launch network=off' "$offline/scenarios.txt")"
+session /dev/null stop > /dev/null
+expect "device-session: a valid offline scenario adds no warning" 0 "$(grep -c 'Kịch bản mất mạng bị bỏ qua' "$offline/summary.md")"
+expect "device-session: scenarios skip offline when the network stays on" 0 \
+  "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null; FAKE_ADB_NETWORK=100 session /dev/null scenarios --yes)"
+offline="$(find "$work/sessions" -maxdepth 1 -name "TS-*" | sort | tail -n 1)"
+expect "device-session: the skipped offline launch is recorded" 1 \
+  "$(grep -c 'offline_first_launch network=still_on skipped' "$offline/scenarios.txt")"
+session /dev/null stop > /dev/null
+expect "device-session: summary shows the skipped offline scenario" 1 \
+  "$(grep -c '^| Kịch bản mất mạng bị bỏ qua (không tắt được mạng) | 1 | xem |' "$offline/summary.md")"
+unset DEVICE_SESSION_SLEEP FAKE_ADB_CALLS
 
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
