@@ -3,7 +3,7 @@ id: RUN-YYYYMMDD-NN
 status: draft                # draft | approved | running | finished
 sprint: <tên hoặc số sprint>
 approved_by: <dev duyệt danh sách và kích hoạt phiên>
-max_tasks: <số task tối đa>
+max_tasks: <số task tối đa>      # mặc định mọi plan đã duyệt, tạm tối đa 8 (docs/CLAUDE.md, mục Khi lập danh sách chạy)
 staging_needed_by:           # tùy chọn: thời điểm muốn có bản staging, ví dụ 2026-10-21 08:00
 started_at:
 finished_at:
@@ -96,13 +96,29 @@ Task lệch ước tính từ 2 lần trở lên: <task, lý do có thể; hoặ
 | Chỉ số | Giá trị |
 | --- | --- |
 | Thời gian kiểm tra đầu phiên (gồm `scripts/check.sh`) | |
-| Thời gian từng task, từ tạo nhánh tới merge hoặc dừng | T-NNN: |
+| Thời gian từng task, từ tạo nhánh tới merge hoặc dừng | T-NNN: tổng; AI làm (tạo nhánh tới đẩy PR); chờ CI |
+| Thời gian chờ ở cuối phiên: `device-session`, `staging`; phần báo cáo viết trong lúc chờ | |
 | Số vòng CI của từng task | T-NNN: |
 | Số lần sửa vì lỗi thật | |
 | Số lần thử lại vì lỗi hạ tầng, tổng thời gian chờ | |
 | Thời gian build và phát staging | |
 | Mức sử dụng | |
 | Tổng token của phiên, phần chung ngoài task | |
+
+**Dòng thời gian** (giờ UTC, ghi ngay khi xong mỗi khâu, kể cả khi phiên dừng giữa chừng):
+
+| Giờ | Khâu |
+| --- | --- |
+| | Bắt đầu phiên |
+| | Kiểm tra đầu phiên xong (`check.sh` chạy nền, auto-run.md mục 2) |
+| | T-NNN: tạo nhánh |
+| | T-NNN: test viết trước xong |
+| | T-NNN: đẩy PR |
+| | T-NNN: CI xong (`wait-run.sh`) |
+| | T-NNN: merge / dừng |
+| | Khởi động `device-session`; xong |
+| | Khởi động `staging`; xong |
+| | Mở PR báo cáo |
 
 ### Bài học
 

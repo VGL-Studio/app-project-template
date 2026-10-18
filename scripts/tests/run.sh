@@ -100,6 +100,43 @@ expect "merge-if-green refuses a PR labelled needs-human" 1 \
   "$(merge_during_run claude/fix-T-002-x finished '[{"name": "needs-human"}]')"
 expect "merge-if-green accepts other labels" 3 "$(merge_during_run claude/template-x finished '[{"name": "docs"}]')"
 
+# wait-run.sh waits for one workflow run in a single command and says how it ended.
+wait_run() { # <fixture JSON> <args...>; prints "<exit code> <first word of the line>"
+  echo "$1" > "$work/wait.json"; shift
+  rm -f "$work/wait.json.seen"
+  local out code=0
+  out="$(PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 WAIT_RUN_TIMEOUT_SECONDS=2 \
+    scripts/wait-run.sh "$@" 2>&1)" || code=$?
+  echo "$code ${out%%[: ]*}"
+}
+no_jobs='{"jobs": []}'
+pr_routes() { # <runs answer> [jobs answer]
+  printf '{"routes": {"pulls/7": {"head": {"sha": "abc1234"}}, "actions/workflows/pr-check.yml/runs?head_sha=abc1234&per_page=10": %s, "actions/runs/91/jobs?per_page=50": %s}}' \
+    "$1" "${2:-$no_jobs}"
+}
+pending='{"workflow_runs": [{"id": 91, "status": "in_progress", "conclusion": null, "html_url": "u"}]}'
+green='{"workflow_runs": [{"id": 91, "status": "completed", "conclusion": "success", "html_url": "u"}]}'
+red='{"workflow_runs": [{"id": 91, "status": "completed", "conclusion": "failure", "html_url": "u"}]}'
+sequence='{"__sequence__": [{"workflow_runs": []}, '"$pending, $green"']}'
+expect "wait-run: waits until the PR check turns green" "0 XANH" "$(wait_run "$(pr_routes "$sequence")" --pr 7)"
+expect "wait-run: a red PR check names the failed job" "1 ĐỎ" \
+  "$(wait_run "$(pr_routes "$red" '{"jobs": [{"name": "ui-test", "conclusion": "failure"}, {"name": "changes", "conclusion": "success"}]}')" --pr 7)"
+expect "wait-run: the red line names ui-test" 1 \
+  "$(pr_routes "$red" '{"jobs": [{"name": "ui-test", "conclusion": "failure"}]}' > "$work/wait.json"; \
+     PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 scripts/wait-run.sh --pr 7 2>&1 | grep -c 'job: ui-test')"
+expect "wait-run: a run still going when time runs out asks to call again" "2 CHƯA" \
+  "$(wait_run "$(pr_routes "$pending")" --pr 7 --timeout 1)"
+dispatch_routes='{"routes": {"actions/workflows/staging.yml/runs?branch=main&per_page=20": {"workflow_runs": [
+  {"id": 93, "created_at": "2026-10-18T02:25:00Z", "status": "completed", "conclusion": "failure", "html_url": "u"},
+  {"id": 92, "created_at": "2026-10-18T02:21:00Z", "status": "completed", "conclusion": "success", "html_url": "u"},
+  {"id": 80, "created_at": "2026-10-17T16:57:00Z", "status": "completed", "conclusion": "failure", "html_url": "u"}]}}}'
+expect "wait-run: picks the first run after --since" "0 XANH" \
+  "$(wait_run "$dispatch_routes" --workflow staging.yml --since 2026-10-18T02:20Z)"
+expect "wait-run: no run after --since is not finished" "2 CHƯA" \
+  "$(wait_run "$dispatch_routes" --workflow staging.yml --since 2026-10-18T03:00:00Z)"
+expect "wait-run: rejects a time without a zone" "3 LỖI" \
+  "$(wait_run "$dispatch_routes" --workflow staging.yml --since '2026-10-18 02:20')"
+
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"
 [ -z "${JAVA_HOME:-}" ] || java_cmd="${JAVA_HOME}/bin/java"

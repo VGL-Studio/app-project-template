@@ -19,6 +19,12 @@ if method != "GET":
     sys.stdout.write("{}"); sys.exit(0)
 if route in fx.get("routes", {}):
     answer = fx["routes"][route]
+    # {"__sequence__": [a, b, ...]} answers a, then b, ... one per query, then keeps the last (a run that finishes).
+    if isinstance(answer, dict) and "__sequence__" in answer:
+        seen_file = os.environ["FIXTURE"] + ".seen"
+        seen = json.load(open(seen_file)) if os.path.exists(seen_file) else {}
+        n = seen.get(route, 0); seen[route] = n + 1; json.dump(seen, open(seen_file, "w"))
+        answer = answer["__sequence__"][min(n, len(answer["__sequence__"]) - 1)]
     if isinstance(answer, str):
         sys.stdout.write(answer); sys.exit(0)
     out = subprocess.run(["jq", "-r", jq], input=json.dumps(answer), capture_output=True, text=True)

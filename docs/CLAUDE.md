@@ -51,6 +51,8 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 ## Khi lập danh sách chạy
 
 - Sau họp đánh giá rủi ro, lập `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md), sắp các plan đã duyệt theo thứ tự đã thống nhất.
+- Gom việc của cả nhóm vào một phiên: mặc định đưa vào danh sách **mọi plan `approved` qua `plan-check.py`**, của mọi dev, thay vì chia thành nhiều phiên ít task. Mỗi phiên tốn khoảng 30 phút cố định (kiểm tra đầu phiên, emulator, staging, báo cáo) trong khi mỗi task khoảng 15 phút, nên phiên nhiều task rẻ hơn nhiều phiên một task. Mỗi lúc chỉ một phiên chạy (auto-run.md, mục 1).
+- `max_tasks` đặt theo khung giờ và hạn mức, không theo thói quen: tạm thời tối đa 8 task. Plan nào phải để phiên sau (vượt trần, hoặc phụ thuộc task chưa duyệt) thì ghi tên và lý do trong mục Lý do của thứ tự chạy.
 - Một task dừng không được làm hỏng cả đêm: task phụ thuộc task bị dừng sẽ bị bỏ qua. Xếp các task độc lập trước, chuỗi task phụ thuộc nhau sau cùng. Danh sách chỉ có một chuỗi phụ thuộc thì ghi điều đó trong mục Lý do của thứ tự chạy và đề xuất thêm task độc lập đã sẵn sàng (ticket `ready` có plan duyệt được), nếu có.
 - Các plan trong danh sách đều qua `scripts/plan-check.py`.
 - Ghi tổng `token_estimate` của danh sách trong mục Lý do của thứ tự chạy, so với tổng token thật của vài phiên gần nhất (`docs/metrics/token-usage.csv`), để người duyệt thấy danh sách có vừa một phiên không. Chỉ để tham khảo, không bỏ task vì vượt.
