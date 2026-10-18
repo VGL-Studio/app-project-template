@@ -19,7 +19,7 @@ scripts/new-app.sh --dest ../notes --package com.vglstudio.notes --name "Ghi ch�
 
 Script làm những việc sau:
 
-1. Chép những file đã commit của dự án mẫu vào thư mục mới, bỏ `TEMPLATE-ROADMAP.md`, tài liệu này và chính script khởi tạo.
+1. Chép những file đã commit của dự án mẫu vào thư mục mới, bỏ tài liệu này và chính script khởi tạo.
 2. Đổi tên gói `com.vglstudio.template` thành tên gói mới trong code, file build, `google-services.json` giả của staging, `staging.yml` và tài liệu trong `docs/ops/`. Các ADR giữ nguyên văn.
 3. Đặt tên app, tên project Gradle (lấy theo tên thư mục) và địa chỉ R2 staging.
 4. Đổi đoạn mở đầu của `README.md` và `CLAUDE.md` cho app mới.

@@ -24,7 +24,6 @@ Dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo 
 | Phát hành bản production | [docs/ops/release.md](docs/ops/release.md) |
 | Đưa cải tiến từ app về dự án mẫu | [docs/ops/from-app.md](docs/ops/from-app.md) |
 | Thiết kế giao diện và đối chiếu với thiết kế | [docs/ops/design-workflow.md](docs/ops/design-workflow.md) |
-| Phần còn phải làm của dự án mẫu | [TEMPLATE-ROADMAP.md](TEMPLATE-ROADMAP.md) |
 | Tạo app mới từ dự án mẫu | [docs/ops/new-app.md](docs/ops/new-app.md) |
 
 ## Merge

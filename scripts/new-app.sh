@@ -8,7 +8,7 @@
 #   --staging-assets-url  https address of the app's staging folder on R2, ending with '/'
 #
 # Only committed files of the template are copied (git archive), so build outputs and local secrets never
-# reach the new app. The template's own plan (TEMPLATE-ROADMAP.md) and this script are left out.
+# reach the new app. This script and the template-only doc docs/ops/new-app.md are left out.
 # :feature:sample is kept: CLAUDE.md tells every feature to follow it.
 # Messages are in Vietnamese for the team; comments are in English.
 
@@ -60,7 +60,7 @@ echo "== Chép dự án mẫu (${template_commit}) sang $dest"
 mkdir -p "$dest"
 git archive --format=tar HEAD | tar -x -C "$dest"
 cd "$dest"
-rm -f TEMPLATE-ROADMAP.md scripts/new-app.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
+rm -f scripts/new-app.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
 rmdir .github/ISSUE_TEMPLATE 2> /dev/null || true
 
 # Replaces text in every file that contains it; fails when nothing matched, so a renamed template file is noticed.
@@ -97,8 +97,6 @@ title="$(perl -CSA -e 'print uc $ARGV[0]' "$name")"
 replace_in README.md '# APP PROJECT TEMPLATE' "# $title"
 replace_in README.md 'Dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo từ dự án này,' \
   "App $name, tạo từ dự án mẫu của nhóm ngày $today (commit $template_commit),"
-replace_in README.md '| Phần còn phải làm của dự án mẫu | [TEMPLATE-ROADMAP.md](TEMPLATE-ROADMAP.md) |
-' ''
 replace_in README.md '| Tạo app mới từ dự án mẫu | [docs/ops/new-app.md](docs/ops/new-app.md) |
 ' ''
 replace_in CLAUDE.md 'Đây là dự án mẫu cho các app Android của nhóm. Mọi app mới được tạo từ dự án này.' \
