@@ -7,7 +7,7 @@ build: 0.1.0-staging, commit caf0746
 feature: loading
 ticket: T-003
 severity: nang
-status: new
+status: fixed
 created: 2026-10-17
 ---
 
@@ -44,6 +44,8 @@ Nút "Thử lại" luôn thấy và bấm được, chữ không chồng lên nh
 - **Loại:** lỗi so với spec
 - **Xử lý:** sửa trong sprint này
 - **Lý do:** 
-- **Liên kết:** 
+- **Liên kết:** T-005 (PR #51), kiểm chứng ở TS-20261018-01
 
 AI đề xuất: lỗi so với spec (KB-2). Nguyên nhân trong `LoadingScreen.kt`: cột nội dung bắt đầu ở 25% chiều cao, không cuộn, chân trang ghim riêng ở đáy. Sửa bằng ticket mới T-005 (`features/loading/plans/T-005-man-hinh-thap.md`), vì T-003 đã xong: nội dung và chân trang cùng một cột cuộn được, khoảng trống trên co lại khi màn hình thấp; thêm screenshot test ở khung thấp (ví dụ `w360dp-h640dp`), không đổi ảnh chuẩn của khung 411 x 891.
+
+**Cập nhật 2026-10-18, AI:** đã kiểm chứng bản sửa T-005 (PR #51) trên emulator 320 x 640. Phiên thử [TS-20261018-01](../../../test-sessions/TS-20261018-01.md): kịch bản mất mạng có hiệu lực (L-031), màn hình lỗi hiện trọn, chân trang nằm dưới nút "Thử lại", không chồng lên lời hướng dẫn. Trên JVM, test khung thấp của T-005 và số đo của plan T-006 cho cùng kết quả. AI đề xuất: chuyển sang `fixed`, liên kết T-005 (PR #51).

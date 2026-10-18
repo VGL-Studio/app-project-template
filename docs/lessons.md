@@ -299,7 +299,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Cải tiến:** đề xuất `docs/ops/design-workflow.md` và `CLAUDE.md` (bước 10): ngoài screenshot test ở khung chuẩn, mỗi màn hình có một screenshot test ở khung thấp (ví dụ `w360dp-h640dp`); bố cục dài hơn màn hình thì cuộn được. Mẫu thiết kế, mục 7: thêm tiêu chí "dùng được ở màn hình thấp".
 - **Trạng thái:** verified
 - **Áp dụng:** PR #48: `CLAUDE.md` bước 10, `docs/ops/design-workflow.md` mục 2, mẫu thiết kế mục 7, mẫu plan mục 4. Màn hình loading sửa ở T-005. Anh Nhật nhận ngày 2026-10-17
-- **Kiểm chứng:** 2026-10-17, RUN-20261017-03: có hiệu quả trên JVM. Test ở khung `w360dp-h640dp-xxhdpi` tái hiện lỗi chân trang che khối lỗi (chân trang 592 dp, đáy khối lỗi 636 dp) và giữ bản sửa T-005 (PR #51). Chưa kiểm chứng trên emulator vì không tải được artifact (L-030). Retro 2026-10-18: anh Nhật xác nhận `verified` theo bằng chứng trên JVM; số đo ở `w320dp-h640dp` (đáy nút 547 dp, chân trang từ 592 dp) cho thấy lỗi gốc ở chiều rộng 320 cũng đã hết (plan T-006, mục 4). Phần emulator kiểm chứng lại sau khi sửa kịch bản mất mạng (L-031).
+- **Kiểm chứng:** 2026-10-17, RUN-20261017-03: có hiệu quả trên JVM. Test ở khung `w360dp-h640dp-xxhdpi` tái hiện lỗi chân trang che khối lỗi (chân trang 592 dp, đáy khối lỗi 636 dp) và giữ bản sửa T-005 (PR #51). Chưa kiểm chứng trên emulator vì không tải được artifact (L-030). Retro 2026-10-18: anh Nhật xác nhận `verified` theo bằng chứng trên JVM; số đo ở `w320dp-h640dp` (đáy nút 547 dp, chân trang từ 592 dp) cho thấy lỗi gốc ở chiều rộng 320 cũng đã hết (plan T-006, mục 4). Phần emulator kiểm chứng lại sau khi sửa kịch bản mất mạng (L-031). 2026-10-18, TS-20261018-01: có hiệu quả trên emulator 320 x 640, màn hình lỗi hiện trọn, chân trang dưới nút "Thử lại".
 
 ### L-029. Plan đoán lý do test viết trước thất bại mà không đo, test viết đúng plan qua ngay khi chưa có code
 
@@ -327,6 +327,6 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** kịch bản "mở lần đầu khi mất mạng" chỉ bật chế độ máy bay. Ở lần chạy này Wi-Fi của emulator vẫn chạy (`netstats_wifi_sample` tăng từ 47 MB lên 70 MB trong lúc máy bay bật), app tải xong sau 3,6 giây không lỗi, và `offline.png` chụp hộp thoại đồng ý quảng cáo thay vì màn hình lỗi. Lần trước (TS-20261017-01) máy bay có cắt mạng, nên kịch bản lúc đúng lúc sai mà không ai biết. Bản sửa T-005 vì vậy chưa được kiểm chứng trên emulator.
 - **Cải tiến:** `scripts/device-session.sh` tắt cả chế độ máy bay, Wi-Fi và dữ liệu di động, chờ tới khi `dumpsys connectivity` không còn mạng mặc định rồi mới mở app; không tắt được thì bỏ qua kịch bản, ghi `network=still_on skipped` và một dòng trong `summary.md`. Có test với `fake-adb`. `docs/ops/test-sessions.md` mục 4 ghi cách đọc.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #53. Anh Nhật nhận ngày 2026-10-18
-- **Kiểm chứng:**
+- **Kiểm chứng:** 2026-10-18, TS-20261018-01 (lần chạy 39089747523): có hiệu quả. Script ghi `network=off` trước khi mở app, số byte nhận qua Wi-Fi đứng yên suốt lúc tắt mạng, app vào trạng thái lỗi sau 1,6 giây và `offline.png` chụp đúng màn hình lỗi. Chưa gặp trường hợp `network=still_on`. Anh Nhật xác nhận `verified` ngày 2026-10-18.
