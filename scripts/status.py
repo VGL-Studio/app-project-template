@@ -222,8 +222,11 @@ def render():
             out.append(f"- Đang mở: {link(fb['path'])} `{fb['status']}`, mức `{fb['severity']}`: {cell(fb['title'])}")
         out.append("")
 
-    out += ["## 4. Phiên tự chạy", "",
-            "| Phiên | Trạng thái | Bắt đầu | Ticket | Bản staging |", "| --- | --- | --- | --- | --- |"]
+    out += ["## 4. Phiên tự chạy", ""]
+    if all_runs:
+        out += ["| Phiên | Trạng thái | Bắt đầu | Ticket | Bản staging |", "| --- | --- | --- | --- | --- |"]
+    else:
+        out.append("Chưa có phiên nào.")
     for run in reversed(all_runs):
         out.append(f"| [{run['id']}]({run['path'].relative_to(DOCS).as_posix()}) | `{run['status']}` | "
                    f"{cell(run['started'])} | {', '.join(run['tickets']) or '-'} | {cell(run['staging']) or '-'} |")

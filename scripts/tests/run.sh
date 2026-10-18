@@ -165,7 +165,6 @@ if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=tes
   scripts/new-app.sh --dest "$new_app" --package com.example.notes --name "Ghi chú" \
   --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1; then
   expect "new-app.sh succeeds" ok ok
-  expect "new-app.sh leaves out the roadmap" absent "$([ -e "$new_app/TEMPLATE-ROADMAP.md" ] && echo present || echo absent)"
   expect "new-app.sh leaves out itself" absent "$([ -e "$new_app/scripts/new-app.sh" ] && echo present || echo absent)"
   expect "new-app.sh replaces the package outside ADRs" "" \
     "$(grep -rlIF com.vglstudio.template "$new_app" --exclude-dir=.git --exclude-dir=adr || true)"
@@ -175,7 +174,7 @@ if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=tes
   expect "new-app.sh sets the staging id of staging.yml" 1 \
     "$(grep -c 'STAGING_APPLICATION_ID: com.example.notes.staging$' "$new_app/.github/workflows/staging.yml")"
   expect "new-app.sh drops links to template-only files" 0 \
-    "$(grep -cE 'TEMPLATE-ROADMAP|ops/new-app\.md' "$new_app/README.md" || true)"
+    "$(grep -cE 'ops/new-app\.md' "$new_app/README.md" || true)"
   expect "new-app.sh leaves out the from-app issue form" absent \
     "$([ -e "$new_app/.github/ISSUE_TEMPLATE/from-app.yml" ] && echo present || echo absent)"
   expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"

@@ -19,6 +19,9 @@ google-services.json
 # Fake staging config so builds work without secrets (ADR-0012). The real one goes in app/src/staging/debug or app/src/staging/release.
 !app/src/staging/google-services.json
 
+# Python caches of the scripts
+__pycache__/
+
 # CI artifacts
 build.log
 
