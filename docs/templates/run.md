@@ -81,6 +81,14 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 - Bắt đầu: <...>, kết thúc: <...>, lý do kết thúc: <hết danh sách / đến giờ / hết hạn mức / nhánh chính đỏ>
 - Mức sử dụng: <nếu đo được>
 
+### Token
+
+<!-- docs/ops/token-usage.md. Dán bảng của scripts/token-usage.py report; ghi "không đo được" kèm thông báo nếu script không tìm thấy transcript. Ước tính chỉ để lập kế hoạch, không phải giới hạn. -->
+
+<bảng của scripts/token-usage.py>
+
+Task lệch ước tính từ 2 lần trở lên: <task, lý do có thể; hoặc "Không có">
+
 ### Số liệu
 
 <!-- Đầu vào để hiệu chỉnh auto-run.md, mục 8. Ghi "không đo được" nếu không có. -->
@@ -94,6 +102,7 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 | Số lần thử lại vì lỗi hạ tầng, tổng thời gian chờ | |
 | Thời gian build và phát staging | |
 | Mức sử dụng | |
+| Tổng token của phiên, phần chung ngoài task | |
 
 ### Bài học
 

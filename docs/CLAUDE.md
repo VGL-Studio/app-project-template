@@ -41,6 +41,7 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Mỗi tiêu chí chấp nhận trong spec phải có cách kiểm chứng tương ứng trong mục kiểm thử. Test được viết trước code, nên mục kiểm thử phải đủ cụ thể để viết được test ngay từ plan.
 - Plan sửa lỗi giao diện hay lỗi đo được: trước khi viết mục kiểm thử, chạy thử điều test sẽ kiểm tra trên code hiện tại, bằng một test tạm không commit, và ghi số đo thật vào mục 4. Khung test phải tái hiện được lỗi gốc (cùng chiều rộng, chiều cao như nơi phát hiện). Không đoán test sẽ thất bại vì đâu (L-029).
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
+- Ghi `token_estimate` theo cỡ của ticket, lấy số gợi ý từ `scripts/token-usage.py estimate`; task khác thường thì chỉnh và ghi lý do. Ước tính chỉ để lập kế hoạch, không chặn task ([ops/token-usage.md](ops/token-usage.md)).
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
 - Hàm phụ trợ nằm trong file test mà cũng phải đổi (ví dụ danh sách mà test so sánh): ghi rõ phần nào vào commit test của bước 3, phần nào vào commit code của bước 4, để test viết trước thất bại đúng lý do (L-025).
 - Viết xong thì chạy `scripts/plan-check.py <plan>`, sửa hết lỗi trước khi đưa người duyệt, dán kết quả vào mô tả PR. Phiên tự chạy chạy lại script này ngay trước task và bỏ qua plan có lỗi.
@@ -51,6 +52,7 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Sau họp đánh giá rủi ro, lập `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md), sắp các plan đã duyệt theo thứ tự đã thống nhất.
 - Một task dừng không được làm hỏng cả đêm: task phụ thuộc task bị dừng sẽ bị bỏ qua. Xếp các task độc lập trước, chuỗi task phụ thuộc nhau sau cùng. Danh sách chỉ có một chuỗi phụ thuộc thì ghi điều đó trong mục Lý do của thứ tự chạy và đề xuất thêm task độc lập đã sẵn sàng (ticket `ready` có plan duyệt được), nếu có.
 - Các plan trong danh sách đều qua `scripts/plan-check.py`.
+- Ghi tổng `token_estimate` của danh sách trong mục Lý do của thứ tự chạy, so với tổng token thật của vài phiên gần nhất (`docs/metrics/token-usage.csv`), để người duyệt thấy danh sách có vừa một phiên không. Chỉ để tham khảo, không bỏ task vì vượt.
 - Danh sách chạy có trạng thái `draft`. Chỉ dev mới chuyển sang `approved` và kích hoạt phiên.
 
 ## Trong phiên tự chạy

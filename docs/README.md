@@ -20,7 +20,8 @@ docs/
 ├── inbox/                   yêu cầu và phản hồi chưa rõ thuộc feature nào
 ├── runs/                    các phiên AI tự chạy: danh sách chạy và báo cáo
 ├── test-sessions/           báo cáo phân tích các phiên thử trên máy (log thô ở test-sessions/ ngoài docs, không vào git)
-├── ops/                     báo cáo vận hành định kỳ
+├── ops/                     báo cáo vận hành định kỳ, hướng dẫn vận hành
+├── metrics/                 số liệu đo được qua các phiên, ví dụ token theo task (ops/token-usage.md)
 ├── templates/               các mẫu tài liệu
 ├── auto-run.md              quy trình phiên AI tự chạy
 ├── lessons.md               sổ bài học, đầu vào của retro

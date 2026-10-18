@@ -42,7 +42,7 @@ created: YYYY-MM-DD
 - [ ] Đã được nghiệm thu chéo và nghiệm thu cuối.
 
 <!--
-Cỡ task (thay cho ước lượng token, sẽ hiệu chỉnh sau vài sprint dựa trên số liệu thực):
+Cỡ task. Plan dựa vào cỡ để ghi token_estimate; số token thật theo cỡ ở docs/metrics/token-usage.csv (docs/ops/token-usage.md):
 S: thay đổi nhỏ trong một module, lặp lại mẫu có sẵn.
 M: một màn hình hoặc một luồng xử lý mới trong một module.
 L: nhiều màn hình hoặc nhiều phần. Ticket cỡ L nên cân nhắc tách nhỏ, vì phải chạy xong trong một lượt của phiên tự chạy.

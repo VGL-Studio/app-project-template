@@ -13,6 +13,7 @@ Finds, from the plan alone, the mistakes that otherwise stop a task in the middl
   3. Protected paths need a high-risk plan (risk-scoring.md, section 1; CLAUDE.md); scripts/release.sh is never allowed.
   4. A plan that runs scripts/design-compare.sh writes a screenshot for every design image of its feature.
   5. An approved plan has its reviewers and date.
+  6. The plan has a token estimate (token_estimate, docs/ops/token-usage.md); a missing one is only a warning.
 PLAN_CHECK_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
@@ -186,6 +187,9 @@ def check(plan_path):
         decision = current_decision(text, fields.get("version", ""))
         if any(placeholder in decision for placeholder in DECISION_PLACEHOLDERS):
             errors.append("plan approved nhưng mục 9 (Quyết định duyệt) của phiên bản hiện tại còn chữ mẫu (L-023).")
+    if not re.fullmatch(r"[\d.]+\s*[kKmM]?", fields.get("token_estimate", "")):
+        warnings.append("thiếu token_estimate hoặc sai dạng (ví dụ 20M); xem scripts/token-usage.py estimate. "
+                        "Chỉ để lập kế hoạch, không chặn task.")
     if "## 4. Kiểm thử" not in text:
         warnings.append("không thấy mục 4. Kiểm thử.")
     return errors, warnings
