@@ -327,6 +327,6 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** kịch bản "mở lần đầu khi mất mạng" chỉ bật chế độ máy bay. Ở lần chạy này Wi-Fi của emulator vẫn chạy (`netstats_wifi_sample` tăng từ 47 MB lên 70 MB trong lúc máy bay bật), app tải xong sau 3,6 giây không lỗi, và `offline.png` chụp hộp thoại đồng ý quảng cáo thay vì màn hình lỗi. Lần trước (TS-20261017-01) máy bay có cắt mạng, nên kịch bản lúc đúng lúc sai mà không ai biết. Bản sửa T-005 vì vậy chưa được kiểm chứng trên emulator.
 - **Cải tiến:** `scripts/device-session.sh` tắt cả chế độ máy bay, Wi-Fi và dữ liệu di động, chờ tới khi `dumpsys connectivity` không còn mạng mặc định rồi mới mở app; không tắt được thì bỏ qua kịch bản, ghi `network=still_on skipped` và một dòng trong `summary.md`. Có test với `fake-adb`. `docs/ops/test-sessions.md` mục 4 ghi cách đọc.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #53. Anh Nhật nhận ngày 2026-10-18
-- **Kiểm chứng:** 2026-10-18, TS-20261018-01 (lần chạy 39089747523): có hiệu quả. Script ghi `network=off` trước khi mở app, số byte nhận qua Wi-Fi đứng yên suốt lúc tắt mạng, app vào trạng thái lỗi sau 1,6 giây và `offline.png` chụp đúng màn hình lỗi. Chưa gặp trường hợp `network=still_on`. AI đề xuất `verified`, chờ anh Nhật xác nhận.
+- **Kiểm chứng:** 2026-10-18, TS-20261018-01 (lần chạy 39089747523): có hiệu quả. Script ghi `network=off` trước khi mở app, số byte nhận qua Wi-Fi đứng yên suốt lúc tắt mạng, app vào trạng thái lỗi sau 1,6 giây và `offline.png` chụp đúng màn hình lỗi. Chưa gặp trường hợp `network=still_on`. Anh Nhật xác nhận `verified` ngày 2026-10-18.
