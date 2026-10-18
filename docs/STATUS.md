@@ -32,8 +32,7 @@ Phản hồi: 1 `fixed`, 1 `wontfix`.
 
 ## 4. Phiên tự chạy
 
-| Phiên | Trạng thái | Bắt đầu | Ticket | Bản staging |
-| --- | --- | --- | --- | --- |
+Chưa có phiên nào.
 
 ## 5. Bài học và ADR
 
