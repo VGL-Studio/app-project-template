@@ -19,6 +19,7 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 
 - Feature mới thì tạo thư mục `features/<feature>/` với tên trùng tên module `:feature:<ten>` dự kiến. Đặt tên chưa chắc thì đề xuất tên trong mục câu hỏi.
 - Yêu cầu nằm trong `inbox/` được chuyển vào `features/<feature>/requests/` khi đã xác định feature.
+- Khi spec đã có, đổi `status` của yêu cầu từ `new` sang `specified`. Chỉ người ghi `done` hay `dropped`.
 - Dùng đúng [mẫu spec](templates/spec.md), giữ nguyên các mục, mục nào không áp dụng thì ghi "Không có" thay vì xóa.
 - Viết bằng ngôn ngữ nghiệp vụ. Mục tiêu, phạm vi và kịch bản sử dụng không chứa tên lớp, tên thư viện hay thuật ngữ kỹ thuật.
 - Mỗi kịch bản có tiêu chí chấp nhận cụ thể, kiểm chứng được, viết theo dạng "Khi ... thì ...".
@@ -83,6 +84,14 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 - Đề xuất phân loại: lỗi so với spec, thay đổi yêu cầu, hay góp ý mới. Chủ feature quyết định.
 - Phản hồi là thay đổi yêu cầu thì không sửa thẳng vào code. Đề xuất cập nhật spec, chờ người phụ trách sản phẩm xác nhận.
 - Phản hồi là lỗi so với spec thì cập nhật plan (tăng phiên bản plan, thêm mục sửa lỗi). Plan sửa đi qua họp đánh giá rủi ro như plan mới.
+
+## Trang tiến độ
+
+`docs/STATUS.md` cho thấy tiến độ cả dự án: việc đang chờ người, yêu cầu và trạng thái, ticket của từng feature, phiên tự chạy, bài học và ADR. Trang do `scripts/status.py` sinh từ trạng thái trong các tài liệu, không sửa tay.
+
+- PR nào đổi trạng thái hay thêm, bớt yêu cầu, spec, ticket, plan, phản hồi, danh sách chạy, bài học hay ADR thì chạy `scripts/status.py` và commit `docs/STATUS.md` cùng PR. `scripts/status.py --check` cho biết trang đã khớp chưa.
+- Phiên tự chạy sinh lại trang trong PR báo cáo (auto-run.md, mục 4).
+- Trang thiếu thông tin hay sai thì sửa tài liệu gốc hoặc script, không sửa trang.
 
 ## Những điều không được làm
 

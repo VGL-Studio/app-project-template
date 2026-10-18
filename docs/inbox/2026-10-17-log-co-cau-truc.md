@@ -2,6 +2,7 @@
 date: 2026-10-17
 author: Nhật (AI soạn theo trao đổi)
 feature:
+status: new
 ---
 
 # YÊU CẦU: LOG CÓ CẤU TRÚC VÀ GHI HÀNH TRÌNH, ĐỂ AI PHÂN TÍCH PHIÊN THỬ

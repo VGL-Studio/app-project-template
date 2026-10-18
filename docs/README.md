@@ -23,6 +23,7 @@ docs/
 ├── ops/                     báo cáo vận hành định kỳ, hướng dẫn vận hành
 ├── metrics/                 số liệu đo được qua các phiên, ví dụ token theo task (ops/token-usage.md)
 ├── templates/               các mẫu tài liệu
+├── STATUS.md                trang tiến độ, sinh bởi scripts/status.py, không sửa tay
 ├── auto-run.md              quy trình phiên AI tự chạy
 ├── lessons.md               sổ bài học, đầu vào của retro
 ├── risk-scoring.md          thang điểm rủi ro và điều kiện dừng

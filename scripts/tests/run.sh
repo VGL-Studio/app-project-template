@@ -298,6 +298,34 @@ expect "token-usage: no transcripts is not a failure" 0 \
 expect "token-usage: estimate falls back to the starting value" 1 \
   "$(token_usage estimate --csv docs/metrics/t.csv | grep -c '^| M | 1 | 2k | 20.0M (tạm')"
 
+# status.py builds the progress page from the statuses in the documents.
+st="$work/status-repo/docs"
+mkdir -p "$st/features/demo/requests" "$st/features/demo/tickets" "$st/features/demo/plans" "$st/features/demo/feedback" \
+  "$st/inbox" "$st/runs" "$st/adr"
+printf -- '---\ndate: 2026-10-01\nfeature: demo\nstatus: specified\n---\n\n# YÊU CẦU: MÀN HÌNH DEMO\n' > "$st/features/demo/requests/2026-10-01-demo.md"
+printf -- '---\ndate: 2026-10-02\nfeature:\nstatus: new\n---\n\n# YÊU CẦU: LOG CHO AI\n' > "$st/inbox/2026-10-02-log.md"
+printf -- '---\nfeature: demo\nstatus: confirmed\n---\n' > "$st/features/demo/spec.md"
+printf -- '---\ntitle: Một\nstatus: on-staging\n---\n' > "$st/features/demo/tickets/T-001-mot.md"
+printf -- '---\ntitle: Hai\nstatus: approved\n---\n' > "$st/features/demo/tickets/T-002-hai.md"
+printf -- '---\nstatus: done\nversion: 2\n---\n' > "$st/features/demo/plans/T-001-mot.md"
+printf -- '---\nstatus: draft\nversion: 1\ntoken_estimate: 20M\n---\n' > "$st/features/demo/plans/T-002-hai.md"
+printf -- '---\nid: FB-20261003-01\ntitle: Nút sai màu\nseverity: nhe\nstatus: new\n---\n' > "$st/features/demo/feedback/FB-20261003-01-nut.md"
+printf -- '---\nid: RUN-20261004-01\nstatus: finished\nstarted_at: 2026-10-04 10:00 UTC\nstaging_build: 0.1.0-staging.1\n---\n\n## 1. Danh sách chạy\n\n| 1 | T-001 | demo |\n\n## 2. Khác\n' > "$st/runs/RUN-20261004-01.md"
+printf -- '---\nid: ADR-0001\ntitle: A\nstatus: proposed\n---\n' > "$st/adr/0001-a.md"
+printf -- '# SỔ\n\n### L-001. Một bài\n\n- **Trạng thái:** proposed\n' > "$st/lessons.md"
+# Backticks of the page are matched with '.' in the patterns below.
+status_page() { STATUS_ROOT="$work/status-repo" python3 -I scripts/status.py "$@"; }
+expect "status: check fails before the page exists" 1 "$(status_page --check > /dev/null; echo $?)"
+status_page > /dev/null
+page="$st/STATUS.md"
+expect "status: request without spec waits for people" 1 "$(grep -c '^- Yêu cầu chưa có spec: .*(Log cho AI)' "$page")"
+expect "status: draft plan, new feedback, proposed lesson and ADR wait for people" 4 \
+  "$(grep -cE '^- (Plan .draft.|Phản hồi chờ phân loại|Bài học .proposed.|ADR .proposed.)' "$page")"
+expect "status: request shows tickets done" 1 "$(grep -c '| demo | .specified. đã có spec | 1/2 |$' "$page")"
+expect "status: ticket row has plan, estimate and runs" 1 \
+  "$(grep -c '^| \[T-001\](features/demo/tickets/T-001-mot.md) | Một | .on-staging. | .done. (bản 2) | - | RUN-20261004-01 |$' "$page")"
+expect "status: check passes on a fresh page" 0 "$(status_page --check > /dev/null; echo $?)"
+
 # env-canary.sh opens an env-broken issue when the environment is red and closes it when it is green again.
 printf '#!/usr/bin/env bash\nexit 0\n' > "$work/pass.sh"
 printf '#!/usr/bin/env bash\necho "Could not GET https://repo.maven.apache.org/x"\nexit 1\n' > "$work/fail.sh"

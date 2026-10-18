@@ -2,6 +2,7 @@
 date: YYYY-MM-DD
 author: <tên người viết>
 feature: <tên feature nếu đã biết, để trống nếu chưa>
+status: new                  # new | specified | done | dropped. AI ghi specified khi đã có spec; người ghi done hay dropped
 ---
 
 # YÊU CẦU: <TÊN NGẮN GỌN>
