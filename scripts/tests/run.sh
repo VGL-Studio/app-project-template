@@ -259,6 +259,45 @@ expect "plan-check: blank decision of the latest version stops" stop "$(plan_che
 write_plan "$plans/T-914-a.md" medium approved "$(row Sửa feature/demo/A.kt)" "$decision_v1"
 expect "plan-check: approved plan with its decision passes" pass "$(plan_check "$plans/T-914-a.md")"
 
+expect "plan-check: a missing token estimate only warns" pass "$(plan_check "$plans/T-901-a.md")"
+expect "plan-check: names the missing token estimate" 1 "$(grep -c 'thiếu token_estimate' "$work/plan-check.out")"
+printf -- '---\nticket: T-915\nstatus: draft\nrisk_level: low\ntoken_estimate: 20M\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n%s\n\n## 4. Kiểm thử\n' \
+  "$(row Sửa feature/demo/A.kt)" > "$plans/T-915-a.md"
+plan_check "$plans/T-915-a.md" > /dev/null
+expect "plan-check: a token estimate removes the warning" 0 "$(grep -c 'token_estimate' "$work/plan-check.out")"
+
+# token-usage.py counts tokens per task from transcripts, one usage per request, never failing the session.
+tokens="$work/token-repo"
+mkdir -p "$tokens/docs/features/demo/plans" "$tokens/docs/features/demo/tickets" "$work/projects/p/s/subagents"
+printf -- '---\nsize: M\n---\n' > "$tokens/docs/features/demo/tickets/T-031-a.md"
+printf -- '---\ntoken_estimate: 2k\n---\n' > "$tokens/docs/features/demo/plans/T-031-a.md"
+usage_line() { # <request> <branch> <time> <output> [cwd]
+  printf '{"type":"assistant","requestId":"%s","gitBranch":"%s","timestamp":"%s","cwd":"%s","message":{"usage":{"input_tokens":10,"cache_creation_input_tokens":100,"cache_read_input_tokens":1000,"output_tokens":%s}}}\n' \
+    "$1" "$2" "$3" "${5:-$tokens}" "$4"
+}
+{
+  usage_line r1 claude/T-031-loading 2026-10-18T01:00:00Z 5
+  usage_line r1 claude/T-031-loading 2026-10-18T01:00:01Z 90
+  usage_line r2 claude/RUN-20261018-01-report 2026-10-18T01:05:00Z 90
+  usage_line r3 claude/T-031-loading 2026-10-17T01:00:00Z 90
+  usage_line r4 claude/T-031-loading 2026-10-18T01:06:00Z 90 /elsewhere
+  echo 'not json'
+} > "$work/projects/p/s.jsonl"
+usage_line r5 claude/fix-T-031-x 2026-10-18T01:10:00Z 90 > "$work/projects/p/s/subagents/agent-1.jsonl"
+token_usage() { TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects" python3 -I scripts/token-usage.py "$@"; }
+token_usage report --since 2026-10-18T00:00:00Z --run RUN-20261018-01 --csv docs/metrics/t.csv > "$work/tokens.out"
+expect "token-usage: a task counts each request once, subagents and fix branch included" 1 \
+  "$(grep -c '^| T-031 | M | 2k | 2k | 1.2x | 2 |' "$work/tokens.out")"
+expect "token-usage: other branches are shared" 1 "$(grep -c '^| Chung (ngoài task) | - | - | 1k | - | 1 |' "$work/tokens.out")"
+token_usage report --since '2026-10-18 00:00 UTC' --run RUN-20261018-01 --csv docs/metrics/t.csv > /dev/null
+expect "token-usage: running again (started_at form) replaces the rows of the run" 3 "$(wc -l < "$tokens/docs/metrics/t.csv" | tr -d ' ')"
+expect "token-usage: the csv keeps the estimate and the total" 1 \
+  "$(grep -c '^RUN-20261018-01,2026-10-18,T-031,M,2000,2,20,200,2000,180,2400$' "$tokens/docs/metrics/t.csv")"
+expect "token-usage: no transcripts is not a failure" 0 \
+  "$(TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/none" python3 -I scripts/token-usage.py report > /dev/null; echo $?)"
+expect "token-usage: estimate falls back to the starting value" 1 \
+  "$(token_usage estimate --csv docs/metrics/t.csv | grep -c '^| M | 1 | 2k | 20.0M (tạm')"
+
 # env-canary.sh opens an env-broken issue when the environment is red and closes it when it is green again.
 printf '#!/usr/bin/env bash\nexit 0\n' > "$work/pass.sh"
 printf '#!/usr/bin/env bash\necho "Could not GET https://repo.maven.apache.org/x"\nexit 1\n' > "$work/fail.sh"
