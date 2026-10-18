@@ -2,6 +2,7 @@
 date: 2026-10-15
 author: Nhật
 feature: loading
+status: specified
 ---
 
 # YÊU CẦU: MÀN HÌNH LOADING CÓ THANH TIẾN TRÌNH
