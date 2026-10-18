@@ -137,6 +137,31 @@ expect "wait-run: no run after --since is not finished" "2 CHƯA" \
 expect "wait-run: rejects a time without a zone" "3 LỖI" \
   "$(wait_run "$dispatch_routes" --workflow staging.yml --since '2026-10-18 02:20')"
 
+# resume-check.py finds a session that stopped in the middle (quota used up) so resume-run.yml can start it again.
+resume_check() { # <run status> <minutes since the last commit> [extra routes JSON]; prints the run file or nothing
+  local last
+  last="$(python3 -c "import datetime as d; print((d.datetime(2026,10,18,3,0,tzinfo=d.timezone.utc)-d.timedelta(minutes=$2)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+  cat > "$work/resume.json" << JSON
+{"routes": {
+  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261018-01-report"}, {"name": "claude/T-007-x"}, {"name": "claude/T-099-other"}],
+  "contents/docs/runs/RUN-20261018-01.md?ref=claude/RUN-20261018-01-report": "---\nid: RUN-20261018-01\nstatus: $1\nstarted_at: 2026-10-17 22:00 UTC\n---\n\n## 1. Danh sách chạy\n\n| 1 | T-007 | demo |\n",
+  "commits/claude/RUN-20261018-01-report": {"commit": {"committer": {"date": "2026-10-17T22:05:00Z"}}},
+  "commits/claude/T-007-x": {"commit": {"committer": {"date": "$last"}}},
+  "commits/claude/T-099-other": {"commit": {"committer": {"date": "2026-10-18T02:59:00Z"}}},
+  "issues?state=open&labels=main-broken&per_page=10": ${3:-[]},
+  "issues?state=open&labels=env-broken&per_page=10": []
+}}
+JSON
+  PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z \
+    python3 -I scripts/resume-check.py 2> /dev/null
+}
+expect "resume-check: a running session silent for 2 hours is continued" docs/runs/RUN-20261018-01.md "$(resume_check running 120)"
+expect "resume-check: a session with a recent task commit is left alone" "" "$(resume_check running 30)"
+expect "resume-check: a finished session is left alone" "" "$(resume_check finished 120)"
+expect "resume-check: not while main is red" "" "$(resume_check running 120 '[{"number": 5}]')"
+expect "resume-check: not a session started more than a day ago" "" \
+  "$(RESUME_MAX_HOURS=3 resume_check running 120)"
+
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"
 [ -z "${JAVA_HOME:-}" ] || java_cmd="${JAVA_HOME}/bin/java"
