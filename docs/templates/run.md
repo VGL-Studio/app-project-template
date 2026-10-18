@@ -81,6 +81,14 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 - Bắt đầu: <...>, kết thúc: <...>, lý do kết thúc: <hết danh sách / đến giờ / hết hạn mức / nhánh chính đỏ>
 - Mức sử dụng: <nếu đo được>
 
+### Tiếp tục sau khi hết hạn mức
+
+<!-- docs/auto-run.md, mục 4. Ghi "Không có" khi phiên chạy liền một mạch. -->
+
+| Lần | Dừng lúc (commit cuối) | Tiếp tục lúc | Chờ | Đang làm task nào, ở bước nào |
+| --- | --- | --- | --- | --- |
+| | | | | |
+
 ### Token
 
 <!-- docs/ops/token-usage.md. Dán bảng của scripts/token-usage.py report; ghi "không đo được" kèm thông báo nếu script không tìm thấy transcript. Ước tính chỉ để lập kế hoạch, không phải giới hạn. -->

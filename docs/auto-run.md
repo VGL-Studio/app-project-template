@@ -14,13 +14,17 @@ Bốn nguyên tắc của phiên tự chạy:
 1. Sau họp đánh giá rủi ro, AI lập danh sách chạy `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md): các plan đã duyệt, thứ tự chạy, số task tối đa, thời điểm muốn có bản staging (nếu có).
 2. Dev xem lại danh sách, chuyển trạng thái sang `approved`.
 3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine.
-4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính, kể cả PR chỉ có tài liệu: mỗi commit mới trên nhánh chính bắt task đang làm chạy lại CI một vòng. `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`.
+4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính, kể cả PR chỉ có tài liệu: mỗi commit mới trên nhánh chính bắt task đang làm chạy lại CI một vòng. `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`, kể cả khi phiên đang chờ hạn mức được làm mới (mục 4, Tiếp tục phiên sau khi hết hạn mức).
 5. Một danh sách chạy chỉ chạy một lần. Danh sách đã `finished` không được kích hoạt lại; muốn chạy lại thì lập danh sách mới.
 6. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
 ## 2. Kiểm tra đầu phiên
 
-AI tạo nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` từ nhánh chính, ghi trạng thái phiên `running` và giờ bắt đầu vào danh sách chạy trên nhánh đó, đẩy nhánh lên, rồi kiểm tra:
+AI tạo nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` từ nhánh chính, ghi trạng thái phiên `running` và giờ bắt đầu vào danh sách chạy trên nhánh đó, đẩy nhánh lên, rồi kiểm tra như bảng dưới.
+
+Nhánh báo cáo đã có và danh sách chạy trên đó đang `running` nghĩa là đây là **phiên tiếp tục**: phiên trước dừng giữa chừng, thường vì hết hạn mức, và `resume-run.yml` vừa kích hoạt lại. Không tạo lại nhánh báo cáo; làm theo mục 4, Tiếp tục phiên sau khi hết hạn mức.
+
+Các điều kiện:
 
 | Điều kiện | Không thỏa thì |
 | --- | --- |
@@ -69,6 +73,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 - Chạy test và xác nhận test **thất bại đúng lý do**: vì chức năng chưa có, không phải vì test viết sai cú pháp hay lỗi môi trường. Với màn hình hay lớp chưa tồn tại, AI tạo khung rỗng (hàm trả về giá trị mặc định) để test biên dịch được và thất bại ở phần kiểm tra.
 - Test nào qua ngay khi chưa có code là test không kiểm tra gì, phải viết lại.
 - Commit test riêng, trước commit code, để lịch sử cho thấy test có trước.
+- Đẩy nhánh của task lên ngay sau mỗi commit, ở bước này và bước 4, không đợi tới bước 7. Hết hạn mức thì phiên dừng ngay, không kịp làm gì thêm; phần chưa đẩy lên là phần mất. Commit trên nhánh cũng là dấu hiệu phiên còn sống cho `resume-run.yml`.
 - Chỉ được bỏ qua bước này với phần thay đổi nằm trong mục ngoại lệ đã được người duyệt đồng ý trong plan.
 - Screenshot test cho màn hình mới: mỗi lệnh `captureRoboImage` ghi rõ đường dẫn ảnh, dạng `"src/test/screenshots/<Ten>.png"`. Chạy cục bộ, `scripts/check.sh` tự ghi ảnh chuẩn cho những ảnh còn thiếu và giữ nguyên ảnh đã có. Commit ảnh chuẩn cùng PR (CI báo lỗi cho từng ảnh thiếu) và đánh dấu trong báo cáo để người xem. Ảnh chuẩn của màn hình cũ chỉ được cập nhật khi plan nêu rõ.
 
@@ -164,7 +169,7 @@ Ba thứ này đi qua PR báo cáo (trừ PR sửa nguyên nhân) và được l
 
 ### Tiếp tục task đã dừng
 
-Task bị dừng không được chạy lại với cùng phiên bản plan. Task chưa xong vì hết hạn mức hay lỗi hạ tầng thì không bị coi là dừng: plan không cần sửa, đưa cùng phiên bản vào danh sách chạy mới, ghi trong danh sách chạy tên nhánh để phiên tiếp tục trên đó.
+Task bị dừng không được chạy lại với cùng phiên bản plan. Task chưa xong vì hết hạn mức hay lỗi hạ tầng thì không bị coi là dừng. Hết hạn mức thì chính phiên đó tiếp tục khi hạn mức được làm mới (mục 4). Lỗi hạ tầng, hoặc phiên không được tiếp tục (quá 24 giờ, người dừng hẳn): plan không cần sửa, đưa cùng phiên bản vào danh sách chạy mới, ghi trong danh sách chạy tên nhánh để phiên tiếp tục trên đó.
 
 1. Nhóm trả lời "vì sao plan chưa đủ tốt" (risk-scoring.md, mục 4), AI sửa plan, tăng `version`, ghi rõ cách tiếp tục trong mục 3.1 của plan. Thường phiên đã soạn sẵn bản này (mục Chuẩn bị cho người khi task dừng); người xem, sửa nếu cần, merge PR sửa nguyên nhân (gỡ nhãn `needs-human` trước), rồi duyệt:
    - **Tiếp tục trên nhánh cũ:** ghi tên nhánh và số PR. Phiên cập nhật nhánh theo nhánh chính, chỉ làm phần plan thay đổi, bước 3 chỉ áp dụng cho test mới hoặc test đổi điều kiểm tra.
@@ -180,9 +185,28 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 | --- | --- |
 | Hết task trong danh sách, hoặc đạt số task tối đa | Không có |
 | Gần đến thời điểm muốn có bản staging, không đủ thời gian cho task tiếp theo | Không bắt đầu task mới |
-| Hết hạn mức sử dụng | Commit phần đang làm vào nhánh của task, đẩy nhánh lên, không mở PR, không merge, ghi nhật ký |
+| Hết hạn mức sử dụng | Phiên dừng ngay, không làm được gì thêm. Phần đã đẩy lên còn nguyên (bước 3). `resume-run.yml` kích hoạt lại phiên khi hạn mức được làm mới (mục Tiếp tục phiên sau khi hết hạn mức) |
 | Lỗi hạ tầng còn sau lịch thử lại ở bước 5 | Như trên. Plan và ticket giữ `approved`; báo cáo ghi tên nhánh để lần sau tiếp tục trên nhánh đó |
 | Nhánh chính đỏ sau một lần merge (xuất hiện issue mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào |
+
+### Tiếp tục phiên sau khi hết hạn mức
+
+Phiên dùng hạn mức của tài khoản Claude (ADR-0009). Hết hạn mức thì phiên dừng giữa chừng, không tự chờ được. Việc chờ do GitHub làm:
+
+1. Mỗi giờ, `resume-run.yml` chạy `scripts/resume-check.py`: tìm danh sách chạy đang `running` trên nhánh báo cáo mà mọi nhánh của phiên (nhánh báo cáo, nhánh task và nhánh `claude/fix-T-NNN-...` của các ticket trong danh sách) không có commit nào trong 90 phút. Phiên còn sống luôn có commit dày hơn thế: đẩy sau mỗi commit của task (bước 3), đẩy nhánh báo cáo sau mỗi task (bước 10) và trong lúc viết báo cáo (bước 2 bên dưới); lần chờ dài nhất (CI, emulator) dưới 40 phút.
+2. Tìm thấy thì workflow kích hoạt lại routine với cùng danh sách chạy. Hạn mức chưa được làm mới thì phiên mới không làm được gì, không đẩy gì, và giờ sau workflow thử lại. Hạn mức được làm mới thì phiên tiếp tục.
+3. Không tiếp tục khi: phiên bắt đầu hơn 24 giờ trước (người quyết định), nhánh chính đỏ (`main-broken`), môi trường lỗi (`env-broken`).
+
+Phiên tiếp tục làm như sau:
+
+1. Lấy nhánh báo cáo có sẵn, đọc danh sách chạy, dòng thời gian, nhật ký các plan trên nhánh đó. Ghi vào dòng thời gian: giờ tiếp tục, và giờ commit cuối của phiên trước làm giờ dừng.
+2. Làm lại các kiểm tra đầu phiên (mục 2), trừ việc tạo nhánh báo cáo. Kiểm tra build vẫn chạy nền như mục 2.
+3. Task đã có nhật ký (đã merge, đã dừng, đã bỏ qua) thì không làm lại.
+4. Task đang làm dở: tiếp tục trên nhánh của nó. Đọc các commit đã có để biết đã tới bước nào. PR đã merge mà chưa có nhật ký thì chỉ ghi nhật ký. PR đang mở thì xem CI rồi đi tiếp từ bước 8. Chưa có commit test thì làm lại task từ bước 3 trên nhánh đó.
+5. Các task còn lại làm như thường. Gần tới `staging_needed_by` thì áp dụng điều kiện kết thúc như thường.
+6. Báo cáo phiên ghi mục Tiếp tục: số lần dừng vì hết hạn mức, giờ dừng, giờ tiếp tục, thời gian chờ.
+
+Muốn dừng hẳn một phiên đang chờ (ví dụ để merge việc gấp): người sửa trạng thái danh sách chạy trên nhánh báo cáo sang `finished`, ghi lý do "người dừng" vào báo cáo, rồi lập danh sách chạy mới cho các task chưa xong. Hoặc tắt workflow `resume-run`.
 
 Sau đó AI:
 
@@ -198,6 +222,7 @@ Sau đó AI:
    - Viết các mục không phụ thuộc emulator và staging: tóm tắt, kết quả từng task, cần người kiểm tra, task bị dừng, thời gian, số liệu và dòng thời gian, token, bài học, kiểm chứng bài học cũ, đề xuất.
    - Khi workflow xong: điền mục Kiểm thử trên máy ảo, Bản staging và các dòng còn lại của Dòng thời gian, sửa phần tóm tắt nếu kết quả làm nó đổi.
    - Chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
+   - Commit và đẩy nhánh báo cáo sau mỗi phần viết xong, không đợi cuối: hết hạn mức giữa chừng thì phần đã viết còn lại, và commit cho `resume-run.yml` biết phiên còn sống.
 
    Đo token khi viết mục Token: `scripts/token-usage.py report --since <started_at> --run RUN-YYYYMMDD-NN --csv docs/metrics/token-usage.csv`, dán bảng vào mục Token (`docs/ops/token-usage.md`). Không đo được thì ghi lý do và đi tiếp; việc đo không bao giờ chặn phiên.
 3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, `docs/metrics/token-usage.csv`, `docs/STATUS.md` sinh lại bằng `scripts/status.py` ngay trước khi mở PR, bài học mới trong `docs/lessons.md` (mục 6), plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).

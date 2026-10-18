@@ -139,6 +139,15 @@ Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường
 
 Không cần thiết lập thêm: workflow dùng các bí mật staging ở mục 1.3 (trừ khóa App Distribution). Phiên tự chạy khởi động nó cuối phiên, trước `staging.yml`; có crash hay ANR thì bản staging không được phát. Chi tiết ở `docs/ops/test-sessions.md`, mục 4.
 
+### 2.6. Tiếp tục phiên sau khi hết hạn mức (`resume-run.yml`)
+
+Không cần thiết lập thêm: workflow dùng hai bí mật `ROUTINE_FIRE_URL`, `ROUTINE_FIRE_TOKEN` của mục 2.2. Mỗi giờ (phút 23), `scripts/resume-check.py` tìm phiên đang `running` mà 90 phút không có commit; có thì kích hoạt lại routine với cùng danh sách chạy, giờ sau thử lại nếu hạn mức chưa được làm mới. Cách phiên tiếp tục: `docs/auto-run.md`, mục 4.
+
+- Phần tóm tắt của mỗi lần chạy workflow ghi lý do: không có phiên nào, phiên còn sống, hay đã kích hoạt lại.
+- Mỗi lần kích hoạt lại tính vào giới hạn 30 lần mỗi giờ của routine; một lần mỗi giờ là đủ xa giới hạn.
+- Dừng hẳn một phiên đang chờ: sửa trạng thái danh sách chạy trên nhánh báo cáo sang `finished`, hoặc **Actions > resume-run > Disable workflow**.
+
 ## 3. Việc còn phải kiểm chứng
 
-- Không còn mục nào. Đã kiểm chứng: `device-session.yml` chạy bản staging trên emulator API 34, chế độ máy bay, `monkey` và artifact (2026-10-17, lần chạy 39044089126, báo cáo `docs/test-sessions/TS-20261017-01.md`); phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
+- `resume-run.yml` kích hoạt lại được một phiên hết hạn mức, và phiên đó tiếp tục đúng task đang làm dở: chờ lần hết hạn mức thật đầu tiên. Phiên kích hoạt lại khi hạn mức chưa được làm mới có làm tốn gì không (chỉ là một phiên dừng ngay) cũng cần xem lần đó.
+- Đã kiểm chứng: `device-session.yml` chạy bản staging trên emulator API 34, chế độ máy bay, `monkey` và artifact (2026-10-17, lần chạy 39044089126, báo cáo `docs/test-sessions/TS-20261017-01.md`); phiên tự chạy khởi động được `staging.yml` qua `gh api` (RUN-20261015-03, lần chạy 38765200550); routine `env-canary` tạo và đóng được issue `env-broken` qua `gh api` (2026-10-17, issue #37).
