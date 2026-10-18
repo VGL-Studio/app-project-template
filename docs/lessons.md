@@ -308,7 +308,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Chuyện gì:** plan T-005 ghi test `failed_onShortScreen_retryButtonFitsOnScreen` thất bại "vì nút tràn khỏi màn hình". Ở khung test 360 x 640, đáy nút là 636 dp, vẫn trong màn hình; lỗi ở khung này là chân trang che nút. Lỗi gốc của FB-20261017-01 ở chiều rộng 320, chữ xuống dòng nhiều hơn. Test viết đúng plan qua ngay khi chưa có code; phiên thêm điều kiện "đáy nút không thấp hơn đỉnh chân trang" theo auto-run.md bước 3, rà soát độc lập xác nhận.
 - **Cải tiến:** đề xuất docs/CLAUDE.md, mục Khi viết plan: với lỗi giao diện, khi viết plan chạy thử test dự kiến trên code hiện tại (không commit) và ghi số đo thật vào cột "Viết trước" của mục 4. Mẫu plan, mục 4: khung test phải tái hiện được lỗi gốc.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: docs/CLAUDE.md, mục Khi viết plan; mẫu plan, mục 4. Áp dụng ngay cho plan T-006 (số đo ở mục 4). Anh Nhật nhận ngày 2026-10-18
+- **Áp dụng:** PR #53: docs/CLAUDE.md, mục Khi viết plan; mẫu plan, mục 4. Áp dụng ngay cho plan T-006 (số đo ở mục 4). Anh Nhật nhận ngày 2026-10-18
 - **Kiểm chứng:**
 
 ### L-030. Môi trường cloud không tải được artifact và log đầy đủ của GitHub Actions
@@ -318,7 +318,7 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Chuyện gì:** cuối phiên, `device-session.yml` (lần chạy 39050721140) xanh, nhưng phiên không tải được artifact `device-session`: GitHub chuyển tới `productionresultssa7.blob.core.windows.net`, proxy của môi trường từ chối (`connect_rejected`), cả qua `gh api` lẫn công cụ GitHub MCP. Log đầy đủ của job cũng ở host này; chỉ đọc được 200 dòng cuối. Phiên không xem được `offline.png`, `app-log.txt`, nên bước phân tích phiên thử (auto-run.md, mục 4) chỉ dựa vào bản tóm tắt.
 - **Cải tiến:** đề xuất cho phép host blob của GitHub Actions trong chính sách mạng của môi trường cloud. Nếu không được: `device-session.yml` in thêm phần cần phân tích (log app đã lọc, kết quả kịch bản) vào tóm tắt của job, và auto-run.md mục 4 ghi cách làm khi không tải được artifact.
 - **Trạng thái:** accepted
-- **Áp dụng:** anh Nhật chọn mở mạng cho nơi lưu artifact (2026-10-18). PR #PRNUM: `docs/ops/staging-and-runs.md` mục 2.1 thêm `*.blob.core.windows.net` vào Allowed domains; `docs/auto-run.md` mục 4 ghi cách làm khi không tải được artifact. Chuyển `applied` khi môi trường cloud đã đổi và một phiên tải được artifact
+- **Áp dụng:** anh Nhật chọn mở mạng cho nơi lưu artifact (2026-10-18). PR #53: `docs/ops/staging-and-runs.md` mục 2.1 thêm `*.blob.core.windows.net` vào Allowed domains; `docs/auto-run.md` mục 4 ghi cách làm khi không tải được artifact. Chuyển `applied` khi môi trường cloud đã đổi và một phiên tải được artifact
 - **Kiểm chứng:**
 
 ### L-031. Kịch bản mất mạng của device-session vẫn có mạng: chế độ máy bay không tắt Wi-Fi của emulator
@@ -328,5 +328,5 @@ Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue
 - **Chuyện gì:** kịch bản "mở lần đầu khi mất mạng" chỉ bật chế độ máy bay. Ở lần chạy này Wi-Fi của emulator vẫn chạy (`netstats_wifi_sample` tăng từ 47 MB lên 70 MB trong lúc máy bay bật), app tải xong sau 3,6 giây không lỗi, và `offline.png` chụp hộp thoại đồng ý quảng cáo thay vì màn hình lỗi. Lần trước (TS-20261017-01) máy bay có cắt mạng, nên kịch bản lúc đúng lúc sai mà không ai biết. Bản sửa T-005 vì vậy chưa được kiểm chứng trên emulator.
 - **Cải tiến:** `scripts/device-session.sh` tắt cả chế độ máy bay, Wi-Fi và dữ liệu di động, chờ tới khi `dumpsys connectivity` không còn mạng mặc định rồi mới mở app; không tắt được thì bỏ qua kịch bản, ghi `network=still_on skipped` và một dòng trong `summary.md`. Có test với `fake-adb`. `docs/ops/test-sessions.md` mục 4 ghi cách đọc.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM. Anh Nhật nhận ngày 2026-10-18
+- **Áp dụng:** PR #53. Anh Nhật nhận ngày 2026-10-18
 - **Kiểm chứng:**
