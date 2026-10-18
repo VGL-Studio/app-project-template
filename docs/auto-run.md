@@ -172,6 +172,7 @@ Sau đó AI:
 
 1. Nếu trong phiên có ít nhất một task được merge, chạy kịch bản chuẩn trên emulator trước khi phát (`docs/ops/test-sessions.md`, mục 4; `docs/ops/staging-and-runs.md`, mục 2.5):
    - Khởi động `device-session.yml` trên nhánh chính (`reason` là mã phiên), chờ kết thúc (khoảng 25 phút), tải artifact `device-session`.
+   - Không tải được artifact (thường do mạng của môi trường chặn nơi lưu artifact, L-030): đọc bản tóm tắt trong cuối log của job, ghi vào báo cáo "chưa phân tích được" kèm lỗi tải, và vẫn quyết định phát hay không theo crash và ANR của bản tóm tắt. Người tải artifact và nhờ AI phân tích sau, trong phiên có người theo dõi.
    - Phân tích thư mục phiên theo `docs/CLAUDE.md`, mục Khi phân tích một phiên thử, nhưng ghi kết quả vào mục Kiểm thử trên máy ảo của báo cáo phiên thay vì một file `docs/test-sessions/` riêng. Phản hồi `FB-...` soạn sẵn đi qua PR báo cáo.
    - **Có crash hoặc ANR** (workflow đỏ, `summary.md` ghi "chặn"): không khởi động `staging.yml`. Ghi vào báo cáo dấu vết lỗi và commit nghi gây ra, soạn phản hồi mức `chan`. Nhánh chính vẫn xanh nên không mở `main-broken`; người quyết định sửa trước hay phát.
    - Workflow đỏ mà không có `summary.md` (lỗi hạ tầng của emulator): chạy lại một lần; vẫn lỗi thì ghi vào báo cáo và vẫn phát staging, vì cổng chất lượng đã qua.

@@ -68,6 +68,7 @@ Cuối mỗi phiên tự chạy có task được merge, trước `staging.yml`,
 
 - **Có crash hoặc ANR:** workflow đỏ, phiên không phát bản staging, ghi phát hiện vào báo cáo phiên và soạn sẵn phản hồi mức chặn.
 - **Không có:** phiên phát staging, ghi tóm tắt và các phát hiện khác (lỗi đã bắt, lệch kịch bản) vào báo cáo phiên.
+- Kịch bản mất mạng tắt chế độ máy bay, Wi-Fi và dữ liệu di động, rồi chờ tới khi máy không còn mạng mặc định mới mở app (L-031). Không tắt được thì kịch bản bị bỏ qua: `scenarios.txt` ghi `network=still_on skipped`, `summary.md` có dòng "Kịch bản mất mạng bị bỏ qua", và không có `offline.png`. Không dùng ảnh hay log của lần đó làm bằng chứng cho trạng thái lỗi.
 - Số liệu thời gian và khung hình trên emulator không có GPU chỉ để so giữa các lần chạy, không dùng để chặn.
 - Hành vi đã biết của emulator: lần mở đầu sau khi xóa dữ liệu thường hết 10 giây tải cấu hình (TS-20261017-01); trên máy thật không lặp lại (TS-20261017-02, FB-20261017-02). Không ghi thành phát hiện mới, trừ khi xảy ra cả ở lần mở sau, khi app đã chạy một lúc.
 

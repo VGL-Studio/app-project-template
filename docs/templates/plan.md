@@ -60,6 +60,8 @@ ADR liên quan: <ADR-NNNN, ...>
 <!--
 Test được viết TRƯỚC code và phải thất bại đúng lý do trước khi viết code (xem auto-run.md).
 Mỗi dòng dưới đây phải đủ cụ thể để viết được test ngay từ plan.
+Plan sửa lỗi: ghi số đo thật trên code hiện tại (chạy test tạm, không commit) và lý do thất bại đã thấy, không đoán.
+Khung test tái hiện được lỗi gốc: cùng chiều rộng, chiều cao như nơi phát hiện (L-029).
 Test trên emulator chỉ kiểm tra trạng thái ổn định sau khi chờ có giới hạn, không khẳng định màn hình thoáng qua (CLAUDE.md, bước 10).
 -->
 

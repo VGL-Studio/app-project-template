@@ -39,6 +39,7 @@ Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thu�
 - Danh sách file sẽ tạo và sửa phải đầy đủ và cụ thể. Danh sách này là ranh giới: trong phiên tự chạy, AI chỉ được chạm vào những file đã liệt kê.
 - Plan đổi một file mà nơi khác đọc (`docs/design-system/tokens.json`, ảnh chuẩn, cấu hình dùng chung): tìm mọi nơi đọc file đó (`grep -rn <tên file> scripts/ .github/ */src/test`) và đưa các file bị ảnh hưởng vào danh sách, hoặc ghi vì sao không ảnh hưởng (L-020).
 - Mỗi tiêu chí chấp nhận trong spec phải có cách kiểm chứng tương ứng trong mục kiểm thử. Test được viết trước code, nên mục kiểm thử phải đủ cụ thể để viết được test ngay từ plan.
+- Plan sửa lỗi giao diện hay lỗi đo được: trước khi viết mục kiểm thử, chạy thử điều test sẽ kiểm tra trên code hiện tại, bằng một test tạm không commit, và ghi số đo thật vào mục 4. Khung test phải tái hiện được lỗi gốc (cùng chiều rộng, chiều cao như nơi phát hiện). Không đoán test sẽ thất bại vì đâu (L-029).
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
 - Hàm phụ trợ nằm trong file test mà cũng phải đổi (ví dụ danh sách mà test so sánh): ghi rõ phần nào vào commit test của bước 3, phần nào vào commit code của bước 4, để test viết trước thất bại đúng lý do (L-025).

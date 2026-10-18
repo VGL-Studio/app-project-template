@@ -18,6 +18,7 @@
 #   DEVICE_SESSION_DIR   where session folders go; default: test-sessions (ignored by git)
 #   DEVICE_SESSION_REPORTS  reports already written; their ids are not reused; default: docs/test-sessions
 #   MONKEY_EVENTS        random events in `scenarios`; default 1500
+#   DEVICE_SESSION_SLEEP seconds for every wait in `scenarios`; tests set 0 (default: the wait of each step)
 # Messages are in Vietnamese for the team; comments are in English.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -41,6 +42,36 @@ need_device() {
   command -v adb > /dev/null || fail "không tìm thấy adb. Cài Android SDK platform-tools (docs/ops/test-sessions.md)."
   [[ "$(adb get-state 2>/dev/null || true)" == "device" ]] ||
     fail "không thấy thiết bị. Cắm cáp và bật USB debugging, hoặc ghép Wireless debugging; nhiều máy thì đặt ANDROID_SERIAL."
+}
+
+# Waits between scenario steps; DEVICE_SESSION_SLEEP overrides the duration (tests).
+pause() { sleep "${DEVICE_SESSION_SLEEP:-$1}"; }
+
+# Prints the device's default network: an id, "none", or "unknown" when dumpsys has no such line.
+default_network() {
+  local network
+  network="$(adb shell dumpsys connectivity 2>/dev/null | tr -d '\r' | sed -n 's/^ *Active default network: *//p' | head -n 1)"
+  echo "${network:-unknown}"
+}
+
+# Airplane mode alone does not always cut Wi-Fi: Android may keep Wi-Fi on in airplane mode, and the emulator
+# did in TS-20261017-03 (L-031). Turn every radio off, then wait until the device has no default network.
+network_off() {
+  local i
+  adb shell cmd connectivity airplane-mode enable > /dev/null 2>&1 || true
+  adb shell svc wifi disable > /dev/null 2>&1 || true
+  adb shell svc data disable > /dev/null 2>&1 || true
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    [[ "$(default_network)" == "none" ]] && return 0
+    pause 1
+  done
+  return 1
+}
+
+network_on() {
+  adb shell cmd connectivity airplane-mode disable > /dev/null 2>&1 || true
+  adb shell svc wifi enable > /dev/null 2>&1 || true
+  adb shell svc data enable > /dev/null 2>&1 || true
 }
 
 # Writes a line into the device log, so the analysis can split the log by step.
@@ -130,21 +161,27 @@ cmd_scenarios() {
     adb shell am force-stop "${pkg}"
     out="$(adb shell am start -W -n "${activity}" | tr -d '\r')"
     echo "cold_start run=${i} total_ms=$(sed -n 's/^TotalTime: //p' <<<"${out}")" >> "${dir}/scenarios.txt"
-    sleep 15
+    pause 15
   done
   adb exec-out screencap -p > "${dir}/after-start.png" 2>/dev/null || true
 
   # 2. First launch without network: the spec expects an error and a retry button (loading, KB-2).
   mark "scenario=offline_first_launch"
   adb shell pm clear "${pkg}" > /dev/null
-  adb shell cmd connectivity airplane-mode enable > /dev/null 2>&1 || true
-  sleep 3
-  adb shell am start -W -n "${activity}" > /dev/null
-  sleep 20
-  adb exec-out screencap -p > "${dir}/offline.png" 2>/dev/null || true
-  adb shell cmd connectivity airplane-mode disable > /dev/null 2>&1 || true
-  echo "offline_first_launch screenshot=offline.png" >> "${dir}/scenarios.txt"
-  sleep 10
+  if network_off; then
+    mark "network=off"
+    adb shell am start -W -n "${activity}" > /dev/null
+    pause 20
+    adb exec-out screencap -p > "${dir}/offline.png" 2>/dev/null || true
+    echo "offline_first_launch network=off screenshot=offline.png" >> "${dir}/scenarios.txt"
+  else
+    # Without a verified offline state the screenshot would show a normal launch, not the error screen.
+    mark "network=still_on"
+    echo "offline_first_launch network=still_on skipped" >> "${dir}/scenarios.txt"
+    echo "CHÚ Ý: tắt mạng không được (máy vẫn có mạng mặc định $(default_network)); bỏ qua kịch bản mất mạng." >&2
+  fi
+  network_on
+  pause 10
 
   # 3. Random taps and swipes inside the app, with a fixed seed so a crash can be reproduced.
   mark "scenario=monkey events=${MONKEY_EVENTS} seed=${MONKEY_SEED}"
@@ -188,7 +225,7 @@ cmd_summary() {
   [[ -d "${dir}" && -f "${dir}/logcat.txt" ]] || fail "không có ${dir}/logcat.txt."
   [[ -n "${pkg}" ]] || pkg="$(sed -n 's/^- Ứng dụng: \([^,]*\),.*/\1/p' "${dir}/session.md" 2>/dev/null | head -n 1)"
   [[ -n "${pkg}" ]] || pkg="$(app_package)"
-  local log="${dir}/logcat.txt" crashes anrs app_errors app_warnings monkey_events monkey_problem blocking
+  local log="${dir}/logcat.txt" crashes anrs app_errors app_warnings monkey_events monkey_problem blocking offline_skipped
   crashes="$(grep -c "AndroidRuntime: Process: ${pkg}," "${log}" || true)"
   anrs="$(grep -c "ANR in ${pkg}" "${log}" || true)"
   app_errors="$(grep -cE ' E VGL\.' "${log}" || true)"
@@ -200,6 +237,8 @@ cmd_summary() {
     monkey_problem="$(grep -cE '^// (CRASH|NOT RESPONDING)' "${dir}/monkey.txt" || true)"
   fi
   blocking=$(( crashes + anrs + monkey_problem ))
+  offline_skipped=0
+  [[ -f "${dir}/scenarios.txt" ]] && offline_skipped="$(grep -c 'offline_first_launch network=still_on' "${dir}/scenarios.txt" || true)"
   # The app's own log, crash traces and session markers, for a quick read before the full log.
   grep -E " (VGL[A-Za-z0-9_.]*|AndroidRuntime|ActivityManager) *:" "${log}" |
     grep -E "VGL|FATAL|Process: ${pkg}|ANR in ${pkg}|^\s|Caused by|at " > "${dir}/app-log.txt" || true
@@ -216,6 +255,9 @@ cmd_summary() {
     echo "| Monkey báo crash hay treo | ${monkey_problem:-0} | $([ "${monkey_problem:-0}" -gt 0 ] && echo chặn || echo '') |"
     echo "| Log lỗi của app (\`E VGL.*\`) | ${app_errors:-0} | xem |"
     echo "| Log cảnh báo của app (\`W VGL.*\`) | ${app_warnings:-0} | xem |"
+    if [[ "${offline_skipped:-0}" -gt 0 ]]; then
+      echo "| Kịch bản mất mạng bị bỏ qua (không tắt được mạng) | ${offline_skipped} | xem |"
+    fi
     echo
     if [[ -f "${dir}/scenarios.txt" ]]; then
       echo "## Kịch bản chuẩn"

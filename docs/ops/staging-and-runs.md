@@ -67,7 +67,7 @@ Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra k
 
    | Trường | Giá trị |
    | --- | --- |
-   | Network access | **Custom**; Allowed domains: `dl.google.com` và `maven.google.com`, mỗi dòng một tên miền; bật **Also include default list of common package managers** |
+   | Network access | **Custom**; Allowed domains: `dl.google.com`, `maven.google.com` và `*.blob.core.windows.net`, mỗi dòng một tên miền; bật **Also include default list of common package managers**. Tên miền cuối là nơi GitHub lưu artifact và log đầy đủ của Actions; thiếu nó thì phiên không đọc được kết quả `device-session.yml` (L-030) |
    | Environment variables | `BASH_DEFAULT_TIMEOUT_MS=600000` và `BASH_MAX_TIMEOUT_MS=1800000`, mỗi dòng một biến |
    | Setup script | Toàn bộ nội dung `scripts/cloud-setup.sh` |
 
