@@ -3,7 +3,7 @@ id: RUN-YYYYMMDD-NN
 status: draft                # draft | approved | running | finished
 sprint: <tên hoặc số sprint>
 approved_by: <dev duyệt danh sách và kích hoạt phiên>
-max_tasks: <số task tối đa>      # mặc định mọi plan đã duyệt, tạm tối đa 8 (docs/CLAUDE.md, mục Khi lập danh sách chạy)
+max_tasks: <số task tối đa>      # dev quyết định theo ước tính; mặc định bằng số task trong danh sách (docs/CLAUDE.md, mục Khi lập danh sách chạy)
 staging_needed_by:           # tùy chọn: thời điểm muốn có bản staging, ví dụ 2026-10-21 08:00
 started_at:
 finished_at:
