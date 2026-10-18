@@ -1,15 +1,15 @@
 ---
 ticket: T-006
 title: Test cuộn tới nút "Thử lại" trên màn hình rất thấp
-status: draft
+status: approved
 version: 1
 risk_score: 1
 risk_level: low
 blocking_points: []
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật (vì là app mẫu)
+approved_at: 2026-10-18
 ---
 
 # PLAN T-006: TEST CUỘN TỚI NÚT "THỬ LẠI" TRÊN MÀN HÌNH RẤT THẤP
@@ -117,15 +117,17 @@ Hàng `w320dp-h640dp` cho thấy lỗi gốc của FB-20261017-01 (chiều rộn
 ## 8. Câu hỏi cho người duyệt
 
 1. **Ngoại lệ viết test trước:** test qua ngay vì hành vi đã có; thay bằng một lần thử tạm bỏ cuộn để chứng minh test bắt được lỗi. Đề xuất: đồng ý.
+- Trả lời: Đồng ý.
 2. **Có cần ảnh chuẩn ở khung `w320dp-h480dp` không:** AI đề xuất không. Ảnh chỉ chụp phần đầu màn hình (trước khi cuộn), không cho thấy thêm điều gì so với hai test; quy tắc L-028 chỉ yêu cầu một ảnh khung thấp mỗi màn hình, đã có.
+- Trả lời: Không.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì là app mẫu)
+- **Ghi chú:** 
 
 ## 10. Nhật ký thực hiện
 
