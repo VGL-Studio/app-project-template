@@ -24,7 +24,9 @@ Chỉ trong phiên có người theo dõi, theo [ops/clone-study.md](ops/clone-s
 - Mỗi app một agent con, lần lượt vì chỉ có một máy; đọc APK và tìm trên web chạy song song. Các app cùng một mã nguồn chỉ khảo sát kỹ một app.
 - Báo cáo theo [mẫu khảo sát](templates/reference-app.md); mỗi nhận xét dẫn về ảnh hay cây giao diện; chưa xem được thì ghi ở mục Chưa xem được, không đoán. Số liệu từ web có nguồn.
 - Bản đề xuất theo [mẫu đề xuất](templates/app-proposal.md). Mỗi cải tiến có bằng chứng và cách đo. Quảng cáo, sự kiện phân tích, dữ liệu thu thập chỉ ghi thành câu hỏi. Đề xuất mới có trạng thái `draft`; chỉ dev ghi `approved`, chốt tên và tên gói.
-- Ảnh chụp, APK, kết quả giải nén không vào git. Chỉ báo cáo và bản đề xuất được chép vào `docs/research/` khi app đã có repo.
+- Ảnh chụp, APK, kết quả giải nén không vào git. Báo cáo và bản đề xuất nằm trong `research/` của thư mục làm việc, cùng cấu trúc với `docs/research/`, và được chép nguyên vào đó khi app đã có repo.
+- Báo cáo không chứa mã quảng cáo, khóa API, token, mã định danh máy hay tên tài khoản của app mẫu; trích log thì che. Chạy `scripts/secret-scan.py` trước khi commit.
+- Cuối mỗi app, `ax.sh newfiles` liệt kê file mới trên máy; ghi vào báo cáo để người dọn, không tự xóa.
 - Không gọi API hay backend của app mẫu từ app mình, không chép code từ APK, không dùng tên, icon app hay ảnh store giống app mẫu.
 
 ## Khi thiết kế trên Figma (app clone)

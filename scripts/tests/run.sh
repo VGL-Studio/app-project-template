@@ -260,6 +260,10 @@ if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=tes
   expect "new-app.sh leaves out the from-app issue form" absent \
     "$([ -e "$new_app/.github/ISSUE_TEMPLATE/from-app.yml" ] && echo present || echo absent)"
   expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"
+  expect "new-app.sh regenerates the progress page without the template's lessons" 0 \
+    "$(grep -c 'L-0[0-9][0-9]' "$new_app/docs/STATUS.md" || true)"
+  expect "new-app.sh leaves pages that match the documents" 0 \
+    "$(cd "$new_app" && python3 -I scripts/status.py --check > /dev/null && python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
   expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
 else
   expect "new-app.sh succeeds" ok failed
@@ -426,6 +430,21 @@ expect "foundation: check passes on a fresh page" 0 "$(foundation --check > /dev
 expect "foundation: docs/foundation.md of this repo matches its ADRs" 0 \
   "$(python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
 
+# secret-scan.py finds real-looking ad IDs and keys; Google test IDs and keys marked FAKE are allowed.
+scan="$work/scan"
+mkdir -p "$scan"
+printf 'banner: ca-app-pub-3940256099942544/9214589741\nkey: AIzaSyFAKE_STAGING_KEY_NOT_REAL00000000\n' > "$scan/ok.md"
+expect "secret-scan: Google test IDs and fake keys pass" 0 \
+  "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
+# Built from pieces, so this file itself holds no real-looking ID for the repository scan below.
+printf 'log: AdLoader init ca-app-pub-%s/%s ok\n' 5555555555555555 2222222222 > "$scan/report.md"
+expect "secret-scan: a real-looking ad unit in a report fails" 1 \
+  "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
+expect "secret-scan: the finding is masked" 0 \
+  "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py | grep -c '2222222222' || true)"
+expect "secret-scan: this repository has no real ad IDs or keys" 0 \
+  "$(python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
+
 # env-canary.sh opens an env-broken issue when the environment is red and closes it when it is green again.
 printf '#!/usr/bin/env bash\nexit 0\n' > "$work/pass.sh"
 printf '#!/usr/bin/env bash\necho "Could not GET https://repo.maven.apache.org/x"\nexit 1\n' > "$work/fail.sh"
@@ -546,6 +565,12 @@ expect "app-explore: seq sends the tap and the back key" 2 \
 expect "app-explore: seq stops at a refused step" 4 "$(ax paywall.xml seq "tapid pay_purchase_btn; back")"
 expect "app-explore: seq names the step it stopped at" 1 "$(grep -c 'DỪNG ở bước 1' "$work/ax.out")"
 expect "app-explore: a drag from the screen edge is refused" 4 "$(ax settings.xml drag 20 1200 600 1200)"
+printf '/sdcard/DCIM/Camera/a.jpg\n' > "$work/files.txt"
+FAKE_ADB_NETWORK=100 FAKE_ADB_FILES="$work/files.txt" AX_FILES="$work/before.txt" ax settings.xml check > /dev/null
+printf '/sdcard/DCIM/Camera/a.jpg\n/sdcard/Pictures/App/new.jpg\n' > "$work/files.txt"
+FAKE_ADB_FILES="$work/files.txt" AX_FILES="$work/before.txt" ax settings.xml newfiles > /dev/null
+expect "app-explore: newfiles lists only files added since the first check" "/sdcard/Pictures/App/new.jpg" \
+  "$(grep '^/sdcard' "$work/ax.out")"
 expect "app-explore: the tree shows sizes in dp" 1 \
   "$(AX_DENSITY=440 python3 -I scripts/app-explore/tree.py "$ax_fixtures/ads.xml" | grep -c 'btn_capture' )"
 

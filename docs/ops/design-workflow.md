@@ -90,7 +90,7 @@ Script đọc token từ biến môi trường và không bao giờ in ra. Lộ 
 
 **Xuất từ Claude Design:** tài liệu chưa có xuất PNG. Mở bản mẫu trong Chrome, bật DevTools > chế độ thiết bị, đặt kích thước 411 x 891 và DPR 3, mở menu (dấu ba chấm) > **Capture screenshot**. Ảnh ra đúng 1233 x 2673. Lưu kèm gói **Export > .zip** vào `design/handoff/`, rồi nhờ AI đọc HTML/CSS trong gói để viết `context/` theo cùng cấu trúc (không có tên biến thì ghi giá trị và token tương ứng trong `tokens.json`).
 
-**Nối Figma MCP vào Claude Code (chỉ cho phiên có người theo dõi):** `claude mcp add --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate. Không thêm connector này vào routine.
+**Nối Figma MCP vào Claude Code (chỉ cho phiên có người theo dõi):** `claude mcp add --scope user --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate (phạm vi người dùng, để mọi repo app đều dùng được). Không thêm connector này vào routine.
 
 Kiểm tra gói: mỗi ảnh trong `screens/` đúng 1233 x 2673 (`sips -g pixelWidth -g pixelHeight <ảnh>` trên macOS) và có file `context/` cùng tên, tên đúng quy tắc, `README.md` có bảng chữ và bảng ánh xạ.
 

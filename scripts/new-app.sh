@@ -108,6 +108,10 @@ grep -qxF '<!-- Các bài học ghi dưới dòng này. -->' docs/lessons.md ||
 LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của repo dự án mẫu (commit $template_commit)." \
   perl -0pi -e 's/(<!-- Các bài học ghi dưới dòng này\. -->\n).*\z/$1\n$ENV{LESSONS_NOTE}\n/s' docs/lessons.md
 
+# Pages generated from the documents must describe the new app, not the template (its lessons, for one).
+python3 -I scripts/status.py > /dev/null
+python3 -I scripts/foundation.py > /dev/null
+
 left="$(grep -rlIF "$TEMPLATE_PACKAGE" . --exclude-dir=.git --exclude-dir=adr || true)"
 [ -z "$left" ] || die "còn tên gói cũ trong: $left"
 

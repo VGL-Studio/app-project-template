@@ -12,7 +12,8 @@ status: draft                          # draft | reviewed. Chỉ người ghi re
 
 <!--
 Báo cáo khảo sát một app mẫu (ADR-0021, docs/ops/clone-study.md). AI viết, dev xem lại.
-Mỗi nhận xét dẫn về ảnh (`NN-ten`) hay dòng cây giao diện. Không đoán: chưa xem được thì ghi ở mục 9.
+Mỗi nhận xét dẫn về ảnh (`NN-ten`, nằm trong captures/<package>/ của thư mục làm việc, không vào repo) hay dòng cây giao diện. Không đoán: chưa xem được thì ghi ở mục 9.
+Không chép mã quảng cáo, khóa, token, mã định danh máy hay tên tài khoản; trích log thì che (ca-app-pub-<đã che>).
 -->
 
 ## 1. Thông tin
@@ -59,4 +60,4 @@ Màn hình hay tính năng chưa vào được, lý do, và cần người làm 
 
 ## 10. Sự cố trong lúc khảo sát
 
-Dòng mới trong `incidents.log` (mở nhầm quảng cáo, Play, app khác), app văng, mất kết nối. Ảnh hay dữ liệu để lại trên máy cần người dọn.
+Dòng mới trong `incidents.log` (mở nhầm quảng cáo, Play, app khác), app văng, mất kết nối. File để lại trên máy cần người dọn: danh sách từ `ax.sh newfiles`.
