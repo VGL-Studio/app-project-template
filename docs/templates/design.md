@@ -15,7 +15,8 @@ approved_at: YYYY-MM-DD
 Quy trình: docs/ops/design-workflow.md. Quyết định: ADR-0008, ADR-0020.
 Thư mục features/<ten-feature>/design/ chứa:
 - README.md này.
-- screens/: ảnh PNG 1233 x 2673 (khung 411 x 891, xuất 3x), tên <Ten>Screen_<trạng thái>_<light|dark>.png,
+- screens/: ảnh PNG 1233 x 2673 (khung 411 x 891, xuất 3x), tên <Ten>Screen_<trạng thái>_<light|dark>.png;
+  app hỗ trợ điện thoại gập thêm ảnh 2019 x 2523 (khung 673 x 841) tên <Ten>Screen_<trạng thái>_<light|dark>_unfolded.png,
   trùng tên ảnh chuẩn screenshot mà plan sẽ tạo.
 - context/: số liệu của từng màn hình (nguồn, biến dùng, cấu trúc và số liệu), cùng tên với ảnh, đuôi .md.
 - review/: do scripts/design-compare.sh sinh ra, không sửa tay.

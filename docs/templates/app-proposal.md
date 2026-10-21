@@ -54,7 +54,7 @@ Luồng mở đầu, luồng chính, luồng phụ, dạng `A > B > C`, kèm s�
 | Màn hình | Tên frame | Trạng thái cần dựng | Feature |
 | --- | --- | --- | --- |
 
-Tên frame theo ADR-0020: `<Ten>Screen_<trạng thái>_<light|dark>`.
+Tên frame theo ADR-0020: `<Ten>Screen_<trạng thái>_<light|dark>`. Nếu hỗ trợ điện thoại màn hình gập, liệt kê thêm frame khung mở ra 673 x 841, hậu tố `_unfolded`, cho màn hình đổi bố cục khi rộng (`docs/ops/design-workflow.md`, mục 2).
 
 ## 8. Điểm nổi bật
 

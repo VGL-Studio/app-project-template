@@ -6,8 +6,10 @@ Usage:
   scripts/figma-export.py --offline <nodes.json> <feature>      (tests: no network, context files only)
 
 For every frame named like a screenshot image (<Name>Screen_<state>_<light|dark>, for example
-LoadingScreen_failed_light) under the given node, it writes:
-  docs/features/<feature>/design/screens/<frame>.png   PNG at 3x, checked to be 1233 x 2673
+LoadingScreen_failed_light; a state may have hyphens, like permission-denied) under the given node, it writes:
+  docs/features/<feature>/design/screens/<frame>.png   PNG at 3x, checked to be 1233 x 2673 (frame 411 x 891)
+Frames for an unfolded foldable phone end with _unfolded (CameraScreen_default_dark_unfolded): frame 673 x 841,
+PNG 2019 x 2523.
   docs/features/<feature>/design/context/<frame>.md    sizes, spacing, colors, text, matched to tokens.json
 
 Works on every Figma plan (the REST API is not limited like the MCP server). The token needs only the
@@ -29,9 +31,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 # Tests point this at a fixed copy, so a change of the design system never breaks them (L-020).
 TOKENS = Path(os.environ.get("FIGMA_EXPORT_TOKENS", ROOT / "docs" / "design-system" / "tokens.json"))
-FRAME_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*Screen_[a-z0-9]+_(light|dark)$")
-FRAME_SIZE = (411, 891)
-IMAGE_SIZE = (1233, 2673)
+FRAME_NAME = re.compile(r"^[A-Z][A-Za-z0-9]*Screen_[a-z0-9]+(?:-[a-z0-9]+)*_(light|dark)(_unfolded)?$")
+# Standard phone frame, and the unfolded foldable frame (Compose Devices.FOLDABLE), in dp; images are 3x.
+FRAME_SIZES = {"": (411, 891), "_unfolded": (673, 841)}
+
+
+def frame_size(name):
+    return FRAME_SIZES[FRAME_NAME.match(name).group(2) or ""]
+
+
+def image_size(name):
+    width, height = frame_size(name)
+    return width * 3, height * 3
 API = "https://api.figma.com/v1"
 
 
@@ -174,12 +185,13 @@ def describe(node, frame_box, tokens, theme, depth, lines, used):
 
 
 def context_markdown(frame, link, tokens):
-    theme = frame["name"].rsplit("_", 1)[1]
+    theme = FRAME_NAME.match(frame["name"]).group(1)
+    expected = frame_size(frame["name"])
     box = frame["absoluteBoundingBox"]
     lines, used = [], set()
     describe(frame, box, tokens, theme, 0, lines, used)
-    size_note = "" if (round(box["width"]), round(box["height"])) == FRAME_SIZE else \
-        f" CHÚ Ý: khung không phải {FRAME_SIZE[0]} x {FRAME_SIZE[1]}."
+    size_note = "" if (round(box["width"]), round(box["height"])) == expected else \
+        f" CHÚ Ý: khung không phải {expected[0]} x {expected[1]}."
     out = [f"# SỐ LIỆU THIẾT KẾ: {frame['name']}", "",
            "Sinh bởi `scripts/figma-export.py`. Không sửa tay; thiết kế đổi thì chạy lại script (ADR-0020).", "",
            "## 1. Nguồn", "",
@@ -250,8 +262,10 @@ def main(argv):
         download(url, path)
         size = png_size(path)
         print(f"screens/{frame['name']}.png {size[0]} x {size[1]}" if size else f"screens/{frame['name']}.png")
-        if size != IMAGE_SIZE:
-            problems.append(f"{frame['name']}: ảnh {size}, cần {IMAGE_SIZE} (khung phải là 411 x 891)")
+        want = image_size(frame["name"])
+        if size != want:
+            box = frame_size(frame["name"])
+            problems.append(f"{frame['name']}: ảnh {size}, cần {want} (khung phải là {box[0]} x {box[1]})")
     if problems:
         fail("; ".join(problems))
 
