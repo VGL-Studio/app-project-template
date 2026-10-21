@@ -15,6 +15,29 @@ Trước khi viết spec, plan hay code cho một ticket, đọc theo thứ tự
 
 Nếu tài liệu mâu thuẫn nhau, không tự chọn bên nào. Ghi mâu thuẫn vào mục câu hỏi của tài liệu đang viết và báo cho người.
 
+## Khi khảo sát app mẫu (app clone)
+
+Chỉ trong phiên có người theo dõi, theo [ops/clone-study.md](ops/clone-study.md) và ADR-0021.
+
+- Điều khiển máy chỉ qua `scripts/app-explore/ax.sh`. Không gọi thẳng `adb shell input`, không vượt bộ chặn quảng cáo và nút mua, không đổi cài đặt hệ thống. Máy khóa, mất mạng hay từ chối thao tác thì dừng và nhờ người.
+- Không bấm quảng cáo, không mua, không bắt đầu dùng thử, không đăng nhập bằng tài khoản cá nhân, không chia sẻ hay gửi gì. Mọi dòng mới trong `incidents.log` ghi vào báo cáo của app.
+- Mỗi app một agent con, lần lượt vì chỉ có một máy; đọc APK và tìm trên web chạy song song. Các app cùng một mã nguồn chỉ khảo sát kỹ một app.
+- Báo cáo theo [mẫu khảo sát](templates/reference-app.md); mỗi nhận xét dẫn về ảnh hay cây giao diện; chưa xem được thì ghi ở mục Chưa xem được, không đoán. Số liệu từ web có nguồn.
+- Bản đề xuất theo [mẫu đề xuất](templates/app-proposal.md). Mỗi cải tiến có bằng chứng và cách đo. Quảng cáo, sự kiện phân tích, dữ liệu thu thập chỉ ghi thành câu hỏi. Đề xuất mới có trạng thái `draft`; chỉ dev ghi `approved`, chốt tên và tên gói.
+- Ảnh chụp, APK, kết quả giải nén không vào git. Chỉ báo cáo và bản đề xuất được chép vào `docs/research/` khi app đã có repo.
+- Không gọi API hay backend của app mẫu từ app mình, không chép code từ APK, không dùng tên, icon app hay ảnh store giống app mẫu.
+
+## Khi thiết kế trên Figma (app clone)
+
+Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
+
+- Chưa có bản đề xuất `approved` thì chưa dựng thiết kế của app.
+- Dựng 2 đến 3 hướng phong cách trước, mỗi hướng một bảng phong cách và hai màn hình; chờ dev chọn rồi mới dựng toàn bộ. Không tự chọn hướng.
+- App mới phải tốt hơn app mẫu và có nhận diện riêng: giữ khuôn tương tác quen thuộc, đổi màu, icon, chữ, hình dạng. Không đặt ảnh chụp toàn màn hình của app mẫu vào thiết kế.
+- Mọi màu, chữ, khoảng cách dùng biến; phần lặp lại là component. Tên frame và khung theo ADR-0020.
+- Sau mỗi lượt dev làm mịn, quét file chỉ đọc và báo chỗ lệch (instance bị tách, giá trị viết cứng, tên hay khung frame bị đổi, chữ ngoài hệ thống, màn hình còn thiếu). Không tự sửa lại phần dev vừa làm mịn; đề xuất đưa giá trị mới vào biến.
+- Tài sản mượn tạm đặt tên `borrowed_...` trong Figma và trong code, ghi vào `docs/borrowed-assets.md` trong cùng PR với file mượn ([mẫu](templates/borrowed-assets.md)).
+
 ## Khi sinh spec từ yêu cầu
 
 - Feature mới thì tạo thư mục `features/<feature>/` với tên trùng tên module `:feature:<ten>` dự kiến. Đặt tên chưa chắc thì đề xuất tên trong mục câu hỏi.

@@ -4,6 +4,8 @@ Tài liệu này chỉ có trong repo dự án mẫu. Script khởi tạo không
 
 ## 1. Chuẩn bị
 
+App clone: làm bước khảo sát app mẫu trước (`docs/ops/clone-study.md`); tên và tên gói lấy từ bản đề xuất đã được duyệt.
+
 - Tên gói của app, cũng là `applicationId`, ví dụ `com.vglstudio.notes`. Sau khi phát hành lên Google Play thì không đổi được.
 - Tên app hiển thị cho người dùng.
 - Một thư mục staging riêng của app trên R2, có địa chỉ công khai https.

@@ -1,6 +1,6 @@
 # QUY TRÌNH THIẾT KẾ: TỪ CLAUDE DESIGN HOẶC FIGMA TỚI GIAO DIỆN THẬT
 
-Tài liệu này dành cho chủ feature (người dựng thiết kế), người phụ trách sản phẩm (người duyệt) và dev. Quyết định nằm ở ADR-0008 và ADR-0020. Nhóm dùng Claude Design hoặc Figma tùy dự án; từ bước bàn giao trở đi, hai công cụ đi chung một đường.
+Tài liệu này dành cho chủ feature (người dựng thiết kế), người phụ trách sản phẩm (người duyệt) và dev. Quyết định nằm ở ADR-0008 và ADR-0020; app clone dựng thiết kế theo mục 8 (ADR-0021). Nhóm dùng Claude Design hoặc Figma tùy dự án; từ bước bàn giao trở đi, hai công cụ đi chung một đường.
 
 ## Tổng quan
 
@@ -23,7 +23,7 @@ Code là gốc (ADR-0008). Nguồn để dựng trên công cụ:
 
 **Claude Design:** tạo design system mới, ở bước đưa nguồn vào, tải lên các ảnh catalog và `tokens.json` (Claude Design chỉ ghi rõ cách đọc mã nguồn React, nên không dùng cách trỏ thẳng vào repo Compose). Xem lại kết quả, chạy thử một dự án nhỏ, rồi bật **Published**. Hướng dẫn chính thức: https://support.claude.com/en/articles/14604397-set-up-your-design-system-in-claude-design
 
-**Figma:** trong file thư viện của app, tạo biến màu (hai chế độ Light, Dark), kiểu chữ và biến khoảng cách theo `tokens.json`, đặt tên giống tên trong file (ví dụ `primary`, `bodyLarge`, `md`). Dựng thành phần `PrimaryButton` giống ảnh catalog. Gói Professional không có API biến, nên làm bằng tay.
+**Figma:** trong file thư viện của app, tạo biến màu (hai chế độ Light, Dark), kiểu chữ và biến khoảng cách theo `tokens.json`, đặt tên giống tên trong file (ví dụ `primary`, `bodyLarge`, `md`). Dựng thành phần `PrimaryButton` giống ảnh catalog. REST API biến của Figma cần gói Enterprise, nhưng Figma MCP (gói Professional, ghế Full) tạo được biến qua Plugin API: AI làm việc này trong phiên có người theo dõi (mục 8), hoặc người làm bằng tay.
 
 Khi `:core:designsystem` đổi (plan rủi ro cao, ADR-0008), test `DesignTokensTest` và ảnh catalog đổi theo. Chủ feature cập nhật lại công cụ theo các file mới.
 
@@ -110,3 +110,56 @@ Tỷ lệ khác biệt chỉ để tham khảo: phông chữ và cách vẽ ch�
 ## 7. Duyệt giao diện thật
 
 Người phụ trách sản phẩm mở `design/review/*_compare.png` trên PR hoặc trong repo, và xem bản staging. Đồng ý thì ghi vào báo cáo phiên hoặc vào PR; ảnh chuẩn screenshot từ đó giữ giao diện. Không đồng ý thì ghi phản hồi (`docs/README.md`, bước phản hồi), plan sửa đi qua họp đánh giá như thường.
+
+## 8. Thiết kế app clone: chọn hướng, AI dựng, người làm mịn
+
+Với app clone (ADR-0021, `docs/ops/clone-study.md`), bước 1 đến 3 ở trên làm theo cách sau. Điều kiện: bản đề xuất app đã được dev duyệt; Figma Professional ghế Full đã nối MCP; repo app đã có.
+
+**Mục tiêu:** app mới tốt hơn app mẫu và có nhận diện riêng. Giữ các khuôn tương tác người dùng đã quen (ví dụ nút chụp tròn ở giữa đáy, hàng lựa chọn cuộn ngang). Đổi màu, bộ icon, phông chữ, hình dạng (bo góc, thẻ, nút), kiểu hình minh họa, giọng văn.
+
+### 8.1. Chọn hướng thiết kế
+
+1. AI dựng 2 đến 3 hướng phong cách trong file Figma của app, mỗi hướng một trang `Direction/<tên>` gồm:
+   - Bảng phong cách: màu (sáng, tối), kiểu chữ, khoảng cách, bo góc, icon mẫu, nút, thẻ, chip.
+   - Hai màn hình quan trọng nhất ở khung 411 x 891, dựng bằng chính bảng phong cách đó (ví dụ màn hình chính và màn hình chức năng chính).
+2. Các hướng khác nhau thật sự (ví dụ tối và tối giản, sáng và ấm, nhiều màu và vui), không chỉ đổi màu nhấn. Icon lấy từ một bộ có giấy phép dùng thương mại rõ ràng (ví dụ Material Symbols, Lucide), cả app dùng một bộ.
+3. AI ghi bảng các hướng vào mục 10 của bản đề xuất, kèm link từng trang và ảnh so sánh với màn hình tương ứng của app mẫu tốt nhất.
+4. **Dev chọn một hướng hoặc ghép**, ghi `design_direction` trong bản đề xuất. Dev có thể làm mịn hướng được chọn (8.3) trước khi AI dựng toàn bộ.
+
+Đổi ý ở bước này chỉ tốn vài màn hình; đổi sau khi đã dựng toàn bộ thì tốn cả bộ.
+
+### 8.2. AI dựng cấu trúc
+
+AI dùng Figma MCP trong phiên có người theo dõi:
+
+- Hệ thống thiết kế từ hướng đã chọn: biến màu (chế độ Light, Dark), kiểu chữ, biến khoảng cách và bo góc, component (nút, thẻ, chip, thanh điều hướng, icon dạng component có thể đổi). Tên biến khớp `tokens.json` khi có vai trò tương ứng.
+- Đủ màn hình và trạng thái trong mục 7 của bản đề xuất, tên frame và khung theo mục 2 của tài liệu này. Mọi màu, chữ, khoảng cách dùng biến; phần lặp lại là instance của component.
+- Số đo bám theo bản đề xuất và báo cáo khảo sát (dp từ cây giao diện), đã cải tiến theo bảng bài học.
+- Ảnh và icon mượn tạm từ app mẫu (nếu có) đặt tên `borrowed_...` trong Figma để dễ thay.
+
+### 8.3. Người làm mịn
+
+Dev làm mịn phần thẩm mỹ bằng AI agent của Figma (sửa được trên file hiện có) hoặc sửa tay: màu, bo góc, bóng, nhịp khoảng cách, cân đối thị giác, icon.
+
+- Sửa ở component và biến trước, màn hình sau: sửa một component thì mọi màn hình đổi theo.
+- Trước mỗi lượt, lưu mốc phiên bản: File > Save to version history.
+- Xong một lượt thì báo AI, kèm vài dòng đã đổi gì.
+
+### 8.4. AI quét lại sau mỗi lượt làm mịn
+
+AI đọc file qua MCP (chỉ đọc) và báo:
+
+- Instance bị tách khỏi component.
+- Màu, cỡ chữ, khoảng cách viết cứng thay vì dùng biến.
+- Frame bị đổi tên hay đổi khung khác 411 x 891 (làm `figma-export.py` và screenshot test không khớp).
+- Phông chữ, kiểu chữ nằm ngoài hệ thống.
+- Màn hình hay trạng thái trong bản đề xuất còn thiếu.
+
+Giá trị mới dev muốn giữ thì AI đưa vào biến hay component, rồi áp lại cho các màn hình. Khi quét sạch và dev hài lòng, người phụ trách sản phẩm duyệt (mục 3) và đi tiếp mục 4 như mọi app.
+
+### 8.5. Thước đo khi duyệt
+
+- So từng màn hình với màn hình tương ứng của app mẫu tốt nhất (ảnh ghép đặt cạnh nhau): không kém hơn.
+- Các cải tiến trong bảng bài học của bản đề xuất có mặt trên thiết kế.
+- Chữ đủ tương phản, vùng chạm tối thiểu 48 dp, có chế độ tối, chữ tiếng Việt dài không bị cắt, quảng cáo không che phần điều khiển.
+

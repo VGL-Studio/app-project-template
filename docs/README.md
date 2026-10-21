@@ -18,11 +18,13 @@ docs/
 │       └── feedback/        phản hồi đã phân loại về feature này
 ├── adr/                     quyết định kỹ thuật, dùng chung cả app
 ├── inbox/                   yêu cầu và phản hồi chưa rõ thuộc feature nào
+├── research/                app clone: báo cáo khảo sát app mẫu và bản đề xuất app (ops/clone-study.md)
 ├── runs/                    các phiên AI tự chạy: danh sách chạy và báo cáo
 ├── test-sessions/           báo cáo phân tích các phiên thử trên máy (log thô ở test-sessions/ ngoài docs, không vào git)
 ├── ops/                     báo cáo vận hành định kỳ, hướng dẫn vận hành
 ├── metrics/                 số liệu đo được qua các phiên, ví dụ token theo task (ops/token-usage.md)
 ├── templates/               các mẫu tài liệu
+├── borrowed-assets.md       app clone: tài sản mượn tạm từ app mẫu, phải thay hết trước khi phát hành
 ├── STATUS.md                trang tiến độ, sinh bởi scripts/status.py, không sửa tay
 ├── auto-run.md              quy trình phiên AI tự chạy
 ├── lessons.md               sổ bài học, đầu vào của retro
@@ -33,6 +35,7 @@ docs/
 
 | Tài liệu | Ai tạo | Ai xác nhận |
 | --- | --- | --- |
+| Báo cáo khảo sát app mẫu, đề xuất app (app clone) | AI theo yêu cầu của dev | Dev |
 | Yêu cầu | Người phụ trách sản phẩm, chủ feature | Không cần |
 | Spec | AI sinh từ yêu cầu | Người phụ trách sản phẩm |
 | Thiết kế | Chủ feature cùng Claude Design hoặc Figma | Người phụ trách sản phẩm |
@@ -45,6 +48,7 @@ docs/
 
 ## Vòng đời của một yêu cầu
 
+0. **Khảo sát app mẫu (chỉ app clone).** Dev đưa thông tin chung và danh sách app mẫu đã cài trên máy. AI dùng thử từng app, đọc APK, tìm trên web và Play, rồi viết bản đề xuất app tốt hơn app mẫu: tên, tính năng, luồng, màn hình, bài học và cải tiến. Dev duyệt đề xuất, chốt tên và tên gói, tạo repo app. AI dựng 2 đến 3 hướng thiết kế trên Figma, dev chọn một; AI dựng toàn bộ màn hình, dev làm mịn, AI quét lại. Xong thì AI viết yêu cầu và spec, đi tiếp từ bước 1. Chi tiết ở [ops/clone-study.md](ops/clone-study.md) và [ops/design-workflow.md](ops/design-workflow.md), mục 8 (ADR-0021).
 1. **Yêu cầu.** Người phụ trách sản phẩm hoặc chủ feature ghi yêu cầu vào `features/<feature>/requests/`, viết tự nhiên, không bắt buộc theo mẫu. Có thể dán biên bản họp, hoặc dựa vào [mẫu gợi ý](templates/request.md). Chưa rõ thuộc feature nào, hoặc là feature mới chưa có tên, thì ghi vào `inbox/`.
 2. **Spec.** AI đọc yêu cầu, sinh hoặc cập nhật `features/<feature>/spec.md` theo [mẫu spec](templates/spec.md). Với feature mới, AI tạo thư mục feature. Chỗ nào chưa rõ, AI ghi vào mục câu hỏi còn mở, không tự đoán.
 3. **Xác nhận spec.** Người phụ trách sản phẩm đọc lại, trả lời câu hỏi, chuyển trạng thái spec sang `confirmed`.
@@ -73,6 +77,8 @@ Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đ�
 | ADR | `ADR-NNNN` | `adr/NNNN-<tu-khoa>.md` | `adr/0009-local-notifications.md` |
 | Phiên tự chạy | `RUN-YYYYMMDD-NN` | `runs/RUN-YYYYMMDD-NN.md` | `runs/RUN-20261020-01.md` |
 | Báo cáo vận hành | `OPS-YYYY-MM-DD` | `ops/OPS-YYYY-MM-DD.md` | `ops/OPS-2026-11-02.md` |
+| Khảo sát app mẫu | tên gói app mẫu | `research/<package>.md` | `research/com.example.posecamera.md` |
+| Đề xuất app | không có | `research/proposal.md` | `research/proposal.md` |
 | Phiên thử trên máy | `TS-YYYYMMDD-NN` | `test-sessions/TS-YYYYMMDD-NN.md` | `test-sessions/TS-20261018-01.md` |
 
 - Tên feature viết thường, nối bằng dấu gạch ngang, trùng với tên module `:feature:<ten>`.
@@ -94,6 +100,8 @@ Trạng thái được ghi ở trường `status` trong phần đầu (frontmatt
 | Plan | `draft` → `approved` hoặc `stopped` → `done` |
 | Phản hồi | `new` → `triaged` → `planned` → `fixed`, hoặc `wontfix` |
 | ADR | `proposed` → `accepted`, sau này có thể `superseded` |
+| Khảo sát app mẫu | `draft` → `reviewed` |
+| Đề xuất app | `draft` → `approved` |
 | Phiên tự chạy | `draft` → `approved` → `running` → `finished` |
 
 ## Nguyên tắc chung

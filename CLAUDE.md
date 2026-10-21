@@ -30,6 +30,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Kiểm tra toàn bộ, giống hệt CI: `scripts/check.sh`.
 - Ghi lại ảnh chuẩn screenshot khi plan cho phép: `./gradlew recordRoborazziDebug`.
 - Xem log của app trên máy thật hoặc emulator: `adb logcat -v threadtime | grep ' VGL\.'` (ADR-0019).
+- Khảo sát app mẫu cho app clone (điều khiển máy có chặn quảng cáo và nút mua): `scripts/app-explore/ax.sh check`, rồi làm theo `docs/ops/clone-study.md` (ADR-0021).
 - Ghi một phiên thử trên máy để AI phân tích: `scripts/device-session.sh start <tên>`, thử app, `scripts/device-session.sh stop` (`docs/ops/test-sessions.md`).
 - Cập nhật trang tiến độ `docs/STATUS.md` sau khi đổi trạng thái tài liệu: `scripts/status.py` (`docs/CLAUDE.md`, mục Trang tiến độ).
 - Chờ một workflow GitHub Actions xong trong một lệnh: `scripts/wait-run.sh --pr <số>` hoặc `--workflow <file.yml> --since <giờ UTC>` (`docs/auto-run.md`, bước 8).
