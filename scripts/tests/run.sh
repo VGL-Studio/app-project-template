@@ -439,8 +439,8 @@ expect "foundation: docs/foundation.md of this repo matches its ADRs" 0 \
 # secret-scan.py finds real-looking ad IDs and keys; Google test IDs and keys marked FAKE are allowed.
 scan="$work/scan"
 mkdir -p "$scan"
-printf 'banner: ca-app-pub-3940256099942544/9214589741\nkey: AIzaSyFAKE_STAGING_KEY_NOT_REAL00000000\n' > "$scan/ok.md"
-expect "secret-scan: Google test IDs and fake keys pass" 0 \
+printf 'banner: ca-app-pub-3940256099942544/9214589741\nkey: AIzaSyFAKE_STAGING_KEY_NOT_REAL00000000\napp: ca-app-pub-%s~%s\n' 0000000000000000 0000000000 > "$scan/ok.md"
+expect "secret-scan: Google test IDs, all-zero IDs and fake keys pass" 0 \
   "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 # Built from pieces, so this file itself holds no real-looking ID for the repository scan below.
 printf 'log: AdLoader init ca-app-pub-%s/%s ok\n' 5555555555555555 2222222222 > "$scan/report.md"
