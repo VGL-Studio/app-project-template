@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-8]
 owner: Nhật
-status: ready
+status: planned
 risk: medium
 size: M
-depends_on: [T-008, T-010, T-011, T-012, T-013]
+depends_on: [T-007, T-008, T-009, T-010, T-011, T-012, T-013]
 sprint:
-plan:
+plan: features/ads/plans/T-014-man-hinh-xem-thu-quang-cao.md
 created: 2026-10-21
 ---
 

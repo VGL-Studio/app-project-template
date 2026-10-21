@@ -5,12 +5,12 @@ feature: network
 spec: features/network/spec.md
 scenarios: [KB-1, KB-2, KB-3]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: M
-depends_on: [T-016]
+depends_on: [T-016, T-009]
 sprint:
-plan:
+plan: features/network/plans/T-017-popup-mat-mang.md
 created: 2026-10-21
 ---
 

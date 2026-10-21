@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1, KB-2]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: L
 depends_on: [T-007]
 sprint:
-plan:
+plan: features/ads/plans/T-010-native-small-va-medium.md
 created: 2026-10-21
 ---
 

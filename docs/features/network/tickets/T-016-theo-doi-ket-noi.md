@@ -5,12 +5,12 @@ feature: network
 spec: features/network/spec.md
 scenarios: [KB-1, KB-2]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: M
 depends_on: [T-007]
 sprint:
-plan:
+plan: features/network/plans/T-016-theo-doi-ket-noi.md
 created: 2026-10-21
 ---
 

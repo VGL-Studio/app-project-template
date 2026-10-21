@@ -27,9 +27,9 @@ docs/design-system/tokens.json.
 | `SampleScreen` | Quảng cáo đang tải | `SampleScreen_ad-loading_light` | KB-1 | T-010 |
 | `AdGalleryScreen` (chỉ staging) | Small, medium, nút gọi quảng cáo toàn màn hình, Ad Inspector | `AdGalleryScreen_default_light` | KB-1, KB-2, KB-8 | T-014 |
 | `AdGalleryScreen` | Như trên, chế độ tối | `AdGalleryScreen_default_dark` | KB-1, KB-2, KB-8 | T-014 |
-| `AdGalleryScreen` | Native trong danh sách (khung minh họa với N = 3) | `AdGalleryScreen_inlist_light` | KB-3 | T-011 |
-| `AdGalleryScreen` | Native thu gọn được, đang mở | `AdGalleryScreen_collapsible-expanded_light` | KB-4 | T-012 |
-| `AdGalleryScreen` | Native thu gọn được, đã thu gọn | `AdGalleryScreen_collapsible-collapsed_light` | KB-4 | T-012 |
+| `AdGalleryScreen` | Native trong danh sách (khung minh họa với N = 3) | `AdGalleryScreen_inlist_light` | KB-3 | T-014 (T-011 làm phần chèn, có test riêng) |
+| `AdGalleryScreen` | Native thu gọn được, đang mở | `AdGalleryScreen_collapsible-expanded_light` | KB-4 | T-012 hay T-014 (câu hỏi ở plan hai ticket) |
+| `AdGalleryScreen` | Native thu gọn được, đã thu gọn | `AdGalleryScreen_collapsible-collapsed_light` | KB-4 | T-012 hay T-014 (câu hỏi ở plan hai ticket) |
 | `NativeFullScreenAdScreen` | Native toàn màn hình | `NativeFullScreenAdScreen_default_light` | KB-5 | T-013 |
 | `NativeFullScreenAdScreen` | Như trên, chế độ tối | `NativeFullScreenAdScreen_default_dark` | KB-5 | T-013 |
 
