@@ -42,7 +42,8 @@ Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành c�
 | Native medium | MREC | Trong nội dung, giữa các khối | (đợt 2) |
 | Native in-list | | Trong danh sách hay lưới, cách nhau N mục | (đợt 2) |
 | Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | (đợt 2) |
-| Native toàn màn hình, app open, rewarded | | Chưa làm; cần ADR mới khi một app cần | Không |
+| Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | (đợt 2) |
+| App open, rewarded | | Chưa làm; cần ADR mới khi một app cần | Không |
 
 Chọn định dạng theo màn hình, không theo doanh thu từng định dạng: màn hình người dùng ở lâu (danh sách, chi tiết) hợp native small hay medium; điểm dừng giữa hai việc hợp interstitial.
 
@@ -56,6 +57,7 @@ Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế 
 | Medium | Như small, thêm media và mô tả | MediaView ít nhất 120 x 120 dp; giữ tỷ lệ ảnh, video của quảng cáo |
 | In-list | Small hay medium, cùng bề ngoài với mục của danh sách nhưng có nhãn "Ad" rõ | Không ở mục đầu; cách nhau ít nhất N mục (khóa Remote Config) |
 | Collapsible | Medium khi mở, small khi thu gọn | Chỉ thu gọn khi người dùng chạm nút thu gọn; nút thu gọn ít nhất 48 dp, không cùng góc với AdChoices; không tự bung lại |
+| Toàn màn hình | Media lớn, icon, tiêu đề, mô tả, CTA, nhãn "Ad", AdChoices, nút đóng | Nút đóng thấy và bấm được ngay từ đầu, ít nhất 48 dp, ở góc khác AdChoices và xa CTA; nút quay lại của máy cũng đóng; không đếm ngược bắt chờ; tính chung giới hạn tần suất với interstitial; không liền sau một quảng cáo toàn màn hình khác |
 
 Quy tắc chung:
 
@@ -128,7 +130,7 @@ Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). 
 Tra ngày 2026-10-21; chính sách có thể đổi, đối chiếu lại trước khi dựa vào một chi tiết.
 
 - Native advanced (Android): https://developers.google.com/admob/android/native/advanced
-- Native toàn màn hình (cho ADR sau này): https://developers.google.com/admob/android/native/full-screen
+- Native toàn màn hình: https://developers.google.com/admob/android/native/full-screen
 - MediaView tối thiểu 120 x 120 dp cho video: https://support.google.com/admanager/answer/7031536
 - Đo doanh thu quảng cáo bằng Firebase: https://firebase.google.com/docs/analytics/measure-ad-revenue
 - Hiệu quả quảng cáo AdMob trong Firebase: https://support.google.com/firebase/answer/7378163

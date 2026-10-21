@@ -136,6 +136,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 ### [ADR-0022](adr/0022-ad-formats-native-standard.md): Quảng cáo theo nguyên tắc chính sách trước doanh thu, native thay banner và MREC theo quy chuẩn dp của nhóm, mediation AdMob và AppLovin
 
+- native toàn màn hình chỉ ở điểm dừng tự nhiên, có nút đóng dùng được ngay
 - không đặt quảng cáo theo bất kỳ dòng nào trong bảng "không bao giờ làm" của `docs/ops/ads-guide.md`, kể cả khi spec yêu cầu
 - gặp yêu cầu như vậy thì ghi thành câu hỏi
 - không đặt quảng cáo ở màn hình chức năng chính và luồng mở đầu lần đầu
