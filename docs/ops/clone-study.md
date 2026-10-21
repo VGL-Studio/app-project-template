@@ -56,6 +56,8 @@ Trước khi có repo app, mọi thứ nằm ngoài repo, ví dụ `~/AndroidStu
 
 Kéo APK: `adb shell pm path <package>` rồi `adb pull` từng file. Đọc tên và quyền: `aapt2 dump badging base.apk`.
 
+**Danh sách màn hình trước khi chạm máy:** với mỗi app mẫu, `scripts/app-explore/apk-screens.py apks/<package>/base.apk [--jadx decoded/<package>/jadx] > captures/<package>/screens.md`. Script liệt kê activity, đồ thị điều hướng và layout của app (bỏ của thư viện); với app Compose, `--jadx` cho route và các ViewModel (thường mỗi ViewModel là một màn hình). Agent khảo sát đi theo danh sách này và đánh dấu từng màn hình, thay vì dò dẫm.
+
 Sau khi có repo app (bước 7), chép `reports/*.md` và `proposal.md` vào `docs/research/`. Ảnh chụp, APK và kết quả giải nén không vào git: chúng là tài sản của bên khác và ảnh camera có thể chụp vào phòng.
 
 ## 3. Lời nhắn mở đầu phiên
@@ -86,14 +88,21 @@ ax.sh swipe up|down|left|right
 ax.sh adclose | adcorner tl|tr      đóng quảng cáo
 ax.sh type "<chữ>"                  nhập chữ ASCII
 ax.sh back | home | wake | launch <pkg> | stop <pkg> | top
+ax.sh adwait [giây tối đa]           chờ nút đóng quảng cáo hiện, in số giây đã chờ, rồi đóng
+ax.sh log <package> [số dòng]       log gần nhất của app (sự kiện, lỗi HTTP, quảng cáo)
 ax.sh color <full.png> <x> <y> ...  mã màu tại điểm ảnh
+ax.sh seq "bước; bước; ..."         nhiều bước trong một lệnh, dừng ở bước lỗi đầu tiên
+ax.sh scrollshots <thư mục> <tiền tố> [tối đa]   chụp, cuộn, lặp tới khi màn hình không đổi
+ax.sh scrollcollect [tối đa]        gom chữ của cả danh sách khi cuộn, không chụp ảnh
 ```
+
+**Làm nhanh:** mỗi lần gọi công cụ là một lượt suy nghĩ của AI, và lượt đó tốn nhiều thời gian hơn chính thao tác. Gom các bước biết trước vào `seq` (ví dụ `seq "tapid tab_tips; wait 2; shot captures/<pkg> 12-tips; back"`); dùng `scrollshots` hay `scrollcollect` cho danh sách dài; xem ảnh preview chỉ khi cây giao diện không đủ (camera, Flutter, canvas), còn lại đọc phần chữ mà `shot` in ra.
 
 Mọi lệnh chạm đi qua bộ chặn (`guard.py`): chạm vào phần tử quảng cáo, chạm khi đang ở quảng cáo toàn màn hình hay màn hình thanh toán của Play, chạm vào nút mua, đăng ký, dùng thử, nút có giá tiền, đều bị từ chối (mã 4). Lỡ sang Play, trình duyệt hay app thư thì công cụ tự back, ghi `incidents.log`, thoát mã 6. Mã 5: mất thiết bị, chờ rồi thử lại. Mã 7: máy khóa, dừng và báo người. Mã 8: không có mạng, dừng và báo người.
 
 **Quy tắc:**
 
-1. Bắt đầu mỗi app bằng `adb shell pm clear <package>` để thấy lần mở đầu. Chỉ làm với app trong danh sách.
+1. Bắt đầu mỗi app bằng `adb shell pm clear <package>` để thấy lần mở đầu. Chỉ làm với app trong danh sách. Đi theo `captures/<package>/screens.md`, đánh dấu màn hình đã xem kèm tên ảnh.
 2. Quyền camera, ảnh: cho phép khi dùng app. Thông báo: từ chối. Hộp thoại đồng ý quảng cáo: đồng ý, để thấy hành vi quảng cáo bình thường.
 3. Không bấm quảng cáo. Quảng cáo toàn màn hình: chờ nút đóng, ghi thời gian chờ, đóng bằng `adclose`. Sau một interstitial thường còn một native toàn màn hình; banner thu gọn có thể tự bung lại sau khoảng 20 giây (L-033).
 4. Không mua, không bắt đầu dùng thử, không đăng ký gói. Màn hình trả phí: chụp, ghi giá và quyền lợi, đóng.
@@ -130,7 +139,7 @@ Theo ADR-0021, mục 7 và 8:
 
 Lần khảo sát pose camera (2026-10-19 đến 2026-10-21, 8 app mẫu):
 
-- Mỗi app khảo sát trên máy: 40 đến 70 phút, 150 đến 190 nghìn token, khoảng 40 ảnh.
+- Mỗi app khảo sát trên máy: 25 đến 60 phút, 110 đến 225 nghìn token, 37 đến 53 ảnh, 90 đến 150 lượt gọi công cụ (khoảng 12 đến 16 giây mỗi lượt: một nửa là lượt suy nghĩ của AI, còn lại chủ yếu là đọc cây giao diện, 3 đến 6 giây mỗi lần vì `uiautomator dump` chờ màn hình đứng yên). Lần đo này chưa có `seq`, các lệnh gộp và danh sách màn hình từ APK; đo lại ở lần khảo sát sau.
 - Đọc 8 APK: khoảng 14 phút, 210 nghìn token. Tìm trên web và Play: khoảng 10 phút, 150 nghìn token.
 - Figma: khoảng 12 lượt gọi MCP cho màn hình đầu (dựng cả biến và component), 4 đến 8 lượt cho mỗi màn hình sau.
 

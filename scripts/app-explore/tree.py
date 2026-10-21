@@ -44,6 +44,8 @@ def main():
         sys.exit(1)
     if args and args[0] == "--findid":
         rid, path = args[1], args[2]
+        if not rid:
+            sys.exit(2)
         for n in nodes(path):
             if n.get("resource-id", "").split("/")[-1] == rid:
                 x1, y1, x2, y2 = bounds(n)

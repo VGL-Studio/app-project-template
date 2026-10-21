@@ -7,6 +7,8 @@ that shows a price).
 Usage:
   guard.py check <tree.xml> <top-activity-line> <x> <y>   exit 0 safe, 4 refused (reason on stderr)
   guard.py close <tree.xml>                               print "x y label" of a close button, exit 1 if none
+  guard.py find <text> <tree.xml>                         centre "x y" of the best match by text or description,
+                                                          preferring views that are not part of an ad; exit 1 if none
   guard.py status <tree.xml> <top-activity-line>          print ad markers on screen
 """
 import os
@@ -23,10 +25,13 @@ AD_ID = re.compile(r"(^|[_.])(ad|ads|adview|ad_view|native_ad|nativead|banner_ad
 AD_TEXT = {"ad", "ads", "quảng cáo", "sponsored", "adchoices", "được tài trợ"}
 # Purchase: Play billing screens, and buttons that start a purchase or a trial.
 BILLING_ACTIVITY = re.compile(r"com\.android\.vending|ProxyBillingActivity|billing", re.I)
-BUY_ID = re.compile(r"purchase|buy|subscri|unlock|upgrade|pay_|_pay|premium_btn|btn_premium|btn_pro|trial|checkout", re.I)
-BUY_TEXT = re.compile(r"unlock|buy|purchase|subscribe|start (free )?trial|free trial|dùng thử|mua|đăng ký|nâng cấp|"
-                      r"upgrade|get pro|go pro|go premium|get premium|\d[\d.,]*\s*(₫|đ|\$|€|usd|vnd)|"
-                      r"(₫|\$|€)\s*\d", re.I)
+BUY_ID = re.compile(r"purchase|buy|subscri|pay_|_pay|trial|checkout", re.I)
+BUY_TEXT = re.compile(r"buy|purchase|subscribe|start (free )?trial|free trial|dùng thử|mua|đăng ký|"
+                      r"\d[\d.,]*\s*(₫|đ|\$|€|usd|vnd)|(₫|\$|€)\s*\d", re.I)
+# These only open a paywall; on a paywall (a screen showing a price) they may start the purchase.
+SOFT_ID = re.compile(r"unlock|upgrade|premium_btn|btn_premium|btn_pro|buttonPrimary", re.I)
+SOFT_TEXT = re.compile(r"^(continue|tiếp tục|next|tiếp)$|unlock|upgrade|nâng cấp|get pro|go pro|go premium|get premium|"
+                       r"mở khóa", re.I)
 CLOSE_ID = re.compile(r"close|dismiss|skip|collap", re.I)
 # Ad containers: tapping their empty area does not open the ad; only the asset views inside do.
 CONTAINER_ID = re.compile(r"^(native_ad_view|fl_?native|ad_container|ad_frame|fr_?ads?|layout_ads?|ads?_layout|flNative)$", re.I)
@@ -92,12 +97,11 @@ def target_at(path, x, y):
 
 
 PRICE = re.compile(r"\d[\d.,]*\s*(₫|đ|\$|€|usd|vnd)|(₫|\$|€)\s*\d|/\s*(week|month|year|tuần|tháng|năm)", re.I)
-CONTINUE = re.compile(r"^(continue|tiếp tục|next|tiếp)$", re.I)
 
 
 def buy_at(path, x, y):
     """A purchase or trial button (or a view showing a price) under the point, if any.
-    "Continue" counts as a purchase button only on a screen that shows a price (a paywall)."""
+    "Continue", "Upgrade", "Unlock" count as purchase buttons only on a screen that shows a price (a paywall)."""
     all_nodes = list(nodes(path))
     paywall = any(PRICE.search((n.get("text", "") or n.get("content-desc", ""))) for n, _ in all_nodes)
     hit = None
@@ -106,10 +110,37 @@ def buy_at(path, x, y):
             rid = n.get("resource-id", "").split("/")[-1]
             label = (n.get("text", "") or n.get("content-desc", "")).strip()
             small = (b[2] - b[0]) * (b[3] - b[1]) < SCREEN_AREA * 0.25
-            if small and (BUY_ID.search(rid) or (label and BUY_TEXT.search(label))
-                          or (paywall and label and CONTINUE.match(label))):
+            soft = SOFT_ID.search(rid) or (label and SOFT_TEXT.search(label))
+            if small and (BUY_ID.search(rid) or (label and BUY_TEXT.search(label)) or (paywall and soft)):
                 hit = rid or label
     return hit
+
+
+def find(path, needle):
+    """Exact label first, then whole word, then substring ("Agree" must not hit "Disagree"); at each level a view
+    outside any ad wins over an ad view with the same label (an ad button may read "Settings" too)."""
+    candidates = []
+
+    def walk(n, in_ad):
+        here = in_ad or is_ad(n)
+        b = [int(v) for v in re.findall(r"\d+", n.get("bounds", "[0,0][0,0]"))]
+        if len(b) == 4 and b[2] > b[0] and b[3] > b[1]:
+            labels = [n.get("text", "").lower().strip(), n.get("content-desc", "").lower().strip()]
+            candidates.append((labels, here, b))
+        for c in n.findall("node"):
+            walk(c, here)
+
+    for top in ET.parse(path).getroot().findall("node"):
+        walk(top, False)
+    tests = (lambda t: t == needle,
+             lambda t: re.search(r"(^|\W)" + re.escape(needle) + r"(\W|$)", t) is not None,
+             lambda t: needle in t)
+    for test in tests:
+        for want_ad in (False, True):
+            for labels, in_ad, b in candidates:
+                if in_ad == want_ad and any(t and test(t) for t in labels):
+                    return (b[0] + b[2]) // 2, (b[1] + b[3]) // 2
+    return None
 
 
 def fullscreen_ad(path, top):
@@ -157,9 +188,25 @@ def main():
                 if (x2 - x1) * (y2 - y1) < 400 * 400:
                     best = ((x1 + x2) // 2, (y1 + y2) // 2, rid or label)
                     break
+        if not best and fullscreen_ad(sys.argv[2], ""):
+            width = int(os.environ.get("AX_WIDTH", "1080")); height = int(os.environ.get("AX_HEIGHT", "2400"))
+            for n, (x1, y1, x2, y2) in nodes(sys.argv[2]):
+                label = (n.get("text", "") or n.get("content-desc", "")).strip()
+                corner = y2 < height * 0.15 and (x2 < width * 0.2 or x1 > width * 0.8)
+                if n.get("clickable") == "true" and not label and corner and 0 < x2 - x1 < width * 0.12:
+                    best = ((x1 + x2) // 2, (y1 + y2) // 2, "unlabeled-corner")
         if not best:
             sys.exit(1)
         print(*best)
+        return
+    if cmd == "find":
+        needle, path = sys.argv[2].lower().strip(), sys.argv[3]
+        if not needle:
+            sys.exit(2)
+        found = find(path, needle)
+        if not found:
+            sys.exit(1)
+        print(*found)
         return
     if cmd == "status":
         path, top = sys.argv[2], sys.argv[3]

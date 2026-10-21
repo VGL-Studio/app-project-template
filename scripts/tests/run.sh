@@ -506,6 +506,26 @@ expect "app-explore: the close button of an ad is found" "944 136 ad_close" \
   "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/ads.xml")"
 expect "app-explore: taptext prefers the exact label (Agree, not Disagree)" "788 2066" \
   "$(python3 -I scripts/app-explore/tree.py --find agree "$ax_fixtures/onboarding.xml")"
+expect "app-explore: Upgrade outside a paywall only opens it, so it is tappable" 0 "$(guard settings.xml app 540 375)"
+expect "app-explore: the unlabeled X of a full-screen native ad is found" "1000 120 unlabeled-corner" \
+  "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/native-full.xml")"
+expect "app-explore: taptext prefers the app's own button over an ad button with the same label" "945 2315" \
+  "$(python3 -I scripts/app-explore/guard.py find "Cài đặt" "$ax_fixtures/native-full.xml")"
+expect "app-explore: an empty id is refused" 2 \
+  "$(python3 -I scripts/app-explore/tree.py --findid "" "$ax_fixtures/ads.xml" > /dev/null; echo $?)"
+ax() { # runs ax.sh against fake-adb serving a UI dump; prints the exit code
+  local code=0
+  PATH="$work/bin:$PATH" FAKE_ADB_UI="$ax_fixtures/$1" FAKE_ADB_CALLS="$work/ax-calls.txt" AX_SETTLE=0.4 \
+    AX_INCIDENTS="$work/incidents.log" scripts/app-explore/ax.sh "${@:2}" > "$work/ax.out" 2>&1 || code=$?
+  echo "$code"
+}
+rm -f "$work/ax-calls.txt"
+expect "app-explore: seq runs every step in one call" 0 "$(ax settings.xml seq "tapid btn_capture; wait 0; back")"
+expect "app-explore: seq sends the tap and the back key" 2 \
+  "$(grep -cE '^shell input (tap 540 1810|keyevent 4)$' "$work/ax-calls.txt")"
+expect "app-explore: seq stops at a refused step" 4 "$(ax paywall.xml seq "tapid pay_purchase_btn; back")"
+expect "app-explore: seq names the step it stopped at" 1 "$(grep -c 'DỪNG ở bước 1' "$work/ax.out")"
+expect "app-explore: a drag from the screen edge is refused" 4 "$(ax settings.xml drag 20 1200 600 1200)"
 expect "app-explore: the tree shows sizes in dp" 1 \
   "$(AX_DENSITY=440 python3 -I scripts/app-explore/tree.py "$ax_fixtures/ads.xml" | grep -c 'btn_capture' )"
 
