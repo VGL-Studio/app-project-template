@@ -5,7 +5,7 @@ owner: Nhật
 product_owner: Nhật
 requests:
   - requests/2026-10-21-native-va-remote-config.md
-design:                  # component native dựng trong hệ thống thiết kế, xem mục 4 và câu hỏi 1
+design: features/ads/design/README.md
 created: 2026-10-21
 confirmed: 2026-10-21
 ---

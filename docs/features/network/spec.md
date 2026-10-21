@@ -1,13 +1,13 @@
 ---
 feature: network
-status: draft            # draft | confirmed | changed
+status: confirmed            # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
   - requests/2026-10-21-app-luon-can-mang.md
-design:                  # popup dựng trong hệ thống thiết kế, xem câu hỏi 1
+design: features/network/design/README.md
 created: 2026-10-21
-confirmed:
+confirmed: 2026-10-21
 ---
 
 # SPEC: APP LUÔN CẦN MẠNG
@@ -125,3 +125,4 @@ Không có cờ: quy tắc áp dụng cho mọi app (ADR-0024). Khóa Remote Con
 | --- | --- | --- |
 | 2026-10-21 | AI | Tạo bản đầu từ yêu cầu và đề xuất đã duyệt (ADR-0024) |
 | 2026-10-21 | Nhật | Trả lời 3 câu hỏi |
+| 2026-10-21 | Nhật | Xác nhận (AI ghi theo lời anh Nhật) |
