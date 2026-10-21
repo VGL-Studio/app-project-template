@@ -2,6 +2,7 @@
 id: ADR-0008
 title: Hệ thống thiết kế lấy code làm gốc, Claude Design đồng bộ từ code
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
 ---

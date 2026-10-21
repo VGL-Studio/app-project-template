@@ -2,6 +2,7 @@
 id: ADR-0010
 title: Cổng chất lượng mềm trên GitHub Free, merge chỉ qua script kiểm tra
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển]
 amends: ADR-0002

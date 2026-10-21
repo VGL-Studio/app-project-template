@@ -2,6 +2,7 @@
 id: ADR-0007
 title: Tách hai môi trường staging và production cho mọi dịch vụ bên ngoài
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển]
 ---
