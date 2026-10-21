@@ -150,3 +150,10 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - khai báo khóa mới kèm kiểu, mặc định an toàn và mô tả ở module sở hữu, rồi sinh lại bảng khóa trong cùng PR
 - không đổi tên hay đổi kiểu một khóa đã phát hành
 - không đổi giá trị trên Firebase (việc của người)
+
+### [ADR-0024](adr/0024-network-required.md): App chỉ dùng được khi có Internet; mất mạng thì app chặn bằng một popup chung có nút thử lại
+
+- không làm chế độ ngoại tuyến trong feature
+- feature không tự đọc trạng thái mạng của hệ thống, mất mạng do `:app` xử lý bằng popup chung
+- lỗi tải khi vẫn có mạng vẫn báo trong `UiState` kèm thử lại
+- spec mới không ghi tiêu chí "dùng được khi không có mạng"
