@@ -462,6 +462,34 @@ expect "device-session: summary shows the skipped offline scenario" 1 \
   "$(grep -c '^| Kịch bản mất mạng bị bỏ qua (không tắt được mạng) | 1 | xem |' "$offline/summary.md")"
 unset DEVICE_SESSION_SLEEP FAKE_ADB_CALLS
 
+# app-explore: the guard refuses taps that would open an ad or start a purchase (docs/ops/clone-study.md).
+ax_fixtures=scripts/tests/fixtures/app-explore
+guard() { # <fixture> <top activity> <x> <y>; prints the exit code
+  local code=0
+  python3 -I scripts/app-explore/guard.py check "$ax_fixtures/$1" "$2" "$3" "$4" 2> /dev/null || code=$?
+  echo "$code"
+}
+expect "app-explore: a normal button is tappable" 0 "$(guard ads.xml app 540 1800)"
+expect "app-explore: the media of a native ad is refused" 4 "$(guard ads.xml app 540 600)"
+expect "app-explore: the install button of an ad is refused" 4 "$(guard ads.xml app 540 1350)"
+expect "app-explore: the close button of an ad is tappable" 0 "$(guard ads.xml app 944 136)"
+expect "app-explore: a button drawn on top of an ad is tappable" 0 "$(guard ads.xml app 900 250)"
+expect "app-explore: the collapse button of a banner is tappable" 0 "$(guard ads.xml app 1025 2044)"
+expect "app-explore: every tap is refused on a full-screen ad activity" 4 \
+  "$(guard ads.xml 'topResumedActivity=com.google.android.gms.ads.AdActivity' 540 1800)"
+expect "app-explore: every tap is refused on the Play billing screen" 4 \
+  "$(guard paywall.xml 'topResumedActivity=com.android.vending/.billing.Acquire' 95 155)"
+expect "app-explore: the buy button of a paywall is refused" 4 "$(guard paywall.xml app 540 2213)"
+expect "app-explore: Continue on a paywall is refused" 4 "$(guard paywall.xml app 540 1950)"
+expect "app-explore: the close button of a paywall is tappable" 0 "$(guard paywall.xml app 95 155)"
+expect "app-explore: Continue on an onboarding page is tappable" 0 "$(guard onboarding.xml app 540 2290)"
+expect "app-explore: the close button of an ad is found" "944 136 ad_close" \
+  "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/ads.xml")"
+expect "app-explore: taptext prefers the exact label (Agree, not Disagree)" "788 2066" \
+  "$(python3 -I scripts/app-explore/tree.py --find agree "$ax_fixtures/onboarding.xml")"
+expect "app-explore: the tree shows sizes in dp" 1 \
+  "$(AX_DENSITY=440 python3 -I scripts/app-explore/tree.py "$ax_fixtures/ads.xml" | grep -c 'btn_capture' )"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
   exit 1

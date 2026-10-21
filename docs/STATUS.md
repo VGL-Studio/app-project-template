@@ -5,7 +5,12 @@
 ## 1. Đang chờ người
 
 - Ticket đã duyệt, chưa vào danh sách chạy nào: [T-006-cuon-man-hinh-rat-thap.md](features/loading/tickets/T-006-cuon-man-hinh-rat-thap.md)
+- Bài học `proposed` chờ retro: L-032 (Máy Xiaomi chặn thao tác giả lập qua adb nếu chưa bật "Gỡ lỗi USB (Cài đặt bảo mật)")
+- Bài học `proposed` chờ retro: L-033 (Chạm theo tọa độ cũ trúng quảng cáo vừa hiện lên)
+- Bài học `proposed` chờ retro: L-034 (Chạm liên tục trong vòng lặp mở màn hình mua của Play)
+- Bài học `proposed` chờ retro: L-035 (Khảo sát khi máy không có mạng thì thiếu quảng cáo và nội dung)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
+- ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 
 ## 2. Yêu cầu
 
@@ -36,5 +41,5 @@ Chưa có phiên nào.
 
 ## 5. Bài học và ADR
 
-- Bài học ([lessons.md](lessons.md)): 0 bài; chưa có.
-- ADR: 20; 19 `accepted`, 1 `proposed`.
+- Bài học ([lessons.md](lessons.md)): 4 bài; 4 `proposed`.
+- ADR: 21; 19 `accepted`, 2 `proposed`.
