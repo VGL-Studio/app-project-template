@@ -30,6 +30,8 @@ Khi `:core:designsystem` đổi (plan rủi ro cao, ADR-0008), test `DesignToken
 ## 2. Dựng màn hình
 
 - Khung **411 x 891** (Figma: frame 411 x 891; Claude Design: yêu cầu bản mẫu cho điện thoại kích thước 411 x 891).
+- **Điện thoại màn hình gập** (khi spec hay bản đề xuất ghi app hỗ trợ): thêm frame khung mở ra **673 x 841** cho các màn hình có bố cục đổi khi màn hình rộng (lưới thêm cột, chia hai cột, công cụ dời sang cạnh), tên `<Ten>Screen_<trạng thái>_<light|dark>_unfolded`. Khi gập lại, app dùng bố cục điện thoại nên không cần frame riêng. Máy tính bảng không thuộc khung này; app không hỗ trợ tablet thì loại tablet bằng danh mục thiết bị trên Play Console.
+- Tên trạng thái viết thường, có thể nối bằng gạch nối (`permission-denied`, `no-person`).
 - Chỉ dùng màu, chữ, khoảng cách, thành phần của hệ thống thiết kế. Cần thành phần mới thì ghi vào mục 3 của mẫu thiết kế; đó là thay đổi module core, rủi ro cao.
 - Đủ trạng thái có trong spec: thường là bình thường, đang tải, rỗng, lỗi, và chế độ tối.
 - Chữ trên thiết kế là chữ thật, đúng như sẽ hiện trong app.
@@ -74,7 +76,7 @@ Tên ảnh là `<Ten>Screen_<trạng thái>_<light|dark>.png`, trùng tên ảnh
 scripts/figma-export.py "<link section>" <feature>
 ```
 
-Script gọi REST API của Figma, ghi `screens/<frame>.png` ở mức 3x (kiểm tra đúng 1233 x 2673) và `context/<frame>.md` (bố cục, khoảng cách, màu, chữ, đối chiếu với `tokens.json`). Frame có tên khác quy tắc bị bỏ qua, nên các bản nháp để cùng section không sao. REST API không bị giới hạn như Figma MCP, nên dùng được cả với gói Starter.
+Script gọi REST API của Figma, ghi `screens/<frame>.png` ở mức 3x (kiểm tra đúng 1233 x 2673, hay 2019 x 2523 với frame `_unfolded`) và `context/<frame>.md` (bố cục, khoảng cách, màu, chữ, đối chiếu với `tokens.json`). Frame có tên khác quy tắc bị bỏ qua, nên các bản nháp để cùng section không sao. REST API không bị giới hạn như Figma MCP, nên dùng được cả với gói Starter.
 
 Token: Figma > **Settings > Security > Personal access tokens > Generate new token**, chỉ chọn quyền **File content: Read-only**, hạn ngắn nhất đủ dùng. Lưu vào biến môi trường của máy, không lưu vào repo hay routine:
 
@@ -151,7 +153,7 @@ AI đọc file qua MCP (chỉ đọc) và báo:
 
 - Instance bị tách khỏi component.
 - Màu, cỡ chữ, khoảng cách viết cứng thay vì dùng biến.
-- Frame bị đổi tên hay đổi khung khác 411 x 891 (làm `figma-export.py` và screenshot test không khớp).
+- Frame bị đổi tên hay đổi khung khác 411 x 891 (673 x 841 với frame `_unfolded`), làm `figma-export.py` và screenshot test không khớp.
 - Phông chữ, kiểu chữ nằm ngoài hệ thống.
 - Màn hình hay trạng thái trong bản đề xuất còn thiếu.
 

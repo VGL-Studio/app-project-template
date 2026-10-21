@@ -122,6 +122,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 - chỉ dùng gói trong `design/`
 - đặt tên screenshot test đúng tên ảnh trong `screens/`
+- ảnh `_unfolded` có screenshot test ở khung `w673dp-h841dp-xxhdpi`
 - chạy `scripts/design-compare.sh` và đưa `design/review/` vào PR khi feature có thiết kế
 - không đổi giao diện để giảm tỷ lệ khác biệt bằng cách viết cứng giá trị
 

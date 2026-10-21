@@ -188,6 +188,26 @@ expect "figma-export: text style matched to a token" 1 "$(grep -c 'kiểu titleM
 expect "figma-export: color matched to light roles" 1 "$(grep -c '| màu nền | #FEF7FF | background, surface |' "$context/LoadingScreen_failed_light.md")"
 expect "figma-export: unknown values flagged" 2 "$(grep -c '| ngoài hệ thống |' "$context/LoadingScreen_failed_light.md")"
 expect "figma-export: hidden layers left out" 0 "$(grep -c 'Hidden' "$context/LoadingScreen_failed_light.md")"
+# Unfolded foldable frames (673 x 841, suffix _unfolded) and states with hyphens are exported too.
+python3 -I - scripts/tests/fixtures/figma-nodes.json "$work/figma-fold.json" <<'PY'
+import copy, json, sys
+data = json.load(open(sys.argv[1]))
+frame = next(c for c in data["children"] if c["name"] == "LoadingScreen_failed_light")
+fold = copy.deepcopy(frame); fold["id"] = "9:1"; fold["name"] = "LoadingScreen_failed_light_unfolded"
+fold["absoluteBoundingBox"].update(width=673, height=841)
+hyphen = copy.deepcopy(frame); hyphen["id"] = "9:2"; hyphen["name"] = "LoadingScreen_no-network_dark"
+wrong = copy.deepcopy(frame); wrong["id"] = "9:3"; wrong["name"] = "LoadingScreen_failed_dark_unfolded"
+data["children"] += [fold, hyphen, wrong]
+json.dump(data, open(sys.argv[2], "w"))
+PY
+FIGMA_EXPORT_FEATURES_DIR="$work/fold" FIGMA_EXPORT_TOKENS=scripts/tests/fixtures/tokens.json \
+  python3 -I scripts/figma-export.py --offline "$work/figma-fold.json" loading > /dev/null
+fold_context="$work/fold/loading/design/context"
+expect "figma-export: unfolded and hyphenated frames are exported" 4 "$(ls "$fold_context" | wc -l | tr -d ' ')"
+expect "figma-export: an unfolded frame of the right size has no size note" 0 \
+  "$(grep -c 'CHÚ Ý: khung' "$fold_context/LoadingScreen_failed_light_unfolded.md")"
+expect "figma-export: an unfolded frame of the phone size is flagged" 1 \
+  "$(grep -c 'CHÚ Ý: khung không phải 673 x 841' "$fold_context/LoadingScreen_failed_dark_unfolded.md")"
 expect "figma-export: spacing matched" 1 "$(grep -c 'cách nhau 16 (md)' "$context/LoadingScreen_failed_light.md")"
 
 # release.sh must refuse a release folder that is incomplete or holds staging/test values, before touching git.
