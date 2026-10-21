@@ -74,7 +74,7 @@ Tiêu chí chấp nhận:
 
 | Vị trí | Định dạng | Màn hình | Khi nào hiển thị | Giới hạn tần suất | Khóa bật tắt |
 | --- | --- | --- | --- | --- | --- |
-| <tên vị trí> | banner / interstitial / native small / native medium / native in-list / native collapsible | <màn hình> | <thời điểm; toàn màn hình chỉ ở điểm dừng tự nhiên> | <ví dụ: cách nhau ít nhất 120 giây> | `ads_<vị trí>_enabled` |
+| <tên vị trí> | banner / interstitial / native small / native medium / native in-list / native collapsible / native toàn màn hình | <màn hình> | <thời điểm; toàn màn hình chỉ ở điểm dừng tự nhiên> | <ví dụ: cách nhau ít nhất 120 giây> | `ads_<vị trí>_enabled` |
 
 ## 6. Dữ liệu và phân tích
 
