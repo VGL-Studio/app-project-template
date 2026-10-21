@@ -15,6 +15,8 @@
 - Bài học `proposed` chờ retro: L-039 (Test của script hỏng trong app mới: test chỉ dành cho dự án mẫu, và test cần remote origin)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
+- ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
+- ADR `proposed` chờ quyết định: [0023-remote-config-conventions.md](adr/0023-remote-config-conventions.md)
 
 ## 2. Yêu cầu
 
@@ -46,4 +48,4 @@ Chưa có phiên nào.
 ## 5. Bài học và ADR
 
 - Bài học ([lessons.md](lessons.md)): 8 bài; 8 `proposed`.
-- ADR: 21; 19 `accepted`, 2 `proposed`.
+- ADR: 23; 19 `accepted`, 4 `proposed`.

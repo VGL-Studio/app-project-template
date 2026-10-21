@@ -133,3 +133,19 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
+
+### [ADR-0022](adr/0022-ad-formats-native-standard.md): Quảng cáo theo nguyên tắc chính sách trước doanh thu, native thay banner và MREC theo quy chuẩn dp của nhóm, mediation AdMob và AppLovin
+
+- không đặt quảng cáo theo bất kỳ dòng nào trong bảng "không bao giờ làm" của `docs/ops/ads-guide.md`, kể cả khi spec yêu cầu
+- gặp yêu cầu như vậy thì ghi thành câu hỏi
+- không đặt quảng cáo ở màn hình chức năng chính và luồng mở đầu lần đầu
+- native chỉ qua composable của `:core:ads`, kích thước tính bằng dp theo hệ thống thiết kế
+- không tự ghi sự kiện hiển thị quảng cáo
+
+### [ADR-0023](adr/0023-remote-config-conventions.md): Khóa Remote Config phẳng, có kiểu, khai báo một chỗ trong code, sinh bảng khóa và file mẫu; staging có giá trị cục bộ
+
+- đặt tên khóa theo quy ước của ADR này
+- không dùng khối JSON làm cấu hình
+- khai báo khóa mới kèm kiểu, mặc định an toàn và mô tả ở module sở hữu, rồi sinh lại bảng khóa trong cùng PR
+- không đổi tên hay đổi kiểu một khóa đã phát hành
+- không đổi giá trị trên Firebase (việc của người)
