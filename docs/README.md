@@ -25,6 +25,7 @@ docs/
 ├── metrics/                 số liệu đo được qua các phiên, ví dụ token theo task (ops/token-usage.md)
 ├── templates/               các mẫu tài liệu
 ├── borrowed-assets.md       app clone: tài sản mượn tạm từ app mẫu, phải thay hết trước khi phát hành
+├── foundation.md            quy tắc nền tảng, sinh từ các ADR bởi scripts/foundation.py, không sửa tay
 ├── STATUS.md                trang tiến độ, sinh bởi scripts/status.py, không sửa tay
 ├── auto-run.md              quy trình phiên AI tự chạy
 ├── lessons.md               sổ bài học, đầu vào của retro
@@ -61,7 +62,7 @@ docs/
 10. **Nghiệm thu (ngày 3).** Dev nghiệm thu chéo, người phụ trách sản phẩm nghiệm thu cuối. Ticket đạt chuyển sang `accepted`.
 11. **Phát hành và vận hành.** Người phụ trách sản phẩm quyết định phát hành. AI tổng hợp định kỳ số liệu từ store thành [báo cáo vận hành](templates/ops-report.md) trong `ops/`. Vấn đề cần xử lý được tách thành phản hồi, ghi vào feature tương ứng hoặc vào `inbox/`.
 
-Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đưa ra ở bất kỳ bước nào, ghi lại thành ADR theo [mẫu ADR](templates/adr.md). Các quyết định nền tảng đã chốt khi thiết lập quy trình được ghi sẵn từ ADR-0001 đến ADR-0011, mọi app clone từ dự án mẫu đều kế thừa.
+Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đưa ra ở bất kỳ bước nào, ghi lại thành ADR theo [mẫu ADR](templates/adr.md). Các quyết định nền tảng của dự án mẫu (ADR-0001 trở đi, `origin: template`) được mọi app tạo từ dự án mẫu kế thừa: với app, đó là quy tắc phải theo. Quy tắc của chúng gom ở [foundation.md](foundation.md); ADR giữ lý do, để ai muốn đổi quy tắc biết vì sao nó có. ADR riêng của app đánh số từ ADR-1001.
 
 ## Quy ước đặt tên
 
@@ -74,7 +75,7 @@ Khi một quyết định kỹ thuật có ảnh hưởng lâu dài được đ�
 | Ticket | `T-NNN` | `features/<feature>/tickets/T-NNN-<tu-khoa>.md` | `.../tickets/T-012-reminder-settings.md` |
 | Plan | trùng mã ticket | `features/<feature>/plans/T-NNN-<tu-khoa>.md` | `.../plans/T-012-reminder-settings.md` |
 | Phản hồi | `FB-YYYYMMDD-NN` | `features/<feature>/feedback/FB-YYYYMMDD-NN-<tu-khoa>.md` | `.../feedback/FB-20261021-01-reminder-time.md` |
-| ADR | `ADR-NNNN` | `adr/NNNN-<tu-khoa>.md` | `adr/0009-local-notifications.md` |
+| ADR | `ADR-NNNN` (dự án mẫu dưới 1000, app từ 1001) | `adr/NNNN-<tu-khoa>.md` | `adr/1001-local-notifications.md` |
 | Phiên tự chạy | `RUN-YYYYMMDD-NN` | `runs/RUN-YYYYMMDD-NN.md` | `runs/RUN-20261020-01.md` |
 | Báo cáo vận hành | `OPS-YYYY-MM-DD` | `ops/OPS-YYYY-MM-DD.md` | `ops/OPS-2026-11-02.md` |
 | Khảo sát app mẫu | tên gói app mẫu | `research/<package>.md` | `research/com.example.posecamera.md` |

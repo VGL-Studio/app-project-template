@@ -17,6 +17,7 @@ Quy tắc khi sửa các phần trên ở app (`CLAUDE.md`, mục Không đượ
 
 - Cải tiến chung: làm ở app như bình thường nếu app cần ngay, rồi mở issue về dự án mẫu (mục 2) trong vòng một tuần. Không để app tự đi xa dự án mẫu ở các phần dùng chung mà không ai biết.
 - Thay đổi chỉ app cần: ghi lý do trong PR, không cần mở issue.
+- Quyết định kỹ thuật: ADR có `origin: template` không sửa ở app. App muốn khác thì viết ADR riêng (mã từ 1001, `supersedes` ghi ADR bị thay cho app này); nếu có ích chung thì mở issue (mục 2) để dự án mẫu sửa hay thay ADR gốc.
 
 ## 2. Ở app: mở issue về dự án mẫu
 

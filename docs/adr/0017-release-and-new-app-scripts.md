@@ -2,6 +2,7 @@
 id: ADR-0017
 title: Script phát hành chỉ build bản ký, người tải lên Google Play; script khởi tạo chép dự án mẫu thành repo mới
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-15
 deciders: [Nhóm phát triển]
 ---

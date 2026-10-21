@@ -387,6 +387,25 @@ expect "status: ticket row has plan, estimate and runs" 1 \
   "$(grep -c '^| \[T-001\](features/demo/tickets/T-001-mot.md) | Một | .on-staging. | .done. (bản 2) | - | RUN-20261004-01 |$' "$page")"
 expect "status: check passes on a fresh page" 0 "$(status_page --check > /dev/null; echo $?)"
 
+# foundation.py builds docs/foundation.md from the rule section of the ADRs.
+fd="$work/foundation-repo/docs/adr"
+mkdir -p "$fd"
+printf -- '---\nid: ADR-0001\ntitle: Mẫu\nstatus: accepted\norigin: template\n---\n\n## Hệ quả\n\n- **Tích cực:** x\n- **Việc AI phải tuân thủ:** làm A; không làm `b; c`.\n' > "$fd/0001-mau.md"
+printf -- '---\nid: ADR-0002\ntitle: Cũ\nstatus: superseded\norigin: template\n---\n\n- **Việc AI phải tuân thủ:** quy tắc cũ.\n' > "$fd/0002-cu.md"
+printf -- '---\nid: ADR-1001\ntitle: Riêng\nstatus: accepted\norigin: app\n---\n\n- **Việc AI phải tuân thủ:** quy tắc app.\n' > "$fd/1001-rieng.md"
+printf -- '---\nid: ADR-1002\ntitle: Đề xuất\nstatus: proposed\norigin: app\n---\n\n- **Phải chấp nhận:** y\n' > "$fd/1002-de-xuat.md"
+foundation() { FOUNDATION_ROOT="$work/foundation-repo" python3 -I scripts/foundation.py "$@"; }
+expect "foundation: check fails before the page exists" 1 "$(foundation --check > /dev/null; echo $?)"
+foundation > /dev/null
+fpage="$work/foundation-repo/docs/foundation.md"
+expect "foundation: each clause is one rule, semicolons in code kept" 2 "$(grep -cE '^- (làm A|không làm .b; c.)$' "$fpage")"
+expect "foundation: superseded ADRs are left out" 0 "$(grep -c 'quy tắc cũ' "$fpage")"
+expect "foundation: app ADRs are listed apart" 1 "$(grep -c '^## Quyết định riêng của app' "$fpage")"
+expect "foundation: an ADR without rules points to the full ADR" 1 "$(grep -c 'ADR chưa có mục' "$fpage")"
+expect "foundation: check passes on a fresh page" 0 "$(foundation --check > /dev/null; echo $?)"
+expect "foundation: docs/foundation.md of this repo matches its ADRs" 0 \
+  "$(python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
+
 # env-canary.sh opens an env-broken issue when the environment is red and closes it when it is green again.
 printf '#!/usr/bin/env bash\nexit 0\n' > "$work/pass.sh"
 printf '#!/usr/bin/env bash\necho "Could not GET https://repo.maven.apache.org/x"\nexit 1\n' > "$work/fail.sh"

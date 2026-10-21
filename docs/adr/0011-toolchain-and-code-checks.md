@@ -2,6 +2,7 @@
 id: ADR-0011
 title: Bộ công cụ build và kiểm tra code của dự án mẫu
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển]
 ---

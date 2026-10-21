@@ -2,6 +2,7 @@
 id: ADR-NNNN
 title: <quyết định, viết thành một câu khẳng định>
 status: proposed             # proposed | accepted | superseded
+origin: app                  # template: ADR của dự án mẫu (mã dưới 1000) | app: ADR riêng của app (mã từ 1001)
 date: YYYY-MM-DD
 deciders: [<tên>, <tên>]
 supersedes:                  # ADR bị thay thế, nếu có
@@ -29,4 +30,4 @@ superseded_by:               # điền khi ADR này bị thay thế
 
 - **Tích cực:** <...>
 - **Phải chấp nhận:** <...>
-- **Việc AI phải tuân thủ:** <quy tắc cụ thể rút ra từ quyết định này, để AI áp dụng khi viết plan và code>
+- **Việc AI phải tuân thủ:** <quy tắc cụ thể rút ra từ quyết định này, viết thành các vế ngắn nối bằng dấu chấm phẩy; scripts/foundation.py chép từng vế vào docs/foundation.md>

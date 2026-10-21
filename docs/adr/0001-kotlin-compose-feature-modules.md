@@ -2,6 +2,7 @@
 id: ADR-0001
 title: Dùng Kotlin, Jetpack Compose và chia module theo feature
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển]
 ---

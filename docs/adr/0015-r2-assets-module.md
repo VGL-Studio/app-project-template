@@ -2,6 +2,7 @@
 id: ADR-0015
 title: Module `:core:assets` tải file tĩnh từ R2 một lần, giữ trên máy, đường dẫn bắt buộc có phiên bản
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-15
 deciders: [Nhóm phát triển]
 ---

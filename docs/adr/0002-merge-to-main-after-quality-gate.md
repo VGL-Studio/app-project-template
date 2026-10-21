@@ -2,6 +2,7 @@
 id: ADR-0002
 title: Merge thẳng vào nhánh chính, chỉ sau khi qua cổng chất lượng
 status: accepted
+origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển]
 amended_by: ADR-0010

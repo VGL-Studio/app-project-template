@@ -9,7 +9,7 @@ Trước khi viết spec, plan hay code cho một ticket, đọc theo thứ tự
 1. Ticket trong `features/<feature>/tickets/`.
 2. `features/<feature>/spec.md`, kể cả mục câu hỏi đã được trả lời.
 3. Thiết kế trong `features/<feature>/design/`, nếu có.
-4. Tất cả ADR có trạng thái `accepted` trong `adr/`.
+4. [foundation.md](foundation.md): quy tắc của mọi ADR còn hiệu lực, sinh từ mục "Việc AI phải tuân thủ". Mở ADR đầy đủ trong `adr/` khi task đụng vào vùng của ADR đó hoặc định đổi quy tắc của nó.
 5. Phản hồi trong `features/<feature>/feedback/` có trạng thái `triaged` hoặc `planned`, và phản hồi trong `inbox/` được liên kết tới ticket.
 6. Các plan trước đó của cùng feature, nhất là mục nhật ký thực hiện, để biết những gì đã làm và đã gặp trở ngại.
 
@@ -109,6 +109,13 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 - Đề xuất phân loại: lỗi so với spec, thay đổi yêu cầu, hay góp ý mới. Chủ feature quyết định.
 - Phản hồi là thay đổi yêu cầu thì không sửa thẳng vào code. Đề xuất cập nhật spec, chờ người phụ trách sản phẩm xác nhận.
 - Phản hồi là lỗi so với spec thì cập nhật plan (tăng phiên bản plan, thêm mục sửa lỗi). Plan sửa đi qua họp đánh giá rủi ro như plan mới.
+
+## Khi viết ADR
+
+- Dùng đúng [mẫu ADR](templates/adr.md). Mục "Việc AI phải tuân thủ" viết thành các vế ngắn nối bằng dấu chấm phẩy: mỗi vế thành một dòng của `foundation.md`.
+- Mã ADR: ở dự án mẫu (repo có `docs/ops/new-app.md`) lấy số tiếp theo dưới 1000 và ghi `origin: template`. Ở app, lấy số tiếp theo từ 1001 và ghi `origin: app`, để không trùng với ADR mà dự án mẫu thêm sau này.
+- Trong app, không sửa ADR có `origin: template`. Muốn khác thì viết ADR của app, ghi rõ thay quy tắc nào và vì sao (`supersedes`), và đề xuất về dự án mẫu nếu có ích chung (`docs/ops/from-app.md`).
+- PR thêm hay đổi trạng thái ADR thì chạy `scripts/foundation.py` và commit `docs/foundation.md` cùng PR. Test của script báo lỗi khi trang chưa khớp.
 
 ## Trang tiến độ
 
