@@ -68,11 +68,13 @@ Tiêu chí chấp nhận:
 
 ## 5. Quảng cáo
 
-<!-- Vị trí quảng cáo là quyết định kinh doanh. AI không tự thêm vị trí ở đây. -->
+<!-- Vị trí quảng cáo là quyết định kinh doanh. AI không tự thêm vị trí ở đây. Theo docs/ops/ads-guide.md: định dạng ở mục 3, bảng "không bao giờ làm" ở mục 2. -->
 
-| Vị trí | Định dạng | Khi nào hiển thị | Giới hạn tần suất | Cờ bật tắt |
-| --- | --- | --- | --- | --- |
-| <tên vị trí> | banner / toàn màn hình / có thưởng | <thời điểm> | <ví dụ: tối đa 1 lần mỗi 3 phút> | <tên cờ> |
+**Màn hình chức năng chính (không có quảng cáo):** <tên màn hình>
+
+| Vị trí | Định dạng | Màn hình | Khi nào hiển thị | Giới hạn tần suất | Khóa bật tắt |
+| --- | --- | --- | --- | --- | --- |
+| <tên vị trí> | banner / interstitial / native small / native medium / native in-list / native collapsible | <màn hình> | <thời điểm; toàn màn hình chỉ ở điểm dừng tự nhiên> | <ví dụ: cách nhau ít nhất 120 giây> | `ads_<vị trí>_enabled` |
 
 ## 6. Dữ liệu và phân tích
 

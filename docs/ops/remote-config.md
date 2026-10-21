@@ -1,0 +1,58 @@
+# HƯỚNG DẪN REMOTE CONFIG
+
+Tài liệu này dành cho dev, AI và người vận hành. Nó nói cách đặt tên, khai báo, thử và đổi các giá trị cấu hình từ xa qua Firebase Remote Config. Quyết định nằm ở ADR-0003 (cờ tính năng và tham số kinh doanh), ADR-0012 (nối Firebase), ADR-0014 (giá trị mặc định của quảng cáo), ADR-0018 (chờ cấu hình ở màn hình loading) và ADR-0023 (quy ước khóa).
+
+Các phần ghi **(đợt 2)** cần code chưa có trong `:core:config` (kiểu double và string, bảng khóa sinh tự động, giá trị cục bộ cho staging).
+
+## 1. Khóa dùng để làm gì
+
+| Loại | Ví dụ | Ai đọc |
+| --- | --- | --- |
+| Cờ tính năng | `feature_camera_enabled` | `FeatureFlags` (`:core:config`), feature theo dõi bằng `Flow` |
+| Quảng cáo | `ads_enabled`, `ads_poses_banner_enabled`, `ads_interstitial_min_interval_seconds` | `:core:ads` |
+| Tham số của module | `assets_catalog_path`, `review_min_saved_photos_count` | Module core sở hữu tham số, qua `RemoteSettings` |
+
+Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qua `FeatureFlags`, còn tham số đi qua module core sở hữu.
+
+## 2. Đặt tên và kiểu
+
+- Chữ thường, nối bằng gạch dưới, tiền tố theo chủ: `feature_`, `ads_`, `<module>_`. Đơn vị ở cuối: `_seconds`, `_count`, `_percent`.
+- Cờ tính năng: `feature_<ten>_enabled`. Vị trí quảng cáo: `ads_<vị trí>_enabled`.
+- Kiểu: boolean, long, double (đợt 2), string (đợt 2). Không dùng khối JSON làm cấu hình (ADR-0023). Danh sách ngắn thì dùng string, ghi định dạng trong mô tả (ví dụ `"vi,en,hi"`).
+- Khóa đã phát hành không đổi tên, không đổi kiểu. Cần khác thì tạo khóa mới; khóa cũ giữ tới khi không còn bản app nào đọc.
+
+## 3. Thêm một khóa
+
+1. **Có trong spec hay plan:** cờ tính năng mới đi cùng feature; tham số kinh doanh (quảng cáo, giới hạn, ngưỡng) phải có trong spec đã duyệt.
+2. **Khai báo một chỗ** ở module sở hữu: tên, kiểu, giá trị mặc định, mô tả một câu. Mặc định là giá trị an toàn khi chưa tải được cấu hình: cờ và vị trí quảng cáo tắt; giới hạn tần suất nghiêng về ít quảng cáo.
+   - Cờ tính năng: một mục trong `FeatureFlag` (`:core:config`).
+   - Khóa quảng cáo: trong cấu hình của `:core:ads` (hiện là `AdsSettings`).
+   - Tham số khác: trong module core sở hữu, đọc qua `RemoteSettings`.
+3. **Sinh lại bảng khóa** `docs/remote-config-keys.md` và file mẫu cho Firebase bằng script, commit cùng PR (đợt 2; tới lúc đó ghi khóa mới vào mục Khóa của plan và spec).
+4. **Test:** giá trị mặc định có test (như `AdsSettingsTest`, test mặc định tắt của `FeatureFlag`); ViewModel dùng nguồn cờ giả.
+5. **Staging:** cần thấy tính năng trên staging thì bật trong `app/src/staging` (`StagingFeatureFlagsModule` cho cờ; giá trị cục bộ cho tham số khác ở đợt 2).
+
+## 4. Đọc giá trị trong app
+
+- Đọc giá trị đã kích hoạt, không chờ mạng (ADR-0012). Giá trị mới tới qua lần tải sau hay qua cập nhật thời gian thực; feature theo dõi `Flow`, không đọc một lần.
+- Chỉ màn hình loading chờ tải cấu hình lần đầu, có giới hạn thời gian (ADR-0018).
+- Thứ tự ưu tiên: giá trị bật riêng cho bản build (staging) > giá trị từ Firebase > mặc định trong code.
+
+## 5. Đổi giá trị trên Firebase
+
+Đổi giá trị là đổi hành vi của app đang chạy ở máy người dùng: làm như một lần phát hành nhỏ (ADR-0023).
+
+1. **Ghi trước:** khóa, giá trị cũ, giá trị mới, điều kiện, lý do, người đổi, vào sổ đổi cấu hình của app (`docs/ops/` của app, mỗi lần một dòng).
+2. **Dùng điều kiện để bật dần:** theo phiên bản app (chỉ bản đã có code đọc khóa), quốc gia, hay phần trăm người dùng. Vị trí quảng cáo mới: bật cho phần nhỏ người dùng trước, xem giữ chân và điểm Play rồi mới mở rộng.
+3. **Kiểu giá trị trên Firebase khớp kiểu trong code** (boolean là `true`/`false`, số không có đơn vị).
+4. **Bấm Publish** và kiểm trên một máy (DebugView hay log của app).
+5. **Quay về:** dùng lịch sử phiên bản của Remote Config trên Firebase; ghi lần quay về vào sổ.
+6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt `ads_enabled` (đợt 2) hay khóa của vị trí, rồi mới tìm nguyên nhân.
+
+## 6. Thử nghiệm A/B
+
+Dùng Firebase A/B Testing trên một khóa đã có, với một chỉ số chính (ví dụ giữ chân D7 hay ARPDAU) và chỉ số chặn (điểm Play, tỷ lệ crash). Không chạy hai thử nghiệm cùng đổi một khóa. Ghi thử nghiệm và kết quả vào sổ đổi cấu hình.
+
+## 7. Bảng khóa
+
+`docs/remote-config-keys.md` (đợt 2) liệt kê mọi khóa của bản app hiện tại: khóa, kiểu, mặc định, module, mô tả. Sinh từ code, không sửa tay; test báo lỗi khi lệch. Tới khi có, khóa hiện có nằm ở `FeatureFlag` và `AdsSettings`.
