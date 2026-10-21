@@ -111,16 +111,17 @@ Không có cờ: quy tắc áp dụng cho mọi app (ADR-0024). Khóa Remote Con
 
 1. **Có dựng popup trên Figma không?**
    - Đề xuất của AI: có, cùng file "App Template: Design System", một component hộp thoại dùng chung (popup mất mạng là trường hợp đầu tiên), sáng và tối.
-   - Trả lời:
+   - Trả lời: Có.
 2. **Có ghi hai sự kiện phân tích ở mục 6 không?**
    - Đề xuất của AI: có; giúp biết người dùng mất mạng nhiều ở đâu, nhất là ở các thị trường mạng yếu.
-   - Trả lời:
+   - Trả lời: Có, ghi cả hai sự kiện.
 3. **Chữ trên popup.**
    - Đề xuất của AI: tiêu đề "Không có kết nối mạng"; nội dung "Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại."; nút "Thử lại". Bản tiếng Anh tương ứng.
-   - Trả lời:
+   - Trả lời: Duyệt theo đề xuất.
 
 ## 10. Lịch sử
 
 | Ngày | Người | Nội dung |
 | --- | --- | --- |
 | 2026-10-21 | AI | Tạo bản đầu từ yêu cầu và đề xuất đã duyệt (ADR-0024) |
+| 2026-10-21 | Nhật | Trả lời 3 câu hỏi |
