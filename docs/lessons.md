@@ -58,3 +58,31 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `ax.sh check` kiểm tra mạng và thoát mã 8 khi không có; `docs/ops/clone-study.md` mục 1 ghi bước kết nối mạng.
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/clone-app-process`
+
+### L-036. Báo cáo khảo sát app mẫu trích nguyên mã AdMob thật của app mẫu
+
+- **Ngày, nguồn:** 2026-10-21, phiên khởi tạo app camera-pose (chép tài liệu khảo sát vào `docs/research/`)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** báo cáo PoseMate trích một dòng log có mã quảng cáo AdMob thật của app mẫu. Agent đọc APK được dặn không chép mã quảng cáo, agent khảo sát trên máy thì không. Phiên app phát hiện và che tay trước khi commit.
+- **Cải tiến:** `scripts/secret-scan.py` quét file của repo (mã AdMob ngoài mã thử của Google, khóa API, khóa riêng, token GitHub) và chạy trong `scripts/tests/run.sh`, nên cổng chất lượng chặn. `clone-study.md` mục 4, mẫu báo cáo và `docs/CLAUDE.md` cấm chép các giá trị đó, trích log thì che.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/clone-followups`
+
+### L-037. Đường dẫn trong bản đề xuất gãy khi chép tài liệu khảo sát vào repo
+
+- **Ngày, nguồn:** 2026-10-21, phiên khởi tạo app camera-pose
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `clone-study.md` để báo cáo trong `reports/` cạnh `proposal.md`, còn `docs/README.md` quy định `research/<package>.md` đặt phẳng. Phiên app phải sửa link trong bản đề xuất đã duyệt.
+- **Cải tiến:** thư mục làm việc có `research/` cùng cấu trúc với `docs/research/`; chép nguyên, không sửa link. Mẫu đề xuất ghi link tới file bên cạnh và ảnh nằm ngoài repo.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/clone-followups`
+
+### L-038. App mới còn bài học của dự án mẫu trên trang tiến độ
+
+- **Ngày, nguồn:** 2026-10-21, phiên khởi tạo app camera-pose
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `scripts/new-app.sh` xóa bài học của dự án mẫu khỏi `docs/lessons.md` nhưng không sinh lại `docs/STATUS.md`, nên trang của app mới còn L-032 đến L-035.
+- **Cải tiến:** `new-app.sh` chạy `status.py` và `foundation.py` trước commit đầu tiên; test kiểm trang của app mới khớp với tài liệu.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/clone-followups`
+

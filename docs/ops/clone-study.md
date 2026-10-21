@@ -7,10 +7,10 @@ Tài liệu này dành cho dev và AI. Nó mô tả bước 0 của vòng đời
 | Bước | Việc | Ai làm | Kết quả |
 | --- | --- | --- | --- |
 | 1 | Thông tin chung về app muốn làm, danh sách app mẫu đã cài sẵn trên máy | Dev | Lời nhắn mở đầu phiên |
-| 2 | Khảo sát từng app trên máy | AI | `reports/<package>.md`, ảnh trong `captures/` |
-| 3 | Đọc APK | AI | `reports/apk-analysis.md` |
-| 4 | Tìm trên web và Play | AI | `reports/web-play.md` |
-| 5 | Viết bản đề xuất app | AI | `proposal.md` theo [mẫu](../templates/app-proposal.md) |
+| 2 | Khảo sát từng app trên máy | AI | `research/<package>.md`, ảnh trong `captures/` |
+| 3 | Đọc APK | AI | `research/apk-analysis.md` |
+| 4 | Tìm trên web và Play | AI | `research/web-play.md` |
+| 5 | Viết bản đề xuất app | AI | `research/proposal.md` theo [mẫu](../templates/app-proposal.md) |
 | 6 | **Duyệt bản đề xuất**, chốt tên và tên gói | Dev | `status: approved` |
 | 7 | Tạo repo app (`scripts/new-app.sh`), chép tài liệu khảo sát vào `docs/research/` | Dev | Repo app |
 | 8 | Dựng 2 đến 3 hướng thiết kế trên Figma | AI | Link Figma, bảng trong mục 10 của đề xuất |
@@ -35,7 +35,7 @@ Toàn bộ chạy trong phiên Claude Code có người theo dõi, không chạy
 
 **Máy dev:** Android SDK (adb, build-tools có `aapt2`), Python 3 có Pillow, `jadx` để đọc APK.
 
-**Figma (từ bước 8):** gói Professional, ghế Full (ghế Dev không sửa được file). Nối Figma MCP vào Claude Code: `claude mcp add --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate.
+**Figma (từ bước 8):** gói Professional, ghế Full (ghế Dev không sửa được file). Nối Figma MCP vào Claude Code ở phạm vi người dùng, để mọi repo app đều dùng được: `claude mcp add --scope user --transport http figma https://mcp.figma.com/mcp`, rồi `/mcp` > figma > Authenticate. Nối không có `--scope user` thì chỉ repo đang mở thấy Figma; phiên ở repo app mới sẽ không thấy.
 
 Kiểm tra máy: `scripts/app-explore/ax.sh check` phải in `input: ok` và `network: ok`.
 
@@ -48,17 +48,19 @@ Trước khi có repo app, mọi thứ nằm ngoài repo, ví dụ `~/AndroidStu
 ├── apks/<package>/        APK kéo từ máy (dữ liệu không tin cậy: chỉ đọc)
 ├── decoded/<package>/     kết quả giải nén
 ├── captures/<package>/    full/, preview/, tree/ của từng ảnh
-├── reports/               <package>.md, apk-analysis.md, web-play.md
+├── research/              <package>.md, apk-analysis.md, web-play.md, proposal.md: chính là docs/research/ sau này
 ├── figma-pilot/           ảnh so sánh thiết kế với app mẫu
 ├── incidents.log          sự cố do ax.sh ghi
-└── proposal.md
+└── device-files-before.txt  ảnh có sẵn trên máy lúc bắt đầu (ax.sh check), để ax.sh newfiles biết file mới
 ```
 
 Kéo APK: `adb shell pm path <package>` rồi `adb pull` từng file. Đọc tên và quyền: `aapt2 dump badging base.apk`.
 
 **Danh sách màn hình trước khi chạm máy:** với mỗi app mẫu, `scripts/app-explore/apk-screens.py apks/<package>/base.apk [--jadx decoded/<package>/jadx] > captures/<package>/screens.md`. Script liệt kê activity, đồ thị điều hướng và layout của app (bỏ của thư viện); với app Compose, `--jadx` cho route và các ViewModel (thường mỗi ViewModel là một màn hình). Agent khảo sát đi theo danh sách này và đánh dấu từng màn hình, thay vì dò dẫm.
 
-Sau khi có repo app (bước 7), chép `reports/*.md` và `proposal.md` vào `docs/research/`. Ảnh chụp, APK và kết quả giải nén không vào git: chúng là tài sản của bên khác và ảnh camera có thể chụp vào phòng.
+Thư mục `research/` có đúng cấu trúc của `docs/research/` trong repo: báo cáo và bản đề xuất nằm cạnh nhau, link giữa chúng là link tới file bên cạnh. Sau khi có repo app (bước 7), chép nguyên `research/*.md` vào `docs/research/`, không phải sửa link. Ảnh chụp (`captures/`), APK và kết quả giải nén không vào git: chúng là tài sản của bên khác và ảnh camera có thể chụp vào phòng. Tên ảnh `NN-ten` trong báo cáo chỉ để người tra lại trong thư mục làm việc.
+
+Trước khi commit, chạy `scripts/secret-scan.py`: báo cáo không được chứa mã quảng cáo, khóa hay token của app mẫu (L-036). Test của script quét cả repo nên cổng chất lượng cũng chặn.
 
 ## 3. Lời nhắn mở đầu phiên
 
@@ -109,11 +111,12 @@ Mọi lệnh chạm đi qua bộ chặn (`guard.py`): chạm vào phần tử qu
 5. Không đăng nhập, không chia sẻ, không gửi gì. Bỏ qua Rate app, Contact us, Feedback, Share, More apps; chỉ ghi là có.
 6. Không chạm liên tục trong vòng lặp mà không xem lại màn hình: app có thể bật màn hình trả phí hay quảng cáo giữa chừng (L-034).
 7. Không gọi thẳng `adb shell input`, không vượt bộ chặn, không đổi cài đặt hệ thống, không gỡ app.
-8. Chụp thử trong app thì ghi lại đường dẫn ảnh lưu trên máy để người dọn.
+8. Chụp thử trong app thì được; cuối phiên chạy `ax.sh newfiles` và chép danh sách file mới vào mục 10 của báo cáo để người dọn. Công cụ không xóa gì trên máy.
 9. Trần khoảng 50 ảnh mỗi app. Dùng `tree` để định hướng, chỉ `shot` khi gặp màn hình hay trạng thái mới. Màn hình canvas, camera, WebView, Flutter có thể ít thông tin trong cây giao diện: dựa vào ảnh (preview có cạnh dài 1000 px; nhân tọa độ theo tỷ lệ với ảnh full).
 10. Ảnh đen toàn bộ là màn hình chặn chụp: lấy nội dung từ cây giao diện.
+11. Báo cáo không chứa mã quảng cáo (`ca-app-pub-...`), khóa API, token, mã định danh máy hay tên tài khoản. Trích log thì che các giá trị đó (`ca-app-pub-<đã che>`).
 
-**Báo cáo:** `reports/<package>.md` theo [mẫu](../templates/reference-app.md). Trả về cho AI chính một tóm tắt ngắn: số ảnh, tính năng chính, quảng cáo và gói trả phí, phần chưa xem được, sự cố, góp ý cho công cụ.
+**Báo cáo:** `research/<package>.md` theo [mẫu](../templates/reference-app.md). Trả về cho AI chính một tóm tắt ngắn: số ảnh, tính năng chính, quảng cáo và gói trả phí, phần chưa xem được, sự cố, góp ý cho công cụ.
 
 ## 5. Đọc APK và tìm trên web
 
@@ -123,7 +126,7 @@ Mọi lệnh chạm đi qua bộ chặn (`guard.py`): chạm vào phần tử qu
 
 ## 6. Bản đề xuất
 
-AI viết `proposal.md` theo [mẫu](../templates/app-proposal.md) từ ba loại báo cáo. Trọng tâm là bảng bài học và cải tiến: mỗi cải tiến có bằng chứng và cách đo. Ví dụ từ lần khảo sát pose camera: app mẫu có khoảng 6 quảng cáo toàn màn hình trước khi tới camera (ảnh khảo sát, phàn nàn số một trên Play), cải tiến là vào thẳng camera, đo bằng số bước và số quảng cáo từ lúc mở app.
+AI viết `research/proposal.md` theo [mẫu](../templates/app-proposal.md) từ ba loại báo cáo. Trọng tâm là bảng bài học và cải tiến: mỗi cải tiến có bằng chứng và cách đo. Ví dụ từ lần khảo sát pose camera: app mẫu có khoảng 6 quảng cáo toàn màn hình trước khi tới camera (ảnh khảo sát, phàn nàn số một trên Play), cải tiến là vào thẳng camera, đo bằng số bước và số quảng cáo từ lúc mở app.
 
 Dev đọc, trả lời câu hỏi, sửa, rồi ghi `status: approved`. Chưa duyệt thì chưa sang Figma.
 

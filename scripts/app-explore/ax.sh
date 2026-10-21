@@ -20,6 +20,8 @@
 #   ax.sh wait <s>                      sleep (useful inside seq)
 #   ax.sh back | home | wake | launch <pkg> | stop <pkg> | top
 #   ax.sh log <pkg> [lines]             recent log lines of the app's process
+#   ax.sh newfiles [--reset]            photos and files added under Pictures/ and DCIM/ since the first check, for
+#                                       the person to clean up (nothing is deleted); --reset takes a new snapshot
 #   ax.sh color <png> <x> <y> ...       hex colour of pixels of a full screenshot
 # Several steps in one call (one AI turn instead of one per step); stops at the first failing step:
 #   ax.sh seq "tapid tab_tips; wait 2; shot captures/pkg 12-tips; back"
@@ -29,11 +31,13 @@
 # Exit codes: 0 done, 1 not found, 2 usage, 3 input refused by the device, 4 tap refused by the guard,
 # 5 no device, 6 left the app (undone), 7 screen locked, 8 offline.
 # Settings: ANDROID_SERIAL (several devices), AX_INCIDENTS (incident log, default ./incidents.log in the study
-# folder), AX_SETTLE (longest wait after a tap, default 1.2 s). Messages are in Vietnamese; comments in English.
+# folder), AX_SETTLE (longest wait after a tap, default 1.2 s), AX_FILES (snapshot of the device's photo folders,
+# default ./device-files-before.txt). Messages are in Vietnamese; comments in English.
 set -euo pipefail
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
 LOG="${AX_INCIDENTS:-$PWD/incidents.log}"
 CUR="${TMPDIR:-/tmp}/ax_cur_$$.xml"
+FILES="${AX_FILES:-$PWD/device-files-before.txt}"
 trap 'rm -f "$CUR" "$CUR.prev"' EXIT
 
 need_device() {
@@ -56,6 +60,7 @@ run_input() {
   fi
 }
 dump() { adb shell uiautomator dump /sdcard/ax.xml > /dev/null 2>&1 || true; adb exec-out cat /sdcard/ax.xml 2>/dev/null || true; }
+device_files() { { adb shell find /sdcard/Pictures /sdcard/DCIM -type f 2>/dev/null || true; } | tr -d '\r' | sort; }
 top_line() { { adb shell dumpsys activity activities 2>/dev/null || true; } | grep -m1 -E "topResumedActivity|mResumedActivity" | sed 's/^ *//' || true; }
 # After a tap, undo a jump to the store, a browser or a mail app, and record it. Checks a few times within
 # AX_SETTLE instead of one fixed sleep, so a normal tap costs less than a second.
@@ -97,7 +102,14 @@ run_cmd() {
         echo "CHÚ Ý: máy không có mạng. Quảng cáo và nội dung tải về sẽ không hiện; nhờ người bật mạng trước khi khảo sát." >&2
         exit 8
       fi
-      echo "network: ok" ;;
+      echo "network: ok"
+      # The first check of a study remembers which photos were already there (ax.sh newfiles).
+      [[ -f "$FILES" ]] || { device_files > "$FILES"; echo "đã ghi danh sách ảnh có sẵn trên máy: $FILES"; } ;;
+    newfiles)
+      if [[ "${1:-}" == "--reset" ]]; then device_files > "$FILES"; echo "đã ghi lại danh sách: $FILES"; exit 0; fi
+      [[ -f "$FILES" ]] || { echo "chưa có danh sách ban đầu: chạy 'ax.sh check' lúc bắt đầu khảo sát" >&2; exit 1; }
+      local added; added="$(comm -13 "$FILES" <(device_files))"
+      if [[ -z "$added" ]]; then echo "không có file mới trên máy"; else echo "file mới trên máy, cần người dọn:"; echo "$added"; fi ;;
     shot)
       local out="$1" name="$2" w
       mkdir -p "$out/full" "$out/preview" "$out/tree"
