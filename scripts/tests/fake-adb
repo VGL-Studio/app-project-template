@@ -2,7 +2,7 @@
 # Minimal stand-in for adb used by scripts/tests: one connected device with the app installed, unless
 # FAKE_ADB_NO_DEVICE or FAKE_ADB_NO_APP is set. `logcat -v ...` prints $FAKE_ADB_LOGCAT, then waits to be killed
 # like the real streaming logcat. `dumpsys connectivity` reports the default network $FAKE_ADB_NETWORK (default
-# "none", i.e. offline). Every call is appended to $FAKE_ADB_CALLS when set.
+# "none", i.e. offline). `exec-out cat` prints $FAKE_ADB_UI (a UI dump). Every call is appended to $FAKE_ADB_CALLS when set.
 [[ -n "${FAKE_ADB_CALLS:-}" ]] && echo "$*" >> "${FAKE_ADB_CALLS}"
 case "$1" in
   get-state) [[ -n "${FAKE_ADB_NO_DEVICE:-}" ]] && exit 1; echo device ;;
@@ -25,5 +25,6 @@ case "$1" in
       monkey*) echo "Events injected: 1500" ;;
       *) exit 0 ;;
     esac ;;
+  exec-out) [[ "$*" == "exec-out cat"* ]] && cat "${FAKE_ADB_UI:-/dev/null}"; exit 0 ;;
   *) exit 0 ;;
 esac
