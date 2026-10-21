@@ -10,6 +10,9 @@ cp scripts/tests/fake-gh "$work/bin/gh"
 chmod +x "$work/bin/gh"
 
 failures=0
+# merge-if-green.sh, wait-run.sh and env-canary.sh read owner/repo from the origin remote. A new app has no remote
+# until someone pushes it, so give every git command of the tests a fake one (git reads GIT_CONFIG_* as -c options).
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.url GIT_CONFIG_VALUE_0=https://github.com/o/r.git
 expect() {
   local name="$1" expected="$2" actual="$3"
   if [[ "$actual" == "$expected" ]]; then
@@ -241,9 +244,12 @@ release_fails_with "assets address without https" "assetsBaseUrl phải"
 release_fails_with "unknown argument" "tham số không hợp lệ" --upload
 
 # new-app.sh renames the template into a new repository and leaves out the template's own files.
+# It exists only in the template repository: an app made from it has no new-app.sh, so the app skips these tests.
 new_app="$work/new-app"
 # CI runners have no git identity; the new repository needs one for its first commit.
-if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com \
+if [[ ! -f scripts/new-app.sh ]]; then
+  echo "skip - new-app.sh: chỉ có ở repo dự án mẫu"
+elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com \
   scripts/new-app.sh --dest "$new_app" --package com.example.notes --name "Ghi chú" \
   --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1; then
   expect "new-app.sh succeeds" ok ok

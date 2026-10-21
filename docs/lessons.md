@@ -86,3 +86,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/clone-followups`
 
+### L-039. Test của script hỏng trong app mới: test chỉ dành cho dự án mẫu, và test cần remote origin
+
+- **Ngày, nguồn:** 2026-10-21, app camera-pose (PR #1, #2 của repo app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** trong app, `scripts/tests/run.sh` chạy test của `new-app.sh` mà app không có script đó, nên test "new-app.sh succeeds" hỏng và CI của mọi PR app đỏ. Trước khi đẩy repo lên GitHub, thêm 14 test của `merge-if-green`, `wait-run`, `env-canary` hỏng vì các script đọc tên repo từ remote `origin`.
+- **Cải tiến:** test của `new-app.sh` chỉ chạy khi có script (repo dự án mẫu); bộ test đặt một remote `origin` giả cho mọi lệnh git qua `GIT_CONFIG_*`, không phụ thuộc remote thật. Không sửa script được bảo vệ.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/app-test-template-only`
+
