@@ -8,6 +8,7 @@
 - Plan `draft` chờ duyệt: [T-008-gia-tri-cuc-bo-cho-staging.md](features/ads/plans/T-008-gia-tri-cuc-bo-cho-staging.md)
 - Plan `draft` chờ duyệt: [T-009-tan-suat-va-cong-tac-tong.md](features/ads/plans/T-009-tan-suat-va-cong-tac-tong.md)
 - Plan `draft` chờ duyệt: [T-015-mediation-applovin.md](features/ads/plans/T-015-mediation-applovin.md)
+- Spec `draft` chờ xác nhận: [spec.md](features/network/spec.md) (network)
 - Ticket đã duyệt, chưa vào danh sách chạy nào: [T-006-cuon-man-hinh-rat-thap.md](features/loading/tickets/T-006-cuon-man-hinh-rat-thap.md)
 - Bài học `proposed` chờ retro: L-032 (Máy Xiaomi chặn thao tác giả lập qua adb nếu chưa bật "Gỡ lỗi USB (Cài đặt bảo mật)")
 - Bài học `proposed` chờ retro: L-033 (Chạm theo tọa độ cũ trúng quảng cáo vừa hiện lên)
@@ -21,6 +22,7 @@
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 - ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
 - ADR `proposed` chờ quyết định: [0023-remote-config-conventions.md](adr/0023-remote-config-conventions.md)
+- ADR `proposed` chờ quyết định: [0024-network-required.md](adr/0024-network-required.md)
 
 ## 2. Yêu cầu
 
@@ -28,6 +30,7 @@
 | --- | --- | --- | --- | --- |
 | Quảng cáo native và remote config cho dự án mẫu (đợt 2) ([2026-10-21-native-va-remote-config.md](features/ads/requests/2026-10-21-native-va-remote-config.md)) | 2026-10-21 | ads | `specified` đã có spec | 0/9 |
 | Màn hình loading có thanh tiến trình ([2026-10-15-man-hinh-loading.md](features/loading/requests/2026-10-15-man-hinh-loading.md)) | 2026-10-15 | loading | `specified` đã có spec | 5/6 |
+| App luôn cần mạng ([2026-10-21-app-luon-can-mang.md](features/network/requests/2026-10-21-app-luon-can-mang.md)) | 2026-10-21 | network | `specified` đã có spec | - |
 
 ## 3. Feature
 
@@ -64,6 +67,12 @@ Spec: [spec.md](features/loading/spec.md) `confirmed`. Ticket: 5 `on-staging`, 1
 
 Phản hồi: 1 `fixed`, 1 `wontfix`.
 
+### network
+
+Spec: [spec.md](features/network/spec.md) `draft`. Ticket: chưa có.
+
+Phản hồi: chưa có.
+
 ## 4. Phiên tự chạy
 
 Chưa có phiên nào.
@@ -71,4 +80,4 @@ Chưa có phiên nào.
 ## 5. Bài học và ADR
 
 - Bài học ([lessons.md](lessons.md)): 8 bài; 8 `proposed`.
-- ADR: 23; 19 `accepted`, 4 `proposed`.
+- ADR: 24; 19 `accepted`, 5 `proposed`.

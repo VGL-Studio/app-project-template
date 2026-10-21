@@ -51,6 +51,7 @@ Làm theo đúng mẫu `:feature:sample`:
 4. `<Ten>ViewModel`: nhận repository, `Analytics`, `AppLogger`, `FeatureFlags`; trả `StateFlow<UiState>`; hành động của người dùng là hàm thường.
    - Ghi log bằng `AppLogger` (ADR-0019): đổi trạng thái chính, kết quả hành động của người dùng, lỗi đã bắt, lần thử lại. Thẻ log là tên feature. Không ghi dữ liệu cá nhân, nội dung file hay chữ người dùng nhập. Unit test dùng `RecordingAppLogger`.
    - `FeatureFlags.enabled()` là một `Flow`: theo dõi nó, không đọc một lần (ADR-0003).
+   - App luôn cần mạng (ADR-0024): feature không làm chế độ ngoại tuyến và không tự đọc trạng thái mạng; mất mạng do `:app` chặn bằng popup chung. Lỗi tải khi vẫn có mạng thì đưa vào `UiState` kèm nút thử lại.
    - Ghi dữ liệu có thể ném `IOException`: bắt lỗi trong ViewModel, đưa vào `UiState` để màn hình báo cho người dùng, không để app dừng đột ngột. Luồng đọc DataStore tự thử lại khi gặp `IOException`.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`.

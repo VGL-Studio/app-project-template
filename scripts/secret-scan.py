@@ -6,8 +6,8 @@ Usage: scripts/secret-scan.py
   Exit 0: nothing found. Exit 1: one line per finding, with the value masked.
 
 What counts: AdMob app and ad unit IDs (ca-app-pub-<16 digits>), Google API keys (AIza...), private keys, GitHub
-tokens. Allowed: Google's own test ad IDs (publisher 3940256099942544), the obviously fake publisher
-1234567890123456 used by script tests, and keys that say FAKE (the staging google-services.json). The typical leak
+tokens. Allowed: Google's own test ad IDs (publisher 3940256099942544), the obviously fake publishers
+1234567890123456 and 0000000000000000 used by script tests and plans, and keys that say FAKE (the staging google-services.json). The typical leak
 this catches: a survey report of a reference app quoting a log line with that app's ad ID (docs/ops/clone-study.md).
 Messages are in Vietnamese for the team; comments are in English.
 """
@@ -24,7 +24,7 @@ PATTERNS = [
     ("khóa riêng", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("token GitHub", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36}\b")),
 ]
-ALLOWED_PUBLISHERS = {"3940256099942544", "1234567890123456"}
+ALLOWED_PUBLISHERS = {"3940256099942544", "1234567890123456", "0000000000000000"}
 
 
 def files():
