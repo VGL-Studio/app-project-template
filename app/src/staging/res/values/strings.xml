@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Staging ad gallery (plan T-014): a tool for the team, in English only (design README, section 2), so nothing
+     here is translated. -->
+<resources>
+    <string name="ad_gallery_launcher_label" translatable="false">Ad gallery</string>
+    <string name="ad_gallery_title" translatable="false">Ad gallery (staging)</string>
+    <string name="ad_gallery_native_small" translatable="false">Native small</string>
+    <string name="ad_gallery_native_medium" translatable="false">Native medium</string>
+    <string name="ad_gallery_interstitial" translatable="false">Interstitial</string>
+    <string name="ad_gallery_native_full_screen" translatable="false">Native full screen</string>
+    <string name="ad_gallery_open_inspector" translatable="false">Open Ad Inspector</string>
+    <string name="ad_gallery_open_inlist" translatable="false">In-list ads</string>
+    <string name="ad_gallery_open_collapsible" translatable="false">Collapsible ad</string>
+    <string name="ad_gallery_inlist_title" translatable="false">In-list ads (every %1$d items)</string>
+    <string name="ad_gallery_inlist_title_off" translatable="false">In-list ads (off)</string>
+    <string name="ad_gallery_collapsible_title" translatable="false">Collapsible ad</string>
+    <string name="ad_gallery_list_item" translatable="false">List item %1$d</string>
+    <string name="ad_gallery_inspector_failed" translatable="false">Ad Inspector unavailable (code %1$d). Register this phone as a test device in AdMob.</string>
+    <string name="ad_gallery_inspector_not_ready" translatable="false">Ads are not started yet (consent).</string>
+</resources>

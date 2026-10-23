@@ -66,7 +66,7 @@ object AdsSettings {
         name = "ads_${placement.key}_enabled",
         default = false,
         description = "Shows ads in the placement ${placement.key} (${placement.format.name.lowercase()}). " +
-            "Off by default.",
+            "Off by default." + if (placement.stagingOnly) " Staging ad gallery only." else "",
     )
 
     /** Every key of the module: the keys above in declaration order, then one switch per [AdPlacement]. */

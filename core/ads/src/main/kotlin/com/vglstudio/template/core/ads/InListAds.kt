@@ -166,6 +166,65 @@ fun <T> LazyListScope.itemsWithInListAds(
     )
 }
 
+/**
+ * Like [itemsWithInListAds], with ads taken in turn from [ads]: slot k uses ads[k % ads.size]. N is ads.first().every,
+ * so no ad row is added while the first placement is off. Each ad row keeps the key of the placement it uses.
+ */
+fun <T> LazyListScope.itemsWithInListAds(
+    items: List<T>,
+    ads: List<InListAds>,
+    key: ((item: T) -> Any)? = null,
+    contentType: (item: T) -> Any? = { null },
+    itemContent: @Composable LazyItemScope.(item: T) -> Unit,
+) {
+    require(ads.isNotEmpty()) { "At least one in-list placement is needed" }
+    val every = ads.first().every
+    itemsWithInListAds(
+        items = items,
+        positions = if (every == null) emptyList() else inListAdPositions(items.size, every),
+        placementKeys = ads.map { it.placement.key },
+        key = key,
+        contentType = contentType,
+        adContents = ads.map { placementAds ->
+            @Composable { slot: Int -> InListAdRow(placementAds, slot) }
+        },
+        itemContent = itemContent,
+    )
+}
+
+/**
+ * Adds [items] with an ad row at each of [positions], the k-th one drawn by adContents[k % size] with the key of
+ * placementKeys[k % size]. [placementKeys] and [adContents] have the same size, at least one.
+ */
+internal fun <T> LazyListScope.itemsWithInListAds(
+    items: List<T>,
+    positions: List<Int>,
+    placementKeys: List<String>,
+    key: ((item: T) -> Any)? = null,
+    contentType: (item: T) -> Any? = { null },
+    adContents: List<@Composable (slot: Int) -> Unit>,
+    itemContent: @Composable LazyItemScope.(item: T) -> Unit,
+) {
+    require(adContents.isNotEmpty() && placementKeys.size == adContents.size) {
+        "Each in-list placement needs its key and its ad content"
+    }
+    forEachInListRun(items.size, positions) { run ->
+        when (run) {
+            is InListRun.Items -> items(
+                count = run.end - run.start,
+                key = key?.let { itemKey -> { index -> itemKey(items[run.start + index]) } },
+                contentType = { index -> contentType(items[run.start + index]) },
+            ) { index -> itemContent(items[run.start + index]) }
+            is InListRun.Ad -> {
+                val turn = run.slot % adContents.size
+                item(key = InListAdKey(placementKeys[turn], run.slot), contentType = InListAdContentType) {
+                    adContents[turn](run.slot)
+                }
+            }
+        }
+    }
+}
+
 /** Adds [items] with an ad row at each of [positions] (indexes in the combined list), drawn by [adContent]. */
 internal fun <T> LazyListScope.itemsWithInListAds(
     items: List<T>,
