@@ -1,7 +1,7 @@
 ---
 ticket: T-014
 title: Màn hình xem thử quảng cáo chỉ ở bản staging
-status: approved               # draft | approved | stopped | done
+status: done                   # draft | approved | stopped | done
 version: 4                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
@@ -416,3 +416,13 @@ Phiên bản 4:
 - **Đã thử cho người:** trên nhánh của task, đặt tạm `ScreenName.kt` của PR #114 và bản `AdGallerySourceSetTest` của `b13cf12` (không commit): test qua 3/3.
 - **Việc còn lại:** người xem và merge PR #114, duyệt phiên bản 4 (dưới đây), đưa vào danh sách chạy tiếp theo `RUN-20261024-01` (`draft`).
 - **Cần người xem:** 8 ảnh chuẩn `app/src/test/screenshots/AdGalleryScreen_*.png` và 5 ảnh so sánh trên nhánh; kiểm thủ công mục 4 sau khi merge.
+
+### RUN-20261024-01, phiên bản plan 4
+
+- **Kết quả:** đã merge (PR #117, commit merge `60483f2`, 2026-10-23 16:57 UTC).
+- **Nhánh, PR:** `claude/T-014-man-hinh-xem-thu-quang-cao`, tiếp tục trên nhánh cũ. Thêm 4 commit: `bf7eb76` gộp nhánh chính (sau PR #114, không xung đột), `5c411aa` trả `AdGallerySourceSetTest` về bản của `b13cf12`, `e3ba515` sửa hai câu tài liệu (mục 3.1, bước 2 và 3), `39cf4b5` theo ghi chú của rà soát độc lập. PR #117.
+- **Test viết trước:** không áp dụng lại (mục 3.1: trả test về điều plan viết, không phải test mới). `git diff b13cf12 HEAD` của `AdGallerySourceSetTest.kt` rỗng; test qua 3/3 trên nhánh đã gộp nhánh chính (điều kiện dừng của phiên bản 4 không xảy ra).
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú. Đã sửa trong phạm vi plan: dòng nhận xét còn để trống ở README thiết kế mục 8 (đã điền), câu 30 phút ở ads-guide mục 8 chỉ đúng khi màn hình chính đang mở (đã làm rõ). Giữ nguyên: `SdkAdGallerySlots` giữ `InListAds` trong biến thường (như lần rà soát trước); kiểm tra thủ công trên máy sau khi merge. Đối chiếu thiết kế: chữ, thứ tự, vai trò màu trùng; chỉ khác ở hàng nút chuyển trang đã duyệt và quảng cáo giả. `secret-scan.py` sạch; 39 file, đều trong mục 3.2.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (454 test JVM, 0 lỗi, 42 ảnh). `pr-check` xanh ở vòng đầu (lần chạy 39989852371: `changes`, `build-and-test`, `ui-test`), 9 phút.
+- **Lệch so với plan:** không có. `robolectric.properties` không ghi lại (đã có từ T-017, đúng mục 3.2).
+- **Cần người xem:** 8 ảnh chuẩn `app/src/test/screenshots/AdGalleryScreen_*.png`, 5 ảnh so sánh `docs/features/ads/design/review/AdGalleryScreen_*_compare.png`; kiểm tra thủ công ở dòng cuối mục 4 (quảng cáo thử trên máy, Ad Inspector trên emulator, Toast trên máy chưa đăng ký, tần suất, trang trong danh sách và thu gọn).
