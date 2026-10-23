@@ -1,7 +1,7 @@
 ---
 ticket: T-018
 title: Lý do tải file R2 thất bại (AssetFailureReason)
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (core)
 risk_level: high             # low | medium | high
@@ -173,3 +173,15 @@ Phiên bản 1:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 1
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-018-ly-do-loi-tai-file`, PR #97, merge commit `75233f8` lúc 08:05 UTC
+- **Đã làm:** chép phần `core/assets/` của PR VGL-Studio/camera-pose#12, đổi tên gói; thêm `downloadFailureMessage` và dùng nó cho dòng log trong `AssetsModule`; sửa hai chỗ `Unavailable` trong `DefaultRemoteAssetsTest` và một chỗ trong `DefaultPreparationRepositoryTest`.
+- **Test viết trước:** 12 test mới (8 trong `AssetFailureReasonTest`, 4 trong `DefaultRemoteAssetsFailureReasonTest`), commit `f928952` trước code. Chạy khi chưa có code: không biên dịch được vì thiếu `AssetFailureReason`, `toFailureReason`, `HttpStatusException`, `downloadFailureMessage` (đúng lý do theo mục 3.1). Test kiểm giá trị mặc định: không có.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 4 ghi chú. Nên sửa: câu "quá thời gian khi vẫn có mạng không làm hiện popup" ở mục 2 của plan này lệch với KB-3 đã sửa (spec: popup hiện ngay kể cả khi máy vẫn báo có mạng); không ảnh hưởng code T-018, ghi vào báo cáo để T-017 làm theo spec. Ghi chú: chưa có test riêng cho `NoRouteToHostException` (đã bắt qua `SocketException`); lỗi SSL ra `OTHER`, mất kết nối giữa chừng ra `NETWORK` (giống app); `assertEquals(true, ...)` thay cho `assertTrue`; `AssetsModule` vẫn gọi `android.util.Log` từ trước.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (114 test JVM, 0 lỗi); `pr-check.yml` xanh ở lần chạy đầu (39921224084).
+- **Lệch so với plan:** test `logMessage_namesReasonAndErrorClass` ban đầu viết một dòng dài hơn 120 ký tự, ktlint từ chối; tách giá trị lỗi ra biến riêng ở commit `9921b3e` (chỉ đổi định dạng, không đổi điều test kiểm tra).
+- **Việc còn lại:** không có.
+- **Cần người xem:** tiêu chí kiểm tra thủ công ở mục 4 (bản staging, chế độ máy bay, `adb logcat | grep ' Assets'` có `NETWORK (UnknownHostException)`).
