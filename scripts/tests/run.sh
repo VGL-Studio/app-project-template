@@ -404,6 +404,47 @@ write_plan "$plans/T-930-a.md" medium draft "$(row Sửa feature/demo/A.kt)" \
   'Chạy scripts/design-compare.sh demo. Ảnh thiết kế của ticket khác: `DemoScreen_main_light`.'
 expect "plan-check: images of another ticket without the ticket id stop" stop "$(plan_check "$plans/T-930-a.md")"
 rm "$repo/feature/demo/AndroidManifest.xml" "$repo/app/src/main/AndroidManifest.xml" "$repo/gradle/libs.versions.toml"
+# What scripts/check.sh refuses shows up in the plan (rule 9, L-050). The Kotlin quotes are plan text.
+# shellcheck disable=SC2016
+shot='Test gọi `captureRoboImage("src/test/screenshots/DemoNew.png")`.'
+# shellcheck disable=SC2016
+refused='Test gọi `captureRoboImage("DemoNew.png")`.'
+write_plan "$plans/T-928-a.md" medium draft "$(row Sửa feature/demo/A.kt)" "$refused"
+expect "plan-check: captureRoboImage outside src/test/screenshots stops" stop "$(plan_check "$plans/T-928-a.md")"
+expect "plan-check: names the refused captureRoboImage" 1 "$(grep -c 'captureRoboImage("DemoNew.png")' "$work/plan-check.out")"
+write_plan "$plans/T-929-a.md" medium draft "$(row Sửa feature/demo/A.kt)" \
+  $'```kotlin\ncaptureRoboImage(\n    "src/test/screenshots/DemoNew.png",\n)\n```'
+expect "plan-check: captureRoboImage with the path on the next line stops" stop "$(plan_check "$plans/T-929-a.md")"
+write_plan "$plans/T-930-a.md" medium draft "$(row Sửa feature/demo/A.kt)" "$shot"
+expect "plan-check: a new reference image missing from the file list stops" stop "$(plan_check "$plans/T-930-a.md")"
+expect "plan-check: names the missing reference image" 1 "$(grep -c 'ảnh chuẩn DemoNew.png' "$work/plan-check.out")"
+write_plan "$plans/T-931-a.md" medium draft \
+  "$(row Sửa feature/demo/A.kt)"$'\n'"$(row Tạo feature/demo/src/test/screenshots/DemoNew.png)" "$shot"
+expect "plan-check: a new reference image in the file list passes" pass "$(plan_check "$plans/T-931-a.md")"
+touch "$repo/feature/demo/src/test/screenshots/DemoOld.png"
+# shellcheck disable=SC2016
+write_plan "$plans/T-932-a.md" medium draft "$(row Sửa feature/demo/A.kt)" \
+  'Gọi `captureRoboImage("src/test/screenshots/DemoOld.png")` và `captureRoboImage("src/test/screenshots/<Tên>.png")`.'
+expect "plan-check: an existing reference image and a placeholder pass" pass "$(plan_check "$plans/T-932-a.md")"
+write_plan "$plans/T-933-a.md" medium draft "$(row Tạo feature/demo/src/test/DemoNew.png)"
+expect "plan-check: a reference image outside src/test/screenshots stops" stop "$(plan_check "$plans/T-933-a.md")"
+write_plan "$plans/T-934-a.md" medium approved "$(row Sửa feature/demo/A.kt)" \
+  "$refused"$'\n\n'"$decision_v1"
+expect "plan-check: an approved plan refused by check.sh only warns" pass "$(plan_check "$plans/T-934-a.md")"
+expect "plan-check: warns about the refused captureRoboImage" 1 "$(grep -c 'CHÚ Ý: plan ghi captureRoboImage' "$work/plan-check.out")"
+# The ticket's status follows the plan's (rule 10, L-050).
+printf -- '---\nid: T-935\nstatus: planned\n---\n' > "$repo/docs/features/demo/tickets/T-935-a.md"
+write_plan "$plans/T-935-a.md" medium approved "$(row Sửa feature/demo/A.kt)" "$decision_v1"
+expect "plan-check: a ticket behind its approved plan only warns" pass "$(plan_check "$plans/T-935-a.md")"
+expect "plan-check: points to status.py --sync" 1 "$(grep -c "ticket T-935 còn 'planned'. Chạy scripts/status.py --sync" "$work/plan-check.out")"
+printf -- '---\nid: T-936\nstatus: approved\n---\n' > "$repo/docs/features/demo/tickets/T-936-a.md"
+write_plan "$plans/T-936-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
+plan_check "$plans/T-936-a.md" > /dev/null
+expect "plan-check: warns about a ticket approved before its plan" 1 "$(grep -c 'ticket T-936 đã approved khi plan còn draft' "$work/plan-check.out")"
+printf -- '---\nid: T-937\nstatus: approved\n---\n' > "$repo/docs/features/demo/tickets/T-937-a.md"
+write_plan "$plans/T-937-a.md" medium approved "$(row Sửa feature/demo/A.kt)" "$decision_v1"
+plan_check "$plans/T-937-a.md" > /dev/null
+expect "plan-check: a ticket in step with its plan gets no warning" 0 "$(grep -c 'ticket T-937' "$work/plan-check.out")"
 
 # run-check.py checks a whole run list: specs confirmed and answered, dependencies in order, scenarios tested.
 rr="$work/run-repo"
@@ -511,6 +552,31 @@ expect "status: request shows tickets done" 1 "$(grep -c '| demo | .specified. �
 expect "status: ticket row has plan, estimate and runs" 1 \
   "$(grep -c '^| \[T-001\](features/demo/tickets/T-001-mot.md) | Một | .on-staging. | .done. (bản 2) | - | RUN-20261004-01 |$' "$page")"
 expect "status: check passes on a fresh page" 0 "$(status_page --check > /dev/null; echo $?)"
+# status.py --sync moves each ticket's status after its plan's (L-050).
+sy="$work/sync-repo/docs/features/demo"
+mkdir -p "$sy/tickets" "$sy/plans"
+sync_case() { # <id> <ticket status> <plan status>
+  printf -- '---\ntitle: X\nstatus: %s   # backlog | ready | planned\n---\n\n# %s\n' "$2" "$1" > "$sy/tickets/$1-x.md"
+  printf -- '---\nstatus: %s\nversion: 1\n---\n' "$3" > "$sy/plans/$1-x.md"
+}
+ticket_status() { sed -n 's/^status: \([a-z-]*\).*/\1/p' "$sy/tickets/$1-x.md"; }
+sync_case T-001 planned approved
+sync_case T-002 stopped approved
+sync_case T-003 approved stopped
+sync_case T-004 on-staging stopped
+sync_case T-005 approved draft
+sync_case T-006 approved approved
+STATUS_ROOT="$work/sync-repo" python3 -I scripts/status.py --sync > "$work/sync.out"
+expect "status --sync: approved plan moves a planned ticket to approved" approved "$(ticket_status T-001)"
+expect "status --sync: approved new plan version moves a stopped ticket back to approved" approved "$(ticket_status T-002)"
+expect "status --sync: stopped plan stops the ticket" stopped "$(ticket_status T-003)"
+expect "status --sync: a ticket already on staging stays" on-staging "$(ticket_status T-004)"
+expect "status --sync: a draft plan leaves the ticket for people" approved "$(ticket_status T-005)"
+expect "status --sync: keeps the comment after the status" 6 "$(grep -c '   # backlog | ready | planned$' "$sy"/tickets/*.md | awk -F: '{s += $2} END {print s}')"
+expect "status --sync: names each change" 3 "$(grep -c ' -> ' "$work/sync.out")"
+expect "status --sync: writes the page" 0 "$(STATUS_ROOT="$work/sync-repo" python3 -I scripts/status.py --check > /dev/null; echo $?)"
+STATUS_ROOT="$work/sync-repo" python3 -I scripts/status.py --sync > "$work/sync.out"
+expect "status --sync: a second run changes nothing" 0 "$(grep -c ' -> ' "$work/sync.out")"
 
 # foundation.py builds docs/foundation.md from the rule section of the ADRs.
 fd="$work/foundation-repo/docs/adr"

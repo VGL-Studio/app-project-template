@@ -24,6 +24,7 @@
 - Bài học `proposed` chờ retro: L-047 (Chạy lại `main-guard` trên đúng commit bị đổ lỗi, xanh, nhưng issue `main-broken` không tự đóng)
 - Bài học `proposed` chờ retro: L-048 (Một test chập chờn trên `main-guard` kết thúc cả phiên)
 - Bài học `proposed` chờ retro: L-049 (Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng)
+- Bài học `proposed` chờ retro: L-050 (Quy tắc của `check.sh`, giới hạn mạng của phiên cloud và trạng thái ticket chỉ lộ ra khi phiên đã chạy)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 - ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
@@ -92,5 +93,5 @@ Phản hồi: chưa có.
 
 ## 5. Bài học và ADR
 
-- Bài học ([lessons.md](lessons.md)): 18 bài; 18 `proposed`.
+- Bài học ([lessons.md](lessons.md)): 19 bài; 19 `proposed`.
 - ADR: 24; 19 `accepted`, 5 `proposed`.
