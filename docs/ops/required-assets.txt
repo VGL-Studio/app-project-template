@@ -1,0 +1,7 @@
+# Files that must exist in the app's staging folder on R2 (ADR-0015), one path per line, relative to the staging
+# address in app/build.gradle.kts. scripts/setup-check.sh checks each one returns 200 (curl -I), at the end of
+# docs/ops/setup-new-app.md, every morning in env-canary.yml and before every session in start-run.yml.
+# A plan that makes the app need a new file on R2 adds its path here.
+test/v1/hello.txt
+test/v1/content.txt
+test/v1/goodbye.txt

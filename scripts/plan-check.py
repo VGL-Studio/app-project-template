@@ -9,7 +9,8 @@ Finds, from the plan alone, the mistakes that otherwise stop a task in the middl
   1. The file list (section 3.2) matches the repository: files to change exist, files to create do not,
      except files that a plan this ticket depends on creates.
   2. Every script, workflow, build file or test that names a changed file is in the file list too,
-     or the plan mentions it (to say why it is not affected).
+     or the plan mentions it (to say why it is not affected). In a git checkout only tracked files are searched,
+     so untracked copies of the repository (.claude/worktrees/) raise no false errors.
   3. Protected paths need a high-risk plan (risk-scoring.md, section 1; CLAUDE.md); scripts/release.sh is never allowed.
   4. A plan that runs scripts/design-compare.sh writes a screenshot for every design image of its feature,
      except the images it declares as drawn by another ticket, on a line
@@ -36,6 +37,7 @@ PLAN_CHECK_ROOT overrides the repository root (tests). Messages are in Vietnames
 
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -151,12 +153,40 @@ def plans_of_dependencies(fields):
     return plans
 
 
+def tracked_files():
+    """Files git tracks under ROOT, or None when ROOT is not a git checkout.
+
+    Only these are searched for readers: untracked folders such as .claude/worktrees/ hold whole copies of the
+    repository, whose scripts and tests would otherwise be reported as readers of the changed file.
+    """
+    try:
+        result = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--cached"],
+                                capture_output=True, check=True)
+        top = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    if Path(top).resolve() != ROOT.resolve():
+        return None
+    return {ROOT / name for name in result.stdout.decode().split("\0") if name}
+
+
+def is_reader(relative):
+    parts = relative.split("/")
+    return (parts[0] in READER_DIRS or parts[-1] == "build.gradle.kts"
+            or "/src/test/" in f"/{relative}" or "/src/androidTest/" in f"/{relative}")
+
+
 def reader_files():
     files = set()
-    for folder in READER_DIRS:
-        files.update(p for p in (ROOT / folder).rglob("*") if p.is_file())
-    for pattern in READER_GLOBS:
-        files.update(p for p in ROOT.glob(pattern) if p.is_file())
+    tracked = tracked_files()
+    if tracked is not None:
+        files.update(p for p in tracked if is_reader(p.relative_to(ROOT).as_posix()) and p.is_file())
+    else:
+        for folder in READER_DIRS:
+            files.update(p for p in (ROOT / folder).rglob("*") if p.is_file())
+        for pattern in READER_GLOBS:
+            files.update(p for p in ROOT.glob(pattern) if p.is_file())
     for path in sorted(files):
         relative = path.relative_to(ROOT)
         if SKIP_DIRS.intersection(relative.parts) or path.stat().st_size > 1_000_000:
