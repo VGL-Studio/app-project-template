@@ -279,7 +279,8 @@ def main(argv):
         if OUTPUT.is_file() and OUTPUT.read_text() == page:
             print("docs/STATUS.md khớp với tài liệu.")
             return 0
-        print("docs/STATUS.md chưa khớp với tài liệu. Chạy scripts/status.py rồi commit.")
+        print("docs/STATUS.md chưa khớp với tài liệu. Chạy scripts/status.py để xem trang mới; chỉ commit trang "
+              "trong PR báo cáo của phiên hay PR trang tiến độ (docs/CLAUDE.md, mục Trang tiến độ).")
         return 1
     OUTPUT.write_text(page)
     print("Đã ghi docs/STATUS.md.")

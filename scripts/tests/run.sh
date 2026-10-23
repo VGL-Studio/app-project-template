@@ -103,6 +103,76 @@ expect "merge-if-green refuses a PR labelled needs-human" 1 \
   "$(merge_during_run claude/fix-T-002-x finished '[{"name": "needs-human"}]')"
 expect "merge-if-green accepts other labels" 3 "$(merge_during_run claude/template-x finished '[{"name": "docs"}]')"
 
+# merge-if-green.sh prints the commit it merges, warns about a very recent one, waits with --update and accepts a
+# job whose status lags behind its finished green run (app lessons L-017, L-018).
+merge_routes() { # <head ref> <compare route JSON fields> <check-runs answer> [extra routes]; writes $work/mg.json
+  cat > "$work/mg.json" << JSON
+{"routes": {
+  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$1"}, "title": "t", "labels": []},
+  "issues?state=open&labels=main-broken&per_page=10": [],
+  "branches?per_page=100": [{"name": "main"}],
+  "compare/main...abc1234": $2,
+  "commits/abc1234/check-runs?per_page=100": $3,
+  "commits/abc1234": {"commit": {"committer": {"date": "2026-10-18T02:00:00Z"}, "message": "Sửa nút\n\nchi tiết"}},
+  "pulls/12/files?per_page=100": [{"filename": "docs/STATUS.md"}, {"filename": "docs/lessons.md"}]${4:-}
+}}
+JSON
+}
+merge_run() { # <args...>; prints the exit code, keeps the output in $work/mg.out and the writes in $work/mg.json.writes
+  rm -f "$work/mg.json.writes" "$work/mg.json.seen"
+  local code=0
+  PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS=5 \
+    MERGE_NOW_EPOCH="${NOW_EPOCH:-1793000000}" scripts/merge-if-green.sh "$@" > "$work/mg.out" 2>&1 || code=$?
+  echo "$code"
+}
+green_runs='{"check_runs": [
+  {"name": "changes", "status": "completed", "conclusion": "success", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}},
+  {"name": "build-and-test", "status": "completed", "conclusion": "success", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}},
+  {"name": "ui-test", "status": "completed", "conclusion": "skipped", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}}]}'
+lagging_runs="${green_runs/\"status\": \"completed\", \"conclusion\": \"success\"/\"status\": \"in_progress\", \"conclusion\": null}"
+merge_routes claude/template-x '{"behind_by": 0}' "$green_runs"
+expect "merge-if-green: a green PR is ready" 0 "$(merge_run 12 --dry-run)"
+expect "merge-if-green: names the commit it merges" 1 "$(grep -c '^Commit sẽ merge: abc1234 (.* phút trước) Sửa nút$' "$work/mg.out")"
+expect "merge-if-green: an old commit gets no warning" 0 "$(grep -c 'phút trước. Còn ai định đẩy' "$work/mg.out" || true)"
+expect "merge-if-green: a PR with docs/STATUS.md gets a warning" 1 "$(grep -c 'PR có docs/STATUS.md' "$work/mg.out")"
+# 2026-10-18T02:00:00Z is 1792288800; three minutes later.
+expect "merge-if-green: a commit pushed minutes ago gets a warning" 1 \
+  "$(NOW_EPOCH=1792288980 merge_run 12 --dry-run > /dev/null; grep -c 'mới 3 phút trước' "$work/mg.out")"
+merge_routes claude/RUN-20261018-01-report '{"behind_by": 0}' "$green_runs"
+merge_run 12 --dry-run > /dev/null
+expect "merge-if-green: the report PR may carry docs/STATUS.md" 0 "$(grep -c 'PR có docs/STATUS.md' "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' "$lagging_runs" \
+  ', "actions/runs?head_sha=abc1234&per_page=50": {"workflow_runs": [{"id": 77, "check_suite_id": 5, "status": "completed", "conclusion": "success"}]}'
+expect "merge-if-green: a lagging job of a green run counts as green" 0 "$(merge_run 12 --dry-run)"
+expect "merge-if-green: says the lagging job was taken as green" 1 "$(grep -c 'lần chạy 77 chứa nó đã xong và xanh' "$work/mg.out")"
+merge_routes claude/template-x '{"behind_by": 0}' "$lagging_runs" \
+  ', "actions/runs?head_sha=abc1234&per_page=50": {"workflow_runs": [{"id": 77, "check_suite_id": 5, "status": "in_progress", "conclusion": null}]}'
+expect "merge-if-green: a job of a run still going waits" 2 "$(merge_run 12 --dry-run)"
+expect "merge-if-green: says CI has not finished on the commit" 1 "$(grep -c 'CI chưa chạy xong trên commit này' "$work/mg.out")"
+expect "merge-if-green: --update gives up when the wait runs out" 2 \
+  "$(MERGE_UPDATE_TIMEOUT_SECONDS=0 merge_run 12 --update)"
+expect "merge-if-green rejects '--update --dry-run'" 1 "$(merge_run 12 --update --dry-run)"
+# --update: the branch is behind, GitHub updates it to def5678, CI starts, turns green, then the PR is merged.
+merge_routes claude/template-x '{"behind_by": 2}' "$green_runs" ',
+  "compare/main...def5678": {"behind_by": 0},
+  "commits/def5678/check-runs?per_page=100": {"__sequence__": [{"check_runs": []}, '"$green_runs"']},
+  "commits/def5678": {"commit": {"committer": {"date": "2026-10-18T02:30:00Z"}, "message": "Merge main"}}'
+python3 -I - "$work/mg.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+first = fx["routes"]["pulls/12"]
+second = json.loads(json.dumps(first)); second["head"]["sha"] = "def5678"
+fx["routes"]["pulls/12"] = {"__sequence__": [first, second]}
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+expect "merge-if-green --update: updates, waits for CI and merges" 0 "$(merge_run 12 --update)"
+expect "merge-if-green --update: asks GitHub to update the branch, then merges" \
+  "PUT pulls/12/update-branch;PUT pulls/12/merge;DELETE git/refs/heads/claude/template-x;" \
+  "$(tr '\n' ';' < "$work/mg.json.writes")"
+expect "merge-if-green --update: merges the new commit" 1 "$(grep -c '^ĐÃ MERGE: PR #12 (t) tại commit def5678' "$work/mg.out")"
+expect "merge-if-green: without --update a branch behind main exits 3" 3 \
+  "$(python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["routes"]["pulls/12"]=fx["routes"]["pulls/12"]["__sequence__"][0]; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"; merge_run 12)"
+
 # wait-run.sh waits for one workflow run in a single command and says how it ended.
 wait_run() { # <fixture JSON> <args...>; prints "<exit code> <first word of the line>"
   echo "$1" > "$work/wait.json"; shift
@@ -587,6 +657,22 @@ usage_line k1 claude/RUN-1-report 2026-10-18T02:00:00Z 90 "$work/wt-report" > "$
 expect "token-usage: a worktree of the repository is counted" 1 \
   "$(TOKEN_USAGE_ROOT="$wt_repo" python3 -I scripts/token-usage.py report --transcripts "$work/worktree.jsonl" | grep -c '^| Chung (ngoài task) | - | - | 1k | - | 1 |')"
 
+# In a git checkout, plan-check.py only searches tracked files for readers: a copy of the repository in an untracked
+# folder such as .claude/worktrees/ is not a reader of the changed file.
+grepo="$work/plan-git"
+mkdir -p "$grepo/docs/data" "$grepo/docs/features/demo/plans" "$grepo/scripts" "$grepo/.claude/worktrees/x/scripts"
+echo '{}' > "$grepo/docs/data/values.json"
+echo 'open("docs/data/values.json")' > "$grepo/.claude/worktrees/x/scripts/reader.py"
+git -C "$grepo" init -q
+git -C "$grepo" add docs/data/values.json
+write_plan "$grepo/docs/features/demo/plans/T-940-a.md" medium draft "$(row Sửa docs/data/values.json)"
+git_plan_check() { if PLAN_CHECK_ROOT="$grepo" python3 -I scripts/plan-check.py "$1" > "$work/plan-check.out" 2>&1; then echo pass; else echo stop; fi; }
+expect "plan-check: an untracked copy under .claude/worktrees is not a reader" pass \
+  "$(git_plan_check "$grepo/docs/features/demo/plans/T-940-a.md")"
+cp "$grepo/.claude/worktrees/x/scripts/reader.py" "$grepo/scripts/reader.py"
+git -C "$grepo" add scripts/reader.py
+expect "plan-check: a tracked reader still stops" stop "$(git_plan_check "$grepo/docs/features/demo/plans/T-940-a.md")"
+
 # status.py builds the progress page from the statuses in the documents.
 st="$work/status-repo/docs"
 mkdir -p "$st/features/demo/requests" "$st/features/demo/tickets" "$st/features/demo/plans" "$st/features/demo/feedback" \
@@ -692,6 +778,96 @@ expect "env-canary: old setup script is red" "POST issues;" "$(canary "$work/fai
 expect "env-canary: green closes the open issue" "POST issues/7/comments;PATCH issues/7;" \
   "$(canary "$work/pass.sh" "$work/pass.sh" '[{"number": 7}]')"
 expect "env-canary: green with nothing open changes nothing" "" "$(canary "$work/pass.sh" "$work/pass.sh" '[]')"
+
+# java-check.sh stops scripts/check.sh before Gradle when the Java is outside what the build and Gradle accept.
+java_check() { # <java.specification.version printed by the fake java>; prints the exit code
+  mkdir -p "$work/jdk-$1/bin"
+  printf '#!/usr/bin/env bash\necho "Property settings:" >&2\necho "    java.specification.version = %s" >&2\n' "$1" \
+    > "$work/jdk-$1/bin/java"
+  chmod +x "$work/jdk-$1/bin/java"
+  local code=0
+  JAVA_HOME="$work/jdk-$1" scripts/java-check.sh > "$work/java.out" 2>&1 || code=$?
+  echo "$code"
+}
+gradle_minor="$(sed -n 's/^distributionUrl=.*gradle-[0-9]*\.\([0-9]*\).*/\1/p' gradle/wrapper/gradle-wrapper.properties)"
+expect "java-check: Java 17 passes" 0 "$(java_check 17)"
+expect "java-check: Java 11 is too old" 1 "$(java_check 11)"
+expect "java-check: names Android Studio's JDK" 1 "$(grep -c 'JDK đi kèm Android Studio' "$work/java.out")"
+if [[ "$(sed -n 's/^distributionUrl=.*gradle-\([0-9]*\)\..*/\1/p' gradle/wrapper/gradle-wrapper.properties)" == 8 && "$gradle_minor" -ge 14 ]]; then
+  expect "java-check: Java 26 is too new for Gradle 8.14" 1 "$(java_check 26)"
+fi
+expect "java-check: a missing Java stops" 1 \
+  "$(JAVA_HOME="$work/no-jdk" scripts/java-check.sh > /dev/null 2>&1; echo $?)"
+
+# setup-check.sh: required R2 files (curl -I), DNS through 1.1.1.1 and 8.8.8.8, the Firebase staging secret and the
+# tester groups. curl, dig and gcloud are replaced by small fakes driven by files in $work/setup.
+mkdir -p "$work/setup-bin" "$work/setup"
+cat > "$work/setup-bin/curl" << 'SH'
+#!/usr/bin/env bash
+# Fake curl: prints the HTTP code listed for the URL (last argument) in $SETUP_FAKE/codes, else 404.
+url="${*: -1}"
+code="$(awk -v u="$url" '$1 == u {print $2}' "$SETUP_FAKE/codes")"
+printf '%s' "${code:-404}"
+SH
+cat > "$work/setup-bin/dig" << 'SH'
+#!/usr/bin/env bash
+# Fake dig: answers an address unless the resolver (@x) is listed in $SETUP_FAKE/dns-broken.
+for arg in "$@"; do [[ "$arg" == @* ]] && resolver="${arg#@}"; done
+grep -qx "$resolver" "$SETUP_FAKE/dns-broken" 2> /dev/null || echo 104.21.40.144
+SH
+cat > "$work/setup-bin/gcloud" << 'SH'
+#!/usr/bin/env bash
+# Fake gcloud: signs in and prints a token.
+[[ "$*" == *print-access-token* ]] && echo fake-token
+exit 0
+SH
+chmod +x "$work/setup-bin/"*
+printf 'test/v1/a.txt\n# comment\n\ntest/v1/b.txt  # inline comment\n' > "$work/setup/assets.txt"
+base="https://demo.example.com/"
+groups_url="https://firebaseappdistribution.googleapis.com/v1/projects/123/groups"
+setup_check() { # <codes> [args...]; prints the exit code, keeps the output in $work/setup.out
+  printf '%b' "$1" > "$work/setup/codes"; shift
+  local code=0
+  PATH="$work/setup-bin:$PATH" SETUP_FAKE="$work/setup" SETUP_CHECK_ASSETS_LIST="$work/setup/assets.txt" \
+    SETUP_CHECK_ASSETS_BASE_URL="$base" SETUP_CHECK_PACKAGE=com.demo GITHUB_ACTIONS='' \
+    scripts/setup-check.sh "$@" > "$work/setup.out" 2>&1 || code=$?
+  echo "$code"
+}
+all_files="${base}test/v1/a.txt 200\n${base}test/v1/b.txt 200\n"
+: > "$work/setup/dns-broken"
+expect "setup-check: every file there and DNS fine passes" 0 "$(setup_check "$all_files")"
+expect "setup-check: checks each listed file" 2 "$(grep -c '^ok   - https://demo.example.com/test/v1/' "$work/setup.out")"
+expect "setup-check: a missing R2 file stops" 1 "$(setup_check "${base}test/v1/a.txt 200\n")"
+expect "setup-check: names the missing file" 1 "$(grep -c "^LỖI - ${base}test/v1/b.txt trả '404'" "$work/setup.out")"
+echo 8.8.8.8 > "$work/setup/dns-broken"
+expect "setup-check: a host 8.8.8.8 cannot resolve stops" 1 "$(setup_check "$all_files")"
+expect "setup-check: names the resolver" 1 "$(grep -c 'không phân giải được qua 8.8.8.8' "$work/setup.out")"
+: > "$work/setup/dns-broken"
+real_json='{"project_info": {"project_id": "demo-staging", "project_number": "123"}, "client": [{"client_info": {"android_client_info": {"package_name": "com.demo.staging"}}}]}'
+staging_check() { # <google-services JSON> <codes>; prints the exit code
+  GOOGLE_SERVICES="$1" DISTRIBUTION_CREDENTIALS='{"type": "service_account"}' STAGING_TESTER_GROUPS="team, qa" \
+    setup_check "$2" --staging
+}
+expect "setup-check --staging: real secret and both groups pass" 0 \
+  "$(staging_check "$real_json" "$all_files${groups_url}/team 200\n${groups_url}/qa 200\n")"
+expect "setup-check --staging: the fake google-services.json stops" 1 \
+  "$(staging_check '{"project_info": {"project_id": "fake-staging-project", "project_number": "1"}, "client": []}' \
+    "$all_files${groups_url}/team 200\n${groups_url}/qa 200\n")"
+expect "setup-check --staging: says the secret is the fake file" 1 "$(grep -c 'đang là file cấu hình giả' "$work/setup.out")"
+expect "setup-check --staging: a secret without the staging app stops" 1 \
+  "$(staging_check "${real_json/com.demo.staging/com.other.staging}" "$all_files${groups_url}/team 200\n${groups_url}/qa 200\n")"
+expect "setup-check --staging: a missing tester group stops" 1 \
+  "$(staging_check "$real_json" "$all_files${groups_url}/team 200\n")"
+expect "setup-check --staging: names the missing group" 1 "$(grep -c "chưa có nhóm người test 'qa'" "$work/setup.out")"
+expect "setup-check --staging: a group the API does not answer only warns" 0 \
+  "$(staging_check "$real_json" "$all_files${groups_url}/team 200\n${groups_url}/qa 403\n")"
+expect "setup-check --staging: never prints the secret" 0 \
+  "$(grep -c 'demo-staging\|fake-token\|service_account' "$work/setup.out" || true)"
+expect "setup-check --staging: a missing secret stops" 1 \
+  "$(GOOGLE_SERVICES='' DISTRIBUTION_CREDENTIALS='' setup_check "$all_files" --staging)"
+expect "setup-check: rejects an unknown argument" 1 "$(setup_check "$all_files" --stagin)"
+expect "setup-check: reads the staging address of this repository" 1 \
+  "$(grep -cE '"ASSETS_BASE_URL", *"\\"https://[^"]+/\\""' app/build.gradle.kts)"
 
 # device-session.sh records a test session and counts crashes and ANRs; adb is replaced by scripts/tests/fake-adb.
 cp scripts/tests/fake-adb "$work/bin/adb"

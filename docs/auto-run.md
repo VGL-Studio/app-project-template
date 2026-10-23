@@ -33,6 +33,7 @@ Các điều kiện:
 | Môi trường build được: `scripts/check.sh` qua trên nhánh chính, để lỗi môi trường lộ ra trước khi viết code và để thư viện được tải sẵn. Chạy ở chế độ nền, song song với phần đầu của task đầu tiên (mục Kiểm tra build ở chế độ nền, dưới bảng này) | Lỗi hạ tầng: thử lại theo lịch ở bước 5. Lỗi khác: không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Không có issue nào đang mở mang nhãn `env-broken` (kiểm tra môi trường hằng ngày, `docs/ops/staging-and-runs.md`, mục 2.4). `start-run.yml` đã kiểm tra; phiên kiểm tra lại vì phiên bắt đầu bằng Run now không qua workflow | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Không có issue nào đang mở mang nhãn `setup-broken` (kiểm tra thiết lập hằng ngày của `env-canary.yml`: bí mật Firebase staging không phải file giả và có app staging, nhóm người test có trên App Distribution, file R2 bắt buộc, DNS của tên miền file tĩnh). `start-run.yml` chạy chính kiểm tra này (`scripts/setup-check.sh --staging`) trước khi kích hoạt; phiên không chạy lại được vì môi trường cloud không tới được R2 và không có bí mật | Không chạy task nào, kết thúc phiên, báo cáo lý do: thiếu thiết lập thì cuối phiên không phát được bản staging (L-059) |
 | Danh sách qua `scripts/run-check.py <danh sách chạy>`, chạy một lần ở đầu phiên: spec đã chốt và trả lời hết câu hỏi, phụ thuộc đúng thứ tự, mọi kịch bản có test ([ops/pre-run-review.md](ops/pre-run-review.md)) | Lỗi về spec, ticket hay phụ thuộc của một task: bỏ qua task đó và các task phụ thuộc nó, chép thông báo vào báo cáo. Lỗi của `plan-check` để dòng `plan-check.py` bên dưới quyết định ngay trước task. Dòng chú ý chép vào báo cáo |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
@@ -43,7 +44,7 @@ Các điều kiện:
 
 `scripts/check.sh` trên cloud mất khoảng 8 phút vì Gradle bắt đầu với bộ nhớ đệm trống. Phiên không ngồi chờ:
 
-1. Làm các kiểm tra nhanh trong bảng trên trước: danh sách chạy `approved`, `cloud-env-check.sh`, nhánh chính xanh, không có `env-broken`. Không thỏa thì xử lý như bảng, không chạy `check.sh`.
+1. Làm các kiểm tra nhanh trong bảng trên trước: danh sách chạy `approved`, `cloud-env-check.sh`, nhánh chính xanh, không có `env-broken` hay `setup-broken`. Không thỏa thì xử lý như bảng, không chạy `check.sh`.
 2. Chạy `check.sh` trong một worktree riêng của nhánh chính, ở chế độ nền: `git worktree add ../start-check origin/main`, rồi `(cd ../start-check && scripts/check.sh) > ../start-check.log 2>&1`. Worktree riêng là bắt buộc: thư mục chính sắp đổi sang nhánh của task, và đổi file dưới một bản build đang chạy làm kết quả kiểm tra sai. Thư viện và bộ nhớ đệm build nằm ở `~/.gradle`, dùng chung cho thư mục chính.
 3. Trong lúc chờ: chạy `plan-check.py` cho task đầu, làm bước 1 và 2 của task đó (tạo nhánh, đọc tài liệu) và soạn test của bước 3. Chưa chạy Gradle.
 4. Trước lần chạy Gradle đầu tiên của task, đợi `check.sh` xong và đọc phần cuối của `../start-check.log`. Qua thì `git worktree remove ../start-check` và đi tiếp. Không qua thì xử lý như dòng "Môi trường build được" của bảng; task đầu chưa đẩy gì lên nên không cần dọn.
@@ -158,7 +159,8 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 ### Bước 9. Merge
 
 - Chỉ merge bằng `scripts/merge-if-green.sh <số PR>`. Script tự kiểm tra mọi điều kiện của cổng chất lượng và từ chối merge nếu thiếu điều kiện nào (ADR-0010). AI không merge bằng bất kỳ cách nào khác.
-- Script báo nhánh chưa cập nhật theo nhánh chính thì cập nhật nhánh, đợi CI chạy lại rồi gọi lại script.
+- Script báo nhánh chưa cập nhật theo nhánh chính (mã 3) thì gọi lại với `--update`: script nhờ GitHub gộp nhánh chính vào nhánh của PR, chờ CI trên commit mới (tối đa 30 phút, chạy ở chế độ nền) rồi merge; hết giờ chờ thì trả mã 2, gọi lại. Mọi điều kiện được kiểm lại sau mỗi lần chờ (L-059).
+- Script in mã commit sẽ merge và báo chú ý khi commit cuối mới đẩy vài phút trước. Thay đổi sau khi PR đã gửi người duyệt hay đã gọi merge thì làm trên nhánh mới, không đẩy thêm vào nhánh cũ: commit đẩy sau khi merge không vào nhánh chính.
 - Script từ chối vì lý do khác thì không tìm cách vượt qua, mà dừng task và ghi lý do vào nhật ký.
 - Sau khi merge, chờ `main-guard` của commit merge: `scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge>` ở chế độ nền, trong lúc làm bước 10 và bước 1, 2 của task sau. Commit merge chỉ đổi tài liệu thì `main-guard` không chạy (`paths-ignore`), không cần chờ.
 - Trước khi đẩy commit đầu tiên của task sau, phải có kết quả của lần chờ đó, rồi kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Có thì kết thúc phiên. Kiểm tra ngay sau khi merge là quá sớm: `main-guard` mất khoảng 5 đến 12 phút, và issue chỉ được mở khi nó xong (L-043).

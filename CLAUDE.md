@@ -34,7 +34,9 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Tìm mã quảng cáo thật, khóa hay token lọt vào repo (test của script cũng chạy nó): `scripts/secret-scan.py`.
 - Ghi một phiên thử trên máy để AI phân tích: `scripts/device-session.sh start <tên>`, thử app, `scripts/device-session.sh stop` (`docs/ops/test-sessions.md`).
 - Sinh lại trang quy tắc nền tảng `docs/foundation.md` sau khi thêm hay đổi trạng thái ADR: `scripts/foundation.py` (`docs/CLAUDE.md`, mục Khi viết ADR).
-- Cập nhật trang tiến độ `docs/STATUS.md` sau khi đổi trạng thái tài liệu: `scripts/status.py` (`docs/CLAUDE.md`, mục Trang tiến độ).
+- Sinh lại trang tiến độ `docs/STATUS.md`: `scripts/status.py`. Trang chỉ đi vào PR báo cáo của phiên hoặc PR riêng của trang, không đi kèm PR thường (`docs/CLAUDE.md`, mục Trang tiến độ).
+- Kiểm thiết lập của app (file R2 bắt buộc, DNS của tên miền file tĩnh): `scripts/setup-check.sh`; danh sách file ở `docs/ops/required-assets.txt`.
+- Merge khi nhánh chậm hơn nhánh chính: `scripts/merge-if-green.sh <số PR> --update` tự cập nhật nhánh, chờ CI rồi merge.
 - Kiểm tra cả danh sách chạy trước khi duyệt (spec đã chốt, phụ thuộc, kịch bản có test, plan cùng sửa một file): `scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md` (`docs/ops/pre-run-review.md`).
 - Chờ một workflow GitHub Actions xong trong một lệnh: `scripts/wait-run.sh --pr <số>` hoặc `--workflow <file.yml> --since <giờ UTC>` (`docs/auto-run.md`, bước 8).
 - Đếm token AI theo task của một phiên: `scripts/token-usage.py report --since <giờ bắt đầu>`; số gợi ý cho `token_estimate` của plan: `scripts/token-usage.py estimate` (`docs/ops/token-usage.md`).

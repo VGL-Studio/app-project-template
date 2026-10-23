@@ -109,7 +109,7 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 
 1. Danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md` có trạng thái `approved` đã được merge vào nhánh chính.
 2. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy.
-3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), hoặc môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4). Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
+3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), hoặc môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8. Các lỗi này trước đây chỉ lộ ra ở cuối phiên, khi phát bản staging (L-059). Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
 
 Lưu ý:
 
@@ -132,6 +132,8 @@ Thiết lập một lần:
 
 2. Mở trigger **API** của routine này, **Generate token**, thêm hai bí mật: `gh secret set ENV_CANARY_FIRE_URL` và `gh secret set ENV_CANARY_FIRE_TOKEN`.
 3. Chạy thử: **Actions > env-canary > Run workflow**. Mở phiên trong đường dẫn ở phần tóm tắt, xem script báo xanh.
+
+Cùng workflow có job thứ hai, `setup-check`, chạy `scripts/setup-check.sh --staging` trên máy của GitHub (không tốn hạn mức Claude, chạy cả khi có phiên đang chạy): file R2 bắt buộc, DNS, bí mật Firebase staging và nhóm người test, như `start-run` (mục 2.3). Đỏ thì mở issue `setup-broken` (hoặc thêm bình luận vào issue đang mở), xanh thì tự đóng. Nhãn riêng vì `scripts/env-canary.sh` đóng mọi issue `env-broken` khi môi trường cloud xanh.
 
 Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường chưa dán setup script mới (dán lại theo mục 2.1); lỗi khác thì sửa nguyên nhân. Sau đó chạy lại **env-canary** bằng tay; lần chạy xanh tự đóng issue.
 
