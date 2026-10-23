@@ -9,7 +9,7 @@ Các phần ghi **(đợt 2)** cần code chưa có trong `:core:config` (kiểu
 | Loại | Ví dụ | Ai đọc |
 | --- | --- | --- |
 | Cờ tính năng | `feature_camera_enabled` | `FeatureFlags` (`:core:config`), feature theo dõi bằng `Flow` |
-| Quảng cáo | `show_open_ads`, `show_resum_ads`, `ads_interval`, `is_show_native_bottom`, `is_show_inter_save` | `:core:ads`, vỏ app (app open lúc mở app, luồng giới thiệu) |
+| Quảng cáo | `show_open_ads`, `show_resum_ads`, `ads_interval`, `is_show_native_bottom`, `is_show_inter_save`, `ads_interval_sounds` | `:core:ads`, vỏ app (app open lúc mở app, luồng giới thiệu) |
 | Tham số của module | `assets_catalog_path`, `review_min_saved_photos_count` | Module core sở hữu tham số, qua `RemoteSettings` |
 
 Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qua `FeatureFlags`, còn tham số đi qua module core sở hữu.
@@ -19,9 +19,9 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 - Chữ thường, nối bằng gạch dưới.
 - Cờ tính năng: `feature_<ten>_enabled`. Tham số của module: `<module>_<tham số>`, đơn vị ở cuối (`_seconds`, `_count`, `_percent`).
 - **Quảng cáo** (ADR-0026, thay mục 1 của ADR-0023 cho khóa quảng cáo): khái niệm có trong AdsKit dùng **đúng tên của AdsKit**, kể cả lỗi chính tả `show_resum_ads`. Bảng khóa ở [ads-business-rules.md](ads-business-rules.md), mục 10. Khóa mới đặt cùng kiểu với AdsKit:
-  - Bật tắt: `is_show_<thứ>` (ví dụ vị trí `is_show_inter_save`), hoặc `show_<thứ>_ads` cho loại quảng cáo theo thời điểm.
-  - Loại: `<thứ>_type` (giá trị chuỗi, ví dụ `aoa`, `inter`).
-  - Khoảng cách: `ads_interval_<vị trí>`; thời gian: `time_<việc>_<thứ>`.
+  - Khóa của vị trí **suy ra từ khai báo vị trí**, không đặt tay (mục Mô hình chung của `ads-business-rules.md`): bật tắt `is_show_<mã vị trí>` (ví dụ `is_show_inter_save`); nhóm giãn cách riêng `ads_interval_<nhóm>`; tham số riêng `<tham số>_<mã vị trí>` (mẫu chờ câu hỏi 28 của spec ads). Mã vị trí trùng tên AdsKit thì khóa trùng đúng chuỗi AdsKit (`rw_get_item`, `native_onboarding`, nhóm `sounds`).
+  - Khóa chung khác: `show_<thứ>_ads` cho loại quảng cáo theo thời điểm; loại `<thứ>_type` (giá trị chuỗi, ví dụ `aoa`, `inter`); thời gian `time_<việc>_<thứ>`; công tắc số liệu `is_log_<thứ>`.
+  - Khóa không có trong bảng khóa chính thức của AdsKit ghi rõ "tên do ta đặt" trong bảng khóa (mục 10 của `ads-business-rules.md`).
   - Đơn vị ghi trong mô tả khóa (giây, lần), không ghi ở cuối tên.
   - Khóa `ads_<vị trí>_enabled` và `ads_interstitial_min_interval_seconds` của đợt 2 được đổi sang tên mới ở T-019 (đợt 3). App nào đã phát hành bản đọc khóa cũ thì giữ khóa cũ trên Firebase tới khi không còn bản đó (dòng cuối của mục này).
 - Kiểu: boolean, long, double (đợt 2), string (đợt 2). Không dùng khối JSON làm cấu hình (ADR-0023). Danh sách ngắn thì dùng string, ghi định dạng trong mô tả (ví dụ `"vi,en,hi"`).
