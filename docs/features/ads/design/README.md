@@ -105,7 +105,7 @@ Mọi vùng quảng cáo có nền và viền tách khỏi nội dung; cách nú
 
 ## 8. Kết quả đối chiếu
 
-Màn hình xem thử (T-014, 2026-10-23). Ảnh chuẩn ở `app/src/test/screenshots/` (`:app`, staging); script so sánh bọc sẵn chưa nhận `:app` nên chạy thẳng `scripts/design-compare/DesignCompare.java` (plan T-014, mục 3.2). Ảnh so sánh trong `review/`, dòng tương ứng thêm vào `review/summary.md`.
+Màn hình xem thử (T-014, 2026-10-23). Ảnh chuẩn ở `app/src/test/screenshots/` (`:app`, staging); script so sánh bọc sẵn chưa nhận `:app` nên chạy thẳng `scripts/design-compare/DesignCompare.java` (plan T-014, mục 3.2). Ảnh so sánh trong `review/`; kết quả chỉ ghi ở mục này, `review/summary.md` không đổi.
 
 | Màn hình | Điểm ảnh khác | Nhận xét |
 | --- | --- | --- |
