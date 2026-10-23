@@ -246,10 +246,10 @@ if [[ "$local_branch" == "$HEAD_REF" && "$updates" -eq 0 && "$(git rev-parse HEA
   echo "CHÚ Ý: nhánh '$HEAD_REF' trên máy này không ở commit ${HEAD_SHA:0:7} của GitHub: còn commit chưa đẩy, hoặc chưa kéo về." >&2
 fi
 
-# docs/STATUS.md is generated on main only (docs/CLAUDE.md, section Trang tiến độ); other PRs leave it out.
+# docs/STATUS.md is not in git: status-page.yml builds it on the status branch (docs/CLAUDE.md, section Trang tiến độ).
 pr_files="$( { gh api "repos/$REPO/pulls/$PR/files?per_page=100" --paginate --jq '.[].filename' 2>/dev/null || true; } )"
-if grep -qx 'docs/STATUS.md' <<<"$pr_files" && ! [[ "$HEAD_REF" =~ ^claude/(RUN-[0-9]{8}-[0-9]{2}-report|status-.+)$ ]]; then
-  echo "CHÚ Ý: PR có docs/STATUS.md. Chỉ PR báo cáo của phiên và PR trang tiến độ (nhánh claude/status-...) đưa trang này vào, để PR không xung đột nhau (docs/CLAUDE.md, mục Trang tiến độ)." >&2
+if grep -qx 'docs/STATUS.md' <<<"$pr_files"; then
+  echo "CHÚ Ý: PR có docs/STATUS.md. Trang tiến độ không có trong git; status-page.yml sinh nó trên nhánh status sau khi merge. Bỏ file khỏi PR (git rm --cached docs/STATUS.md) để PR không xung đột nhau (docs/CLAUDE.md, mục Trang tiến độ)." >&2
 fi
 
 if [[ "$DRY_RUN" == "yes" ]]; then
@@ -270,6 +270,3 @@ if [[ "$HEAD_REF" == claude/* ]]; then
 fi
 
 echo "ĐÃ MERGE: PR #$PR ($TITLE) tại commit ${HEAD_SHA:0:7}."
-if grep -vx 'docs/STATUS.md' <<<"$pr_files" | grep -q '^docs/.*\.md$'; then
-  echo "Trang tiến độ: PR đổi tài liệu. Khi cần trang mới, sinh lại docs/STATUS.md trên nhánh chính bằng một PR riêng (docs/CLAUDE.md, mục Trang tiến độ)."
-fi

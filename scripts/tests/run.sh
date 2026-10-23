@@ -140,7 +140,8 @@ expect "merge-if-green: a commit pushed minutes ago gets a warning" 1 \
   "$(NOW_EPOCH=1792288980 merge_run 12 --dry-run > /dev/null; grep -c 'mới 3 phút trước' "$work/mg.out")"
 merge_routes claude/RUN-20261018-01-report '{"behind_by": 0}' "$green_runs"
 merge_run 12 --dry-run > /dev/null
-expect "merge-if-green: the report PR may carry docs/STATUS.md" 0 "$(grep -c 'PR có docs/STATUS.md' "$work/mg.out" || true)"
+# The page is not in git (status-page.yml builds it on the status branch, L-066): no PR carries it, the report PR neither.
+expect "merge-if-green: the report PR with docs/STATUS.md also gets the warning" 1 "$(grep -c 'PR có docs/STATUS.md' "$work/mg.out" || true)"
 merge_routes claude/template-x '{"behind_by": 0}' "$lagging_runs" \
   ', "actions/runs?head_sha=abc1234&per_page=50": {"workflow_runs": [{"id": 77, "check_suite_id": 5, "status": "completed", "conclusion": "success"}]}'
 expect "merge-if-green: a lagging job of a green run counts as green" 0 "$(merge_run 12 --dry-run)"
@@ -287,6 +288,49 @@ expect "wait-run: the red line names ui-test" 1 \
      PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 scripts/wait-run.sh --pr 7 2>&1 | grep -c 'job: ui-test')"
 expect "wait-run: a run still going when time runs out asks to call again" "2 CHƯA" \
   "$(wait_run "$(pr_routes "$pending")" --pr 7 --timeout 1)"
+# A run GitHub never started (no runner: spending limit, billing) is not a red check: exit 4 (template L-064).
+# Fixture from main-guard 39916343646, attempt 1: the job has no steps, its check run carries the reason.
+unstarted='{"jobs": [{"id": 120, "name": "guard", "conclusion": "failure", "steps": []}]}'
+billing='[{"annotation_level": "failure", "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased."}, {"annotation_level": "notice", "message": "The ubuntu-latest label will migrate to Ubuntu 26"}]'
+infra_routes() { # <jobs answer> <annotations answer>
+  printf '{"routes": {"pulls/7": {"head": {"sha": "abc1234"}}, "actions/workflows/pr-check.yml/runs?head_sha=abc1234&per_page=10": %s, "actions/runs/91/jobs?per_page=50": %s, "check-runs/120/annotations": %s}}' \
+    "$red" "$1" "$2"
+}
+infra_line() { echo "$1" > "$work/wait.json"; PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 scripts/wait-run.sh --pr 7 2>&1 || true; }
+expect "wait-run: a job GitHub never started is an infrastructure failure" "4 HẠ" \
+  "$(wait_run "$(infra_routes "$unstarted" "$billing")" --pr 7)"
+expect "wait-run: the infrastructure line quotes GitHub's annotation" "1 0" \
+  "$(out="$(infra_line "$(infra_routes "$unstarted" "$billing")")"; echo "$(grep -c 'spending limit' <<< "$out") $(grep -c 'Ubuntu 26' <<< "$out" || true)")"
+expect "wait-run: an unstarted job without annotations is still infrastructure" "4 HẠ" \
+  "$(wait_run "$(infra_routes "$unstarted" '[]')" --pr 7)"
+expect "wait-run: says when GitHub gave no reason" 1 \
+  "$(infra_line "$(infra_routes "$unstarted" '[]')" | grep -c 'GitHub không ghi lý do')"
+expect "wait-run: a failed job that ran steps stays red" "1 ĐỎ" \
+  "$(wait_run "$(infra_routes '{"jobs": [{"id": 120, "name": "guard", "conclusion": "failure", "steps": [{"name": "Set up job"}]}]}' "$billing")" --pr 7)"
+expect "wait-run: one unstarted and one failed job that ran stays red" "1 ĐỎ" \
+  "$(wait_run "$(infra_routes '{"jobs": [{"id": 120, "name": "guard", "conclusion": "failure", "steps": []}, {"id": 121, "name": "ui-test", "conclusion": "failure", "steps": [{"name": "Set up job"}]}]}' "$billing")" --pr 7)"
+expect "wait-run: an unstarted main-guard run is an infrastructure failure" "4 HẠ" \
+  "$(wait_run '{"routes": {"actions/workflows/main-guard.yml/runs?branch=main&per_page=20": {"workflow_runs": [{"id": 91, "created_at": "2026-10-23T07:13:10Z", "status": "completed", "conclusion": "failure", "html_url": "u"}]}, "actions/runs/91/jobs?per_page=50": '"$unstarted"', "check-runs/120/annotations": '"$billing"'}}' \
+    --workflow main-guard.yml --since 2026-10-23T07:10:00Z)"
+
+# GitHub runs no pull_request workflow for a PR in conflict with main: say so at once, exit 5 (template L-064).
+conflict_routes() { # <mergeable_state> <runs answer>
+  printf '{"routes": {"pulls/7": {"head": {"sha": "abc1234"}, "mergeable_state": "%s"}, "actions/workflows/pr-check.yml/runs?head_sha=abc1234&per_page=10": %s, "actions/runs/91/jobs?per_page=50": {"jobs": []}}}' "$1" "$2"
+}
+conflict_run() { # <fixture>; long timeout, so only the conflict check can end the wait early
+  echo "$1" > "$work/wait.json"; rm -f "$work/wait.json.seen"
+  local out code=0
+  out="$(PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 WAIT_RUN_TIMEOUT_SECONDS="${2:-30}" \
+    scripts/wait-run.sh --pr 7 2>&1)" || code=$?
+  echo "$code ${out%%[: ]*}"
+}
+expect "wait-run: a conflicting PR without runs stops at once" "5 XUNG" \
+  "$(conflict_run "$(conflict_routes dirty '{"workflow_runs": []}')")"
+expect "wait-run: an unknown mergeable state keeps waiting" "2 CHƯA" \
+  "$(conflict_run "$(conflict_routes unknown '{"workflow_runs": []}')" 1)"
+expect "wait-run: a run that exists is waited for even if the PR became dirty" "0 XANH" \
+  "$(conflict_run "$(conflict_routes dirty "$green")")"
+
 dispatch_routes='{"routes": {"actions/workflows/staging.yml/runs?branch=main&per_page=20": {"workflow_runs": [
   {"id": 93, "created_at": "2026-10-18T02:25:00Z", "status": "completed", "conclusion": "failure", "html_url": "u"},
   {"id": 92, "created_at": "2026-10-18T02:21:00Z", "status": "completed", "conclusion": "success", "html_url": "u"},
@@ -457,6 +501,7 @@ elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=t
   expect "new-app.sh leaves pages that match the documents" 0 \
     "$(cd "$new_app" && python3 -I scripts/status.py --check > /dev/null && python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
   expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
+  expect "new-app.sh leaves the progress page out of git" "" "$(git -C "$new_app" ls-files docs/STATUS.md)"
 else
   expect "new-app.sh succeeds" ok failed
 fi
@@ -804,6 +849,8 @@ printf -- '# SỔ\n\n### L-001. Một bài\n\n- **Trạng thái:** proposed\n' >
 # Backticks of the page are matched with '.' in the patterns below.
 status_page() { STATUS_ROOT="$work/status-repo" python3 -I scripts/status.py "$@"; }
 expect "status: check fails before the page exists" 1 "$(status_page --check > /dev/null; echo $?)"
+expect "status: check without the page asks to run status.py, not to commit" 0 \
+  "$(status_page --check 2>&1 | grep -c 'commit' || true)"
 status_page > /dev/null
 page="$st/STATUS.md"
 expect "status: request without spec waits for people" 1 "$(grep -c '^- Yêu cầu chưa có spec: .*(Log cho AI)' "$page")"
@@ -824,6 +871,20 @@ expect "status: a lesson number used twice stops" 1 "$(status_page > "$work/stat
 expect "status: names the duplicate lesson number" 1 "$(grep -c 'L-002' "$work/status.out")"
 cp "$work/lessons.bak" "$st/lessons.md"
 status_page > /dev/null
+# The progress page is not in git on main: status-page.yml builds it after each push to main and pushes it to the
+# status branch only, so PRs never conflict on it (L-066).
+expect "status page: docs/STATUS.md is not tracked" "" "$(git ls-files docs/STATUS.md)"
+expect "status page: git ignores docs/STATUS.md" 0 "$(git check-ignore -q docs/STATUS.md; echo $?)"
+status_wf=.github/workflows/status-page.yml
+expect "status-page.yml pushes only the status branch" "1 0" \
+  "$(grep -c 'git push' "$status_wf" 2>/dev/null || echo 0) $(grep 'git push' "$status_wf" 2>/dev/null | grep -vc 'origin status$' || true)"
+expect "status-page.yml builds the page with status.py before pushing" yes \
+  "$(awk '/python3 scripts\/status.py/ { built = 1 } /git push/ { print (built ? "yes" : "no"); exit }' "$status_wf" 2>/dev/null)"
+expect "status-page.yml runs on pushes to main that change docs" 2 \
+  "$(grep -cE "^    branches: \[main\]$|^    paths: \['docs/\*\*'" "$status_wf" 2>/dev/null || true)"
+expect "status page: README links the page on the status branch, not a repository name" 1 \
+  "$(grep -c '](\.\./\.\./blob/status/docs/STATUS\.md)' README.md || true)"
+
 # status.py --sync moves each ticket's status after its plan's (L-050).
 sy="$work/sync-repo/docs/features/demo"
 mkdir -p "$sy/tickets" "$sy/plans"
