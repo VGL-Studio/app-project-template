@@ -21,8 +21,8 @@ AI không làm các bước trong tài liệu này. Mọi bước có bí mật 
 
 ## 1. Chuẩn bị máy dev
 
-1. Cài Android Studio. Dùng JDK đi kèm (JDK 17 trở lên):
-   - macOS: `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
+1. Cài Android Studio. Dùng JDK đi kèm, không dùng Java cài riêng trên máy: Java quá mới (ví dụ Java 26) làm Gradle dừng ngay với lỗi chỉ ghi số phiên bản. `scripts/check.sh` kiểm Java trước khi gọi Gradle (`scripts/java-check.sh`, khoảng phiên bản đọc từ `build-logic` và phiên bản Gradle) và in lệnh đặt `JAVA_HOME` khi không hợp:
+   - macOS: `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`, ghi vào `~/.zshrc` để mọi terminal dùng.
    - Mở Android Studio một lần để cài Android SDK. Đặt `export ANDROID_HOME=$HOME/Library/Android/sdk` (macOS) hoặc `$HOME/Android/Sdk` (Linux).
 2. Cài `git`, `gh` (GitHub CLI), `jq`, `python3`. Trên macOS: `brew install gh jq`.
 3. Đăng nhập GitHub CLI: `gh auth login`, chọn GitHub.com, HTTPS, đăng nhập bằng trình duyệt. `scripts/merge-if-green.sh` dùng phiên đăng nhập này.
@@ -47,11 +47,11 @@ Quy tắc: mọi PR vào `main` chỉ merge bằng `scripts/merge-if-green.sh <s
 App đọc file tĩnh từ một địa chỉ https công khai (ADR-0006, ADR-0015).
 
 1. Trên Cloudflare, mục **R2**, tạo bucket cho app (hoặc dùng bucket chung của nhóm với một thư mục riêng cho app).
-2. Trong **Settings** của bucket, mục **Public access**, nối một tên miền riêng (**Custom Domains**, ví dụ `<app>-staging.vgl.io.vn`). Không dùng địa chỉ `r2.dev` cho app thật.
-3. Tải file lên theo đường dẫn có phiên bản, ví dụ `test/v1/hello.txt`. Không bao giờ ghi đè một file đã đưa lên; nội dung đổi thì dùng đường dẫn mới.
+2. Trong **Settings** của bucket, mục **Public access**, nối một tên miền riêng (**Custom Domains**, ví dụ `<app>-staging.vgl.io.vn`). Không dùng địa chỉ `r2.dev` cho app thật. Chọn tên miền thuộc vùng có DNSSEC ổn định: nếu bước kiểm DNSSEC của vùng lỗi, DNS công cộng như 1.1.1.1 và 8.8.8.8 từ chối trả lời, và điện thoại dùng các DNS đó không tải được file, trong khi máy dev và emulator trên GitHub vẫn tải được (L-059).
+3. Tải lên mọi file trong `docs/ops/required-assets.txt` theo đúng đường dẫn, ví dụ `test/v1/hello.txt` mà màn hình loading của dự án mẫu tải. Thiếu file này thì PR có code đầu tiên đỏ ở test emulator. Không bao giờ ghi đè một file đã đưa lên; nội dung đổi thì dùng đường dẫn mới.
 4. Địa chỉ gốc (kết thúc bằng `/`) chính là tham số `--staging-assets-url` của script tạo app, nằm trong `app/build.gradle.kts`.
 
-Kiểm tra: `curl -I https://<địa chỉ gốc>/test/v1/hello.txt` trả `200`.
+Kiểm tra: `scripts/setup-check.sh` in `== Thiết lập: QUA`. Script kiểm mọi file trong `docs/ops/required-assets.txt` trả `200` (`curl -I`) và tên miền phân giải được qua 1.1.1.1 và 8.8.8.8. Chạy trên máy dev, không chạy trong môi trường `claude --cloud` (proxy chặn R2).
 
 Khóa truy cập R2 không đưa vào repo hay GitHub. Bucket production làm tương tự khi phát hành (phần 8).
 
@@ -85,6 +85,8 @@ Kiểm tra: bấm **Run now** trên routine. Khi chưa có danh sách chạy `ap
 
 Sau đó tạo routine kiểm tra môi trường hằng ngày và hai bí mật của nó (`docs/ops/staging-and-runs.md`, mục 2.4), chạy thử workflow `env-canary`.
 
+Bước cuối của thiết lập: workflow `env-canary` xanh ở cả hai job. Job `setup-check` chạy `scripts/setup-check.sh --staging` trên máy của GitHub: file R2 bắt buộc, DNS qua 1.1.1.1 và 8.8.8.8, bí mật `STAGING_GOOGLE_SERVICES_JSON` không phải file giả và có app `<applicationId>.staging`, các nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) có trên App Distribution. `start-run` chạy lại đúng kiểm tra này trước mỗi phiên và không bắt đầu phiên khi còn lỗi.
+
 ## 6b. Hệ thống thiết kế trên công cụ thiết kế
 
 Khi app có feature cần thiết kế: dựng hệ thống thiết kế trên Claude Design hoặc Figma từ ảnh catalog và `docs/design-system/tokens.json` của app, theo `docs/ops/design-workflow.md`, mục 1. Trước đó, đổi màu thương hiệu của app trong `:core:designsystem` (plan riêng).
@@ -115,6 +117,10 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | Gradle báo `Could not find ...kotlin-stdlib...` khi build `build-logic`, chỉ tìm ở `plugins.gradle.org` | Setup script phiên bản 1: mirror chưa phủ thư viện tải qua plugin portal | Dán lại `scripts/cloud-setup.sh` (phiên bản 2 trở lên) |
 | `start-run` báo môi trường cloud đang lỗi (issue `env-broken`) | Kiểm tra môi trường hằng ngày đỏ | Đọc log trong issue, sửa (thường là dán lại `scripts/cloud-setup.sh`), chạy lại workflow `env-canary` |
 | Gradle báo "SDK location not found" trong môi trường cloud | Setup script phiên bản 2 trở xuống, và lệnh chạy từ shell không đọc `~/.bashrc` | Dán lại `scripts/cloud-setup.sh` (phiên bản 3 trở lên ghi `sdk.dir` vào `local.properties`) |
+| `scripts/check.sh` dừng ở bước `== Java`, báo Java quá mới hoặc quá cũ | Máy dùng Java cài riêng thay vì JDK của Android Studio; Gradle chỉ chạy trên một khoảng phiên bản Java | Đặt `JAVA_HOME` theo lệnh script in ra (phần 1) |
+| `start-run` báo "Thiết lập chưa đủ cho một phiên", hoặc có issue `setup-broken` | `scripts/setup-check.sh --staging` thấy lỗi: thiếu file R2, DNS công cộng không phân giải được tên miền, bí mật Firebase là file giả hoặc thiếu app staging, chưa tạo nhóm người test | Sửa theo từng dòng `LỖI` (phần 3, phần 4), chạy lại workflow `env-canary`; lần xanh tự đóng issue |
+| `merge-if-green.sh` trả mã 3, báo nhánh chậm so với `main` | Có PR khác vừa merge | `scripts/merge-if-green.sh <số PR> --update`: tự cập nhật nhánh, chờ CI rồi merge |
+| Mọi PR tài liệu xung đột ở `docs/STATUS.md` | PR thường commit trang tiến độ | PR thường không đưa trang này vào; trang sinh lại bằng PR riêng (`docs/CLAUDE.md`, mục Trang tiến độ) |
 | `merge-if-green.sh` báo PR mang nhãn `needs-human` | PR do phiên tự chạy soạn sẵn khi task dừng | Xem PR, sửa nếu cần, gỡ nhãn, đổi sang sẵn sàng rồi merge |
 | `merge-if-green.sh` báo "phiên ... đang chạy" | Có phiên tự chạy đang chạy; chỉ PR của phiên đó được merge | Chờ phiên kết thúc |
 | Phiên làm việc trên nhánh `claude/<tên ngẫu nhiên>` | Prompt routine thiếu dòng "Nhánh" | Chép lại prompt ở `docs/ops/staging-and-runs.md`, mục 2.1 |

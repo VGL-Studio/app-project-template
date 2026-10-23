@@ -24,6 +24,10 @@ cd "$(dirname "$0")/.."
 in_ci() { [ -n "${GITHUB_ACTIONS:-}" ]; }
 GRADLE=(./gradlew --no-daemon --console=plain)
 
+# A Java that Gradle cannot run on stops Gradle with an unreadable error; say which Java to use instead.
+echo "== Java"
+scripts/java-check.sh
+
 echo "== Script tests"
 if command -v python3 > /dev/null && command -v jq > /dev/null; then
   scripts/tests/run.sh

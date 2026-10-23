@@ -25,14 +25,6 @@
 - Bài học `proposed` chờ retro: L-048 (Một test chập chờn trên `main-guard` kết thúc cả phiên)
 - Bài học `proposed` chờ retro: L-049 (Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng)
 - Bài học `proposed` chờ retro: L-050 (Quy tắc của `check.sh`, giới hạn mạng của phiên cloud và trạng thái ticket chỉ lộ ra khi phiên đã chạy)
-- Bài học `proposed` chờ retro: L-051 (Điều hướng sau một hàm `suspend` chạy trên luồng nền, lỗi chỉ lộ ra ở `ui-test`)
-- Bài học `proposed` chờ retro: L-052 (Giao bước 3 đến 5 cho phiên con, trong worktree riêng)
-- Bài học `proposed` chờ retro: L-053 (Nút chữ trên nền khác màu tự đặt màu chữ, đè màu thiết kế)
-- Bài học `proposed` chờ retro: L-054 (Hai plan cùng ghi Tạo một file mà task chạy trước tạo ra)
-- Bài học `proposed` chờ retro: L-055 (Test kiểm giá trị mặc định qua ngay trên khung rỗng)
-- Bài học `proposed` chờ retro: L-056 (Bài học thêm ngoài phiên trùng số với bài học mà phiên thêm cùng lúc)
-- Bài học `proposed` chờ retro: L-057 (Trang tiến độ của app đếm 0 bài học vì sổ viết khác mẫu)
-- Bài học `proposed` chờ retro: L-058 (Plan đổi cổng chất lượng bỏ sót một kiểm tra mà trường hợp mới phải đi qua)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 - ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
@@ -101,5 +93,5 @@ Phản hồi: chưa có.
 
 ## 5. Bài học và ADR
 
-- Bài học ([lessons.md](lessons.md)): 27 bài; 27 `proposed`.
+- Bài học ([lessons.md](lessons.md)): 19 bài; 19 `proposed`.
 - ADR: 24; 19 `accepted`, 5 `proposed`.
