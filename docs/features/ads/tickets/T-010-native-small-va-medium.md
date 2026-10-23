@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1, KB-2]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: L
-depends_on: [T-007]
+depends_on: [T-007, T-009]
 sprint:
-plan:
+plan: features/ads/plans/T-010-native-small-va-medium.md
 created: 2026-10-21
 ---
 
@@ -33,7 +33,7 @@ created: 2026-10-21
 
 ## Rủi ro sơ bộ
 
-Module core, quảng cáo (điểm chặn). Chỉ chuyển sang `ready` khi thiết kế native đã duyệt. Cần ghi lại ảnh chuẩn screenshot của màn hình mẫu theo plan.
+Module core, quảng cáo (điểm chặn). Thiết kế đã duyệt ngày 2026-10-21 (`docs/features/ads/design/`). Cần ghi lại ảnh chuẩn screenshot của màn hình mẫu theo plan.
 
 ## Định nghĩa hoàn thành
 
