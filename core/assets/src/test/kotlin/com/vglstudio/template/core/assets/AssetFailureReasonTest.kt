@@ -47,7 +47,8 @@ class AssetFailureReasonTest {
 
     @Test
     fun logMessage_namesReasonAndErrorClass() {
-        val message = downloadFailureMessage(AssetPath("images/v2/hero.webp"), UnknownHostException("assets.example.com"))
+        val error = UnknownHostException("assets.example.com")
+        val message = downloadFailureMessage(AssetPath("images/v2/hero.webp"), error)
 
         assertEquals("Could not download images/v2/hero.webp: NETWORK (UnknownHostException)", message)
         assertFalse(message.contains("assets.example.com"))
