@@ -6,17 +6,26 @@ import kotlinx.coroutines.flow.map
 
 /**
  * Business settings tuned remotely without a new release (ADR-0003), such as ad frequency.
- * Not feature flags: keys are declared by the core module that uses them. Feature modules do not use this.
- * Each flow emits the current value at once ([default] until a remote value is activated), then every change.
+ * Not feature flags: keys are declared as [RemoteKey] by the core module that uses them (ADR-0023).
+ * Feature modules do not use this.
+ * The flow emits the current value at once ([RemoteKey.default] until a remote value of the key's type is
+ * activated), then every change.
  */
 interface RemoteSettings {
-    fun boolean(key: String, default: Boolean): Flow<Boolean>
-
-    fun long(key: String, default: Long): Flow<Long>
+    fun <T : Any> value(key: RemoteKey<T>): Flow<T>
 }
 
 internal class DefaultRemoteSettings @Inject constructor(private val remote: RemoteFlagSource) : RemoteSettings {
-    override fun boolean(key: String, default: Boolean): Flow<Boolean> = remote.boolean(key).map { it ?: default }
-
-    override fun long(key: String, default: Long): Flow<Long> = remote.long(key).map { it ?: default }
+    override fun <T : Any> value(key: RemoteKey<T>): Flow<T> {
+        val values: Flow<Any?> = when (key.type) {
+            RemoteKey.Type.BOOLEAN -> remote.boolean(key.name)
+            RemoteKey.Type.LONG -> remote.long(key.name)
+            RemoteKey.Type.DOUBLE -> remote.double(key.name)
+            RemoteKey.Type.STRING -> remote.string(key.name)
+        }
+        // Safe: the factories of RemoteKey tie each Type to one T (BOOLEAN to Boolean, LONG to Long, and so on),
+        // and the source function above is chosen by that Type.
+        @Suppress("UNCHECKED_CAST")
+        return values.map { (it as T?) ?: key.default }
+    }
 }
