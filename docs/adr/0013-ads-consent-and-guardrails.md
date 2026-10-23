@@ -9,7 +9,7 @@ deciders: [Nhóm phát triển]
 
 # ADR-0013: QUẢNG CÁO ADMOB CHỈ KHỞI ĐỘNG SAU HỘP THOẠI ĐỒNG Ý UMP, MÃ QUẢNG CÁO PRODUCTION ĐƯA VÀO LÚC BUILD PHÁT HÀNH
 
-> **Ghi chú 2026-10-23:** ADR-0026 (đang đề xuất) thay một phần ADR này: thời điểm khởi động SDK (init sớm và quyền tạm theo bộ PARTNER của AdsKit), bảng khóa Remote Config (thay bằng bảng khóa theo tên AdsKit), rào chắn "chờ người dùng ngừng chạm 1 giây", và ý "không bao giờ lúc mở hay đóng app" (có app open lúc mở app và khi quay lại app). Phần còn lại giữ nguyên: thư viện chỉ trong `:core:ads`, hỏi đồng ý mỗi lần mở app, `PrivacyOptionsButton`, `LocalAdsController`, mã thử ở staging, mã production lúc build phát hành.
+> **Ghi chú 2026-10-23:** ADR-0026 (duyệt 2026-10-24) thay một phần ADR này: thời điểm khởi động SDK (init sớm và quyền tạm theo bộ PARTNER của AdsKit), bảng khóa Remote Config (thay bằng bảng khóa theo tên AdsKit), rào chắn "chờ người dùng ngừng chạm 1 giây", và ý "không bao giờ lúc mở hay đóng app" (có app open lúc mở app và khi quay lại app). Phần còn lại giữ nguyên: thư viện chỉ trong `:core:ads`, hỏi đồng ý mỗi lần mở app, `PrivacyOptionsButton`, `LocalAdsController`, mã thử ở staging, mã production lúc build phát hành.
 
 ## Bối cảnh
 
@@ -77,4 +77,4 @@ Vùng có luật bắt buộc đồng ý được nhận biết qua UMP: nơi UM
   - SDK quảng cáo thêm các quyền `ACCESS_ADSERVICES_AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS` và, qua WorkManager, `FOREGROUND_SERVICE`. Khai báo Data safety phải khớp.
   - Bản staging luôn hiện hộp thoại châu Âu ở lần mở đầu, kể cả với người test ở Việt Nam.
   - App mẫu chưa có vị trí quảng cáo toàn màn hình. Phần này đã được thử trên emulator bằng một vị trí tạm (hiện sau khoảng 1 giây, lần thứ hai trong 120 giây bị chặn), rồi gỡ vị trí tạm.
-- **Việc AI phải tuân thủ:** feature chỉ dùng `AdSlot`, `rememberShowInterstitial` và `PrivacyOptionsButton`; không gọi `AdsController` hay SDK quảng cáo từ feature; không viết mã quảng cáo thật vào code, tài liệu hay tham số build trong repo; gọi quảng cáo toàn màn hình chỉ ở điểm dừng tự nhiên, không bao giờ lúc mở hay đóng app (ADR-0026 đề xuất thay vế này: app open lúc mở app và khi quay lại app do `:core:ads` và vỏ app làm theo `docs/ops/ads-business-rules.md`, feature vẫn chỉ gọi inter ở hành động của người dùng).
+- **Việc AI phải tuân thủ:** feature chỉ dùng composable và hàm của `:core:ads` và `PrivacyOptionsButton`; không gọi `AdsController` hay SDK quảng cáo từ feature; không viết mã quảng cáo thật vào code, tài liệu hay tham số build trong repo; feature chỉ gọi quảng cáo toàn màn hình ở hành động của người dùng; quảng cáo lúc mở app và khi quay lại app do `:core:ads` và vỏ app làm theo `docs/ops/ads-business-rules.md` (ADR-0026).

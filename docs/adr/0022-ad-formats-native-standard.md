@@ -1,17 +1,17 @@
 ---
 id: ADR-0022
 title: Quảng cáo theo nguyên tắc chính sách trước doanh thu, native thay banner và MREC theo quy chuẩn dp của nhóm, mediation AdMob và AppLovin
-status: proposed
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-21
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
 supersedes:                  # thay một phần: mạng mediation của ADR-0004, danh sách composable của ADR-0013
-superseded_by: ADR-0026         # thay phần lớn, xem ghi chú dưới tiêu đề; chuyển sang superseded khi ADR-0026 được duyệt
+superseded_by: ADR-0026         # thay phần lớn, xem ghi chú dưới tiêu đề
 ---
 
 # ADR-0022: QUẢNG CÁO THEO NGUYÊN TẮC CHÍNH SÁCH TRƯỚC DOANH THU, NATIVE THAY BANNER VÀ MREC THEO QUY CHUẨN DP CỦA NHÓM, MEDIATION ADMOB VÀ APPLOVIN
 
-> **Ghi chú 2026-10-23:** người phụ trách sản phẩm quyết định hành vi quảng cáo theo bộ PARTNER của AdsKit. ADR-0026 (đang đề xuất) thay phần lớn ADR này: mục 1 (bảng "không bao giờ làm" và nguyên tắc chính sách trước doanh thu), mục 2, 3, 6, 7, 8, 9 và số đo của mục 4. Còn hiệu lực: mục 5 và các quy tắc chung của mục 4 được giữ ở ADR-0026, mục 10. Code đợt 2 theo ADR này vẫn merge, rồi sửa bằng ticket T-019 tới T-036.
+> **Ghi chú 2026-10-23:** người phụ trách sản phẩm quyết định hành vi quảng cáo theo bộ PARTNER của AdsKit. ADR-0026 (duyệt 2026-10-24) thay phần lớn ADR này: mục 1 (bảng "không bao giờ làm" và nguyên tắc chính sách trước doanh thu), mục 2, 3, 6, 7, 8, 9 và số đo của mục 4. Còn hiệu lực: mục 5 và các quy tắc chung của mục 4 được giữ ở ADR-0026, mục 10. Code đợt 2 theo ADR này vẫn merge, rồi sửa bằng ticket T-019 tới T-036.
 
 ## Bối cảnh
 

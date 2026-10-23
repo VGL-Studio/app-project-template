@@ -1,7 +1,7 @@
 ---
 id: ADR-0027
 title: Dùng AppsFlyer trong :core:analytics cho doanh thu quảng cáo và phễu quảng cáo, khóa dev đưa vào lúc build, staging không gửi
-status: proposed
+status: accepted
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-23
 deciders: [Người phụ trách sản phẩm]

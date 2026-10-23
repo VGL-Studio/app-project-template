@@ -11,7 +11,7 @@ superseded_by:
 
 # ADR-0023: KHÓA REMOTE CONFIG PHẲNG, CÓ KIỂU, KHAI BÁO MỘT CHỖ TRONG CODE, SINH BẢNG KHÓA VÀ FILE MẪU; STAGING CÓ GIÁ TRỊ CỤC BỘ
 
-> **Ghi chú 2026-10-23:** ADR-0026 (đang đề xuất) thay mục 1 (cách đặt tên khóa) cho khóa quảng cáo: tên giống hệt AdsKit, khóa mới cùng kiểu (`is_show_<vị trí>`, `ads_interval`...). Mục 2 tới 6 giữ nguyên.
+> **Ghi chú 2026-10-23:** ADR-0026 (duyệt 2026-10-24) thay mục 1 (cách đặt tên khóa) cho khóa quảng cáo: tên giống hệt AdsKit, khóa mới cùng kiểu (`is_show_<vị trí>`, `ads_interval`...). Mục 2 tới 6 giữ nguyên.
 
 ## Bối cảnh
 

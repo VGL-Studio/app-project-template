@@ -1,7 +1,7 @@
 ---
 id: ADR-0026
 title: Hành vi kinh doanh của quảng cáo theo bộ PARTNER của AdsKit, cách làm kỹ thuật theo cấu trúc của dự án mẫu
-status: proposed
+status: accepted
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-23
 deciders: [Người phụ trách sản phẩm]
@@ -48,8 +48,8 @@ Dùng thẳng thư viện AdsKit thì không hợp với dự án mẫu: repo ri
 | --- | --- | --- |
 | ADR-0004 | Khởi tạo SDK chỉ sau khi xong đồng ý; danh sách mạng con; rào chắn "không hiện khi người dùng đang thao tác" | AdMob điều phối; `:core:ads` là lớp trung gian; vị trí khai báo tập trung; staging chỉ dùng mã thử; mọi đổi `:core:ads` là rủi ro cao |
 | ADR-0013 | SDK chỉ khởi động khi UMP cho phép; bảng khóa Remote Config; rào chắn "chờ người dùng ngừng chạm 1 giây"; "không bao giờ lúc mở hay đóng app" | Thư viện Google Mobile Ads và UMP chỉ trong `:core:ads`; `MainActivity` gọi hỏi đồng ý mỗi lần mở; `PrivacyOptionsButton`; composable cấp qua `LocalAdsController`; mã thử ở staging, mã production lúc build phát hành; staging giả lập vùng EEA |
-| ADR-0014 | Bảng giá trị mặc định (thay bằng bảng khóa AdsKit); khóa cá nhân hóa ở vùng có luật chờ câu hỏi của spec ads | Vị trí mới mặc định tắt; giá trị mặc định chỉ đổi khi người phụ trách sản phẩm quyết |
-| ADR-0022 | Mục 1 (bảng "không bao giờ làm" và nguyên tắc chính sách trước doanh thu), mục 2, 3, 6, 7 (tên khóa; giữ công tắc tổng hay không chờ câu hỏi của spec ads), 8, 9; số đo trong mục 4 | Mục 5 (feature chỉ qua composable của `:core:ads`); quy tắc chung của mục 4 còn trong mục 10 ở trên |
+| ADR-0014 | Bảng giá trị mặc định (thay bằng bảng khóa AdsKit); khóa cá nhân hóa ở vùng có luật (bỏ, spec ads câu hỏi 8) | Vị trí mới mặc định tắt; giá trị mặc định chỉ đổi khi người phụ trách sản phẩm quyết |
+| ADR-0022 | Mục 1 (bảng "không bao giờ làm" và nguyên tắc chính sách trước doanh thu), mục 2, 3, 6, 7 (tên khóa; công tắc tổng giữ với tên `is_show_ads`, spec ads câu hỏi 7), 8, 9; số đo trong mục 4 | Mục 5 (feature chỉ qua composable của `:core:ads`); quy tắc chung của mục 4 còn trong mục 10 ở trên |
 | ADR-0023 | Mục 1 (cách đặt tên khóa) | Mục 2 tới 6 (bốn kiểu, khai báo một chỗ, bảng khóa sinh tự động, giá trị cục bộ cho staging, đổi giá trị có ghi lại) |
 
 ## Các phương án đã cân nhắc

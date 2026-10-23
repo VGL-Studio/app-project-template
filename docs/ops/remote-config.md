@@ -19,7 +19,7 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 - Chữ thường, nối bằng gạch dưới.
 - Cờ tính năng: `feature_<ten>_enabled`. Tham số của module: `<module>_<tham số>`, đơn vị ở cuối (`_seconds`, `_count`, `_percent`).
 - **Quảng cáo** (ADR-0026, thay mục 1 của ADR-0023 cho khóa quảng cáo): khái niệm có trong AdsKit dùng **đúng tên của AdsKit**, kể cả lỗi chính tả `show_resum_ads`. Bảng khóa ở [ads-business-rules.md](ads-business-rules.md), mục 10. Khóa mới đặt cùng kiểu với AdsKit:
-  - Khóa của vị trí **suy ra từ khai báo vị trí**, không đặt tay (mục Mô hình chung của `ads-business-rules.md`): bật tắt `is_show_<mã vị trí>` (ví dụ `is_show_inter_save`); nhóm giãn cách riêng `ads_interval_<nhóm>`; tham số riêng `<tham số>_<mã vị trí>` (mẫu chờ câu hỏi 28 của spec ads). Mã vị trí trùng tên AdsKit thì khóa trùng đúng chuỗi AdsKit (`rw_get_item`, `native_onboarding`, nhóm `sounds`).
+  - Khóa của vị trí **suy ra từ khai báo vị trí**, không đặt tay (mục Mô hình chung của `ads-business-rules.md`): bật tắt `is_show_<mã vị trí>` (ví dụ `is_show_inter_save`); nhóm giãn cách riêng `ads_interval_<nhóm>`; tham số riêng `<tham số>_<mã vị trí>` (câu hỏi 28 của spec ads). Mã vị trí trùng tên AdsKit thì khóa trùng đúng chuỗi AdsKit (`rw_get_item`, `native_onboarding`, nhóm `sounds`).
   - Khóa chung khác: `show_<thứ>_ads` cho loại quảng cáo theo thời điểm; loại `<thứ>_type` (giá trị chuỗi, ví dụ `aoa`, `inter`); thời gian `time_<việc>_<thứ>`; công tắc số liệu `is_log_<thứ>`.
   - Khóa không có trong bảng khóa chính thức của AdsKit ghi rõ "tên do ta đặt" trong bảng khóa (mục 10 của `ads-business-rules.md`).
   - Đơn vị ghi trong mô tả khóa (giây, lần), không ghi ở cuối tên.
@@ -55,7 +55,7 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 3. **Kiểu giá trị trên Firebase khớp kiểu trong code** (boolean là `true`/`false`, số không có đơn vị).
 4. **Bấm Publish** và kiểm trên một máy (DebugView hay log của app).
 5. **Quay về:** dùng lịch sử phiên bản của Remote Config trên Firebase; ghi lần quay về vào sổ.
-6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt khóa của định dạng hay vị trí bị cảnh báo (ví dụ `is_show_native_after_inter`, `show_open_ads`), rồi mới tìm nguyên nhân. Công tắc tổng: câu hỏi mở của spec ads.
+6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt khóa của định dạng hay vị trí bị cảnh báo (ví dụ `is_show_native_after_inter`, `show_open_ads`), rồi mới tìm nguyên nhân. Công tắc tổng: `is_show_ads` (spec ads, câu hỏi 7); vị trí của đợt 2 dùng `ads_enabled` tới T-019.
 7. **Project staging chỉ đặt khóa muốn đổi**, không nhập cả file mẫu `docs/remote-config-template.json`. File mẫu đặt mọi khóa bật quảng cáo `false`, mà giá trị từ Firebase thắng giá trị cục bộ, nên nhập file là mất quảng cáo trên staging.
 
 ## 6. Thử nghiệm A/B

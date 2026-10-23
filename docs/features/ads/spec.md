@@ -32,7 +32,7 @@ Cũng ngày 2026-10-23 (lượt 2): theo bản đặc tả độc lập của Ad
 **Trong phạm vi:**
 
 - Năm loại native: small, medium, trong danh sách, thu gọn được, toàn màn hình. **Đổi 2026-10-23:** kích thước và hành vi theo AdsKit: thanh đáy (native nhỏ hoặc banner, lớp native thu gọn), native sau inter, native ô lưới và trang xem trước, native giới thiệu, native medium.
-- ~~Giới hạn tần suất lưu qua các phiên, ân hạn phiên đầu, giới hạn số quảng cáo toàn màn hình mỗi phiên, công tắc tổng.~~ **Đổi 2026-10-23:** khoảng cách giữa hai interstitial theo AdsKit (trong một lần mở app); công tắc tổng chờ câu hỏi 7.
+- ~~Giới hạn tần suất lưu qua các phiên, ân hạn phiên đầu, giới hạn số quảng cáo toàn màn hình mỗi phiên, công tắc tổng.~~ **Đổi 2026-10-23:** khoảng cách giữa hai interstitial theo AdsKit (trong một lần mở app); giữ công tắc tổng, khóa `is_show_ads` (câu hỏi 7).
 - ~~Mediation AdMob và AppLovin.~~ **Đổi 2026-10-23:** mediation AdMob và chín mạng: AppLovin, Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads.
 - Remote Config: kiểu số thực và chuỗi, bảng khóa sinh tự động, giá trị cục bộ cho bản staging. **Thêm 2026-10-23:** tên khóa quảng cáo giống hệt AdsKit.
 - Một màn hình chỉ có ở bản staging để xem thử mọi loại quảng cáo (câu hỏi 2).
@@ -78,7 +78,7 @@ Một danh sách hay lưới có vị trí native trong danh sách.
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi danh sách có nhiều mục thì quảng cáo xuất hiện sau mỗi N mục (N chỉnh từ xa, mặc định 8), không bao giờ ở vị trí đầu tiên. **Đổi 2026-10-23:** tên khóa của N chờ câu hỏi 19.
+- [ ] Khi danh sách có nhiều mục thì quảng cáo xuất hiện sau mỗi N mục (N chỉnh từ xa, mặc định 8), không bao giờ ở vị trí đầu tiên. **Đổi 2026-10-23:** N là tham số của vị trí, khóa `native_every_<mã vị trí>` (câu hỏi 19, 28).
 - [ ] Khi danh sách ít hơn N mục thì không có quảng cáo.
 - [ ] Mỗi ô quảng cáo có nhãn "Ad" rõ, không thể nhầm với một mục của danh sách.
 - [ ] **Thêm 2026-10-23:** mỗi ô quảng cáo có một quảng cáo riêng; khi không còn quảng cáo nào để lấy thì ô không hiện, không để khung chờ mãi.
@@ -100,7 +100,7 @@ Một điểm dừng tự nhiên trong app (ví dụ sau khi lưu xong một ả
 Tiêu chí chấp nhận:
 
 - [ ] ~~Khi đủ điều kiện tần suất thì quảng cáo hiện toàn màn hình với nút đóng thấy và bấm được ngay, ít nhất 48 dp, ở góc khác AdChoices.~~ **Đổi 2026-10-23:** xem KB-16 (đếm ngược 3 giây, nút đóng 36 dp).
-- [ ] Khi bấm nút đóng hoặc nút quay lại của máy thì quảng cáo đóng và người dùng về đúng chỗ đang làm. **Đổi 2026-10-23:** nút quay lại trong lúc đếm ngược chờ câu hỏi 17.
+- [ ] Khi bấm nút đóng hoặc nút quay lại của máy thì quảng cáo đóng và người dùng về đúng chỗ đang làm. **Đổi 2026-10-23:** trong 3 giây đếm ngược nút quay lại không làm gì, sau đó đóng như nút đóng (câu hỏi 17).
 - [ ] ~~Khi vừa có một quảng cáo toàn màn hình (interstitial hay native) thì không hiện thêm cái nào cho tới hết khoảng cách tối thiểu.~~ **Đổi 2026-10-23:** xem KB-15.
 - [ ] Khi chưa có quảng cáo sẵn thì không hiện gì và không chặn người dùng.
 
@@ -116,7 +116,7 @@ Tiêu chí chấp nhận:
 
 ### KB-7. Công tắc tổng
 
-**Đổi 2026-10-23:** giữ công tắc tổng hay không và tên khóa chờ câu hỏi 7.
+**Đổi 2026-10-23:** giữ công tắc tổng, khóa `is_show_ads` (boolean, mặc định bật), tắt cả app open và resume (câu hỏi 7).
 
 Tiêu chí chấp nhận:
 
@@ -345,8 +345,8 @@ Tiêu chí chấp nhận:
 | --- | --- | --- | --- | --- | --- |
 | `sample_bottom_banner` (đã có) | đổi sang native small (câu hỏi 3). **Đổi 2026-10-23:** thanh đáy (native nhỏ và lớp thu gọn, hoặc banner) | Màn hình mẫu | Khi vào màn hình | Không. Thay nội dung mỗi 60 giây | ~~`ads_sample_bottom_banner_enabled`~~ `is_show_sample_bottom_banner`, cùng `is_show_native_bottom`, `time_expand_collap_ad` |
 | Các vị trí của màn hình xem thử | mọi định dạng | Xem thử (chỉ staging) | Theo nút bấm | Như production | Bật sẵn ở staging |
-| **Thêm 2026-10-23:** quảng cáo mở app (chờ câu hỏi 11) | app open hoặc interstitial | Màn loading | Lúc khởi động mới | Không bị `ads_interval` chặn | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` |
-| **Thêm 2026-10-23:** `resume` (chờ câu hỏi 11) | app open hoặc interstitial (có thể nối native) | Mọi màn | Khi quay lại app | Theo KB-14 | `show_resum_ads`, `resume_ad_type`, `is_show_native_after_inter` |
+| **Thêm 2026-10-23:** quảng cáo mở app (màn loading, câu hỏi 11) | app open hoặc interstitial | Màn loading | Lúc khởi động mới | Không bị `ads_interval` chặn | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` |
+| **Thêm 2026-10-23:** `resume` (`:core:ads`, câu hỏi 11) | app open hoặc interstitial (có thể nối native) | Mọi màn | Khi quay lại app | Theo KB-14 | `show_resum_ads`, `resume_ad_type`, `is_show_native_after_inter` |
 
 ## 6. Dữ liệu và phân tích
 
@@ -388,10 +388,10 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 
 | Khóa | Kiểu | Mặc định | Ý nghĩa |
 | --- | --- | --- | --- |
-| `ads_enabled` | boolean | bật | Công tắc tổng. **Đổi 2026-10-23:** chờ câu hỏi 7 |
+| `ads_enabled` | boolean | bật | Công tắc tổng. **Đổi 2026-10-23:** đổi tên thành `is_show_ads` (câu hỏi 7, T-019) |
 | `ads_first_session_grace_seconds` | long | 180 | Ân hạn phiên đầu. **Đổi 2026-10-23:** bỏ (câu hỏi 10) |
 | `ads_interstitial_max_per_session_count` | long | 4 | Tối đa quảng cáo toàn màn hình mỗi phiên. **Đổi 2026-10-23:** bỏ (câu hỏi 10) |
-| `ads_inlist_every_count` | long | 8 | Native trong danh sách cách nhau. **Đổi 2026-10-23:** tên chờ câu hỏi 19 |
+| `ads_inlist_every_count` | long | 8 | Native trong danh sách cách nhau. **Đổi 2026-10-23:** thay bằng `native_every_<mã vị trí>` (câu hỏi 19, T-019) |
 | `ads_native_load_timeout_seconds` | long | 10 | Thời gian chờ trước khi thu chỗ khi không có quảng cáo. **Đổi 2026-10-23:** bỏ (câu hỏi 20) |
 
 ~~`ads_interstitial_min_interval_seconds` (đã có, 45) áp dụng chung cho interstitial và native toàn màn hình.~~ **Đổi 2026-10-23:** thay bằng `ads_interval`.

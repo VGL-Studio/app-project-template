@@ -146,7 +146,7 @@ Bằng chứng ở repo AdsKit, đường dẫn tính từ `M/`.
 | K-05 | Đóng màn native thì đẩy mốc `ads_interval` về lúc đóng cả cụm. Trong lúc màn native hiện, quảng cáo khi quay lại app bị chặn (mục 6). Màn native không tự bật chặn: bộ điều phối combo của `:core:ads` (bên mở màn) giữ một suất của bộ đếm chặn khi màn đang hiện và nhả khi đóng (A 03:124, A 04:151) | ads | `M/AdsKit.kt:1021-1052`, `M/compose/NativeAfterInterScreen.kt:78-84` |
 | K-06 | Mỗi lần hiện sở hữu một quảng cáo native riêng, hủy khi rời màn, rồi nạp sẵn cho lần sau | ads | `M/compose/NativeAfterInterScreen.kt:92-95,159-167` |
 | K-07 | Mỗi lần hiện ghi đúng một kết quả cơ hội: `shown` nếu có quảng cáo; `not_ready` nếu nạp lỗi hay người dùng đóng khi quảng cáo chưa về | ads | `M/compose/NativeAfterInterScreen.kt:55-65`, commit `80e82a8` |
-| K-08 | Nút quay lại của máy trên màn native: AdsKit không xử lý; ta chặn trong lúc đếm ngược và cho đóng khi nút đóng đã dùng được (câu hỏi mở của spec ads) | ads | `R.md:153-154` |
+| K-08 | Nút quay lại của máy trên màn native: AdsKit không xử lý; ta chặn trong lúc đếm ngược và cho đóng khi nút đóng đã dùng được (câu hỏi 17 của spec ads) | ads | `R.md:153-154` |
 
 ### 5.3 App open lúc mở app
 
@@ -399,13 +399,13 @@ Cột "Nguồn tên": **AdsKit** là tên có trong bảng khóa chính thức c
 | --- | --- | --- | --- | --- | --- |
 | `is_show_<mã vị trí>` | boolean | false | Bật một vị trí (MC-03), thay `ads_<vị trí>_enabled` của đợt 2. Ví dụ `is_show_sample_bottom_banner`, `is_show_rw_get_item` (vị trí `rw_get_item`, trùng khóa AdsKit `DG:180`), `is_show_native_onboarding` (vị trí `native_onboarding`, trùng khóa AdsKit `DG:181`) | ads | mẫu; trùng AdsKit khi mã vị trí trùng |
 | `ads_interval_<nhóm>` | long (giây) | theo spec | Khoảng cách của nhóm giãn cách riêng (MC-04). Ví dụ `ads_interval_sounds` (nhóm `sounds`, trùng tên AdsKit dùng ở app, `M/AdsKit.kt:124-127`) | ads | mẫu |
-| `<tham số>_<mã vị trí>` | theo tham số | theo spec | Tham số riêng của một vị trí, chỉ khi spec cần. Ví dụ `native_every_<mã vị trí>` (chèn mỗi N mục, MC-07), `rw_no_ad_policy_<mã vị trí>` (string `block`, `allow`, `allow_after_<n>`, MC-05). Mẫu tên chờ câu hỏi 28 của spec ads | ads | mẫu (tên do ta đặt) |
+| `<tham số>_<mã vị trí>` | theo tham số | theo spec | Tham số riêng của một vị trí, chỉ khi spec cần. Ví dụ `native_every_<mã vị trí>` (chèn mỗi N mục, MC-07), `rw_no_ad_policy_<mã vị trí>` (string `block`, `allow`, `allow_after_<n>`, MC-05). Mẫu tên theo câu hỏi 28 của spec ads | ads | mẫu (tên do ta đặt) |
 
 Khóa của AdsKit **không** khai báo:
 
 - `time_reload_collap_ad` (`DG:179`): có trong bảng khóa của AdsKit nhưng không còn hiệu lực (A 01:40); native làm mới cố định 60 giây (CL-02).
 - `resume_ads_interval` và `time_reload_bottom_ad` **không phải** tên khóa của AdsKit: `DG:171-181` không có hai tên này. AdsKit chỉ có trường `resumeAdsInterval` (bộ `CURRENT`, `M/AdFeatureFlags.kt:9`) và `timeReloadBottomAd` (không thành phần nào đọc, A 01:41). PARTNER không có cổng thời gian ở resume (A-11) nên ta không cần cả hai.
-- Khóa của ta bị bỏ hay đổi: xem ADR-0026 và câu hỏi mở của spec ads (công tắc tổng, cá nhân hóa ở vùng có luật).
+- Khóa của ta bị bỏ hay đổi: xem ADR-0026 và spec ads: giữ công tắc tổng, tên `is_show_ads` (câu hỏi 7); bỏ khóa cá nhân hóa ở vùng có luật, chuỗi đồng ý của UMP quyết (câu hỏi 8).
 
 ## 11. Hằng số cứng (không đổi từ xa)
 
