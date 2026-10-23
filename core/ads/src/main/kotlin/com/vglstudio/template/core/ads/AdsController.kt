@@ -359,4 +359,5 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.INTERSTITIAL -> null
     AdFormat.NATIVE_SMALL -> NativeAdSize.SMALL
     AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
+    AdFormat.NATIVE_COLLAPSIBLE -> null
 }

@@ -21,6 +21,8 @@ object GoogleTestAdUnitIds : AdUnitIds {
         AdFormat.NATIVE_SMALL -> "ca-app-pub-3940256099942544/2247696110"
         // Native video, so the media view can be tried with a video.
         AdFormat.NATIVE_MEDIUM -> "ca-app-pub-3940256099942544/1044960115"
+        // Opens as medium, so it uses the same native video unit.
+        AdFormat.NATIVE_COLLAPSIBLE -> "ca-app-pub-3940256099942544/1044960115"
     }
 }
 
