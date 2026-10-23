@@ -1,23 +1,33 @@
 ---
 ticket: T-017
 title: Popup mất mạng chung và chặn vào app khi không có mạng
-status: approved            # draft | approved | stopped | done
-version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft                # draft | approved | stopped | done
+version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core, build)
 risk_level: high             # low | medium | high
-token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-21)
+token_estimate: 30M          # cỡ M (gợi ý 20M của scripts/token-usage.py estimate, 2026-10-23), nâng lên: bốn module (:core:network, :core:designsystem, :core:assets, :app), 4 ảnh chuẩn
 blocking_points: [analytics, core, build]
-run_order: 10               # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật              # người duyệt
-cross_reviewer: Nhật        # bắt buộc khi risk_level là high
-approved_at: 2026-10-23
+run_order:
+reviewer:
+cross_reviewer:
+approved_at:
 ---
 
 # PLAN T-017: POPUP MẤT MẠNG CHUNG VÀ CHẶN VÀO APP KHI KHÔNG CÓ MẠNG
 
+**Phiên bản 3 (2026-10-23), đổi so với bản 2 (đã duyệt 2026-10-23, nội dung ở commit `4cb757a`):**
+
+- Lấy code của app camera-pose làm nền (issue #72, PR VGL-Studio/camera-pose#23, merge `e23066751fd93e3f945137558287843b506620b3`): bộ điều khiển popup `NetworkDialogController` nằm ở `:core:network` (thay `NetworkLostViewModel` ở `:app` của bản 2), popup `NetworkDialog` ở `:core:designsystem`, trạng thái chờ của `PrimaryButton`, `NetworkDialogHost` vẽ popup trong cửa sổ `Dialog` riêng, `:core:assets` báo khi tải file lỗi vì mạng. Bảng nguồn và bảng đổi so với app ở mục 3.1.
+- Phụ thuộc thêm T-018 (`AssetFailureReason`, issue #73): `:core:assets` chỉ báo lỗi mạng khi lý do là `NETWORK`.
+- Rà soát RUN-20261023-01 (chặn): test nút quay lại không dùng Espresso (`pressBackUnconditionally` không có trên classpath biên dịch test). Nay gọi `onBackPressedDispatcher` của chính cửa sổ dialog (cách đã chạy thử, mục 4.1) và kiểm activity không bị kết thúc. Ghi chú của rà soát: `setContent` của `MainActivity` giữ `FullScreenAdHost()` mà T-013 đặt.
+- Theo kết quả chạy thử của T-013 (plan T-013 bản 2, mục 4.1): gọi `onBackPressedDispatcher` của activity không tới được Dialog Compose; test dùng dispatcher của dialog.
+- Mẫu plan mới: mục 3.3 có "Quyền truy cập:" và "Thư viện và SDK:", mục 3.4, mục 4.1 chạy thử thật bằng `scripts/check.sh`.
+- Rà soát trước khi chạy: `AppNavHost` báo `null` khi chưa có mục trên back stack (khung hình đầu), qua hàm thuần `reportedScreenOf(route)` có unit test; `app/src/test/resources/robolectric.properties` có hai dòng `sdk=35` và `application=android.app.Application`, dùng chung với T-014.
+- Quyết định đã duyệt ở bản 2 giữ nguyên: chữ "vẫn chưa có mạng" (câu hỏi 1), hiện ngay khi rời loading và khi quay lại từ nền (câu hỏi 2), tiếng Việt mặc định và lint (câu hỏi 3), `scripts/check.sh` so ảnh của `:app` (câu hỏi 4), tham số `screen` rút từ route (câu hỏi 5), `SampleScreen` công khai (câu hỏi 6). Câu hỏi 3, 5 của plan T-016 bản 1 (giá trị đầu không chờ, "Thử lại" chỉ đọc trạng thái hệ thống) chuyển về đây vì phần đó nay nằm trong bộ điều khiển.
+
 ## 1. Tóm tắt
 
-`:app` thêm một ViewModel cấp app ghép ba nguồn: trạng thái mạng của `NetworkMonitor` (T-016), `AdsController.fullScreenAdShowing` và màn hình hiện tại của `NavController`. Khi mất mạng, không ở màn hình loading và không có quảng cáo toàn màn hình, một `Dialog` theo thiết kế `NetworkLostScreen` hiện đè lên app, không đóng được bằng tay, có nút "Thử lại", tự đóng khi có mạng; hai sự kiện `network_lost_shown` và `network_restored` ghi qua `Analytics`. Kiểm chứng bằng unit test cho mọi nhánh của ViewModel (nguồn giả, thời gian ảo), test giao diện và screenshot test trên JVM trong `:app` (tên trùng ảnh thiết kế), và kiểm tra thủ công trên bản staging.
+`NetworkDialogController` (một đối tượng cho cả app, ở `:core:network`) quyết định khi nào popup mất mạng hiện: sau `network_lost_delay_seconds` mất mạng liên tục (T-016), ngay khi rời màn hình loading hay quay lại từ nền mà không có mạng, hoặc ngay khi một lần tải file thất bại vì mạng mà máy cũng báo không có mạng; không hiện ở màn hình loading và khi quảng cáo toàn màn hình đang hiện; tự đóng khi có mạng; nút "Thử lại" kiểm lại trong tối đa 2 giây; ghi `network_lost_shown` và `network_restored`. `:app` vẽ popup (`NetworkDialogScreen` của `:core:designsystem`, theo thiết kế `NetworkLostScreen`) trong cửa sổ `Dialog` riêng nên chặn chạm và nút quay lại. Kiểm chứng bằng unit test cho bộ điều khiển (thời gian ảo), test giao diện Robolectric, screenshot test trùng tên ảnh thiết kế và kiểm tra thủ công trên bản staging.
 
 ## 2. Hiểu yêu cầu
 
@@ -25,258 +35,307 @@ Ticket xử lý các kịch bản sau trong `features/network/spec.md`:
 
 | Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
-| KB-1 | Khi màn hình loading bật và không có mạng thì màn hình loading báo lỗi và có nút "Thử lại"; popup mất mạng không hiện chồng lên. | Popup không hiện khi đích hiện tại là `LoadingDestination`. ViewModel bắt đầu ở trạng thái "đang ở loading" (đích đầu tiên của `AppNavHost`), nên trước khi biết đích thì không hiện. |
-| KB-1 | Khi màn hình loading tắt và không có mạng thì popup mất mạng hiện ngay trên màn hình đầu tiên và chặn thao tác. | Loading tắt thì `LoadingViewModel` chuyển ngay sang `Finished` và app đi tới `SampleDestination`. Lần đầu rời loading, ViewModel gọi `NetworkMonitor.checkNow()` một lần; kết quả `false` hiện popup ngay, không chờ khoảng `network_lost_delay_seconds` (khoảng chờ chỉ để tránh mạng chập chờn lúc đang dùng; câu hỏi 2). |
-| KB-1 | Khi Wi-Fi bật nhưng không vào được Internet thì app coi là không có mạng. | Do T-016 (`NET_CAPABILITY_VALIDATED`). T-017 chỉ dùng `isOnline` và `checkNow()`, không đọc trạng thái mạng của hệ thống. |
-| KB-2 | Khi đang dùng mà mất Internet thì sau khoảng chờ ngắn (mặc định 2 giây) popup hiện: tiêu đề, lời giải thích, nút "Thử lại". | Khoảng chờ nằm trong `NetworkMonitor.isOnline` (T-016). Khi flow phát `false`, popup hiện ngay. Chữ theo bảng chữ của thiết kế. |
-| KB-2 | Khi popup đang hiện thì không chạm được vào màn hình bên dưới; chạm ra ngoài hay bấm nút quay lại không đóng popup. | `Dialog` là cửa sổ riêng, có lớp phủ, chặn chạm xuống cửa sổ app. `DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)`, `onDismissRequest` không làm gì. |
-| KB-2 | Khi bấm "Thử lại" mà vẫn không có mạng thì popup vẫn hiện và cho biết vẫn chưa có mạng. | `onRetry()` gọi `checkNow()`; trong lúc kiểm tra nút bị tắt; kết quả `false` thì popup thêm một dòng "vẫn chưa có mạng" (chữ chưa có trong thiết kế, câu hỏi 1). |
-| KB-2 | Khi có mạng trở lại thì popup tự đóng và người dùng ở đúng màn hình, đúng trạng thái trước đó. | Popup không chạm vào điều hướng hay trạng thái của feature; chỉ thôi vẽ `Dialog`. `checkNow()` trả `true` cũng đóng popup ngay, không chờ flow. |
-| KB-2, đặc biệt | Khi một quảng cáo toàn màn hình đang hiện thì popup không chen vào; nếu vẫn mất mạng khi quảng cáo đóng thì popup hiện ngay. | Điều kiện hiện có thêm `!fullScreenAdShowing`. Flow về `false` khi quảng cáo đóng, popup hiện ngay nếu vẫn mất mạng. |
-| KB-2, đặc biệt | Khi app ở nền rồi quay lại mà không có mạng thì popup hiện. | ViewModel sống theo Activity, vẫn theo dõi `isOnline` khi app ở nền; quay lại thì `Dialog` đang trong cây giao diện hiện ra. Thêm: mỗi lần Activity vào `onStart` (trừ lần đầu), ViewModel gọi `checkNow()` để không phải chờ khoảng trễ. |
-| KB-3 | Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì màn hình của feature báo lỗi như trước; popup không hiện. | Popup chỉ dựa vào `NetworkMonitor`, không dựa vào lỗi tải. Có mạng thì popup không hiện, dù feature đang báo lỗi. |
+| KB-1 | Khi màn hình loading bật và không có mạng thì màn hình loading báo lỗi; popup không hiện chồng lên. | `AppNavHost` báo màn hình hiện tại; ở `LoadingDestination` thì báo `null`, bộ điều khiển không hoạt động (không theo dõi, không hiện, bỏ mọi báo lỗi tải). Lúc mở app bộ điều khiển chưa hoạt động. |
+| KB-1 | Khi màn hình loading tắt và không có mạng thì popup hiện ngay trên màn hình đầu tiên và chặn thao tác. | Khi chuyển sang hoạt động, bộ điều khiển gọi `ConnectivitySource.isConnected()` (T-016); không có mạng thì hiện ngay, không chờ khoảng `network_lost_delay_seconds` (khoảng chờ chỉ lọc mạng chập chờn lúc đang dùng). |
+| KB-1 | Khi Wi-Fi bật nhưng không vào được Internet thì app coi là không có mạng. | Do T-016 (`VALIDATED`). |
+| KB-2 | Khi đang dùng mà mất Internet thì sau khoảng chờ (mặc định 2 giây) popup hiện: tiêu đề, lời giải thích, nút "Thử lại". | Bộ điều khiển thu `lostAfterDelay` của T-016 (thời gian chờ đọc `NetworkSettings.LOST_DELAY_SECONDS`). Chữ theo bảng chữ của thiết kế. |
+| KB-2 | Khi popup đang hiện thì không chạm được vào màn hình bên dưới; chạm ra ngoài hay nút quay lại không đóng popup. | `Dialog` là cửa sổ riêng ở trên cùng: hệ thống chặn chạm và TalkBack xuống cửa sổ app (L-004 của app). `DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)`; lớp phủ của `NetworkDialogScreen` nhận mọi chạm; `BackHandler` trong cửa sổ dialog nhận nút quay lại và gọi `onBack` (đưa app về nền, như app camera-pose; câu hỏi 1), không đóng popup, không điều hướng. |
+| KB-2 | Khi bấm "Thử lại" mà vẫn không có mạng thì popup vẫn hiện và cho biết vẫn chưa có mạng. | Như app: kiểm `isConnected()` ngay và mỗi 250 ms, tối đa 2 000 ms; trong lúc kiểm nút hiện vòng xoay và bỏ qua lần bấm; hết 2 giây vẫn mất thì hiện dòng "vẫn chưa có mạng". Chỉ đọc trạng thái hệ thống, không tự gửi yêu cầu ra Internet (plan T-016 bản 1, câu hỏi 5). |
+| KB-2 | Khi có mạng trở lại thì popup tự đóng và người dùng ở đúng màn hình, đúng trạng thái trước đó. | Khác app (app chỉ đóng qua "Thử lại"): nguồn kết nối báo có mạng thì đóng ngay. Popup không chạm điều hướng hay trạng thái feature; nội dung dưới nằm trong cửa sổ khác nên không bị dựng lại. |
+| KB-2, đặc biệt | Khi quảng cáo toàn màn hình đang hiện thì popup không chen vào; nếu vẫn mất mạng khi quảng cáo đóng thì popup hiện ngay. | `MainActivity` chuyển `AdsController.fullScreenAdShowing` vào `setFullScreenAdShowing`. Đang có quảng cáo: bộ điều khiển vẫn ghi nhận mất mạng nhưng trạng thái là `Hidden`; quảng cáo đóng mà vẫn mất mạng thì `Shown` ngay. |
+| KB-2, đặc biệt | Khi app ở nền rồi quay lại mà không có mạng thì popup hiện. | Bộ điều khiển sống theo app nên vẫn theo dõi khi app ở nền. Thêm: `MainActivity.onStart` gọi `onAppForeground()`, từ lần thứ hai kiểm `isConnected()` và hiện ngay nếu mất mạng. |
+| KB-3 | Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì màn hình của feature báo lỗi; popup không hiện. | `:core:assets` chỉ báo khi `AssetFailureReason.NETWORK` (T-018). Khác app (app hiện ngay khi nhận báo): bộ điều khiển nhận báo thì kiểm `isConnected()`; máy vẫn có mạng (quá thời gian, máy chủ không trả lời) thì không hiện, chỉ ghi log. |
 
-Sự kiện phân tích (spec mục 6):
+Sự kiện phân tích (spec mục 6), ghi trong bộ điều khiển qua `Analytics`:
 
-- `network_lost_shown`, tham số `screen`: ghi mỗi lần popup chuyển từ ẩn sang hiện. `screen` là tên đích hiện tại rút từ `route` của Navigation: phần sau dấu chấm cuối, bỏ hậu tố `Destination`, đổi sang chữ thường có gạch dưới (ví dụ `SampleDestination` thành `sample`); không rõ thì `unknown`. Không có dữ liệu cá nhân.
-- `network_restored`, tham số `duration_ms` (thời gian popup hiện, đồng hồ đơn điệu) và `retry_count` (số lần bấm "Thử lại" trong lần hiện đó): ghi khi popup đóng vì có mạng (flow phát `true` hoặc `checkNow()` trả `true`). Popup bị ẩn vì quảng cáo toàn màn hình hay vì quay về loading thì không ghi (không phải "tự đóng vì có mạng").
+- `network_lost_shown`, tham số `screen`: mỗi lần trạng thái chuyển `Hidden` sang `Shown`. `screen` là tên rút từ route của đích hiện tại (`screenNameOf`, giữ quyết định bản 2): `SampleDestination` thành `sample`; không rõ thì `unknown`.
+- `network_restored`, tham số `duration_ms` (thời gian popup hiện, đồng hồ đơn điệu) và `retry_count` (số lần bấm "Thử lại" trong lần hiện đó): khi popup đóng vì có mạng (nguồn báo có mạng, hoặc "Thử lại" thấy có mạng). Ẩn vì quảng cáo toàn màn hình hay vì về loading thì không ghi.
 
-Thiết kế tham chiếu: `features/network/design/README.md`, các ảnh trong `design/screens/`: `NetworkLostScreen_default_light.png`, `NetworkLostScreen_default_dark.png`; số liệu trong `design/context/` cùng tên.
+Thiết kế tham chiếu: `features/network/design/README.md`, ảnh `design/screens/NetworkLostScreen_default_light.png`, `NetworkLostScreen_default_dark.png`, số liệu trong `design/context/` cùng tên.
 
-ADR liên quan: ADR-0024 (quyết định 3, 4), ADR-0013 (quảng cáo toàn màn hình, không gọi SDK ngoài `:core:ads`), ADR-0019 (log), ADR-0020 (tên screenshot test, đối chiếu thiết kế), ADR-0022, ADR-0023 (khóa `network_lost_delay_seconds` do T-016 khai báo), ADR-0001 (`:app` ghép feature và core), ADR-0017 (`scripts/new-app.sh` sửa `app_name` trong `strings.xml`).
+ADR liên quan: ADR-0024 (quyết định 3, 4), ADR-0013 (quảng cáo toàn màn hình, không gọi SDK ngoài `:core:ads`), ADR-0019 (log), ADR-0020 (tên screenshot test, đối chiếu thiết kế), ADR-0023 (khóa do T-016 khai báo), ADR-0001 (core phụ thuộc core: `:core:assets` phụ thuộc `:core:network`, `:core:network` phụ thuộc `:core:analytics`, `:core:logging`), ADR-0017 (dòng `app_name` của `strings.xml`).
 
-Giả định về các task chạy trước (giữ đúng tên của hợp đồng chung):
+Giả định về task chạy trước (đúng tên hợp đồng):
 
-- T-016 đã merge: `interface NetworkMonitor { val isOnline: Flow<Boolean>; suspend fun checkNow(): Boolean }` có binding Hilt, ở `:core:data` hoặc module mới `:core:network` theo plan T-016. `isOnline` đã gồm khoảng chờ `network_lost_delay_seconds`.
-- T-009 đã merge: `AdsController` có `awaitFullScreenTurn`, `onFullScreenShown`, `onAppForeground`, `onAppBackground`; `MainActivity` gọi hai hàm sau trong `onStart`, `onStop`.
-- `AdsController.fullScreenAdShowing: StateFlow<Boolean>` (từ `FullScreenAdPresence.showing`, cùng tên lớp và hàm với plan T-013) thêm ở T-013 hoặc T-017, task nào chạy trước. Plan này **thêm nếu chưa có**.
-- PR #81 đã merge: `scripts/check.sh` duyệt cả `app/`, so ảnh chuẩn của `:app` bằng `verifyRoborazziStagingDebug` (đọc `src/test` và `src/testStaging`).
+- T-016: `internal interface ConnectivitySource { fun isConnected(): Boolean; fun connectivity(): Flow<Boolean> }`, `internal fun ConnectivitySource.lostAfterDelay(delaySeconds: suspend () -> Long): Flow<Unit>`, `NetworkSettings.LOST_DELAY_SECONDS: RemoteKey<Long>`, `di/NetworkModule.kt` với `@NetworkScope CoroutineScope`, `FakeConnectivitySource` và `FakeRemoteSettings` trong `core/network/src/test`.
+- T-018: `enum class AssetFailureReason { NETWORK, NOT_FOUND, OTHER }`, `AssetResult.Unavailable(reason)`, `DefaultRemoteAssets` tính `e.toFailureReason()`, `HttpStatusException`.
+- T-009: `MainActivity` có `onStart`, `onStop` gọi `ads.onAppForeground()`, `ads.onAppBackground()`.
+- `AdsController.fullScreenAdShowing: StateFlow<Boolean>` (từ `FullScreenAdPresence.showing`, hợp đồng chung với T-013): plan này thêm nếu chưa có.
+- PR #81 đã merge: `scripts/check.sh` so ảnh chuẩn của `:app` bằng `verifyRoborazziStagingDebug` (đã thấy chạy trong lần chạy thử, mục 4.1).
 
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
 
-**Trạng thái quảng cáo toàn màn hình trong `:core:ads`** (thêm nếu T-013 chưa thêm):
+**Nguồn code.** PR VGL-Studio/camera-pose#23 (merge `e23066751fd93e3f945137558287843b506620b3`), đổi gói `com.vglstudio.camera.pose.line.guide` thành `com.vglstudio.template`:
 
-- Dùng đúng lớp mà plan T-013 mô tả, để task nào chạy trước cũng tạo ra cùng một file: lớp thuần `internal class FullScreenAdPresence` trong `FullScreenAdPresence.kt` với `val showing: StateFlow<Boolean>`, `fun onShowing()` (đặt `true`), `fun onClosed()` (đặt `false`, gọi nhiều lần không sao). Không phụ thuộc Android, test bằng unit test. Việc chống hai quảng cáo toàn màn hình chồng nhau do cờ `fullScreenInProgress` của T-009 lo, không phải lớp này.
-- `AdsController` giữ một `FullScreenAdPresence` (`presence`) và công khai `val fullScreenAdShowing: StateFlow<Boolean> = presence.showing` (KDoc: true khi interstitial hay native toàn màn hình đang hiện). Nối interstitial như plan T-013: ngay trước `show()` gọi `presence.onShowing()`; `onAdDismissedFullScreenContent` và `onAdFailedToShowFullScreenContent` gọi `presence.onClosed()`. Không đổi gì khác trong `AdsController` (native toàn màn hình do T-013 nối vào sau).
-- Nếu T-013 đã thêm `FullScreenAdPresence` và `fullScreenAdShowing` đúng tên và kiểu hợp đồng, bỏ phần này, không tạo lại file và test; ghi vào nhật ký.
+| File ở dự án mẫu | Nguồn ở app | Cách lấy |
+| --- | --- | --- |
+| `core/network/.../NetworkDialogState.kt` | `core/network/.../NetworkDialogState.kt` | Chép |
+| `core/network/.../NetworkStatus.kt` | `core/network/.../NetworkStatus.kt` | Chép, sửa KDoc (`recovered` phát cả khi tự đóng vì có mạng) |
+| `core/network/.../NetworkFailureReporter.kt` | `core/network/.../NetworkFailureReporter.kt` | Chép |
+| `core/network/.../NetworkDialogController.kt` | `core/network/.../NetworkDialogController.kt` | Chép khung (`state`, `dialogShown`, `recovered`, `retry` với `compareAndSet`, `show`), sửa theo bảng dưới |
+| `core/network/.../NetworkClock.kt` | không có ở app | Mới, theo mẫu `LoadingClock` của `:feature:loading`, cho `duration_ms` |
+| `core/network/.../NetworkSettings.kt` (sửa) | `RETRY_MAX_MILLIS`, `RETRY_POLL_MILLIS` của `NetworkSettings.kt` | Thêm hai hằng `internal` |
+| `core/network/.../di/NetworkModule.kt` (sửa) | `NetworkBindingsModule` của `di/NetworkModule.kt` | Chép hai `@Binds`; thêm `NetworkClock` |
+| `core/network/src/test/.../NetworkDialogControllerTest.kt` | cùng tên | Chép các test hợp với spec, sửa và thêm theo bảng dưới |
+| `core/designsystem/.../component/NetworkDialog.kt` | cùng tên | Chép khung (`NetworkDialog`, `NetworkDialogScreen` nhận mọi chạm, cuộn, `paneTitle`, test tag), đổi bố cục theo thiết kế đã duyệt |
+| `core/designsystem/.../component/PrimaryButton.kt` (sửa) | phần `loading` của `PrimaryButton.kt` | Chép tham số `loading`, vòng xoay, `PrimaryButtonTestTags` |
+| `core/designsystem/src/main/res/drawable/ic_wifi_off.xml`, `core/designsystem/third_party/material-symbols/LICENSE.txt` | cùng tên | Chép (Material Symbols Rounded, Apache 2.0) |
+| `core/designsystem/src/test/.../NetworkDialogTest.kt`, `PrimaryButtonLoadingTest.kt` | cùng tên | Chép, sửa số đo và chữ theo thiết kế |
+| `core/assets/.../DefaultRemoteAssets.kt`, `di/AssetsModule.kt` (sửa), `DefaultRemoteAssetsNetworkFailureTest.kt` | cùng tên | Chép phần `networkFailures` |
+| `app/.../network/NetworkDialogHost.kt` | cùng tên | Chép, bỏ tham số `darkTheme`, truyền chữ từ `strings.xml` của `:app` |
+| `app/.../navigation/AppNavHost.kt`, `MainActivity.kt` (sửa) | cùng tên | Chép cách nối, đổi `onPastLoadingChanged(Boolean)` thành `onScreenChanged(String?)` |
+| `app/src/test/.../network/NetworkDialogHostTest.kt`, `app/src/test/resources/robolectric.properties` | cùng tên | Chép (đã chạy thử), thêm kiểm activity không kết thúc; `robolectric.properties` thêm dòng `application=android.app.Application` |
+| `app/.../network/ScreenName.kt`, `ScreenNameTest.kt`, `NetworkLostScreenScreenshotTest.kt` | không có ở app | Từ plan bản 2 |
 
-**Cầu nối trong `:app`** (gói `com.vglstudio.template.network`):
+**Phần đổi so với app:**
 
-- `fun interface FullScreenAdStatus { fun showing(): Flow<Boolean> }`, cài bằng `AdsController.fullScreenAdShowing`. ViewModel nhận interface này thay vì `AdsController` (lớp gắn SDK, không dựng được trong unit test).
-- `fun interface NetworkClock { fun elapsedRealtimeMillis(): Long }`, cài bằng `SystemClock.elapsedRealtime()`, theo mẫu `LoadingClock`.
-- Hilt module `app/.../di/NetworkLostModule.kt` (`@InstallIn(SingletonComponent::class)`) cung cấp hai interface trên.
-- `fun screenNameOf(route: String?): String` (hàm thuần trong `ScreenName.kt`): bỏ phần sau `?` và `/`, lấy phần sau dấu chấm cuối, bỏ hậu tố `Destination`, đổi CamelCase sang snake_case, cắt tối đa 100 ký tự; `null` hay rỗng thì `unknown`.
+| Điểm | App camera-pose (PR #23) | Dự án mẫu (plan này) | Lý do |
+| --- | --- | --- | --- |
+| Cờ tính năng | `FeatureFlag.NETWORK_DIALOG` (mặc định tắt), bật ở `StagingFeatureFlagsModule` | Bỏ: không có cờ, không sửa `FeatureFlag.kt` hay `StagingFeatureFlagsModule.kt` | ADR-0024, spec mục 8: luôn bật |
+| Khóa thời gian chờ | Chuỗi, mặc định 3, `settings.long(...)` | `NetworkSettings.LOST_DELAY_SECONDS` (`RemoteKey`, mặc định 2) của T-016, `settings.value(key)` | Spec mục 8, ADR-0023 |
+| Có mạng trở lại | Popup giữ tới khi bấm "Thử lại" | Tự đóng ngay, phát `recovered`, ghi `network_restored` | Spec KB-2 tiêu chí 4 |
+| Báo lỗi tải vì mạng | Hiện ngay | Hiện ngay chỉ khi `isConnected()` cũng là `false`; còn mạng thì chỉ ghi log | Spec KB-3: quá thời gian khi vẫn có mạng không hiện popup |
+| Khi mở popup lần đầu sau loading | Chờ đủ khoảng chờ | Kiểm `isConnected()` ngay khi rời loading và khi quay lại từ nền | Spec KB-1 tiêu chí 2, KB-2 (quay lại từ nền); plan bản 2, câu hỏi 2 |
+| Quảng cáo toàn màn hình | Không xét | `setFullScreenAdShowing(Boolean)` giữ popup ẩn khi quảng cáo đang hiện | Spec KB-2, trường hợp đặc biệt; hợp đồng `fullScreenAdShowing` với T-013 |
+| Đầu vào màn hình | `setActive(Boolean)` | `setScreen(screen: String?)` (`null` là loading) | Cần tên màn hình cho `network_lost_shown` |
+| Sự kiện phân tích | Không có | `network_lost_shown`, `network_restored` qua `:core:analytics` | Spec mục 6, câu hỏi 2 đã duyệt |
+| Chữ | "Mất kết nối mạng", "App cần mạng...", "Vẫn chưa có mạng" trong `strings.xml` của `:core:designsystem` | Chữ của bảng chữ thiết kế, trong `strings.xml` của `:app` (tiếng Việt) và `values-en`; `NetworkDialog` nhận chữ qua tham số | Thiết kế mục 2; chữ của app không nằm trong hệ thống thiết kế (giữ `:core:designsystem` không có `values-en`, không đổi `brand_tagline`) |
+| Giao diện hộp thoại | Kiểu Sticker: rộng tối đa 331 dp, nền `surface`, viền, icon 32 dp trong vòng tròn 64 dp, tiêu đề `titleLarge`, nút có icon làm mới, dòng "vẫn chưa có mạng" dưới nút `bodySmall`, lớp phủ 50% | Theo thiết kế đã duyệt: rộng 312 dp (không quá màn hình trừ `Spacing.lg` mỗi bên), nền `surfaceContainerHigh`, bo `shapes.extraLarge` (28 dp), lề `Spacing.lg`, cách nhau `Spacing.md`, icon wifi-off 24 dp màu `secondary`, tiêu đề `headlineSmall` `onSurface`, nội dung `bodyMedium` `onSurfaceVariant`, nút `PrimaryButton` hết chiều rộng không icon, dòng "vẫn chưa có mạng" dưới nội dung `bodyMedium` màu `error`, lớp phủ `colorScheme.scrim` 32% | Thiết kế mục 2, 3; plan bản 2, câu hỏi 1 |
+| Icon làm mới `ic_refresh.xml` | Có | Không lấy | Nút trong thiết kế không có icon |
+| Nút quay lại | `moveTaskToBack(true)` | Giữ như app (câu hỏi 1) | Spec chỉ đòi không đóng popup |
+| Chủ đề tối của popup | Tham số `darkTheme` cho màn hình camera | Bỏ: popup theo `AppTheme` của app | Dự án mẫu không có màn hình tối riêng |
+| Quyền ở `app/src/main/AndroidManifest.xml` | Khai báo `ACCESS_NETWORK_STATE` | Không sửa | Quyền ở manifest của `:core:network` (T-016, spec mục 6) |
+| Tên ảnh chuẩn | `NetworkDialogScreen_*.png` trong `:core:designsystem`, nền trống | `NetworkLostScreen_*.png` trong `:app`, popup đè lên `SampleScreen` | Tên frame của thiết kế (ADR-0020); thiết kế README mục 1 |
 
-**`NetworkLostUiState`** (sealed interface):
+**`:core:network` (bộ điều khiển).**
 
-- `Hidden`.
-- `Shown(checking: Boolean = false, stillOffline: Boolean = false)`: `checking` khi đang chạy `checkNow()` (nút tắt), `stillOffline` sau một lần thử lại thất bại.
+- `core/network/build.gradle.kts`: thêm `implementation(project(":core:analytics"))`, `implementation(project(":core:logging"))`.
+- `NetworkDialogState`: `Hidden`, `Shown(checking: Boolean, stillOffline: Boolean)`.
+- `NetworkStatus` (public): `dialogShown: StateFlow<Boolean>`, `recovered: Flow<Unit>` (phát mỗi lần popup đóng vì có mạng). Chưa module nào của dự án mẫu dùng; dành cho feature của app (app camera-pose dừng đếm ngược camera, tải lại màn hình lỗi).
+- `NetworkFailureReporter` (public `fun interface`): `reportNetworkFailure(source: String)`, `source` là nhãn ngắn, chỉ để log.
+- `NetworkClock` (`internal fun interface`): `elapsedRealtimeMillis()`; Hilt cấp `SystemClock.elapsedRealtime()`.
+- `NetworkDialogController @Singleton @Inject internal constructor(connectivity: ConnectivitySource, settings: RemoteSettings, analytics: Analytics, logger: AppLogger, clock: NetworkClock, @NetworkScope scope: CoroutineScope) : NetworkStatus, NetworkFailureReporter`:
+  - Trạng thái trong: `screen: MutableStateFlow<String?>` (bắt đầu `null`), `adShowing: MutableStateFlow<Boolean>`, `lost: MutableStateFlow<Boolean>`, `retryJob`, `retryCount`, `shownAt`, `foregroundCount`.
+  - `state: StateFlow<NetworkDialogState>`: `Shown(checking, stillOffline)` khi `lost && screen != null && !adShowing`, còn lại `Hidden`. Chuyển `Hidden` sang `Shown`: `shownAt = clock`, `retryCount = 0`, ghi `network_lost_shown(screen)`, log `info("Network", "Dialog shown: <lý do> on <screen>")`. Lý do: `device_offline`, `offline_on_start`, `offline_on_foreground`, `load_failed`.
+  - `setScreen(screen: String?)`: `null` thì ngừng theo dõi, `lost = false`, hủy `retryJob`, log `Dialog hidden: loading` nếu đang hiện, không ghi sự kiện. Từ `null` sang tên màn hình: kiểm `isConnected()`, mất thì `lost = true` (lý do `offline_on_start`), rồi thu `connectivity.lostAfterDelay { settings.value(NetworkSettings.LOST_DELAY_SECONDS).first() }` (mất: `lost = true`, lý do `device_offline`) và `connectivity.connectivity()` (có mạng khi `lost`: đóng vì có mạng). Hai luồng cùng một nguồn nên chỉ thu trong một `collectLatest` theo `screen != null`, như app.
+  - `setFullScreenAdShowing(showing: Boolean)`: cập nhật; quảng cáo bắt đầu khi đang hiện thì ẩn, log `Dialog paused: full_screen_ad`, không ghi `network_restored`; quảng cáo đóng mà `lost` thì hiện ngay (ghi `network_lost_shown` lần nữa).
+  - Đóng vì có mạng: `lost = false`; nếu đang `Shown` thì ghi `network_restored(duration_ms, retry_count)`, log `Dialog closed: online after <ms> ms, <n> retries`, phát `recovered`.
+  - `retry()`: như app (bỏ qua khi không `Shown` hay đang `checking`; `compareAndSet` sang `checking`; kiểm ngay rồi mỗi `RETRY_POLL_MILLIS` tới `RETRY_MAX_MILLIS`), cộng `retryCount`. Có mạng: đóng vì có mạng. Hết giờ: `Shown(stillOffline = true)`, log `Retry: still_offline`.
+  - `reportNetworkFailure(source)`: chỉ khi `screen != null`. `isConnected()` là `false` thì `lost = true` ngay (lý do `load_failed source=<source>`); `true` thì log `info("Network", "Load failed while online: <source>")`, không hiện (KB-3). Gọi được từ mọi luồng.
+  - `onAppForeground()`: lần đầu bỏ qua (đã kiểm khi rời loading); từ lần hai, nếu `screen != null` và `isConnected()` là `false` thì `lost = true` (lý do `offline_on_foreground`).
+  - Log thẻ `Network`, không có tên mạng, địa chỉ, đường dẫn file (ADR-0019).
+- `NetworkModule.kt`: thêm `NetworkBindingsModule` (`@Binds NetworkStatus`, `@Binds NetworkFailureReporter` tới `NetworkDialogController`) và `@Provides NetworkClock`. Phải có trong cùng task với phần sửa `:core:assets`: chạy thử cho thấy thiếu binding `NetworkFailureReporter` thì Hilt của `:app` báo lỗi biên dịch (mục 4.1).
 
-**`NetworkLostViewModel`** (`@HiltViewModel`, theo mẫu `LoadingViewModel`), nhận `NetworkMonitor`, `FullScreenAdStatus`, `Analytics`, `AppLogger`, `NetworkClock`:
+**`:core:assets`.** `build.gradle.kts` thêm `implementation(project(":core:network"))`. `DefaultRemoteAssets` nhận thêm `networkFailures: NetworkFailureReporter? = null`; trong `catch`, sau khi tính `reason` (T-018), `if (reason == AssetFailureReason.NETWORK) networkFailures?.reportNetworkFailure("assets")`. `AssetsModule` tiêm `NetworkFailureReporter`. File đã có trên máy thì không tải, không báo.
 
-- Trạng thái trong: `online: MutableStateFlow<Boolean?>` (chưa biết là `null`, coi như có mạng), `onLoadingScreen: MutableStateFlow<Boolean>` (bắt đầu `true`), `screen: String`, `retryCount`, `shownAt`.
-- `init`: thu `networkMonitor.isOnline` vào `online`; `combine(online, onLoadingScreen, fullScreenAdStatus.showing())` ra `shouldShow = online == false && !onLoading && !adShowing`.
-- Chuyển ẩn sang hiện: `state = Shown()`, `shownAt = clock`, `retryCount = 0`, ghi `network_lost_shown(screen)`, log `info("Network", "Popup shown on <screen>")`.
-- Chuyển hiện sang ẩn: nếu lý do là `online == true` thì ghi `network_restored(duration_ms, retry_count)` và log `info("Network", "Popup closed: online after <ms> ms, <n> retries")`; nếu lý do là quảng cáo hay loading thì chỉ log `info("Network", "Popup paused: full-screen ad" | "loading screen")`, không ghi sự kiện.
-- `onDestinationChanged(route: String?, isLoading: Boolean)`: cập nhật `screen` và `onLoadingScreen`. Lần đầu `isLoading` thành `false`, gọi `checkNow()` một lần và đưa kết quả vào `online` (KB-1, tiêu chí 2).
-- `onRetry()`: chỉ chạy khi `Shown` và không `checking`. `retryCount++`, `state = Shown(checking = true)`, `checkNow()`. `true`: `online = true` (popup đóng, ghi `network_restored`). `false`: `Shown(stillOffline = true)`, log `info("Network", "Retry <n>: still offline")`. Ngoại lệ từ `checkNow()` (trừ `CancellationException`) coi như `false` và log `warn`.
-- `onAppForeground()`: từ lần thứ hai trở đi gọi `checkNow()` (KB-2, quay lại từ nền).
-- Kết quả của `checkNow()` chỉ ghi vào `online` khi flow chưa phát giá trị mới hơn trong lúc chờ (giữ số thứ tự), để flow luôn thắng kết quả cũ.
-- Hằng số: `EVENT_LOST_SHOWN = "network_lost_shown"`, `EVENT_RESTORED = "network_restored"`, `LOG_TAG = "Network"`. Log không chứa tên mạng, địa chỉ hay dữ liệu cá nhân (ADR-0019).
+**`:core:designsystem`.**
 
-**Giao diện** (`NetworkLostDialog.kt`):
+- `PrimaryButton(text, onClick, modifier, enabled, icon, loading: Boolean = false)`: khi `loading`, `CircularProgressIndicator` cỡ `IconSize` (18 dp), màu `LocalContentColor.current`, nét 2 dp, thay chỗ icon, test tag `PrimaryButtonTestTags.SPINNER`; nút giữ dáng `enabled`, `onClick` bị bỏ qua. Không `loading` thì không đổi gì (ảnh chuẩn của danh mục thiết kế không đổi).
+- `NetworkDialog(title: String, message: String, retryLabel: String, stillOfflineMessage: String?, checking: Boolean, onRetry: () -> Unit, modifier)`: `Column` rộng `DialogWidth = 312.dp` (`widthIn(max = 312.dp).fillMaxWidth()`, hằng ngoài hệ thống duy nhất, có chú thích nguồn Material 3 và thiết kế mục 3), nền `surfaceContainerHigh`, `shapes.extraLarge`, lề `Spacing.lg`, cách nhau `Spacing.md`, căn giữa, `semantics { paneTitle = title }`, test tag `NetworkDialogTestTags.CARD`. Thứ tự: icon `ic_wifi_off` 24 dp màu `secondary`, tiêu đề `headlineSmall` `onSurface`, nội dung `bodyMedium` `onSurfaceVariant`, `stillOfflineMessage` (khác `null`) `bodyMedium` màu `error` có `liveRegion = Polite` và tag `STILL_OFFLINE`, rồi `PrimaryButton(retryLabel, loading = checking)` hết chiều rộng, tag `RETRY`.
+- `NetworkDialogScreen(...cùng tham số)`: `Box` toàn màn hình, nền `colorScheme.scrim` độ mờ 0.32 (thiết kế mục 3), nhận và tiêu mọi chạm (`pointerInput` như app), tag `SCREEN`; trong đó `Column` `safeDrawingPadding`, `verticalScroll`, lề `Spacing.md`, căn giữa, chứa `NetworkDialog`.
+- `ic_wifi_off.xml` và `third_party/material-symbols/LICENSE.txt` chép từ app.
 
-- `@Composable fun NetworkLostDialog(uiState: NetworkLostUiState.Shown, onRetry: () -> Unit)`: `Dialog(onDismissRequest = {}, properties = NetworkLostDialogProperties)`, với `NetworkLostDialogProperties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false)`. Lớp phủ là lớp phủ mặc định của `Dialog` (thiết kế mục 6 cho phép khác).
-- Nội dung `NetworkLostDialogContent(uiState, onRetry, modifier)` (tách ra để test và screenshot): `Surface` màu `colorScheme.surfaceContainerHigh`, `shapes.extraLarge` (28 dp), rộng `DialogWidth = 312.dp` nhưng không vượt màn hình trừ lề `Spacing.lg` mỗi bên (`widthIn(max = ...)`); `Column` lề `Spacing.lg`, cách nhau `Spacing.md`, căn giữa, `verticalScroll` để không bị cắt khi cỡ chữ lớn. Hằng số `DialogWidth` là giá trị "ngoài hệ thống" duy nhất (thiết kế mục 3 cho plan quyết), đặt `private val` trong file, có chú thích nguồn Material 3.
-- Các phần tử theo thứ tự: icon `R.drawable.ic_network_off` 24 dp, màu `colorScheme.secondary`, `contentDescription = null`; tiêu đề `headlineSmall`, `onSurface`, căn giữa; nội dung `bodyMedium`, `onSurfaceVariant`, căn giữa; khi `stillOffline`: dòng `network_lost_still_offline`, `bodyMedium`, `colorScheme.error`, căn giữa, `liveRegion = Polite`; nút `PrimaryButton(text = network_lost_retry, enabled = !checking, modifier = fillMaxWidth())`.
-- Test tag: `network_lost_dialog`, `network_lost_retry`, `network_lost_still_offline`.
-- Icon: vector drawable `ic_network_off.xml` vẽ theo icon "wifi-off" của thiết kế (24 x 24, nét 2), màu do `tint` quyết.
+**`:app`.**
 
-**Ghép vào app:**
+- `strings.xml` (tiếng Việt, dòng `app_name` giữ nguyên từng ký tự vì `scripts/new-app.sh` thay đúng dòng đó): `network_lost_title` "Không có kết nối mạng", `network_lost_message` "Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.", `network_lost_retry` "Thử lại", `network_lost_still_offline` "Vẫn chưa có kết nối. Hãy thử lại sau ít phút.". `values-en/strings.xml` mới: "No internet connection", "This app needs the Internet to work. Check Wi-Fi or mobile data, then try again.", "Try again", "Still no connection. Please try again in a moment.". Không đưa `app_name` vào `values-en` (xử lý lint theo câu hỏi 3 của bản 2).
+- `NetworkDialogHost(state, onRetry, onBack, modifier, content)`: vẽ `content`; khi `Shown` mở `Dialog(onDismissRequest = {}, DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false, decorFitsSystemWindows = false))`, tắt lớp mờ của hệ thống (`setDimAmount(0f)`, popup tự vẽ lớp phủ), vẽ `NetworkDialogScreen` với chữ từ `stringResource`, `BackHandler(onBack = onBack)`.
+- `ScreenName.kt`: `screenNameOf(route: String?): String` như bản 2, và hàm thuần mới `internal fun reportedScreenOf(route: String?): String?`: `route` là `null` (chưa có mục nào trên back stack, khung hình đầu tiên khi `currentBackStackEntryAsState()` còn `null`) thì `null`; route của `LoadingDestination` (`screenNameOf(route) == "loading"`) thì `null`; còn lại `screenNameOf(route)`. Hàm chỉ nhận chuỗi route nên unit test JVM gọi thẳng được, không cần `NavController`.
+- `AppNavHost(modifier, onScreenChanged: (String?) -> Unit = {})`: `val entry by navController.currentBackStackEntryAsState()`, `val screen = reportedScreenOf(entry?.destination?.route)`; `LaunchedEffect(screen) { onScreenChanged(screen) }` (như app, đúng cả khi activity dựng lại). Khung hình đầu chưa có mục trên back stack thì báo `null`, giống `LoadingDestination`: bộ điều khiển chưa hoạt động, popup không thể chớp lên trước màn hình loading.
+- `MainActivity`: `@Inject lateinit var networkDialog: NetworkDialogController`. Trong `AppTheme`: `Surface { val state by networkDialog.state.collectAsState(); NetworkDialogHost(state, networkDialog::retry, onBack = { moveTaskToBack(true) }) { AppNavHost(onScreenChanged = networkDialog::setScreen) } }`; `val adShowing by ads.fullScreenAdShowing.collectAsState()`, `LaunchedEffect(adShowing) { networkDialog.setFullScreenAdShowing(adShowing) }`; giữ nguyên `FullScreenAdHost()` nếu T-013 đã đặt, `gatherConsent`, `onUserInteraction`. `onStart` thêm `networkDialog.onAppForeground()` cạnh lệnh của T-009.
+- `app/build.gradle.kts`: plugin `alias(libs.plugins.roborazzi)`, khối `roborazzi { outputDir.set(layout.projectDirectory.dir("src/test/screenshots")) }`, `testImplementation(libs.roborazzi)`, `testImplementation(libs.roborazzi.compose)`, `testImplementation(libs.roborazzi.junit.rule)` (thêm nếu T-014 chưa thêm). `implementation(project(":core:network"))` đã có từ T-016.
+- `app/src/test/resources/robolectric.properties`: hai dòng `sdk=35` và `application=android.app.Application`, để mọi test Robolectric của `:app` không dựng `TemplateApplication` (Hilt, Firebase). Lớp test của `:app` không cần ghi `@Config(application = Application::class)`; lớp chép từ app còn dòng đó thì để nguyên, vô hại vì trùng giá trị với file. T-014 dùng chung file này (chạy trước T-017 thì T-014 tạo với đúng hai dòng này).
+- `SampleScreen` của `:feature:sample` từ `internal` sang công khai (bản 2, câu hỏi 6).
 
-- `AppNavHost(navController: NavHostController, modifier)`: nhận `navController` thay vì tự tạo, để `MainActivity` dùng chung với popup. Không đổi đích nào.
-- `NetworkLostHost(navController, viewModel)` trong `NetworkLostHost.kt`: theo dõi `navController.currentBackStackEntryAsState()`, gọi `viewModel.onDestinationChanged(route, destination.hasRoute<LoadingDestination>())`; `uiState` qua `collectAsStateWithLifecycle()`; `Shown` thì vẽ `NetworkLostDialog`.
-- `MainActivity`: `private val networkLost: NetworkLostViewModel by viewModels()`; trong `setContent`: `val navController = rememberNavController()`, `AppNavHost(navController)`, `NetworkLostHost(navController, networkLost)`; `onStart` gọi thêm `networkLost.onAppForeground()`. Giữ nguyên `gatherConsent`, `onUserInteraction` và các lệnh T-009 thêm.
-- Chữ: `app/src/main/res/values/strings.xml` thêm bốn chuỗi tiếng Việt (mặc định, như `:feature:loading`): `network_lost_title` "Không có kết nối mạng", `network_lost_message` "Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.", `network_lost_retry` "Thử lại", `network_lost_still_offline` (câu hỏi 1). Dòng `app_name` giữ nguyên từng ký tự vì `scripts/new-app.sh` thay đúng dòng đó (ADR-0017); test của script ở `scripts/tests/run.sh` vì vậy không bị ảnh hưởng. `app/src/main/res/values-en/strings.xml` mới có bốn chuỗi tiếng Anh: "No internet connection", "This app needs the Internet to work. Check Wi-Fi or mobile data, then try again.", "Try again", và bản tiếng Anh của câu hỏi 1. Không đưa `app_name` vào `values-en` (new-app.sh không sửa file đó); xem câu hỏi 3 về lint.
+**`:core:ads`** (thêm nếu T-013 chưa thêm, giữ hợp đồng bản 2): `internal class FullScreenAdPresence` (`showing`, `onShowing()`, `onClosed()`), `AdsController.fullScreenAdShowing`, interstitial gọi `onShowing()` ngay trước `show()`, `onClosed()` khi đóng hay lỗi hiện. Đã có đúng tên và kiểu thì bỏ phần này, ghi nhật ký.
 
-**Hạ tầng test JVM của `:app`** (lần đầu `:app` có test trên JVM):
+**Screenshot và đối chiếu thiết kế.** `NetworkLostScreenScreenshotTest` ở `:app` dựng trong một cửa sổ `Box { SampleScreen(SampleUiState.Ready(count = 3), onIncrement = {}); NetworkDialogScreen(...) }` trong `AppTheme`, rồi `composeRule.onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_default_light.png")` (tương tự cho ba ảnh còn lại ở mục 4). `onRoot()` chỉ chụp cửa sổ chính, nên screenshot không mở `Dialog`; cửa sổ dialog thật kiểm ở `NetworkDialogHostTest`. Đối chiếu: gọi thẳng `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/network/design/screens app/src/test/screenshots docs/features/network/design/review` (script bọc ngoài chỉ đọc `feature/<feature>/`), commit `design/review/`, ghi nhận xét vào `design/README.md` mục 8. Icon Material Symbols có thể khác nét icon trên Figma (câu hỏi 3); vùng quảng cáo native dưới `SampleScreen` trống vì test không có `AdsController`.
 
-- `app/build.gradle.kts`: thêm plugin `alias(libs.plugins.roborazzi)` và khối `roborazzi { outputDir.set(layout.projectDirectory.dir("src/test/screenshots")) }` như convention của feature; thêm `implementation(libs.androidx.lifecycle.runtime.compose)`, `testImplementation(libs.roborazzi)`, `testImplementation(libs.roborazzi.compose)`, `testImplementation(libs.roborazzi.junit.rule)`; thêm `implementation(project(":core:network"))` (plan T-016 chọn module mới `:core:network`, nếu `:app` chưa phụ thuộc). Mọi alias đã có trong `gradle/libs.versions.toml`; không sửa file đó hay `build-logic/`. Robolectric, Compose test, coroutines test và Turbine đã có qua convention `template.android.compose` và `KotlinAndroid.kt`.
-- `app/src/test/resources/robolectric.properties`: `sdk=35` và `application=android.app.Application`, để Robolectric không dựng `TemplateApplication` (Hilt, Firebase) trong test giao diện.
-- `MainDispatcherRule` chép sang `app/src/test` (mỗi module một bản, như `:feature:loading`).
-- Screenshot test dùng `composeRule.onRoot().captureRoboImage("src/test/screenshots/<Tên>.png")`, không dùng `captureScreenRoboImage`: `scripts/check.sh` chỉ nhận lệnh `captureRoboImage("src/test/screenshots/...")` để biết module có ảnh chuẩn và chạy `verifyRoborazziStagingDebug`; gọi `captureScreenRoboImage` thì CI không so ảnh nào của `:app`. `onRoot()` chỉ chụp cửa sổ chính, nên screenshot test không mở cửa sổ `Dialog` mà dựng cùng bố cục trong một cửa sổ: `setContent { AppTheme { Box(Modifier.fillMaxSize()) { SampleScreen(SampleUiState.Ready(count = 3), onIncrement = {}); Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))); NetworkLostDialogContent(uiState, onRetry = {}, Modifier.align(Alignment.Center)) } } }` (lớp phủ đen 32% theo thiết kế mục 3; hàm dựng này nằm trong file test). Cửa sổ `Dialog` thật (không đóng được, chặn quay lại, kích thước) kiểm ở `NetworkLostDialogTest`. `SampleScreen` của `:feature:sample` đổi từ `internal` sang công khai (thiết kế README mục 1: dựng popup đè lên `SampleScreen`); không đổi nội dung màn hình. `:app` đã phụ thuộc `:feature:sample` nên không đổi quy tắc module.
-
-**Ảnh chuẩn và đối chiếu thiết kế:**
-
-- Sau PR #81, `scripts/check.sh` duyệt cả `app/`: thấy `captureRoboImage("src/test/screenshots/...")` trong `app/src/test` thì chạy `:app:verifyRoborazziStagingDebug` trong CI, và trên máy tự ghi ảnh còn thiếu bằng `:app:recordRoborazziStagingDebug` mà không ghi đè ảnh đã có. Plan không sửa `scripts/check.sh`. T-017 cần PR #81 merge trước (mục 6, mục 7).
-- Script đối chiếu thiết kế của repo đọc ảnh ở `feature/<feature>/src/test/screenshots/`, không có thư mục `feature/network`. Phiên tự chạy gọi thẳng chương trình so ảnh với thư mục của `:app`, không sửa script: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/network/design/screens app/src/test/screenshots docs/features/network/design/review`. Commit `docs/features/network/design/review/`, ghi bảng `summary.md` và nhận xét của rà soát độc lập vào `design/README.md` mục 8 và mô tả PR. Phần dưới popup có thể khác thiết kế ở vùng quảng cáo native (test không có `AdsController`, ADR-0013); ghi rõ trong mục 8.
-
-**Commit test trước (bước 3, L-025):** commit test chứa mọi file test và bản giả trong `app/src/test` và `core/ads/src/test`, `robolectric.properties`, phần test của `app/build.gradle.kts` (plugin Roborazzi, `testImplementation`), cùng khung rỗng để test biên dịch được: `NetworkLostUiState` đầy đủ, `NetworkLostViewModel` luôn `Hidden` và không ghi gì, `screenNameOf` trả `unknown`, `NetworkLostDialog` và `NetworkLostDialogContent` rỗng, `FullScreenAdPresence` với `showing` luôn `false`, `FullScreenAdStatus`, `NetworkClock`, bốn chuỗi trong `strings.xml` (cả hai ngôn ngữ, để test chữ thất bại ở phần kiểm tra chứ không ở biên dịch, vì chữ là tài nguyên), và `SampleScreen` công khai. Test thất bại ở phần kiểm tra. Commit code ở bước 4 viết phần thật, icon, Hilt module, nối vào `AdsController`, `AppNavHost`, `MainActivity`, rồi ghi ảnh chuẩn.
+**Thứ tự commit (L-025).** Commit test (bước 3): mọi file test mới và sửa trong `core/network/src/test`, `core/designsystem/src/test`, `core/assets/src/test`, `core/ads/src/test`, `app/src/test`, `robolectric.properties`, phần test của `app/build.gradle.kts`, và khung để biên dịch: `NetworkDialogState`, `NetworkStatus`, `NetworkFailureReporter`, `NetworkClock`, `NetworkDialogController` luôn `Hidden` không ghi gì, tham số `loading` của `PrimaryButton` chưa làm gì, `NetworkDialog`/`NetworkDialogScreen` rỗng có test tag, `NetworkDialogHost` chỉ vẽ `content`, `screenNameOf` trả `unknown`, `reportedScreenOf` trả `unknown`, tham số `networkFailures` chưa gọi, `FullScreenAdPresence` luôn `false`, bốn chuỗi (hai ngôn ngữ), `SampleScreen` công khai. Test thất bại ở phần kiểm tra. Commit code (bước 4) viết phần thật, icon, Hilt, nối `AdsController`, `AppNavHost`, `MainActivity`, rồi ghi ảnh chuẩn.
 
 ### 3.2. Danh sách file
 
-<!-- Đây là ranh giới trong phiên tự chạy. AI chỉ được chạm vào các file trong bảng này. -->
-
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | Lớp thuần giữ trạng thái quảng cáo toàn màn hình đang hiện, cùng API với plan T-013 (bỏ nếu T-013 đã tạo) |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `fullScreenAdShowing: StateFlow<Boolean>`; interstitial gọi `presence.onShowing()` ngay trước `show()`, `presence.onClosed()` khi đóng hay lỗi hiện (bỏ nếu T-013 đã có) |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Test của `FullScreenAdPresence`, cùng tên test với plan T-013 (bỏ nếu T-013 đã tạo) |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkLostUiState.kt` | `Hidden`, `Shown(checking, stillOffline)` |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkLostViewModel.kt` | Ghép mạng, quảng cáo, màn hình; thử lại; hai sự kiện; log; `NetworkClock` |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/FullScreenAdStatus.kt` | `fun interface FullScreenAdStatus` |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/ScreenName.kt` | Hàm thuần `screenNameOf(route)` |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkLostDialog.kt` | `NetworkLostDialog`, `NetworkLostDialogContent`, `NetworkLostDialogProperties`, test tag |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkLostHost.kt` | Nối `NavController` và ViewModel với `NetworkLostDialog` |
-| Tạo | `app/src/main/kotlin/com/vglstudio/template/di/NetworkLostModule.kt` | Hilt: `FullScreenAdStatus` từ `AdsController`, `NetworkClock` từ `SystemClock` |
-| Sửa | `app/src/main/kotlin/com/vglstudio/template/MainActivity.kt` | ViewModel popup, `rememberNavController` dùng chung, `NetworkLostHost`, `onStart` gọi `onAppForeground` |
-| Sửa | `app/src/main/kotlin/com/vglstudio/template/navigation/AppNavHost.kt` | Nhận `navController` làm tham số |
-| Tạo | `app/src/main/res/drawable/ic_network_off.xml` | Icon mất wifi 24 dp |
-| Sửa | `app/src/main/res/values/strings.xml` | Bốn chuỗi tiếng Việt; dòng `app_name` giữ nguyên |
+| Sửa | `core/network/build.gradle.kts` | Thêm `:core:analytics`, `:core:logging` (file do T-016 tạo) |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkDialogState.kt` | Trạng thái popup |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkStatus.kt` | `dialogShown`, `recovered` |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkFailureReporter.kt` | Báo lỗi tải vì mạng |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkClock.kt` | Đồng hồ đơn điệu |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkDialogController.kt` | Bộ điều khiển popup, hai sự kiện, log |
+| Sửa | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkSettings.kt` | `RETRY_MAX_MILLIS = 2_000`, `RETRY_POLL_MILLIS = 250` (`internal`) |
+| Sửa | `core/network/src/main/kotlin/com/vglstudio/template/core/network/di/NetworkModule.kt` | `NetworkBindingsModule`, `NetworkClock` |
+| Sửa | `core/network/src/test/kotlin/com/vglstudio/template/core/network/Fakes.kt` | Thêm `FakeAnalytics`, `FakeNetworkClock` |
+| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/NetworkDialogControllerTest.kt` | Unit test bộ điều khiển |
+| Sửa | `core/network/src/test/kotlin/com/vglstudio/template/core/network/NetworkSettingsTest.kt` | Thêm `retryWaitsAtMost2Seconds` |
+| Sửa | `core/assets/build.gradle.kts` | `implementation(project(":core:network"))` |
+| Sửa | `core/assets/src/main/kotlin/com/vglstudio/template/core/assets/DefaultRemoteAssets.kt` | `networkFailures`, báo khi `NETWORK` |
+| Sửa | `core/assets/src/main/kotlin/com/vglstudio/template/core/assets/di/AssetsModule.kt` | Tiêm `NetworkFailureReporter` |
+| Tạo | `core/assets/src/test/kotlin/com/vglstudio/template/core/assets/DefaultRemoteAssetsNetworkFailureTest.kt` | Báo đúng một lần khi lỗi mạng, không báo khi 404, lỗi khác, file có sẵn, tải được |
+| Sửa | `core/designsystem/src/main/kotlin/com/vglstudio/template/core/designsystem/component/PrimaryButton.kt` | Tham số `loading`, `PrimaryButtonTestTags` |
+| Tạo | `core/designsystem/src/main/kotlin/com/vglstudio/template/core/designsystem/component/NetworkDialog.kt` | `NetworkDialog`, `NetworkDialogScreen`, `NetworkDialogTestTags` |
+| Tạo | `core/designsystem/src/main/res/drawable/ic_wifi_off.xml` | Icon Material Symbols Rounded "wifi_off" |
+| Tạo | `core/designsystem/third_party/material-symbols/LICENSE.txt` | Giấy phép Apache 2.0 của icon |
+| Tạo | `core/designsystem/src/test/kotlin/com/vglstudio/template/core/designsystem/NetworkDialogTest.kt` | Test giao diện popup |
+| Tạo | `core/designsystem/src/test/kotlin/com/vglstudio/template/core/designsystem/PrimaryButtonLoadingTest.kt` | Trạng thái chờ của nút |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | Thêm nếu T-013 chưa tạo |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `fullScreenAdShowing`, interstitial báo `presence` (bỏ nếu T-013 đã có) |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Bỏ nếu T-013 đã tạo |
+| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkDialogHost.kt` | Cửa sổ `Dialog` riêng, nút quay lại |
+| Tạo | `app/src/main/kotlin/com/vglstudio/template/network/ScreenName.kt` | `screenNameOf(route)`, `reportedScreenOf(route)` |
+| Sửa | `app/src/main/kotlin/com/vglstudio/template/navigation/AppNavHost.kt` | `onScreenChanged`, gọi `reportedScreenOf(entry?.destination?.route)` |
+| Sửa | `app/src/main/kotlin/com/vglstudio/template/MainActivity.kt` | `NetworkDialogHost`, quảng cáo toàn màn hình, `onAppForeground`; giữ `FullScreenAdHost()` |
+| Sửa | `app/src/main/res/values/strings.xml` | Bốn chuỗi tiếng Việt; `app_name` giữ nguyên |
 | Tạo | `app/src/main/res/values-en/strings.xml` | Bốn chuỗi tiếng Anh |
-| Sửa | `app/build.gradle.kts` | Plugin và cấu hình Roborazzi, `lifecycle-runtime-compose`, thư viện test Roborazzi, `implementation(project(":core:network"))` nếu T-016 chưa thêm |
-| Sửa | `feature/sample/src/main/kotlin/com/vglstudio/template/feature/sample/SampleScreen.kt` | `SampleScreen` từ `internal` sang công khai, KDoc ghi lý do; không đổi nội dung |
-| Tạo | `app/src/test/resources/robolectric.properties` | `sdk=35`, `application=android.app.Application` |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/MainDispatcherRule.kt` | Chép từ `:feature:loading` |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkTestDoubles.kt` | `FakeNetworkMonitor` riêng của test `:app` (flow chưa phát hay đặt được, `checkNow` trả kết quả đặt trước, treo tới khi thả, hay ném lỗi; plan T-016 không cung cấp bản giả công khai), `FakeFullScreenAdStatus`, `FakeAnalytics` |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkLostViewModelTest.kt` | Unit test ViewModel |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/ScreenNameTest.kt` | Unit test `screenNameOf` |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkLostDialogTest.kt` | Test giao diện Robolectric |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkLostScreenScreenshotTest.kt` | Screenshot test Roborazzi |
+| Sửa | `app/build.gradle.kts` | Plugin, khối và thư viện test Roborazzi (nếu T-014 chưa thêm) |
+| Sửa | `feature/sample/src/main/kotlin/com/vglstudio/template/feature/sample/SampleScreen.kt` | `SampleScreen` công khai, KDoc ghi lý do |
+| Tạo | `app/src/test/resources/robolectric.properties` | `sdk=35`, `application=android.app.Application` (T-014 chạy trước thì đã có, chỉ kiểm hai dòng) |
+| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkDialogHostTest.kt` | Cửa sổ riêng, không lớp mờ, nút quay lại |
+| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/ScreenNameTest.kt` | Tên màn hình, màn hình được báo |
+| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkLostScreenScreenshotTest.kt` | Screenshot test |
 | Tạo | `app/src/test/screenshots/NetworkLostScreen_default_light.png` | Ảnh chuẩn, cùng tên ảnh thiết kế |
 | Tạo | `app/src/test/screenshots/NetworkLostScreen_default_dark.png` | Ảnh chuẩn, cùng tên ảnh thiết kế |
-| Tạo | `app/src/test/screenshots/NetworkLostScreen_stillOffline_light.png` | Ảnh chuẩn trạng thái thử lại thất bại |
-| Tạo | `app/src/test/screenshots/NetworkLostScreen_stillOffline_small.png` | Ảnh chuẩn khung thấp, trạng thái nhiều nội dung nhất (L-028) |
-| Tạo | `docs/features/network/design/review/` | Ảnh ghép `*_compare.png` và `summary.md` sinh bởi `DesignCompare.java` |
-| Sửa | `docs/features/network/design/README.md` | Mục 8 Kết quả đối chiếu; hai ô còn trống của mục 7 sau khi kiểm |
-| Sửa | `docs/features/network/tickets/T-017-popup-mat-mang.md` | Trạng thái ticket theo phiên tự chạy |
+| Tạo | `app/src/test/screenshots/NetworkLostScreen_stillOffline_light.png` | Ảnh chuẩn sau lần thử lại thất bại |
+| Tạo | `app/src/test/screenshots/NetworkLostScreen_stillOffline_small.png` | Ảnh chuẩn khung thấp (L-028) |
+| Tạo | `docs/features/network/design/review/` | Ảnh ghép và `summary.md` của `DesignCompare.java` |
+| Sửa | `docs/features/network/design/README.md` | Mục 8, hai ô còn trống của mục 7 |
+| Sửa | `CLAUDE.md` | Dòng `:core:network` của bảng module (do T-016 thêm): thêm "popup mất mạng" nếu T-016 chưa ghi |
+| Sửa | `docs/features/network/tickets/T-017-popup-mat-mang.md` | Trạng thái ticket |
 | Sửa | `docs/features/network/plans/T-017-popup-mat-mang.md` | Nhật ký thực hiện |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
-Không sửa: `scripts/check.sh` (đã sửa ở PR #81) và script đối chiếu thiết kế, `gradle/libs.versions.toml`, `build-logic/`, `AndroidManifest.xml` (không thêm quyền; quyền mạng nếu cần thuộc T-016), `feature/loading/` (popup dựa vào đích điều hướng, không cần loading báo gì thêm), `app/src/androidTest/` (emulator CI có mạng nên `AppLaunchTest` không đổi; nếu popup hiện thì test vẫn qua vì tìm `sample_screen` trong cây giao diện), `docs/remote-config-keys.md` và `docs/remote-config-template.json` (T-017 không thêm khóa; `network_lost_delay_seconds` do T-016 khai báo và sinh lại), `AdSlot.kt`, `AdPlacement.kt` (không vị trí mới).
+Không sửa: `scripts/check.sh`, script đối chiếu thiết kế, `gradle/libs.versions.toml`, `build-logic/`, mọi `AndroidManifest.xml`, `FeatureFlag.kt`, `StagingFeatureFlagsModule.kt`, `feature/loading/`, `app/src/androidTest/` (emulator CI có mạng; popup nếu hiện vẫn để `sample_screen` trong cây giao diện), hai file bảng khóa (T-017 không thêm khóa), `AdSlot.kt`, `AdPlacement.kt`.
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
-- Cờ tính năng: Không có (spec mục 8, ADR-0024: áp dụng cho mọi app). Khóa `network_lost_delay_seconds` thuộc T-016, T-017 không đọc trực tiếp.
-- Quảng cáo: không thêm, bớt, di chuyển vị trí hay đổi tần suất. Chỉ thêm trạng thái chỉ đọc `fullScreenAdShowing` trong `:core:ads` (thêm nếu chưa có). Popup không có quảng cáo.
-- Sự kiện phân tích: `network_lost_shown` (`screen`) và `network_restored` (`duration_ms`, `retry_count`), đúng spec mục 6 (câu hỏi 2 của spec đã duyệt). Ghi qua `Analytics` của `:core:analytics`.
+- Cờ tính năng: Không có (spec mục 8, ADR-0024). Bỏ cờ `NETWORK_DIALOG` của app. Khóa `network_lost_delay_seconds` thuộc T-016.
+- Quảng cáo: không thêm, bớt, di chuyển vị trí hay đổi tần suất. Chỉ thêm trạng thái chỉ đọc `fullScreenAdShowing` (nếu chưa có). Popup không có quảng cáo.
+- Sự kiện phân tích: `network_lost_shown` (`screen`), `network_restored` (`duration_ms`, `retry_count`), đúng spec mục 6 (câu hỏi 2 của spec đã duyệt), qua `Analytics` của `:core:analytics`.
+- File R2: không thêm file; `:core:assets` chỉ báo lỗi mạng cho bộ điều khiển, không đổi đường dẫn hay cách tải.
 - Dữ liệu trên máy: không có.
-- File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. `ACCESS_NETWORK_STATE` do T-016 khai báo ở manifest của `:core:network` (spec network mục 6); T-017 không sửa manifest nào. `Dialog`, `moveTaskToBack`, `SystemClock` không cần quyền.
+- **Thư viện và SDK:** Không thêm thư viện mới. Đã có: `CircularProgressIndicator` trong `libs.androidx.compose.material3` (convention Compose của `:core:designsystem`); `BackHandler`, `LocalOnBackPressedDispatcherOwner` trong `libs.androidx.activity.compose` (`:app`); `Dialog`, `DialogWindowProvider` trong `libs.androidx.compose.ui`; `libs.roborazzi`, `libs.roborazzi.compose`, `libs.roborazzi.junit.rule`, plugin `libs.plugins.roborazzi` (đã có trong `gradle/libs.versions.toml`, `:app` thêm `testImplementation`); Robolectric, Compose test, Turbine qua convention. Icon `ic_wifi_off.xml` là một file vector chép từ Material Symbols (Apache 2.0), không phải thư viện; giấy phép đi kèm ở `core/designsystem/third_party/material-symbols/LICENSE.txt`.
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** kiểm nút quay lại trên cửa sổ dialog bằng Robolectric (`ShadowDialog.getLatestDialog()` ép sang `ComponentDialog`).
+- **Điều kiện chuyển:** `ShadowDialog.getLatestDialog()` trả `null` hay không phải `ComponentDialog` (ví dụ sau khi nâng Compose), hoặc `back_onDialogWindow_*` thất bại vì cùng một lỗi sau 2 lần sửa.
+- **Cách làm thay:** trong test, lấy dispatcher từ bên trong nội dung dialog qua `LocalOnBackPressedDispatcherOwner.current` (cách T-013 đã chạy thử; chạy thử của plan này cho thấy đó cùng là dispatcher của `ComponentDialog`, test `dialogDispatcher_isTheOneComposeSeesInsideTheDialog`). Để test đọc được, `NetworkDialogHost` nhận thêm tham số `internal` `onDialogBackDispatcher: (OnBackPressedDispatcher) -> Unit = {}` gọi một lần trong nội dung dialog. Tiêu chí và tên test ở mục 4 giữ nguyên. File thay đổi đã có trong mục 3.2 (`NetworkDialogHost.kt`, `NetworkDialogHostTest.kt`).
 
 ## 4. Kiểm thử
 
-Unit test chạy trên JVM với `MainDispatcherRule`, `runTest` và thời gian ảo (`clock = { testScheduler.currentTime }`). Mặc định trong test: `FakeNetworkMonitor` chưa phát gì, `checkNow()` trả `false`; `FakeFullScreenAdStatus` phát `false`; ViewModel đã nhận `onDestinationChanged("com.vglstudio.template.feature.sample.navigation.SampleDestination", isLoading = false)` trừ khi test ghi khác. Sự kiện so bằng `AnalyticsEvent(name, params)` đầy đủ.
+Unit test bộ điều khiển: `runTest`, thời gian ảo, `backgroundScope` làm `@NetworkScope`, `FakeConnectivitySource`, `FakeRemoteSettings`, `FakeAnalytics`, `RecordingAppLogger`, `FakeNetworkClock` đọc `testScheduler.currentTime`. Mặc định: có mạng, không có quảng cáo, đã `setScreen("sample")` trừ khi ghi khác. Sự kiện so bằng `AnalyticsEvent(name, params)` đầy đủ.
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| KB-1, tiêu chí 1 | Unit test | `NetworkLostViewModelTest.onLoadingScreen_offline_staysHidden`: `onDestinationChanged(loading route, isLoading = true)`, flow phát `false`, trạng thái `Hidden`, không có sự kiện |
-| KB-1, tiêu chí 1 | Unit test | `NetworkLostViewModelTest.beforeAnyDestination_staysHidden`: chưa gọi `onDestinationChanged`, flow phát `false`, `Hidden` |
-| KB-1, tiêu chí 2 | Unit test | `NetworkLostViewModelTest.leavingLoadingOffline_showsAtOnceWithoutWaitingForFlow`: flow chưa phát, `checkNow` trả `false`, `onDestinationChanged(sample, false)`, ngay sau `runCurrent()` là `Shown()`; `checkNow` được gọi đúng một lần |
-| KB-1, tiêu chí 2 | Unit test | `NetworkLostViewModelTest.leavingLoadingOnline_staysHidden`: `checkNow` trả `true`, `Hidden` |
-| KB-1, tiêu chí 2 | Unit test | `NetworkLostViewModelTest.checkNowOnlyOnFirstLeaveOfLoading`: đổi đích ba lần, `checkNow` gọi một lần |
-| KB-1, tiêu chí 3 | Do T-016 | Test của T-016 (Wi-Fi chưa xác nhận là mất mạng); T-017 chỉ dùng `isOnline` |
-| KB-2, tiêu chí 1 | Unit test | `NetworkLostViewModelTest.flowReportsOffline_showsPopup`: flow phát `true` rồi `false`, `Shown()` |
-| KB-2, tiêu chí 1 (khoảng chờ) | Do T-016 | Khoảng chờ nằm trong `isOnline`; T-017 không chờ thêm: `NetworkLostViewModelTest.noExtraDelayAfterFlow`: flow phát `false`, `Shown()` sau `runCurrent()`, không `advanceTimeBy` |
-| KB-2, tiêu chí 1 (chữ) | Compose UI test | `NetworkLostDialogTest.default_showsTitleMessageAndRetry_vi`: có đúng ba chữ của bảng chữ tiếng Việt; không có `network_lost_still_offline` |
-| KB-2, tiêu chí 1 (chữ tiếng Anh) | Compose UI test | `NetworkLostDialogTest.default_showsEnglishText`: `@Config(qualifiers = "en-w411dp-h891dp-xxhdpi")`, có "No internet connection", câu nội dung tiếng Anh, "Try again" |
-| KB-2, tiêu chí 2 | Compose UI test | `NetworkLostDialogTest.dialog_cannotBeDismissedByUser`: `NetworkLostDialogProperties.dismissOnBackPress == false`, `dismissOnClickOutside == false`; dựng `NetworkLostDialog` trên nội dung có `BackHandler` đếm số lần, `Espresso.pressBackUnconditionally()`, dialog vẫn còn (`isDialog()` tồn tại) và bộ đếm của nội dung dưới vẫn 0 |
-| KB-2, tiêu chí 2 (chặn chạm) | Kiểm tra thủ công | Test Compose trên JVM bơm chạm thẳng vào nút, bỏ qua cửa sổ, nên không kiểm được việc `Dialog` chặn chạm. Bản staging: tắt Wi-Fi và dữ liệu di động ở màn hình mẫu, chờ popup; chạm nút "Tap" phía sau, chạm vùng tối, bấm quay lại: số đếm không đổi, popup còn |
-| KB-2, tiêu chí 3 | Unit test | `NetworkLostViewModelTest.retryStillOffline_keepsPopupAndSaysSo`: `Shown()`, `onRetry()` với `checkNow` treo: `Shown(checking = true)`; thả với `false`: `Shown(stillOffline = true)`; có log `INFO` thẻ `Network` chứa `still offline` |
-| KB-2, tiêu chí 3 | Unit test | `NetworkLostViewModelTest.retryWhileChecking_isIgnored`: hai lần `onRetry()` khi đang kiểm tra, `checkNow` gọi một lần, `retry_count` cuối là 1 |
-| KB-2, tiêu chí 3 | Unit test | `NetworkLostViewModelTest.retryThrows_isTreatedAsOffline`: `checkNow` ném `IllegalStateException`, `Shown(stillOffline = true)`, có log `WARN`, không ném ra ngoài |
-| KB-2, tiêu chí 3 (giao diện) | Compose UI test | `NetworkLostDialogTest.stillOffline_showsMessage`: `Shown(stillOffline = true)` có chữ `network_lost_still_offline`; `NetworkLostDialogTest.checking_disablesRetry`: `Shown(checking = true)`, nút `network_lost_retry` `assertIsNotEnabled()`; `NetworkLostDialogTest.retryClick_callsOnRetry`: bấm nút, callback chạy một lần |
-| KB-2, tiêu chí 4 | Unit test | `NetworkLostViewModelTest.flowReportsOnline_closesPopup`: `Shown`, flow phát `true`, `Hidden` |
-| KB-2, tiêu chí 4 | Unit test | `NetworkLostViewModelTest.retrySucceeds_closesPopupWithoutWaitingForFlow`: `onRetry()`, `checkNow` trả `true`, `Hidden` dù flow vẫn là `false` |
-| KB-2, tiêu chí 4 | Unit test | `NetworkLostViewModelTest.staleCheckResult_doesNotOverrideNewerFlowValue`: `onRetry()` treo; flow phát `true` rồi `false`; thả `checkNow` với `true`; trạng thái `Shown` (flow mới hơn thắng) |
-| KB-2, tiêu chí 4 (đúng trạng thái trước) | Compose UI test | `NetworkLostDialogTest.closingPopup_keepsUnderlyingState`: nội dung dưới có bộ đếm `rememberSaveable` tăng lên 3, hiện rồi ẩn popup bằng biến trạng thái, bộ đếm vẫn 3 và nội dung không bị dựng lại từ đầu |
-| KB-2, đặc biệt: quảng cáo | Unit test | `NetworkLostViewModelTest.fullScreenAdShowing_holdsPopup`: quảng cáo `true`, flow phát `false`, `Hidden`, không có sự kiện; quảng cáo về `false`, `Shown()` ngay, một sự kiện `network_lost_shown` |
-| KB-2, đặc biệt: quảng cáo | Unit test | `NetworkLostViewModelTest.adStartsWhileShown_hidesWithoutRestoredEvent`: `Shown`, quảng cáo `true`, `Hidden`, không có `network_restored` |
-| KB-2, đặc biệt: quảng cáo (nguồn) | Unit test, Turbine | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse`, `showingFlow_emitsShowAndClose` (phát `false`, `true`, `false`; cùng tên với plan T-013)
-| KB-2, đặc biệt: về từ nền | Unit test | `NetworkLostViewModelTest.appForeground_checksNowExceptFirstStart`: `onAppForeground()` lần đầu không gọi `checkNow`; lần hai gọi, trả `false`, `Shown()` |
-| KB-2, đặc biệt: về từ nền (máy) | Kiểm tra thủ công | Bản staging: ở màn hình mẫu, về màn hình chính, bật chế độ máy bay, mở lại app: popup hiện |
-| KB-3 | Unit test | `NetworkLostViewModelTest.online_neverShowsPopup`: flow phát `true`, `checkNow` trả `true`, đổi đích, `onAppForeground()`: luôn `Hidden`, không có sự kiện |
-| Sự kiện `network_lost_shown` | Unit test | `NetworkLostViewModelTest.shown_logsLostEventWithScreen`: một sự kiện `AnalyticsEvent("network_lost_shown", mapOf("screen" to "sample"))`; hiện lại lần hai sau khi đóng ghi thêm một sự kiện |
-| Sự kiện `network_restored` | Unit test | `NetworkLostViewModelTest.restored_logsDurationAndRetries`: hiện lúc t, hai lần thử lại thất bại, flow phát `true` lúc t + 12_000: một sự kiện `AnalyticsEvent("network_restored", mapOf("duration_ms" to "12000", "retry_count" to "2"))` |
-| Sự kiện không ghi khi ẩn vì loading | Unit test | `NetworkLostViewModelTest.backToLoading_hidesWithoutRestoredEvent` |
-| Log không có dữ liệu cá nhân | Unit test | `NetworkLostViewModelTest.logsUseNetworkTag`: mọi dòng của `RecordingAppLogger` có thẻ `Network`; dòng hiện popup chứa `sample` |
-| Tên màn hình | Unit test | `ScreenNameTest`: `...navigation.SampleDestination` ra `sample`; `...LoadingDestination` ra `loading`; `com.x.AdGalleryDestination` ra `ad_gallery`; route có tham số `com.x.DetailDestination/{id}?tab={tab}` ra `detail`; `null` và `""` ra `unknown`; chuỗi 300 ký tự cắt còn 100 |
-| Đúng thiết kế, sáng | Screenshot test | `NetworkLostScreenScreenshotTest.default_light`, khung `w411dp-h891dp-xxhdpi`, `@GraphicsMode(NATIVE)`: `SampleScreen(Ready(3))`, lớp phủ 32% và `NetworkLostDialogContent(Shown())` (mục 3.1), `onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_default_light.png")` |
-| Đúng thiết kế, tối | Screenshot test | `NetworkLostScreenScreenshotTest.default_dark`: như trên, `AppTheme(darkTheme = true)`, `NetworkLostScreen_default_dark.png` |
-| Thử lại thất bại | Screenshot test | `NetworkLostScreenScreenshotTest.stillOffline_light`: `Shown(stillOffline = true)`, `NetworkLostScreen_stillOffline_light.png` |
-| Màn hình thấp (L-028) | Screenshot test khung `w360dp-h640dp-xxhdpi`, trạng thái nhiều nội dung nhất | `NetworkLostScreenScreenshotTest.stillOffline_small`: `Shown(stillOffline = true)`, `NetworkLostScreen_stillOffline_small.png`; nút "Thử lại" thấy trọn, không cắt |
-| Màn hình thấp (đo) | Compose UI test | `NetworkLostDialogTest.smallScreen_retryFullyVisible`: `@GraphicsMode(NATIVE)`, `@Config(qualifiers = "w360dp-h640dp-xxhdpi")`, `Shown(stillOffline = true)`: nút `network_lost_retry` `assertIsDisplayed()`, đáy nút nằm trong đáy hộp thoại; rộng hộp thoại `network_lost_dialog` là 312 dp ở khung 411 dp và không quá 312 dp ở khung 360 dp |
-| Kích thước theo thiết kế | Compose UI test | `NetworkLostDialogTest.layout_matchesDesignNumbers`: `@GraphicsMode(NATIVE)`, khung chuẩn: rộng hộp thoại 312 dp, nút cao ít nhất 52 dp và rộng 264 dp (312 trừ lề 24 x 2) |
-| Đối chiếu ảnh thiết kế | Ảnh so sánh, rà soát độc lập | Chạy `DesignCompare.java` với `app/src/test/screenshots` (mục 3.1); rà soát độc lập xem hai ảnh `*_compare.png` theo mục 7 của `design/README.md`, ghi nhận xét vào mục 8 |
-| Ảnh chuẩn đúng | `scripts/check.sh` (sau PR #81) | `:app:verifyRoborazziStagingDebug` có trong danh sách tác vụ của `check.sh` và qua, cả trên máy lẫn CI |
-| Hilt và khởi động app | Build và test emulator có sẵn | `:app:assembleStagingDebug` qua (đồ thị Hilt đủ); `AppLaunchTest` trong CI qua |
-| Toàn bộ trên máy | Kiểm tra thủ công | Bản staging: (1) loading bật, chế độ máy bay, mở app: loading báo lỗi, không popup; (2) loading tắt (cờ cục bộ hay Remote Config staging), chế độ máy bay, mở app: popup ngay trên màn hình mẫu; (3) đang dùng, tắt mạng: popup sau khoảng 2 giây; bấm "Thử lại": dòng "vẫn chưa có mạng"; bật mạng: popup tự đóng, số đếm giữ nguyên; (4) Wi-Fi nối vào điểm phát không có Internet: popup hiện; (5) `adb logcat -v threadtime \| grep ' VGL\.Network'` thấy log hiện, đóng, thử lại; (6) Firebase DebugView không áp dụng cho bản staging với cấu hình giả (ADR-0012), sự kiện kiểm qua unit test |
+| KB-1, tiêu chí 1 | Unit test | `NetworkDialogControllerTest.onLoading_ignoresOfflineAndFailures`: `setScreen(null)`, mất mạng 10 000 ms, `reportNetworkFailure("assets")`: `Hidden`, `collectors == 0`, không sự kiện; chuyển sang `sample` khi đã có mạng: vẫn `Hidden` (báo lỗi cũ không giữ lại) |
+| KB-1, tiêu chí 1 | Unit test | `NetworkDialogControllerTest.backToLoading_hidesWithoutRestoredEvent`: đang `Shown`, `setScreen(null)`: `Hidden`, `collectors == 0`, không có `network_restored` |
+| KB-1, tiêu chí 2 | Unit test | `NetworkDialogControllerTest.leavingLoadingOffline_showsAtOnce`: nguồn `false`, `setScreen("sample")`, sau `runCurrent()` ở 0 ms là `Shown`, một `network_lost_shown(screen=sample)` |
+| KB-1, tiêu chí 3 | Do T-016 | `AndroidConnectivitySourceTest.wifiWithInternetNotValidated_isNotUsable` |
+| KB-2, tiêu chí 1 | Unit test | `NetworkDialogControllerTest.deviceOffline_shownOnlyAfterDelay` (từ app, mặc định 2 s): ở 1 999 ms `Hidden`, ở 2 001 ms `Shown`; `delay_followsRemoteSetting`: khóa 5, ở 4 999 ms `Hidden`, 5 001 ms `Shown`; `flapping_underDelay_showsNothing` (từ app) |
+| KB-2, tiêu chí 1 (chữ) | Compose UI test | `NetworkDialogTest.default_showsTextAndIcon`: `NetworkDialogScreen` nhận ba chữ của bảng chữ, có đúng ba chữ, không có tag `STILL_OFFLINE`. `NetworkDialogHostTest.shown_usesAppStrings_vi` và `shown_usesAppStrings_en` (`@Config(qualifiers = "en")`): chữ tiếng Việt và tiếng Anh của mục 3.1 |
+| KB-2, tiêu chí 2 (cửa sổ riêng) | Compose UI test | `NetworkDialogHostTest.shown_drawsDialogInSeparateWindow` (từ app): hai gốc, gốc 0 chứa nội dung, gốc 1 chứa tag `SCREEN`; nội dung vẫn trong cây ngữ nghĩa. `shown_dialogWindowAddsNoSystemDim` (từ app) |
+| KB-2, tiêu chí 2 (nút quay lại) | Compose UI test | `NetworkDialogHostTest.back_onDialogWindow_keepsDialogAndDestination`: `NavHost` hai đích đã ở đích hai, `Shown`; `(ShadowDialog.getLatestDialog() as ComponentDialog).onBackPressedDispatcher.onBackPressed()` trong `runOnUiThread`: `onBack` gọi một lần, `composeRule.activity.isFinishing == false`, đích hai và popup còn. `dialogDispatcher_isTheOneComposeSeesInsideTheDialog`: dispatcher đọc bằng `LocalOnBackPressedDispatcherOwner` trong nội dung dialog cũng là dispatcher của `ComponentDialog`, khác dispatcher của activity. `back_whileHidden_navigatesBack` (từ app): `Hidden`, dispatcher của activity đưa về đích một, `onBack` không gọi. Không dùng Espresso |
+| KB-2, tiêu chí 2 (chạm) | Compose UI test | `NetworkDialogTest.screen_consumesTouches` (từ app): nút phía sau không nhận lần bấm, chạm lớp phủ không gọi `onRetry`, hộp thoại còn |
+| KB-2, tiêu chí 2 (chạm thật) | Kiểm tra thủ công | Robolectric không mô phỏng cửa sổ chồng nhau. Bản staging: tắt mạng ở màn hình mẫu, chờ popup; chạm nút "Tap" phía sau, chạm vùng tối, bấm quay lại (app về nền), mở lại: số đếm không đổi, popup còn; TalkBack chỉ đọc popup |
+| KB-2, tiêu chí 3 | Unit test | `NetworkDialogControllerTest.retry_offline_spinsAtMost2s_thenStillOffline` (từ app): `checking` tới 1 999 ms, `stillOffline` ở 2 001 ms, không `recovered`; `retry_whileChecking_isIgnored`, `retryAgain_clearsStillOffline` (từ app) |
+| KB-2, tiêu chí 3 (giao diện) | Compose UI test | `NetworkDialogTest.stillOffline_showsMessageAboveButton`: dòng `STILL_OFFLINE` có, đáy dòng không thấp hơn đỉnh nút; `checking_showsSpinner_andIgnoresClicks`, `retry_click_callsOnRetry` (từ app). `PrimaryButtonLoadingTest.loading_showsSpinner_keepsText_ignoresClick`, `notLoading_hasNoSpinner` (từ app) |
+| KB-2, tiêu chí 4 | Unit test | `NetworkDialogControllerTest.networkBack_closesAtOnce_andEmitsRecovered`: `Shown`, nguồn `true`: `Hidden` ở cùng `currentTime`, một `recovered`. `retry_online_closes_andEmitsRecovered`, `retry_networkReturnsWhileChecking_closes` (từ app) |
+| KB-2, tiêu chí 4 (đúng trạng thái) | Compose UI test | `NetworkDialogHostTest.hidingDialog_keepsContentState`: nội dung có bộ đếm `rememberSaveable` lên 3, đổi `Shown` rồi `Hidden`: bộ đếm vẫn 3 |
+| KB-2, đặc biệt: quảng cáo | Unit test | `NetworkDialogControllerTest.fullScreenAd_holdsDialog_thenShowsWhenClosed`: `setFullScreenAdShowing(true)`, mất mạng 3 000 ms: `Hidden`, không sự kiện; quảng cáo đóng: `Shown` ngay, một `network_lost_shown`. `adStartsWhileShown_hidesWithoutRestoredEvent` |
+| KB-2, đặc biệt: quảng cáo (nguồn) | Unit test, Turbine | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse`, `showingFlow_emitsShowAndClose` (cùng tên với plan T-013; bỏ nếu T-013 đã tạo) |
+| KB-2, đặc biệt: về từ nền | Unit test | `NetworkDialogControllerTest.appForeground_checksAtOnceExceptFirst`: lần đầu không đọc `isConnected()`; lần hai khi mất mạng: `Shown` ngay |
+| KB-3 | Unit test | `NetworkDialogControllerTest.networkFailure_whileDeviceOnline_doesNotShow`: nguồn `true`, `reportNetworkFailure("assets")`: `Hidden`, log `INFO` chứa `Load failed while online`. `networkFailure_whileDeviceOffline_showsAtOnce`: nguồn `false` chưa đủ khoảng chờ, báo lỗi: `Shown` ngay. `manyFailures_singleDialog` (từ app) |
+| KB-3 (nguồn báo) | Unit test | `DefaultRemoteAssetsNetworkFailureTest.networkError_returnsUnavailable_andReportsOnce`, `http404_isNotReported`, `otherError_isNotReported`, `keptFile_isNotDownloaded_andNotReported`, `success_isNotReported` (từ app) |
+| Sự kiện `network_lost_shown` | Unit test | `NetworkDialogControllerTest.shown_logsLostEventWithScreen`: `AnalyticsEvent("network_lost_shown", mapOf("screen" to "sample"))`; hiện lại lần hai ghi thêm một |
+| Sự kiện `network_restored` | Unit test | `NetworkDialogControllerTest.restored_logsDurationAndRetries`: hiện lúc t, hai lần thử lại thất bại, nguồn `true` lúc t + 12 000: `AnalyticsEvent("network_restored", mapOf("duration_ms" to "12000", "retry_count" to "2"))` |
+| `dialogShown` | Unit test | `NetworkDialogControllerTest.dialogShown_followsState` (từ app) |
+| Log không có dữ liệu cá nhân | Unit test | `NetworkDialogControllerTest.logsShowAndRetryOutcome` (từ app): có `device_offline`, `still_offline`, `online`, `load_failed`; không dòng nào chứa `/` |
+| Tên màn hình | Unit test | `ScreenNameTest` như bản 2: `sample`, `loading`, `ad_gallery`, route có tham số ra `detail`, `null` và `""` ra `unknown`, cắt còn 100 ký tự |
+| KB-1: không hiện ở loading, không chớp lúc mở app | Unit test JVM | `ScreenNameTest.reportedScreen_nullBeforeFirstEntryAndOnLoading`: `reportedScreenOf(null)` là `null` (chưa có mục trên back stack); route của `LoadingDestination` ra `null`; route của `SampleDestination` ra `"sample"`. Cùng chuỗi route như các ca `screenNameOf` ở trên |
+| Đúng thiết kế, sáng | Screenshot test | `NetworkLostScreenScreenshotTest.default_light`, khung `w411dp-h891dp-xxhdpi`, `@GraphicsMode(NATIVE)`: `composeRule.onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_default_light.png")` |
+| Đúng thiết kế, tối | Screenshot test | `default_dark`: `AppTheme(darkTheme = true)`, `captureRoboImage("src/test/screenshots/NetworkLostScreen_default_dark.png")` |
+| Thử lại thất bại | Screenshot test | `stillOffline_light`: `captureRoboImage("src/test/screenshots/NetworkLostScreen_stillOffline_light.png")` |
+| Màn hình thấp (L-028) | Screenshot test khung `w360dp-h640dp-xxhdpi`, trạng thái nhiều nội dung nhất | `stillOffline_small`: `captureRoboImage("src/test/screenshots/NetworkLostScreen_stillOffline_small.png")`; nút "Thử lại" thấy trọn |
+| Màn hình thấp (đo) | Compose UI test | `NetworkDialogTest.smallScreen_cardFitsAndRetryVisible` (từ app, `@Config(qualifiers = "w360dp-h640dp-xxhdpi")`, `stillOffline`): hộp thoại nằm trong màn hình, nút `assertIsDisplayed()` |
+| Kích thước theo thiết kế | Compose UI test | `NetworkDialogTest.card_is312dpWide_andRetry264dp`: `@GraphicsMode(NATIVE)`, khung chuẩn: hộp thoại rộng 312 dp, nút cao ít nhất 52 dp, rộng 264 dp (312 trừ 24 x 2), sai số 0.5 dp |
+| Đối chiếu ảnh thiết kế | Ảnh so sánh, rà soát độc lập | `DesignCompare.java` (mục 3.1); rà soát độc lập xem hai ảnh `*_compare.png` theo mục 7 của `design/README.md`, ghi mục 8 |
+| Ảnh chuẩn đúng | `scripts/check.sh` | `:app:verifyRoborazziStagingDebug` có trong tác vụ của `check.sh` và qua |
+| Hilt và khởi động app | Build, test emulator có sẵn | `:app:assembleStagingDebug` qua (đồ thị Hilt có `NetworkFailureReporter`); `AppLaunchTest` trong CI qua |
+| Toàn bộ trên máy | Kiểm tra thủ công | Bản staging: (1) loading bật, chế độ máy bay, mở app: loading báo lỗi, không popup; (2) loading tắt, chế độ máy bay, mở app: popup ngay trên màn hình mẫu; (3) đang dùng, tắt mạng: popup sau khoảng 2 giây; "Thử lại": vòng xoay rồi dòng "vẫn chưa có kết nối"; bật mạng: popup tự đóng, số đếm giữ nguyên; (4) Wi-Fi không ra Internet: popup hiện; (5) `adb logcat -v threadtime \| grep ' VGL\.Network'` thấy hiện, đóng, thử lại; (6) sự kiện kiểm qua unit test (bản staging dùng Firebase giả, ADR-0012) |
 
-`MainActivity`, `NetworkLostHost`, `NetworkLostModule` và phần nối trong `AdsController` không có unit test riêng: chúng chỉ nối các phần đã test. Rà soát độc lập đọc kỹ: `navController` dùng chung, `hasRoute<LoadingDestination>()`, chỗ gọi `onShowing`/`onClosed`.
+`MainActivity`, `NetworkModule`, phần nối trong `AdsController` và `AssetsModule` không có unit test riêng: chỉ nối các phần đã test. Rà soát độc lập đọc kỹ chỗ gọi `setFullScreenAdShowing`, `onAppForeground`, `onShowing`/`onClosed`.
 
-**Ngoại lệ viết test trước:** (1) phần nối nêu trên, kiểm qua build, `AppLaunchTest` và kiểm tra thủ công; (2) icon `ic_network_off.xml` và cấu hình build, kiểm qua screenshot test; (3) chữ trong `strings.xml` vào commit test cùng khung rỗng vì test chữ cần tài nguyên để biên dịch; (4) ảnh chuẩn screenshot ghi sau khi code xong, như mọi screenshot test của dự án. Người duyệt cần đồng ý.
+**Ngoại lệ viết test trước:** (1) phần nối nêu trên, kiểm qua build, `AppLaunchTest`, kiểm tra thủ công; (2) icon, giấy phép và cấu hình build, kiểm qua screenshot test; (3) chữ trong `strings.xml` vào commit test cùng khung rỗng vì test chữ cần tài nguyên để biên dịch; (4) ảnh chuẩn ghi sau khi code xong. Người duyệt cần đồng ý.
+
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** 2026-10-23, cùng worktree tạm ngoài repo với T-016 (`origin/main`, commit `80cc3e2`), không commit, đã xóa. Code thử, chép từ app (PR #23) đổi gói: `NetworkDialogState`, `NetworkFailureReporter`, `NetworkDialogHost` của `:app` (nội dung dialog là một `Box` có tag thay cho `NetworkDialogScreen`), `app/src/test/resources/robolectric.properties` (`sdk=35`), `NetworkDialogHostTest` (5 test: cửa sổ riêng và không lớp mờ; nút quay lại trên dispatcher của `ComponentDialog`, kiểm `onBack` một lần, `activity.isFinishing == false`, đích và popup còn; dispatcher đọc bằng `LocalOnBackPressedDispatcherOwner` trong dialog trùng dispatcher của `ComponentDialog`; dispatcher của activity khi popup hiện; dispatcher của activity khi ẩn thì điều hướng lùi); `:core:assets` báo lỗi mạng qua `NetworkFailureReporter` (phần của T-018 cũng chép vào), `DefaultRemoteAssetsNetworkFailureTest`; plugin Roborazzi cho `:app` và một screenshot test tạm chụp bằng `onRoot()` ảnh `NetworkTrial_light.png` trong `app/src/test/screenshots/` (nội dung và lớp phủ 32% trong một cửa sổ).
+- **Lệnh:** `./gradlew :core:network:testDebugUnitTest :app:testStagingDebugUnitTest`, rồi `scripts/check.sh` ba lần (`ANDROID_HOME=$HOME/Library/Android/sdk`, `JAVA_HOME` của Android Studio).
+- **Kết quả:**
+  - Lần 1 của phần này: `check.sh` lỗi biên dịch Hilt: `NetworkFailureReporter cannot be provided` (do `AssetsModule` tiêm mà chưa có binding). Kết luận ghi vào mục 3.1: binding của bộ điều khiển phải vào cùng task với phần sửa `:core:assets`. Thêm binding tạm thì qua bước này.
+  - Lần 2: ktlint báo `argument-list-wrapping` ở test tạm (lỗi định dạng của code thử); `ktlintFormat` sửa.
+  - Lần 3: "Test JVM: 118 test, 0 lỗi ... ./app: 6 test, 0 lỗi; ./core/assets: 14 test, 0 lỗi; ./core/network: 5 test, 0 lỗi", lint, build staging qua, "Cổng chất lượng: QUA". `check.sh` ghi ảnh còn thiếu bằng `:app:recordRoborazziStagingDebug` ở lần 2 và so bằng `:app:verifyRoborazziStagingDebug` ở lần 3: đường so ảnh chuẩn của `:app` chạy được.
+  - Nút quay lại: gọi dispatcher của dialog thì `BackHandler` trong dialog nhận (`onBack` = 1), activity không kết thúc, đích dưới giữ nguyên. Gọi dispatcher của activity khi popup hiện: `onBack` = 0, activity không kết thúc (Robolectric không định tuyến phím của activity vào cửa sổ dialog; trên máy thật phím quay lại đi vào cửa sổ trên cùng, là dialog). Vì vậy test dùng dispatcher của dialog, không dùng dispatcher của activity (cùng kết luận với chạy thử của T-013). Phương án dự phòng ở mục 3.4 chưa cần.
+  - Thay đổi sau chạy thử (rà soát trước khi chạy): `robolectric.properties` thêm dòng `application=android.app.Application`, và hàm thuần `reportedScreenOf`. Lần chạy thử dùng `sdk=35` cộng `@Config(application = Application::class)` ở từng lớp, tức cùng lớp `Application` khi chạy test, nên kết quả trên không đổi; chưa chạy lại. `reportedScreenOf` là hàm thuần trên chuỗi, không cần chạy thử.
+  - Chưa chạy thử: `NetworkDialogController` bản sửa (logic thuần, thời gian ảo, cách test giống app đã qua CI của app), `NetworkDialog` theo thiết kế mới và bốn ảnh chuẩn thật.
 
 ## 5. Chấm rủi ro
 
-**Điểm chặn bị chạm:** thu thập dữ liệu (thêm hai sự kiện phân tích, điểm 4), module core dùng chung `:core:ads` (thêm `fullScreenAdShowing`, điểm 7), cấu hình build (`app/build.gradle.kts`: plugin Roborazzi và thư viện, điểm 7). Không chạm vị trí, định dạng hay tần suất quảng cáo, quyền, SDK, hộp thoại đồng ý. Mức Cao, cần duyệt chéo; người phụ trách sản phẩm biết trước vì có sự kiện phân tích mới (đã duyệt trong spec, câu hỏi 2).
+**Điểm chặn bị chạm:** thu thập dữ liệu (hai sự kiện phân tích, điểm 4), module core dùng chung (`:core:network`, `:core:designsystem`, `:core:assets`, `:core:ads`, điểm 7), cấu hình build (`app/build.gradle.kts`, `core/assets/build.gradle.kts`, `core/network/build.gradle.kts`, điểm 7). Không chạm vị trí, định dạng hay tần suất quảng cáo, quyền, SDK, hộp thoại đồng ý. Mức Cao, cần duyệt chéo.
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 3 | Ba module: `:app` (nhiều file mới, `MainActivity`, `AppNavHost`, build), `:core:ads` (`AdsController`), `:feature:sample` (đổi phạm vi truy cập `SampleScreen`) |
-| B. Độ rõ của yêu cầu | 1 | Spec đã xác nhận, có thiết kế đã duyệt; AI tự quyết chữ "vẫn chưa có mạng" (không có trong thiết kế), cách hiện ngay khi rời loading, cách đặt tên `screen` (câu hỏi 1, 2, 5) |
-| C. Khả năng kiểm chứng tự động | 2 | Mọi nhánh logic và chữ có test, ảnh chuẩn của `:app` được CI so (sau PR #81); nhưng việc `Dialog` chặn chạm, quay lại từ nền và tương tác với quảng cáo thật chỉ kiểm thủ công, và screenshot dựng lại lớp phủ thay cho cửa sổ `Dialog` thật |
-| D. Ảnh hưởng chéo | 3 | Lớp popup nằm trên mọi màn hình của mọi feature; `AdsController.kt` cũng do T-007, T-009, T-013 sửa; `MainActivity.kt` do T-009 sửa; `SampleScreen.kt` do T-010 sửa |
-| E. Độ mới của kỹ thuật | 2 | `Dialog` không đóng được, test trên cửa sổ dialog bằng Robolectric, test JVM và ảnh chuẩn đầu tiên của `:app`: phổ biến nhưng chưa có trong dự án |
+| A. Phạm vi thay đổi | 3 | Năm module (`:core:network`, `:core:designsystem`, `:core:assets`, `:core:ads`, `:app`) và `:feature:sample` |
+| B. Độ rõ của yêu cầu | 1 | Spec, thiết kế đã duyệt, code app đã chạy; AI tự quyết các điểm khác app (bảng mục 3.1) và nút quay lại (câu hỏi 1) |
+| C. Khả năng kiểm chứng tự động | 2 | Mọi nhánh logic và chữ có test, ảnh chuẩn của `:app` được so; chặn chạm thật, TalkBack, quay lại từ nền và quảng cáo thật chỉ kiểm tay |
+| D. Ảnh hưởng chéo | 3 | Popup nằm trên mọi màn hình; `PrimaryButton` dùng chung; `AdsController.kt`, `MainActivity.kt`, `app/build.gradle.kts`, `SampleScreen.kt` cũng do T-009, T-010, T-013, T-014 sửa; `:core:assets` đổi phụ thuộc |
+| E. Độ mới của kỹ thuật | 2 | Cửa sổ `Dialog` riêng, test dispatcher của dialog bằng Robolectric, ảnh chuẩn đầu tiên của `:app` (đã chạy thử, mục 4.1) |
 | **Tổng** | 11 | **Mức: Cao** (chạm điểm chặn) |
 
 ## 6. Ảnh hưởng chéo
 
-- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thêm một `StateFlow` và hai lệnh gọi), `MainActivity.kt`, `AppNavHost.kt` (chữ ký đổi, chỉ `MainActivity` gọi), `app/build.gradle.kts`, `app/src/main/res/values/strings.xml`, `SampleScreen.kt`.
-- File mà nơi khác đọc theo tên (L-020): `scripts/new-app.sh` thay dòng `app_name` trong `app/src/main/res/values/strings.xml` và sửa `app/build.gradle.kts` (đổi `applicationId`, `namespace`); plan giữ nguyên dòng `app_name` và không đụng các dòng `applicationId`, `namespace`, nên script và test của nó trong `scripts/tests/run.sh` không bị ảnh hưởng. `scripts/release.sh` nhắc tới `app/build.gradle.kts` vì truyền các tham số `-P` của bản production (khóa upload, `admobAppId`, `adUnits`, `assetsBaseUrl`) mà file build đọc; plan không đụng các khối `signingConfigs`, `productFlavors` hay phần kiểm tham số production, chỉ thêm plugin, khối `roborazzi` và dòng phụ thuộc, nên script đó không bị ảnh hưởng (plan không mở hay sửa script này, ADR-0017). `scripts/check.sh` (sau PR #81) đọc `app/src/test` để tìm lệnh `captureRoboImage("src/test/screenshots/...")`: screenshot test của plan theo đúng dạng đó. `docs/STATUS.md` do `scripts/status.py` sinh, `scripts/tests/run.sh` chỉ đọc bản trong thư mục tạm. Ảnh chuẩn mới nằm ở `app/src/test/screenshots/`, không thay ảnh chuẩn nào đã có.
-- Task khác có thể xung đột:
-  - T-016 (bắt buộc trước): cung cấp `NetworkMonitor` ở module `:core:network` và đã thêm `implementation(project(":core:network"))` vào `app/build.gradle.kts`.
-  - PR #81 (bắt buộc trước, không phải ticket): `scripts/check.sh` so ảnh chuẩn của `:app`.
-  - T-009: sửa `AdsController.kt` và `MainActivity.kt` (`onStart`, `onStop`). T-017 thêm vào cùng `onStart`.
-  - T-013: cũng thêm `fullScreenAdShowing` qua cùng lớp `FullScreenAdPresence` (cùng file, cùng tên test, hợp đồng "thêm nếu chưa có"); task chạy sau bỏ phần này và dùng phần sẵn có. T-013 còn đặt `FullScreenAdHost` ở `:app`, có thể sửa `MainActivity.kt`.
-  - T-010: đổi đáy `SampleScreen` sang native; T-017 chỉ đổi `internal` thành công khai. Chạy sau T-010 thì ảnh chuẩn có phần dưới mới nhất.
-  - T-014: màn hình xem thử là `AdGalleryActivity` riêng ở `app/src/staging`, không sửa `MainActivity.kt` hay `AppNavHost.kt`; popup mất mạng không có trên màn hình đó (plan T-014, câu hỏi 6). Không xung đột file.
-  - T-007, T-015: sửa `AdsController.kt` hay file build của `:core:ads`.
-- Đề xuất thứ tự chạy: sau T-016 và PR #81 (bắt buộc), sau T-009 và T-010 nếu cùng phiên; trước hay sau T-013 đều được, không cùng lúc. Nên chạy cuối chuỗi quảng cáo của phiên vì chạm nhiều file chung nhất.
+- File dùng chung bị chạm: `PrimaryButton.kt` (tham số mới có mặc định, ảnh danh mục thiết kế không đổi), `AdsController.kt`, `MainActivity.kt`, `AppNavHost.kt`, `DefaultRemoteAssets.kt`, `AssetsModule.kt`, ba file `build.gradle.kts`, `strings.xml` của `:app`, `SampleScreen.kt`, `CLAUDE.md`.
+- File mà nơi khác đọc theo tên (L-020): `scripts/new-app.sh` thay dòng `app_name` trong `app/src/main/res/values/strings.xml` và sửa `app/build.gradle.kts` (`applicationId`, `namespace`): plan giữ nguyên dòng `app_name` và không đụng các dòng đó. Test của script ở `scripts/tests/run.sh` (đọc `app/src/main/res/values/strings.xml` trong bản chép tạm) vì vậy không bị ảnh hưởng. `scripts/release.sh` nhắc `app/build.gradle.kts` vì tham số `-P` của bản production: plan không đụng `signingConfigs`, `productFlavors` hay phần kiểm tham số, không mở hay sửa `release.sh`. `scripts/check.sh` đọc `app/src/test` để tìm `captureRoboImage("src/test/screenshots/...")`: test của plan đúng dạng. `docs/STATUS.md` do `scripts/status.py` sinh. `CLAUDE.md`: các nơi nhắc tên (`.github/ISSUE_TEMPLATE/from-app.yml`, chú thích "CLAUDE.md, step 10" trong `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt`, `scripts/device-session.sh`, `scripts/status.py`) chỉ trích dẫn.
+- Task khác:
+  - T-016 (bắt buộc trước): `ConnectivitySource`, `lostAfterDelay`, `NetworkSettings`, `NetworkModule`, `Fakes.kt`.
+  - T-018 (bắt buộc trước): `AssetFailureReason`, `AssetResult.Unavailable(reason)`.
+  - T-009 (bắt buộc trước): `onStart`, `onStop` của `MainActivity`, sửa `AdsController.kt`.
+  - T-013: cùng hợp đồng `FullScreenAdPresence`; đặt `FullScreenAdHost()` trong `MainActivity`, plan này giữ dòng đó.
+  - T-010: đổi đáy `SampleScreen`; chạy sau T-010 thì ảnh chuẩn có phần dưới mới nhất.
+  - T-014: có thể thêm Roborazzi vào `app/build.gradle.kts` trước; task sau không thêm lại.
+- Đề xuất thứ tự chạy: sau T-016, T-018, T-009 và PR #81; sau T-010, T-013 nếu cùng phiên. Cuối chuỗi vì chạm nhiều file chung nhất.
 
 ## 7. Điều kiện dừng riêng
 
-- `NetworkMonitor` của T-016 khác hợp đồng (tên, kiểu, `checkNow` không có), hay `isOnline` không gồm khoảng chờ: dừng, không tự viết bộ theo dõi hay khoảng chờ trong `:app`.
+- API của T-016 hay T-018 khác hợp đồng ở mục 2.
 - `fullScreenAdShowing` đã có nhưng khác tên hay kiểu hợp đồng.
-- Lint `:app:lintStagingDebug` báo `MissingTranslation` hay lỗi khác về chuỗi nằm ngoài các file của plan (ví dụ chuỗi của `:feature:loading`, `:feature:sample` vì `:app` có thư mục `values-en`): dừng, không thêm bản dịch cho module khác, không tắt quy tắc (câu hỏi 3).
-- PR #81 chưa merge (`scripts/check.sh` chưa duyệt `app/`): dừng, không tự sửa `check.sh`.
+- Lint `:app:lintStagingDebug` báo `MissingTranslation` hay lỗi chuỗi nằm ngoài các file của plan: dừng, không thêm bản dịch cho module khác, không tắt quy tắc.
+- Phương án dự phòng ở mục 3.4 cũng không qua.
 - Ảnh chụp bằng `onRoot().captureRoboImage` không có popup hay lớp phủ sau 3 lần sửa.
-- Robolectric không chạy được test giao diện của `:app` mà không sửa `build-logic/` hay `gradle/libs.versions.toml`.
-- Cần sửa `scripts/check.sh` hay script đối chiếu thiết kế để task qua.
-- Popup cần biết điều gì từ `:feature:loading` ngoài đích điều hướng.
+- Cần sửa `scripts/check.sh`, script đối chiếu thiết kế, `build-logic/` hay `gradle/libs.versions.toml`.
+- `checkModuleDependencies` báo vòng phụ thuộc giữa `:core:assets` và `:core:network`.
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **Chữ khi bấm "Thử lại" mà vẫn chưa có mạng.** Spec KB-2 yêu cầu popup "cho biết vẫn chưa có mạng" nhưng bảng chữ của thiết kế không có dòng này. AI đề xuất: thêm một dòng dưới nội dung, `bodyMedium`, màu `error`, căn giữa: "Vẫn chưa có kết nối. Hãy thử lại sau ít phút." / "Still no connection. Please try again in a moment."; có ảnh chuẩn riêng `NetworkLostScreen_stillOffline_light.png`. Phương án khác: không thêm dòng, chỉ rung nhẹ nút; hoặc bổ sung trạng thái này vào Figma trước.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-2. **Hiện ngay khi rời loading.** `isOnline` của T-016 chỉ báo mất mạng sau 2 giây; khi loading tắt, người dùng có thể thao tác trong 2 giây đầu. AI đề xuất: lần đầu rời màn hình loading và mỗi lần app quay lại từ nền, ViewModel gọi `checkNow()` và hiện popup ngay nếu không có mạng; khoảng chờ chỉ áp dụng khi mạng rớt lúc đang dùng.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-3. **Ngôn ngữ mặc định và lint.** Chuỗi của `:app` hiện tiếng Việt ở `values/` (như `:feature:loading`), tiếng Anh ở `values-en/`. Có `values-en` thì lint có thể đòi bản tiếng Anh cho `app_name` và cho chuỗi của module khác. AI đề xuất: giữ tiếng Việt mặc định; nếu lint chỉ báo `app_name` thì đánh dấu riêng dòng đó là không dịch bằng thuộc tính trên thẻ `<resources>` mà không đổi dòng `app_name` (new-app.sh thay đúng dòng đó); nếu lint báo chuỗi của module khác thì dừng (mục 7) để nhóm chọn chiến lược ngôn ngữ chung cho dự án mẫu. Người duyệt xác nhận ngôn ngữ mặc định của dự án mẫu là tiếng Việt.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-4. **Ảnh chuẩn của `:app` không được CI so.** `scripts/check.sh` chỉ duyệt `core/` và `feature/`. AI đề xuất: chấp nhận cho T-017 (phiên tự chạy so cục bộ bằng `:app:verifyRoborazziStagingDebug` và ghi vào nhật ký), và mở một ticket riêng, rủi ro cao, để `check.sh` duyệt cả `app/` (tên task có biến thể `StagingDebug`) và để script đối chiếu thiết kế nhận thư mục ảnh của `:app`. Phương án khác: gộp sửa `check.sh` vào T-017 (thêm file được bảo vệ vào plan này).
-   - Trả lời (anh Nhật, 2026-10-23): `scripts/check.sh` đã sửa ở PR #81, so ảnh chuẩn của `:app` (`verifyRoborazziStagingDebug`, đọc cả `src/testStaging`). Bỏ phần so ảnh trên máy thay cho CI; T-017 cần PR #81 merge trước. Rà soát độc lập ghi thêm: vì `check.sh` chỉ nhận `captureRoboImage("src/test/screenshots/...")`, screenshot test đổi từ `captureScreenRoboImage` sang `onRoot().captureRoboImage` trên bố cục dựng lại (mục 3.1). Script đối chiếu thiết kế vẫn chỉ đọc `feature/<feature>/`, nên phiên tự chạy gọi thẳng `DesignCompare.java` như mục 3.1.
-5. **Tham số `screen`.** AI đề xuất rút từ `route` của đích: `sample`, `loading`, `ad_gallery`... Không cần mỗi feature khai báo tên. Đích có tham số chỉ lấy tên đích, không lấy giá trị tham số (tránh dữ liệu cá nhân).
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-6. **`SampleScreen` thành công khai** chỉ để screenshot test của `:app` dựng đúng ảnh thiết kế. Phương án khác: dựng popup trên nền trống (ảnh khác thiết kế ở phần dưới, không phải sửa `:feature:sample`). AI đề xuất giữ cách trong plan vì README thiết kế ghi rõ dựng trên `SampleScreen`.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
+1. **Nút quay lại khi popup hiện.** App camera-pose đưa app về nền (`moveTaskToBack(true)`); bản 2 của plan này không làm gì. Cả hai đều không đóng popup (spec KB-2). Đề xuất: theo app, vì người dùng có cách thoát quen thuộc mà popup vẫn còn khi mở lại.
+   - Trả lời:
+2. **Báo lỗi tải khi máy vẫn có mạng.** App hiện popup ngay khi tải file lỗi vì mạng (kể cả quá thời gian). Spec KB-3 nói quá thời gian khi vẫn có mạng thì không hiện popup. Đề xuất: chỉ hiện khi máy cũng báo không có mạng; còn mạng thì màn hình của feature tự báo lỗi (như hiện nay) và chỉ ghi log.
+   - Trả lời:
+3. **Icon wifi-off.** Lấy icon Material Symbols Rounded "wifi_off" của app (Apache 2.0, kèm giấy phép) thay vì vẽ lại icon nét của Figma. Ảnh so sánh có thể lệch nhẹ ở icon. Đề xuất: chấp nhận; hoặc thay icon trên Figma bằng Material Symbols cho khớp.
+   - Trả lời:
+4. **`NetworkStatus` chưa ai dùng trong dự án mẫu.** Giữ để app dùng (dừng đếm ngược, tải lại màn hình lỗi khi `recovered`), như app camera-pose. Đề xuất: giữ.
+   - Trả lời:
+5. **Spec network đang `changed`** (mục 6 về quyền). Plan này không thêm quyền; đề xuất duyệt sau khi spec được xác nhận lại, cùng T-016.
+   - Trả lời:
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
+<!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt
-- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
-- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 

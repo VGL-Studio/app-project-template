@@ -1,16 +1,16 @@
 ---
 ticket: T-007
 title: Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động
-status: approved
-version: 1
+status: draft
+version: 2
 risk_score:
 risk_level: high
 token_estimate: 25M
 blocking_points: [core]
-run_order: 1
-reviewer: Nhật
-cross_reviewer: Nhật
-approved_at: 2026-10-23
+run_order:
+reviewer:
+cross_reviewer:
+approved_at:
 ---
 
 # PLAN T-007: KHÓA REMOTE CONFIG CÓ KIỂU, KHAI BÁO MỘT CHỖ, BẢNG KHÓA SINH TỰ ĐỘNG
@@ -18,6 +18,8 @@ approved_at: 2026-10-23
 ## 1. Tóm tắt
 
 Thêm kiểu `RemoteKey<T>` (boolean, long, double, string) vào `:core:config` và cho `RemoteSettings` đọc theo khóa có kiểu. Cờ tính năng, khóa của `:core:ads` (kể cả khóa bật tắt từng `AdPlacement`) và 5 khóa mới của spec mục 8 đều khai báo bằng `RemoteKey`; khóa mới chỉ khai báo, chưa dùng. Một test ở `:app` thấy mọi khóa của app, sinh và kiểm `docs/remote-config-keys.md` cùng `docs/remote-config-template.json`, giống cách `DesignTokensTest` giữ `tokens.json`. Không đổi giá trị mặc định nào; unit test giữ từng giá trị mặc định.
+
+**Phiên bản 2 (2026-10-23).** Bản 1 đã duyệt ngày 2026-10-23 (anh Nhật). Theo mẫu plan mới sau rà soát RUN-20261023-01: mục 3.3 thêm hai dòng quyền truy cập và thư viện (đều không thêm), mục 3.4 phương án dự phòng. Không đổi cách làm, danh sách file, test hay chấm rủi ro. Tiêu chí E là 1 nên không cần chạy thử (mục 4.1). Mục 9 chờ duyệt lại.
 
 ## 2. Hiểu yêu cầu
 
@@ -194,12 +196,18 @@ Mặc định viết như giá trị trên Firebase: `true`, `45`, `0.5`; chuỗ
 
 File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradle/libs.versions.toml`): không chạm. Test mới ở `:app` chạy trong `testStagingDebugUnitTest` sẵn có của `check.sh`; không thêm thư viện.
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: không thêm cờ. Hai cờ hiện có (`SAMPLE`, `LOADING`) chỉ thêm mô tả, tên và mặc định giữ nguyên.
 - Quảng cáo: không đổi vị trí, định dạng, tần suất hay giá trị mặc định nào (ADR-0014). Khai báo 5 khóa của spec mục 8, chưa đọc ở đâu; hành vi quảng cáo không đổi tới T-009.
 - Sự kiện phân tích: Không chạm.
 - File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. Task chỉ đổi code Kotlin của `:core:config`, `:core:ads`, test của `:app` và hai file trong `docs/`, không gọi API Android cần quyền, không sửa manifest (spec ads mục 6 không đổi vì task này).
+- **Thư viện và SDK:** Không thêm. Test mới của `:app` dùng JUnit 4 (`junit4` trong `gradle/libs.versions.toml`) mà convention plugin đã cấp cho unit test; đọc, ghi file bằng `java.io` và so chuỗi, không cần thư viện JSON (mục 3.1). Không module nào thêm phụ thuộc thư viện.
+
+### 3.4. Phương án dự phòng
+
+- Không có. Tiêu chí E là 1: cách làm theo mẫu có sẵn của dự án (mục 5); điều kiện dừng riêng ở mục 7 giữ nguyên.
 
 ## 4. Kiểm thử
 
@@ -222,6 +230,10 @@ File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradl
 | File mẫu nhập được vào Firebase | Kiểm tra thủ công | Trên một project Firebase thử (không phải production): Remote Config, menu "Publish from a file" hay tương đương, chọn `docs/remote-config-template.json`, xem đủ khóa, kiểu và mặc định; không bấm Publish trên project đang dùng. Nhập file thay cả bộ cấu hình, nên chỉ dùng cho project mới (câu hỏi 4) |
 
 **Ngoại lệ viết test trước:** `docs/remote-config-keys.md` và `docs/remote-config-template.json` sinh ra từ code bằng lệnh ghi lại, không viết trước được; test so file đã viết trước và thất bại vì thiếu file. Đoạn sửa `docs/ops/remote-config.md` và `docs/ops/ads-guide.md` là tài liệu, không có test.
+
+### 4.1. Chạy thử
+
+Không cần (E dưới 2).
 
 ## 5. Chấm rủi ro
 
@@ -270,11 +282,11 @@ File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradl
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
+<!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt
-- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
-- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 

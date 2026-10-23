@@ -1,16 +1,16 @@
 ---
 ticket: T-009
 title: Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên
-status: approved            # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft            # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-21)
 blocking_points: [ads, core]
-run_order: 3                # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật              # người duyệt
-cross_reviewer: Nhật        # bắt buộc khi risk_level là high
-approved_at: 2026-10-23
+run_order:              # AI điền sau họp đánh giá rủi ro
+reviewer:              # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-009: CÔNG TẮC TỔNG, ÂN HẠN PHIÊN ĐẦU, GIỚI HẠN MỖI PHIÊN, KHOẢNG CÁCH LƯU QUA PHIÊN
@@ -18,6 +18,8 @@ approved_at: 2026-10-23
 ## 1. Tóm tắt
 
 Thêm vào `:core:ads` một hàm quyết định thuần cho quảng cáo toàn màn hình (công tắc tổng, ân hạn phiên đầu, tối đa mỗi phiên, khoảng cách tối thiểu), một bộ đếm phiên thuần và một kho lưu hai thời điểm trên DataStore dùng chung của `:core:data`. `AdsController` gom ba phần này thành hai hàm nội bộ mà interstitial hôm nay và native toàn màn hình (T-013) cùng gọi; công tắc tổng `ads_enabled` được ghép vào `isEnabled(placement)`, điểm chung của `AdSlot`, việc tải sẵn interstitial và mọi composable native về sau. Kiểm chứng bằng unit test cho mọi nhánh với đồng hồ giả, và kiểm tra công tắc tổng trên bản staging.
+
+**Phiên bản 2 (2026-10-23).** Bản 1 đã duyệt ngày 2026-10-23 (anh Nhật). Theo mẫu plan mới sau rà soát RUN-20261023-01: mục 3.3 thêm hai dòng quyền truy cập và thư viện (đều không thêm), mục 3.4 phương án dự phòng. Theo rà soát trước khi chạy: bộ đếm activity đang mở tách thành lớp thuần `StartedActivityCounter` có unit test (gồm chuyển giữa hai activity không mở phiên mới), thêm một file code và một file test (mục 3.1, 3.2, 4); bỏ nhắc `checkNow()` đã bỏ ở T-016 bản 2 (mục 6). Không đổi hành vi hay chấm rủi ro. Tiêu chí E là 1 nên không cần chạy thử (mục 4.1). Mục 9 chờ duyệt lại.
 
 ## 2. Hiểu yêu cầu
 
@@ -97,6 +99,19 @@ internal class FullScreenAdSession(private val timeoutMillis: Long = SESSION_TIM
 
 Hằng số trong code, không phải khóa Remote Config mới, vì spec mục 8 không có khóa này (câu hỏi 1).
 
+**Bộ đếm activity đang mở, thuần** (`StartedActivityCounter.kt`, `internal`, chỉ dùng trên luồng chính):
+
+```kotlin
+internal class StartedActivityCounter {
+    /** Returns true only when this start brings the app to foreground (0 -> 1). */
+    fun onStart(): Boolean
+    /** Returns true only when this stop sends the app to background (1 -> 0). Never goes below 0. */
+    fun onStop(): Boolean
+}
+```
+
+Tách khỏi `AdsController` để test được trên JVM. `AdsController` chỉ còn hai dòng nối: `onAppForeground()` gọi `pacer.onForeground()` khi `counter.onStart()` trả `true`, `onAppBackground()` gọi `pacer.onBackground()` khi `counter.onStop()` trả `true`.
+
 **Kho lưu trên máy** (`FullScreenAdHistoryStore.kt`): interface và lớp cài đặt `internal` trên `DataStore<Preferences>` dùng chung của `:core:data`, theo mẫu `DataStoreCounterRepository` của `:feature:sample`.
 
 - Hai khóa mới, tiền tố `ads_` để không trùng khóa của feature trong file `app_preferences`: `longPreferencesKey("ads_first_open_at_millis")`, `longPreferencesKey("ads_last_full_screen_shown_at_millis")`. Khóa mới, không có dữ liệu cũ cần chuyển đổi.
@@ -128,14 +143,14 @@ Log chỉ có lý do và số đếm, không có thời điểm hay dữ liệu 
   - `internal fun onFullScreenShown()`: `guard.onShown(elapsedRealtime)` và `scope.launch { pacer.onShown() }`.
 - Ghi thời điểm mở app lần đầu ngay khi xử lý xong hộp thoại đồng ý: trong `gatherConsent`, hai callback kết thúc (form đã đóng hay không cần hiện, và cập nhật thông tin đồng ý lỗi) gọi một hàm riêng `onConsentFlowFinished()`, hàm này gọi `onConsentUpdated()` rồi, nếu là lần đầu của tiến trình (`AtomicBoolean`), `scope.launch { pacer.recordFirstOpen() }`. Lời gọi `onConsentUpdated()` đồng bộ ở cuối `gatherConsent` giữ nguyên, không ghi. Ghi cả khi người dùng từ chối quảng cáo hay đồng ý lỗi, vì ân hạn tính từ lần mở app, không từ lần đồng ý. Không phụ thuộc activity: `MainActivity` và `AdGalleryActivity` của T-014 đều gọi `gatherConsent`, nên người chỉ mở màn hình xem thử sau khi cài mới vẫn có ân hạn kết thúc đúng (câu hỏi 7).
 - `showInterstitial` viết lại bằng hai hàm trên; một cờ `fullScreenInProgress` (luồng chính) chặn hai lần gọi chồng nhau trong lúc đang đọc kho hay đang chờ.
-- `fun onAppForeground()` / `fun onAppBackground()` công khai, `MainActivity` gọi trong `onStart` / `onStop`. Xoay màn hình gây `onStop`/`onStart` cách nhau rất ngắn nên không đổi phiên. `AdsController` đếm số activity đang ở `onStart` (luồng chính): chỉ lần chuyển từ 0 lên 1 mới gọi `pacer.onForeground()`, chỉ lần chuyển từ 1 về 0 mới gọi `pacer.onBackground()`. Lý do (người rà soát thêm ngày 2026-10-23): T-014 thêm `AdGalleryActivity` thứ hai ở staging; khi chuyển giữa hai activity, `onStart` của activity mới chạy trước `onStop` của activity cũ, nên gọi thẳng sẽ làm bộ đếm phiên tưởng app đang ở nền. Không dùng `ProcessLifecycleOwner` vì `lifecycle-process` chưa có trong `gradle/libs.versions.toml` (file được bảo vệ).
+- `fun onAppForeground()` / `fun onAppBackground()` công khai, `MainActivity` gọi trong `onStart` / `onStop`. Xoay màn hình gây `onStop`/`onStart` cách nhau rất ngắn nên không đổi phiên. `AdsController` đếm số activity đang ở `onStart` bằng `StartedActivityCounter` (luồng chính, có unit test): chỉ lần chuyển từ 0 lên 1 mới gọi `pacer.onForeground()`, chỉ lần chuyển từ 1 về 0 mới gọi `pacer.onBackground()`. Lý do (người rà soát thêm ngày 2026-10-23): T-014 thêm `AdGalleryActivity` thứ hai ở staging; khi chuyển giữa hai activity, `onStart` của activity mới chạy trước `onStop` của activity cũ, nên gọi thẳng sẽ làm bộ đếm phiên tưởng app đang ở nền. Không dùng `ProcessLifecycleOwner` vì `lifecycle-process` chưa có trong `gradle/libs.versions.toml` (file được bảo vệ).
 - Đếm một lần hiện ngay trước `ad.show(activity)`, cùng chỗ với `guard.onShown` hiện nay. Quảng cáo báo lỗi khi hiện thì vẫn tính (nghiêng về ít quảng cáo hơn).
 
 **Hilt:** module mới `core/ads/.../di/AdsDataModule.kt` gắn `FullScreenAdHistoryStore` với lớp cài đặt (`@Binds`). `DataStore<Preferences>` lấy từ `DataStoreModule` của `:core:data`, `AppLogger` từ `:core:logging`; `:app` đã phụ thuộc cả hai nên đồ thị Hilt đủ.
 
 **Phụ thuộc module:** `core/ads/build.gradle.kts` thêm `implementation(project(":core:data"))` và `implementation(project(":core:logging"))`. Core phụ thuộc core, đúng ADR-0001; `checkModuleDependencies` trong `build.gradle.kts` gốc kiểm tra theo quy tắc chung, không có danh sách module cần sửa. Không đụng `gradle/libs.versions.toml`.
 
-**Commit test trước (bước 3, L-025):** commit test chứa toàn bộ file test và bản giả mới (mục 3.2), cùng khung rỗng của các lớp chính mới để test biên dịch được: `decideFullScreenAd` trả `Allowed`, `FullScreenAdSession` không đếm, kho trả `FullScreenAdHistory(null, null)` và không ghi, `FullScreenAdPacer` trả `Allowed`, `placementActive` trả giá trị của vị trí (chưa ghép công tắc tổng), `fullScreenAdLimits` trả số 0. Test thất bại ở phần kiểm tra. Commit code ở bước 4 viết phần thật và nối vào `AdsController`, `MainActivity`.
+**Commit test trước (bước 3, L-025):** commit test chứa toàn bộ file test và bản giả mới (mục 3.2), cùng khung rỗng của các lớp chính mới để test biên dịch được: `decideFullScreenAd` trả `Allowed`, `FullScreenAdSession` không đếm, `StartedActivityCounter` luôn trả `false`, kho trả `FullScreenAdHistory(null, null)` và không ghi, `FullScreenAdPacer` trả `Allowed`, `placementActive` trả giá trị của vị trí (chưa ghép công tắc tổng), `fullScreenAdLimits` trả số 0. Test thất bại ở phần kiểm tra. Commit code ở bước 4 viết phần thật và nối vào `AdsController`, `MainActivity`.
 
 ### 3.2. Danh sách file
 
@@ -145,6 +160,7 @@ Log chỉ có lý do và số đếm, không có thời điểm hay dữ liệu 
 | --- | --- | --- |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPolicy.kt` | `FullScreenAdLimits`, `FullScreenAdHistory`, `FullScreenAdVerdict`, `BlockReason`, hàm thuần `decideFullScreenAd` |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdSession.kt` | Bộ đếm phiên thuần, hằng số 30 phút |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/StartedActivityCounter.kt` | Bộ đếm activity đang mở, thuần: báo tiền cảnh khi 0 lên 1, nền khi 1 về 0 |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdHistoryStore.kt` | Interface và `DataStoreFullScreenAdHistoryStore` (`internal`), hai khóa `ads_first_open_at_millis`, `ads_last_full_screen_shown_at_millis` |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPacer.kt` | Bộ điều phối dùng chung cho mọi quảng cáo toàn màn hình (`check`, `onShown`, `recordFirstOpen`, `onForeground`, `onBackground`); `AdClock` và `SystemAdClock` |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsRemoteRules.kt` | `placementActive` (công tắc tổng ghép khóa của vị trí), `fullScreenAdLimits` |
@@ -155,6 +171,7 @@ Log chỉ có lý do và số đếm, không có thời điểm hay dữ liệu 
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` | Thêm test giữ mặc định `ENABLED` true, ân hạn 180, tối đa 4, nếu T-007 chưa có; không sửa test sẵn có |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPolicyTest.kt` | Mọi nhánh của `decideFullScreenAd` |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdSessionTest.kt` | Bộ đếm phiên |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/StartedActivityCounterTest.kt` | Bộ đếm activity đang mở |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdHistoryStoreTest.kt` | Kho trên DataStore trong bộ nhớ, đọc lỗi, lưu qua lần mở app |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPacerTest.kt` | Ba tiêu chí KB-6 qua bộ điều phối với đồng hồ giả và kho giả; ghi thời điểm mở app lần đầu |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsRemoteRulesTest.kt` | Hai tiêu chí KB-7, giới hạn lấy từ Remote Config |
@@ -167,13 +184,19 @@ Log chỉ có lý do và số đếm, không có thời điểm hay dữ liệu 
 
 Không sửa: `AdSlot.kt` (đi qua `isEnabled`), `FullScreenAdGuard.kt` và `FullScreenAdGuardTest.kt` (giữ nguyên rào chắn trong bộ nhớ), `AdsSettings.kt` (khóa đã khai báo ở T-007), `core/data/` (dùng nguyên `DataStoreModule`), `docs/remote-config-keys.md` (không thêm khóa, không đổi mặc định).
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có. Dùng các khóa Remote Config mà T-007 đã khai báo: `ads_enabled`, `ads_interstitial_min_interval_seconds`, `ads_first_session_grace_seconds`, `ads_interstitial_max_per_session_count`. Không đổi giá trị mặc định nào (ADR-0014).
 - Quảng cáo: không thêm, bớt hay di chuyển vị trí. Đổi tần suất quảng cáo toàn màn hình theo KB-6, thêm công tắc tổng theo KB-7.
 - Sự kiện phân tích: Không chạm.
 - Dữ liệu trên máy: hai khóa DataStore mới theo spec mục 6; số đếm của phiên chỉ trong bộ nhớ. Không gửi ra khỏi máy. `allowBackup="false"` nên dữ liệu không được sao lưu sang máy khác.
 - File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. DataStore ghi vào bộ nhớ riêng của app, không cần quyền; đếm activity đang mở dùng vòng đời của `MainActivity`, không cần quyền; không sửa manifest (spec ads mục 6 không đổi vì task này).
+- **Thư viện và SDK:** Không thêm. `:core:ads` thêm phụ thuộc module `:core:data` (đưa `androidx-datastore-preferences` ra bằng `api`, nên `DataStore<Preferences>` có trên classpath biên dịch của `:core:ads`) và `:core:logging`; đều là module của dự án, không phải thư viện mới. Không dùng `lifecycle-process` (mục 3.1).
+
+### 3.4. Phương án dự phòng
+
+- Không có. Tiêu chí E là 1: cách làm theo mẫu có sẵn của dự án (mục 5); điều kiện dừng riêng ở mục 7 giữ nguyên.
 
 ## 4. Kiểm thử
 
@@ -198,6 +221,9 @@ Unit test chạy trên JVM, đồng hồ giả, không cần Android. Thời gia
 | Nền ngắn giữ phiên | Unit test | `FullScreenAdSessionTest.shortBackground_keepsCount`: `onBackground(0)`, `onForeground(1_799_999)`, đếm giữ nguyên |
 | Nền 30 phút là phiên mới | Unit test | `FullScreenAdSessionTest.backgroundOfTimeout_startsNewSession`: `onBackground(0)`, `onForeground(1_800_000)`, `shownCount == 0` |
 | Vào tiền cảnh lần đầu không đổi đếm | Unit test | `FullScreenAdSessionTest.foregroundWithoutBackground_keepsCount` |
+| Tiền cảnh chỉ khi 0 lên 1 | Unit test | `StartedActivityCounterTest.firstStart_isForeground`: `onStart()` đầu tiên trả `true`; `secondStart_isNotForeground`: `onStart()` thứ hai trả `false` |
+| Nền chỉ khi 1 về 0 | Unit test | `StartedActivityCounterTest.lastStop_isBackground`: start, stop: `onStop()` trả `true`; `stopWithoutStart_staysAtZero`: `onStop()` khi chưa start trả `false`, rồi `onStart()` vẫn trả `true` |
+| Chuyển giữa hai activity không mở phiên mới | Unit test | `StartedActivityCounterTest.switchingActivities_doesNotStartNewSession`: A `onStart()` (`true`), B `onStart()` trước khi A dừng (`false`), A `onStop()` (`false`), B `onStop()` (`true`); không có lần nào báo nền rồi tiền cảnh giữa lúc chuyển |
 | Kho rỗng | Unit test | `FullScreenAdHistoryStoreTest.emptyStore_readsUnknownTimes`: `FullScreenAdHistory(null, null)` |
 | Thời điểm mở đầu không bị ghi đè | Unit test | `FullScreenAdHistoryStoreTest.firstOpen_isWrittenOnce`: ghi 1_000 rồi 2_000, đọc ra 1_000 |
 | KB-6, tiêu chí 1 (lưu qua lần mở app) | Unit test | `FullScreenAdHistoryStoreTest.lastShown_survivesNewStoreInstance`: kho A ghi 5_000; kho B mới trên cùng `InMemoryDataStore` đọc ra 5_000 |
@@ -222,9 +248,13 @@ Unit test chạy trên JVM, đồng hồ giả, không cần Android. Thời gia
 | KB-7 trên máy | Kiểm tra thủ công | Bản staging, giá trị cục bộ của T-008 (nếu đã có) hay Remote Config staging: bật `ads_sample_bottom_banner_enabled`, thấy banner; tắt `ads_enabled`, lần cập nhật cấu hình sau banner biến mất; bật lại thì banner trở lại. `adb logcat -v threadtime \| grep ' VGL\.Ads'` |
 | KB-6 trên máy | Kiểm tra thủ công, sau T-014 | App mẫu chưa có vị trí toàn màn hình nên chưa thử được trên máy; kiểm lại ở màn hình xem thử (T-014): cài mới, chỉ mở "Ad gallery" (không mở app chính), không có interstitial trong 180 giây và có sau 180 giây, sau đó tối đa 4 lần mỗi phiên, đóng mở lại app trong 45 giây không có interstitial |
 
-`AdsController` và `MainActivity` không có unit test: lớp này gắn với SDK quảng cáo, hiện không có test, và phần nối chỉ gọi các hàm đã test ở trên. Người rà soát độc lập đọc kỹ phần nối (thứ tự kiểm tra, chỗ gọi `onFullScreenShown`, chỗ gọi `recordFirstOpen` trong hai callback của `gatherConsent`, cờ chống gọi chồng).
+`AdsController` và `MainActivity` không có unit test: lớp này gắn với SDK quảng cáo, hiện không có test, và phần nối chỉ gọi các hàm đã test ở trên. Phần đếm activity (0 lên 1, 1 về 0, chuyển giữa hai activity) nằm trong `StartedActivityCounter` và có test; phần còn lại chỉ là hai lời gọi trong `onStart`/`onStop` của `MainActivity` và hai nhánh `if` trong `AdsController`. Người rà soát độc lập đọc kỹ phần nối (thứ tự kiểm tra, chỗ gọi `onFullScreenShown`, chỗ gọi `recordFirstOpen` trong hai callback của `gatherConsent`, cờ chống gọi chồng).
 
 **Ngoại lệ viết test trước:** phần nối trong `AdsController.kt` (kể cả lời gọi `recordFirstOpen` trong `gatherConsent`), `MainActivity.kt`, `AdsDataModule.kt`, `core/ads/build.gradle.kts` và mục 6 của `ads-guide.md`: không có unit test (lý do ở trên), kiểm qua build, test trên emulator có sẵn (app vẫn khởi động, Hilt đủ đồ thị) và kiểm tra thủ công. Người duyệt cần đồng ý.
+
+### 4.1. Chạy thử
+
+Không cần (E dưới 2).
 
 ## 5. Chấm rủi ro
 
@@ -244,7 +274,7 @@ Unit test chạy trên JVM, đồng hồ giả, không cần Android. Thời gia
 - File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (constructor, `isEnabled`, `showInterstitial`), `core/ads/build.gradle.kts`, `MainActivity.kt`, file DataStore dùng chung `app_preferences` (thêm hai khóa tiền tố `ads_`). `tokens.json`, ảnh chuẩn screenshot và `docs/remote-config-keys.md` không bị ảnh hưởng: task không đổi giao diện, không thêm khóa Remote Config; test và preview không cấp `AdsController` nên ảnh không có quảng cáo (ADR-0013).
 - `docs/STATUS.md`: `scripts/tests/run.sh` chỉ đọc `STATUS.md` của app mới và repo giả do test tạo trong thư mục tạm, không đọc file của repo. Không bị ảnh hưởng; `scripts/status.py --check` xác nhận trang khớp. `AdsController.kt`, `MainActivity.kt` và `core/ads/build.gradle.kts` không được script hay test nào đọc theo tên.
 - Task khác trong sprint có thể xung đột: T-007 (sửa `AdsController.kt`, `AdsSettings.kt`, `AdsSettingsTest.kt`), T-008 (giá trị cục bộ cho staging, có thể chạm phần cung cấp `RemoteSettings`), T-010 (native small, thêm composable gọi `isEnabled`), T-015 (AppLovin, sửa `core/ads/build.gradle.kts`).
-- T-014 (`AdGalleryActivity` ở staging) gọi `gatherConsent` và `onUserInteraction` nhưng không gọi `onAppForeground` / `onAppBackground`. Thời điểm mở app lần đầu ghi trong `gatherConsent` nên người thử chỉ mở "Ad gallery" sau khi cài mới vẫn có ân hạn kết thúc đúng (câu hỏi 7); T-014 không phải sửa vì việc này. T-013 (`FullScreenAdHost` trong `MainActivity`) và T-017 (`onAppForeground` lần hai gọi `checkNow()`) dùng đúng tên hàm của plan này.
+- T-014 (`AdGalleryActivity` ở staging) gọi `gatherConsent` và `onUserInteraction` nhưng không gọi `onAppForeground` / `onAppBackground`. Thời điểm mở app lần đầu ghi trong `gatherConsent` nên người thử chỉ mở "Ad gallery" sau khi cài mới vẫn có ân hạn kết thúc đúng (câu hỏi 7); T-014 không phải sửa vì việc này. T-013 (`FullScreenAdHost` trong `MainActivity`) và T-017 (`MainActivity.onStart` gọi thêm `networkDialog.onAppForeground()` cạnh lời gọi của plan này) dùng đúng tên hàm của plan này.
 - Đề xuất thứ tự chạy: sau T-007 (bắt buộc) và sau T-008 nếu chạy cùng phiên, để kiểm tra thủ công KB-7 bằng giá trị cục bộ; trước T-010 đến T-013 để các composable native dùng ngay `isEnabled` có công tắc tổng. T-015 chạy trước hay sau đều được, nhưng không cùng lúc (cùng sửa `core/ads/build.gradle.kts`).
 
 ## 7. Điều kiện dừng riêng
@@ -277,11 +307,11 @@ Unit test chạy trên JVM, đồng hồ giả, không cần Android. Thời gia
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
+<!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt
-- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
-- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 
