@@ -1,6 +1,6 @@
 # HƯỚNG DẪN REMOTE CONFIG
 
-Tài liệu này dành cho dev, AI và người vận hành. Nó nói cách đặt tên, khai báo, thử và đổi các giá trị cấu hình từ xa qua Firebase Remote Config. Quyết định nằm ở ADR-0003 (cờ tính năng và tham số kinh doanh), ADR-0012 (nối Firebase), ADR-0014 (giá trị mặc định của quảng cáo), ADR-0018 (chờ cấu hình ở màn hình loading) và ADR-0023 (quy ước khóa).
+Tài liệu này dành cho dev, AI và người vận hành. Nó nói cách đặt tên, khai báo, thử và đổi các giá trị cấu hình từ xa qua Firebase Remote Config. Quyết định nằm ở ADR-0003 (cờ tính năng và tham số kinh doanh), ADR-0012 (nối Firebase), ADR-0014 (giá trị mặc định của quảng cáo), ADR-0018 (chờ cấu hình ở màn hình loading), ADR-0023 (quy ước khóa) và ADR-0026 (khóa quảng cáo theo tên AdsKit).
 
 Các phần ghi **(đợt 2)** cần code chưa có trong `:core:config` (kiểu double và string, bảng khóa sinh tự động, giá trị cục bộ cho staging).
 
@@ -9,15 +9,21 @@ Các phần ghi **(đợt 2)** cần code chưa có trong `:core:config` (kiểu
 | Loại | Ví dụ | Ai đọc |
 | --- | --- | --- |
 | Cờ tính năng | `feature_camera_enabled` | `FeatureFlags` (`:core:config`), feature theo dõi bằng `Flow` |
-| Quảng cáo | `ads_enabled`, `ads_poses_banner_enabled`, `ads_interstitial_min_interval_seconds` | `:core:ads` |
+| Quảng cáo | `show_open_ads`, `show_resum_ads`, `ads_interval`, `is_show_native_bottom`, `is_show_inter_save` | `:core:ads`, vỏ app (app open lúc mở app, luồng giới thiệu) |
 | Tham số của module | `assets_catalog_path`, `review_min_saved_photos_count` | Module core sở hữu tham số, qua `RemoteSettings` |
 
 Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qua `FeatureFlags`, còn tham số đi qua module core sở hữu.
 
 ## 2. Đặt tên và kiểu
 
-- Chữ thường, nối bằng gạch dưới, tiền tố theo chủ: `feature_`, `ads_`, `<module>_`. Đơn vị ở cuối: `_seconds`, `_count`, `_percent`.
-- Cờ tính năng: `feature_<ten>_enabled`. Vị trí quảng cáo: `ads_<vị trí>_enabled`.
+- Chữ thường, nối bằng gạch dưới.
+- Cờ tính năng: `feature_<ten>_enabled`. Tham số của module: `<module>_<tham số>`, đơn vị ở cuối (`_seconds`, `_count`, `_percent`).
+- **Quảng cáo** (ADR-0026, thay mục 1 của ADR-0023 cho khóa quảng cáo): khái niệm có trong AdsKit dùng **đúng tên của AdsKit**, kể cả lỗi chính tả `show_resum_ads`. Bảng khóa ở [ads-business-rules.md](ads-business-rules.md), mục 10. Khóa mới đặt cùng kiểu với AdsKit:
+  - Bật tắt: `is_show_<thứ>` (ví dụ vị trí `is_show_inter_save`), hoặc `show_<thứ>_ads` cho loại quảng cáo theo thời điểm.
+  - Loại: `<thứ>_type` (giá trị chuỗi, ví dụ `aoa`, `inter`).
+  - Khoảng cách: `ads_interval_<vị trí>`; thời gian: `time_<việc>_<thứ>`.
+  - Đơn vị ghi trong mô tả khóa (giây, lần), không ghi ở cuối tên.
+  - Khóa `ads_<vị trí>_enabled` và `ads_interstitial_min_interval_seconds` của đợt 2 được đổi sang tên mới ở T-019 (đợt 3). App nào đã phát hành bản đọc khóa cũ thì giữ khóa cũ trên Firebase tới khi không còn bản đó (dòng cuối của mục này).
 - Kiểu: boolean, long, double (đợt 2), string (đợt 2). Không dùng khối JSON làm cấu hình (ADR-0023). Danh sách ngắn thì dùng string, ghi định dạng trong mô tả (ví dụ `"vi,en,hi"`).
 - Khóa đã phát hành không đổi tên, không đổi kiểu. Cần khác thì tạo khóa mới; khóa cũ giữ tới khi không còn bản app nào đọc.
 
@@ -26,7 +32,7 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 1. **Có trong spec hay plan:** cờ tính năng mới đi cùng feature; tham số kinh doanh (quảng cáo, giới hạn, ngưỡng) phải có trong spec đã duyệt.
 2. **Khai báo một chỗ** ở module sở hữu: tên, kiểu, giá trị mặc định, mô tả một câu. Mặc định là giá trị an toàn khi chưa tải được cấu hình: cờ và vị trí quảng cáo tắt; giới hạn tần suất nghiêng về ít quảng cáo.
    - Cờ tính năng: một mục trong `FeatureFlag` (`:core:config`).
-   - Khóa quảng cáo: trong cấu hình của `:core:ads` (hiện là `AdsSettings`).
+   - Khóa quảng cáo: trong cấu hình của `:core:ads` (hiện là `AdsSettings`), tên theo bảng khóa của `ads-business-rules.md`.
    - Tham số khác: trong module core sở hữu, đọc qua `RemoteSettings`.
 3. **Sinh lại bảng khóa** `docs/remote-config-keys.md` và file mẫu cho Firebase bằng script, commit cùng PR (đợt 2; tới lúc đó ghi khóa mới vào mục Khóa của plan và spec).
 4. **Test:** giá trị mặc định có test (như `AdsSettingsTest`, test mặc định tắt của `FeatureFlag`); ViewModel dùng nguồn cờ giả.
@@ -47,7 +53,7 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 3. **Kiểu giá trị trên Firebase khớp kiểu trong code** (boolean là `true`/`false`, số không có đơn vị).
 4. **Bấm Publish** và kiểm trên một máy (DebugView hay log của app).
 5. **Quay về:** dùng lịch sử phiên bản của Remote Config trên Firebase; ghi lần quay về vào sổ.
-6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt `ads_enabled` (đợt 2) hay khóa của vị trí, rồi mới tìm nguyên nhân.
+6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt khóa của định dạng hay vị trí bị cảnh báo (ví dụ `is_show_native_after_inter`, `show_open_ads`), rồi mới tìm nguyên nhân. Công tắc tổng: câu hỏi mở của spec ads.
 
 ## 6. Thử nghiệm A/B
 
