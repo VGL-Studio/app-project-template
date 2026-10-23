@@ -97,7 +97,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-040. Plan ghi sẵn phương án dự phòng đã duyệt, để phiên chuyển sang thay vì dừng task
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-035 của app, PR VGL-Studio/camera-pose#39, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-039 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** ba lần dừng task đầu tiên ở app đều cùng một dạng: kỹ thuật của plan không chạy (hết thời gian chờ khi chụp ảnh trong Robolectric, quy tắc của `check.sh`, thuộc tính trợ năng không lan xuống node con), và cách thay đã rõ ngay khi gặp lỗi. Phiên phải dừng vì cách thay chưa được duyệt; mỗi lần mất một phiên và một vòng duyệt.
 - **Cải tiến:**
@@ -136,7 +136,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-044. Mâu thuẫn và test yếu chỉ được tìm thấy khi phiên đã chạy
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-036 của app, gom L-014, L-015, L-019, L-030; PR VGL-Studio/camera-pose#39, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-040 của app, gom L-014, L-015, L-019, L-030; PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:**
   - Khi chuẩn bị một danh sách chạy ở app, nhiều lỗi chỉ lộ ra nhờ rà soát bằng tay: một plan cần quyền mà spec không có; câu trả lời của người duyệt ở một plan trái với quy tắc ghi sự kiện mà plan khác vừa đặt; hai plan đặt cùng một phần giao diện vào hai ViewModel khác nhau.
@@ -151,7 +151,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-045. Quyền và thư viện cần thêm chỉ lộ ra khi viết code, phiên phải dừng hoặc đi vòng
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-037, L-007 của app, PR VGL-Studio/camera-pose#39, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-041, L-007 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** ở app, một hàm CameraX trả `ListenableFuture` mà Guava không có trên classpath biên dịch; thêm thư viện là điều kiện dừng nên phiên phải gọi qua reflection. Một plan khác cần quyền lưu tệp trên Android 9 trở xuống mà spec không có, chỉ được thấy nhờ người rà soát bằng tay trước khi duyệt.
 - **Cải tiến:**
@@ -165,7 +165,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-046. Chạy lại `main-guard` trên đúng commit bị đổ lỗi, xanh, nhưng issue `main-broken` không tự đóng
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-032 của app, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-036 của app, issue #79)
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** dev chạy lại `main-guard` trên commit bị đổ lỗi và lần chạy xanh. Bước đóng issue chỉ đóng khi `compare/<commit bị đổ lỗi>...<commit xanh>` trả `ahead`; cùng một commit thì trả `identical`, nên issue vẫn mở và dev phải tự đóng trước khi phiên sau chạy được.
 - **Cải tiến (đề xuất, chưa làm):** `main-guard.yml` đóng issue khi `status` là `ahead` hoặc `identical`; ADR-0010 mục 2 ghi thêm trường hợp này. Chạm `.github/` nên cần plan rủi ro cao có duyệt chéo.
@@ -174,7 +174,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-047. Một test chập chờn trên `main-guard` kết thúc cả phiên
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-029, L-033 của app, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-029, L-037 của app, issue #79)
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** một screenshot test chụp trạng thái có vòng chờ chạy mãi thất bại một lần trên `main-guard`, xanh ở PR, ở cục bộ và khi chạy lại. Một lần đỏ đó mở `main-broken`, phiên kết thúc khi mới xong 2 trên 7 task. Nguyên nhân, đo ở app: `captureRoboImage(path) { ... }` chờ luồng chính rảnh mà không có giới hạn; vòng chờ chạy mãi nên Robolectric vẽ khung hình khoảng 4 phút tới khi máy test hết bộ nhớ rồi mới chụp. Với bộ nhớ test mặc định, 5 lần qua; với 1g và 384m, ảnh lệch và test thất bại. Chụp bằng `runComposeUiTest` với đồng hồ dừng ở mốc cố định: 7 trên 7 lần qua với ba cỡ bộ nhớ, test chạy 0,25 giây.
 - **Cải tiến (đề xuất, chưa làm):** `main-guard.yml`: khi bước kiểm tra đỏ chỉ vì test thất bại, chạy lại riêng các test đó một lần trên cùng commit; xanh thì không mở `main-broken` mà mở hoặc bình luận vào issue `flaky` ghi tên test, để sửa test trong một ticket thường; vẫn đỏ thì làm như hiện nay. ADR-0010 mục 2 thêm quy tắc này; cần plan rủi ro cao có duyệt chéo. Ngoài ra, `pre-run-review.md` đã coi test có nguy cơ chập chờn (hiệu ứng chạy mãi, đồng hồ thật, mạng thật) là mức chặn.
@@ -183,7 +183,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-048. Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-034 của app, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-038 của app, issue #79)
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** khi `main-broken` mở, `merge-if-green.sh` từ chối mọi PR, kể cả PR từ nhánh `revert/<commit>` mà `main-guard` dựng sẵn; chỉ người đóng issue mới mở lại được. Lý do của ADR-0010 là đúng (tên nhánh không phải bằng chứng), nhưng hệ quả là một lần merge hỏng vào ban đêm làm mọi task còn lại chờ tới sáng.
 - **Cải tiến (đề xuất, chưa làm):** ngoại lệ kiểm bằng nội dung thay vì tên: khi `main-broken` mở, `merge-if-green.sh` chỉ merge PR có đúng một commit mà cây file trùng khớp với kết quả `git revert <commit bị đổ lỗi>` do chính script dựng trên nhánh chính mới nhất, và CI xanh. Phiên được merge bản revert của commit do chính phiên merge, chuyển task đó sang `stopped`, rồi làm tiếp các task không phụ thuộc nó. Issue vẫn chỉ tự đóng bởi `main-guard`; AI vẫn không đóng hay sửa issue. Cần ADR sửa ADR-0010 và plan rủi ro cao có duyệt chéo.
