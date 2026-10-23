@@ -14,19 +14,23 @@ import com.vglstudio.template.feature.loading.navigation.loadingScreen
 import com.vglstudio.template.feature.sample.navigation.SampleDestination
 import com.vglstudio.template.feature.sample.navigation.sampleScreen
 import com.vglstudio.template.network.reportedScreenOf
+import com.vglstudio.template.network.reportsScreen
 
 /**
  * Wires every feature's destinations together. Features never navigate to each other directly.
- * [onScreenChanged] receives the current screen for the network dialog: `null` before the first destination and on
- * the loading screen (spec network, KB-1), also after the system recreates the activity and restores the back stack.
+ * [onScreenChanged] receives the current screen for the network dialog: `null` on the loading screen (spec network,
+ * KB-1), also after the system recreates the activity and restores the back stack. Nothing is reported while the
+ * back stack has no entry yet, so a recreation never looks like a passage through loading ([reportsScreen]).
  */
 @Composable
 fun AppNavHost(modifier: Modifier = Modifier, onScreenChanged: (String?) -> Unit = {}) {
     val navController = rememberNavController()
     val entry by navController.currentBackStackEntryAsState()
-    val screen = reportedScreenOf(entry?.destination?.route)
+    val route = entry?.destination?.route
     val currentOnScreenChanged by rememberUpdatedState(onScreenChanged)
-    LaunchedEffect(screen) { currentOnScreenChanged(screen) }
+    LaunchedEffect(route) {
+        if (reportsScreen(route)) currentOnScreenChanged(reportedScreenOf(route))
+    }
     NavHost(
         navController = navController,
         startDestination = LoadingDestination,

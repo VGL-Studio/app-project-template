@@ -32,5 +32,10 @@ internal fun reportedScreenOf(route: String?): String? {
     return screenNameOf(route).takeUnless { it == LOADING }
 }
 
-/** Skeleton for the tests written first (T-017, review fix): reports every route, as before the fix. */
-internal fun reportsScreen(route: String?): Boolean = true
+/**
+ * Whether :app reports [route] to the network dialog. Not while the back stack has no entry yet (`null` route): on a
+ * cold start the controller already starts as on loading, and after the activity is recreated (rotation, dark mode,
+ * locale) the first frame has no entry before the restored destination comes back. Reporting `null` there would
+ * look like a passage through loading and drop the dialog shown before the recreation.
+ */
+internal fun reportsScreen(route: String?): Boolean = route != null

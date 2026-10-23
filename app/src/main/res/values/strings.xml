@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Vietnamese is the default language; values-en holds English. MissingTranslation is ignored here only for
-     app_name, which has no English entry: scripts/new-app.sh rewrites that exact line (plan T-017, question 3). -->
+<!-- Vietnamese is the default language; values-en holds English. MissingTranslation is ignored for this whole file,
+     because app_name has no English entry and the attribute cannot go on its line: scripts/new-app.sh rewrites that
+     exact line (plan T-017, question 3). Every other string here must still get its values-en entry. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="vi" tools:ignore="MissingTranslation">
     <string name="app_name">App Template</string>
     <string name="network_lost_title">Không có kết nối mạng</string>
