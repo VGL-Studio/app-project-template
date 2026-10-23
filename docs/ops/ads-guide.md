@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách chọn, đặt, thử và đo quảng cáo trong app của nhóm. Quyết định nằm ở ADR-0004, ADR-0013, ADR-0014 và ADR-0022; cấu hình từ xa ở [remote-config.md](remote-config.md) (ADR-0023). Repo `vgl-docs` và file "Quy chuẩn Native" cũ chỉ để tham khảo; khi khác tài liệu này thì theo tài liệu này.
 
-Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native thu gọn, native toàn màn hình); tới lúc đó chỉ dùng banner, interstitial, native small, native medium và native trong danh sách.
+Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native toàn màn hình); tới lúc đó chỉ dùng banner, interstitial, native small, native medium, native trong danh sách và native thu gọn.
 
 ## 1. Nguyên tắc
 
@@ -41,7 +41,7 @@ Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành c�
 | Native small | Banner | Đáy hay giữa màn hình nội dung | Có |
 | Native medium | MREC | Trong nội dung, giữa các khối | Có |
 | Native in-list | | Trong danh sách hay lưới, cách nhau N mục | Có |
-| Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | (đợt 2) |
+| Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | `CollapsibleNativeAdSlot` |
 | Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | (đợt 2) |
 | App open, rewarded | | Chưa làm; cần ADR mới khi một app cần | Không |
 
@@ -49,7 +49,7 @@ Chọn định dạng theo màn hình, không theo doanh thu từng định dạ
 
 ## 4. Quy chuẩn native
 
-Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small, medium và in-list đã có; collapsible và toàn màn hình là **(đợt 2)**. Bảng dưới là quy tắc phải giữ.
+Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small, medium, in-list và collapsible đã có; toàn màn hình là **(đợt 2)**. Bảng dưới là quy tắc phải giữ.
 
 | Cỡ | Thành phần | Quy tắc |
 | --- | --- | --- |
@@ -100,6 +100,7 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
      Quảng cáo thứ k nằm ngay sau mục thứ k x N (N là `ads_inlist_every_count`), chỉ nằm giữa hai mục: không ở đầu, không ở cuối, danh sách có N mục trở xuống thì không có quảng cáo. Chưa đồng ý, vị trí hay công tắc tổng tắt thì không chèn hàng nào. Mỗi ô một quảng cáo riêng, tải khi ô hiện lần đầu, giữ khi cuộn qua lại (không tải lại), hủy hết khi rời màn hình; ô không có quảng cáo sau thời gian chờ thì cao 0. Hàng quảng cáo có khóa và `contentType` riêng, không trùng khóa của mục.
    - **Lưới:** truyền số cột, `itemsWithInListAds(items, ads, columns = 2) { ... }`. N được làm tròn lên bội số cột (N = 3, 2 cột thành 4) để hàng trên quảng cáo luôn đủ ô; hàng quảng cáo rộng hết lưới. Khi chọn N cho màn hình lưới, nên chọn sẵn bội số cột.
    - N trên Remote Config nên từ 5 trở lên; N = 1 nghĩa là quảng cáo xen giữa mọi mục. Code không chặn, giá trị là quyết định của người vận hành (ADR-0023).
+   - **Native thu gọn** (vị trí định dạng `NATIVE_COLLAPSIBLE`): đặt `CollapsibleNativeAdSlot(placement)`. Màn hình gọi tự đặt nó ở đáy; slot chỉ chiếm chiều rộng được cho, không tự ghim. Quảng cáo mở dạng medium có nút thu gọn 48 dp ở góc trên trái, chạm thì thành dạng small và không mở lại trong lần vào màn hình đó, kể cả khi xoay máy, quay lại từ ngăn xếp hay tải quảng cáo mới. Screenshot test truyền `CollapsibleNativeAdCard(assets, collapsed, onCollapse = {})` giả.
 5. **Test:** test không có `LocalAdsController` nên `NativeAdSlot` không vẽ gì; screenshot test truyền `NativeAdCard` giả (hay `NativeAdPlaceholder(size, animated = false)` cho trạng thái đang tải) qua tham số quảng cáo của màn hình, để ảnh có quảng cáo như thiết kế, như `SampleScreenScreenshotTest`. Test ViewModel cho điểm gọi interstitial nếu có logic.
 6. **Mã quảng cáo production:** tạo đơn vị quảng cáo trên AdMob, ghi vào `release.properties` lúc phát hành ([release.md](release.md)); không vào repo.
 7. **Bật:** sau khi bản production có vị trí đã lên Play, người phụ trách bật `ads_<ten_vi_tri>_enabled` trên Firebase theo [remote-config.md](remote-config.md), mục 5.
