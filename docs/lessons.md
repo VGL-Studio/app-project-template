@@ -207,3 +207,84 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `docs/auto-run.md` bước 5 có bảng những gì `scripts/check.sh` từ chối; `scripts/plan-check.py` quy tắc 9 dò trong plan lệnh `captureRoboImage` sai đường dẫn, ảnh chuẩn mới thiếu ở mục 3.2, ảnh nằm ngoài `src/test/screenshots/` (lỗi với plan `draft`, chú ý với plan `approved`). `docs/CLAUDE.md` mục Khi viết plan: điều kiện về file R2 kiểm bằng workflow trên GitHub hoặc "dev kiểm trước phiên", không bằng `curl` từ phiên. `scripts/status.py --sync` chuyển ticket theo plan `approved` hay `stopped`; `plan-check.py` quy tắc 10 báo chú ý khi lệch; `docs/CLAUDE.md` mục Trang tiến độ. Có test.
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/issue-78-plan-checks`
+
+### L-051. Điều hướng sau một hàm `suspend` chạy trên luồng nền, lỗi chỉ lộ ra ở `ui-test`
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-030 của app, issue #86)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** `AppNavHost` gọi một hàm `suspend` đọc DataStore rồi `navController.navigate` trong `scope.launch`; coroutine được tiếp tục trên luồng nền và app dừng với "setCurrentState must be called on the main thread". Phần vỏ app nằm trong ngoại lệ viết test trước của plan, nên lỗi chỉ lộ ra ở `ui-test` trên emulator, vòng CI dài nhất.
+- **Cải tiến:** `CLAUDE.md` bước 6: điều hướng sau lời gọi `suspend` chạy trên `Dispatchers.Main.immediate`. `docs/CLAUDE.md` mục Khi viết plan: plan đổi hàm `suspend` mà vỏ app gọi có test Robolectric dựng vỏ app, không để vào ngoại lệ.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-052. Giao bước 3 đến 5 cho phiên con, trong worktree riêng
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-031, L-034 của app, issue #86)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** phiên chính giao bước 3 đến 5 của 5 task lớn (tới 80 file) cho phiên con với danh sách file, thứ tự commit, điều kiện dừng và mẫu báo cáo. Cả 5 task merge, CI xanh vòng đầu, không file nào ngoài plan; ngữ cảnh của phiên chính đủ cho cả phiên. Nhưng phiên con làm trong thư mục chính, nên phiên chính không chạy được `check.sh` hay chuẩn bị task sau song song, và hook dừng phiên của môi trường cloud báo "có thay đổi chưa commit" ba lần. Một lần phiên chính sửa file khi `check.sh` chạy nền trong cùng thư mục và phải chạy lại.
+- **Cải tiến:** `docs/auto-run.md` mục 3: Giao bước 3 đến 5 cho phiên con, trong worktree riêng của nhánh task, nội dung giao việc tối thiểu, phiên chính kiểm danh sách file; không sửa file trong thư mục đang chạy `check.sh` nền.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-053. Nút chữ trên nền khác màu tự đặt màu chữ, đè màu thiết kế
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-032 của app, issue #86)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** `TextButton` "Thử lại" trong `Snackbar` tự đặt màu chữ `primary` qua `ButtonDefaults.textButtonColors()`, đè `actionContentColor` mà `Snackbar` truyền xuống; độ tương phản giảm từ khoảng 3,9:1 xuống 2,4:1. Ảnh chuẩn ghi lại màu sai, không test nào đo màu chữ; chỉ rà soát độc lập thấy khi đo điểm ảnh.
+- **Cải tiến:** `CLAUDE.md` bước 10, mẫu plan mục 4, `pre-run-review.md` mục 2.2: truyền `colors` rõ cho nút; test đo màu chữ trên ảnh vẽ ra.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-054. Hai plan cùng ghi Tạo một file mà task chạy trước tạo ra
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-033 của app, issue #86)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** hai plan trong cùng danh sách cùng ghi Tạo một biểu tượng, mỗi plan một kiểu. `plan-check.py` chỉ báo khi task sau bắt đầu (file đã có); phiên phải tự chọn và ghi lệch plan. `run-check.py` chỉ báo hai plan cùng sửa một file khi chúng không phụ thuộc nhau.
+- **Cải tiến:** `scripts/run-check.py`: chú ý khi hai plan cùng ghi Tạo một file, kể cả khi phụ thuộc nhau; `docs/CLAUDE.md`: một plan tạo, plan kia ghi Sửa hoặc dùng lại; `pre-run-review.md` mục 1. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-055. Test kiểm giá trị mặc định qua ngay trên khung rỗng
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-035 của app, issue #86)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** ở 4 task lớn, một số test viết theo mục 4 của plan qua ngay trên khung rỗng của bước 3, vì khung trả đúng giá trị mặc định mà test mong đợi ("chưa lưu gì thì trả mặc định", "tệp hỏng thì trả `null`"). Phiên con tự viết chặt lại 19 test bằng một bước đối chứng (ghi rồi đọc lại, dữ liệu đúng cạnh dữ liệu sai), sau đó chúng thất bại đúng lý do.
+- **Cải tiến:** `docs/auto-run.md` bước 3: bước đối chứng là cách mặc định; mẫu plan mục 4, `docs/CLAUDE.md`, `pre-run-review.md` mục 2.2.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-056. Bài học thêm ngoài phiên trùng số với bài học mà phiên thêm cùng lúc
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-042 của app, issue #86)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** một PR cải tiến mở trong lúc phiên chạy thêm 6 bài học; phiên thêm 4 bài cùng số trong PR báo cáo. Sau khi phiên merge phải đổi số ở hai PR của app, một PR và một issue của dự án mẫu. Nếu hai bài học nằm ở hai chỗ khác nhau của sổ, git gộp được mà không xung đột và không công cụ nào báo.
+- **Cải tiến:** `docs/auto-run.md` mục 6: gộp nhánh chính và đổi số trước khi merge PR thêm bài học; `scripts/status.py` báo lỗi khi một số dùng hai lần. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-057. Trang tiến độ của app đếm 0 bài học vì sổ viết khác mẫu
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-043 của app, issue #86)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `status.py` chỉ nhận tiêu đề `### L-NNN.` và dòng trạng thái chỉ có trạng thái. Sổ của app viết `### L-NNN:` và `- **Trạng thái:** proposed. **Loại:** ...`, nên trang tiến độ ghi 0 bài trong khi sổ có 41, và không bài nào hiện ở mục chờ retro; cả 41 bài vẫn `proposed`.
+- **Cải tiến:** `scripts/status.py` nhận cả hai dạng tiêu đề và đọc chữ trạng thái đầu tiên. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-058. Plan đổi cổng chất lượng bỏ sót một kiểm tra mà trường hợp mới phải đi qua
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-044 của app, issue #86)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan cho `merge-if-green.sh` nhận bản revert đúng khi `main-broken` mở (L-049) ghi "rồi đi tiếp tới các kiểm tra còn lại"; kiểm tra "phiên đang chạy" ngay sau đó từ chối mọi nhánh ngoài `claude/T-*` và nhánh báo cáo, nên trong phiên bản revert vẫn bị từ chối. Plan đã qua duyệt chéo; lỗi chỉ thấy khi viết code.
+- **Cải tiến:** `docs/CLAUDE.md` mục Khi viết plan: plan đổi `merge-if-green.sh` hay `main-guard.yml` liệt kê mọi kiểm tra hiện có, nói trường hợp mới qua hay bị chặn ở từng kiểm tra, mỗi kiểm tra một test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`
+
+### L-059. Thiết lập staging, file R2, DNS, Java, merge và trang tiến độ chỉ lộ lỗi giữa hay cuối phiên
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-002, L-011, L-012, L-016, L-017, L-018, L-022, L-027 của app, issue #78)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** ở app, ba phiên liền chỉ biết bí mật Firebase staging là file giả khi phát bản staging ở cuối phiên; một phiên phát được bản build nhưng đỏ vì chưa tạo nhóm người test `team`. File R2 mà màn hình loading tải chưa được đưa lên, lỗi chỉ lộ ở PR có code đầu tiên. Tên miền file tĩnh thuộc vùng có DNSSEC lỗi nên 1.1.1.1 và 8.8.8.8 không phân giải được, điện thoại không tải được file trong khi emulator trên GitHub vẫn được. Máy dev chỉ có Java 26, Gradle 8.14.3 dừng với lỗi chỉ ghi "26". `docs/STATUS.md` xung đột ở mọi PR tài liệu. `merge-if-green.sh` phải gọi lại nhiều lần khi nhánh chậm, một lần job ghi `in_progress` dù lần chạy đã xanh, và một commit được đẩy lên nhánh sau khi PR đã merge.
+- **Cải tiến:** `scripts/setup-check.sh` kiểm file trong `docs/ops/required-assets.txt` (`curl -I`), DNS qua 1.1.1.1 và 8.8.8.8, và với `--staging` bí mật Firebase staging (không phải file giả, có app `.staging`) và nhóm người test qua API của App Distribution. `start-run.yml` chạy nó trước khi kích hoạt phiên; `env-canary.yml` chạy hằng ngày, đỏ thì mở issue `setup-broken`; đây cũng là bước cuối của `docs/ops/setup-new-app.md`. `scripts/check.sh` gọi `scripts/java-check.sh` trước Gradle (khoảng phiên bản đọc từ `build-logic` và phiên bản Gradle). `merge-if-green.sh` có `--update` (cập nhật nhánh qua API, chờ CI có giới hạn rồi merge, kiểm lại mọi điều kiện sau mỗi lần chờ), coi job còn ghi đang chạy mà lần chạy chứa nó đã `completed success` là xanh, in mã commit sẽ merge và cảnh báo commit mới đẩy. `docs/STATUS.md` chỉ đi vào PR báo cáo của phiên và PR riêng của trang; không dùng `merge=ours` vì merge trên GitHub không chạy driver tùy chỉnh. `plan-check.py` chỉ tìm nơi nhắc tới file trong các file git quản lý. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/issue-78-protected`

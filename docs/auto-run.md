@@ -33,6 +33,7 @@ Các điều kiện:
 | Môi trường build được: `scripts/check.sh` qua trên nhánh chính, để lỗi môi trường lộ ra trước khi viết code và để thư viện được tải sẵn. Chạy ở chế độ nền, song song với phần đầu của task đầu tiên (mục Kiểm tra build ở chế độ nền, dưới bảng này) | Lỗi hạ tầng: thử lại theo lịch ở bước 5. Lỗi khác: không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Nhánh chính đang xanh: lần chạy gần nhất của `main-guard.yml` qua, và không có issue hay PR nào đang mở mang nhãn `main-broken` | Không chạy task nào, kết thúc phiên, báo cáo lý do |
 | Không có issue nào đang mở mang nhãn `env-broken` (kiểm tra môi trường hằng ngày, `docs/ops/staging-and-runs.md`, mục 2.4). `start-run.yml` đã kiểm tra; phiên kiểm tra lại vì phiên bắt đầu bằng Run now không qua workflow | Không chạy task nào, kết thúc phiên, báo cáo lý do |
+| Không có issue nào đang mở mang nhãn `setup-broken` (kiểm tra thiết lập hằng ngày của `env-canary.yml`: bí mật Firebase staging không phải file giả và có app staging, nhóm người test có trên App Distribution, file R2 bắt buộc, DNS của tên miền file tĩnh). `start-run.yml` chạy chính kiểm tra này (`scripts/setup-check.sh --staging`) trước khi kích hoạt; phiên không chạy lại được vì môi trường cloud không tới được R2 và không có bí mật | Không chạy task nào, kết thúc phiên, báo cáo lý do: thiếu thiết lập thì cuối phiên không phát được bản staging (L-059) |
 | Danh sách qua `scripts/run-check.py <danh sách chạy>`, chạy một lần ở đầu phiên: spec đã chốt và trả lời hết câu hỏi, phụ thuộc đúng thứ tự, mọi kịch bản có test ([ops/pre-run-review.md](ops/pre-run-review.md)) | Lỗi về spec, ticket hay phụ thuộc của một task: bỏ qua task đó và các task phụ thuộc nó, chép thông báo vào báo cáo. Lỗi của `plan-check` để dòng `plan-check.py` bên dưới quyết định ngay trước task. Dòng chú ý chép vào báo cáo |
 | Plan có trạng thái `approved` và nằm trong danh sách chạy | Bỏ qua task, ghi lý do |
 | Ticket có trạng thái `approved` | Bỏ qua task, ghi lý do |
@@ -43,7 +44,7 @@ Các điều kiện:
 
 `scripts/check.sh` trên cloud mất khoảng 8 phút vì Gradle bắt đầu với bộ nhớ đệm trống. Phiên không ngồi chờ:
 
-1. Làm các kiểm tra nhanh trong bảng trên trước: danh sách chạy `approved`, `cloud-env-check.sh`, nhánh chính xanh, không có `env-broken`. Không thỏa thì xử lý như bảng, không chạy `check.sh`.
+1. Làm các kiểm tra nhanh trong bảng trên trước: danh sách chạy `approved`, `cloud-env-check.sh`, nhánh chính xanh, không có `env-broken` hay `setup-broken`. Không thỏa thì xử lý như bảng, không chạy `check.sh`.
 2. Chạy `check.sh` trong một worktree riêng của nhánh chính, ở chế độ nền: `git worktree add ../start-check origin/main`, rồi `(cd ../start-check && scripts/check.sh) > ../start-check.log 2>&1`. Worktree riêng là bắt buộc: thư mục chính sắp đổi sang nhánh của task, và đổi file dưới một bản build đang chạy làm kết quả kiểm tra sai. Thư viện và bộ nhớ đệm build nằm ở `~/.gradle`, dùng chung cho thư mục chính.
 3. Trong lúc chờ: chạy `plan-check.py` cho task đầu, làm bước 1 và 2 của task đó (tạo nhánh, đọc tài liệu) và soạn test của bước 3. Chưa chạy Gradle.
 4. Trước lần chạy Gradle đầu tiên của task, đợi `check.sh` xong và đọc phần cuối của `../start-check.log`. Qua thì `git worktree remove ../start-check` và đi tiếp. Không qua thì xử lý như dòng "Môi trường build được" của bảng; task đầu chưa đẩy gì lên nên không cần dọn.
@@ -72,11 +73,20 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 - Viết toàn bộ test được nêu trong mục Kiểm thử của plan, trước khi viết bất kỳ dòng code nào của chức năng.
 - Chạy test và xác nhận test **thất bại đúng lý do**: vì chức năng chưa có, không phải vì test viết sai cú pháp hay lỗi môi trường. Với màn hình hay lớp chưa tồn tại, AI tạo khung rỗng (hàm trả về giá trị mặc định) để test biên dịch được và thất bại ở phần kiểm tra.
-- Test nào qua ngay khi chưa có code là test không kiểm tra gì, phải viết lại.
+- Test nào qua ngay khi chưa có code là test không kiểm tra gì, phải viết lại, trừ test chặn mà plan nêu là qua ngay. Cách mặc định: thêm một bước đối chứng trước khi khẳng định (ghi rồi đọc lại, đặt dữ liệu đúng cạnh dữ liệu sai), rồi chạy lại để thấy test thất bại đúng lý do. Ghi số test được viết chặt như vậy vào nhật ký (L-055).
 - Commit test riêng, trước commit code, để lịch sử cho thấy test có trước.
 - Đẩy nhánh của task lên ngay sau mỗi commit, ở bước này và bước 4, không đợi tới bước 7. Hết hạn mức thì phiên dừng ngay, không kịp làm gì thêm; phần chưa đẩy lên là phần mất. Commit trên nhánh cũng là dấu hiệu phiên còn sống cho `resume-run.yml`.
 - Chỉ được bỏ qua bước này với phần thay đổi nằm trong mục ngoại lệ đã được người duyệt đồng ý trong plan.
 - Screenshot test cho màn hình mới: mỗi lệnh `captureRoboImage` ghi rõ đường dẫn ảnh, dạng `"src/test/screenshots/<Ten>.png"`. Chạy cục bộ, `scripts/check.sh` tự ghi ảnh chuẩn cho những ảnh còn thiếu và giữ nguyên ảnh đã có. Commit ảnh chuẩn cùng PR (CI báo lỗi cho từng ảnh thiếu) và đánh dấu trong báo cáo để người xem. Ảnh chuẩn của màn hình cũ chỉ được cập nhật khi plan nêu rõ.
+
+### Giao bước 3 đến 5 cho phiên con
+
+Task lớn (nhiều file, cỡ L) thì phiên chính giao bước 3 đến 5 cho một phiên AI con, để giữ ngữ cảnh của phiên chính cho các task sau (L-052).
+
+- Phiên con làm trong worktree riêng của nhánh task: `git worktree add ../task-T-NNN claude/T-NNN-<tu-khoa>`. Thư mục chính giữ sạch, để phiên chính làm việc khác song song: chạy `check.sh` nền, chờ `main-guard`, chuẩn bị task sau, viết báo cáo. Bộ nhớ đệm Gradle ở `~/.gradle` dùng chung nên không tải lại.
+- Nội dung giao việc tối thiểu: đường dẫn plan và worktree; danh sách file của mục 3.2 là ranh giới; thứ tự commit (test trước, rồi code); đẩy nhánh sau mỗi commit; điều kiện dừng (`risk-scoring.md` mục 4 và mục 7 của plan); báo cáo theo các dòng của nhật ký plan (Test viết trước, Lệch so với plan).
+- Phiên con xong: phiên chính kiểm `git diff --name-only origin/main...` khớp mục 3.2, đọc báo cáo, rồi giao rà soát độc lập (bước 6) cho một phiên khác. Xóa worktree sau khi merge (`git worktree remove`).
+- Không sửa file trong thư mục đang chạy `check.sh` nền: lần chạy đó kiểm một trạng thái lẫn lộn và phải chạy lại.
 
 ### Bước 4. Viết code
 
@@ -158,7 +168,8 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 ### Bước 9. Merge
 
 - Chỉ merge bằng `scripts/merge-if-green.sh <số PR>`. Script tự kiểm tra mọi điều kiện của cổng chất lượng và từ chối merge nếu thiếu điều kiện nào (ADR-0010). AI không merge bằng bất kỳ cách nào khác.
-- Script báo nhánh chưa cập nhật theo nhánh chính thì cập nhật nhánh, đợi CI chạy lại rồi gọi lại script.
+- Script báo nhánh chưa cập nhật theo nhánh chính (mã 3) thì gọi lại với `--update`: script nhờ GitHub gộp nhánh chính vào nhánh của PR, chờ CI trên commit mới (tối đa 30 phút, chạy ở chế độ nền) rồi merge; hết giờ chờ thì trả mã 2, gọi lại. Mọi điều kiện được kiểm lại sau mỗi lần chờ (L-059).
+- Script in mã commit sẽ merge và báo chú ý khi commit cuối mới đẩy vài phút trước. Thay đổi sau khi PR đã gửi người duyệt hay đã gọi merge thì làm trên nhánh mới, không đẩy thêm vào nhánh cũ: commit đẩy sau khi merge không vào nhánh chính.
 - Script từ chối vì lý do khác thì không tìm cách vượt qua, mà dừng task và ghi lý do vào nhật ký.
 - Sau khi merge, chờ `main-guard` của commit merge: `scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge>` ở chế độ nền, trong lúc làm bước 10 và bước 1, 2 của task sau. Commit merge chỉ đổi tài liệu thì `main-guard` không chạy (`paths-ignore`), không cần chờ.
 - Trước khi đẩy commit đầu tiên của task sau, phải có kết quả của lần chờ đó, rồi kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Có thì kết thúc phiên. Kiểm tra ngay sau khi merge là quá sớm: `main-guard` mất khoảng 5 đến 12 phút, và issue chỉ được mở khi nó xong (L-043).
@@ -270,6 +281,8 @@ Mỗi phiên là một lần học. Bài học được ghi trong phiên, quyế
 - Một cách làm hiệu quả đáng ghi thành hướng dẫn cho lần sau.
 
 Mỗi bài học ghi: chuyện gì đã xảy ra, bằng chứng (log, PR, thời gian), đề xuất sửa tài liệu nào và sửa gì, loại và phạm vi theo [lessons.md](lessons.md). PR báo cáo thêm các bài học này vào sổ với trạng thái `proposed`.
+
+**Số bài học:** bài học thêm ngoài phiên (phiên có người theo dõi, PR cải tiến) có thể trùng số với bài học mà phiên thêm cùng lúc. Trước khi merge PR thêm bài học, gộp nhánh chính mới nhất và đổi số bài học của PR (cùng mọi chỗ nhắc tới nó) thành số tiếp theo của sổ. `scripts/status.py` báo lỗi khi một số dùng hai lần (L-056).
 
 **Phiên kiểm chứng bài học cũ:** đọc các bài học `applied` trong sổ; bài học nào liên quan tới việc phiên vừa làm thì ghi vào báo cáo cải tiến đó có hiệu quả hay không, kèm bằng chứng, và cập nhật dòng **Kiểm chứng** trong sổ.
 

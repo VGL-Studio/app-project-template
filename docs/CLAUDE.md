@@ -80,6 +80,10 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
 - Ghi `token_estimate` theo cỡ của ticket, lấy số gợi ý từ `scripts/token-usage.py estimate`; task khác thường thì chỉnh và ghi lý do. Ước tính chỉ để lập kế hoạch, không chặn task ([ops/token-usage.md](ops/token-usage.md)).
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
+- Test kiểm giá trị mặc định ("chưa lưu gì thì trả mặc định", "tệp hỏng thì trả `null`") thường qua ngay trên khung rỗng của bước 3. Ghi sẵn trong mục 4 một bước đối chứng: ghi rồi đọc lại, hoặc đặt dữ liệu đúng cạnh dữ liệu sai, để test thất bại đúng lý do (L-055).
+- Plan đổi hàm `suspend` mà vỏ app gọi (`AppNavHost`, `MainActivity`): thêm test Robolectric dựng vỏ app với bản giả, không để phần đó vào ngoại lệ viết test trước; lỗi luồng ở đó chỉ lộ ra ở `ui-test`, vòng CI dài nhất (L-051).
+- File dùng chung mà plan khác chưa merge cũng tạo (tài nguyên, thành phần của `:core:designsystem`): thống nhất với plan đó, một plan ghi Tạo, plan kia ghi Sửa hoặc dùng lại; chú thích kiểu "task sau nối" thì ghi tên file cho task sau (L-054).
+- Plan đổi `scripts/merge-if-green.sh` hay `.github/workflows/main-guard.yml`: liệt kê mọi kiểm tra hiện có mà trường hợp mới phải đi qua (nhãn, `main-broken`, phiên đang chạy, nhánh cập nhật, CI) và nói trường hợp mới qua hay bị chặn ở từng kiểm tra, mỗi kiểm tra một test (L-058).
 - Hàm phụ trợ nằm trong file test mà cũng phải đổi (ví dụ danh sách mà test so sánh): ghi rõ phần nào vào commit test của bước 3, phần nào vào commit code của bước 4, để test viết trước thất bại đúng lý do (L-025).
 - Viết xong thì chạy `scripts/plan-check.py <plan>`, sửa hết lỗi trước khi đưa người duyệt, dán kết quả vào mô tả PR. Phiên tự chạy chạy lại script này ngay trước task và bỏ qua plan có lỗi.
 - Plan mới có trạng thái `draft`. Không bao giờ tự chuyển sang `approved`.
@@ -135,8 +139,13 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 
 `docs/STATUS.md` cho thấy tiến độ cả dự án: việc đang chờ người, yêu cầu và trạng thái, ticket của từng feature, phiên tự chạy, bài học và ADR. Trang do `scripts/status.py` sinh từ trạng thái trong các tài liệu, không sửa tay.
 
-- PR nào đổi trạng thái hay thêm, bớt yêu cầu, spec, ticket, plan, phản hồi, danh sách chạy, bài học hay ADR thì chạy `scripts/status.py` và commit `docs/STATUS.md` cùng PR. `scripts/status.py --check` cho biết trang đã khớp chưa.
-- Trạng thái ticket đi theo plan (L-050). Người duyệt hay dừng plan chạy `scripts/status.py --sync`: plan `approved` thì ticket đang `backlog`, `ready`, `planned` hay `stopped` chuyển sang `approved`; plan `stopped` thì ticket chuyển sang `stopped` (trừ ticket đã `cancelled` hay đã qua phiên). Script chỉ làm theo quyết định của người về plan, rồi sinh lại trang. Không chuyển ticket sang `approved` khi plan còn `draft`. `scripts/plan-check.py` báo chú ý khi hai trạng thái lệch nhau.
+- Trang chỉ được sinh lại trên nhánh chính, không đi kèm PR thường. Trước đây mỗi PR tài liệu commit lại trang, nên PR sau luôn xung đột với PR trước ở đúng file này (L-059). Cụ thể:
+  - PR đổi trạng thái hay thêm, bớt yêu cầu, spec, ticket, plan, phản hồi, danh sách chạy, bài học hay ADR **không** đưa `docs/STATUS.md` vào commit. Lệnh nào tự ghi trang (`scripts/status.py --sync`) thì bỏ file này khi `git add` theo đường dẫn, hoặc `git checkout docs/STATUS.md`.
+  - Chỉ hai loại PR mang trang: PR báo cáo của phiên tự chạy (auto-run.md, mục 4; nhánh chính đứng yên trong phiên nên không xung đột), và PR trang tiến độ: nhánh `claude/status-YYYYMMDD` tạo từ nhánh chính mới nhất, chỉ có `docs/STATUS.md` sinh bằng `scripts/status.py`. PR trang tiến độ xung đột thì không gộp tay: tạo lại nhánh từ nhánh chính và sinh lại.
+  - Mở PR trang tiến độ khi cần xem trang mới, thường sau một loạt PR tài liệu, trước họp đánh giá rủi ro hay trước khi lập danh sách chạy. `scripts/merge-if-green.sh` nhắc việc này sau khi merge PR có tài liệu, và báo chú ý khi một PR khác hai loại trên có `docs/STATUS.md`.
+  - `scripts/status.py --check` cho biết trang trên nhánh đang xem đã khớp chưa. Trang trên nhánh chính có thể chậm vài PR; đó là điều chấp nhận được, muốn số mới thì chạy `scripts/status.py` trên máy để xem, không cần commit.
+  - Không dùng `.gitattributes` với `merge=ours` cho trang này: driver `ours` chỉ có khi từng máy tự khai báo trong cấu hình git cục bộ, còn merge trên GitHub (nút merge, `gh pr merge`, API merge mà `merge-if-green.sh` dùng) không chạy driver tùy chỉnh, nên PR vẫn báo xung đột.
+- Trạng thái ticket đi theo plan (L-050). Người duyệt hay dừng plan chạy `scripts/status.py --sync`: plan `approved` thì ticket đang `backlog`, `ready`, `planned` hay `stopped` chuyển sang `approved`; plan `stopped` thì ticket chuyển sang `stopped` (trừ ticket đã `cancelled` hay đã qua phiên). Script chỉ làm theo quyết định của người về plan, rồi sinh lại trang (trang này không đưa vào PR, xem trên). Không chuyển ticket sang `approved` khi plan còn `draft`. `scripts/plan-check.py` báo chú ý khi hai trạng thái lệch nhau.
 - Phiên tự chạy sinh lại trang trong PR báo cáo (auto-run.md, mục 4).
 - Trang thiếu thông tin hay sai thì sửa tài liệu gốc hoặc script, không sửa trang.
 
