@@ -42,6 +42,17 @@ class AdUnitIdsTest {
     }
 
     @Test
+    fun googleTestUnit_existsForEveryFormat() {
+        AdFormat.entries.forEach { format ->
+            assertTrue(
+                "$format has no test unit",
+                GoogleTestAdUnitIds.unitFor(format).startsWith("ca-app-pub-3940256099942544/"),
+            )
+        }
+        assertEquals("ca-app-pub-3940256099942544/1044960115", GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_FULL_SCREEN))
+    }
+
+    @Test
     fun everyPlacementKey_isUniqueAndUsableInRemoteConfig() {
         val keys = AdPlacement.entries.map { it.key }
         assertEquals(keys.size, keys.toSet().size)

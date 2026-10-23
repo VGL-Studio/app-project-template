@@ -1,8 +1,14 @@
 package com.vglstudio.template.core.network.di
 
 import android.content.Context
+import android.os.SystemClock
 import com.vglstudio.template.core.network.AndroidConnectivitySource
 import com.vglstudio.template.core.network.ConnectivitySource
+import com.vglstudio.template.core.network.NetworkClock
+import com.vglstudio.template.core.network.NetworkDialogController
+import com.vglstudio.template.core.network.NetworkFailureReporter
+import com.vglstudio.template.core.network.NetworkStatus
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,6 +25,17 @@ import kotlinx.coroutines.SupervisorJob
 @Retention(AnnotationRetention.BINARY)
 internal annotation class NetworkScope
 
+/** One controller serves every module: :app draws its state, other modules read or report through interfaces. */
+@Module
+@InstallIn(SingletonComponent::class)
+internal abstract class NetworkBindingsModule {
+    @Binds
+    abstract fun networkStatus(controller: NetworkDialogController): NetworkStatus
+
+    @Binds
+    abstract fun networkFailureReporter(controller: NetworkDialogController): NetworkFailureReporter
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 internal object NetworkModule {
@@ -31,4 +48,7 @@ internal object NetworkModule {
     @Singleton
     @NetworkScope
     fun networkScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Provides
+    fun networkClock(): NetworkClock = NetworkClock { SystemClock.elapsedRealtime() }
 }

@@ -67,9 +67,9 @@ Không có.
 - [x] Dùng đúng màu, chữ, khoảng cách, thành phần của hệ thống thiết kế.
 - [x] Đủ các trạng thái trong mục 1, kể cả chế độ tối.
 - [x] Chữ đúng bảng chữ, không bị cắt hay tràn.
-- [ ] Bố cục giống bản mẫu (kiểm khi code).
+- [x] Bố cục giống bản mẫu (kiểm khi code, T-017: mục 8).
 - [x] Vùng chạm đủ lớn (ít nhất 48 dp), chữ dễ đọc.
-- [ ] Dùng được ở màn hình thấp (360 x 640) (kiểm khi code).
+- [x] Dùng được ở màn hình thấp (360 x 640) (kiểm khi code, T-017: ảnh `NetworkLostScreen_stillOffline_small.png`, test `NetworkDialogTest.smallScreen_cardFitsAndRetryVisible`).
 - [x] Không có quảng cáo.
 - [x] Không thiết kế để thu hút chủ yếu trẻ em.
 
@@ -79,4 +79,11 @@ Không có.
 
 ## 8. Kết quả đối chiếu
 
-Chưa có.
+T-017, 2026-10-23: `scripts/design-compare/DesignCompare.java` so ảnh thiết kế với ảnh chuẩn của `:app` (`app/src/test/screenshots/`), kết quả ở `review/`.
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `NetworkLostScreen_default_light` | 1.8% | Hộp thoại trùng vị trí và cỡ (rộng 312 dp, căn giữa), icon, chữ, nút giống bản mẫu. Phần khác chủ yếu: thẻ quảng cáo native ở đáy màn hình mẫu trống vì test không có `AdsController` (đã biết trong plan); nút "Tap" lệch vài điểm ảnh theo chiều dọc |
+| `NetworkLostScreen_default_dark` | 2.5% | Như bản sáng |
+
+Rà soát độc lập xem hai ảnh `*_compare.png` theo mục 7 và ghi thêm nhận xét nếu có.

@@ -7,6 +7,7 @@ import com.vglstudio.template.core.assets.HttpAssetDownloader
 import com.vglstudio.template.core.assets.RemoteAssets
 import com.vglstudio.template.core.assets.downloadFailureLogger
 import com.vglstudio.template.core.logging.AppLogger
+import com.vglstudio.template.core.network.NetworkFailureReporter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,14 +23,19 @@ import kotlinx.coroutines.Dispatchers
 internal object AssetsModule {
     @Provides
     @Singleton
-    fun remoteAssets(@ApplicationContext context: Context, config: AssetsConfig, logger: AppLogger): RemoteAssets =
-        DefaultRemoteAssets(
-            config = config,
-            // Not the cache dir: the system may clear that, and files must stay available offline.
-            // Not backed up: they can always be downloaded again.
-            cacheDir = File(context.noBackupFilesDir, "r2-assets"),
-            downloader = HttpAssetDownloader(),
-            ioDispatcher = Dispatchers.IO,
-            onDownloadFailed = downloadFailureLogger(logger),
-        )
+    fun remoteAssets(
+        @ApplicationContext context: Context,
+        config: AssetsConfig,
+        logger: AppLogger,
+        networkFailures: NetworkFailureReporter,
+    ): RemoteAssets = DefaultRemoteAssets(
+        config = config,
+        // Not the cache dir: the system may clear that, and files must stay available offline.
+        // Not backed up: they can always be downloaded again.
+        cacheDir = File(context.noBackupFilesDir, "r2-assets"),
+        downloader = HttpAssetDownloader(),
+        ioDispatcher = Dispatchers.IO,
+        onDownloadFailed = downloadFailureLogger(logger),
+        networkFailures = networkFailures,
+    )
 }

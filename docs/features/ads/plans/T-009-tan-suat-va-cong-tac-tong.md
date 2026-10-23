@@ -1,7 +1,7 @@
 ---
 ticket: T-009
 title: Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên
-status: approved            # draft | approved | stopped | done
+status: done                # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -317,3 +317,15 @@ Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-10-23):
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-009-tan-suat-va-cong-tac-tong`, PR #100, merge commit `58cea90` lúc 09:07 UTC
+- **Đã làm:** công tắc tổng `ads_enabled` kết hợp công tắc từng vị trí; quảng cáo toàn màn hình có ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên trên DataStore; `AdSession`, `StartedActivityCounter`, `FullScreenAdPolicy`, `FullScreenAdPacer`, `AdsRemoteRules`; nối trong `AdsController` và `MainActivity`. Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 44 test mới (Policy 14, Session 5, StartedActivityCounter 5, HistoryStore 5, Pacer 9, RemoteRules 6), commit `3c0b419` trước code, kèm khung rỗng của 6 lớp. Với khung rỗng 43/44 thất bại ở phần khẳng định (ví dụ `expected:<Blocked(reason=MASTER_SWITCH_OFF)> but was:<Allowed>`, "recordShown did not throw", "Nothing logged"). `placementOffByDefault_evenWithMasterSwitchOn` qua ngay dù có đối chứng: khung rỗng giữ hành vi cũ "vị trí mặc định tắt" (ADR-0014), nên đây là test chặn hồi quy; plan không ghi trước điều này. 21 test có bước đối chứng (L-055). `AdsSettingsTest` không sửa: T-007 đã có ba test mặc định.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: ghi `recordFirstOpen` lỗi thì không thử lại trong tiến trình, quảng cáo toàn màn hình coi như còn ân hạn tới lần mở sau (đúng câu hỏi 2 đã duyệt); `fullScreenInProgress` chỉ bảo vệ `showInterstitial`, T-013 gọi `awaitFullScreenTurn` cần tự chặn chồng; chỉ `MainActivity` báo start/stop, ngồi ở màn hình gallery của T-014 quá 30 phút sẽ tính là phiên mới (chỉ staging, mục 6 đã chấp nhận); `fullScreenAdLimits` đọc lại `ads_enabled` (vô hại).
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (201 test JVM, 0 lỗi); `pr-check.yml` xanh lần đầu (39928509257).
+- **Lệch so với plan:** `core/ads/build.gradle.kts` vào commit test thay vì commit code, vì test cần `RecordingAppLogger` và DataStore để biên dịch. Thêm hai chi tiết nhỏ trong file của mục 3.2: dòng log `debug` số quảng cáo trong phiên ở `FullScreenAdPacer.onShown`, chặn tràn số khi đổi giây sang mili giây trong `fullScreenAdLimits`. Định dạng ktlint ở test.
+- **Việc còn lại:** KDoc trong `AdsSettings.kt` vẫn ghi "not read yet" cho `ENABLED`, `FIRST_SESSION_GRACE_SECONDS`, `INTERSTITIAL_MAX_PER_SESSION_COUNT`; plan không cho sửa file này, nên sửa ở task sau.
+- **Cần người xem:** phần nối không có unit test theo ngoại lệ đã duyệt (thứ tự kiểm tra trong `awaitFullScreenTurn`, `onFullScreenShown()` ngay trước `ad.show`, `recordFirstOpen` trong cả hai callback của `gatherConsent`); kiểm tra thủ công KB-7 trên staging (tắt `ads_enabled` thì banner biến mất, bật lại thì trở lại; `adb logcat -v threadtime | grep ' VGL\.Ads'`). KB-6 trên máy chờ T-014.

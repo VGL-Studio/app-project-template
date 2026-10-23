@@ -9,6 +9,8 @@ android {
 
 dependencies {
     implementation(project(":core:config"))
+    implementation(project(":core:analytics"))
+    implementation(project(":core:logging"))
 
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

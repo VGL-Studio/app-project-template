@@ -6,6 +6,7 @@ plugins {
     // a real file in src/staging/debug, src/staging/release or src/production takes precedence (ADR-0012).
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -105,6 +106,11 @@ tasks.withType<Test>().configureEach {
     inputs.files(remoteConfigKeysMarkdown, remoteConfigKeysTemplate).withPropertyName("remoteConfigKeysDocs")
 }
 
+// Screenshot tests of the app shell, such as the network dialog over a screen (ADR-0020).
+roborazzi {
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+}
+
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
@@ -124,6 +130,10 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
+
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
 
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.ext.junit)

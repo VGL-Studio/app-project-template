@@ -20,4 +20,11 @@ class NetworkSettingsTest {
     fun all_containsEveryDeclaredKey() {
         assertEquals(listOf(NetworkSettings.LOST_DELAY_SECONDS), NetworkSettings.all())
     }
+
+    @Test
+    fun retryWaitsAtMost2Seconds() {
+        // Spec network KB-2: "Retry" checks again for at most 2 seconds, every 250 ms (plan T-017).
+        assertEquals(2_000L, NetworkSettings.RETRY_MAX_MILLIS)
+        assertEquals(250L, NetworkSettings.RETRY_POLL_MILLIS)
+    }
 }

@@ -1,7 +1,7 @@
 ---
 ticket: T-013
 title: Native toàn màn hình thay interstitial
-status: approved               # draft | approved | stopped | done
+status: done                   # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -334,3 +334,15 @@ Phiên bản 2:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-013-native-toan-man-hinh`, PR #112, merge commit `4502d51` lúc 11:44 UTC
+- **Đã làm:** native toàn màn hình (`rememberShowFullScreenAd`, `FullScreenAdHost`, `NativeFullScreenAdScreen` trong hộp thoại Compose, `FreshAdCache`, `preloadNativeFullScreen`, `showNativeFullScreen` trong `AdsController`); tạo `FullScreenAdPresence` và test của nó (T-017 chưa chạy); interstitial báo hiện và đóng qua `FullScreenAdPresence`; mã thử native video; 3 ảnh chuẩn; 2 ảnh so sánh thiết kế; cập nhật `docs/ops/ads-guide.md`. Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 24 test mới (23 trong file mới và `AdUnitIdsTest.googleTestUnit_existsForEveryFormat`), commit `c60a0a9` trước code, kèm khung rỗng. 21 test thất bại ở phần khẳng định (`expected:<[INTERSTITIAL, NATIVE_FULL_SCREEN]> but was:<[]>`, `NATIVE_FULL_SCREEN has no test unit`, `No value produced in 3s`, `backPress_callsOnClose: expected:<1> but was:<0>`, không thấy node `nativeFullScreenClose`...). 3 screenshot qua khi chạy test thường (không ghi ảnh) và thất bại khi `verifyRoborazziDebug` ("Unable to find the image of the target root component"). 4 test có bước đối chứng (L-055).
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa ngoài phạm vi, 4 ghi chú. Nên sửa: `showInterstitial` (`AdsController.kt:162`) không bỏ qua khi native toàn màn hình đang hiện, chỉ khoảng cách tối thiểu dùng chung chặn; khoảng cách đặt được về 0 từ xa (`AdsRemoteRules.kt:24`), khi đó một lời gọi interstitial từ code có thể hiện đè hộp thoại native (bảng "không bao giờ làm" của ads-guide cấm). Tiêu chí 3 của KB-5 vẫn đạt theo lời spec; plan mục 2 ("mọi lời gọi khác bị bỏ qua khi một quảng cáo đang hiện") và mục 3.1 ("không đổi phần còn lại của `showInterstitial`") căng nhau. Không sửa vì ngoài phạm vi plan; đề xuất ticket sau (một dòng `|| presence.showing.value`). Ghi chú: `destroy()` gọi trước khi hộp thoại rời giao diện, `NativeAdView` còn gắn trong chốc lát; đường từ `rememberShowFullScreenAd` tới `showFullScreenAd` chưa có test; `FreshAdCache` chỉ giải phóng quảng cáo hết hạn ở lần `put` hay `take` sau; thứ tự trong `showNativeFullScreen` và callback của interstitial đúng plan.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua lần đầu (349 test JVM, 0 lỗi, 30 ảnh); `pr-check.yml` xanh lần đầu (39947175801).
+- **Lệch so với plan:** (1) test gọi `GoogleTestAdUnitIds.unitFor` của T-010 thay cho `testUnitFor` (plan cho phép); (2) chưa có vị trí toàn màn hình (T-014 thêm, thêm vị trí là điều kiện dừng), nên `rememberShowFullScreenAd` gọi `require` rồi một hàm internal mới `rememberFullScreenAdAction(placement, show)` mà test `withoutController_actionDoesNothing` dùng; (3) thêm `NativeFullScreenAdLayout(…, binder, …)` internal dùng chung cho màn hình công khai và `FullScreenAdHost`; (4) khoảng cách tiêu đề và nhà quảng cáo `Spacing.xs` lấy từ `design/context`; (5) `IconButton` của material3 đang dùng không có tham số `shape`, nên dùng `Modifier.clip(CircleShape)` và `iconButtonColors`; (6) loader của T-010 nhận `NativeAdSize`, nên thêm `preloadNativeFullScreen` với tập đang tải để không tải trùng; (7) `ads-guide.md` bỏ thêm hai chữ "(đợt 2)" về native toàn màn hình. Không dùng phương án dự phòng.
+- **Việc còn lại:** quyết định có thêm kiểm `presence.showing` vào `showInterstitial` không (ticket sau hay T-017 của dự án mẫu).
+- **Cần người xem:** ảnh chuẩn mới `core/ads/src/test/screenshots/NativeFullScreenAdScreen_default_{light,dark}.png`, `NativeFullScreenAdScreen_max-content_small.png`; ảnh so sánh trong `docs/features/ads/design/review/` (lệch 0,5% và 0,5%, chỉ khử răng cưa chữ). Kiểm thủ công sau T-014 trên staging: trước khi tải xong thì nút "Native full screen" không làm gì; tải xong thì hiện, nút đóng và nút quay lại đóng và trở về đúng màn hình; bấm "Interstitial" ngay sau thì bị chặn; xoay máy vẫn giữ; log có dòng shown, closed và `skipped: NOT_READY`; `NativeAdView` trong hộp thoại Compose nhận lượt hiển thị và lượt chạm CTA.

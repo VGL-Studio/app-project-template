@@ -1,7 +1,7 @@
 ---
 ticket: T-015
 title: Mediation AdMob và AppLovin
-status: approved               # draft | approved | stopped | done
+status: done                   # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -274,3 +274,16 @@ Phiên bản 3:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 3
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-015-mediation-applovin`, PR #101, merge commit `148a117` lúc 09:29 UTC
+- **Đã làm:** thêm `com.google.ads.mediation:applovin:13.6.4.2` vào `gradle/libs.versions.toml` và `:core:ads`; manifest mới của `:core:ads` với `tools:node="remove"` cho `AppLovinInitProvider`, `CHECK_LICENSE`, `ACCESS_WIFI_STATE` (kèm chú thích theo bước 3a); `adapterStatusLines` và dòng log trạng thái adapter trong listener của `MobileAds.initialize` qua `AppLogger` (thẻ `Ads`); cập nhật `docs/ops/ads-guide.md` (mục 7, 9, Nguồn) và `docs/ops/release.md` (mục 1.4 `app-ads.txt`, bước kiểm ở mục 2.4). Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 8 test (1 classpath, 2 `MediationStatusTest`, 5 `MergedManifestTest`), commit `a8251de` trước code, kèm khung rỗng `adapterStatusLines` trả danh sách rỗng. Khi chưa có code, 5 test thất bại đúng lý do: `ClassNotFoundException: com.google.ads.mediation.applovin.AppLovinMediationAdapter`; `expected:<[Adapter ...AppLovinMediationAdapter: NOT_READY, 0 ms, Timeout, ...]> but was:<[]>`; `statusLines_emptyWhenNoAdapter` thất bại ở bước đối chứng; "No com.applovin activity..."; `keepsVibratePermission`. Ba test "không có" qua ngay, đúng mục 4. Lần 2 (có thư viện, chưa có manifest): `hasNoAppLovinInitProvider` ("AppLovinInitProvider runs before consent"), `hasNoCheckLicensePermission`, `hasNoWifiStatePermission` thất bại, đúng dự kiến. 1 test có bước đối chứng (L-055).
+- **Kiểm theo mục 4:** `uses-permission` của manifest gộp `stagingDebug` trước và sau: chỉ thêm `android.permission.VIBRATE`. Báo cáo manifest merger ghi `REJECTED` cho đúng ba phần tử của `applovin-sdk:13.6.4`, không có cảnh báo. Classpath chạy của `:app`: chỉ thêm `applovin-sdk:13.6.4`, `mediation:applovin:13.6.4.2`, `mediation:common:1.1.0`; `play-services-ads` vẫn 25.5.0, `user-messaging-platform` vẫn 4.0.0. Không cần kho Maven mới hay quy tắc R8; log không có `repo.maven.apache.org`.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 3 ghi chú. Nên sửa: nhật ký và ticket chưa có trong diff; đã xử lý bằng chính mục này trên nhánh báo cáo (auto-run.md bước 7, 10). Ghi chú: ba khẳng định của `MergedManifestTest` chưa có thông điệp; `_canRequestAds` vẫn đặt ngay khi `initialize` trả về (như cũ); AppLovin còn khởi động khi bỏ provider hay không chỉ kiểm được trên máy.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua lần đầu (209 test JVM, 0 lỗi); `pr-check.yml` xanh lần đầu (39930953417).
+- **Lệch so với plan:** không có. Mô tả adapter READY giả trong test là "Initialized" (plan không ghi). `AdsController` đổi tham số `logger` thành `private val logger` để listener dùng.
+- **Việc còn lại:** kiểm thủ công trên máy (điều kiện dừng 7 và 8 của plan).
+- **Cần người xem:** kiểm thủ công mục 4: (1) sau khi đồng ý, logcat có `Adapter com.google.ads.mediation.applovin.AppLovinMediationAdapter: READY`; (2) trước khi đồng ý không có log `AppLovinSdk` hay dòng `Adapter ...`; (3) Ad Inspector có "AppLovin (Bidding)" trên app có đơn vị quảng cáo thật; (4) dùng 30 phút không có FATAL, `SecurityException` hay ngoại lệ của `com.applovin`. Lời văn mới của `ads-guide.md` mục 7, `release.md` mục 1.4 và 2.4.
