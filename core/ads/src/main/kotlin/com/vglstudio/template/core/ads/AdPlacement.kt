@@ -13,6 +13,9 @@ enum class AdFormat {
 
     /** Shown inside a screen with [NativeAdSlot], with media (image or video); replaces MREC. */
     NATIVE_MEDIUM,
+
+    /** Medium that the user collapses to small, shown with [CollapsibleNativeAdSlot]; never expands again. */
+    NATIVE_COLLAPSIBLE,
 }
 
 /**

@@ -244,6 +244,14 @@ class AdsController @Inject internal constructor(
     }
 
     /**
+     * The user collapsed the collapsible native ad of [placement] ([CollapsibleNativeAdSlot]). Logged only: no
+     * analytics event (spec section 6, ADR-0022).
+     */
+    internal fun onNativeCollapsed(placement: AdPlacement) {
+        logger.info(TAG, "native_collapsed placement=${placement.key}")
+    }
+
+    /**
      * Loads one native ad of [placement] ([loadOneNativeAd]): Loaded or Unavailable (also when there is no ad unit).
      * The caller owns a Loaded ad and destroys it; one ad per item of a list (T-011). The caller checks consent and
      * [isEnabled] first, like [NativeAdSlot].
@@ -359,4 +367,6 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.INTERSTITIAL -> null
     AdFormat.NATIVE_SMALL -> NativeAdSize.SMALL
     AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
+    // Opens expanded, with media, so it loads as medium.
+    AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
 }
