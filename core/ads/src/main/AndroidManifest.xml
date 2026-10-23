@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        The AppLovin SDK (mediation adapter, plan T-015) merges these two permissions into the app. They are removed
+        per plan T-015. VIBRATE is kept: the SDK vibrates without checking the permission or catching the error.
+        When upgrading the AppLovin SDK, check the permission and provider names in its AAR manifest again.
+    -->
+    <uses-permission
+        android:name="com.android.vending.CHECK_LICENSE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_WIFI_STATE"
+        tools:node="remove" />
+
+    <application>
+        <!--
+            AppLovinInitProvider runs at process start, before consent. Removed so that no AppLovin code runs before
+            MobileAds.initialize, which starts the adapter only after consent (ADR-0004, ADR-0013).
+        -->
+        <provider
+            android:name="com.applovin.sdk.AppLovinInitProvider"
+            android:authorities="${applicationId}.applovininitprovider"
+            tools:node="remove" />
+    </application>
+
+</manifest>

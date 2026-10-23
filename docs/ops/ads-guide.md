@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách chọn, đặt, thử và đo quảng cáo trong app của nhóm. Quyết định nằm ở ADR-0004, ADR-0013, ADR-0014 và ADR-0022; cấu hình từ xa ở [remote-config.md](remote-config.md) (ADR-0023). Repo `vgl-docs` và file "Quy chuẩn Native" cũ chỉ để tham khảo; khi khác tài liệu này thì theo tài liệu này.
 
-Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native, tần suất lưu qua phiên, công tắc tổng, AppLovin); tới lúc đó chỉ dùng banner và interstitial.
+Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native, tần suất lưu qua phiên, công tắc tổng); tới lúc đó chỉ dùng banner và interstitial.
 
 ## 1. Nguyên tắc
 
@@ -95,12 +95,21 @@ Giá trị đề xuất ban đầu; chỉnh bằng Remote Config theo số liệ
 
 Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). Một phiên bắt đầu khi app khởi động, và bắt đầu lại khi app trở lại tiền cảnh sau ít nhất 30 phút ở nền (giống phiên của Firebase Analytics); số quảng cáo toàn màn hình của phiên chỉ đếm trong bộ nhớ. Banner làm mới theo cài đặt của đơn vị quảng cáo trên AdMob, không đặt dưới 60 giây; native không tự làm mới, chỉ tải mới khi người dùng vào lại màn hình.
 
-## 7. Mediation: AdMob và AppLovin (đợt 2)
+## 7. Mediation: AdMob và AppLovin
 
 - AdMob điều phối, AppLovin là mạng con qua adapter chính thức của AdMob, bidding (ADR-0022, thay phần mạng con của ADR-0004).
-- Thêm adapter là thay đổi thư viện: plan rủi ro cao.
-- Khai báo AppLovin trong nhóm mediation của từng đơn vị quảng cáo trên AdMob; `app-ads.txt` trên website của nhà phát triển có dòng của AdMob và AppLovin.
-- Kiểm tra bằng Ad Inspector của AdMob trên bản staging (mã thử) trước khi bật.
+- **Thư viện:** `com.google.ads.mediation:applovin:13.6.4.2` (khóa `admob-mediation-applovin` trong `gradle/libs.versions.toml`), kéo theo `com.applovin:applovin-sdk:13.6.4`. Chỉ `:core:ads` phụ thuộc adapter; feature không thấy nó.
+- **Không cần code khởi tạo:** `MobileAds.initialize`, gọi sau khi có đồng ý (ADR-0013), khởi tạo mọi adapter. Đồng ý GDPR từ UMP được chuyển sang AppLovin tự động.
+- **Khóa SDK AppLovin không vào app:** với bidding, khóa nhập trong hộp thoại ánh xạ nguồn quảng cáo trên AdMob. Không đặt khóa trong `AndroidManifest.xml` hay bất kỳ file nào của repo.
+- **Việc của người trên AdMob:** tạo nhóm mediation cho từng đơn vị quảng cáo, thêm nguồn "AppLovin (Bidding)" và ánh xạ với tài khoản AppLovin; thêm "AppLovin Corp." vào danh sách đối tác quảng cáo của thông điệp GDPR và thông điệp luật các bang Mỹ (Privacy & messaging); `app-ads.txt` trên website của nhà phát triển có dòng của AdMob và AppLovin ([release.md](release.md), mục 1.4).
+- **Manifest:** SDK AppLovin gộp vào app ba quyền thường (`VIBRATE`, `ACCESS_WIFI_STATE`, `com.android.vending.CHECK_LICENSE`), các activity và service của nó, và `com.applovin.sdk.AppLovinInitProvider` chạy lúc tiến trình khởi động. Dự án mẫu bỏ ba phần tử trong `core/ads/src/main/AndroidManifest.xml` bằng `tools:node="remove"` (plan T-015):
+  - `AppLovinInitProvider`: provider đọc Advertising ID và App Set ID lúc khởi động, trước khi có đồng ý. Bỏ đi thì không có mã AppLovin nào chạy trước `MobileAds.initialize` (ADR-0004). AppLovin không ghi cách này trong tài liệu; mỗi lần nâng SDK phải kiểm lại trên máy.
+  - `CHECK_LICENSE` và `ACCESS_WIFI_STATE`: bớt quyền; ảnh hưởng tới chống gian lận và đo lường hiển thị của AppLovin chưa rõ, theo dõi doanh thu khi có số liệu thật.
+  - `VIBRATE` giữ lại: SDK gọi rung không kiểm quyền và không bắt lỗi, bỏ quyền có thể làm app dừng.
+  - Một app muốn chọn khác thì thêm dòng trong manifest của chính app (ưu tiên cao hơn thư viện). `MergedManifestTest` của `:app` kiểm manifest gộp của dự án mẫu.
+- **Data safety:** khai báo AppLovin là bên nhận dữ liệu (định danh quảng cáo, thông tin máy). Quyền mà mediation thêm vào manifest gộp: `VIBRATE`.
+- **Kiểm tra trên staging:** sau khi đồng ý, logcat (`adb logcat -v threadtime | grep ' VGL\.'`, thẻ `Ads`) có dòng `Adapter com.google.ads.mediation.applovin.AppLovinMediationAdapter: READY`, ghi khi `MobileAds.initialize` báo xong. Trước khi đồng ý không có dòng `Adapter ...` nào và không có log khởi tạo của thẻ `AppLovinSdk`. Trên app có đơn vị quảng cáo thật: Ad Inspector, chế độ "single ad source testing" với "AppLovin (Bidding)", sau khi đăng ký máy thử trên AdMob và bật chế độ thử trên AppLovin.
+- **Nâng cấp adapter** là thay đổi thư viện: plan rủi ro cao. Nâng `play-services-ads` thì nâng adapter trong cùng plan, chọn bản adapter có ghi chú "Built and tested with" khớp bản Google Mobile Ads mới; kiểm lại tên provider và quyền trong manifest của AAR.
 - Hướng dẫn chính thức: https://developers.google.com/admob/android/mediation/applovin
 
 ## 8. Thử trên staging
@@ -114,7 +123,8 @@ Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). 
 
 - [ ] Mỗi vị trí trong `AdPlacement` có mã production trong `release.properties` (`release.sh` kiểm).
 - [ ] `app-ads.txt` đủ dòng cho mọi mạng đang dùng.
-- [ ] Hộp thoại đồng ý đã cấu hình trên AdMob (Privacy & messaging) cho các vùng cần.
+- [ ] Hộp thoại đồng ý đã cấu hình trên AdMob (Privacy & messaging) cho các vùng cần, có "AppLovin Corp." trong danh sách đối tác quảng cáo (mục 7).
+- [ ] Tắt chế độ thử trên AppLovin và AdMob (máy thử, single ad source testing) trước khi phát hành.
 - [ ] Liên kết AdMob với Firebase (để có `ad_impression` và doanh thu, mục 10).
 - [ ] Rà từng vị trí theo mục 2 trên bản phát hành.
 - [ ] Mọi vị trí vẫn tắt trên Remote Config tới khi bản phát hành lên Play; bật dần theo [remote-config.md](remote-config.md).
@@ -135,6 +145,7 @@ Tra ngày 2026-10-21; chính sách có thể đổi, đối chiếu lại trư�
 - Đo doanh thu quảng cáo bằng Firebase: https://firebase.google.com/docs/analytics/measure-ad-revenue
 - Hiệu quả quảng cáo AdMob trong Firebase: https://support.google.com/firebase/answer/7378163
 - Mediation AppLovin: https://developers.google.com/admob/android/mediation/applovin
+- Ad Inspector: https://developers.google.com/admob/android/ad-inspector
 - Chính sách chương trình AdMob: https://support.google.com/admob/answer/6128543
 - Interstitial không được phép (lúc mở, lúc thoát app, lặp lại): https://support.google.com/admob/answer/6201362
 - Chính sách quảng cáo của Google Play: https://support.google.com/googleplay/android-developer/answer/9857753

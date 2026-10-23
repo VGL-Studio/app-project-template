@@ -43,7 +43,8 @@ import kotlinx.coroutines.withContext
  * [LocalAdsController]. Features use [AdSlot], [rememberShowInterstitial] and [PrivacyOptionsButton], never this
  * class or an SDK directly.
  *
- * The ads SDK is initialized only once the consent form allows ads to be requested.
+ * The ads SDK is initialized only once the consent form allows ads to be requested. Mediation adapters (AppLovin,
+ * plan T-015) are initialized by the SDK at the same time, with no code of their own; their status is logged.
  */
 @Singleton
 class AdsController @Inject internal constructor(
@@ -52,7 +53,7 @@ class AdsController @Inject internal constructor(
     private val consentDebug: ConsentDebugOptions,
     private val settings: RemoteSettings,
     historyStore: FullScreenAdHistoryStore,
-    logger: AppLogger,
+    private val logger: AppLogger,
 ) {
     private val consentInformation by lazy { UserMessagingPlatform.getConsentInformation(context) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -243,7 +244,12 @@ class AdsController @Inject internal constructor(
         if (consentInformation.canRequestAds() && initialized.compareAndSet(false, true)) {
             scope.launch {
                 // Google recommends starting the SDK off the main thread.
-                withContext(Dispatchers.IO) { MobileAds.initialize(context) }
+                withContext(Dispatchers.IO) {
+                    // The listener runs once every adapter is initialized or timed out (KB-9).
+                    MobileAds.initialize(context) { status ->
+                        adapterStatusLines(status.adapterStatusMap).forEach { logger.info(TAG, it) }
+                    }
+                }
                 _canRequestAds.value = true
                 AdPlacement.entries.filter { it.format == AdFormat.INTERSTITIAL }.forEach(::preloadWhenEnabled)
             }

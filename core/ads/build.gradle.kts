@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":core:logging"))
 
     implementation(libs.play.services.ads)
+    implementation(libs.admob.mediation.applovin)
     implementation(libs.user.messaging.platform)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
