@@ -14,7 +14,7 @@ Every status comes from the front matter of requests, specs, tickets, plans, fee
 the "Trạng thái" lines of docs/lessons.md. Nobody edits STATUS.md by hand: change the document, then run the script.
 The page has no date or time, so running it twice on the same documents gives the same file.
 The page is not in git on main (.gitignore): .github/workflows/status-page.yml runs this script after each push to
-main and pushes the page to the `status` branch (L-061). Run it locally to preview the page.
+main and pushes the page to the `status` branch (L-066). Run it locally to preview the page.
 STATUS_ROOT overrides the repository root (tests). The page is in Vietnamese for the team.
 """
 

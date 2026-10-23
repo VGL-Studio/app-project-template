@@ -139,7 +139,7 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 
 `docs/STATUS.md` cho thấy tiến độ cả dự án: việc đang chờ người, yêu cầu và trạng thái, ticket của từng feature, phiên tự chạy, bài học và ADR. Trang do `scripts/status.py` sinh từ trạng thái trong các tài liệu, không sửa tay.
 
-- Trang không có trong git của nhánh chính (`.gitignore`), nên PR không bao giờ xung đột vì nó (L-059, L-061). Cụ thể:
+- Trang không có trong git của nhánh chính (`.gitignore`), nên PR không bao giờ xung đột vì nó (L-059, L-066). Cụ thể:
   - Sau mỗi lần đẩy lên nhánh chính có đổi `docs/` hay `scripts/status.py`, workflow `status-page.yml` chạy `scripts/status.py` và đẩy đè nhánh `status`: nhánh chính cộng đúng một commit chứa trang. Workflow không bao giờ đẩy lên nhánh chính. Đọc trang ở [nhánh status](../../../blob/status/docs/STATUS.md); các liên kết tương đối của trang đúng vì cây file là cây của nhánh chính.
   - PR không commit `docs/STATUS.md`, kể cả PR báo cáo của phiên. `scripts/merge-if-green.sh` báo chú ý khi PR có file này (ví dụ thêm bằng `git add -f`).
   - Muốn xem trước trên máy thì chạy `scripts/status.py`; git bỏ qua file vừa sinh. `scripts/status.py --check` cho biết trang trên máy đã khớp với tài liệu chưa.

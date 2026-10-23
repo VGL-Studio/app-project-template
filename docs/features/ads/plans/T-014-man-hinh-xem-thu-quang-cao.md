@@ -1,19 +1,24 @@
 ---
 ticket: T-014
 title: Màn hình xem thử quảng cáo chỉ ở bản staging
-status: approved               # draft | approved | stopped | done
-version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: stopped                # draft | approved | stopped | done
+version: 4                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # cỡ M (gợi ý 20M của scripts/token-usage.py estimate, 2026-10-21), nâng lên: 3 trang, 7 ảnh chuẩn, sửa cả :core:ads và :app
 blocking_points: [ads, core, build]
 run_order:                  # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật            # người duyệt
-cross_reviewer: Nhật            # bắt buộc khi risk_level là high
-approved_at: 2026-10-23
+reviewer:                # người duyệt
+cross_reviewer:                # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-014: MÀN HÌNH XEM THỬ QUẢNG CÁO CHỈ Ở BẢN STAGING
+
+**Phiên bản 4 (2026-10-23)**, soạn sau khi task dừng ở RUN-20261023-01 (bước 6, nhật ký ở mục 10). Trạng thái plan giữ `stopped` tới khi người duyệt phiên bản này.
+
+- **Vì sao phiên bản 3 chưa đủ tốt (theo cách hiểu của phiên):** test `AdGallerySourceSetTest` quét mọi file `.kt`, `.xml` ngoài `src/staging`, nhưng plan không lường tới các task chạy trước trong cùng phiên. T-017 (merge trước T-014) thêm vào `app/src/main/.../network/ScreenName.kt` một ví dụ KDoc `com.x.AdGalleryDestination/{id}`; file này ngoài mục 3.2, nên test không qua được nếu không đổi điều nó kiểm tra hay sửa file ngoài danh sách.
+- **Thay đổi so với phiên bản 3:** điều kiện trước khi chạy: PR #114 (đổi ví dụ KDoc của `ScreenName.kt`, nháp, `needs-human`) đã merge. Mục 3.1 thêm phần Tiếp tục trên nhánh cũ. Mục 4 không đổi: `AdGallerySourceSetTest` giữ đúng bản của commit test `b13cf12` (theo nghĩa đen, kể cả chú thích). Mục 6 thêm T-017. Mục 7 thêm một điều kiện dừng. Mục 9 có chỗ trống cho phiên bản 4. Danh sách file (mục 3.2), cách làm còn lại, chấm rủi ro không đổi.
 
 **Phiên bản 3 (2026-10-23)**, sau rà soát trước phiên của RUN-20261023-01 (mục Kiểm tra trước khi duyệt). Thay đổi so với phiên bản 2 (đã duyệt 2026-10-23):
 
@@ -46,6 +51,15 @@ ADR liên quan: ADR-0001 (`:app` ghép module), ADR-0007 (tách staging, product
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
+
+**Tiếp tục trên nhánh cũ (phiên bản 4).** Nhánh `claude/T-014-man-hinh-xem-thu-quang-cao`, chưa có PR. Phiên cập nhật nhánh theo nhánh chính (merge, không rebase), rồi:
+
+1. Trả `app/src/test/kotlin/com/vglstudio/template/AdGallerySourceSetTest.kt` về đúng bản của commit `b13cf12` (bỏ phần bỏ qua chú thích của `472ce34`). Đây là trả test về điều plan viết, không phải test mới, nên bước 3 không áp dụng lại.
+2. Sửa câu ở `docs/features/ads/design/README.md` mục 8 còn nhắc "dòng tương ứng thêm vào `review/summary.md`": kết quả chỉ ghi ở README mục 8 (rà soát độc lập, mức nên sửa).
+3. Sửa câu "không bắt đầu phiên mới" ở `docs/ops/ads-guide.md` mục 8: thêm điều kiện ở trong màn hình xem thử dưới 30 phút (rà soát độc lập, ghi chú; T-009 chỉ đếm `MainActivity`).
+4. Chạy `scripts/check.sh`, đối chiếu danh sách file với mục 3.2, rà soát độc lập, rồi bước 7 đến 10 như thường. `docs/features/ads/design/review/summary.md` không đổi.
+
+Phần còn lại của mục này là cách làm của phiên bản 3, đã có trên nhánh.
 
 Giả định PR #81 (`scripts/release.sh` bỏ qua vị trí `gallery_*` và đọc định dạng có gạch dưới; `scripts/check.sh` so ảnh chuẩn của `:app`) và T-007 đến T-013 đã merge, với đúng tên trong hợp đồng chung: `AdsSettings.placementEnabled`, `AdsSettings.all()`, `AppRemoteKeys`, `RemoteConfigKeysTest` (T-007); `StagingRemoteValuesModule` (T-008); `AdsController` có `AppLogger` (T-009); `AdFormat.NATIVE_SMALL`, `NATIVE_MEDIUM`, `NativeAdAssets`, `NativeAdSize`, `NativeAdCard`, `NativeAdSlot` (T-010); `rememberInListAds`, `InListAds.every`, `itemsWithInListAds`, `inListAdPositions` (T-011); `AdFormat.NATIVE_COLLAPSIBLE`, `CollapsibleNativeAdSlot`, `CollapsibleNativeAdCard` (T-012); `AdFormat.NATIVE_FULL_SCREEN`, `rememberShowFullScreenAd`, `FullScreenAdHost` (T-013).
 
@@ -308,6 +322,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 ## 6. Ảnh hưởng chéo
 
+- (Phiên bản 4) T-017 (đã merge) có `ScreenName.kt` trong `app/src/main`; ví dụ KDoc của nó nhắc tên màn hình, sửa ở PR #114.
 - File hoặc thành phần dùng chung bị chạm:
   - `AdPlacement.kt`: thuộc tính suy ra, constructor không đổi, mọi dòng khai báo hiện có không đổi. Mọi `when` trên `AdPlacement` (nếu có) phải xét thêm 7 hằng; hiện không có (`grep`).
   - `AdUnitIds.kt`: hành vi của `ConfiguredAdUnitIds` đổi chỉ với vị trí `stagingOnly`.
@@ -327,6 +342,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 ## 7. Điều kiện dừng riêng
 
+- (Phiên bản 4) PR #114 chưa merge, hoặc sau khi cập nhật nhánh, bản `AdGallerySourceSetTest` của `b13cf12` vẫn thấy một file ngoài `src/staging` nhắc `AdGallery` hay `ad_gallery`.
 1. PR #81 chưa merge vào nhánh chính khi task bắt đầu (`scripts/release.sh` chưa bỏ qua `gallery_`, hoặc `scripts/check.sh` chưa duyệt `app/`): dừng trước khi làm (thêm vị trí làm hỏng lần phát hành sau; ảnh của `:app` không được so).
 2. Sau T-010 đến T-013, tên trong hợp đồng chung khác (`NativeAdCard`, `NativeAdAssets`, `CollapsibleNativeAdCard`, `CollapsibleNativeAdSlot`, `rememberInListAds`, `itemsWithInListAds` và bản nội bộ nhận `positions`, `rememberShowFullScreenAd`, `FullScreenAdHost`): dừng, ghi API thật, sửa plan.
 3. T-012 đã merge mà vẫn có ảnh chuẩn tên `AdGalleryScreen_collapsible-*` trong `core/ads/src/test/screenshots/` hay ảnh so sánh của chúng trong `design/review/` (trái câu hỏi 2): dừng (không tự đổi tên hay xóa ảnh của task khác).
@@ -376,6 +392,26 @@ Phiên bản 3:
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
 - **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-23; câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
+Phiên bản 4:
+
+- **Quyết định:**
+- **Người duyệt:**, **duyệt chéo:**
+- **Ghi chú:**
+
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 3
+
+- **Kết quả:** dừng ở bước 6 (rà soát độc lập, mức chặn). Không mở PR, không merge.
+- **Nhánh, PR:** `claude/T-014-man-hinh-xem-thu-quang-cao` (giữ nguyên, 5 commit: `b13cf12` test, `472ce34` code, `7d7da91` ảnh chuẩn, `d8fd1b0` tài liệu, `3879559` bỏ dòng ngoài danh sách file). PR sửa nguyên nhân #114 (nháp, `needs-human`).
+- **Đã làm:** đủ mục 3.1 trên nhánh: `AdGalleryScreen`, `AdGalleryActivity` và biểu tượng chỉ ở `app/src/staging`, 7 vị trí `gallery_*`, Ad Inspector, hàm xen hai vị trí, sinh lại bảng khóa, 8 ảnh chuẩn, 5 ảnh so sánh thiết kế, README thiết kế mục 8, `ads-guide.md`. `scripts/check.sh` qua (450 test JVM, 0 lỗi, 42 ảnh). Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 39 test (AdPlacementTest 3, AdInspectorTest 3, AdUnitIdsTest 2 mới và 1 đổi kỳ vọng, InListAdsTest 2, AdGallerySourceSetTest 3, AdGalleryViewModelTest 8, AdGalleryScreenTest 11, screenshot 8), commit `b13cf12` trước code. Không biên dịch được, đúng dự kiến (`Unresolved reference 'AdInspectorResult'`, `'stagingOnly'`, `'GALLERY_NATIVE_SMALL'`, `'AdGallerySlots'`...). Khoảng 10 test có đối chứng sẵn (L-055); `mainManifest_hasOneLauncher` qua ngay như plan cho phép.
+- **Vì sao dừng:** `AdGallerySourceSetTest` (mục 4: không file `.kt` hay `.xml` nào ngoài `src/staging` chứa `AdGallery` hay `ad_gallery`) thất bại thật vì `app/src/main/kotlin/com/vglstudio/template/network/ScreenName.kt` của T-017 (merge trong cùng phiên, ngoài danh sách file của plan này) có ví dụ `com.x.AdGalleryDestination/{id}` trong KDoc. Phiên con sửa test ở commit code để bỏ qua chú thích. Rà soát độc lập xếp mức chặn: đây là đổi điều test kiểm tra (thu hẹp phạm vi), không phải sửa chi tiết; regex `/\*.*?\*/` và `//` còn chạy cả trong chuỗi (`"image/*"`, `http://`), làm test yếu đi thật. Theo auto-run.md bước 4 (cần đổi điều test kiểm tra thì dừng) và bước 5 (sửa file ngoài danh sách thì dừng), task dừng. Lỗi của plan: lúc viết, T-017 chưa merge nên plan không thấy được chú thích này; mục 6 không liệt kê T-017 là nơi có thể nhắc tên màn hình.
+- **Rà soát độc lập:** 1 chặn (trên), 1 nên sửa (README thiết kế dòng 108 còn ghi "dòng tương ứng thêm vào `review/summary.md`" trong khi `3879559` đã bỏ dòng đó), các ghi chú: tách riêng staging đạt (manifest chính một `LAUNCHER`, vị trí `gallery_*` trả `null` ở production, chỉ mã thử của Google, `secret-scan.py` sạch); `SdkAdGallerySlots` giữ `InListAds` trong biến thường gán lúc dựng giao diện, chấp nhận được; mở màn hình xem thử làm `MainActivity.onStop` chạy, ở đó từ 30 phút trở lên rồi quay lại thì bắt đầu phiên quảng cáo mới, câu "không bắt đầu phiên mới" ở ads-guide mục 8 nên thêm điều kiện này; khác thiết kế chỉ ở quảng cáo giả và hàng nút chuyển trang đã duyệt (lệch 1,9%, 1,9%, 1,6%, 0,7%, 0,7%).
+- **Kết quả CI:** chưa đẩy PR nên chưa chạy CI. `scripts/check.sh` cục bộ qua với bản test đã nới.
+- **Lệch so với plan:** (1) `AdGallerySourceSetTest` bỏ qua chú thích (lý do dừng); (2) chỉnh chi tiết test: thêm import `assert`, đổi thứ tự `testTag` và `padding` trong `PreviewAdGallerySlots`; (3) phiên chính giao nhầm cho phiên con việc thêm 5 dòng vào `docs/features/ads/design/review/summary.md`, file ngoài mục 3.2 (mục 3.1 nói không sửa); phiên chính bỏ lại ở `3879559` trước khi giao rà soát; (4) thêm test tag, chuỗi staging `translatable="false"`, dùng lại `robolectric.properties` của T-017, chỉ thêm `lifecycle-runtime-compose` vào `app/build.gradle.kts`.
+- **Đã thử cho người:** trên nhánh của task, đặt tạm `ScreenName.kt` của PR #114 và bản `AdGallerySourceSetTest` của `b13cf12` (không commit): test qua 3/3.
+- **Việc còn lại:** người xem và merge PR #114, duyệt phiên bản 4 (dưới đây), đưa vào danh sách chạy tiếp theo `RUN-20261024-01` (`draft`).
+- **Cần người xem:** 8 ảnh chuẩn `app/src/test/screenshots/AdGalleryScreen_*.png` và 5 ảnh so sánh trên nhánh; kiểm thủ công mục 4 sau khi merge.

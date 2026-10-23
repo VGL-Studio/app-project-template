@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_lost_title">No internet connection</string>
+    <string name="network_lost_message">This app needs the Internet to work. Check Wi-Fi or mobile data, then try again.</string>
+    <string name="network_lost_retry">Try again</string>
+    <string name="network_lost_still_offline">Still no connection. Please try again in a moment.</string>
+</resources>

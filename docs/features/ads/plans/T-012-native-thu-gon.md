@@ -1,7 +1,7 @@
 ---
 ticket: T-012
 title: Native thu gọn được
-status: approved               # draft | approved | stopped | done
+status: done                   # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -288,3 +288,15 @@ Phiên bản 1 đã được anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-012-native-thu-gon`, PR #111, merge commit `24e9ca4` lúc 11:18 UTC
+- **Đã làm:** định dạng `NATIVE_COLLAPSIBLE`, `CollapsibleNativeAdSlot`, `CollapsibleNativeAdCard` trong `CollapsibleNativeAd.kt`; thu gọn trên cùng `NativeAdView` (bỏ đăng ký media, gắn lại tài sản, không tải quảng cáo mới); icon `ads_ic_collapse.xml`, chuỗi `ads_collapse`, mã thử; 5 ảnh chuẩn; cập nhật `docs/ops/ads-guide.md`. Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 22 test (17 trong `CollapsibleNativeAdTest`, 5 screenshot), commit `908c303` trước code, kèm khai báo tối thiểu để biên dịch theo mục 3.1. 17/17 test hành vi thất bại đúng lý do ("could not find any node that satisfies: (TestTag = 'collapsible_ad_media')", "bind never ran", "height of host expected:<342.0> but was:<0.0>", "expected:<MEDIUM> but was:<null>"...). 5 screenshot qua ngay vì ảnh chuẩn chỉ ghi sau khi có code, đúng plan. 1 test có bước đối chứng (L-055): `hidden_takesNoSpace`.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 3 ghi chú. Nên sửa: sau khi thu gọn, test chỉ kiểm `headlineView` và `callToActionView` còn đăng ký; đã thêm test mới `collapse_keepsIconAndAdvertiserRegistered` (`47b71ee`, có đối chứng trước khi thu gọn, kiểm cả `isAttachedToWindow`), qua ngay với code đã viết, là test chặn hồi quy; test của bước 3 giữ nguyên. Ghi chú: dạng mở không vẽ ô AdChoices giả (đúng mục 3.1 và ads-guide) còn dạng gọn dùng `NativeAdLayout` của T-010 có ô giả, nên ảnh dạng mở thiếu ô "i" mà thiết kế có; T-014 cần biết khi so ảnh `AdGalleryScreen_collapsible-expanded`; chữ "Media" và chữ phụ của quảng cáo giả khác thiết kế (README mục 6 cho phép); nhánh không có controller chưa có test (plan đã ghi).
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (325 test JVM, 0 lỗi, 27 ảnh); `pr-check.yml` xanh lần đầu (39944184189).
+- **Lệch so với plan:** định dạng ktlint ở test (commit `dc84508`, không đổi điều test kiểm tra); `ads-guide.md` bỏ thêm hai chữ "(đợt 2)" về native thu gọn; thêm `key(current.ad)` quanh `BoundNativeAd` để quảng cáo mới có `NativeAdView` mới, trạng thái thu gọn nằm ngoài `key`. Bốn commit đầu làm cục bộ, đẩy một lần khi cổng `main-guard` đã mở. Không dùng phương án dự phòng.
+- **Việc còn lại:** không có.
+- **Cần người xem:** ảnh chuẩn mới `core/ads/src/test/screenshots/CollapsibleNativeAd_{expanded,collapsed}_{light,dark}.png`, `CollapsibleNativeAd_expanded_small.png`; kiểm thủ công sau T-014: logcat có `native_collapsed placement=<key>` đúng một lần mỗi lần chạm; AdChoices thật ở góc trên phải không đè nút thu gọn; chạm thì gọn ngay, CTA vẫn bấm được; xoay máy hay quay lại vẫn gọn, mở lại màn hình từ đầu thì ở dạng mở; Ad Inspector không báo tài sản chưa đăng ký (gọi lại `setNativeAd` với quảng cáo thật).
