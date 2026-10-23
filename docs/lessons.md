@@ -198,3 +198,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến (đề xuất, chưa làm):** ngoại lệ kiểm bằng nội dung thay vì tên: khi `main-broken` mở, `merge-if-green.sh` chỉ merge PR có đúng một commit mà cây file trùng khớp với kết quả `git revert <commit bị đổ lỗi>` do chính script dựng trên nhánh chính mới nhất, và CI xanh. Phiên được merge bản revert của commit do chính phiên merge, chuyển task đó sang `stopped`, rồi làm tiếp các task không phụ thuộc nó. Issue vẫn chỉ tự đóng bởi `main-guard`; AI vẫn không đóng hay sửa issue. Cần ADR sửa ADR-0010 và plan rủi ro cao có duyệt chéo.
 - **Trạng thái:** proposed
 - **Áp dụng:**
+
+### L-050. Quy tắc của `check.sh`, giới hạn mạng của phiên cloud và trạng thái ticket chỉ lộ ra khi phiên đã chạy
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-005, L-013, L-019 của app, issue #78)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** ở app, ba chỗ hở cùng một kiểu: điều plan phải biết chỉ được phát hiện khi phiên đã chạy hoặc khi người đối chiếu bằng tay. Quy tắc "mọi `captureRoboImage` ghi vào `src/test/screenshots/`" chỉ nằm trong `check.sh` và một câu của `CLAUDE.md`, người viết plan và phiên đều bỏ sót (T-007). Plan T-010 yêu cầu `curl` file trên R2 trước bước 3, nhưng proxy của `claude --cloud` trả 403 cho máy chủ R2. Ticket chuyển `approved` khi plan còn `draft`, plan được duyệt mà ticket còn `planned`.
+- **Cải tiến:** `docs/auto-run.md` bước 5 có bảng những gì `scripts/check.sh` từ chối; `scripts/plan-check.py` quy tắc 9 dò trong plan lệnh `captureRoboImage` sai đường dẫn, ảnh chuẩn mới thiếu ở mục 3.2, ảnh nằm ngoài `src/test/screenshots/` (lỗi với plan `draft`, chú ý với plan `approved`). `docs/CLAUDE.md` mục Khi viết plan: điều kiện về file R2 kiểm bằng workflow trên GitHub hoặc "dev kiểm trước phiên", không bằng `curl` từ phiên. `scripts/status.py --sync` chuyển ticket theo plan `approved` hay `stopped`; `plan-check.py` quy tắc 10 báo chú ý khi lệch; `docs/CLAUDE.md` mục Trang tiến độ. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/issue-78-plan-checks`
