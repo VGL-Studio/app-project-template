@@ -23,6 +23,7 @@ object GoogleTestAdUnitIds : AdUnitIds {
         AdFormat.NATIVE_MEDIUM -> "ca-app-pub-3940256099942544/1044960115"
         // Opens as medium, so it uses the same native video unit.
         AdFormat.NATIVE_COLLAPSIBLE -> "ca-app-pub-3940256099942544/1044960115"
+        AdFormat.NATIVE_FULL_SCREEN -> ""
     }
 }
 

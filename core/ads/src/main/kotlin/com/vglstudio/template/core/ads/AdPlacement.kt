@@ -16,7 +16,14 @@ enum class AdFormat {
 
     /** Medium that the user collapses to small, shown with [CollapsibleNativeAdSlot]; never expands again. */
     NATIVE_COLLAPSIBLE,
+
+    /** Covers the whole screen at a natural break, shown with [rememberShowFullScreenAd]. */
+    NATIVE_FULL_SCREEN,
 }
+
+/** Formats that cover the whole screen; they share the frequency rules of full-screen ads (T-009). */
+internal val AdFormat.isFullScreen: Boolean
+    get() = false
 
 /**
  * Every ad placement of the app, declared in one place (ADR-0004).

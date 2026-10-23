@@ -369,4 +369,6 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
     // Opens expanded, with media, so it loads as medium.
     AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
+    // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
+    AdFormat.NATIVE_FULL_SCREEN -> null
 }
