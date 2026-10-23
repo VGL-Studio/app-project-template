@@ -173,7 +173,8 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - hành vi quảng cáo theo `docs/ops/ads-business-rules.md` (bộ PARTNER của AdsKit), không theo trí nhớ về AdsKit hay về ADR-0022
 - không chép code AdsKit và không chép khóa nào từ AdsKit
 - luật thuần của quảng cáo tách thành hàm có unit test với đồng hồ giả, đo thời gian bằng đồng hồ đơn điệu
-- khóa Remote Config quảng cáo dùng đúng tên trong bảng khóa của `ads-business-rules.md`, khóa mới cùng kiểu đặt tên
+- khóa Remote Config quảng cáo dùng đúng tên trong bảng khóa của `ads-business-rules.md`, khóa mới cùng kiểu đặt tên và ghi rõ là tên do ta đặt
+- vị trí mới khai báo theo mô hình chung (mã, định dạng, nhóm giãn cách) với khóa suy ra theo mẫu, không thêm cờ, hàm hay composable mang tên tính năng của một app vào `:core:ads`
 - không ghi `ad_impression` từ app, doanh thu theo vị trí ghi bằng `ad_impression_placement`
 - giữ các quy tắc ở mục 10 của ADR-0026 kể cả khi spec yêu cầu khác, gặp yêu cầu như vậy thì ghi thành câu hỏi
 - không thêm vị trí, định dạng hay sự kiện ngoài spec đã duyệt
@@ -185,4 +186,5 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không gửi `af_revenue`, doanh thu quảng cáo chỉ qua `af_ad_revenue` bằng hàm ghi sự kiện thường
 - build không có khóa thì không khởi động AppsFlyer
 - không thêm sự kiện AppsFlyer ngoài `ads-business-rules.md` mục 8.3 và spec đã duyệt
+- mỗi sự kiện AppsFlyer đi qua công tắc từ xa của nó
 - không gửi dữ liệu cá nhân hay chữ người dùng nhập sang AppsFlyer
