@@ -42,7 +42,7 @@ Bản tiếng Anh tương ứng (spec, câu hỏi 3): "No internet connection", 
 | --- | --- | --- | --- | --- |
 | Lớp phủ | lớp phủ mặc định của `Dialog` | đen 32% (scrim của Material) | | |
 | Hộp thoại | `Dialog` với bề mặt riêng | `surfaceContainerHigh` | | rộng 312 dp, lề 24 dp, cách nhau 16 dp, bo 28 dp (`shapes.extraLarge`) |
-| Icon mất wifi | icon vector | `secondary` | | 24 dp |
+| Icon mất wifi | icon vector, Material Symbols Rounded "wifi_off" (Apache 2.0) | nền `secondary` | | 24 dp |
 | Tiêu đề, nội dung | `Text` | `onSurface`, `onSurfaceVariant` | `headlineSmall`, `bodyMedium` | căn giữa |
 | Nút "Thử lại" | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` đậm 600 | rộng hết hộp thoại |
 
@@ -72,6 +72,10 @@ Không có.
 - [ ] Dùng được ở màn hình thấp (360 x 640) (kiểm khi code).
 - [x] Không có quảng cáo.
 - [x] Không thiết kế để thu hút chủ yếu trẻ em.
+
+## 7a. Thay đổi sau khi duyệt
+
+- 2026-10-23: icon mất wifi đổi sang Material Symbols Rounded "wifi_off" theo quyết định của anh Nhật ở câu hỏi 3 của plan T-017 (code dùng cùng icon); ảnh `screens/` và `context/` xuất lại bằng `scripts/figma-export.py`.
 
 ## 8. Kết quả đối chiếu
 

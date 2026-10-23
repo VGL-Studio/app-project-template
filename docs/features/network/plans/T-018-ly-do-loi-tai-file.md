@@ -1,16 +1,16 @@
 ---
 ticket: T-018
 title: Lý do tải file R2 thất bại (AssetFailureReason)
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (core)
 risk_level: high             # low | medium | high
 token_estimate: 10M          # cỡ S, số gợi ý của scripts/token-usage.py estimate (2026-10-23)
 blocking_points: [core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-018: LÝ DO TẢI FILE R2 THẤT BẠI (ASSETFAILUREREASON)
@@ -25,7 +25,7 @@ Ticket xử lý các kịch bản sau trong `features/network/spec.md`:
 
 | Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
-| KB-3 | Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì màn hình của feature báo lỗi và có nút thử lại như trước; popup mất mạng không hiện | Phần của T-018: phân biệt lỗi không tới được máy chủ (`UnknownHostException`, `SocketException` gồm `ConnectException`, `NoRouteToHostException`, `SocketTimeoutException`, xét cả nguyên nhân tới 10 tầng) với lỗi máy chủ trả lời (`HttpStatusException`: 404 là `NOT_FOUND`, mã khác là `OTHER`) và lỗi khác (`OTHER`). `Unavailable` vẫn là kết quả không tải được, nên feature vẫn báo lỗi và cho thử lại như trước. Popup chỉ xét `NETWORK` và còn kiểm trạng thái mạng của máy (T-017), nên quá thời gian khi vẫn có mạng không làm hiện popup |
+| KB-3 | Khi tải thất bại vì lỗi mạng (không kết nối được, quá thời gian) thì popup hiện ngay; máy chủ trả lỗi thì màn hình của feature báo lỗi và có nút thử lại như trước, popup không hiện (spec sửa 2026-10-23) | Phần của T-018: phân biệt lỗi không tới được máy chủ (`UnknownHostException`, `SocketException` gồm `ConnectException`, `NoRouteToHostException`, `SocketTimeoutException`, xét cả nguyên nhân tới 10 tầng) với lỗi máy chủ trả lời (`HttpStatusException`: 404 là `NOT_FOUND`, mã khác là `OTHER`) và lỗi khác (`OTHER`). `Unavailable` vẫn là kết quả không tải được, nên feature vẫn báo lỗi và cho thử lại như trước. Popup chỉ xét `NETWORK` và còn kiểm trạng thái mạng của máy (T-017), nên quá thời gian khi vẫn có mạng không làm hiện popup |
 
 Ghi chú: quá thời gian (`SocketTimeoutException`) được xếp là `NETWORK` như app, vì từ lỗi tải không biết máy còn mạng hay không; T-017 quyết bằng trạng thái mạng của máy.
 
@@ -156,17 +156,19 @@ Không có (Kotlin thuần, đã chạy thử qua `scripts/check.sh`, mục 4.1)
 ## 8. Câu hỏi cho người duyệt
 
 1. **Feature T-018 thuộc `network` hay `assets`.** Dự án mẫu chưa có thư mục feature cho `:core:assets`; ticket đặt ở `network` vì phục vụ việc báo lỗi mạng (spec network KB-3). Đề xuất: giữ ở `network`.
-   - Trả lời:
-2. **Quá thời gian là `NETWORK`.** Như app. Popup chỉ hiện khi máy cũng báo mất mạng (T-017), nên spec KB-3 vẫn đúng. Đề xuất: giữ như app.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
+2. **Quá thời gian là `NETWORK`.** Như app. Spec KB-3 sửa 2026-10-23: lỗi mạng, kể cả quá thời gian, hiện popup ngay (T-017). Đề xuất: giữ như app.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-23; câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 ## 10. Nhật ký thực hiện
 

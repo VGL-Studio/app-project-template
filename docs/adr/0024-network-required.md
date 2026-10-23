@@ -23,7 +23,7 @@ Hiện trạng: màn hình loading đã chờ tải Remote Config mỗi lần m�
 2. **Một bộ theo dõi kết nối dùng chung** ở module core, đưa trạng thái có mạng hay không dưới dạng `Flow`. Feature không tự đọc trạng thái mạng của hệ thống.
 3. **Lúc mở app:** không có mạng thì không vào app. Màn hình loading (khi bật) giữ cách báo lỗi và thử lại của nó; khi không có màn hình loading thì popup chung (mục 4) chặn ngay từ màn hình đầu tiên.
 4. **Trong lúc dùng:** mất mạng thì `:app` hiện một popup chung trên mọi màn hình: báo lỗi mạng, có nút "Thử lại", không đóng được bằng chạm ra ngoài hay nút quay lại, chặn thao tác với màn hình bên dưới. Có mạng trở lại thì popup tự đóng; "Thử lại" kiểm tra lại kết nối ngay. Popup không hiện chồng lên màn hình loading (màn hình đó tự báo lỗi) và không chen vào lúc quảng cáo toàn màn hình đang hiện; nó hiện ngay khi quảng cáo đóng.
-5. **Feature không làm chế độ ngoại tuyến** (danh sách "đang dùng bộ có sẵn", nút "dùng khi không có mạng"...). Lỗi tải riêng lẻ khi vẫn có mạng (máy chủ lỗi, quá thời gian) vẫn đưa vào `UiState` và có nút thử lại như trước.
+5. **Feature không làm chế độ ngoại tuyến** (danh sách "đang dùng bộ có sẵn", nút "dùng khi không có mạng"...). Tải file thất bại vì lỗi mạng (không kết nối được, quá thời gian) thì popup chung hiện ngay, kể cả khi hệ thống vẫn báo có mạng (`:core:assets` báo cho bộ điều khiển popup; quyết định 2026-10-23). Máy chủ trả lỗi thì vẫn đưa vào `UiState` và có nút thử lại như trước.
 6. **File đã tải từ R2 vẫn giữ trên máy** (ADR-0015) để mở nhanh và đỡ tải lại; ý "dùng được khi mất mạng" trong phần hệ quả của ADR-0015 không còn là mục tiêu.
 
 ## Các phương án đã cân nhắc
@@ -39,4 +39,4 @@ Hiện trạng: màn hình loading đã chờ tải Remote Config mỗi lần m�
 
 - **Tích cực:** mọi phiên dùng app đều có điều kiện để hiện và đo quảng cáo; feature không phải làm trạng thái ngoại tuyến.
 - **Phải chấp nhận:** người dùng ở nơi mạng yếu bị chặn; mạng chập chờn có thể làm popup hiện rồi tự đóng liên tục (bộ theo dõi nên chờ một khoảng ngắn trước khi báo mất mạng, plan chốt con số); kịch bản mất mạng của `device-session.sh` sẽ thấy popup thay vì nội dung.
-- **Việc AI phải tuân thủ:** không làm chế độ ngoại tuyến trong feature; feature không tự đọc trạng thái mạng của hệ thống, mất mạng do `:app` xử lý bằng popup chung; lỗi tải khi vẫn có mạng vẫn báo trong `UiState` kèm thử lại; spec mới không ghi tiêu chí "dùng được khi không có mạng".
+- **Việc AI phải tuân thủ:** không làm chế độ ngoại tuyến trong feature; feature không tự đọc trạng thái mạng của hệ thống, mất mạng do `:app` xử lý bằng popup chung; lỗi máy chủ trả về vẫn báo trong `UiState` kèm thử lại; spec mới không ghi tiêu chí "dùng được khi không có mạng".

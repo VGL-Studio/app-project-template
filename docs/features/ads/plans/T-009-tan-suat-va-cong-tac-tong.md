@@ -1,16 +1,16 @@
 ---
 ticket: T-009
 title: Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên
-status: draft            # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-21)
 blocking_points: [ads, core]
 run_order:              # AI điền sau họp đánh giá rủi ro
-reviewer:              # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật            # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-009: CÔNG TẮC TỔNG, ÂN HẠN PHIÊN ĐẦU, GIỚI HẠN MỖI PHIÊN, KHOẢNG CÁCH LƯU QUA PHIÊN
@@ -308,9 +308,11 @@ Không cần (E dưới 2).
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-10-23):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 ## 10. Nhật ký thực hiện
 

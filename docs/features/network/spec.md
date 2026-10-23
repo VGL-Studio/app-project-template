@@ -1,13 +1,13 @@
 ---
 feature: network
-status: changed              # draft | confirmed | changed
+status: confirmed              # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
   - requests/2026-10-21-app-luon-can-mang.md
 design: features/network/design/README.md
 created: 2026-10-21
-confirmed: 2026-10-21
+confirmed: 2026-10-23
 ---
 
 # SPEC: APP LUÔN CẦN MẠNG
@@ -60,11 +60,12 @@ Trường hợp đặc biệt:
 - [ ] Khi một quảng cáo toàn màn hình đang hiện thì popup không chen vào; nếu vẫn mất mạng khi quảng cáo đóng thì popup hiện ngay.
 - [ ] Khi app ở nền rồi quay lại mà không có mạng thì popup hiện.
 
-### KB-3. Lỗi tải khi vẫn có mạng
+### KB-3. Tải nội dung thất bại
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì màn hình của feature báo lỗi và có nút thử lại như trước; popup mất mạng không hiện.
+- [ ] Khi tải nội dung thất bại vì lỗi mạng (không kết nối được, quá thời gian) thì popup mất mạng hiện ngay, kể cả khi máy vẫn báo có mạng; bấm "Thử lại" khi đã có mạng thì popup đóng.
+- [ ] Khi máy chủ trả lỗi (ví dụ không có file) thì màn hình của feature báo lỗi và có nút thử lại như trước; popup mất mạng không hiện.
 
 ## 4. Giao diện
 
@@ -125,7 +126,11 @@ Không có cờ: quy tắc áp dụng cho mọi app (ADR-0024). Khóa Remote Con
    - Trả lời: Duyệt theo đề xuất.
 4. **Quyền ở mục 6 (bổ sung 2026-10-23 theo rà soát danh sách chạy RUN-20261023-01).**
    - Đề xuất của AI: chấp nhận như mục 6.
-   - Trả lời:
+   - Trả lời: chấp nhận.
+
+5. **Tải nội dung thất bại vì quá thời gian khi máy vẫn báo có mạng (bổ sung 2026-10-23 khi duyệt plan T-017).** App camera-pose hiện popup ngay; bản trước của KB-3 không hiện popup.
+   - Đề xuất của AI: chỉ hiện khi máy cũng báo mất mạng.
+   - Trả lời: hiện ngay như app. KB-3 sửa theo.
 
 ## 10. Lịch sử
 
@@ -135,3 +140,5 @@ Không có cờ: quy tắc áp dụng cho mọi app (ADR-0024). Khóa Remote Con
 | 2026-10-21 | Nhật | Trả lời 3 câu hỏi |
 | 2026-10-21 | Nhật | Xác nhận (AI ghi theo lời anh Nhật) |
 | 2026-10-23 | AI | Thêm quyền `ACCESS_NETWORK_STATE` vào mục 6 (rà soát RUN-20261023-01); chuyển sang `changed`, chờ xác nhận lại |
+| 2026-10-23 | Nhật | Trả lời câu 4; câu 5 đổi KB-3: lỗi tải vì mạng hiện popup ngay như app |
+| 2026-10-23 | Nhật | Xác nhận lại (AI ghi theo lời anh Nhật) |

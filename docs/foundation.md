@@ -116,6 +116,16 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không gọi `android.util.Log` trong feature
 - khi test emulator đỏ, đọc bước "Chi tiết test trên emulator" trước khi sửa
 
+### [ADR-0025](adr/0025-main-self-healing.md): Nhánh chính tự hồi phục khi đỏ: chạy lại test hỏng một lần, tự đóng issue khi chạy lại xanh, merge bản revert được kiểm bằng nội dung
+
+- `main-guard` chạy lại `check.sh` một lần khi chỉ có test thất bại và ghi issue `flaky` nếu lần chạy lại xanh
+- khi `main-broken` mở, chỉ merge PR mà `scripts/is-exact-revert.sh` xác nhận là bản revert đúng của commit gây lỗi
+- không sửa hay cập nhật nhánh `revert/` trước khi merge
+- phiên chỉ revert commit merge của chính phiên, theo `docs/auto-run.md` mục Khi nhánh chính đỏ vì task của phiên
+- AI vẫn không đóng, sửa hay bình luận để gỡ issue `main-broken`
+- chép issue `flaky` đang mở vào báo cáo phiên
+- các quy tắc khác của ADR-0010 vẫn áp dụng
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
@@ -155,15 +165,5 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 - không làm chế độ ngoại tuyến trong feature
 - feature không tự đọc trạng thái mạng của hệ thống, mất mạng do `:app` xử lý bằng popup chung
-- lỗi tải khi vẫn có mạng vẫn báo trong `UiState` kèm thử lại
+- lỗi máy chủ trả về vẫn báo trong `UiState` kèm thử lại
 - spec mới không ghi tiêu chí "dùng được khi không có mạng"
-
-### [ADR-0025](adr/0025-main-self-healing.md): Nhánh chính tự hồi phục khi đỏ: chạy lại test hỏng một lần, tự đóng issue khi chạy lại xanh, merge bản revert được kiểm bằng nội dung
-
-- `main-guard` chạy lại `check.sh` một lần khi chỉ có test thất bại và ghi issue `flaky` nếu lần chạy lại xanh
-- khi `main-broken` mở, chỉ merge PR mà `scripts/is-exact-revert.sh` xác nhận là bản revert đúng của commit gây lỗi
-- không sửa hay cập nhật nhánh `revert/` trước khi merge
-- phiên chỉ revert commit merge của chính phiên, theo `docs/auto-run.md` mục Khi nhánh chính đỏ vì task của phiên
-- AI vẫn không đóng, sửa hay bình luận để gỡ issue `main-broken`
-- chép issue `flaky` đang mở vào báo cáo phiên
-- các quy tắc khác của ADR-0010 vẫn áp dụng

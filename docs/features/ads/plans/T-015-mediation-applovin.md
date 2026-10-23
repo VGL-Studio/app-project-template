@@ -1,16 +1,16 @@
 ---
 ticket: T-015
 title: Mediation AdMob và AppLovin
-status: draft               # draft | approved | stopped | done
+status: approved               # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 10M          # cỡ S, số tạm của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
 blocking_points: [ads, sdk, permissions, init-order, core, build-config]
 run_order:                  # AI điền sau họp đánh giá rủi ro
-reviewer:                   # người duyệt
-cross_reviewer:             # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật            # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-015: MEDIATION ADMOB VÀ APPLOVIN
@@ -259,14 +259,17 @@ Rủi ro riêng của phiên bản 2: SDK có thể dựa vào cờ mà provider
 8. **Nơi đặt dòng `tools:node="remove"` (phiên bản 3).** Bản 2 đã duyệt đặt ở `app/src/main/AndroidManifest.xml`; chạy thử thấy `scripts/check.sh` thất bại vì lint `MissingClass` (mục 4.1).
    - Đề xuất của AI: đặt ở manifest mới `core/ads/src/main/AndroidManifest.xml` (đã chạy thử: manifest gộp đúng, lint qua), giữ việc quảng cáo trong `:core:ads` (ADR-0004), `app/src/main/AndroidManifest.xml` không đổi.
    - Cách khác: giữ ở `app/` và thêm `tools:ignore="MissingClass"` trên dòng provider. Không đề xuất: đây là tắt một quy tắc lint (CLAUDE.md, mục Không được làm). Một app muốn chọn khác thì thêm dòng trong manifest của chính app.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI, đặt ở `core/ads/src/main/AndroidManifest.xml`. Câu 3, 4, 6 cũng theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 3:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-23; câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 ## 10. Nhật ký thực hiện
 
