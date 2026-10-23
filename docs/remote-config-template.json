@@ -50,6 +50,11 @@
       "defaultValue": { "value": "false" },
       "description": "Shows ads in the placement sample_native_small (native_small). Off by default.",
       "valueType": "BOOLEAN"
+    },
+    "network_lost_delay_seconds": {
+      "defaultValue": { "value": "2" },
+      "description": "Seconds without usable Internet before the network dialog shows (ADR-0024).",
+      "valueType": "NUMBER"
     }
   }
 }

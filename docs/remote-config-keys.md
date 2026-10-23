@@ -16,3 +16,4 @@ Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu đ
 | `ads_native_load_timeout_seconds` | long | `10` | `:core:ads` | Time to wait for a native ad before its space is removed when no ad is available, in seconds. |
 | `ads_personalized_regulated_regions_enabled` | boolean | `true` | `:core:ads` | Allows personalized ads in regions that require consent (EEA, UK, Switzerland), for users who consented. Users who declined never get them. |
 | `ads_sample_native_small_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement sample_native_small (native_small). Off by default. |
+| `network_lost_delay_seconds` | long | `2` | `:core:network` | Seconds without usable Internet before the network dialog shows (ADR-0024). |
