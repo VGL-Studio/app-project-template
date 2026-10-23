@@ -15,6 +15,15 @@
 - Bài học `proposed` chờ retro: L-038 (App mới còn bài học của dự án mẫu trên trang tiến độ)
 - Bài học `proposed` chờ retro: L-039 (Test của script hỏng trong app mới: test chỉ dành cho dự án mẫu, và test cần remote origin)
 - Bài học `proposed` chờ retro: L-040 (Commit chỉ có tài liệu bỏ qua CI, nên test kiểm tài liệu không chặn được lỗi)
+- Bài học `proposed` chờ retro: L-041 (Plan ghi sẵn phương án dự phòng đã duyệt, để phiên chuyển sang thay vì dừng task)
+- Bài học `proposed` chờ retro: L-042 (Kỹ thuật lần đầu dùng phải chạy thử bằng `scripts/check.sh` trước khi duyệt plan)
+- Bài học `proposed` chờ retro: L-043 (Phiên kiểm `main-broken` trước khi `main-guard` của lần merge vừa rồi chạy xong)
+- Bài học `proposed` chờ retro: L-044 (Phiên mở bằng `claude --cloud` không được `resume-run.yml` tiếp tục khi hết hạn mức)
+- Bài học `proposed` chờ retro: L-045 (Mâu thuẫn và test yếu chỉ được tìm thấy khi phiên đã chạy)
+- Bài học `proposed` chờ retro: L-046 (Quyền và thư viện cần thêm chỉ lộ ra khi viết code, phiên phải dừng hoặc đi vòng)
+- Bài học `proposed` chờ retro: L-047 (Chạy lại `main-guard` trên đúng commit bị đổ lỗi, xanh, nhưng issue `main-broken` không tự đóng)
+- Bài học `proposed` chờ retro: L-048 (Một test chập chờn trên `main-guard` kết thúc cả phiên)
+- Bài học `proposed` chờ retro: L-049 (Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 - ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
@@ -83,5 +92,5 @@ Phản hồi: chưa có.
 
 ## 5. Bài học và ADR
 
-- Bài học ([lessons.md](lessons.md)): 9 bài; 9 `proposed`.
+- Bài học ([lessons.md](lessons.md)): 18 bài; 18 `proposed`.
 - ADR: 24; 19 `accepted`, 5 `proposed`.
