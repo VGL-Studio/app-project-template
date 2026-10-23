@@ -1,7 +1,7 @@
 ---
 ticket: T-007
 title: Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động
-status: approved
+status: done
 version: 2
 risk_score:
 risk_level: high
@@ -295,3 +295,15 @@ Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-10-23):
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-007-khoa-remote-config-co-kieu`, PR #98, merge commit `75f907d` lúc 08:28 UTC
+- **Đã làm:** đúng 4 commit của mục 3.1: test; `RemoteKey`, `RemoteSettings.value`, khóa quảng cáo và cờ khai báo một chỗ; sinh `docs/remote-config-keys.md` và `docs/remote-config-template.json`; cập nhật `docs/ops/remote-config.md`, `docs/ops/ads-guide.md`. Bước 3 đến 5 do một phiên con làm trong worktree riêng (L-052).
+- **Test viết trước:** 39 test mới hoặc viết lại (RemoteKeyTest 5, FirebaseRemoteValueTest 3, DefaultRemoteSettingsTest 9, DefaultFeatureFlagsTest thêm 1, AdsSettingsTest 11, RemoteConfigKeysTest 10), commit `425ecc1` trước code. Khi chưa có code: không biên dịch được vì thiếu `RemoteKey`, `value`, `remoteKey`, `activeValueOrNull`, `AppRemoteKeys`, `placementEnabled` (đúng lý do). Sau khi có code, `keysFile_matchesCode` và `templateFile_matchesCode` thất bại vì chưa sinh file, đúng như plan. 9 test có bước đối chứng (L-055). Đã thử thêm tạm một cờ `TEMP` (không commit): hai test so file thất bại kèm lệnh ghi lại.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú: mô tả `ads_enabled` vào file mẫu trong khi T-009 mới đọc khóa này; `jsonString` của test sinh file chưa thoát ký tự xuống dòng (`RemoteKey` chưa cấm); số thực mặc định sẽ ghi dạng `1.0E-5`; `valueOfAnotherType_usesDefault` chủ yếu phản chiếu bản giả (đường thật có `FirebaseRemoteValueTest`); `withType<Test>` ghi cùng file nhiều lần khi cập nhật (nội dung giống nhau); nhập file mẫu vào một project Firebase thử vẫn là bước thủ công.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua lần đầu (147 test JVM, 0 lỗi); `pr-check.yml` xanh lần đầu (39923826911).
+- **Lệch so với plan:** không có. Hai dòng dài trong test được tách cho ktlint trước commit test.
+- **Việc còn lại:** nhập `docs/remote-config-template.json` vào một project Firebase thử (mục 4, kiểm tra thủ công).
+- **Cần người xem:** mô tả tiếng Anh của 2 cờ và 7 khóa quảng cáo (hiện trên Firebase); thứ tự tham số mới của `FeatureFlag` là `(key, description, defaultValue = false)`; API công khai `RemoteSettings.boolean/long` đã bỏ, app tạo từ dự án mẫu phải sửa khi kéo về.

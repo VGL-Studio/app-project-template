@@ -287,7 +287,7 @@ expect "wait-run: the red line names ui-test" 1 \
      PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 scripts/wait-run.sh --pr 7 2>&1 | grep -c 'job: ui-test')"
 expect "wait-run: a run still going when time runs out asks to call again" "2 CHƯA" \
   "$(wait_run "$(pr_routes "$pending")" --pr 7 --timeout 1)"
-# A run GitHub never started (no runner: spending limit, billing) is not a red check: exit 4 (template L-060).
+# A run GitHub never started (no runner: spending limit, billing) is not a red check: exit 4 (template L-064).
 # Fixture from main-guard 39916343646, attempt 1: the job has no steps, its check run carries the reason.
 unstarted='{"jobs": [{"id": 120, "name": "guard", "conclusion": "failure", "steps": []}]}'
 billing='[{"annotation_level": "failure", "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased."}, {"annotation_level": "notice", "message": "The ubuntu-latest label will migrate to Ubuntu 26"}]'
@@ -312,7 +312,7 @@ expect "wait-run: an unstarted main-guard run is an infrastructure failure" "4 H
   "$(wait_run '{"routes": {"actions/workflows/main-guard.yml/runs?branch=main&per_page=20": {"workflow_runs": [{"id": 91, "created_at": "2026-10-23T07:13:10Z", "status": "completed", "conclusion": "failure", "html_url": "u"}]}, "actions/runs/91/jobs?per_page=50": '"$unstarted"', "check-runs/120/annotations": '"$billing"'}}' \
     --workflow main-guard.yml --since 2026-10-23T07:10:00Z)"
 
-# GitHub runs no pull_request workflow for a PR in conflict with main: say so at once, exit 5 (template L-060).
+# GitHub runs no pull_request workflow for a PR in conflict with main: say so at once, exit 5 (template L-064).
 conflict_routes() { # <mergeable_state> <runs answer>
   printf '{"routes": {"pulls/7": {"head": {"sha": "abc1234"}, "mergeable_state": "%s"}, "actions/workflows/pr-check.yml/runs?head_sha=abc1234&per_page=10": %s, "actions/runs/91/jobs?per_page=50": {"jobs": []}}}' "$1" "$2"
 }

@@ -2,4 +2,6 @@
 <resources>
     <string name="ads_privacy_options">Privacy settings</string>
     <string name="ads_native_badge">Ad</string>
+    <string name="ads_collapse">Collapse ad</string>
+    <string name="ads_close_full_screen">Close ad</string>
 </resources>
