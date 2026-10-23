@@ -18,6 +18,7 @@ import com.google.android.ump.ConsentInformation.PrivacyOptionsRequirementStatus
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.vglstudio.template.core.config.RemoteSettings
+import com.vglstudio.template.core.logging.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -37,9 +38,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The only class that talks to the ads SDKs (ADR-0004). :app calls [gatherConsent] and [onUserInteraction]
- * from its activity and provides this controller to the UI through [LocalAdsController]. Features use [AdSlot],
- * [rememberShowInterstitial] and [PrivacyOptionsButton], never this class or an SDK directly.
+ * The only class that talks to the ads SDKs (ADR-0004). :app calls [gatherConsent], [onUserInteraction],
+ * [onAppForeground] and [onAppBackground] from its activity and provides this controller to the UI through
+ * [LocalAdsController]. Features use [AdSlot], [rememberShowInterstitial] and [PrivacyOptionsButton], never this
+ * class or an SDK directly.
  *
  * The ads SDK is initialized only once the consent form allows ads to be requested.
  */
@@ -49,14 +51,20 @@ class AdsController @Inject internal constructor(
     private val unitIds: AdUnitIds,
     private val consentDebug: ConsentDebugOptions,
     private val settings: RemoteSettings,
+    historyStore: FullScreenAdHistoryStore,
+    logger: AppLogger,
 ) {
     private val consentInformation by lazy { UserMessagingPlatform.getConsentInformation(context) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val initialized = AtomicBoolean(false)
+    private val firstOpenRecorded = AtomicBoolean(false)
 
     // Touched on the main thread only.
     private val guard = FullScreenAdGuard()
+    private val pacer = FullScreenAdPacer(historyStore, SystemAdClock, logger)
+    private val startedActivities = StartedActivityCounter()
     private val loadedInterstitials = mutableMapOf<AdPlacement, InterstitialAd>()
+    private var fullScreenInProgress = false
 
     private val _canRequestAds = MutableStateFlow(false)
 
@@ -82,12 +90,12 @@ class AdsController @Inject internal constructor(
             {
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
                     error?.let { Log.w(TAG, "Consent form failed: ${it.errorCode} ${it.message}") }
-                    onConsentUpdated()
+                    onConsentFlowFinished()
                 }
             },
             { error ->
                 Log.w(TAG, "Consent update failed: ${error.errorCode} ${error.message}")
-                onConsentUpdated()
+                onConsentFlowFinished()
             },
         )
         onConsentUpdated()
@@ -107,44 +115,88 @@ class AdsController @Inject internal constructor(
     }
 
     /**
+     * Call from `Activity.onStart`. A new ads session starts when the app comes back after a long time in
+     * background; switching between activities of the app or rotating the screen keeps the session.
+     */
+    fun onAppForeground() {
+        if (startedActivities.onStart()) pacer.onForeground()
+    }
+
+    /** Call from `Activity.onStop`. */
+    fun onAppBackground() {
+        if (startedActivities.onStop()) pacer.onBackground()
+    }
+
+    /**
      * Shows the full-screen ad of [placement] if the guardrails allow it, and returns whether it was shown.
      * Call it at a natural break (end of a level, after saving), never when the app opens or closes.
      */
     suspend fun showInterstitial(activity: Activity, placement: AdPlacement): Boolean =
         withContext(Dispatchers.Main.immediate) {
             require(placement.format == AdFormat.INTERSTITIAL) { "${placement.key} is not a full-screen placement" }
+            // A second call while the first one reads the history or waits is dropped.
+            if (fullScreenInProgress) return@withContext false
+            fullScreenInProgress = true
+            try {
+                if (!awaitFullScreenTurn(placement)) return@withContext false
+                val ad = loadedInterstitials.remove(placement)
+                if (ad == null) {
+                    preloadInterstitial(placement)
+                    return@withContext false
+                }
+                ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                    override fun onAdDismissedFullScreenContent() = preloadInterstitial(placement)
+
+                    override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                        Log.w(TAG, "Interstitial ${placement.key} failed to show: ${error.message}")
+                        preloadInterstitial(placement)
+                    }
+                }
+                // Counted before showing: an ad that fails to show still counts (fewer ads, never more).
+                onFullScreenShown()
+                ad.show(activity)
+                true
+            } finally {
+                fullScreenInProgress = false
+            }
+        }
+
+    /**
+     * Whether a full-screen ad of [placement] may be shown now, shared by every full-screen format: consent,
+     * [isEnabled], the frequency rules kept on the device ([FullScreenAdPacer]), then the in-memory guardrails
+     * ([FullScreenAdGuard]), waiting a little while the user is touching the screen. When it returns true, the
+     * caller shows the ad and calls [onFullScreenShown] right before.
+     */
+    internal suspend fun awaitFullScreenTurn(placement: AdPlacement): Boolean =
+        withContext(Dispatchers.Main.immediate) {
             if (!canRequestAds.value || !isEnabled(placement).first()) return@withContext false
-            val minIntervalMillis = settings.value(AdsSettings.INTERSTITIAL_MIN_INTERVAL_SECONDS).first() * 1_000
+            val limits = fullScreenAdLimits(settings).first()
+            if (pacer.check(limits) != FullScreenAdVerdict.Allowed) return@withContext false
             val deadline = SystemClock.elapsedRealtime() + FullScreenAdGuard.MAX_WAIT_MILLIS
             while (true) {
                 val now = SystemClock.elapsedRealtime()
-                when (val decision = guard.decide(now, minIntervalMillis)) {
+                when (val decision = guard.decide(now, limits.minIntervalMillis)) {
                     FullScreenAdGuard.Decision.TooSoon -> return@withContext false
                     is FullScreenAdGuard.Decision.Wait ->
                         if (now + decision.millis > deadline) return@withContext false else delay(decision.millis)
                     FullScreenAdGuard.Decision.Show -> break
                 }
             }
-            val ad = loadedInterstitials.remove(placement)
-            if (ad == null) {
-                preloadInterstitial(placement)
-                return@withContext false
-            }
-            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-                override fun onAdDismissedFullScreenContent() = preloadInterstitial(placement)
-
-                override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                    Log.w(TAG, "Interstitial ${placement.key} failed to show: ${error.message}")
-                    preloadInterstitial(placement)
-                }
-            }
-            guard.onShown(SystemClock.elapsedRealtime())
-            ad.show(activity)
             true
         }
 
-    internal fun isEnabled(placement: AdPlacement): Flow<Boolean> =
-        settings.value(AdsSettings.placementEnabled(placement))
+    /** Records a full-screen ad about to be shown, for every full-screen format. Main thread only. */
+    internal fun onFullScreenShown() {
+        guard.onShown(SystemClock.elapsedRealtime())
+        scope.launch { pacer.onShown() }
+    }
+
+    /**
+     * Whether [placement] may load and show ads: the master switch `ads_enabled` and the placement's own switch
+     * (KB-7, ADR-0014). Every ad format, including native ones added later, must check this before loading or
+     * showing an ad.
+     */
+    internal fun isEnabled(placement: AdPlacement): Flow<Boolean> = placementActive(settings, placement)
 
     internal fun unitId(placement: AdPlacement): String? = unitIds.of(placement).also {
         if (it == null) Log.e(TAG, "No ad unit for placement ${placement.key}; it shows no ad")
@@ -173,6 +225,16 @@ class AdsController @Inject internal constructor(
             )
         }
         return builder.build()
+    }
+
+    /**
+     * The consent flow of this start is over (form closed or not needed, or the update failed). The first time in
+     * the process, saves the first app open if none is saved yet: the grace period counts from opening the app,
+     * whatever the user chose and whichever activity asked for consent.
+     */
+    private fun onConsentFlowFinished() {
+        onConsentUpdated()
+        if (firstOpenRecorded.compareAndSet(false, true)) scope.launch { pacer.recordFirstOpen() }
     }
 
     private fun onConsentUpdated() {

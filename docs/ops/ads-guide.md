@@ -88,12 +88,12 @@ Giá trị đề xuất ban đầu; chỉnh bằng Remote Config theo số liệ
 | Quy tắc | Khóa | Đề xuất |
 | --- | --- | --- |
 | Khoảng cách tối thiểu giữa hai quảng cáo toàn màn hình | `ads_interstitial_min_interval_seconds` (đã có) | 45 giây, nâng lên nếu giữ chân giảm |
-| Ân hạn phiên đầu: không quảng cáo toàn màn hình trong khoảng này sau lần mở đầu tiên (đợt 2) | `ads_first_session_grace_seconds` | 180 giây |
-| Tối đa quảng cáo toàn màn hình mỗi phiên (đợt 2) | `ads_interstitial_max_per_session_count` | 4 |
+| Ân hạn phiên đầu: không quảng cáo toàn màn hình trong khoảng này sau lần mở đầu tiên | `ads_first_session_grace_seconds` | 180 giây |
+| Tối đa quảng cáo toàn màn hình mỗi phiên | `ads_interstitial_max_per_session_count` | 4 |
 | Native in-list cách nhau (đợt 2) | `ads_inlist_every_count` | 8 mục |
-| Công tắc tổng (đợt 2) | `ads_enabled` | bật |
+| Công tắc tổng | `ads_enabled` | bật |
 
-Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). Banner làm mới theo cài đặt của đơn vị quảng cáo trên AdMob, không đặt dưới 60 giây; native không tự làm mới, chỉ tải mới khi người dùng vào lại màn hình.
+Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). Một phiên bắt đầu khi app khởi động, và bắt đầu lại khi app trở lại tiền cảnh sau ít nhất 30 phút ở nền (giống phiên của Firebase Analytics); số quảng cáo toàn màn hình của phiên chỉ đếm trong bộ nhớ. Banner làm mới theo cài đặt của đơn vị quảng cáo trên AdMob, không đặt dưới 60 giây; native không tự làm mới, chỉ tải mới khi người dùng vào lại màn hình.
 
 ## 7. Mediation: AdMob và AppLovin (đợt 2)
 
