@@ -1,21 +1,21 @@
 ---
 ticket: T-014
 title: Màn hình xem thử quảng cáo chỉ ở bản staging
-status: stopped                # draft | approved | stopped | done
+status: approved               # draft | approved | stopped | done
 version: 4                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # cỡ M (gợi ý 20M của scripts/token-usage.py estimate, 2026-10-21), nâng lên: 3 trang, 7 ảnh chuẩn, sửa cả :core:ads và :app
 blocking_points: [ads, core, build]
 run_order:                  # AI điền sau họp đánh giá rủi ro
-reviewer:                # người duyệt
-cross_reviewer:                # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-014: MÀN HÌNH XEM THỬ QUẢNG CÁO CHỈ Ở BẢN STAGING
 
-**Phiên bản 4 (2026-10-23)**, soạn sau khi task dừng ở RUN-20261023-01 (bước 6, nhật ký ở mục 10). Trạng thái plan giữ `stopped` tới khi người duyệt phiên bản này.
+**Phiên bản 4 (2026-10-23)**, soạn sau khi task dừng ở RUN-20261023-01 (bước 6, nhật ký ở mục 10). Anh Nhật duyệt ngày 2026-10-23 (mục 9).
 
 - **Vì sao phiên bản 3 chưa đủ tốt (theo cách hiểu của phiên):** test `AdGallerySourceSetTest` quét mọi file `.kt`, `.xml` ngoài `src/staging`, nhưng plan không lường tới các task chạy trước trong cùng phiên. T-017 (merge trước T-014) thêm vào `app/src/main/.../network/ScreenName.kt` một ví dụ KDoc `com.x.AdGalleryDestination/{id}`; file này ngoài mục 3.2, nên test không qua được nếu không đổi điều nó kiểm tra hay sửa file ngoài danh sách.
 - **Thay đổi so với phiên bản 3:** điều kiện trước khi chạy: PR #114 (đổi ví dụ KDoc của `ScreenName.kt`, nháp, `needs-human`) đã merge. Mục 3.1 thêm phần Tiếp tục trên nhánh cũ. Mục 4 không đổi: `AdGallerySourceSetTest` giữ đúng bản của commit test `b13cf12` (theo nghĩa đen, kể cả chú thích). Mục 6 thêm T-017. Mục 7 thêm một điều kiện dừng. Mục 9 có chỗ trống cho phiên bản 4. Danh sách file (mục 3.2), cách làm còn lại, chấm rủi ro không đổi.
@@ -323,6 +323,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 ## 6. Ảnh hưởng chéo
 
 - (Phiên bản 4) T-017 (đã merge) có `ScreenName.kt` trong `app/src/main`; ví dụ KDoc của nó nhắc tên màn hình, sửa ở PR #114.
+- (Phiên bản 4) `app/src/test/kotlin/com/vglstudio/template/config/RemoteConfigKeysTest.kt` (T-007) đọc `docs/remote-config-keys.md` và `docs/remote-config-template.json`: không sửa; task sinh lại hai file bằng lệnh của T-007 nên test vẫn qua (mục 4, dòng bảng khóa). `app/src/test/resources/robolectric.properties` đã có trên nhánh chính với đúng hai dòng (mục 3.2): task không ghi lại.
 - File hoặc thành phần dùng chung bị chạm:
   - `AdPlacement.kt`: thuộc tính suy ra, constructor không đổi, mọi dòng khai báo hiện có không đổi. Mọi `when` trên `AdPlacement` (nếu có) phải xét thêm 7 hằng; hiện không có (`grep`).
   - `AdUnitIds.kt`: hành vi của `ConfiguredAdUnitIds` đổi chỉ với vị trí `stagingOnly`.
@@ -394,9 +395,9 @@ Phiên bản 3:
 
 Phiên bản 4:
 
-- **Quyết định:**
-- **Người duyệt:**, **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-23, sau khi PR #114 merge (commit `f22e6f6`). Trên nhánh chính không còn file `.kt`, `.xml` nào trong `app/src` ngoài `staging`, `testStaging`, `test` nhắc `AdGallery` hay `ad_gallery`; nhánh của task gộp với nhánh chính không xung đột. `plan-check.py` qua.
 
 ## 10. Nhật ký thực hiện
 
