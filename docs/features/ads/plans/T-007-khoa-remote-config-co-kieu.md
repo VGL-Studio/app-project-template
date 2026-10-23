@@ -1,16 +1,16 @@
 ---
 ticket: T-007
 title: Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động
-status: draft
+status: approved
 version: 2
 risk_score:
 risk_level: high
 token_estimate: 25M
 blocking_points: [core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-007: KHÓA REMOTE CONFIG CÓ KIỂU, KHAI BÁO MỘT CHỖ, BẢNG KHÓA SINH TỰ ĐỘNG
@@ -286,9 +286,11 @@ Không cần (E dưới 2).
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-10-23):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 ## 10. Nhật ký thực hiện
 

@@ -6,7 +6,7 @@ Sinh bởi `scripts/figma-export.py`. Không sửa tay; thiết kế đổi thì
 
 - Link: https://www.figma.com/design/jDs7KImtrNL3ABPYnDhDgJ/?node-id=5-57
 - Frame: `5:57`, giao diện sáng
-- Ngày lấy: 2026-10-21
+- Ngày lấy: 2026-10-23
 
 ## 2. Giá trị dùng
 
@@ -34,9 +34,10 @@ nào trùng; plan quyết định làm tròn về token gần nhất hay thêm t
 | màu chữ | #17352F | onBackground, onSurface |
 | màu chữ | #6D8079 | onSurfaceVariant |
 | màu chữ | #FFFFFF | onPrimary, onSecondary, onTertiary, onError, surfaceContainerLowest |
-| màu nền | #000000 (độ mờ 0.32) | ngoài hệ thống |
+| màu nền | #000000 (độ mờ 0.32, lớp tô 0.32) | ngoài hệ thống |
 | màu nền | #147D68 | primary, surfaceTint |
 | màu nền | #3F6374 | tertiary |
+| màu nền | #4C635B | secondary |
 | màu nền | #C3E8FB | tertiaryContainer |
 | màu nền | #CEE9DE | secondaryContainer |
 | màu nền | #DFEAE4 | surfaceVariant, surfaceContainerHighest |
@@ -67,10 +68,10 @@ Toạ độ và cỡ tính theo dp, gốc là góc trên trái của khung. Th�
       - Text "Label", vị trí 310,829, cỡ 40 x 20, chữ "Install", kiểu titleSmall, labelLarge (14/20, đậm 500), màu #001F2A (onTertiaryContainer)
     - Instance "Ad/AdChoices (SDK)", vị trí 375,807, cỡ 16 x 16, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 4
       - Text "i", vị trí 381,807, cỡ 3 x 16, chữ "i", kiểu labelSmall (11/16, đậm 500), màu #6D8079 (onSurfaceVariant)
-  - Rectangle "Scrim", vị trí 0,0, cỡ 411 x 891, nền #000000 (độ mờ 0.32) (ngoài hệ thống)
+  - Rectangle "Scrim", vị trí 0,0, cỡ 411 x 891, nền #000000 (độ mờ 0.32, lớp tô 0.32) (ngoài hệ thống)
   - Instance "Dialog/NetworkLost", vị trí 50,314, cỡ 312 x 264, nền #E5ECE8 (surfaceContainerHigh), bo góc 28, xếp dọc, cách nhau 16 (md), lề trên/phải/dưới/trái 24 (lg)/24 (lg)/24 (lg)/24 (lg), căn MIN/CENTER
     - Instance "Icon/wifi-off", vị trí 194,338, cỡ 24 x 24
-      - Vector "Vector", vị trí 196,340, cỡ 20 x 20, viền #4C635B (secondary), dày 2.0
+      - Vector "wifi_off (Material Symbols Rounded)", vị trí 194,341, cỡ 23 x 19, nền #4C635B (secondary)
     - Text "Title", vị trí 74,378, cỡ 264 x 32, chữ "Không có kết nối mạng", kiểu headlineSmall (24/32, đậm 400), màu #17352F (onBackground, onSurface)
     - Text "Body", vị trí 74,426, cỡ 264 x 60, chữ "Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.", kiểu bodyMedium (14/20, đậm 400), màu #6D8079 (onSurfaceVariant)
     - Instance "Button/Primary", vị trí 74,502, cỡ 264 x 52, nền #147D68 (primary, surfaceTint), bo góc 16, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/24 (lg)/0/24 (lg), căn CENTER/CENTER

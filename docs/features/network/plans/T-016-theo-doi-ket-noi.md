@@ -1,16 +1,16 @@
 ---
 ticket: T-016
 title: Theo dõi có Internet dùng được, dùng chung cho cả app
-status: draft
+status: approved
 version: 2
 risk_score:                  # để trống: chạm điểm chặn (core, permission)
 risk_level: high
 token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-23)
 blocking_points: [core, permission]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-016: THEO DÕI CÓ INTERNET DÙNG ĐƯỢC, DÙNG CHUNG CHO CẢ APP
@@ -255,17 +255,19 @@ Test thời gian dùng `runTest`, thời gian ảo (`advanceTimeBy`, `currentTim
 ## 8. Câu hỏi cho người duyệt
 
 1. **Đòi `VALIDATED` khác với app camera-pose.** App chỉ đòi `INTERNET` vì có máy xác nhận chậm hay không bao giờ xác nhận (plan T-011 của app, câu hỏi 1). Spec KB-1 tiêu chí 3 và ADR-0024 đòi Wi-Fi không ra Internet cũng là mất mạng, nên dự án mẫu đòi cả hai. Đề xuất: giữ theo spec; nếu sau này thấy popup hiện nhầm trên máy xác nhận chậm thì sửa ADR-0024 ở ticket sau.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): INTERNET và VALIDATED, theo spec.
 2. **Spec network đang `changed`** (thêm mục 6 về quyền, 2026-10-23). Đề xuất: xác nhận lại spec trước hoặc cùng lúc duyệt plan này; plan không thêm quyền nào ngoài mục 6.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): đã xác nhận lại spec network cùng lúc duyệt plan.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 2:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-23; câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 ## 10. Nhật ký thực hiện
 

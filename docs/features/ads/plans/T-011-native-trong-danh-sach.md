@@ -1,16 +1,16 @@
 ---
 ticket: T-011
 title: Native trong danh sách
-status: draft               # draft | approved | stopped | done
+status: approved               # draft | approved | stopped | done
 version: 2
 risk_score:
 risk_level: high
 token_estimate: 20M
 blocking_points: [ads, core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-011: NATIVE TRONG DANH SÁCH
@@ -268,9 +268,11 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-10-23):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 Phiên bản 1 đã được anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), duyệt chéo: Nhật; câu hỏi 1 đến 5 ở mục 8 đã có trả lời và giữ nguyên ở phiên bản 2.
 

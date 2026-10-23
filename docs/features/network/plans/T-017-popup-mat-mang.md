@@ -1,21 +1,23 @@
 ---
 ticket: T-017
 title: Popup mất mạng chung và chặn vào app khi không có mạng
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # cỡ M (gợi ý 20M của scripts/token-usage.py estimate, 2026-10-23), nâng lên: bốn module (:core:network, :core:designsystem, :core:assets, :app), 4 ảnh chuẩn
 blocking_points: [analytics, core, build]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-017: POPUP MẤT MẠNG CHUNG VÀ CHẶN VÀO APP KHI KHÔNG CÓ MẠNG
 
 **Phiên bản 3 (2026-10-23), đổi so với bản 2 (đã duyệt 2026-10-23, nội dung ở commit `4cb757a`):**
+
+- Theo trả lời của anh Nhật ở mục 8 (2026-10-23): lỗi tải vì mạng hiện popup ngay như app, kể cả khi máy vẫn báo có mạng (spec KB-3 sửa cùng ngày); dùng icon Material Symbols "wifi_off", icon trên Figma đổi theo.
 
 - Lấy code của app camera-pose làm nền (issue #72, PR VGL-Studio/camera-pose#23, merge `e23066751fd93e3f945137558287843b506620b3`): bộ điều khiển popup `NetworkDialogController` nằm ở `:core:network` (thay `NetworkLostViewModel` ở `:app` của bản 2), popup `NetworkDialog` ở `:core:designsystem`, trạng thái chờ của `PrimaryButton`, `NetworkDialogHost` vẽ popup trong cửa sổ `Dialog` riêng, `:core:assets` báo khi tải file lỗi vì mạng. Bảng nguồn và bảng đổi so với app ở mục 3.1.
 - Phụ thuộc thêm T-018 (`AssetFailureReason`, issue #73): `:core:assets` chỉ báo lỗi mạng khi lý do là `NETWORK`.
@@ -27,7 +29,7 @@ approved_at:
 
 ## 1. Tóm tắt
 
-`NetworkDialogController` (một đối tượng cho cả app, ở `:core:network`) quyết định khi nào popup mất mạng hiện: sau `network_lost_delay_seconds` mất mạng liên tục (T-016), ngay khi rời màn hình loading hay quay lại từ nền mà không có mạng, hoặc ngay khi một lần tải file thất bại vì mạng mà máy cũng báo không có mạng; không hiện ở màn hình loading và khi quảng cáo toàn màn hình đang hiện; tự đóng khi có mạng; nút "Thử lại" kiểm lại trong tối đa 2 giây; ghi `network_lost_shown` và `network_restored`. `:app` vẽ popup (`NetworkDialogScreen` của `:core:designsystem`, theo thiết kế `NetworkLostScreen`) trong cửa sổ `Dialog` riêng nên chặn chạm và nút quay lại. Kiểm chứng bằng unit test cho bộ điều khiển (thời gian ảo), test giao diện Robolectric, screenshot test trùng tên ảnh thiết kế và kiểm tra thủ công trên bản staging.
+`NetworkDialogController` (một đối tượng cho cả app, ở `:core:network`) quyết định khi nào popup mất mạng hiện: sau `network_lost_delay_seconds` mất mạng liên tục (T-016), ngay khi rời màn hình loading hay quay lại từ nền mà không có mạng, hoặc ngay khi một lần tải file thất bại vì mạng (như app, kể cả khi máy vẫn báo có mạng); không hiện ở màn hình loading và khi quảng cáo toàn màn hình đang hiện; tự đóng khi có mạng; nút "Thử lại" kiểm lại trong tối đa 2 giây; ghi `network_lost_shown` và `network_restored`. `:app` vẽ popup (`NetworkDialogScreen` của `:core:designsystem`, theo thiết kế `NetworkLostScreen`) trong cửa sổ `Dialog` riêng nên chặn chạm và nút quay lại. Kiểm chứng bằng unit test cho bộ điều khiển (thời gian ảo), test giao diện Robolectric, screenshot test trùng tên ảnh thiết kế và kiểm tra thủ công trên bản staging.
 
 ## 2. Hiểu yêu cầu
 
@@ -44,7 +46,7 @@ Ticket xử lý các kịch bản sau trong `features/network/spec.md`:
 | KB-2 | Khi có mạng trở lại thì popup tự đóng và người dùng ở đúng màn hình, đúng trạng thái trước đó. | Khác app (app chỉ đóng qua "Thử lại"): nguồn kết nối báo có mạng thì đóng ngay. Popup không chạm điều hướng hay trạng thái feature; nội dung dưới nằm trong cửa sổ khác nên không bị dựng lại. |
 | KB-2, đặc biệt | Khi quảng cáo toàn màn hình đang hiện thì popup không chen vào; nếu vẫn mất mạng khi quảng cáo đóng thì popup hiện ngay. | `MainActivity` chuyển `AdsController.fullScreenAdShowing` vào `setFullScreenAdShowing`. Đang có quảng cáo: bộ điều khiển vẫn ghi nhận mất mạng nhưng trạng thái là `Hidden`; quảng cáo đóng mà vẫn mất mạng thì `Shown` ngay. |
 | KB-2, đặc biệt | Khi app ở nền rồi quay lại mà không có mạng thì popup hiện. | Bộ điều khiển sống theo app nên vẫn theo dõi khi app ở nền. Thêm: `MainActivity.onStart` gọi `onAppForeground()`, từ lần thứ hai kiểm `isConnected()` và hiện ngay nếu mất mạng. |
-| KB-3 | Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì màn hình của feature báo lỗi; popup không hiện. | `:core:assets` chỉ báo khi `AssetFailureReason.NETWORK` (T-018). Khác app (app hiện ngay khi nhận báo): bộ điều khiển nhận báo thì kiểm `isConnected()`; máy vẫn có mạng (quá thời gian, máy chủ không trả lời) thì không hiện, chỉ ghi log. |
+| KB-3 | Khi tải nội dung thất bại vì lỗi mạng (không kết nối được, quá thời gian) thì popup hiện ngay, kể cả khi máy vẫn báo có mạng; máy chủ trả lỗi thì màn hình của feature báo lỗi, popup không hiện (spec sửa 2026-10-23, câu hỏi 5 của spec). | Như app: `:core:assets` chỉ báo khi `AssetFailureReason.NETWORK` (T-018, gồm quá thời gian); bộ điều khiển nhận báo thì hiện ngay. Máy vẫn báo có mạng thì không có lần đổi trạng thái nào để tự đóng: popup giữ tới khi bấm "Thử lại" thấy có mạng. Lỗi HTTP không báo. |
 
 Sự kiện phân tích (spec mục 6), ghi trong bộ điều khiển qua `Analytics`:
 
@@ -96,7 +98,7 @@ Giả định về task chạy trước (đúng tên hợp đồng):
 | Cờ tính năng | `FeatureFlag.NETWORK_DIALOG` (mặc định tắt), bật ở `StagingFeatureFlagsModule` | Bỏ: không có cờ, không sửa `FeatureFlag.kt` hay `StagingFeatureFlagsModule.kt` | ADR-0024, spec mục 8: luôn bật |
 | Khóa thời gian chờ | Chuỗi, mặc định 3, `settings.long(...)` | `NetworkSettings.LOST_DELAY_SECONDS` (`RemoteKey`, mặc định 2) của T-016, `settings.value(key)` | Spec mục 8, ADR-0023 |
 | Có mạng trở lại | Popup giữ tới khi bấm "Thử lại" | Tự đóng ngay, phát `recovered`, ghi `network_restored` | Spec KB-2 tiêu chí 4 |
-| Báo lỗi tải vì mạng | Hiện ngay | Hiện ngay chỉ khi `isConnected()` cũng là `false`; còn mạng thì chỉ ghi log | Spec KB-3: quá thời gian khi vẫn có mạng không hiện popup |
+| Báo lỗi tải vì mạng | Hiện ngay | Giữ như app: hiện ngay | Câu hỏi 2 (anh Nhật chọn theo app), spec KB-3 sửa 2026-10-23 |
 | Khi mở popup lần đầu sau loading | Chờ đủ khoảng chờ | Kiểm `isConnected()` ngay khi rời loading và khi quay lại từ nền | Spec KB-1 tiêu chí 2, KB-2 (quay lại từ nền); plan bản 2, câu hỏi 2 |
 | Quảng cáo toàn màn hình | Không xét | `setFullScreenAdShowing(Boolean)` giữ popup ẩn khi quảng cáo đang hiện | Spec KB-2, trường hợp đặc biệt; hợp đồng `fullScreenAdShowing` với T-013 |
 | Đầu vào màn hình | `setActive(Boolean)` | `setScreen(screen: String?)` (`null` là loading) | Cần tên màn hình cho `network_lost_shown` |
@@ -123,7 +125,7 @@ Giả định về task chạy trước (đúng tên hợp đồng):
   - `setFullScreenAdShowing(showing: Boolean)`: cập nhật; quảng cáo bắt đầu khi đang hiện thì ẩn, log `Dialog paused: full_screen_ad`, không ghi `network_restored`; quảng cáo đóng mà `lost` thì hiện ngay (ghi `network_lost_shown` lần nữa).
   - Đóng vì có mạng: `lost = false`; nếu đang `Shown` thì ghi `network_restored(duration_ms, retry_count)`, log `Dialog closed: online after <ms> ms, <n> retries`, phát `recovered`.
   - `retry()`: như app (bỏ qua khi không `Shown` hay đang `checking`; `compareAndSet` sang `checking`; kiểm ngay rồi mỗi `RETRY_POLL_MILLIS` tới `RETRY_MAX_MILLIS`), cộng `retryCount`. Có mạng: đóng vì có mạng. Hết giờ: `Shown(stillOffline = true)`, log `Retry: still_offline`.
-  - `reportNetworkFailure(source)`: chỉ khi `screen != null`. `isConnected()` là `false` thì `lost = true` ngay (lý do `load_failed source=<source>`); `true` thì log `info("Network", "Load failed while online: <source>")`, không hiện (KB-3). Gọi được từ mọi luồng.
+  - `reportNetworkFailure(source)`: chỉ khi `screen != null`. `lost = true` ngay, như app (lý do `load_failed source=<source>`, log ghi thêm `online=<isConnected()>`). Máy vẫn báo có mạng thì popup đóng khi bấm "Thử lại" (kiểm `isConnected()` thấy có mạng) hay khi nguồn kết nối phát lại trạng thái có mạng (KB-3). Gọi được từ mọi luồng.
   - `onAppForeground()`: lần đầu bỏ qua (đã kiểm khi rời loading); từ lần hai, nếu `screen != null` và `isConnected()` là `false` thì `lost = true` (lý do `offline_on_foreground`).
   - Log thẻ `Network`, không có tên mạng, địa chỉ, đường dẫn file (ADR-0019).
 - `NetworkModule.kt`: thêm `NetworkBindingsModule` (`@Binds NetworkStatus`, `@Binds NetworkFailureReporter` tới `NetworkDialogController`) và `@Provides NetworkClock`. Phải có trong cùng task với phần sửa `:core:assets`: chạy thử cho thấy thiếu binding `NetworkFailureReporter` thì Hilt của `:app` báo lỗi biên dịch (mục 4.1).
@@ -247,7 +249,7 @@ Unit test bộ điều khiển: `runTest`, thời gian ảo, `backgroundScope` l
 | KB-2, đặc biệt: quảng cáo | Unit test | `NetworkDialogControllerTest.fullScreenAd_holdsDialog_thenShowsWhenClosed`: `setFullScreenAdShowing(true)`, mất mạng 3 000 ms: `Hidden`, không sự kiện; quảng cáo đóng: `Shown` ngay, một `network_lost_shown`. `adStartsWhileShown_hidesWithoutRestoredEvent` |
 | KB-2, đặc biệt: quảng cáo (nguồn) | Unit test, Turbine | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse`, `showingFlow_emitsShowAndClose` (cùng tên với plan T-013; bỏ nếu T-013 đã tạo) |
 | KB-2, đặc biệt: về từ nền | Unit test | `NetworkDialogControllerTest.appForeground_checksAtOnceExceptFirst`: lần đầu không đọc `isConnected()`; lần hai khi mất mạng: `Shown` ngay |
-| KB-3 | Unit test | `NetworkDialogControllerTest.networkFailure_whileDeviceOnline_doesNotShow`: nguồn `true`, `reportNetworkFailure("assets")`: `Hidden`, log `INFO` chứa `Load failed while online`. `networkFailure_whileDeviceOffline_showsAtOnce`: nguồn `false` chưa đủ khoảng chờ, báo lỗi: `Shown` ngay. `manyFailures_singleDialog` (từ app) |
+| KB-3 | Unit test | `NetworkDialogControllerTest.networkFailure_whileDeviceOnline_showsAtOnce_andRetryCloses`: nguồn `true`, `reportNetworkFailure("assets")`: `Shown` ngay, log `INFO` chứa `load_failed` và `online=true`; `retry()`: `Hidden`, ghi `network_restored`. Trước khi viết code, khung trả `Hidden` nên test thất bại đúng lý do. `networkFailure_whileDeviceOffline_showsAtOnce`: nguồn `false` chưa đủ khoảng chờ, báo lỗi: `Shown` ngay. `manyFailures_singleDialog` (từ app) |
 | KB-3 (nguồn báo) | Unit test | `DefaultRemoteAssetsNetworkFailureTest.networkError_returnsUnavailable_andReportsOnce`, `http404_isNotReported`, `otherError_isNotReported`, `keptFile_isNotDownloaded_andNotReported`, `success_isNotReported` (từ app) |
 | Sự kiện `network_lost_shown` | Unit test | `NetworkDialogControllerTest.shown_logsLostEventWithScreen`: `AnalyticsEvent("network_lost_shown", mapOf("screen" to "sample"))`; hiện lại lần hai ghi thêm một |
 | Sự kiện `network_restored` | Unit test | `NetworkDialogControllerTest.restored_logsDurationAndRetries`: hiện lúc t, hai lần thử lại thất bại, nguồn `true` lúc t + 12 000: `AnalyticsEvent("network_restored", mapOf("duration_ms" to "12000", "retry_count" to "2"))` |
@@ -321,23 +323,25 @@ Unit test bộ điều khiển: `runTest`, thời gian ảo, `backgroundScope` l
 ## 8. Câu hỏi cho người duyệt
 
 1. **Nút quay lại khi popup hiện.** App camera-pose đưa app về nền (`moveTaskToBack(true)`); bản 2 của plan này không làm gì. Cả hai đều không đóng popup (spec KB-2). Đề xuất: theo app, vì người dùng có cách thoát quen thuộc mà popup vẫn còn khi mở lại.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI (đưa app về nền).
 2. **Báo lỗi tải khi máy vẫn có mạng.** App hiện popup ngay khi tải file lỗi vì mạng (kể cả quá thời gian). Spec KB-3 nói quá thời gian khi vẫn có mạng thì không hiện popup. Đề xuất: chỉ hiện khi máy cũng báo không có mạng; còn mạng thì màn hình của feature tự báo lỗi (như hiện nay) và chỉ ghi log.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): hiện ngay như app, kể cả khi máy vẫn báo có mạng; spec KB-3 sửa theo (câu hỏi 5 của spec). Plan đã đổi ở mục 2, 3.1, 4.
 3. **Icon wifi-off.** Lấy icon Material Symbols Rounded "wifi_off" của app (Apache 2.0, kèm giấy phép) thay vì vẽ lại icon nét của Figma. Ảnh so sánh có thể lệch nhẹ ở icon. Đề xuất: chấp nhận; hoặc thay icon trên Figma bằng Material Symbols cho khớp.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): dùng Material Symbols "wifi_off"; AI đổi icon trên Figma sang Material Symbols cho khớp, xuất lại ảnh thiết kế trước phiên.
 4. **`NetworkStatus` chưa ai dùng trong dự án mẫu.** Giữ để app dùng (dừng đếm ngược, tải lại màn hình lỗi khi `recovered`), như app camera-pose. Đề xuất: giữ.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Spec network đang `changed`** (mục 6 về quyền). Plan này không thêm quyền; đề xuất duyệt sau khi spec được xác nhận lại, cùng T-016.
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-23): spec network đã xác nhận lại cùng lúc duyệt plan.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 3:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai lần rà soát độc lập trước khi chạy, ghi ở RUN-20261023-01)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-23; câu hỏi ở mục 8 đã trả lời ngay tại đó.
 
 ## 10. Nhật ký thực hiện
 

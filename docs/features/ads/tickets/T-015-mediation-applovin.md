@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-9]
 owner: Nhật
-status: planned
+status: approved
 risk: high
 size: S
 depends_on: [T-009]

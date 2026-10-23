@@ -1,13 +1,13 @@
 ---
 feature: ads
-status: changed              # draft | confirmed | changed
+status: confirmed              # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
   - requests/2026-10-21-native-va-remote-config.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-10-21
+confirmed: 2026-10-23
 ---
 
 # SPEC: QUẢNG CÁO NATIVE VÀ REMOTE CONFIG CỦA DỰ ÁN MẪU
@@ -207,7 +207,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
    - Trả lời: Làm luôn.
 6. **Quyền và SDK ở mục 6 (bổ sung 2026-10-23 theo rà soát danh sách chạy RUN-20261023-01).**
    - Đề xuất của AI: chấp nhận như mục 6: thêm `VIBRATE`, bỏ `CHECK_LICENSE`, `ACCESS_WIFI_STATE` và `AppLovinInitProvider`; cập nhật An toàn dữ liệu trước khi phát hành.
-   - Trả lời:
+   - Trả lời: chấp nhận như mục 6.
 
 ## 10. Lịch sử
 
@@ -217,3 +217,5 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-21 | Nhật | Trả lời 5 câu hỏi, xác nhận |
 | 2026-10-21 | AI | Tách ticket T-007 đến T-015. Hiểu câu 3 là màn hình mẫu bỏ banner, định dạng banner vẫn giữ trong `:core:ads` |
 | 2026-10-23 | AI | Thêm quyền của app và SDK AppLovin vào mục 6 (rà soát RUN-20261023-01: `VIBRATE` của T-015 chưa có trong spec); chuyển sang `changed`, chờ xác nhận lại |
+| 2026-10-23 | Nhật | Trả lời câu 6 |
+| 2026-10-23 | Nhật | Xác nhận lại (AI ghi theo lời anh Nhật) |
