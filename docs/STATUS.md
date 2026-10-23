@@ -14,6 +14,7 @@
 - Bài học `proposed` chờ retro: L-037 (Đường dẫn trong bản đề xuất gãy khi chép tài liệu khảo sát vào repo)
 - Bài học `proposed` chờ retro: L-038 (App mới còn bài học của dự án mẫu trên trang tiến độ)
 - Bài học `proposed` chờ retro: L-039 (Test của script hỏng trong app mới: test chỉ dành cho dự án mẫu, và test cần remote origin)
+- Bài học `proposed` chờ retro: L-040 (Commit chỉ có tài liệu bỏ qua CI, nên test kiểm tài liệu không chặn được lỗi)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 - ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
@@ -82,5 +83,5 @@ Phản hồi: chưa có.
 
 ## 5. Bài học và ADR
 
-- Bài học ([lessons.md](lessons.md)): 8 bài; 8 `proposed`.
+- Bài học ([lessons.md](lessons.md)): 9 bài; 9 `proposed`.
 - ADR: 24; 19 `accepted`, 5 `proposed`.
