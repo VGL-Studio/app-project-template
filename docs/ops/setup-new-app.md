@@ -120,7 +120,7 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | `scripts/check.sh` dừng ở bước `== Java`, báo Java quá mới hoặc quá cũ | Máy dùng Java cài riêng thay vì JDK của Android Studio; Gradle chỉ chạy trên một khoảng phiên bản Java | Đặt `JAVA_HOME` theo lệnh script in ra (phần 1) |
 | `start-run` báo "Thiết lập chưa đủ cho một phiên", hoặc có issue `setup-broken` | `scripts/setup-check.sh --staging` thấy lỗi: thiếu file R2, DNS công cộng không phân giải được tên miền, bí mật Firebase là file giả hoặc thiếu app staging, chưa tạo nhóm người test | Sửa theo từng dòng `LỖI` (phần 3, phần 4), chạy lại workflow `env-canary`; lần xanh tự đóng issue |
 | `merge-if-green.sh` trả mã 3, báo nhánh chậm so với `main` | Có PR khác vừa merge | `scripts/merge-if-green.sh <số PR> --update`: tự cập nhật nhánh, chờ CI rồi merge |
-| Mọi PR tài liệu xung đột ở `docs/STATUS.md` | PR thường commit trang tiến độ | PR thường không đưa trang này vào; trang sinh lại bằng PR riêng (`docs/CLAUDE.md`, mục Trang tiến độ) |
+| Mọi PR tài liệu xung đột ở `docs/STATUS.md` | PR commit trang tiến độ (ví dụ `git add -f`) | Bỏ file khỏi PR (`git rm --cached docs/STATUS.md`); trang không có trong git, `status-page.yml` sinh nó trên nhánh `status` (`docs/CLAUDE.md`, mục Trang tiến độ) |
 | `merge-if-green.sh` báo PR mang nhãn `needs-human` | PR do phiên tự chạy soạn sẵn khi task dừng | Xem PR, sửa nếu cần, gỡ nhãn, đổi sang sẵn sàng rồi merge |
 | `merge-if-green.sh` báo "phiên ... đang chạy" | Có phiên tự chạy đang chạy; chỉ PR của phiên đó được merge | Chờ phiên kết thúc |
 | Phiên làm việc trên nhánh `claude/<tên ngẫu nhiên>` | Prompt routine thiếu dòng "Nhánh" | Chép lại prompt ở `docs/ops/staging-and-runs.md`, mục 2.1 |

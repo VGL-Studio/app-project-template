@@ -1,0 +1,95 @@
+{
+  "conditions": [],
+  "parameters": {
+    "feature_loading_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows the loading screen that prepares the app before the start screen.",
+      "valueType": "BOOLEAN"
+    },
+    "feature_sample_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows the sample feature screen, the reference pattern for new features.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Master switch for every ad. When false, the app shows no ad at all.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_first_session_grace_seconds": {
+      "defaultValue": { "value": "180" },
+      "description": "Time without full-screen ads at the start of the first session after install, in seconds.",
+      "valueType": "NUMBER"
+    },
+    "ads_gallery_inlist_medium_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_inlist_medium (native_medium). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_inlist_small_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_inlist_small (native_small). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_interstitial_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_interstitial (interstitial). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_collapsible_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_collapsible (native_collapsible). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_full_screen_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_full_screen (native_full_screen). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_medium_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_medium (native_medium). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_small_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_small (native_small). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_inlist_every_count": {
+      "defaultValue": { "value": "8" },
+      "description": "Number of list items between two native ads inside a list.",
+      "valueType": "NUMBER"
+    },
+    "ads_interstitial_max_per_session_count": {
+      "defaultValue": { "value": "4" },
+      "description": "Maximum number of full-screen ads shown in one session.",
+      "valueType": "NUMBER"
+    },
+    "ads_interstitial_min_interval_seconds": {
+      "defaultValue": { "value": "45" },
+      "description": "Minimum time between two full-screen ads (interstitial and full-screen native), in seconds.",
+      "valueType": "NUMBER"
+    },
+    "ads_native_load_timeout_seconds": {
+      "defaultValue": { "value": "10" },
+      "description": "Time to wait for a native ad before its space is removed when no ad is available, in seconds.",
+      "valueType": "NUMBER"
+    },
+    "ads_personalized_regulated_regions_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Allows personalized ads in regions that require consent (EEA, UK, Switzerland), for users who consented. Users who declined never get them.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_sample_native_small_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement sample_native_small (native_small). Off by default.",
+      "valueType": "BOOLEAN"
+    },
+    "network_lost_delay_seconds": {
+      "defaultValue": { "value": "2" },
+      "description": "Seconds without usable Internet before the network dialog shows (ADR-0024).",
+      "valueType": "NUMBER"
+    }
+  }
+}

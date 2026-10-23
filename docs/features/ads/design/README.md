@@ -105,4 +105,14 @@ Mọi vùng quảng cáo có nền và viền tách khỏi nội dung; cách nú
 
 ## 8. Kết quả đối chiếu
 
-Chưa có: chạy `scripts/design-compare.sh ads` khi có ảnh chuẩn screenshot.
+Màn hình xem thử (T-014, 2026-10-23). Ảnh chuẩn ở `app/src/test/screenshots/` (`:app`, staging); script so sánh bọc sẵn chưa nhận `:app` nên chạy thẳng `scripts/design-compare/DesignCompare.java` (plan T-014, mục 3.2). Ảnh so sánh trong `review/`; kết quả chỉ ghi ở mục này, `review/summary.md` không đổi.
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `AdGalleryScreen_default_light` | 1.9% | Khác chính: hàng nút "In-list ads", "Collapsible ad" ngoài thiết kế (plan T-014, câu hỏi 7). Quảng cáo giả: ô AdChoices không có chữ "i", media không có nhãn "Media", medium hiện "Advertiser or short body" thay "Advertiser". Vị trí tiêu đề, nhãn, quảng cáo, nút trùng thiết kế |
+| `AdGalleryScreen_default_dark` | 1.9% | Như bản sáng |
+| `AdGalleryScreen_inlist_light` | 1.6% | Thứ tự và khoảng cách trùng (small sau mục 3, medium sau mục 6, cách 16 dp); viền mục chỉ ở cạnh dưới; khác ở chữ quảng cáo giả như trên |
+| `AdGalleryScreen_collapsible-expanded_light` | 0.7% | Ghim đáy, cách mép 16 dp. Dạng mở không vẽ ô AdChoices giả (dạng thu gọn có), đã biết từ T-012; chữ quảng cáo giả như trên |
+| `AdGalleryScreen_collapsible-collapsed_light` | 0.7% | Trùng thiết kế, khác ở chữ "i" của ô AdChoices giả |
+
+Nhận xét của rà soát độc lập (RUN-20261024-01): chữ, thứ tự và vai trò màu (nút toàn màn hình `primary`, nút chuyển trang viền, bản tối) trùng thiết kế; chỉ khác ở hàng nút chuyển trang đã duyệt và quảng cáo giả; vị trí lệch nhiều nhất khoảng 1 px. Không có điểm chặn.

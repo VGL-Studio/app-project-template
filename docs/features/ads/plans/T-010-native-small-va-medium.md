@@ -1,7 +1,7 @@
 ---
 ticket: T-010
 title: Native small và medium; màn hình mẫu dùng native small thay banner
-status: approved               # draft | approved | stopped | done
+status: done                   # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -446,3 +446,15 @@ Phiên bản 1 đã được anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-010-native-small-va-medium`, PR #102, merge commit `987a7a1` lúc 10:07 UTC
+- **Đã làm:** native small và medium trong `:core:ads` (`NativeAdSlot`, `NativeAdCard`, `BoundNativeAd`, `SdkNativeAdLoader`, luồng tải có thời gian chờ, hủy khi rời màn hình, mã thử native của Google); màn hình mẫu ghim native small ở đáy (vị trí `sample_native_small`, khóa `ads_sample_native_small_enabled`); sinh lại bảng khóa; cập nhật `docs/ops/ads-guide.md`; ảnh chuẩn và ảnh đối chiếu thiết kế. Bước 3 đến 5 do phiên con làm, 6 commit (test, code, ảnh chuẩn, bảng khóa, tài liệu, sửa sau rà soát).
+- **Test viết trước:** 47 test mới hoặc sửa trong `:core:ads` và `:feature:sample`, commit `2dff6f2` trước code. Commit test không biên dịch được, đúng dự kiến của plan (chưa có `NativeAdCard`, `NativeAdState`, `SAMPLE_NATIVE_SMALL`, tham số `bottomAd`). Với khung rỗng tạm (không commit): "could not find any node that satisfies: (TestTag = 'native_ad_card')", "expected:<[Loading, Unavailable]> but was:<[Loading]>", "expected:<SMALL> but was:<null>", test màn hình mẫu không thấy `fake_ad`. `unavailable_takesNoSpace` qua ngay, đã thêm bước đối chứng (72 dp lúc đang tải rồi về 0). `withoutAdsController_takesNoSpace` vẫn qua với khung rỗng: khung rỗng trùng hành vi đúng và không có `AdsController` thật để đối chứng trên JVM. Theo L-055: 1 test được viết chặt thêm, 1 test không làm chặt được.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 3 ghi chú. Nên sửa: nút CTA của native small rộng theo chữ (khoảng 72 dp), thiết kế 80 dp, cạnh trái lệch khoảng 8 dp và nút đổi bề rộng khi quảng cáo tới; đã sửa ở `e4d3951` (`CallToActionMinWidth = 80.dp`, khối chờ dùng chung giá trị), ghi lại 5 ảnh của PR, `check.sh` qua lại. Ghi chú: ô AdChoices trống trên thẻ giả thay cho chữ "i" (câu hỏi 4 đã duyệt, quảng cáo thật để SDK vẽ); khối media của thẻ giả medium không có chữ "Media"; nút "Tap" thấp hơn thiết kế khoảng 2 dp (trong dung sai, có từ trước).
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (261 test JVM, 0 lỗi, 22 ảnh); `pr-check.yml` xanh lần đầu (39935739010).
+- **Lệch so với plan:** (1) test `medium_hasMediaOfAtLeast120dp` đòi media rộng ít nhất 355 dp, số liệu thiết kế cho 353 dp vì lề 12 dp tính từ trong viền 1 dp; giữ test, lề ngang tính từ mép ngoài, các phần lệch 1 dp so với tọa độ thiết kế (trong dung sai 4 dp), có chú thích trong `NativeAdCard.kt`; (2) thêm `GoogleTestAdUnitIds.unitFor(format)` (internal) để kiểm mã thử medium khi chưa có vị trí medium; (3) thêm test tag `ICON`, `HEADLINE`, `BADGE` và các composable con; (4) thời gian chờ ≤ 0 thì trả `Unavailable` ngay; (5) so ảnh thiết kế bằng `DesignCompare.java` với 3 ảnh của T-010 như plan ghi. Không dùng phương án dự phòng (`adView.post` chạy được).
+- **Việc còn lại:** KDoc của `NATIVE_LOAD_TIMEOUT_SECONDS` trong `AdsSettings.kt` còn ghi "not read yet" (file ngoài mục 3.2). Hai mã thử `.../2247696110` (native) và `.../1044960115` (native video) chưa được đối chiếu lại với trang mã thử của Google trong phiên.
+- **Cần người xem:** ảnh chuẩn mới `core/ads/src/test/screenshots/NativeAdCard_{small,medium}_{light,dark}.png`, `NativeAdPlaceholder_medium_light.png`, `feature/sample/src/test/screenshots/SampleScreen_ad-loading_light.png`, `SampleScreen_ready_small.png`; ghi lại `SampleScreen_ready_{light,dark}.png`; ảnh so sánh trong `docs/features/ads/design/review/` (lệch 0,9%, 1,3%, 1,3%). Kiểm thủ công trên staging: khối chờ rồi native small, AdChoices không bị đè, chế độ máy bay thì sau 10 giây vùng quảng cáo thu lại, rời màn hình có log `destroyed`, cảnh báo của Native Ad Validator (small không có media). Đặt khóa `ads_sample_native_small_enabled` trên Firebase khi muốn bật.

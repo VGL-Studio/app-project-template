@@ -27,7 +27,7 @@ Script làm những việc sau:
 4. Đổi đoạn mở đầu của `README.md` và `CLAUDE.md` cho app mới.
 5. Tạo repo git với một commit đầu tiên ghi mã commit của dự án mẫu.
 
-`:feature:sample` được giữ lại, vì `CLAUDE.md` hướng dẫn mọi feature làm theo đúng mẫu này. Script không có tùy chọn xóa feature mẫu. Dev muốn xóa thì tự xóa, thường khi feature thật đầu tiên thay màn hình bắt đầu: xóa `:feature:sample`, cờ `SAMPLE`, vị trí quảng cáo `SAMPLE_BOTTOM_BANNER` cùng các test dùng chúng, rồi trỏ `CLAUDE.md` sang feature thật làm mẫu.
+`:feature:sample` được giữ lại, vì `CLAUDE.md` hướng dẫn mọi feature làm theo đúng mẫu này. Script không có tùy chọn xóa feature mẫu. Dev muốn xóa thì tự xóa, thường khi feature thật đầu tiên thay màn hình bắt đầu: xóa `:feature:sample`, cờ `SAMPLE`, vị trí quảng cáo `SAMPLE_NATIVE_SMALL` cùng các test dùng chúng, rồi trỏ `CLAUDE.md` sang feature thật làm mẫu.
 
 ## 3. Sau khi chạy
 

@@ -12,9 +12,19 @@ fun interface AdUnitIds {
 object GoogleTestAdUnitIds : AdUnitIds {
     const val APP_ID = "ca-app-pub-3940256099942544~3347511713"
 
-    override fun of(placement: AdPlacement): String = when (placement.format) {
+    override fun of(placement: AdPlacement): String = unitFor(placement.format)
+
+    /** The test unit of each format; also checks formats that have no placement yet. */
+    internal fun unitFor(format: AdFormat): String = when (format) {
         AdFormat.BANNER -> "ca-app-pub-3940256099942544/9214589741"
         AdFormat.INTERSTITIAL -> "ca-app-pub-3940256099942544/1033173712"
+        AdFormat.NATIVE_SMALL -> "ca-app-pub-3940256099942544/2247696110"
+        // Native video, so the media view can be tried with a video.
+        AdFormat.NATIVE_MEDIUM -> "ca-app-pub-3940256099942544/1044960115"
+        // Opens as medium, so it uses the same native video unit.
+        AdFormat.NATIVE_COLLAPSIBLE -> "ca-app-pub-3940256099942544/1044960115"
+        // Native video, to try a video on the large media area.
+        AdFormat.NATIVE_FULL_SCREEN -> "ca-app-pub-3940256099942544/1044960115"
     }
 }
 
@@ -33,8 +43,12 @@ class ConfiguredAdUnitIds(config: String) : AdUnitIds {
             key to unit
         }
 
-    /** Placements that have no ad unit in this build. A release must have none. */
-    val missing: List<AdPlacement> = AdPlacement.entries.filter { it.key !in units }
+    /**
+     * Placements that have no ad unit in this build. A release must have none. Staging-only placements
+     * ([AdPlacement.stagingOnly]) never ship, so they are never missing.
+     */
+    val missing: List<AdPlacement> = AdPlacement.entries.filter { !it.stagingOnly && it.key !in units }
 
-    override fun of(placement: AdPlacement): String? = units[placement.key]
+    /** Staging-only placements get no unit even when the configuration names them: production never shows them. */
+    override fun of(placement: AdPlacement): String? = if (placement.stagingOnly) null else units[placement.key]
 }

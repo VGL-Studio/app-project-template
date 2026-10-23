@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vglstudio.template.core.designsystem.theme.Spacing
@@ -19,10 +22,12 @@ import com.vglstudio.template.core.designsystem.theme.Spacing
 private val MinHeight = 52.dp
 private val CornerRadius = 16.dp
 private val IconSize = 18.dp
+private val SpinnerStroke = 2.dp
 
 /**
  * Main call-to-action button. Minimum height 52 dp keeps the touch target above 48 dp.
- * An optional [icon] is drawn before the text, in the button's content color.
+ * An optional [icon] is drawn before the text, in the button's content color. While [loading], a spinner takes the
+ * place of the icon, the button keeps its enabled look and clicks are ignored.
  */
 @Composable
 fun PrimaryButton(
@@ -31,17 +36,30 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     icon: Painter? = null,
+    loading: Boolean = false,
 ) {
     Button(
-        onClick = onClick,
+        onClick = { if (!loading) onClick() },
         enabled = enabled,
         shape = RoundedCornerShape(CornerRadius),
         modifier = modifier.heightIn(min = MinHeight),
     ) {
-        if (icon != null) {
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(IconSize).testTag(PrimaryButtonTestTags.SPINNER),
+                color = LocalContentColor.current,
+                strokeWidth = SpinnerStroke,
+            )
+            Spacer(modifier = Modifier.width(Spacing.sm))
+        } else if (icon != null) {
             Icon(painter = icon, contentDescription = null, modifier = Modifier.size(IconSize))
             Spacer(modifier = Modifier.width(Spacing.sm))
         }
         Text(text = text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
     }
+}
+
+/** Tags for UI tests of screens that use [PrimaryButton]. */
+object PrimaryButtonTestTags {
+    const val SPINNER = "primary_button_spinner"
 }

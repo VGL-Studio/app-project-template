@@ -1,7 +1,7 @@
 ---
 ticket: T-011
 title: Native trong danh sách
-status: approved               # draft | approved | stopped | done
+status: done                   # draft | approved | stopped | done
 version: 2
 risk_score:
 risk_level: high
@@ -279,3 +279,15 @@ Phiên bản 1 đã được anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-011-native-trong-danh-sach`, PR #110, merge commit `dfbd701` lúc 10:52 UTC
+- **Đã làm:** `InListAdPositions.kt` (vị trí chèn, không đầu, không cuối, không liền nhau; lưới làm tròn lên hàng đầy đủ), `InListAds.kt` (màn hình giữ quảng cáo, tải mỗi ô một lần, hủy khi rời màn hình, `itemsWithInListAds` cho danh sách và lưới dọc), `AdsController.inListEvery`; cập nhật `docs/ops/ads-guide.md`. Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 25 test (10 `InListAdPositionsTest`, 6 `InListAdsStateTest`, 9 `InListAdsTest`), commit `a1444da` trước code. Không biên dịch được như mục 3.1 dự kiến (`Unresolved reference 'inListAdPositions'`, `'gridAdEvery'`). Với khung rỗng tạm, 25/25 thất bại ở phần khẳng định (`expected:<[3, 7]> but was:<[]>`, `expected java.lang.IllegalArgumentException to be thrown`, `Expected exactly '1' node but could not find any node`...). 8 test có bước đối chứng (L-055).
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 5 ghi chú. Nên sửa: khi đồng ý bị rút hay vị trí bị tắt giữa chừng, hàng quảng cáo biến mất nhưng quảng cáo đã tải còn giữ tới khi rời màn hình; đã sửa ở `0664a3f` (theo dõi N, hủy và xóa ô khi N về null, tải lại khi N trở lại), test mới `loadedSlots_destroyedWhenEveryBecomesNull_andLoadAgainWhenBack` ở `8580fd2` thất bại trước khi sửa với `expected:<[1, 1]> but was:<[0, 0]>`. Ghi chú: KDoc nhắc LazyRow và LazyHorizontalGrid trong khi hàng quảng cáo dùng `fillMaxWidth` (đã sửa KDoc thành chỉ danh sách và lưới dọc); `logger` đổi thành `internal`; `inListEvery` chưa có test (plan chấp nhận, kiểm thủ công sau T-014); chưa có test vòng của Parcelable `InListAdKey`; dùng cùng một vị trí hai lần trong một danh sách sẽ trùng khóa. Người rà soát xác nhận hai chỉnh test sau commit test chỉ đổi cơ chế, gọi `slot()` trong `remember` lúc dựng giao diện chấp nhận được, không rò quảng cáo.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (302 test JVM, 0 lỗi); `pr-check.yml` xanh lần đầu (39941199842).
+- **Lệch so với plan:** (1) `InListAdKey` là `internal` và Parcelable viết tay thay cho `private data class`: lần chạy thật đầu tiên dừng với `Type of the key InListAdKey(...) is not supported... only use types which can be stored inside the Bundle`; (2) `AdsController.logger` từ `private` thành `internal` để `rememberInListAds` ghi log; (3) chỉnh chi tiết test sau commit test: `InListAdsStateTest` tải trên `CoroutineScope(StandardTestDispatcher(testScheduler))` thay cho `backgroundScope` (vì `advanceUntilIdle` không chạy việc của `backgroundScope`), bước đối chứng của `publicApi_withoutAdsController_addsNoAdRow` nhắm `inlist_ad_0`; không đổi điều test kiểm tra; (4) `ads-guide.md` bỏ thêm chữ "(đợt 2)" ở các chỗ nói về native trong danh sách và thêm khuyến nghị N từ 5 (câu hỏi 5). Không dùng phương án dự phòng.
+- **Việc còn lại:** không có.
+- **Cần người xem:** kiểm thủ công sau T-014: quảng cáo thử sau mỗi N mục có nhãn "Ad"; cuộn xuống rồi lên không có dòng tải mới cho ô đã tải (`adb logcat -v threadtime | grep ' VGL\.Ads'`); rời rồi vào lại thì tải mới; đổi `ads_inlist_every_count` thì khoảng cách đổi.

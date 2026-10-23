@@ -20,6 +20,7 @@
 | `:core:ads` | Vị trí và định dạng quảng cáo, hộp thoại đồng ý, nhịp hiển thị theo AdsKit PARTNER, AdMob và mediation (ADR-0004, ADR-0013, ADR-0026) |
 | `:core:assets` | Tải file tĩnh từ R2, giữ trên máy để dùng khi mất mạng (ADR-0006, ADR-0015) |
 | `:core:logging` | Ghi log hành vi của app vào logcat và Crashlytics để phân tích khi có lỗi (ADR-0019) |
+| `:core:network` | Theo dõi có Internet dùng được, popup mất mạng (ADR-0024) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
@@ -34,7 +35,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Tìm mã quảng cáo thật, khóa hay token lọt vào repo (test của script cũng chạy nó): `scripts/secret-scan.py`.
 - Ghi một phiên thử trên máy để AI phân tích: `scripts/device-session.sh start <tên>`, thử app, `scripts/device-session.sh stop` (`docs/ops/test-sessions.md`).
 - Sinh lại trang quy tắc nền tảng `docs/foundation.md` sau khi thêm hay đổi trạng thái ADR: `scripts/foundation.py` (`docs/CLAUDE.md`, mục Khi viết ADR).
-- Sinh lại trang tiến độ `docs/STATUS.md`: `scripts/status.py`. Trang chỉ đi vào PR báo cáo của phiên hoặc PR riêng của trang, không đi kèm PR thường (`docs/CLAUDE.md`, mục Trang tiến độ).
+- Xem trước trang tiến độ `docs/STATUS.md` trên máy: `scripts/status.py`. Trang không có trong git; `status-page.yml` sinh nó trên nhánh `status` sau mỗi lần merge tài liệu (`docs/CLAUDE.md`, mục Trang tiến độ).
 - Kiểm thiết lập của app (file R2 bắt buộc, DNS của tên miền file tĩnh): `scripts/setup-check.sh`; danh sách file ở `docs/ops/required-assets.txt`.
 - Merge khi nhánh chậm hơn nhánh chính: `scripts/merge-if-green.sh <số PR> --update` tự cập nhật nhánh, chờ CI rồi merge.
 - Kiểm tra cả danh sách chạy trước khi duyệt (spec đã chốt, phụ thuộc, kịch bản có test, plan cùng sửa một file): `scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md` (`docs/ops/pre-run-review.md`).
@@ -58,7 +59,7 @@ Làm theo đúng mẫu `:feature:sample`:
    - Ghi dữ liệu có thể ném `IOException`: bắt lỗi trong ViewModel, đưa vào `UiState` để màn hình báo cho người dùng, không để app dừng đột ngột. Luồng đọc DataStore tự thử lại khi gặp `IOException`.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`. Điều hướng đứng sau một lời gọi `suspend` (đọc DataStore, tải file) chạy trên luồng chính: `scope.launch(Dispatchers.Main.immediate) { ... }`, vì coroutine có thể được tiếp tục trên luồng nền và `navigate` khi đó dừng app (L-051).
-7. Quảng cáo chỉ qua composable và hàm của `:core:ads` (`AdSlot(placement)`, composable native, `rememberShowInterstitial(placement)` gọi ở hành động của người dùng), với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013). Hành vi theo `docs/ops/ads-business-rules.md` (bộ PARTNER của AdsKit, ADR-0026). Vị trí mặc định tắt, chỉ hiện quảng cáo khi khóa của nó được bật trên Remote Config; tên khóa theo bảng khóa của tài liệu đó. Làm theo `docs/ops/ads-guide.md` (bảng "luôn giữ", kích thước native, các bước thêm vị trí).
+7. Quảng cáo chỉ qua composable và hàm của `:core:ads`: `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), `rememberShowFullScreenAd(placement)` (interstitial và native toàn màn hình, gọi ở hành động của người dùng), với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013). Hành vi theo `docs/ops/ads-business-rules.md` (bộ PARTNER của AdsKit, ADR-0026). Vị trí mặc định tắt, chỉ hiện quảng cáo khi khóa của nó được bật trên Remote Config; tên khóa theo bảng khóa của tài liệu đó (vị trí của đợt 2 dùng `ads_<vị trí>_enabled` tới T-019). Làm theo `docs/ops/ads-guide.md` (bảng "luôn giữ", kích thước native, các bước thêm vị trí). Test không có `AdsController` nên quảng cáo không hiện: màn hình nhận phần quảng cáo qua một tham số composable (mặc định `NativeAdSlot`), screenshot test truyền `NativeAdCard` giả, như `bottomAd` của `:feature:sample`.
 8. File tĩnh trên R2 chỉ qua `RemoteAssets.load(AssetPath(...))` của `:core:assets`, gọi từ ViewModel; kết quả `Unavailable` đưa vào `UiState` để người dùng thử lại. Đường dẫn tương đối, có phiên bản hoặc mã băm; nội dung đổi thì dùng đường dẫn mới (ADR-0015).
 9. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Khóa Remote Config khác đặt tên và khai báo theo `docs/ops/remote-config.md` (ADR-0023). Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
 10. Test, viết trước code (docs/auto-run.md, bước 3):
