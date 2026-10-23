@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -95,6 +96,9 @@ internal object NativeAdDimens {
     val IconSize = 40.dp
     val AssetCorner = 8.dp
     val CallToActionHeight = 36.dp
+
+    /** Short labels ("Install") still get the design's 80 dp, the width of the loading block. */
+    val CallToActionMinWidth = 80.dp
     val MediaHeight = 196.dp
     val BodyHeight = 40.dp
     val AdChoicesSize = 16.dp
@@ -103,7 +107,7 @@ internal object NativeAdDimens {
     val LineHeight = 10.dp
     val LongLineWidth = 180.dp
     val ShortLineWidth = 120.dp
-    val CallToActionPlaceholderWidth = 80.dp
+    val CallToActionPlaceholderWidth = CallToActionMinWidth
 
     fun heightOf(size: NativeAdSize): Dp = when (size) {
         NativeAdSize.SMALL -> SmallHeight
@@ -347,6 +351,7 @@ internal fun NativeAdCallToAction(text: String, binder: NativeAdBinder, modifier
         Box(
             modifier = Modifier
                 .height(NativeAdDimens.CallToActionHeight)
+                .widthIn(min = NativeAdDimens.CallToActionMinWidth)
                 .clip(RoundedCornerShape(NativeAdDimens.AssetCorner))
                 .background(MaterialTheme.colorScheme.tertiaryContainer)
                 .padding(horizontal = Spacing.md),
