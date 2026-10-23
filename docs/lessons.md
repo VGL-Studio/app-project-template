@@ -288,3 +288,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `scripts/setup-check.sh` kiểm file trong `docs/ops/required-assets.txt` (`curl -I`), DNS qua 1.1.1.1 và 8.8.8.8, và với `--staging` bí mật Firebase staging (không phải file giả, có app `.staging`) và nhóm người test qua API của App Distribution. `start-run.yml` chạy nó trước khi kích hoạt phiên; `env-canary.yml` chạy hằng ngày, đỏ thì mở issue `setup-broken`; đây cũng là bước cuối của `docs/ops/setup-new-app.md`. `scripts/check.sh` gọi `scripts/java-check.sh` trước Gradle (khoảng phiên bản đọc từ `build-logic` và phiên bản Gradle). `merge-if-green.sh` có `--update` (cập nhật nhánh qua API, chờ CI có giới hạn rồi merge, kiểm lại mọi điều kiện sau mỗi lần chờ), coi job còn ghi đang chạy mà lần chạy chứa nó đã `completed success` là xanh, in mã commit sẽ merge và cảnh báo commit mới đẩy. `docs/STATUS.md` chỉ đi vào PR báo cáo của phiên và PR riêng của trang; không dùng `merge=ours` vì merge trên GitHub không chạy driver tùy chỉnh. `plan-check.py` chỉ tìm nơi nhắc tới file trong các file git quản lý. Có test.
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/issue-78-protected`
+
+### L-060. GitHub không chạy job (hết hạn mức) hay không chạy CI cho PR xung đột, phiên hiểu thành CI đỏ hoặc chờ 40 phút
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-046, L-048 của app, issue #106)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** tổ chức hết hạn mức GitHub Actions: mọi job đỏ mà 0 bước, `wait-run.sh` chỉ báo `ĐỎ`; phiên sẽ sửa code hay revert vô ích. PR xung đột với nhánh chính không có lần chạy `pull_request` nào, `wait-run.sh --pr` chờ trọn 40 phút.
+- **Cải tiến:** `wait-run.sh` báo `HẠ TẦNG` (mã 4) khi mọi job đỏ đều chưa chạy bước nào, kèm chú thích của GitHub; báo `XUNG ĐỘT` (mã 5) khi PR `dirty` mà chưa có lần chạy. `auto-run.md`: mã 4 thì kết thúc phiên, giữ `running` để `resume-run.yml` tiếp tục, rồi chạy lại các lần chạy bị bỏ; mã 5 thì gộp nhánh chính. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-wait-run-ha-tang`
