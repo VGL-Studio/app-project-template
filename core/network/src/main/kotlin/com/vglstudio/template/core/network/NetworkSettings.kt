@@ -12,4 +12,8 @@ object NetworkSettings {
     )
 
     fun all(): List<RemoteKey<*>> = listOf(LOST_DELAY_SECONDS)
+
+    // Skeleton for the tests written first (T-017, step 3); step 4 sets the real values.
+    internal const val RETRY_MAX_MILLIS = 0L
+    internal const val RETRY_POLL_MILLIS = 0L
 }

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">App Template</string>
+    <string name="network_lost_title">Không có kết nối mạng</string>
+    <string name="network_lost_message">Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.</string>
+    <string name="network_lost_retry">Thử lại</string>
+    <string name="network_lost_still_offline">Vẫn chưa có kết nối. Hãy thử lại sau ít phút.</string>
 </resources>

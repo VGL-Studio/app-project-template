@@ -31,6 +31,7 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     icon: Painter? = null,
+    loading: Boolean = false,
 ) {
     Button(
         onClick = onClick,
@@ -44,4 +45,9 @@ fun PrimaryButton(
         }
         Text(text = text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
     }
+}
+
+/** Tags for UI tests of screens that use [PrimaryButton]. */
+object PrimaryButtonTestTags {
+    const val SPINNER = "primary_button_spinner"
 }
