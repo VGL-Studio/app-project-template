@@ -35,7 +35,7 @@ Thiết kế tham chiếu: Không có thiết kế riêng (không có giao diệ
 
 ADR liên quan: ADR-0003 (cờ tính năng), ADR-0012 (nối Firebase, `RemoteFlagSource`), ADR-0014 (giá trị mặc định của quảng cáo, không đổi), ADR-0023 (quy ước khóa, bảng khóa sinh từ code).
 
-**Cách hiểu cần người xác nhận:** ADR-0023 mục 4 viết "script sinh `docs/remote-config-keys.md`". Ticket chọn test kiểu `DesignTokensTest`; plan theo ticket, vì chỉ code Kotlin mới đọc được khóa và mặc định một cách chắc chắn. Xem câu hỏi 1.
+**Sinh bảng bằng test, không bằng script:** ADR-0023 mục 4 đã ghi "một test (chạy trong cổng chất lượng) sinh và kiểm"; plan làm đúng như vậy, theo mẫu `DesignTokensTest`, vì chỉ code Kotlin mới đọc được khóa và mặc định một cách chắc chắn. Riêng mục Hệ quả của ADR còn chữ "thêm script" (câu hỏi 1).
 
 ## 3. Giải pháp
 
@@ -157,14 +157,14 @@ Mặc định viết như giá trị trên Firebase: `true`, `45`, `0.5`; chuỗ
 
 `valueType`: boolean là `BOOLEAN`, long và double là `NUMBER`, string là `STRING`. Giá trị luôn là chuỗi. Thứ tự khóa như bảng Markdown.
 
-**Nơi khác đọc file plan đổi:** `grep -rn` trên `scripts/`, `.github/`, `build-logic/`, `*/src/test`: không nơi nào đọc `AdsSettings.kt`, `RemoteSettings.kt`, `FeatureFlag.kt` hay `docs/ops/remote-config.md` theo tên. `scripts/release.sh` nhắc tới `app/build.gradle.kts` nhưng không bị ảnh hưởng: plan chỉ thêm cấu hình cho task `Test` (system property, `inputs`), không đổi biến thể, tham số `-P` hay task build mà bản phát hành dùng; plan không đọc hay sửa `release.sh` (CLAUDE.md, mục Không được làm). `scripts/new-app.sh` chỉ thay tên gói trong mọi file, nên `app/src/test` mới cũng được đổi gói. Hai file docs mới chưa có nơi đọc.
+**Nơi khác đọc file plan đổi:** `grep -rn` trên `scripts/`, `.github/`, `build-logic/`, `*/src/test`: không nơi nào đọc `AdsSettings.kt`, `RemoteSettings.kt`, `FeatureFlag.kt` hay `docs/ops/remote-config.md` theo tên. `scripts/release.sh` nhắc tới `app/build.gradle.kts` nhưng không bị ảnh hưởng: plan chỉ thêm cấu hình cho task `Test` (system property, `inputs`), không đổi biến thể, tham số `-P` hay task build mà bản phát hành dùng; plan không đọc hay sửa `release.sh` (CLAUDE.md, mục Không được làm). `scripts/new-app.sh` chỉ thay tên gói trong mọi file, nên `app/src/test` mới cũng được đổi gói. `scripts/check.sh` (cả bản sửa ở PR #81, so ảnh chuẩn của `:app`) chỉ xử lý thư mục test có `captureRoboImage`; `app/src/test` của plan không có ảnh nên không bị ảnh hưởng. `docs/ops/ads-guide.md` mục 5 (thêm vị trí) phải nhắc sinh lại bảng khóa: có trong danh sách file. Hai file docs mới chưa có nơi đọc; T-010 đến T-016 sinh lại chúng khi thêm vị trí hay khóa.
 
 **Thứ tự commit (L-025):**
 
 1. Commit test (bước 3): `RemoteKeyTest.kt`, `FirebaseRemoteValueTest.kt`, các test `:core:config` và `:core:ads` đã sửa, `FakeRemoteFlagSource.kt` (thêm `double`, `string`), `RemoteConfigKeysTest.kt` gồm cả hai hàm sinh. Commit này không biên dịch được vì `RemoteKey`, `RemoteSettings.value`, `AdsSettings.all` chưa có: đó là lý do thất bại đúng mong đợi. Ghi rõ trong nhật ký.
 2. Commit code (bước 4): mọi file `src/main`, `app/build.gradle.kts`.
 3. Commit sinh file: chạy lệnh ghi lại, thêm `docs/remote-config-keys.md`, `docs/remote-config-template.json`; trước khi chạy lệnh, xác nhận hai test so file thất bại vì thiếu file.
-4. Commit tài liệu: `docs/ops/remote-config.md`.
+4. Commit tài liệu: `docs/ops/remote-config.md`, `docs/ops/ads-guide.md`.
 
 ### 3.2. Danh sách file
 
@@ -189,7 +189,8 @@ Mặc định viết như giá trị trên Firebase: `true`, `45`, `0.5`; chuỗ
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/config/RemoteConfigKeysTest.kt` | Hai hàm sinh, test so file, test quy ước khóa |
 | Tạo | `docs/remote-config-keys.md` | Sinh bằng lệnh ghi lại, không viết tay |
 | Tạo | `docs/remote-config-template.json` | Sinh bằng lệnh ghi lại, không viết tay |
-| Sửa | `docs/ops/remote-config.md` | Bỏ "(đợt 2)" của double, string, bảng khóa; ghi lệnh sinh lại; chỗ khai báo khóa quảng cáo là `AdsSettings` với `RemoteKey`; lưu ý nhập file mẫu |
+| Sửa | `docs/ops/remote-config.md` | Bỏ "(đợt 2)" của double, string, bảng khóa (dòng 5, 21, 31, 58; giữ "(đợt 2)" của giá trị cục bộ staging và của `ads_enabled` ở dòng 50 vì T-008, T-009 mới làm); ghi lệnh sinh lại; chỗ khai báo khóa quảng cáo là `AdsSettings` với `RemoteKey`; khóa mới cần mô tả tiếng Anh; lưu ý nhập file mẫu chỉ cho project mới |
+| Sửa | `docs/ops/ads-guide.md` | Mục 5, bước 3: khóa bật tắt của vị trí mới tự vào bảng khóa qua `AdsSettings.all()`; sinh lại bảng khóa bằng lệnh của `remote-config.md` trong cùng PR |
 
 File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradle/libs.versions.toml`): không chạm. Test mới ở `:app` chạy trong `testStagingDebugUnitTest` sẵn có của `check.sh`; không thêm thư viện.
 
@@ -220,7 +221,7 @@ File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradl
 | Hành vi app không đổi | Bộ test hiện có | `AdUnitIdsTest`, `FullScreenAdGuardTest`, test của `:feature:sample`, `:feature:loading`, test trên emulator trong CI qua mà không sửa |
 | File mẫu nhập được vào Firebase | Kiểm tra thủ công | Trên một project Firebase thử (không phải production): Remote Config, menu "Publish from a file" hay tương đương, chọn `docs/remote-config-template.json`, xem đủ khóa, kiểu và mặc định; không bấm Publish trên project đang dùng. Nhập file thay cả bộ cấu hình, nên chỉ dùng cho project mới (câu hỏi 4) |
 
-**Ngoại lệ viết test trước:** `docs/remote-config-keys.md` và `docs/remote-config-template.json` sinh ra từ code bằng lệnh ghi lại, không viết trước được; test so file đã viết trước và thất bại vì thiếu file. Đoạn sửa `docs/ops/remote-config.md` là tài liệu, không có test.
+**Ngoại lệ viết test trước:** `docs/remote-config-keys.md` và `docs/remote-config-template.json` sinh ra từ code bằng lệnh ghi lại, không viết trước được; test so file đã viết trước và thất bại vì thiếu file. Đoạn sửa `docs/ops/remote-config.md` và `docs/ops/ads-guide.md` là tài liệu, không có test.
 
 ## 5. Chấm rủi ro
 
@@ -240,7 +241,7 @@ File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradl
 ## 6. Ảnh hưởng chéo
 
 - File hoặc thành phần dùng chung bị chạm: `RemoteSettings` (public API của `:core:config`), `RemoteFlagSource`, `FeatureFlag`, `AdsSettings` (từ internal sang public), `AdsController`, `app/build.gradle.kts`.
-- Task khác trong sprint có thể xung đột: T-008 và T-009 phụ thuộc T-007 (`depends_on`) và sửa `RemoteSettings.kt`, `AdsSettings.kt`, `AdsController.kt`. T-010 tới T-015 có thể thêm vị trí vào `AdPlacement`, làm đổi bảng khóa sinh ra: task đó phải chạy lệnh ghi lại trong cùng PR (ADR-0023).
+- Task khác trong sprint có thể xung đột: T-008 (sửa `RemoteSettings.kt`, `DefaultRemoteSettingsTest.kt`, `docs/ops/remote-config.md`; dùng `AdsSettings.placementEnabled` từ `app/src/staging`, nên cần `AdsSettings` public như plan này) và T-009 (sửa `AdsController.kt`, đọc `ENABLED` và các khóa mới) phụ thuộc T-007. T-010, T-014 đổi `AdPlacement` và T-016 thêm `":core:network"` vào `AppRemoteKeys.byModule`: các task đó chạy lệnh ghi lại trong cùng PR (ADR-0023). T-014 sửa mô tả của `placementEnabled` cho vị trí `stagingOnly`: `RemoteKey.equals` so cả mô tả, nhưng T-008 tra theo tên khóa nên không ảnh hưởng.
 - Đề xuất thứ tự chạy: chạy T-007 đầu tiên trong chuỗi quảng cáo, trước T-008, T-009 và mọi ticket native.
 - `token_estimate`: 25M, cao hơn số gợi ý 20M của cỡ M (`scripts/token-usage.py estimate`, chưa có task đã đo) vì task chạm ba module và có thêm bước sinh file.
 
@@ -254,7 +255,7 @@ File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradl
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **ADR-0023 mục 4 viết "script sinh" bảng khóa; ticket và plan dùng test ở `:app` như `DesignTokensTest`.** Đề xuất: giữ test (chỉ code Kotlin đọc chắc chắn được khóa và mặc định; chạy sẵn trong `check.sh`), và sửa chữ "script" trong ADR-0023 (đang `proposed`) ở PR tài liệu của đợt này, ngoài T-007.
+1. **ADR-0023 mục 4 đã ghi "một test" sinh bảng khóa, plan làm đúng; mục Hệ quả của ADR còn câu "đổi `:core:config` và thêm script".** Đề xuất: sửa chữ "thêm script" thành "thêm test sinh bảng" trong ADR-0023 (đang `proposed`) ở PR tài liệu của đợt này, ngoài T-007.
 2. **Bỏ `RemoteSettings.boolean/long` nhận tên khóa dạng chuỗi.** Đề xuất: bỏ, vì chỉ `AdsController` dùng và giữ lại thì khóa có thể né chỗ khai báo chung. App đã tạo từ dự án mẫu có module core riêng gọi hàm cũ sẽ phải đổi khi kéo thay đổi về. Nếu muốn chuyển dần thì giữ hai hàm, đánh `@Deprecated`, bỏ ở ticket sau.
 3. **Chỗ gom khóa `AppRemoteKeys` đặt ở `app/src/main`, `AdsSettings` thành public.** Đề xuất: đồng ý, để T-008 (bật vị trí ở staging) và T-014 (màn hình xem thử) dùng được. Phương án khác: chỉ đặt trong `app/src/test`, giữ `AdsSettings` internal và thêm một hàm public trả danh sách khóa.
 4. **Nhập file mẫu vào Firebase thay cả bộ cấu hình của project.** Đề xuất: `docs/ops/remote-config.md` ghi rõ chỉ nhập cho project mới; project đang chạy thì thêm từng khóa bằng tay theo bảng. Chưa kiểm tra được trên Firebase thật vì staging dùng file giả (ADR-0012); người duyệt có muốn kiểm tra thủ công này trước khi đóng ticket không?

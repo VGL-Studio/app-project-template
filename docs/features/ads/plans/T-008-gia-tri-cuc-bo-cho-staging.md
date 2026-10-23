@@ -33,12 +33,12 @@ Thiết kế tham chiếu: Không có thiết kế riêng (không đổi giao di
 
 ADR liên quan: ADR-0003 (cờ, `StagingFeatureFlagsModule`), ADR-0007 (tách staging, production), ADR-0012 (file Firebase giả, staging thật trong `staging.yml`), ADR-0013 (staging chỉ dùng mã thử), ADR-0014 (vị trí mặc định tắt), ADR-0023 (mục 5: giá trị cục bộ cho staging).
 
-**Giả định về T-007** (phụ thuộc, plan viết song song). Plan này dựa trên hợp đồng sau, giữ đúng tên:
+**Giả định về T-007** (phụ thuộc, theo plan `T-007-khoa-remote-config-co-kieu.md`). Plan này dựa trên hợp đồng sau, giữ đúng tên:
 
 - `:core:config` có `RemoteKey<T>`, tạo bằng `RemoteKey.boolean/long/double/string(name, default, description)`, có thuộc tính `name` và `default`.
 - `RemoteSettings.value(key: RemoteKey<T>): Flow<T>`, cài đặt trong `DefaultRemoteSettings` (file `RemoteSettings.kt`), dựa trên `RemoteFlagSource` trả `null` khi Firebase không có giá trị.
-- `AdsSettings` (`:core:ads`) khai báo khóa bằng `RemoteKey`, có `placementEnabled(placement): RemoteKey<Boolean>` và `ENABLED` (`ads_enabled`, mặc định bật).
-- Có một danh sách mọi khóa của app (để sinh `docs/remote-config-keys.md`), và test của T-007 đảm bảo không có hai khóa trùng tên.
+- `AdsSettings` (`:core:ads`) là `public object` (T-007 chuyển từ `internal`), khai báo khóa bằng `RemoteKey`, có `placementEnabled(placement): RemoteKey<Boolean>` và `ENABLED` (`ads_enabled`, mặc định bật).
+- `AppRemoteKeys.byModule` ở `app/src/main` liệt kê mọi khóa; `RemoteConfigKeysTest` ở `app/src/test` sinh `docs/remote-config-keys.md` và đảm bảo không có hai khóa trùng tên.
 
 T-007 đã merge mà khác hợp đồng này ở điểm nào ảnh hưởng tới danh sách file thì dừng (mục 7).
 
@@ -91,7 +91,7 @@ fun everyAdPlacementEnabled(): Set<LocalRemoteValue> =
 
 Không đặt `ads_enabled` vì mặc định đã bật. Vị trí mới thêm vào `AdPlacement` tự bật trên staging, không phải sửa module này.
 
-**Truy cập từ `:app`**: `AdsSettings` hiện là `internal object`. Sau T-007, nếu `AdsSettings.placementEnabled` vẫn không gọi được từ `:app`, thêm vào `AdsSettings.kt` một hàm công khai `fun AdPlacement.enabledKey(): RemoteKey<Boolean> = AdsSettings.placementEnabled(this)` và module staging dùng hàm này. Không đổi tên khóa hay giá trị mặc định nào. Nếu T-007 đã để công khai thì không sửa `AdsSettings.kt`.
+**Truy cập từ `:app`**: T-007 chuyển `AdsSettings` thành `public object`, nên module staging gọi thẳng `AdsSettings.placementEnabled(it)`. Plan không sửa `AdsSettings.kt`.
 
 **Bằng chứng production không đọc giá trị staging**, ba lớp:
 
@@ -99,7 +99,7 @@ Không đặt `ads_enabled` vì mặc định đã bật. Vị trí mới thêm 
 2. Unit test quét mã nguồn trong `app/src/test`: ngoài `src/staging`, không file `.kt` nào của `:app` nhắc tới `LocalRemoteValues`. Test chạy trong `testStagingDebugUnitTest` mà CI đã chạy, nên không cần sửa `scripts/check.sh`. Lý do chọn quét mã nguồn: CI không chạy unit test của biến thể production, và repo chưa có thư viện test của Hilt (thêm thư viện là sửa `gradle/libs.versions.toml`, file bị khóa).
 3. `@Multibinds` nằm trong `ConfigModule` (dùng chung mọi biến thể), nên đồ thị Hilt của production luôn có tập, kể cả rỗng. Build production không có trong CI; AI chạy một lần trên máy `compileProductionDebugKotlin` với tham số giả (xem mục 4 và câu hỏi 3).
 
-**Bảng khóa cột "staging"**: plan không thêm. Test sinh bảng của T-007 chạy trong `:core:config` hoặc nơi T-007 chọn, không thấy được module của `app/src/staging`; muốn có cột này phải chuyển phần sinh bảng vào unit test staging của `:app` và sửa file của T-007, mà tên file đó chưa chốt. Xem câu hỏi 2.
+**Bảng khóa cột "staging"**: plan không thêm. `RemoteConfigKeysTest` của T-007 nằm ở `app/src/test`, biên dịch cho cả hai biến thể nên không được nhắc tới `StagingRemoteValuesModule` (chỉ có ở `app/src/staging`); muốn có cột này phải chuyển phần sinh bảng sang `app/src/testStaging` và sửa file của T-007. Xem câu hỏi 2.
 
 ### 3.2. Danh sách file
 
@@ -111,13 +111,13 @@ Không đặt `ads_enabled` vì mặc định đã bật. Vị trí mới thêm 
 | Sửa | `core/config/src/main/kotlin/com/vglstudio/template/core/config/RemoteSettings.kt` | `DefaultRemoteSettings` nhận tập `@LocalRemoteValues`, kiểm tên trùng, áp thứ tự Firebase, cục bộ, mặc định trong `value(key)`; cập nhật KDoc của `RemoteSettings` |
 | Sửa | `core/config/src/main/kotlin/com/vglstudio/template/core/config/di/ConfigModule.kt` | `@Multibinds @LocalRemoteValues` cho `Set<LocalRemoteValue>` |
 | Sửa | `core/config/src/test/kotlin/com/vglstudio/template/core/config/DefaultRemoteSettingsTest.kt` | Hàm tạo `settings(localValues = ...)` và các test ở mục 4; giữ các test có sẵn của T-007 |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsSettings.kt` | Chỉ khi sau T-007 `placementEnabled` không gọi được từ `:app`: thêm `fun AdPlacement.enabledKey(): RemoteKey<Boolean>` công khai. Không đổi khóa hay mặc định |
 | Tạo | `app/src/staging/kotlin/com/vglstudio/template/di/StagingRemoteValuesModule.kt` | `@ElementsIntoSet @LocalRemoteValues`: bật mọi vị trí của `AdPlacement` |
 | Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/di/StagingRemoteValuesModuleTest.kt` | Test bộ giá trị staging (mục 4) |
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/LocalRemoteValuesSourceSetTest.kt` | Test quét mã nguồn: chỉ `src/staging` nhắc tới `LocalRemoteValues` |
 | Sửa | `docs/ops/remote-config.md` | Bỏ ghi chú đợt 2 của phần giá trị cục bộ; mục 3 bước 5 chỉ cách khai báo trong `StagingRemoteValuesModule`; mục 4 ghi đúng hai thứ tự (cờ: bật cục bộ thắng; tham số: Firebase, cục bộ, mặc định); mục 5 thêm: project staging chỉ đặt khóa muốn đổi, không nhập cả file mẫu |
+| Sửa | `docs/ops/ads-guide.md` | Mục 8, dòng "tới khi có giá trị cục bộ cho staging (ADR-0023, đợt 2), quảng cáo không hiện trên staging": thay bằng "staging bật mọi vị trí của `AdPlacement` bằng giá trị cục bộ (`StagingRemoteValuesModule`); Firebase staging vẫn tắt được từng vị trí" |
 
-Không file nào trong `scripts/`, `.github/`, `build-logic/` nhắc tới các file trên (đã tìm bằng `grep -rln`). `AdsController.kt` đọc `RemoteSettings` nhưng interface không đổi nên không sửa. `StagingFeatureFlagsModule.kt`, `DefaultFeatureFlags.kt`, `LocallyEnabledFlags.kt` không đổi. `app/build.gradle.kts` không đổi: `junit4` đã có trong `testImplementation` của mọi module (`build-logic`, `KotlinAndroid.kt`), và các source set `test`, `testStaging` có sẵn theo quy ước của Android Gradle Plugin.
+Không file nào trong `scripts/`, `.github/`, `build-logic/` nhắc tới các file trên (đã tìm bằng `grep -rln`). `AdsSettings.kt` không sửa (T-007 đã để public). `AdsController.kt` đọc `RemoteSettings` nhưng interface không đổi nên không sửa. `StagingFeatureFlagsModule.kt`, `DefaultFeatureFlags.kt`, `LocallyEnabledFlags.kt` không đổi. `app/build.gradle.kts` không đổi: `junit4` đã có trong `testImplementation` của mọi module (`build-logic`, `KotlinAndroid.kt`), và các source set `test`, `testStaging` có sẵn theo quy ước của Android Gradle Plugin.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
 
@@ -153,16 +153,16 @@ Khóa dùng trong test `:core:config`: khai báo riêng trong file test, ví d�
 
 ## 5. Chấm rủi ro
 
-**Điểm chặn bị chạm:** điểm 7 (module core dùng chung `:core:config`, có thể cả `:core:ads`), điểm 1 (đổi khi nào quảng cáo hiện trên bản staging; production không đổi). Rủi ro cao, bắt buộc duyệt chéo; người phụ trách sản phẩm cần biết trước khi duyệt.
+**Điểm chặn bị chạm:** điểm 7 (module core dùng chung `:core:config`), điểm 1 (đổi khi nào quảng cáo hiện trên bản staging; production không đổi). Rủi ro cao, bắt buộc duyệt chéo; người phụ trách sản phẩm cần biết trước khi duyệt.
 
 Bảng điểm dưới đây chỉ để tham khảo:
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 3 | Ba module: `:core:config`, `:app`, có thể `:core:ads`; đổi hàm tạo của `DefaultRemoteSettings` |
-| B. Độ rõ của yêu cầu | 2 | ADR-0023 chốt thứ tự, nhưng hướng dẫn và cờ đang theo thứ tự ngược; API của T-007 là giả định, chưa merge |
+| A. Phạm vi thay đổi | 3 | Hai module: `:core:config`, `:app`; đổi hàm tạo của `DefaultRemoteSettings` |
+| B. Độ rõ của yêu cầu | 2 | ADR-0023 chốt thứ tự, nhưng hướng dẫn và cờ đang theo thứ tự ngược; API của T-007 lấy từ plan, chưa merge |
 | C. Khả năng kiểm chứng tự động | 1 | Thứ tự ưu tiên, bộ giá trị staging, ranh giới source set có unit test; quảng cáo hiện thật trên staging và build production kiểm tra ngoài CI |
-| D. Ảnh hưởng chéo | 2 | Sửa `RemoteSettings.kt`, `DefaultRemoteSettingsTest.kt`, `AdsSettings.kt`, `remote-config.md` mà T-007 cũng sửa; T-009 đến T-014 dựa vào việc vị trí bật trên staging |
+| D. Ảnh hưởng chéo | 2 | Sửa `RemoteSettings.kt`, `DefaultRemoteSettingsTest.kt`, `remote-config.md` mà T-007 cũng sửa, và `ads-guide.md` mà T-007, T-014 cũng sửa; T-009 đến T-014 dựa vào việc vị trí bật trên staging |
 | E. Độ mới của kỹ thuật | 1 | Biến thể của `@LocallyEnabledFlags`; `@ElementsIntoSet` và test quét mã nguồn trong `:app` chưa có trong dự án nhưng đơn giản |
 | **Tổng** | 9 | **Mức: Cao** |
 
@@ -170,18 +170,18 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 - File hoặc thành phần dùng chung bị chạm:
   - `:core:config`: hàm tạo của `DefaultRemoteSettings` thêm tham số; interface `RemoteSettings` không đổi. Production nhận tập rỗng, hành vi như cũ.
-  - `:core:ads`: có thể thêm một hàm công khai, không đổi khóa hay mặc định.
+  - `:core:ads`: không sửa; dùng `AdsSettings.placementEnabled` công khai của T-007.
   - `:app` staging: mọi vị trí quảng cáo bật trên staging. `AppLaunchTest` (emulator, staging) đã không dùng `assertIsDisplayed` vì hộp thoại đồng ý phủ lên app; quảng cáo ở cuối màn hình mẫu không đổi màn hình đích mà test chờ, nên không sửa.
 - Task khác trong sprint có thể xung đột:
-  - T-007: cùng sửa `RemoteSettings.kt`, `DefaultRemoteSettingsTest.kt`, `AdsSettings.kt`, `docs/ops/remote-config.md`. T-008 chạy sau khi T-007 đã merge.
+  - T-007: cùng sửa `RemoteSettings.kt`, `DefaultRemoteSettingsTest.kt`, `docs/ops/remote-config.md`, `docs/ops/ads-guide.md` (mục khác). T-008 chạy sau khi T-007 đã merge.
   - T-009 (tần suất, công tắc tổng, ân hạn phiên đầu 180 giây): trên staging, ân hạn phiên đầu làm quảng cáo toàn màn hình chưa hiện trong 3 phút đầu. Nếu muốn đặt 0 cho staging thì T-009 thêm một dòng vào `StagingRemoteValuesModule` (câu hỏi 4).
-  - T-014 (màn hình xem thử): vị trí của màn hình xem thử tự bật trên staging nhờ module này.
+  - T-014 (màn hình xem thử): vị trí của màn hình xem thử tự bật trên staging nhờ module này. T-014 cũng thay dòng về staging ở `ads-guide.md` mục 8; sau T-008 dòng đó đã đổi chữ, T-014 sửa theo nội dung mới.
 - Đề xuất thứ tự chạy: ngay sau T-007, trước T-009 đến T-015. Chuỗi phụ thuộc T-007, T-008 xếp sau các task độc lập trong cùng phiên.
 
 ## 7. Điều kiện dừng riêng
 
 1. Sau T-007, `RemoteSettings` không có `value(key: RemoteKey<T>)`, `RemoteKey` không có `name` hay `default`, hoặc `DefaultRemoteSettings` không nằm trong `RemoteSettings.kt`: dừng, ghi API thật, sửa plan.
-2. Không có cách gọi `placementEnabled` từ `:app` mà không sửa file ngoài `AdsSettings.kt`: dừng.
+2. Sau T-007, `AdsSettings.placementEnabled` không gọi được từ `:app` (ví dụ `AdsSettings` vẫn `internal`): dừng, không tự sửa `AdsSettings.kt`.
 3. Build production với tham số giả thất bại vì lý do khác thiếu tập `@LocalRemoteValues` (ví dụ đòi file Firebase thật): không xoay xở, ghi lại, để người xem; không coi là lỗi của task nếu `scripts/check.sh` qua.
 4. Lần thử tạm đặt qualifier trong `app/src/main` mà `LocalRemoteValuesSourceSetTest` vẫn qua: test không chặn được, dừng.
 
@@ -189,7 +189,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 1. **Thứ tự ưu tiên ở staging.** AI đề xuất giữ đúng ADR-0023: Firebase, rồi cục bộ, rồi mặc định, để project staging thật tập được việc tắt vị trí và đổi tần suất từ xa; với file giả hai thứ tự như nhau. Đánh đổi: khác cờ tính năng (cục bộ thắng), và nhập cả file mẫu vào project staging sẽ tắt quảng cáo staging; plan ghi cảnh báo vào hướng dẫn. Phương án khác: cục bộ thắng ở staging, giống cờ, staging luôn có quảng cáo nhưng không thử tắt từ xa được; khi đó phải sửa ADR-0023 mục 5 (ngoài plan này).
 2. **Cột "staging" trong bảng khóa.** AI đề xuất không làm trong T-008: phần sinh bảng của T-007 không thấy module staging, làm thì phải chuyển nó sang unit test staging của `:app` và sửa file của T-007. Nếu cần, mở ticket riêng sau khi T-007 merge, khi đã biết tên file.
-3. **Build production trên máy với tham số giả** (`compileProductionDebugKotlin`, chỉ biên dịch). AI đề xuất cho phép trong phiên tự chạy: đây là cách duy nhất kiểm đồ thị Hilt của production, giá trị giả, không chạm cấu hình production thật (risk-scoring.md, mục 4, điều 7). Nếu không đồng ý, bỏ dòng này ở mục 4 và dev chạy tay.
+3. **Build production trên máy với tham số giả** (`compileProductionDebugKotlin`, chỉ biên dịch). AI đề xuất cho phép trong phiên tự chạy: đây là cách duy nhất kiểm đồ thị Hilt của production, giá trị giả, không chạm cấu hình production thật (risk-scoring.md, mục 4, điều 7). Rà soát thấy: `app/src/production` không có `google-services.json` (chỉ `app/src/staging` có file giả), mà task `processProductionDebugGoogleServices` chạy trước biên dịch, nên lệnh nhiều khả năng thất bại ở bước này; tạo file đó là cấu hình production, bị cấm. Khi đó áp điều kiện dừng 3 (ghi lại, không coi là lỗi của task). T-014 cũng dựa vào lệnh này. Nếu không đồng ý hay biết trước là không chạy được, bỏ dòng này ở mục 4 và dev chạy tay với file Firebase thật.
 4. **Ân hạn phiên đầu trên staging** (khóa của T-009, mặc định 180 giây). AI đề xuất để T-009 quyết định và thêm vào `StagingRemoteValuesModule`; T-008 chỉ bật vị trí như ticket ghi.
 5. **CI không chạy unit test của biến thể production** (`scripts/check.sh` chỉ chạy `testStagingDebugUnitTest` ở `:app`). Plan dùng test quét mã nguồn chạy ở staging thay thế. Có nên đề xuất về dự án mẫu thêm `testProductionDebugUnitTest` vào `scripts/check.sh` (plan rủi ro cao riêng) không? AI đề xuất có, ngoài T-008.
 

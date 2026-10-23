@@ -130,14 +130,14 @@ Tên đúng ADR-0023 (`<module>_<tham số>`, đơn vị `_seconds` ở cuối, 
 **Nguồn giả cho test.**
 
 - `core/network/src/test/.../FakeConnectivitySource.kt` (`internal`, chỉ cho test của module): `MutableStateFlow<Boolean>` làm `hasUsableInternet`, `var now: Boolean` cho `isUsableNow()`, đếm số lần có người thu thập (`subscriptionCount`).
-- `core/network/src/main/.../FakeNetworkMonitor.kt` (public), theo mẫu `RecordingAppLogger` của `:core:logging`: cho test của `:app` ở T-017 dùng mà không cần Android. `class FakeNetworkMonitor(initial: Boolean = true) : NetworkMonitor` có `fun setOnline(online: Boolean)`, `var checkNowResult: Boolean`, `val checkNowCalls: Int`; `checkNow()` cập nhật `isOnline` theo `checkNowResult`. Không có độ trễ: T-017 kiểm popup theo `isOnline`, thời gian chờ đã kiểm ở T-016. Lý do đặt trong `src/main`: dự án chưa dùng `testFixtures`, bật nó là sửa cấu hình build dùng chung.
+- Không có bản giả công khai của `NetworkMonitor` trong `src/main`: test của T-017 cần những hành vi riêng (flow chưa phát gì, `checkNow` treo tới khi thả hay ném lỗi), nên plan T-017 tự viết bản giả trong `app/src/test` (câu hỏi 6).
 - `core/network/src/test/.../FakeRemoteSettings.kt`: `RemoteSettings` giả trả `MutableStateFlow` theo tên khóa, chưa có thì trả `key.default`. Cài theo interface sau T-007 (`value(key)`); T-008 không đổi interface (plan T-008 mục 3).
 
 **Hilt (`di/NetworkModule.kt`, `internal`).** `@Binds NetworkMonitor <- DefaultNetworkMonitor`, `@Binds ConnectivitySource <- AndroidConnectivitySource`, `@Provides ConnectivityManager` từ `@ApplicationContext` (`context.getSystemService(ConnectivityManager::class.java)`), `@Provides @Singleton @NetworkScope CoroutineScope`. `:app` phụ thuộc `:core:network` để Hilt gom module. Chưa ai tiêm `NetworkMonitor` cho tới T-017, nên hành vi app không đổi.
 
 **Nơi khác đọc file plan đổi (L-020).** Đã `grep -rn` trên `scripts/`, `.github/`, `build-logic/`, `*/src/test`, `*/src/androidTest`:
 
-- `settings.gradle.kts`, `app/build.gradle.kts`: không script nào đọc nội dung theo dòng. `scripts/check.sh` lặp `core/*/` nên tự thấy module mới (chưa có `captureRoboImage` nên không có screenshot task). `scripts/release.sh` nhắc tới `app/build.gradle.kts`; plan chỉ thêm một dòng `implementation(project(":core:network"))`, không đổi biến thể, tham số `-P` hay task; không đọc hay sửa `release.sh`. `scripts/new-app.sh` thay tên gói trong mọi file nên module mới cũng được đổi gói.
+- `settings.gradle.kts`, `app/build.gradle.kts`: `scripts/new-app.sh` thay đúng dòng `rootProject.name = "app-project-template"` của `settings.gradle.kts` và một chuỗi địa chỉ R2 trong `app/build.gradle.kts`; plan không đổi hai dòng đó. Không script nào khác đọc nội dung hai file theo dòng. `scripts/check.sh` lặp `core/*/` nên tự thấy module mới (chưa có `captureRoboImage` nên không có screenshot task). `scripts/release.sh` nhắc tới `app/build.gradle.kts`; plan chỉ thêm một dòng `implementation(project(":core:network"))`, không đổi biến thể, tham số `-P` hay task; không đọc hay sửa `release.sh`. `scripts/new-app.sh` dời mọi thư mục `*/src/*/kotlin/com/vglstudio/template` và thay tên gói trong mọi file (trừ ADR), nên module mới cũng được đổi gói mà không phải sửa script; test `new-app.sh replaces the package outside ADRs` của `scripts/tests/run.sh` kiểm điều này. Manifest của module không có thuộc tính `package` (namespace đặt trong `build.gradle.kts`), nên không có gì để đổi. `.github/workflows/pr-check.yml` lọc theo `core/**`, nên module mới tự kích hoạt CI. `build-logic/`: không sửa; `template.android.library` và `template.hilt` đủ (Robolectric khai báo trong `build.gradle.kts` của module vì chỉ convention Compose tự thêm).
 - `AppRemoteKeys.kt`: đọc bởi `RemoteConfigKeysTest` (T-007), có trong danh sách file; T-008 đọc qua tên khóa, không bị ảnh hưởng vì không có khóa trùng tên.
 - `docs/remote-config-keys.md`, `docs/remote-config-template.json`: đọc bởi `RemoteConfigKeysTest` qua `app/build.gradle.kts` (system property của T-007); hai file sinh lại trong cùng PR.
 - `CLAUDE.md`: chỉ thêm một dòng vào bảng module. Bốn nơi nhắc tới tên file này chỉ trích dẫn trong chữ, không đọc nội dung: `.github/ISSUE_TEMPLATE/from-app.yml` (nhãn lựa chọn "docs/, CLAUDE.md"), `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt` (chú thích "CLAUDE.md, step 10"), `scripts/device-session.sh` và `scripts/status.py` (in đường dẫn `docs/CLAUDE.md`, file khác). Không file nào bị ảnh hưởng.
@@ -157,13 +157,12 @@ Tên đúng ADR-0023 (`<module>_<tham số>`, đơn vị `_seconds` ở cuối, 
 | Sửa | `settings.gradle.kts` | Thêm `include(":core:network")` sau `:core:logging` |
 | Tạo | `core/network/build.gradle.kts` | Plugin `template.android.library`, `template.hilt`; `namespace = "com.vglstudio.template.core.network"`; `implementation` `:core:config`, `:core:logging`; `testImplementation(libs.robolectric)`, `testImplementation(libs.androidx.test.core)` (đã có trong `libs.versions.toml`) |
 | Tạo | `core/network/consumer-rules.pro` | Rỗng, như các module core khác (convention plugin trỏ tới file này) |
-| Tạo | `core/network/src/main/AndroidManifest.xml` | `uses-permission android.permission.ACCESS_NETWORK_STATE`, kèm chú thích: quyền đã có trong manifest gộp qua SDK, khai báo để module tự đủ |
+| Tạo | `core/network/src/main/AndroidManifest.xml` | `uses-permission android.permission.ACCESS_NETWORK_STATE` (quyết định của anh Nhật, câu hỏi 1), kèm chú thích: quyền đã có trong manifest gộp qua SDK, khai báo để module tự đủ. Đây là manifest đầu tiên trong một module core; không có thuộc tính `package` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkMonitor.kt` | Interface công khai `NetworkMonitor` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/ConnectivitySource.kt` | `ConnectivitySource`, `isUsableInternet`, `NetworkCapabilities?.hasUsableInternet()`, `AndroidConnectivitySource` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/LossDelay.kt` | `ConnectivitySignal`, `Flow<ConnectivitySignal>.reportLossAfter` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/DefaultNetworkMonitor.kt` | Cài đặt, chia sẻ một callback, `checkNow`, log thẻ `Network`, qualifier `NetworkScope` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkSettings.kt` | Khóa `network_lost_delay_seconds` (long, 2), `all()` |
-| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/FakeNetworkMonitor.kt` | Bản giả công khai cho test của `:app` (T-017) |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/di/NetworkModule.kt` | Hilt: hai `@Binds`, `ConnectivityManager`, scope |
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/FakeConnectivitySource.kt` | Nguồn giả của module |
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/FakeRemoteSettings.kt` | `RemoteSettings` giả theo tên khóa |
@@ -171,7 +170,6 @@ Tên đúng ADR-0023 (`<module>_<tham số>`, đơn vị `_seconds` ở cuối, 
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/DefaultNetworkMonitorTest.kt` | Test bộ theo dõi với nguồn giả, khóa giả, `RecordingAppLogger` |
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/AndroidConnectivitySourceTest.kt` | Test Robolectric: ánh xạ capability, đăng ký và hủy callback |
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/NetworkSettingsTest.kt` | Tên, kiểu, mặc định của khóa |
-| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/FakeNetworkMonitorTest.kt` | Hành vi của bản giả công khai |
 | Sửa | `app/build.gradle.kts` | Thêm `implementation(project(":core:network"))` sau `:core:logging` |
 | Sửa | `app/src/main/kotlin/com/vglstudio/template/config/AppRemoteKeys.kt` | Thêm `":core:network" to NetworkSettings.all()` (file do T-007 tạo) |
 | Sửa | `app/src/test/kotlin/com/vglstudio/template/config/RemoteConfigKeysTest.kt` | Thêm test `networkKeys_areListed` (file do T-007 tạo) |
@@ -215,7 +213,6 @@ Mọi test thời gian dùng `runTest` và thời gian ảo (`advanceTimeBy`, `c
 | Log đúng ADR-0019 | Unit test | `DefaultNetworkMonitorTest.logsStateChangesAndChecks`: `RecordingAppLogger` có `INFO` thẻ `Network` "Offline", "Online", "Check now: online"; không entry nào chứa chữ khác ngoài các mẫu đã nêu (không tên mạng) |
 | Khóa đúng spec mục 8 và ADR-0023 | Unit test | `NetworkSettingsTest.lostDelay_isLong2Seconds`: tên `network_lost_delay_seconds`, `type == LONG`, `default == 2L`, mô tả không rỗng; `all_containsEveryDeclaredKey`: mọi field kiểu `RemoteKey` của `NetworkSettings::class.java.declaredFields` có trong `all()` |
 | Khóa có trong bảng khóa | Unit test | `RemoteConfigKeysTest.networkKeys_areListed`: `AppRemoteKeys.byModule[":core:network"] == NetworkSettings.all()`. Các test của T-007 (`keysFile_matchesCode`, `templateFile_matchesCode`, `everyKeyName_isUniqueAcrossModules`, `everyNumberKey_endsWithUnit`) qua sau khi sinh lại hai file |
-| Bản giả cho T-017 | Unit test | `FakeNetworkMonitorTest.setOnline_isEmitted`; `checkNow_returnsConfiguredResultAndUpdatesState` (`checkNowResult = true`, `checkNow()` trả `true`, `isOnline` thành `true`, `checkNowCalls == 1`) |
 | Không có quyền mới với app | Kiểm tra trong phiên | Trước khi sửa, chạy `./gradlew :app:processStagingDebugManifest` và lưu danh sách `uses-permission` của `app/build/intermediates/merged_manifests/stagingDebug/processStagingDebugManifest/AndroidManifest.xml`; sau khi xong chạy lại và so: hai danh sách giống hệt. Ghi kết quả vào nhật ký và mô tả PR |
 | Quy tắc module (ADR-0001) | Bộ kiểm tra hiện có | `checkModuleDependencies` trong `scripts/check.sh` qua |
 | Hành vi trên máy thật | Kiểm tra thủ công (dời sang T-017) | T-016 chưa có nơi nào thu thập `isOnline`, nên bản staging không đổi gì nhìn thấy được. Khi T-017 xong: bật Wi-Fi không ra Internet, tắt mạng, bật lại, xem `adb logcat -v threadtime \| grep ' VGL\.Network'` có "Offline" sau khoảng 2 giây và "Online" ngay khi có mạng |
@@ -245,7 +242,7 @@ Mọi test thời gian dùng `runTest` và thời gian ảo (`advanceTimeBy`, `c
 
 - File hoặc thành phần dùng chung bị chạm: `settings.gradle.kts`, `app/build.gradle.kts`, `AppRemoteKeys.kt`, `RemoteConfigKeysTest.kt`, `docs/remote-config-keys.md`, `docs/remote-config-template.json`, `CLAUDE.md`. Dùng nhưng không sửa: `RemoteSettings`, `RemoteKey` (`:core:config`), `AppLogger`, `RecordingAppLogger` (`:core:logging`).
 - Phụ thuộc plan khác: **T-007** (bắt buộc, `depends_on`): `RemoteKey`, `RemoteSettings.value(key)`, `AppRemoteKeys`, `RemoteConfigKeysTest` và hai file bảng khóa phải đã merge. **T-008**: không bắt buộc; nếu đã merge thì `RemoteSettings` có thêm giá trị cục bộ của staging nhưng interface không đổi, khóa mạng không cần giá trị cục bộ (mặc định 2 dùng được trên staging).
-- Task khác trong sprint có thể xung đột: T-010 đến T-013 thêm vị trí vào `AdPlacement` và sinh lại hai file bảng khóa; T-007, T-015 sửa `app/build.gradle.kts` hoặc file build khác. Xung đột ở hai file sinh ra thì không gộp tay: lấy bản của nhánh chính rồi chạy lại lệnh ghi lại. T-017 dùng `NetworkMonitor`, `FakeNetworkMonitor` và có thể sửa `app/build.gradle.kts`.
+- Task khác trong sprint có thể xung đột: T-010 đến T-013 thêm vị trí vào `AdPlacement` và sinh lại hai file bảng khóa; T-007, T-015 sửa `app/build.gradle.kts` hoặc file build khác. Xung đột ở hai file sinh ra thì không gộp tay: lấy bản của nhánh chính rồi chạy lại lệnh ghi lại. T-017 dùng `NetworkMonitor` (bản giả của T-017 nằm trong `app/src/test`) và sửa `app/build.gradle.kts`.
 - Đề xuất thứ tự chạy: sau T-007, trước T-017. Không phụ thuộc T-009 đến T-015; có thể chạy song song với chúng nếu xử lý bảng khóa như trên.
 
 ## 7. Điều kiện dừng riêng
@@ -255,16 +252,16 @@ Mọi test thời gian dùng `runTest` và thời gian ảo (`advanceTimeBy`, `c
 - Cần sửa `build-logic/`, `gradle/libs.versions.toml` hay `scripts/check.sh` để module mới build, chạy test hay được lint (ví dụ thư viện test chưa khai báo trong `libs.versions.toml`).
 - `checkModuleDependencies` báo lỗi, hoặc cần cho feature phụ thuộc `:core:network`.
 - T-007 chưa merge, hoặc API thật khác hợp đồng (`RemoteKey.long`, `RemoteSettings.value`, `AppRemoteKeys.byModule`).
-- Lint báo lỗi ở `FakeNetworkMonitor` trong `src/main` (ví dụ không được dùng) mà chỉ tránh được bằng cách tắt quy tắc.
 
 ## 8. Câu hỏi cho người duyệt
 
 1. **Khai báo `ACCESS_NETWORK_STATE` trong manifest của `:core:network`?** Quyền đã có trong manifest gộp (Google Mobile Ads, Firebase), app không có quyền mới và khai báo Data safety không đổi. Đề xuất: khai báo, để module không phụ thuộc vào việc SDK khác vô tình mang quyền vào; plan kiểm danh sách quyền gộp không đổi. Phương án khác: không khai báo, dựa vào SDK (nếu sau này một app bỏ SDK quảng cáo thì bộ theo dõi ném `SecurityException`). Spec không nêu quyền này; nếu duyệt, đề nghị ghi một dòng vào spec mục 2 hay ADR-0024 ở PR tài liệu, ngoài T-016.
+   - Trả lời (anh Nhật, 2026-10-23): có khai báo `ACCESS_NETWORK_STATE` trong manifest của `:core:network`.
 2. **Module mới `:core:network` thay vì `:core:data`.** Đề xuất: module mới (lý do ở mục 3.1). Chi phí là một dòng ở `settings.gradle.kts`, `app/build.gradle.kts`, `CLAUDE.md`.
 3. **Giá trị đầu tiên không chờ.** Mở app khi đã mất mạng thì `isOnline` phát `false` ngay (spec KB-1: popup "hiện ngay"). Mặt trái: ngay sau khi máy vừa bật hay vừa đổi mạng, hệ thống có thể chưa xác nhận xong Internet, popup có thể hiện chốc lát rồi tự đóng. Đề xuất: giữ như vậy; nếu muốn, áp cùng thời gian chờ cho giá trị đầu (popup đầu tiên trễ 2 giây).
 4. **Giới hạn của `network_lost_delay_seconds`.** Đề xuất: giá trị âm coi là 0, không đặt trần; đặt rất lớn trên Firebase thì thực tế tắt popup, đó là quyết định của người vận hành. Có muốn đặt trần (ví dụ 30 giây) không?
 5. **"Thử lại" chỉ đọc lại trạng thái hệ thống**, không tự gửi yêu cầu thử ra Internet và không gọi `reportNetworkConnectivity` để hệ thống xác nhận lại. Đề xuất: giữ đơn giản như vậy; hệ thống tự xác nhận lại khi mạng đổi, và nguồn báo có mạng thì popup tự đóng. Nếu thấy trên máy thật "Thử lại" ít tác dụng thì làm ticket sau.
-6. **`FakeNetworkMonitor` nằm trong `src/main` của `:core:network`** (đi vào bản phát hành, như `RecordingAppLogger`). Đề xuất: đồng ý, vì bật `testFixtures` là sửa cấu hình build dùng chung. R8 bỏ lớp không dùng ở bản phát hành.
+6. **Không có `FakeNetworkMonitor` công khai.** Bản đầu của plan đặt một bản giả công khai trong `src/main` cho T-017. Rà soát độc lập (2026-10-23) bỏ đi: plan T-017 cần bản giả có `checkNow` treo hay ném lỗi và flow chưa phát gì, nên đã tự viết bản giả trong `app/src/test`; giữ cả hai là hai bản giả trùng tên, một bản không ai dùng trong `src/main`. Nếu muốn một bản giả dùng chung cho các app sau, thêm lại ở ticket sau với đủ các hành vi đó.
 
 ## 9. Quyết định duyệt
 

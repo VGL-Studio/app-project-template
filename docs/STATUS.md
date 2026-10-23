@@ -53,7 +53,7 @@ Spec: [spec.md](features/ads/spec.md) `confirmed`. Ticket: 9 `planned`.
 | [T-011](features/ads/tickets/T-011-native-trong-danh-sach.md) | Native trong danh sách | `planned` | `draft` (bản 1) | 20M | - |
 | [T-012](features/ads/tickets/T-012-native-thu-gon.md) | Native thu gọn được | `planned` | `draft` (bản 1) | 20M | - |
 | [T-013](features/ads/tickets/T-013-native-toan-man-hinh.md) | Native toàn màn hình thay interstitial | `planned` | `draft` (bản 1) | 25M | - |
-| [T-014](features/ads/tickets/T-014-man-hinh-xem-thu-quang-cao.md) | Màn hình xem thử quảng cáo chỉ ở bản staging | `planned` | `draft` (bản 1) | 30M | - |
+| [T-014](features/ads/tickets/T-014-man-hinh-xem-thu-quang-cao.md) | Màn hình xem thử quảng cáo chỉ ở bản staging | `planned` | `draft` (bản 2) | 30M | - |
 | [T-015](features/ads/tickets/T-015-mediation-applovin.md) | Mediation AdMob và AppLovin | `planned` | `draft` (bản 1) | 10M | - |
 
 Phản hồi: chưa có.
@@ -80,7 +80,7 @@ Spec: [spec.md](features/network/spec.md) `confirmed`. Ticket: 2 `planned`.
 | Ticket | Tên | Trạng thái | Plan | Ước tính token | Phiên chạy |
 | --- | --- | --- | --- | --- | --- |
 | [T-016](features/network/tickets/T-016-theo-doi-ket-noi.md) | Theo dõi có Internet dùng được, dùng chung cho cả app | `planned` | `draft` (bản 1) | 20M | - |
-| [T-017](features/network/tickets/T-017-popup-mat-mang.md) | Popup mất mạng chung và chặn vào app khi không có mạng | `planned` | `draft` (bản 1) | 20M | - |
+| [T-017](features/network/tickets/T-017-popup-mat-mang.md) | Popup mất mạng chung và chặn vào app khi không có mạng | `planned` | `draft` (bản 2) | 20M | - |
 
 Phản hồi: chưa có.
 

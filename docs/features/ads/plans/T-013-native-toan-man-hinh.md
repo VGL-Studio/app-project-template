@@ -59,17 +59,19 @@ fun rememberShowFullScreenAd(placement: AdPlacement): () -> Unit
 - Giống `rememberShowInterstitial`: không có `LocalAdsController` hay `LocalActivity` (test, preview) thì không làm gì; có thì `scope.launch { ads.showFullScreenAd(activity, placement) }`.
 - `rememberShowInterstitial` giữ nguyên chữ ký và hành vi (feature cũ vẫn chạy); KDoc trỏ sang hàm mới. Không gắn `@Deprecated` để không sinh cảnh báo ở app đang dùng.
 
-**Trạng thái quảng cáo toàn màn hình đang hiện** (file mới `FullScreenAdTracker.kt`, lớp thuần, không phụ thuộc Android):
+**Trạng thái quảng cáo toàn màn hình đang hiện** (file `FullScreenAdPresence.kt`, lớp thuần, không phụ thuộc Android). Cùng tên, cùng API với plan T-017, để task nào chạy trước cũng tạo ra đúng một lớp:
 
 ```kotlin
-internal class FullScreenAdTracker {
+internal class FullScreenAdPresence {
     val showing: StateFlow<Boolean>
-    fun tryStart(): Boolean   // false when a full-screen ad is already showing
-    fun finish()              // idempotent
+    fun onShowing()   // sets true
+    fun onClosed()    // sets false; idempotent
 }
 ```
 
-`AdsController` thêm `val fullScreenAdShowing: StateFlow<Boolean> = tracker.showing` (công khai, cho T-017), **chỉ thêm nếu chưa có**. Nếu T-017 đã thêm trước, task dùng phần sẵn có và chỉ nối native toàn màn hình vào đó.
+`AdsController` giữ một `presence` và công khai `val fullScreenAdShowing: StateFlow<Boolean> = presence.showing` (KDoc: true khi interstitial hay native toàn màn hình đang hiện; cho T-017), **chỉ thêm nếu chưa có**. Nếu T-017 đã merge trước: không tạo `FullScreenAdPresence.kt` và test của nó, dùng `presence` sẵn có (interstitial đã được T-017 nối), chỉ nối native toàn màn hình vào đó; ghi vào nhật ký. `fullScreenAdShowing` đã có mà khác tên hay kiểu hợp đồng thì dừng (mục 7).
+
+**Chống gọi chồng.** Dùng chung cờ `fullScreenInProgress` của T-009 (luồng chính) cho cả hai định dạng: cờ bật từ lúc bắt đầu kiểm tra tới lúc hiện xong hay bỏ, nên một lần gọi native trong lúc interstitial đang chờ `awaitFullScreenTurn` (và ngược lại) bị bỏ ngay. `presence.showing` phủ khoảng thời gian quảng cáo nằm trên màn hình.
 
 **Bộ nhớ quảng cáo tải sẵn có hạn dùng** (file mới `FreshAdCache.kt`, lớp thuần, kiểu tham số để test không cần SDK):
 
@@ -89,13 +91,15 @@ internal class FreshAdCache<T>(private val maxAgeMillis: Long = MAX_AGE_MILLIS, 
 
 - `internal suspend fun showFullScreenAd(activity: Activity, placement: AdPlacement): Boolean`: `INTERSTITIAL` gọi `showInterstitial` hiện có; `NATIVE_FULL_SCREEN` gọi `showNativeFullScreen(placement)`.
 - `showNativeFullScreen`, trên luồng chính, theo thứ tự:
-  1. `tracker.showing.value` đang `true`: trả `false`, log `info("Ads", "Native full-screen skipped: ANOTHER_SHOWING")`.
+  1. `fullScreenInProgress` (T-009) đang bật hay `presence.showing.value` đang `true`: trả `false`, log `info("Ads", "Native full-screen skipped: ANOTHER_SHOWING")`.
   2. Chưa có native còn hạn (`cache.hasFresh`): gọi tải sẵn, trả `false` ngay, log `NOT_READY`. Không chờ (KB-5, tiêu chí 4).
-  3. `awaitFullScreenTurn(placement)` (T-009, gồm đồng ý, công tắc tổng, vị trí bật, `FullScreenAdPacer`, chờ người dùng ngừng chạm tối đa 3 giây) trả `false`: trả `false` (lý do đã do T-009 ghi log).
-  4. `cache.take` ra `null` (vừa hết hạn trong lúc chờ): tải sẵn, trả `false`.
-  5. `tracker.tryStart()`, `onFullScreenShown()` (T-009 đếm và lưu thời điểm), đặt `_nativeFullScreenAd.value = ShownNativeFullScreenAd(placement, ad)`, log `info("Ads", "Native full-screen shown: <placement key>")`, trả `true`.
-- `internal val nativeFullScreenAd: StateFlow<ShownNativeFullScreenAd?>`; `internal fun closeNativeFullScreenAd()`: hủy quảng cáo (`destroy`), đặt `null`, `tracker.finish()`, log `"Native full-screen closed"`, tải sẵn cho lần sau.
-- Interstitial nối vào cùng `tracker`: `onAdShowedFullScreenContent` gọi `tryStart()`; `onAdDismissedFullScreenContent` và `onAdFailedToShowFullScreenContent` gọi `finish()`. Không đổi phần còn lại của `showInterstitial`.
+  3. Bật `fullScreenInProgress`, tắt trong `finally` của các bước 4 đến 6 (như `showInterstitial` của T-009).
+  4. `awaitFullScreenTurn(placement)` (T-009, gồm đồng ý, công tắc tổng, vị trí bật, `FullScreenAdPacer.check`, chờ người dùng ngừng chạm tối đa 3 giây) trả `false`: trả `false` (lý do đã do T-009 ghi log).
+  5. `cache.take` ra `null` (vừa hết hạn trong lúc chờ): tải sẵn, trả `false`.
+  6. `onFullScreenShown()` (T-009: `guard.onShown` và `FullScreenAdPacer.onShown`, đếm và lưu thời điểm), `presence.onShowing()`, đặt `_nativeFullScreenAd.value = ShownNativeFullScreenAd(placement, ad)`, log `info("Ads", "Native full-screen shown: <placement key>")`, trả `true`. Cùng thứ tự với interstitial: đếm và báo đang hiện ngay trước khi hiện.
+- Native toàn màn hình không gọi `FullScreenAdPacer` trực tiếp: mọi lần kiểm và đếm đi qua `awaitFullScreenTurn` và `onFullScreenShown`, nên dùng chung khoảng cách, ân hạn và giới hạn mỗi phiên với interstitial (T-009). Không sửa `FullScreenAdPacer.kt`.
+- `internal val nativeFullScreenAd: StateFlow<ShownNativeFullScreenAd?>`; `internal fun closeNativeFullScreenAd()`: hủy quảng cáo (`destroy`), đặt `null`, `presence.onClosed()`, log `"Native full-screen closed"`, tải sẵn cho lần sau.
+- Interstitial nối vào cùng `presence` (chỉ khi T-017 chưa nối), đúng chỗ plan T-017 ghi: `presence.onShowing()` ngay trước `ad.show(activity)`, cạnh `onFullScreenShown()`; `presence.onClosed()` trong `onAdDismissedFullScreenContent` và `onAdFailedToShowFullScreenContent`. Không đổi phần còn lại của `showInterstitial`.
 - Tải sẵn: `onConsentUpdated` hiện tải sẵn mọi vị trí `INTERSTITIAL`; đổi điều kiện lọc thành `it.format.isFullScreen` và `preloadWhenEnabled` chọn hàm tải theo định dạng. Native toàn màn hình tải bằng `AdLoader` với `NativeAdOptions`: `setAdChoicesPlacement(ADCHOICES_TOP_RIGHT)`, `setMediaAspectRatio(NativeMediaAspectRatio.ANY)`, `setVideoOptions(startMuted = true)`. Nếu T-010 đã có hàm tải native nhận `NativeAdOptions`, dùng lại hàm đó; nếu không, thêm hàm riêng `preloadNativeFullScreen(placement)` trong `AdsController`. Đã có trong bộ nhớ hay vị trí tắt thì không tải. Tải lỗi chỉ ghi `warn` (mã lỗi, không có nội dung quảng cáo).
 - Log chỉ có lý do và khóa vị trí, không có chữ của quảng cáo hay dữ liệu cá nhân (ADR-0019). Không ghi sự kiện phân tích (ADR-0022, quyết định 9).
 
@@ -138,9 +142,9 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 
 **Icon đóng:** vector `core/ads/src/main/res/drawable/ic_ads_close.xml` (24 dp, hai nét chéo 12 dp, nét 2 dp theo context), màu do `Icon(tint)` lấy từ `onSurface`. Không dùng `material-icons` (chưa có trong `gradle/libs.versions.toml`).
 
-**Commit test trước (bước 3, L-025):** commit test gồm mọi file test mới (mục 3.2), phần thêm vào `AdUnitIdsTest.kt`, và khung rỗng để test biên dịch: `AdFormat.NATIVE_FULL_SCREEN` (và nhánh mã thử trả chuỗi rỗng), `isFullScreen` trả `false`, `FullScreenAdTracker.tryStart` luôn `true` và `showing` luôn `false`, `FreshAdCache.take` trả `null`, `NativeFullScreenAdScreen` vẽ `Box` rỗng, `nativeFullScreenDialogProperties()` trả `DialogProperties()` mặc định, chuỗi `ads_close_full_screen`. Test thất bại ở phần kiểm tra, không ở biên dịch. Screenshot test thất bại vì chưa có ảnh chuẩn. Commit code ở bước 4 viết phần thật, nối `AdsController`, `MainActivity`, rồi ghi ảnh chuẩn (mục 3.2).
+**Commit test trước (bước 3, L-025):** commit test gồm mọi file test mới (mục 3.2), phần thêm vào `AdUnitIdsTest.kt`, và khung rỗng để test biên dịch: `AdFormat.NATIVE_FULL_SCREEN` (và nhánh mã thử trả chuỗi rỗng), `isFullScreen` trả `false`, `FullScreenAdPresence.showing` luôn `false` (bỏ nếu T-017 đã tạo lớp này), `FreshAdCache.take` trả `null`, `NativeFullScreenAdScreen` vẽ `Box` rỗng, `nativeFullScreenDialogProperties()` trả `DialogProperties()` mặc định, chuỗi `ads_close_full_screen`. Test thất bại ở phần kiểm tra, không ở biên dịch. Screenshot test thất bại vì chưa có ảnh chuẩn. Commit code ở bước 4 viết phần thật, nối `AdsController`, `MainActivity`, rồi ghi ảnh chuẩn (mục 3.2).
 
-**Ảnh so sánh với thiết kế (ADR-0020):** ảnh chuẩn của `:core:ads` nằm ở `core/ads/src/test/screenshots/`, không ở `feature/ads/`, nên chạy thẳng công cụ so ảnh với thư mục của module core: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/ads/design/screens core/ads/src/test/screenshots docs/features/ads/design/review`. Kết quả ghi vào `docs/features/ads/design/review/`. Nếu T-010 đã cho script của ADR-0020 nhận module core, dùng cách T-010 chọn (câu hỏi 5).
+**Ảnh so sánh với thiết kế (ADR-0020):** ảnh chuẩn của `:core:ads` nằm ở `core/ads/src/test/screenshots/`, không ở `feature/ads/`, nên chạy thẳng công cụ so ảnh với thư mục của module core, ra một thư mục tạm: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/ads/design/screens core/ads/src/test/screenshots <thư mục tạm>`. Công cụ ghi đè toàn bộ `summary.md` của thư mục đích, nên không ghi thẳng vào `docs/features/ads/design/review/` (sẽ xóa dòng của T-010, T-014). Chỉ chép hai ảnh `NativeFullScreenAdScreen_default_light_compare.png`, `NativeFullScreenAdScreen_default_dark_compare.png` và thêm hai dòng của chúng vào `review/summary.md`, giữ dòng cũ (chưa có file thì tạo). Nếu T-010 đã cho script của ADR-0020 nhận module core, dùng cách T-010 chọn (câu hỏi 5).
 
 ### 3.2. Danh sách file
 
@@ -150,10 +154,10 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | --- | --- | --- |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt` | `AdFormat.NATIVE_FULL_SCREEN`, `isFullScreen`; không thêm vị trí |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt` | Mã thử native video cho `NATIVE_FULL_SCREEN`; `testUnitFor(format)` nếu T-010 chưa tách |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `showFullScreenAd`, `showNativeFullScreen`, `nativeFullScreenAd`, `closeNativeFullScreenAd`, tải sẵn native toàn màn hình, `fullScreenAdShowing` (thêm nếu chưa có), interstitial báo `tracker` |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `showFullScreenAd`, `showNativeFullScreen` (dùng chung `fullScreenInProgress`, `awaitFullScreenTurn`, `onFullScreenShown` của T-009), `nativeFullScreenAd`, `closeNativeFullScreenAd`, tải sẵn native toàn màn hình; `presence` và `fullScreenAdShowing`, interstitial báo `presence` (thêm nếu T-017 chưa thêm) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdSlot.kt` | Chỉ KDoc của `rememberShowInterstitial` trỏ sang `rememberShowFullScreenAd`; không đổi code |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAds.kt` | `rememberShowFullScreenAd(placement)` |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdTracker.kt` | Trạng thái quảng cáo toàn màn hình đang hiện, một cái mỗi lúc |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | Trạng thái quảng cáo toàn màn hình đang hiện, cùng API với plan T-017 (bỏ nếu T-017 đã tạo) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FreshAdCache.kt` | Bộ nhớ quảng cáo tải sẵn có hạn 1 giờ |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreen.kt` | Composable không trạng thái theo thiết kế |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdHost.kt` | `FullScreenAdHost`, `NativeFullScreenAdDialog`, `nativeFullScreenDialogProperties`, phần bọc `NativeAdView` |
@@ -163,7 +167,7 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | Sửa | `app/src/main/kotlin/com/vglstudio/template/MainActivity.kt` | Đặt `FullScreenAdHost()` trong `AppTheme` |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdUnitIdsTest.kt` | Thêm `googleTestUnit_existsForEveryFormat`; không sửa test sẵn có |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdFormatTest.kt` | `isFullScreen` |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdTrackerTest.kt` | Một quảng cáo toàn màn hình mỗi lúc |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Trạng thái đang hiện, cùng tên test với plan T-017 (bỏ nếu T-017 đã tạo) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FreshAdCacheTest.kt` | Hạn dùng, thay thế, hủy |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdsTest.kt` | `rememberShowFullScreenAd` nhận đúng định dạng, không làm gì khi không có controller |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreenTest.kt` | Test giao diện Robolectric: nút đóng, vị trí, chữ, kích thước |
@@ -173,7 +177,9 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | Tạo | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_default_light.png` | Ảnh chuẩn, trùng tên ảnh thiết kế |
 | Tạo | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_default_dark.png` | Ảnh chuẩn, trùng tên ảnh thiết kế |
 | Tạo | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_max-content_small.png` | Ảnh chuẩn khung thấp (L-028) |
-| Ghi lại | `docs/features/ads/design/review/` | Ảnh so sánh và `summary.md`, sinh bằng công cụ so ảnh (mục 3.1) |
+| Tạo | `docs/features/ads/design/review/NativeFullScreenAdScreen_default_light_compare.png` | Ảnh so sánh, chép từ thư mục tạm (mục 3.1) |
+| Tạo | `docs/features/ads/design/review/NativeFullScreenAdScreen_default_dark_compare.png` | Ảnh so sánh, chép từ thư mục tạm (mục 3.1) |
+| Tạo | `docs/features/ads/design/review/summary.md` | Hai dòng `NativeFullScreenAdScreen_default_*`. Nếu T-010 hay task khác đã tạo file này: thêm hai dòng, giữ dòng cũ (thao tác thành sửa) |
 | Sửa | `CLAUDE.md` | Bước 7: `rememberShowFullScreenAd` |
 | Sửa | `docs/ops/ads-guide.md` | Mục 3 bỏ "(đợt 2)" của native toàn màn hình; mục 5 bước 4 |
 | Sửa | `docs/features/ads/tickets/T-013-native-toan-man-hinh.md` | Trạng thái ticket theo phiên tự chạy |
@@ -190,6 +196,7 @@ Nơi khác đọc các file trên (đã tìm bằng `grep -rn` trong `scripts/`,
 - `.github/ISSUE_TEMPLATE/from-app.yml`: chỉ nêu "CLAUDE.md" như một lựa chọn trong danh sách loại đề xuất, không đọc nội dung. Không ảnh hưởng, không chạm `.github/`.
 - `core/ads/src/main/res/values/strings.xml`: `scripts/new-app.sh` chỉ sửa `strings.xml` của `:app`, không đọc file của `:core:ads`.
 - `docs/STATUS.md`: `scripts/tests/run.sh` chỉ đọc bản của repo giả trong thư mục tạm.
+- `docs/features/ads/design/review/summary.md`: `.github/workflows/device-session.yml` chỉ đọc `summary.md` trong `test-sessions/` của phiên thử, không đọc file này. Script bọc sẵn của ADR-0020 xóa và sinh lại cả thư mục `review/` của feature, nhưng task không chạy script đó (chạy thẳng `DesignCompare.java` ra thư mục tạm, mục 3.1) và chỉ thêm dòng. Không ảnh hưởng, không sửa hai file này.
 - Ảnh chuẩn mới của `:core:ads`: `scripts/check.sh` tự tìm qua `captureRoboImage("src/test/screenshots/...")`, không cần sửa.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
@@ -208,15 +215,14 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 | --- | --- | --- |
 | Định dạng toàn màn hình | Unit test | `AdFormatTest.fullScreenFormats_areInterstitialAndNativeFullScreen`: `isFullScreen` đúng với đúng hai định dạng, sai với mọi định dạng còn lại của `AdFormat.entries` |
 | KB-8 (phần của task): có mã thử | Unit test | `AdUnitIdsTest.googleTestUnit_existsForEveryFormat`: mọi `AdFormat.entries` có `testUnitFor` bắt đầu bằng `ca-app-pub-3940256099942544/`; `NATIVE_FULL_SCREEN` ra `ca-app-pub-3940256099942544/1044960115` |
-| KB-5, tiêu chí 3: một cái mỗi lúc | Unit test | `FullScreenAdTrackerTest.secondStart_whileShowing_isRefused`: `tryStart()` ra `true`, lần hai ra `false`; `showing.value == true` |
-| KB-5, tiêu chí 3 | Unit test | `FullScreenAdTrackerTest.finish_allowsNextStart`: `tryStart`, `finish`, `showing.value == false`, `tryStart` ra `true` |
-| Đóng hai lần không lỗi | Unit test | `FullScreenAdTrackerTest.finishTwice_isHarmless`: `finish` khi chưa bắt đầu và gọi hai lần, `showing` vẫn `false` |
-| Popup mất mạng biết khi quảng cáo đóng (ADR-0024) | Unit test, Turbine | `FullScreenAdTrackerTest.showingFlow_emitsStartAndFinish`: phát `false`, `true`, `false` |
+| Trạng thái đang hiện (bỏ cả nhóm nếu T-017 đã tạo `FullScreenAdPresence` và test của nó) | Unit test | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse` (cùng tên với plan T-017) |
+| Popup mất mạng biết khi quảng cáo đóng (ADR-0024) | Unit test, Turbine | `FullScreenAdPresenceTest.showingFlow_emitsShowAndClose`: phát `false`, `true`, `false` |
+| KB-5, tiêu chí 3: một cái mỗi lúc | Rà soát độc lập và kiểm tra thủ công | `AdsController` gắn SDK, không có unit test (như T-009): người rà soát đọc bước 1 và 3 của `showNativeFullScreen` (bỏ khi `fullScreenInProgress` hay `presence.showing`), và chỗ interstitial gọi `presence.onShowing()`, `onClosed()`. Thủ công: dòng cuối của bảng |
 | KB-5, tiêu chí 4: chưa có thì không hiện | Unit test | `FreshAdCacheTest.emptyCache_hasNothingFresh`: `hasFresh` ra `false`, `take` ra `null` |
 | Quảng cáo còn hạn được hiện | Unit test | `FreshAdCacheTest.adWithinOneHour_isTaken`: `put` lúc 0, `take` lúc 3_599_999 ra quảng cáo đó; lần `take` sau ra `null` |
 | Quảng cáo quá 1 giờ bị bỏ | Unit test | `FreshAdCacheTest.adOlderThanOneHour_isDiscarded`: `put` lúc 0, `hasFresh` lúc 3_600_000 ra `false`, `take` ra `null`, `onDiscard` được gọi đúng một lần với quảng cáo đó |
 | Tải mới thay quảng cáo cũ | Unit test | `FreshAdCacheTest.put_replacesAndDiscardsOlderAd`: hai lần `put` cùng vị trí, quảng cáo đầu được hủy, `take` ra quảng cáo sau |
-| Chỉ nhận vị trí toàn màn hình | Compose UI test | `FullScreenAdsTest.bannerPlacement_isRejected`: gọi `rememberShowFullScreenAd(AdPlacement.SAMPLE_BOTTOM_BANNER)` (hay vị trí native small sau T-010) ném `IllegalArgumentException` |
+| Chỉ nhận vị trí toàn màn hình | Compose UI test | `FullScreenAdsTest.bannerPlacement_isRejected`: gọi `rememberShowFullScreenAd(AdPlacement.SAMPLE_NATIVE_SMALL)` (vị trí mẫu sau T-010) ném `IllegalArgumentException` |
 | Test và preview không có quảng cáo | Compose UI test | `FullScreenAdsTest.withoutController_actionDoesNothing`: không cấp `LocalAdsController`, gọi hành động trả về không ném lỗi; `FullScreenAdHost()` không tạo nút nào (`onAllNodes(isRoot().not())` rỗng) |
 | KB-5, tiêu chí 1: nút đóng thấy ngay | Compose UI test | `NativeFullScreenAdScreenTest.closeButton_isDisplayedAtFirstFrame`: `mainClock.autoAdvance = false`, không tiến đồng hồ, nút `nativeFullScreenClose` hiện, `assertIsEnabled`, có `contentDescription` "Close ad" |
 | KB-5, tiêu chí 1: ít nhất 48 dp | Compose UI test | `NativeFullScreenAdScreenTest.closeButton_isAtLeast48dp`: `assertWidthIsAtLeast(48.dp)`, `assertHeightIsAtLeast(48.dp)` |
@@ -232,7 +238,7 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 | Đối chiếu ảnh với thiết kế | Ảnh so sánh, rà soát độc lập theo mục 7 của README thiết kế | Chạy công cụ so ảnh (mục 3.1); `docs/features/ads/design/review/summary.md` có dòng cho hai ảnh `NativeFullScreenAdScreen_default_*`; người rà soát xem ảnh cạnh nhau, lệch không quá 4 dp |
 | KB-5, tiêu chí 3 và 4, nút quay lại, xoay màn hình trên máy | Kiểm tra thủ công, sau T-014 | Bản staging, màn hình xem thử: bấm "Native full screen" khi chưa tải xong thì không có gì và màn hình vẫn dùng được; bấm lại sau khi tải thì quảng cáo hiện, nút đóng bấm được ngay, nút quay lại đóng, về đúng màn hình xem thử; bấm "Interstitial" ngay sau đó thì không hiện (khoảng cách 45 giây); xoay máy khi quảng cáo đang hiện thì quảng cáo vẫn còn. `adb logcat -v threadtime \| grep ' VGL\.Ads'` thấy `Native full-screen shown`, `closed`, `skipped: NOT_READY` |
 
-`AdsController` không có unit test (gắn với SDK, như T-009 đã nêu). Phần nối (`showNativeFullScreen`, thứ tự kiểm tra, chỗ gọi `onFullScreenShown`, `tracker` của interstitial) được người rà soát độc lập đọc kỹ.
+`AdsController` không có unit test (gắn với SDK, như T-009 đã nêu). Phần nối (`showNativeFullScreen`, thứ tự kiểm tra, cờ `fullScreenInProgress`, chỗ gọi `onFullScreenShown` và `presence.onShowing()`, `presence` của interstitial) được người rà soát độc lập đọc kỹ.
 
 **Ngoại lệ viết test trước:** phần nối trong `AdsController.kt`, `NativeFullScreenAdHost.kt` (phần bọc `NativeAdView` và `MediaView`), `MainActivity.kt`, `AdSlot.kt` (chỉ KDoc), icon vector, `CLAUDE.md` và `ads-guide.md`: không có unit test vì cần SDK thật hay chỉ là tài liệu; kiểm qua build, test trên emulator có sẵn (`AppLaunchTest`: app vẫn khởi động khi có `FullScreenAdHost`) và kiểm tra thủ công sau T-014. Người duyệt cần đồng ý.
 
@@ -257,7 +263,8 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 
 ## 7. Điều kiện dừng riêng
 
-- Hợp đồng của T-009 hay T-010 khác giả định ở mục 2 (tên `awaitFullScreenTurn`, `onFullScreenShown`, `NativeAdAssets`, phần dựng `NativeAdView`): dừng, không tự viết lại phần của task khác.
+- Hợp đồng của T-009 hay T-010 khác giả định ở mục 2 (tên `awaitFullScreenTurn`, `onFullScreenShown`, `fullScreenInProgress`, `NativeAdAssets`, phần dựng `NativeAdView`): dừng, không tự viết lại phần của task khác.
+- T-017 đã thêm `fullScreenAdShowing` nhưng khác tên hay kiểu hợp đồng (`StateFlow<Boolean>`), hoặc lớp giữ trạng thái khác `FullScreenAdPresence` (`showing`, `onShowing`, `onClosed`).
 - Cần thêm thư viện (ví dụ `material-icons`, `lifecycle-process`) hay sửa `gradle/libs.versions.toml`, `build-logic/`.
 - Cần thêm vị trí vào `AdPlacement` để test hay để thử (thuộc T-014, đổi bảng khóa).
 - `NativeAdView` trong `Dialog` của Compose không nhận được lượt hiển thị hay không bấm được CTA trên emulator với mã thử, sau 3 lần sửa: dừng, ghi lại để chọn cách khác (câu hỏi 2).

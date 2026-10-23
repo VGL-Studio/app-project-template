@@ -2,7 +2,7 @@
 ticket: T-017
 title: Popup mất mạng chung và chặn vào app khi không có mạng
 status: draft                # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-21)
@@ -49,7 +49,8 @@ Giả định về các task chạy trước (giữ đúng tên của hợp đ�
 
 - T-016 đã merge: `interface NetworkMonitor { val isOnline: Flow<Boolean>; suspend fun checkNow(): Boolean }` có binding Hilt, ở `:core:data` hoặc module mới `:core:network` theo plan T-016. `isOnline` đã gồm khoảng chờ `network_lost_delay_seconds`.
 - T-009 đã merge: `AdsController` có `awaitFullScreenTurn`, `onFullScreenShown`, `onAppForeground`, `onAppBackground`; `MainActivity` gọi hai hàm sau trong `onStart`, `onStop`.
-- `AdsController.fullScreenAdShowing: StateFlow<Boolean>` thêm ở T-013 hoặc T-017, task nào chạy trước. Plan này **thêm nếu chưa có**.
+- `AdsController.fullScreenAdShowing: StateFlow<Boolean>` (từ `FullScreenAdPresence.showing`, cùng tên lớp và hàm với plan T-013) thêm ở T-013 hoặc T-017, task nào chạy trước. Plan này **thêm nếu chưa có**.
+- PR #81 đã merge: `scripts/check.sh` duyệt cả `app/`, so ảnh chuẩn của `:app` bằng `verifyRoborazziStagingDebug` (đọc `src/test` và `src/testStaging`).
 
 ## 3. Giải pháp
 
@@ -57,9 +58,9 @@ Giả định về các task chạy trước (giữ đúng tên của hợp đ�
 
 **Trạng thái quảng cáo toàn màn hình trong `:core:ads`** (thêm nếu T-013 chưa thêm):
 
-- Lớp thuần `internal class FullScreenAdPresence` trong `FullScreenAdPresence.kt`: `val showing: StateFlow<Boolean>`, `fun onShowing()`, `fun onClosed()`. Không phụ thuộc Android, test bằng unit test.
-- `AdsController` giữ một `FullScreenAdPresence` và công khai `val fullScreenAdShowing: StateFlow<Boolean> = presence.showing` (KDoc: true khi interstitial hay native toàn màn hình đang hiện). Gọi `presence.onShowing()` ngay trước `ad.show(activity)` (cạnh `onFullScreenShown()` của T-009), `presence.onClosed()` trong `onAdDismissedFullScreenContent` và `onAdFailedToShowFullScreenContent`. Không đổi gì khác trong `AdsController`.
-- Nếu T-013 đã thêm `fullScreenAdShowing` với tên và kiểu đúng hợp đồng, bỏ phần này, không tạo `FullScreenAdPresence.kt` và test của nó; ghi vào nhật ký.
+- Dùng đúng lớp mà plan T-013 mô tả, để task nào chạy trước cũng tạo ra cùng một file: lớp thuần `internal class FullScreenAdPresence` trong `FullScreenAdPresence.kt` với `val showing: StateFlow<Boolean>`, `fun onShowing()` (đặt `true`), `fun onClosed()` (đặt `false`, gọi nhiều lần không sao). Không phụ thuộc Android, test bằng unit test. Việc chống hai quảng cáo toàn màn hình chồng nhau do cờ `fullScreenInProgress` của T-009 lo, không phải lớp này.
+- `AdsController` giữ một `FullScreenAdPresence` (`presence`) và công khai `val fullScreenAdShowing: StateFlow<Boolean> = presence.showing` (KDoc: true khi interstitial hay native toàn màn hình đang hiện). Nối interstitial như plan T-013: ngay trước `show()` gọi `presence.onShowing()`; `onAdDismissedFullScreenContent` và `onAdFailedToShowFullScreenContent` gọi `presence.onClosed()`. Không đổi gì khác trong `AdsController` (native toàn màn hình do T-013 nối vào sau).
+- Nếu T-013 đã thêm `FullScreenAdPresence` và `fullScreenAdShowing` đúng tên và kiểu hợp đồng, bỏ phần này, không tạo lại file và test; ghi vào nhật ký.
 
 **Cầu nối trong `:app`** (gói `com.vglstudio.template.network`):
 
@@ -105,14 +106,14 @@ Giả định về các task chạy trước (giữ đúng tên của hợp đ�
 - `app/build.gradle.kts`: thêm plugin `alias(libs.plugins.roborazzi)` và khối `roborazzi { outputDir.set(layout.projectDirectory.dir("src/test/screenshots")) }` như convention của feature; thêm `implementation(libs.androidx.lifecycle.runtime.compose)`, `testImplementation(libs.roborazzi)`, `testImplementation(libs.roborazzi.compose)`, `testImplementation(libs.roborazzi.junit.rule)`; thêm `implementation(project(":core:network"))` (plan T-016 chọn module mới `:core:network`, nếu `:app` chưa phụ thuộc). Mọi alias đã có trong `gradle/libs.versions.toml`; không sửa file đó hay `build-logic/`. Robolectric, Compose test, coroutines test và Turbine đã có qua convention `template.android.compose` và `KotlinAndroid.kt`.
 - `app/src/test/resources/robolectric.properties`: `sdk=35` và `application=android.app.Application`, để Robolectric không dựng `TemplateApplication` (Hilt, Firebase) trong test giao diện.
 - `MainDispatcherRule` chép sang `app/src/test` (mỗi module một bản, như `:feature:loading`).
-- Screenshot test chụp cả cửa sổ `Dialog` bằng `captureScreenRoboImage("src/test/screenshots/<Tên>.png")` (Roborazzi chụp mọi cửa sổ), sau khi `setContent { AppTheme { SampleScreen(SampleUiState.Ready(count = 3), onIncrement = {}); NetworkLostDialog(...) } }`. Vì vậy `SampleScreen` của `:feature:sample` đổi từ `internal` sang công khai (thiết kế README mục 1: dựng popup đè lên `SampleScreen`); không đổi nội dung màn hình. `:app` đã phụ thuộc `:feature:sample` nên không đổi quy tắc module.
+- Screenshot test dùng `composeRule.onRoot().captureRoboImage("src/test/screenshots/<Tên>.png")`, không dùng `captureScreenRoboImage`: `scripts/check.sh` chỉ nhận lệnh `captureRoboImage("src/test/screenshots/...")` để biết module có ảnh chuẩn và chạy `verifyRoborazziStagingDebug`; gọi `captureScreenRoboImage` thì CI không so ảnh nào của `:app`. `onRoot()` chỉ chụp cửa sổ chính, nên screenshot test không mở cửa sổ `Dialog` mà dựng cùng bố cục trong một cửa sổ: `setContent { AppTheme { Box(Modifier.fillMaxSize()) { SampleScreen(SampleUiState.Ready(count = 3), onIncrement = {}); Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))); NetworkLostDialogContent(uiState, onRetry = {}, Modifier.align(Alignment.Center)) } } }` (lớp phủ đen 32% theo thiết kế mục 3; hàm dựng này nằm trong file test). Cửa sổ `Dialog` thật (không đóng được, chặn quay lại, kích thước) kiểm ở `NetworkLostDialogTest`. `SampleScreen` của `:feature:sample` đổi từ `internal` sang công khai (thiết kế README mục 1: dựng popup đè lên `SampleScreen`); không đổi nội dung màn hình. `:app` đã phụ thuộc `:feature:sample` nên không đổi quy tắc module.
 
 **Ảnh chuẩn và đối chiếu thiết kế:**
 
-- `scripts/check.sh` chỉ duyệt `core/*/` và `feature/*/`, nên ảnh chuẩn của `:app` **không được so trong CI**; unit test và test giao diện của `:app` vẫn chạy trong `testStagingDebugUnitTest`. Plan không sửa `scripts/check.sh` (file được bảo vệ). Phiên tự chạy ghi ảnh bằng `./gradlew :app:recordRoborazziStagingDebug`, rồi chạy `./gradlew :app:verifyRoborazziStagingDebug` ở bước kiểm tra cục bộ, ghi kết quả vào nhật ký. Mở rộng `check.sh` cho `:app` là việc riêng (câu hỏi 4).
+- Sau PR #81, `scripts/check.sh` duyệt cả `app/`: thấy `captureRoboImage("src/test/screenshots/...")` trong `app/src/test` thì chạy `:app:verifyRoborazziStagingDebug` trong CI, và trên máy tự ghi ảnh còn thiếu bằng `:app:recordRoborazziStagingDebug` mà không ghi đè ảnh đã có. Plan không sửa `scripts/check.sh`. T-017 cần PR #81 merge trước (mục 6, mục 7).
 - Script đối chiếu thiết kế của repo đọc ảnh ở `feature/<feature>/src/test/screenshots/`, không có thư mục `feature/network`. Phiên tự chạy gọi thẳng chương trình so ảnh với thư mục của `:app`, không sửa script: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/network/design/screens app/src/test/screenshots docs/features/network/design/review`. Commit `docs/features/network/design/review/`, ghi bảng `summary.md` và nhận xét của rà soát độc lập vào `design/README.md` mục 8 và mô tả PR. Phần dưới popup có thể khác thiết kế ở vùng quảng cáo native (test không có `AdsController`, ADR-0013); ghi rõ trong mục 8.
 
-**Commit test trước (bước 3, L-025):** commit test chứa mọi file test và bản giả trong `app/src/test` và `core/ads/src/test`, `robolectric.properties`, phần test của `app/build.gradle.kts` (plugin Roborazzi, `testImplementation`), cùng khung rỗng để test biên dịch được: `NetworkLostUiState` đầy đủ, `NetworkLostViewModel` luôn `Hidden` và không ghi gì, `screenNameOf` trả `unknown`, `NetworkLostDialog` và `NetworkLostDialogContent` rỗng, `FullScreenAdPresence` luôn `false`, `FullScreenAdStatus`, `NetworkClock`, bốn chuỗi trong `strings.xml` (cả hai ngôn ngữ, để test chữ thất bại ở phần kiểm tra chứ không ở biên dịch, vì chữ là tài nguyên), và `SampleScreen` công khai. Test thất bại ở phần kiểm tra. Commit code ở bước 4 viết phần thật, icon, Hilt module, nối vào `AdsController`, `AppNavHost`, `MainActivity`, rồi ghi ảnh chuẩn.
+**Commit test trước (bước 3, L-025):** commit test chứa mọi file test và bản giả trong `app/src/test` và `core/ads/src/test`, `robolectric.properties`, phần test của `app/build.gradle.kts` (plugin Roborazzi, `testImplementation`), cùng khung rỗng để test biên dịch được: `NetworkLostUiState` đầy đủ, `NetworkLostViewModel` luôn `Hidden` và không ghi gì, `screenNameOf` trả `unknown`, `NetworkLostDialog` và `NetworkLostDialogContent` rỗng, `FullScreenAdPresence` với `showing` luôn `false`, `FullScreenAdStatus`, `NetworkClock`, bốn chuỗi trong `strings.xml` (cả hai ngôn ngữ, để test chữ thất bại ở phần kiểm tra chứ không ở biên dịch, vì chữ là tài nguyên), và `SampleScreen` công khai. Test thất bại ở phần kiểm tra. Commit code ở bước 4 viết phần thật, icon, Hilt module, nối vào `AdsController`, `AppNavHost`, `MainActivity`, rồi ghi ảnh chuẩn.
 
 ### 3.2. Danh sách file
 
@@ -120,9 +121,9 @@ Giả định về các task chạy trước (giữ đúng tên của hợp đ�
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | Lớp thuần giữ trạng thái quảng cáo toàn màn hình đang hiện (bỏ nếu T-013 đã có `fullScreenAdShowing`) |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `fullScreenAdShowing: StateFlow<Boolean>`; gọi `onShowing` trước khi hiện, `onClosed` khi đóng hay lỗi hiện (bỏ nếu T-013 đã có) |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Test của `FullScreenAdPresence` |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | Lớp thuần giữ trạng thái quảng cáo toàn màn hình đang hiện, cùng API với plan T-013 (bỏ nếu T-013 đã tạo) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `fullScreenAdShowing: StateFlow<Boolean>`; interstitial gọi `presence.onShowing()` ngay trước `show()`, `presence.onClosed()` khi đóng hay lỗi hiện (bỏ nếu T-013 đã có) |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Test của `FullScreenAdPresence`, cùng tên test với plan T-013 (bỏ nếu T-013 đã tạo) |
 | Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkLostUiState.kt` | `Hidden`, `Shown(checking, stillOffline)` |
 | Tạo | `app/src/main/kotlin/com/vglstudio/template/network/NetworkLostViewModel.kt` | Ghép mạng, quảng cáo, màn hình; thử lại; hai sự kiện; log; `NetworkClock` |
 | Tạo | `app/src/main/kotlin/com/vglstudio/template/network/FullScreenAdStatus.kt` | `fun interface FullScreenAdStatus` |
@@ -139,7 +140,7 @@ Giả định về các task chạy trước (giữ đúng tên của hợp đ�
 | Sửa | `feature/sample/src/main/kotlin/com/vglstudio/template/feature/sample/SampleScreen.kt` | `SampleScreen` từ `internal` sang công khai, KDoc ghi lý do; không đổi nội dung |
 | Tạo | `app/src/test/resources/robolectric.properties` | `sdk=35`, `application=android.app.Application` |
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/MainDispatcherRule.kt` | Chép từ `:feature:loading` |
-| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkTestDoubles.kt` | `FakeNetworkMonitor` (flow đặt được, `checkNow` trả kết quả đặt trước hay treo tới khi thả), `FakeFullScreenAdStatus`, `FakeAnalytics` |
+| Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkTestDoubles.kt` | `FakeNetworkMonitor` riêng của test `:app` (flow chưa phát hay đặt được, `checkNow` trả kết quả đặt trước, treo tới khi thả, hay ném lỗi; plan T-016 không cung cấp bản giả công khai), `FakeFullScreenAdStatus`, `FakeAnalytics` |
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkLostViewModelTest.kt` | Unit test ViewModel |
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/network/ScreenNameTest.kt` | Unit test `screenNameOf` |
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/network/NetworkLostDialogTest.kt` | Test giao diện Robolectric |
@@ -154,7 +155,7 @@ Giả định về các task chạy trước (giữ đúng tên của hợp đ�
 | Sửa | `docs/features/network/plans/T-017-popup-mat-mang.md` | Nhật ký thực hiện |
 | Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
-Không sửa: `scripts/check.sh` và script đối chiếu thiết kế (câu hỏi 4), `gradle/libs.versions.toml`, `build-logic/`, `AndroidManifest.xml` (không thêm quyền; quyền mạng nếu cần thuộc T-016), `feature/loading/` (popup dựa vào đích điều hướng, không cần loading báo gì thêm), `app/src/androidTest/` (emulator CI có mạng nên `AppLaunchTest` không đổi; nếu popup hiện thì test vẫn qua vì tìm `sample_screen` trong cây giao diện), `docs/remote-config-keys.md` và `docs/remote-config-template.json` (T-017 không thêm khóa; `network_lost_delay_seconds` do T-016 khai báo và sinh lại), `AdSlot.kt`, `AdPlacement.kt` (không vị trí mới).
+Không sửa: `scripts/check.sh` (đã sửa ở PR #81) và script đối chiếu thiết kế, `gradle/libs.versions.toml`, `build-logic/`, `AndroidManifest.xml` (không thêm quyền; quyền mạng nếu cần thuộc T-016), `feature/loading/` (popup dựa vào đích điều hướng, không cần loading báo gì thêm), `app/src/androidTest/` (emulator CI có mạng nên `AppLaunchTest` không đổi; nếu popup hiện thì test vẫn qua vì tìm `sample_screen` trong cây giao diện), `docs/remote-config-keys.md` và `docs/remote-config-template.json` (T-017 không thêm khóa; `network_lost_delay_seconds` do T-016 khai báo và sinh lại), `AdSlot.kt`, `AdPlacement.kt` (không vị trí mới).
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
 
@@ -192,7 +193,7 @@ Unit test chạy trên JVM với `MainDispatcherRule`, `runTest` và thời gian
 | KB-2, tiêu chí 4 (đúng trạng thái trước) | Compose UI test | `NetworkLostDialogTest.closingPopup_keepsUnderlyingState`: nội dung dưới có bộ đếm `rememberSaveable` tăng lên 3, hiện rồi ẩn popup bằng biến trạng thái, bộ đếm vẫn 3 và nội dung không bị dựng lại từ đầu |
 | KB-2, đặc biệt: quảng cáo | Unit test | `NetworkLostViewModelTest.fullScreenAdShowing_holdsPopup`: quảng cáo `true`, flow phát `false`, `Hidden`, không có sự kiện; quảng cáo về `false`, `Shown()` ngay, một sự kiện `network_lost_shown` |
 | KB-2, đặc biệt: quảng cáo | Unit test | `NetworkLostViewModelTest.adStartsWhileShown_hidesWithoutRestoredEvent`: `Shown`, quảng cáo `true`, `Hidden`, không có `network_restored` |
-| KB-2, đặc biệt: quảng cáo (nguồn) | Unit test | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse` |
+| KB-2, đặc biệt: quảng cáo (nguồn) | Unit test, Turbine | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse`, `showingFlow_emitsShowAndClose` (phát `false`, `true`, `false`; cùng tên với plan T-013)
 | KB-2, đặc biệt: về từ nền | Unit test | `NetworkLostViewModelTest.appForeground_checksNowExceptFirstStart`: `onAppForeground()` lần đầu không gọi `checkNow`; lần hai gọi, trả `false`, `Shown()` |
 | KB-2, đặc biệt: về từ nền (máy) | Kiểm tra thủ công | Bản staging: ở màn hình mẫu, về màn hình chính, bật chế độ máy bay, mở lại app: popup hiện |
 | KB-3 | Unit test | `NetworkLostViewModelTest.online_neverShowsPopup`: flow phát `true`, `checkNow` trả `true`, đổi đích, `onAppForeground()`: luôn `Hidden`, không có sự kiện |
@@ -201,14 +202,14 @@ Unit test chạy trên JVM với `MainDispatcherRule`, `runTest` và thời gian
 | Sự kiện không ghi khi ẩn vì loading | Unit test | `NetworkLostViewModelTest.backToLoading_hidesWithoutRestoredEvent` |
 | Log không có dữ liệu cá nhân | Unit test | `NetworkLostViewModelTest.logsUseNetworkTag`: mọi dòng của `RecordingAppLogger` có thẻ `Network`; dòng hiện popup chứa `sample` |
 | Tên màn hình | Unit test | `ScreenNameTest`: `...navigation.SampleDestination` ra `sample`; `...LoadingDestination` ra `loading`; `com.x.AdGalleryDestination` ra `ad_gallery`; route có tham số `com.x.DetailDestination/{id}?tab={tab}` ra `detail`; `null` và `""` ra `unknown`; chuỗi 300 ký tự cắt còn 100 |
-| Đúng thiết kế, sáng | Screenshot test | `NetworkLostScreenScreenshotTest.default_light`, khung `w411dp-h891dp-xxhdpi`, `@GraphicsMode(NATIVE)`: `SampleScreen(Ready(3))` và `NetworkLostDialog(Shown())`, `captureScreenRoboImage("src/test/screenshots/NetworkLostScreen_default_light.png")` |
+| Đúng thiết kế, sáng | Screenshot test | `NetworkLostScreenScreenshotTest.default_light`, khung `w411dp-h891dp-xxhdpi`, `@GraphicsMode(NATIVE)`: `SampleScreen(Ready(3))`, lớp phủ 32% và `NetworkLostDialogContent(Shown())` (mục 3.1), `onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_default_light.png")` |
 | Đúng thiết kế, tối | Screenshot test | `NetworkLostScreenScreenshotTest.default_dark`: như trên, `AppTheme(darkTheme = true)`, `NetworkLostScreen_default_dark.png` |
 | Thử lại thất bại | Screenshot test | `NetworkLostScreenScreenshotTest.stillOffline_light`: `Shown(stillOffline = true)`, `NetworkLostScreen_stillOffline_light.png` |
 | Màn hình thấp (L-028) | Screenshot test khung `w360dp-h640dp-xxhdpi`, trạng thái nhiều nội dung nhất | `NetworkLostScreenScreenshotTest.stillOffline_small`: `Shown(stillOffline = true)`, `NetworkLostScreen_stillOffline_small.png`; nút "Thử lại" thấy trọn, không cắt |
 | Màn hình thấp (đo) | Compose UI test | `NetworkLostDialogTest.smallScreen_retryFullyVisible`: `@GraphicsMode(NATIVE)`, `@Config(qualifiers = "w360dp-h640dp-xxhdpi")`, `Shown(stillOffline = true)`: nút `network_lost_retry` `assertIsDisplayed()`, đáy nút nằm trong đáy hộp thoại; rộng hộp thoại `network_lost_dialog` là 312 dp ở khung 411 dp và không quá 312 dp ở khung 360 dp |
 | Kích thước theo thiết kế | Compose UI test | `NetworkLostDialogTest.layout_matchesDesignNumbers`: `@GraphicsMode(NATIVE)`, khung chuẩn: rộng hộp thoại 312 dp, nút cao ít nhất 52 dp và rộng 264 dp (312 trừ lề 24 x 2) |
 | Đối chiếu ảnh thiết kế | Ảnh so sánh, rà soát độc lập | Chạy `DesignCompare.java` với `app/src/test/screenshots` (mục 3.1); rà soát độc lập xem hai ảnh `*_compare.png` theo mục 7 của `design/README.md`, ghi nhận xét vào mục 8 |
-| Ảnh chuẩn đúng (CI không so) | Lệnh cục bộ | `./gradlew :app:verifyRoborazziStagingDebug` qua, ghi kết quả vào nhật ký (mục 3.1, câu hỏi 4) |
+| Ảnh chuẩn đúng | `scripts/check.sh` (sau PR #81) | `:app:verifyRoborazziStagingDebug` có trong danh sách tác vụ của `check.sh` và qua, cả trên máy lẫn CI |
 | Hilt và khởi động app | Build và test emulator có sẵn | `:app:assembleStagingDebug` qua (đồ thị Hilt đủ); `AppLaunchTest` trong CI qua |
 | Toàn bộ trên máy | Kiểm tra thủ công | Bản staging: (1) loading bật, chế độ máy bay, mở app: loading báo lỗi, không popup; (2) loading tắt (cờ cục bộ hay Remote Config staging), chế độ máy bay, mở app: popup ngay trên màn hình mẫu; (3) đang dùng, tắt mạng: popup sau khoảng 2 giây; bấm "Thử lại": dòng "vẫn chưa có mạng"; bật mạng: popup tự đóng, số đếm giữ nguyên; (4) Wi-Fi nối vào điểm phát không có Internet: popup hiện; (5) `adb logcat -v threadtime \| grep ' VGL\.Network'` thấy log hiện, đóng, thử lại; (6) Firebase DebugView không áp dụng cho bản staging với cấu hình giả (ADR-0012), sự kiện kiểm qua unit test |
 
@@ -224,30 +225,32 @@ Unit test chạy trên JVM với `MainDispatcherRule`, `runTest` và thời gian
 | --- | --- | --- |
 | A. Phạm vi thay đổi | 3 | Ba module: `:app` (nhiều file mới, `MainActivity`, `AppNavHost`, build), `:core:ads` (`AdsController`), `:feature:sample` (đổi phạm vi truy cập `SampleScreen`) |
 | B. Độ rõ của yêu cầu | 1 | Spec đã xác nhận, có thiết kế đã duyệt; AI tự quyết chữ "vẫn chưa có mạng" (không có trong thiết kế), cách hiện ngay khi rời loading, cách đặt tên `screen` (câu hỏi 1, 2, 5) |
-| C. Khả năng kiểm chứng tự động | 2 | Mọi nhánh logic và chữ có test; nhưng việc `Dialog` chặn chạm, quay lại từ nền và tương tác với quảng cáo thật chỉ kiểm thủ công; ảnh chuẩn của `:app` không được CI so (câu hỏi 4) |
+| C. Khả năng kiểm chứng tự động | 2 | Mọi nhánh logic và chữ có test, ảnh chuẩn của `:app` được CI so (sau PR #81); nhưng việc `Dialog` chặn chạm, quay lại từ nền và tương tác với quảng cáo thật chỉ kiểm thủ công, và screenshot dựng lại lớp phủ thay cho cửa sổ `Dialog` thật |
 | D. Ảnh hưởng chéo | 3 | Lớp popup nằm trên mọi màn hình của mọi feature; `AdsController.kt` cũng do T-007, T-009, T-013 sửa; `MainActivity.kt` do T-009 sửa; `SampleScreen.kt` do T-010 sửa |
-| E. Độ mới của kỹ thuật | 2 | `Dialog` không đóng được, chụp ảnh cả cửa sổ dialog bằng `captureScreenRoboImage`, test JVM đầu tiên của `:app`: phổ biến nhưng chưa có trong dự án |
+| E. Độ mới của kỹ thuật | 2 | `Dialog` không đóng được, test trên cửa sổ dialog bằng Robolectric, test JVM và ảnh chuẩn đầu tiên của `:app`: phổ biến nhưng chưa có trong dự án |
 | **Tổng** | 11 | **Mức: Cao** (chạm điểm chặn) |
 
 ## 6. Ảnh hưởng chéo
 
 - File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thêm một `StateFlow` và hai lệnh gọi), `MainActivity.kt`, `AppNavHost.kt` (chữ ký đổi, chỉ `MainActivity` gọi), `app/build.gradle.kts`, `app/src/main/res/values/strings.xml`, `SampleScreen.kt`.
-- File mà nơi khác đọc theo tên (L-020): `scripts/new-app.sh` thay dòng `app_name` trong `app/src/main/res/values/strings.xml` và sửa `app/build.gradle.kts` (đổi `applicationId`, `namespace`); plan giữ nguyên dòng `app_name` và không đụng các dòng `applicationId`, `namespace`, nên script và test của nó trong `scripts/tests/run.sh` không bị ảnh hưởng. `scripts/release.sh` nhắc tới `app/build.gradle.kts` vì truyền các tham số `-P` của bản production (khóa upload, `admobAppId`, `adUnits`, `assetsBaseUrl`) mà file build đọc; plan không đụng các khối `signingConfigs`, `productFlavors` hay phần kiểm tham số production, chỉ thêm plugin, khối `roborazzi` và dòng phụ thuộc, nên script đó không bị ảnh hưởng (plan không mở hay sửa script này, ADR-0017). `scripts/check.sh` không đọc `app/src/test` (đó là lý do câu hỏi 4). `docs/STATUS.md` do `scripts/status.py` sinh, `scripts/tests/run.sh` chỉ đọc bản trong thư mục tạm. Ảnh chuẩn mới nằm ở `app/src/test/screenshots/`, không thay ảnh chuẩn nào đã có.
+- File mà nơi khác đọc theo tên (L-020): `scripts/new-app.sh` thay dòng `app_name` trong `app/src/main/res/values/strings.xml` và sửa `app/build.gradle.kts` (đổi `applicationId`, `namespace`); plan giữ nguyên dòng `app_name` và không đụng các dòng `applicationId`, `namespace`, nên script và test của nó trong `scripts/tests/run.sh` không bị ảnh hưởng. `scripts/release.sh` nhắc tới `app/build.gradle.kts` vì truyền các tham số `-P` của bản production (khóa upload, `admobAppId`, `adUnits`, `assetsBaseUrl`) mà file build đọc; plan không đụng các khối `signingConfigs`, `productFlavors` hay phần kiểm tham số production, chỉ thêm plugin, khối `roborazzi` và dòng phụ thuộc, nên script đó không bị ảnh hưởng (plan không mở hay sửa script này, ADR-0017). `scripts/check.sh` (sau PR #81) đọc `app/src/test` để tìm lệnh `captureRoboImage("src/test/screenshots/...")`: screenshot test của plan theo đúng dạng đó. `docs/STATUS.md` do `scripts/status.py` sinh, `scripts/tests/run.sh` chỉ đọc bản trong thư mục tạm. Ảnh chuẩn mới nằm ở `app/src/test/screenshots/`, không thay ảnh chuẩn nào đã có.
 - Task khác có thể xung đột:
-  - T-016 (bắt buộc trước): cung cấp `NetworkMonitor`; nếu là module `:core:network` thì `app/build.gradle.kts` thêm phụ thuộc.
+  - T-016 (bắt buộc trước): cung cấp `NetworkMonitor` ở module `:core:network` và đã thêm `implementation(project(":core:network"))` vào `app/build.gradle.kts`.
+  - PR #81 (bắt buộc trước, không phải ticket): `scripts/check.sh` so ảnh chuẩn của `:app`.
   - T-009: sửa `AdsController.kt` và `MainActivity.kt` (`onStart`, `onStop`). T-017 thêm vào cùng `onStart`.
-  - T-013: cũng thêm `fullScreenAdShowing` (plan T-013 dùng một lớp theo dõi riêng, hợp đồng "thêm nếu chưa có"); task chạy sau bỏ phần này và dùng phần sẵn có. T-013 còn đặt `FullScreenAdHost` ở `:app`, có thể sửa `MainActivity.kt`.
+  - T-013: cũng thêm `fullScreenAdShowing` qua cùng lớp `FullScreenAdPresence` (cùng file, cùng tên test, hợp đồng "thêm nếu chưa có"); task chạy sau bỏ phần này và dùng phần sẵn có. T-013 còn đặt `FullScreenAdHost` ở `:app`, có thể sửa `MainActivity.kt`.
   - T-010: đổi đáy `SampleScreen` sang native; T-017 chỉ đổi `internal` thành công khai. Chạy sau T-010 thì ảnh chuẩn có phần dưới mới nhất.
-  - T-014: màn hình xem thử ở `app/src/staging` có thể sửa `AppNavHost.kt`.
+  - T-014: màn hình xem thử là `AdGalleryActivity` riêng ở `app/src/staging`, không sửa `MainActivity.kt` hay `AppNavHost.kt`; popup mất mạng không có trên màn hình đó (plan T-014, câu hỏi 6). Không xung đột file.
   - T-007, T-015: sửa `AdsController.kt` hay file build của `:core:ads`.
-- Đề xuất thứ tự chạy: sau T-016 (bắt buộc), sau T-009 và T-010 nếu cùng phiên; trước hay sau T-013 đều được, không cùng lúc. Nên chạy cuối chuỗi quảng cáo của phiên vì chạm nhiều file chung nhất.
+- Đề xuất thứ tự chạy: sau T-016 và PR #81 (bắt buộc), sau T-009 và T-010 nếu cùng phiên; trước hay sau T-013 đều được, không cùng lúc. Nên chạy cuối chuỗi quảng cáo của phiên vì chạm nhiều file chung nhất.
 
 ## 7. Điều kiện dừng riêng
 
 - `NetworkMonitor` của T-016 khác hợp đồng (tên, kiểu, `checkNow` không có), hay `isOnline` không gồm khoảng chờ: dừng, không tự viết bộ theo dõi hay khoảng chờ trong `:app`.
 - `fullScreenAdShowing` đã có nhưng khác tên hay kiểu hợp đồng.
 - Lint `:app:lintStagingDebug` báo `MissingTranslation` hay lỗi khác về chuỗi nằm ngoài các file của plan (ví dụ chuỗi của `:feature:loading`, `:feature:sample` vì `:app` có thư mục `values-en`): dừng, không thêm bản dịch cho module khác, không tắt quy tắc (câu hỏi 3).
-- Roborazzi không chụp được cửa sổ `Dialog` trên Robolectric (ảnh không có popup) sau 3 lần sửa.
+- PR #81 chưa merge (`scripts/check.sh` chưa duyệt `app/`): dừng, không tự sửa `check.sh`.
+- Ảnh chụp bằng `onRoot().captureRoboImage` không có popup hay lớp phủ sau 3 lần sửa.
 - Robolectric không chạy được test giao diện của `:app` mà không sửa `build-logic/` hay `gradle/libs.versions.toml`.
 - Cần sửa `scripts/check.sh` hay script đối chiếu thiết kế để task qua.
 - Popup cần biết điều gì từ `:feature:loading` ngoài đích điều hướng.
@@ -258,6 +261,7 @@ Unit test chạy trên JVM với `MainDispatcherRule`, `runTest` và thời gian
 2. **Hiện ngay khi rời loading.** `isOnline` của T-016 chỉ báo mất mạng sau 2 giây; khi loading tắt, người dùng có thể thao tác trong 2 giây đầu. AI đề xuất: lần đầu rời màn hình loading và mỗi lần app quay lại từ nền, ViewModel gọi `checkNow()` và hiện popup ngay nếu không có mạng; khoảng chờ chỉ áp dụng khi mạng rớt lúc đang dùng.
 3. **Ngôn ngữ mặc định và lint.** Chuỗi của `:app` hiện tiếng Việt ở `values/` (như `:feature:loading`), tiếng Anh ở `values-en/`. Có `values-en` thì lint có thể đòi bản tiếng Anh cho `app_name` và cho chuỗi của module khác. AI đề xuất: giữ tiếng Việt mặc định; nếu lint chỉ báo `app_name` thì đánh dấu riêng dòng đó là không dịch bằng thuộc tính trên thẻ `<resources>` mà không đổi dòng `app_name` (new-app.sh thay đúng dòng đó); nếu lint báo chuỗi của module khác thì dừng (mục 7) để nhóm chọn chiến lược ngôn ngữ chung cho dự án mẫu. Người duyệt xác nhận ngôn ngữ mặc định của dự án mẫu là tiếng Việt.
 4. **Ảnh chuẩn của `:app` không được CI so.** `scripts/check.sh` chỉ duyệt `core/` và `feature/`. AI đề xuất: chấp nhận cho T-017 (phiên tự chạy so cục bộ bằng `:app:verifyRoborazziStagingDebug` và ghi vào nhật ký), và mở một ticket riêng, rủi ro cao, để `check.sh` duyệt cả `app/` (tên task có biến thể `StagingDebug`) và để script đối chiếu thiết kế nhận thư mục ảnh của `:app`. Phương án khác: gộp sửa `check.sh` vào T-017 (thêm file được bảo vệ vào plan này).
+   - Trả lời (anh Nhật, 2026-10-23): `scripts/check.sh` đã sửa ở PR #81, so ảnh chuẩn của `:app` (`verifyRoborazziStagingDebug`, đọc cả `src/testStaging`). Bỏ phần so ảnh trên máy thay cho CI; T-017 cần PR #81 merge trước. Rà soát độc lập ghi thêm: vì `check.sh` chỉ nhận `captureRoboImage("src/test/screenshots/...")`, screenshot test đổi từ `captureScreenRoboImage` sang `onRoot().captureRoboImage` trên bố cục dựng lại (mục 3.1). Script đối chiếu thiết kế vẫn chỉ đọc `feature/<feature>/`, nên phiên tự chạy gọi thẳng `DesignCompare.java` như mục 3.1.
 5. **Tham số `screen`.** AI đề xuất rút từ `route` của đích: `sample`, `loading`, `ad_gallery`... Không cần mỗi feature khai báo tên. Đích có tham số chỉ lấy tên đích, không lấy giá trị tham số (tránh dữ liệu cá nhân).
 6. **`SampleScreen` thành công khai** chỉ để screenshot test của `:app` dựng đúng ảnh thiết kế. Phương án khác: dựng popup trên nền trống (ảnh khác thiết kế ở phần dưới, không phải sửa `:feature:sample`). AI đề xuất giữ cách trong plan vì README thiết kế ghi rõ dựng trên `SampleScreen`.
 

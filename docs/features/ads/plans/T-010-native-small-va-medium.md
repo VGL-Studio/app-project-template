@@ -44,9 +44,10 @@ ADR liên quan: ADR-0004, ADR-0008, ADR-0013, ADR-0014, ADR-0019, ADR-0020, ADR-
 
 - T-007 đã merge: `RemoteKey<T>`, `RemoteSettings.value(key)`, `AdsSettings` public có `NATIVE_LOAD_TIMEOUT_SECONDS` (`ads_native_load_timeout_seconds`, long, 10) và `placementEnabled(placement)`; `AppRemoteKeys` và test sinh `docs/remote-config-keys.md`, `docs/remote-config-template.json` lấy vị trí từ `AdPlacement.entries`.
 - T-008 đã merge: staging bật mọi vị trí của `AdPlacement`, nên `sample_native_small` tự bật trên staging.
-- T-009 đã merge (ticket chỉ ghi `depends_on: [T-007]`, nhưng plan cần): `AdsController` nhận `AppLogger`, `isEnabled(placement)` đã gồm công tắc tổng. Xem câu hỏi 5.
+- T-009 đã merge (ticket nay ghi `depends_on: [T-007, T-009]`): `AdsController` nhận `AppLogger`, `isEnabled(placement)` đã gồm công tắc tổng. Xem câu hỏi 5.
+- PR #81 đã merge (cần PR #81 merge trước): `scripts/release.sh` đọc được `AdFormat.NATIVE_SMALL`.
 
-T-009 chưa merge, hoặc API thật khác các tên trên ở điểm làm đổi danh sách file: dừng (mục 7).
+T-009 hay PR #81 chưa merge, hoặc API thật khác các tên trên ở điểm làm đổi danh sách file: dừng (mục 7).
 
 ## 3. Giải pháp
 
@@ -119,12 +120,19 @@ internal fun interface NativeAdLoader {
     fun load(unitId: String, size: NativeAdSize, onLoaded: (LoadedNativeAd) -> Unit, onFailed: (code: Int) -> Unit)
 }
 
+/** Loads one ad: Loaded or Unavailable once the request ends or times out. The caller owns a Loaded ad and destroys it. */
+internal suspend fun loadOneNativeAd(
+    loader: NativeAdLoader, unitId: String, size: NativeAdSize, timeoutMillis: Long,
+    logger: AppLogger, placementKey: String,
+): NativeAdState
+
 internal fun nativeAdStates(
     loader: NativeAdLoader, unitId: String, size: NativeAdSize, timeoutMillis: Long,
     logger: AppLogger, placementKey: String,
 ): Flow<NativeAdState>
 ```
 
+- `loadOneNativeAd` là phần tải dùng chung: chờ tối đa `timeoutMillis`, trả `Loaded` hoặc `Unavailable`; quảng cáo tới sau thời gian chờ, hay tới sau khi coroutine gọi bị hủy, bị `destroy()` ngay. Hàm không hủy quảng cáo đã trả về: người gọi giữ và hủy. `nativeAdStates` phát `Loading` rồi kết quả của `loadOneNativeAd`, và hủy quảng cáo khi luồng bị hủy. T-011 dùng `loadOneNativeAd` (qua `AdsController.loadNativeAd`) để mỗi ô trong danh sách có một quảng cáo riêng sống lâu hơn hàng của danh sách.
 - Phát `Loading` ngay. Quảng cáo tới trước thời gian chờ: `Loaded`. SDK báo lỗi: `Unavailable` ngay, không chờ hết thời gian. Hết thời gian chưa có gì: `Unavailable`; quảng cáo tới sau đó bị `destroy()` ngay, không hiện (bố cục đã thu lại, hiện ra sẽ làm nhảy màn hình).
 - Luồng bị hủy (rời màn hình, vị trí bị tắt): `awaitClose` gọi `destroy()` cho quảng cáo đã nhận.
 - Thời gian chờ âm hoặc 0 từ Remote Config: coi là 0, tức `Unavailable` ngay nếu chưa có quảng cáo (cùng cách T-009 kẹp giá trị âm về 0).
@@ -132,7 +140,7 @@ internal fun nativeAdStates(
 
 **Cài đặt bằng SDK** (file mới `SdkNativeAdLoader.kt`, `internal`): `AdLoader.Builder(context, unitId).forNativeAd { ... }.withAdListener(onAdFailedToLoad)`, `NativeAdOptions` với `setAdChoicesPlacement(ADCHOICES_TOP_RIGHT)`, medium thêm `setMediaAspectRatio(MediaAspectRatio.ANY)`, small `setRequestMultipleImages(false)`; tải bằng `ads.adRequest()` hiện có (giữ quy tắc quảng cáo không cá nhân hóa). `SdkLoadedNativeAd(nativeAd)` dựng `NativeAdAssets` từ `headline`, `advertiser`, `body`, `callToAction`, `icon?.drawable`, `mediaContent != null`, và giữ `nativeAd` để gắn vào view.
 
-**`AdsController`** (sửa): thêm `internal fun nativeAd(placement: AdPlacement): Flow<NativeAdState>`: `require` định dạng native; đọc `settings.value(AdsSettings.NATIVE_LOAD_TIMEOUT_SECONDS).first()`; lấy `unitId(placement)` (null thì phát `Unavailable`); dựng `adRequest()` một lần rồi gọi `nativeAdStates(SdkNativeAdLoader(context, request), unitId, size, timeoutMillis, logger, placement.key)`. `SdkNativeAdLoader` tạo trong `AdsController`, không qua Hilt, để không sửa module Hilt của T-009. Không đổi `showInterstitial`, `isEnabled`, việc khởi động SDK hay hộp thoại đồng ý. Cập nhật KDoc của lớp: feature dùng thêm `NativeAdSlot`.
+**`AdsController`** (sửa): thêm `internal fun nativeAd(placement: AdPlacement): Flow<NativeAdState>`: `require` định dạng native; đọc `settings.value(AdsSettings.NATIVE_LOAD_TIMEOUT_SECONDS).first()`; lấy `unitId(placement)` (null thì phát `Unavailable`); dựng `adRequest()` một lần rồi gọi `nativeAdStates(SdkNativeAdLoader(context, request), unitId, size, timeoutMillis, logger, placement.key)`. Thêm `internal suspend fun loadNativeAd(placement: AdPlacement): NativeAdState`: cùng các bước đó nhưng gọi `loadOneNativeAd`, trả `Loaded` hoặc `Unavailable` (không có mã thì `Unavailable`); người gọi giữ và hủy quảng cáo. Hàm này dành cho T-011 (một quảng cáo riêng cho mỗi ô trong danh sách); không kiểm cổng đồng ý hay bật tắt, người gọi kiểm trước như `NativeAdSlot`. `SdkNativeAdLoader` tạo trong `AdsController`, không qua Hilt, để không sửa module Hilt của T-009. Không đổi `showInterstitial`, `isEnabled`, việc khởi động SDK hay hộp thoại đồng ý. Cập nhật KDoc của lớp: feature dùng thêm `NativeAdSlot`.
 
 **Composable có trạng thái** (file mới `NativeAdSlot.kt`, public):
 
@@ -144,16 +152,16 @@ fun NativeAdSlot(placement: AdPlacement, modifier: Modifier = Modifier, keepSpac
 - `require` định dạng là `NATIVE_SMALL` hoặc `NATIVE_MEDIUM`; cỡ lấy theo `placement.format`.
 - Cổng như `AdSlot`: `LocalAdsController` rỗng, chưa `canRequestAds`, `isEnabled` là `false` hoặc không có mã: `Box(modifier)` rỗng.
 - Cỡ lấy bằng hàm thuần `internal fun requireNativeFormat(format: AdFormat): NativeAdSize` (ném `IllegalArgumentException` với định dạng không phải native).
-- Có cổng: gọi `internal NativeAdSlotHost(states = remember(placement) { ads.nativeAd(placement) }, size, keepSpaceWhenEmpty, modifier, adContent = { BoundNativeAd(it) })`. `NativeAdSlotHost` thu luồng bằng `collectAsState(NativeAdState.Loading)` (gắn với composition) rồi gọi `internal NativeAdSlotContent(state, size, keepSpaceWhenEmpty, modifier, adContent)`:
+- Có cổng: gọi `internal NativeAdSlotHost(states = remember(placement) { ads.nativeAd(placement) }, size, keepSpaceWhenEmpty, modifier, adContent = { BoundNativeAd(it, size) })`. `NativeAdSlotHost` thu luồng bằng `collectAsState(NativeAdState.Loading)` (gắn với composition) rồi gọi `internal NativeAdSlotContent(state, size, keepSpaceWhenEmpty, modifier, adContent)`:
   - `Loading`: `NativeAdPlaceholder(size)`.
   - `Loaded`: `adContent(ad)`; bản thật là `BoundNativeAd`.
   - `Unavailable`: cao 0, hoặc `Spacer` đúng chiều cao khi `keepSpaceWhenEmpty`.
-- `BoundNativeAd` (file mới `NativeAdViewBinding.kt`, `internal`): `AndroidView` tạo `NativeAdView` chứa một `ComposeView` vẽ `NativeAdLayout` với bộ nối SDK. Mỗi thành phần được bọc trong một `AndroidView` con, và view đó được gán vào `headlineView`, `advertiserView`, `bodyView`, `callToActionView`, `iconView`; media là `MediaView` gán vào `mediaView`. Sau khi mọi view đã gán mới gọi `nativeAdView.setNativeAd(nativeAd)` (yêu cầu của SDK). Làm theo mẫu Compose chính thức của Google (`googleads-mobile-android-examples`, ví dụ Jetpack Compose của native); đối chiếu lại khi làm. Feature không thấy `NativeAdView` (ADR-0022, quyết định 5).
+- `BoundNativeAd` (file mới `NativeAdViewBinding.kt`): `@Composable internal fun BoundNativeAd(ad: LoadedNativeAd, size: NativeAdSize, modifier: Modifier = Modifier)`, phần dựng một quảng cáo đã tải, tách khỏi `NativeAdSlot` để T-011 dùng lại cho ô trong danh sách. `ad` không phải `SdkLoadedNativeAd` (quảng cáo giả trong test, preview) thì vẽ `NativeAdCard(ad.assets, size, modifier)`. Với `SdkLoadedNativeAd`: `AndroidView` tạo `NativeAdView` chứa một `ComposeView` vẽ `NativeAdLayout` với bộ nối SDK. Mỗi thành phần được bọc trong một `AndroidView` con, và view đó được gán vào `headlineView`, `advertiserView`, `bodyView`, `callToActionView`, `iconView`; media là `MediaView` gán vào `mediaView`. Sau khi mọi view đã gán mới gọi `nativeAdView.setNativeAd(nativeAd)` (yêu cầu của SDK). Làm theo mẫu Compose chính thức của Google (`googleads-mobile-android-examples`, ví dụ Jetpack Compose của native); đối chiếu lại khi làm. Feature không thấy `NativeAdView` (ADR-0022, quyết định 5).
 
 **Màn hình mẫu** (`SampleScreen.kt`):
 
 - `SampleScreen(uiState, onIncrement, modifier, bottomAd: @Composable (Modifier) -> Unit = { NativeAdSlot(AdPlacement.SAMPLE_NATIVE_SMALL, it) })`. `SampleRoute` không đổi (dùng mặc định). Test truyền `NativeAdCard` hay `NativeAdPlaceholder` với quảng cáo giả, vì test không có `AdsController` nên `NativeAdSlot` không vẽ gì (ADR-0013). Xem câu hỏi 2.
-- Bố cục: `Column(fillMaxSize)`: phần nội dung hiện có trong `Column(weight(1f).verticalScroll(...))`, giữ nguyên lề `Spacing.md`, khoảng `Spacing.md`, căn giữa ngang; bên dưới, quảng cáo `fillMaxWidth()`, lề ngang và dưới `Spacing.md`, cộng `navigationBarsPadding()` vì app vẽ tràn viền (`enableEdgeToEdge`). Quảng cáo luôn ở đáy, cách nội dung cuộn được; trên màn hình thấp nội dung cuộn, nút không bị quảng cáo che.
+- Bố cục: `Column(fillMaxSize)`: phần nội dung hiện có trong `Column(weight(1f).verticalScroll(...))`, giữ nguyên lề `Spacing.md`, khoảng `Spacing.md`, căn giữa ngang; bên dưới, quảng cáo `fillMaxWidth()`, lề ngang và dưới `Spacing.md` (thiết kế: khung 379 x 72 tại 16,803, cạnh dưới cách đáy 16 dp). Không thêm `navigationBarsPadding()`: `AppNavHost` đã có `safeDrawingPadding()` nên thanh điều hướng đã được chừa. Quảng cáo luôn ở đáy, cách nội dung cuộn được; trên màn hình thấp nội dung cuộn, nút không bị quảng cáo che.
 - `bottomAd` chỉ gọi khi `uiState` là `Ready`: thiết kế ghi trạng thái tắt không có quảng cáo, nên `SampleScreen_disabled_light` giữ nguyên ảnh; `Loading` của màn hình mẫu cũng không có quảng cáo (ngắn, tránh hai hiệu ứng chờ cùng lúc).
 - `PrivacyOptionsButton` giữ trong phần nội dung, ngay sau nút và thông báo lỗi, không đặt cạnh quảng cáo.
 - Preview thêm một bản với `NativeAdCard` giả.
@@ -169,7 +177,7 @@ fun NativeAdSlot(placement: AdPlacement, modifier: Modifier = Modifier, keepSpac
 
 **Nơi đọc các file bị đổi** (L-020; `grep -rn` trên `scripts/`, `.github/`, `build-logic/`, `*/src/test`, `*/src/androidTest`, và `scripts/plan-check.py`):
 
-- `AdPlacement.kt`: `scripts/release.sh` đọc danh sách vị trí từ file này bằng biểu thức `AdFormat\.[A-Z]+`, không khớp tên có dấu gạch dưới như `AdFormat.NATIVE_SMALL`. Khi đó bước kiểm "mỗi vị trí có mã production" của script không thấy `sample_native_small` và không còn kiểm vị trí native nào. Plan không được chạm `release.sh` (CLAUDE.md, mục Không được làm); ghi thành câu hỏi 1 cho người. Bản staging và CI không bị ảnh hưởng. `scripts/tests/run.sh` có chuỗi `sample_bottom_banner` trong dữ liệu thử của `release.sh`, nhưng các ca đó bị từ chối vì lý do khác (mã thử của Google, mục sai dạng) trước bước so vị trí, nên không cần sửa.
+- `AdPlacement.kt`: `scripts/release.sh` đọc danh sách vị trí từ file này bằng biểu thức `AdFormat\.[A-Z]+`, không khớp tên có dấu gạch dưới như `AdFormat.NATIVE_SMALL`. Khi đó bước kiểm "mỗi vị trí có mã production" của script không thấy `sample_native_small` và không còn kiểm vị trí native nào. Plan không được chạm `release.sh` (CLAUDE.md, mục Không được làm). Đã sửa ở PR #81 (câu hỏi 1): cần PR #81 merge trước T-010. Bản staging và CI không bị ảnh hưởng. `scripts/tests/run.sh` có chuỗi `sample_bottom_banner` trong dữ liệu thử của `release.sh`, nhưng các ca đó bị từ chối vì lý do khác (mã thử của Google, mục sai dạng) trước bước so vị trí, nên không cần sửa.
 - `AdsController.kt`, `AdUnitIds.kt`, `SampleScreen.kt`, `core/ads/build.gradle.kts`: không script hay workflow nào đọc theo tên. Test đọc chúng là các test có trong danh sách.
 - `SampleScreen_ready_light.png`, `SampleScreen_ready_dark.png`: `scripts/check.sh` và `.github/workflows/pr-check.yml` xử lý mọi ảnh trong `src/test/screenshots` theo mẫu chung, không theo tên; `check.sh` giữ nguyên ảnh đã có, nên hai ảnh này ghi lại bằng `./gradlew :feature:sample:recordRoborazziDebug` (mục 4).
 - `CLAUDE.md`: `scripts/new-app.sh` đổi đoạn mở đầu của file khi tạo app mới; plan chỉ sửa bước 7, không chạm đoạn mở đầu, nên script không bị ảnh hưởng. Ba nơi khác chỉ nhắc tên file, không đọc nội dung: `.github/ISSUE_TEMPLATE/from-app.yml` (một lựa chọn "docs/, CLAUDE.md" trong mẫu issue), `scripts/device-session.sh` (in lời nhắc tới `docs/CLAUDE.md`, file khác), `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt` (chú thích dẫn bước 10, plan không đổi bước 10).
@@ -192,20 +200,20 @@ fun NativeAdSlot(placement: AdPlacement, modifier: Modifier = Modifier, keepSpac
 | --- | --- | --- |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt` | `AdFormat.NATIVE_SMALL`, `NATIVE_MEDIUM`; `SAMPLE_BOTTOM_BANNER` thành `SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL)`; KDoc |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt` | Mã thử native cho hai định dạng mới trong `GoogleTestAdUnitIds` |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `nativeAd(placement): Flow<NativeAdState>`; KDoc lớp |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `nativeAd(placement): Flow<NativeAdState>`, `loadNativeAd(placement): NativeAdState` (cho T-011); KDoc lớp |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdCard.kt` | `NativeAdSize`, `NativeAdAssets`, `NativeAdCard`, `NativeAdPlaceholder`, `NativeAdLayout` nội bộ, hằng số kích thước, test tag |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdLoading.kt` | `LoadedNativeAd`, `NativeAdState`, `NativeAdLoader`, `nativeAdStates` (thời gian chờ, hủy, log) |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdLoading.kt` | `LoadedNativeAd`, `NativeAdState`, `NativeAdLoader`, `loadOneNativeAd`, `nativeAdStates` (thời gian chờ, hủy, log) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/SdkNativeAdLoader.kt` | Tải bằng `AdLoader`, `NativeAdOptions`, `SdkLoadedNativeAd` |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdViewBinding.kt` | `BoundNativeAd`: `NativeAdView` bọc Compose, gán view cho từng thành phần, `MediaView`, `setNativeAd` |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdViewBinding.kt` | `BoundNativeAd(ad, size, modifier)` nội bộ: `NativeAdView` bọc Compose, gán view cho từng thành phần, `MediaView`, `setNativeAd`; quảng cáo không phải của SDK thì vẽ `NativeAdCard` |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdSlot.kt` | `NativeAdSlot(placement, modifier, keepSpaceWhenEmpty)`, `requireNativeFormat`, `NativeAdSlotHost` và `NativeAdSlotContent` nội bộ |
 | Sửa | `core/ads/src/main/res/values/strings.xml` | `ads_native_badge` = "Ad" |
 | Sửa | `core/ads/build.gradle.kts` | Plugin Roborazzi, thư mục ảnh, thư viện test Roborazzi, `implementation(project(":core:designsystem"))` |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdUnitIdsTest.kt` | Đổi tên vị trí theo `AdPlacement` mới (bắt buộc vì đổi tên, cùng kiểm tra như cũ); thêm test mã thử native |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdLoadingTest.kt` | Luồng tải, thời gian chờ, hủy, log (mục 4) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt` | Test giao diện Robolectric: thành phần, kích thước, vị trí AdChoices, chữ dài |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSlotTest.kt` | Test giao diện: cổng không có controller, `NativeAdSlotContent` theo trạng thái |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSlotTest.kt` | Test giao diện: cổng không có controller, `NativeAdSlotContent` theo trạng thái, `BoundNativeAd` với quảng cáo giả |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardScreenshotTest.kt` | Screenshot component small, medium, sáng, tối, đang tải |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeNativeAds.kt` | `FakeNativeAdLoader` (điều khiển được callback), `FakeLoadedNativeAd` (đếm `destroy`), `sampleNativeAdAssets` |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeNativeAds.kt` | `FakeNativeAdLoader` (điều khiển được callback), `FakeLoadedNativeAd` (đếm `destroy`), `sampleNativeAdAssets`; T-011 dùng lại file này |
 | Tạo | `core/ads/src/test/resources/robolectric.properties` | `sdk=35`, như `:feature:sample` |
 | Tạo | `core/ads/src/test/screenshots/NativeAdCard_small_light.png` | Ảnh chuẩn mới |
 | Tạo | `core/ads/src/test/screenshots/NativeAdCard_small_dark.png` | Ảnh chuẩn mới |
@@ -269,6 +277,8 @@ Unit test và test giao diện chạy trên JVM (Robolectric). Test có kiểm t
 | Vị trí sai định dạng bị chặn, cỡ theo định dạng | Unit test | `NativeAdSlotTest.nonNativeFormat_isRejected`: `requireNativeFormat(AdFormat.BANNER)` và `INTERSTITIAL` ném `IllegalArgumentException`; `nativeSize_followsPlacementFormat`: `NATIVE_SMALL` ra `SMALL`, `NATIVE_MEDIUM` ra `MEDIUM` |
 | KB-1, đặc biệt: hủy khi rời màn hình | Unit test | `NativeAdLoadingTest.cancelCollection_destroysLoadedAd`: nhận `Loaded`, hủy job thu thập, `destroyCount == 1`, có log `destroyed`; `cancelWhileLoading_destroysLateAd`: hủy khi đang tải, loader gọi `onLoaded` sau đó, `destroyCount == 1` |
 | KB-1, đặc biệt: hủy khi rời composition | Compose UI test | `NativeAdSlotTest.leavingComposition_destroysAd`: `NativeAdSlotHost` nhận `nativeAdStates(FakeNativeAdLoader, ...)`, loader trả `FakeLoadedNativeAd`, `adContent` vẽ `NativeAdCard` của `assets`; bỏ composable khỏi cây (`var shown by mutableStateOf(true)`, đặt `false`), `destroyCount == 1` |
+| Tải một quảng cáo cho một ô (dùng cho T-011) | Unit test | `NativeAdLoadingTest.loadOne_adBeforeTimeout_returnsLoadedAndKeepsAd`: loader gọi `onLoaded` tại 2_000 ms, trả `Loaded`, `destroyCount == 0`; `loadOne_noAd_returnsUnavailableAtTimeout`: trả `Unavailable` tại 10_000 ms, quảng cáo tới tại 12_000 ms có `destroyCount == 1`; `loadOne_cancelledWhileLoading_destroysLateAd`: hủy coroutine gọi rồi loader gọi `onLoaded`, `destroyCount == 1` |
+| Phần dựng quảng cáo đã tải với quảng cáo giả | Compose UI test | `NativeAdSlotTest.boundNativeAd_withFakeAd_drawsCard`: `BoundNativeAd(FakeLoadedNativeAd(sampleNativeAdAssets), SMALL)` có chữ tiêu đề và `CARD` cao 72 dp |
 | Log không có dữ liệu quảng cáo | Unit test | `NativeAdLoadingTest.logsHoldNoAdContent`: không dòng log nào chứa tiêu đề, nhà quảng cáo hay mã quảng cáo |
 | KB-2, tiêu chí 1: có media, ít nhất 120 x 120 dp | Compose UI test | `NativeAdCardTest.medium_hasMediaOfAtLeast120dp`: card rộng 379 dp, `MEDIA` rộng 355 dp trở lên và cao 196 dp (cả hai chiều ≥ 120 dp); `small_hasNoMedia`: `MEDIA` không có |
 | KB-2, tiêu chí 1: đúng tỷ lệ, không kéo giãn | Kiểm tra thủ công | Bản staging, mã thử native video và native ảnh (bên dưới); `FIT_CENTER` của `MediaView` có trong rà soát code |
@@ -316,18 +326,18 @@ Bảng điểm dưới đây chỉ để tham khảo:
 - File hoặc thành phần dùng chung bị chạm:
   - `:core:ads`: `AdFormat`, `AdPlacement` (đổi tên vị trí duy nhất), `GoogleTestAdUnitIds`, `AdsController` (thêm hàm, không đổi hàm cũ), `build.gradle.kts`, `strings.xml`. Mọi `when` trên `AdFormat` ngoài `AdUnitIds.kt`: hiện không có (đã `grep`).
   - Khóa Remote Config `ads_sample_bottom_banner_enabled` không còn; `ads_sample_native_small_enabled` thay thế. App đã tạo từ dự án mẫu mà vẫn dùng vị trí mẫu thì phải đổi khóa trên Firebase khi kéo thay đổi về.
-  - `scripts/release.sh` không thấy vị trí native (mục 3.1, câu hỏi 1): ảnh hưởng tới lần phát hành production đầu tiên có vị trí native của mọi app.
+  - `scripts/release.sh` cần bản sửa của PR #81 để thấy vị trí native (mục 3.1, câu hỏi 1); T-010 chạy sau khi PR #81 merge.
   - `CLAUDE.md` bước 7: mọi AI làm feature về sau đọc.
 - Task khác trong sprint có thể xung đột:
   - T-009: sửa `AdsController.kt`, `core/ads/build.gradle.kts`, `ads-guide.md`; T-010 chạy sau T-009 (giả định ở mục 2).
-  - T-011, T-012, T-013 (`depends_on: [T-010]`): dùng `NativeAdLayout`, `NativeAdSlot`, `NativeAdState`; cùng sửa `AdPlacement.kt`, `AdsController.kt`, `ads-guide.md`. T-014 thêm vị trí riêng và các ảnh của `AdGalleryScreen`, và ghi lại `docs/features/ads/design/review/` (thư mục bị sinh lại toàn bộ).
+  - T-011, T-012, T-013 (`depends_on: [T-010]`): dùng `NativeAdLayout`, `NativeAdSlot`, `NativeAdState`; T-011 dùng thêm `BoundNativeAd(ad, size, modifier)`, `AdsController.loadNativeAd`, `LoadedNativeAd` và `FakeNativeAds.kt` (giữ đúng tên này); cùng sửa `AdPlacement.kt`, `AdsController.kt`, `ads-guide.md`. T-014 thêm vị trí riêng và các ảnh của `AdGalleryScreen`, và ghi lại `docs/features/ads/design/review/` (thư mục bị sinh lại toàn bộ).
   - T-015: sửa `core/ads/build.gradle.kts`, `AdsController.kt`, `ads-guide.md`, `docs/ops/release.md`; không chạy cùng lúc.
   - T-017: dùng `AdsController` (`fullScreenAdShowing`); không đụng phần native.
 - Đề xuất thứ tự chạy: sau T-007, T-008, T-009 (và T-015 nếu cùng phiên); trước T-011, T-012, T-013, T-014. Đây là đầu của chuỗi native, nên xếp sau các task độc lập trong phiên.
 
 ## 7. Điều kiện dừng riêng
 
-1. T-009 chưa merge, hoặc sau T-007, T-009 `AdsController` không có `AppLogger`, `RemoteSettings.value`, `AdsSettings.NATIVE_LOAD_TIMEOUT_SECONDS` như mục 2: dừng, ghi API thật, sửa plan.
+1. T-009 hay PR #81 chưa merge, hoặc sau T-007, T-009 `AdsController` không có `AppLogger`, `RemoteSettings.value`, `AdsSettings.NATIVE_LOAD_TIMEOUT_SECONDS` như mục 2: dừng, ghi API thật, sửa plan.
 2. Gắn `NativeAdView` với Compose cần thư viện mới (ví dụ thư viện Compose riêng của Google cho native, hay accompanist để vẽ `Drawable`) hoặc nâng phiên bản `play-services-ads`: dừng (cần sửa `gradle/libs.versions.toml`, plan khác).
 3. Lớp kiểm tra native của SDK báo lỗi chính sách cho native small vì không có `MediaView`: dừng, không tự thêm media; hỏi người phụ trách sản phẩm (câu hỏi 7).
 4. `SampleScreen_disabled_light.png` khác ảnh cũ sau khi đổi bố cục: dừng, không ghi lại ảnh này.
@@ -338,10 +348,12 @@ Bảng điểm dưới đây chỉ để tham khảo:
 ## 8. Câu hỏi cho người duyệt
 
 1. **`scripts/release.sh` không đọc được vị trí native.** Biểu thức đọc `AdPlacement.kt` là `AdFormat\.[A-Z]+`, không khớp `AdFormat.NATIVE_SMALL`. Sau T-010, script không kiểm mã production của vị trí native nào (gồm `sample_native_small` và mọi vị trí native của app), nên bản phát hành có thể thiếu mã mà không bị chặn (app chỉ ghi log lỗi và không hiện quảng cáo). AI không được chạm `release.sh`. Đề xuất: dev sửa tay thành `AdFormat\.[A-Z_]+` trước lần phát hành production đầu tiên có native, kèm một ca thử trong `scripts/tests/run.sh`, trước hoặc cùng lúc T-010. Phương án khác: đặt tên định dạng không có gạch dưới (`NATIVESMALL`), lệch hợp đồng chung và khó đọc; AI không đề xuất.
+   - Trả lời (anh Nhật, 2026-10-23): `release.sh` đã sửa ở PR #81 (đọc định dạng có gạch dưới, bỏ qua vị trí có khóa bắt đầu bằng `gallery_`). Cần PR #81 merge trước T-010.
 2. **Cách màn hình mẫu nhận quảng cáo giả cho screenshot.** Plan thêm tham số `bottomAd` cho `SampleScreen`, mặc định là `NativeAdSlot`, test truyền `NativeAdCard` giả. Feature sau làm theo mẫu này. Phương án khác: một `CompositionLocal` của `:core:ads` để `NativeAdSlot` tự vẽ quảng cáo giả trong test, màn hình không cần tham số, nhưng thêm một API chỉ dành cho test vào module core. AI đề xuất tham số.
 3. **Khai báo "vị trí cạnh nút của app".** Spec KB-1 nói vị trí được khai báo là cạnh nút thì giữ chỗ khi không có quảng cáo. Plan dùng tham số `keepSpaceWhenEmpty` của `NativeAdSlot` (người viết màn hình biết vị trí đặt). Phương án khác: thêm thuộc tính vào `AdPlacement` (khai báo một chỗ, nhưng đổi hàm tạo của enum mà T-011 đến T-014 cũng dùng). AI đề xuất tham số.
 4. **Ô đánh dấu AdChoices trong ảnh giả.** `NativeAdCard` vẽ một ô 16 dp ở góc trên phải để screenshot giống thiết kế; quảng cáo thật không vẽ (SDK vẽ AdChoices). Đồng ý không? Nếu không, ảnh chụp sẽ thiếu ô này so với thiết kế, chấp nhận lệch ở ảnh so sánh.
 5. **Phụ thuộc T-009.** Ticket ghi `depends_on: [T-007]`, nhưng plan dùng `AppLogger` trong `AdsController` và công tắc tổng trong `isEnabled` của T-009. Đề xuất: thêm T-009 vào `depends_on` của ticket khi duyệt (người sửa), và xếp T-010 sau T-009.
+   - Rà soát độc lập (2026-10-23): đã thêm T-009 vào `depends_on` của ticket T-010; người duyệt xác nhận.
 6. **Đổi tên khóa bật tắt của vị trí mẫu.** `ads_sample_bottom_banner_enabled` thành `ads_sample_native_small_enabled`. Project Firebase staging đã đặt khóa cũ thì phải đặt khóa mới (T-008 vẫn bật sẵn trên bản build từ file giả). Đề xuất: ghi vào mô tả PR để dev cập nhật project staging; không giữ khóa cũ.
 7. **Native small không có `MediaView`.** Thiết kế và ads-guide mục 4 chọn small không có media. Chính sách native của AdMob yêu cầu hiện media chính khi quảng cáo có video hay ảnh chính; lớp kiểm tra native của SDK có thể cảnh báo. Đề xuất: làm đúng thiết kế, kiểm bằng lớp kiểm tra trên staging; có cảnh báo thì dừng (mục 7) để người phụ trách sản phẩm chọn: thêm media nhỏ vào small (đổi thiết kế) hay chỉ dùng medium.
 8. **Quảng cáo chỉ ở trạng thái `Ready` của màn hình mẫu.** Thiết kế ghi trạng thái tắt không có quảng cáo; plan cũng bỏ quảng cáo ở `Loading` (ngắn, tránh hai hiệu ứng chờ). Đồng ý không?

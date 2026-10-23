@@ -39,7 +39,7 @@ ADR liên quan: ADR-0013 (đồng ý trước khi tải quảng cáo), ADR-0014 
 
 ### 3.1. Cách làm
 
-Giả định T-007, T-009, T-010 đã merge, dùng đúng tên trong hợp đồng chung: `AdsSettings.INLIST_EVERY_COUNT`, `RemoteSettings.value(key)`, `AdsController.isEnabled(placement)` (gồm công tắc tổng, T-009), `AdFormat.NATIVE_SMALL`, `AdFormat.NATIVE_MEDIUM`, `NativeAdState` (`Loading`, `Loaded`, `Unavailable`), `NativeAdCard`, `NativeAdSize`, `NativeAdPlaceholder`, `NativeAdSlot` (T-010), `AppLogger` trong `:core:ads` (T-009).
+Giả định T-007, T-009, T-010 đã merge, dùng đúng tên trong hợp đồng chung: `AdsSettings.INLIST_EVERY_COUNT`, `RemoteSettings.value(key)`, `AdsController.isEnabled(placement)` (gồm công tắc tổng, T-009), `AdFormat.NATIVE_SMALL`, `AdFormat.NATIVE_MEDIUM`, `NativeAdState` (`Loading`, `Loaded(ad: LoadedNativeAd)`, `Unavailable`), `LoadedNativeAd` (`assets`, `destroy()`), `NativeAdCard`, `NativeAdAssets`, `NativeAdSize`, `NativeAdPlaceholder`, `NativeAdSlot`, phần dựng nội bộ `BoundNativeAd(ad, size, modifier)`, hàm tải một quảng cáo `AdsController.loadNativeAd(placement): NativeAdState`, chuỗi `R.string.ads_native_badge`, file test `FakeNativeAds.kt` (`FakeLoadedNativeAd` đếm `destroy`, `sampleNativeAdAssets`) (T-010), `AppLogger` trong `:core:ads` (T-009). `core/ads/build.gradle.kts` đã có `:core:designsystem`, Roborazzi (T-010) và `:core:logging` (T-009).
 
 **Hàm thuần (`InListAdPositions.kt`, public).**
 
@@ -70,7 +70,7 @@ internal fun inListEvery(adsAllowed: Boolean, everyCount: Long): Int?
 class InListAds internal constructor(
     val placement: AdPlacement,
     every: State<Int?>,
-    private val loader: NativeAdLoader?,
+    private val loader: InListAdLoader?,
     private val scope: CoroutineScope,
     private val logger: AppLogger?,
 ) {
@@ -80,7 +80,8 @@ class InListAds internal constructor(
     internal fun destroyAll()
 }
 
-internal fun interface NativeAdLoader {
+/** Named apart from T-010's callback-based NativeAdLoader in the same package. */
+internal fun interface InListAdLoader {
     suspend fun load(placement: AdPlacement): NativeAdState   // Loaded or Unavailable, after the load timeout
 }
 
@@ -91,9 +92,9 @@ fun rememberInListAds(placement: AdPlacement): InListAds
 - `rememberInListAds` kiểm `placement.format` là `NATIVE_SMALL` hoặc `NATIVE_MEDIUM` bằng `require` (như `AdSlot` kiểm banner), qua hàm nội bộ `requireInListFormat(format)` để test được. Không có `LocalAdsController` (test, preview) thì `every` là null, `loader` là null: không chèn gì.
 - `every` lấy từ `AdsController.inListEvery(placement): Flow<Int?>` (hàm nội bộ mới): ghép `canRequestAds`, `isEnabled(placement)` và `settings.value(AdsSettings.INLIST_EVERY_COUNT)` rồi gọi `inListEvery(...)`. Thu bằng `collectAsStateWithLifecycle(initialValue = null)`: chưa biết thì chưa chèn, tránh danh sách nhảy khi giá trị đến.
 - `slot(index)` dùng một `mutableMapOf<Int, MutableState<NativeAdState>>`: lần đầu tạo trạng thái `Loading` và chạy `loader.load(placement)` trong `scope` (của `rememberCoroutineScope` ở mức màn hình); lần sau trả trạng thái đã có. Ô `Unavailable` không tải lại khi cuộn qua lại; vào lại màn hình thì tải mới.
-- `rememberInListAds` có `DisposableEffect` gọi `destroyAll()` khi rời màn hình: hủy mọi `NativeAd` trong trạng thái `Loaded`, hủy việc tải đang chạy, xóa map.
+- `rememberInListAds` có `DisposableEffect` gọi `destroyAll()` khi rời màn hình: gọi `destroy()` cho mọi `LoadedNativeAd` trong trạng thái `Loaded`, hủy việc tải đang chạy, xóa map.
 - Log (ADR-0019, thẻ `Ads`, như T-009): một dòng `INFO` cho kết quả tải mỗi ô, dạng `in-list <placement.key> slot <index>: LOADED` hoặc `UNAVAILABLE`. Không ghi nội dung quảng cáo. Không log mỗi lần cuộn.
-- `AdsController` thêm `internal suspend fun loadNativeAd(placement): NativeAdState` (tải một quảng cáo riêng, chờ tối đa `NATIVE_LOAD_TIMEOUT_SECONDS`) **nếu T-010 chưa có hàm tải một lần**; có rồi thì dùng lại. `NativeAdLoader` của màn hình thật là `ads::loadNativeAd`. Lý do không dùng luồng tải theo vị trí của `NativeAdSlot`: mọi ô của một vị trí trong danh sách phải có quảng cáo riêng (một quảng cáo không hiện hai chỗ), và phải sống lâu hơn hàng của danh sách.
+- Tải một quảng cáo riêng cho mỗi ô: `AdsController.loadNativeAd(placement)` của T-010 (chờ tối đa `NATIVE_LOAD_TIMEOUT_SECONDS`, quảng cáo tới muộn hay tới sau khi hủy do T-010 hủy; quảng cáo `Loaded` thuộc về người gọi). `InListAdLoader` của màn hình thật là `InListAdLoader(ads::loadNativeAd)`. T-011 không thêm hàm tải nào. Lý do không dùng luồng tải theo vị trí của `NativeAdSlot`: mọi ô của một vị trí trong danh sách phải có quảng cáo riêng (một quảng cáo không hiện hai chỗ), và phải sống lâu hơn hàng của danh sách.
 
 **Hàm chèn vào danh sách và lưới (`InListAds.kt`, public).**
 
@@ -116,11 +117,11 @@ fun <T> LazyGridScope.itemsWithInListAds(
 )
 ```
 
-- Hai hàm trên gọi hai hàm nội bộ cùng tên gốc nhận sẵn `positions: List<Int>` và `adContent: @Composable (slot: Int) -> Unit`. Test dùng hàm nội bộ với quảng cáo giả (`NativeAdCard` và `NativeAdAssets` giả của T-010), không cần SDK.
+- Hai hàm trên gọi hai hàm nội bộ cùng tên gốc nhận sẵn `positions: List<Int>` và `adContent: @Composable (slot: Int) -> Unit`. Test dùng hàm nội bộ với quảng cáo giả (`NativeAdCard` với `sampleNativeAdAssets` trong `FakeNativeAds.kt` của T-010), không cần SDK.
 - Duyệt mục theo thứ tự, gặp vị trí trong `positions` thì thêm một hàng quảng cáo. Khóa của hàng quảng cáo là một `private data class InListAdKey(placementKey: String, slot: Int)` để không trùng khóa của mục; `contentType` là một đối tượng riêng `InListAdContentType` để Compose không dùng lại khung của mục cho quảng cáo.
 - Lưới: N thực dùng là `gridAdEvery(every, columns)`; hàng quảng cáo `span = { GridItemSpan(maxLineSpan) }`, rộng hết lưới. Lưới không biết số cột khi dựng danh sách nên người gọi truyền `columns` (câu hỏi 2).
-- Nội dung một hàng quảng cáo (`InListAdRow(ads, slot)`, nội bộ): đọc `ads.slot(slot)`; `Loading` thì `NativeAdPlaceholder(size)`, `Loaded` thì phần dựng quảng cáo đã tải của T-010, `Unavailable` thì không vẽ gì. Hai trạng thái đầu bọc `Modifier.padding(vertical = Spacing.md)` (khung "In-list ad slot", lề trên dưới 16); `Unavailable` không có lề nên hàng cao 0 dp. `size` theo `placement.format`.
-- Phần dựng quảng cáo đã tải: T-011 dùng hàm nội bộ của T-010 vẽ một `NativeAd` đã tải trong `NativeAdView` (phần sau khi `NativeAdSlot` có trạng thái `Loaded`). T-011 chỉ đọc file của T-010, không sửa. T-010 không tách phần này ra hàm riêng thì dừng (mục 7, câu hỏi 4).
+- Nội dung một hàng quảng cáo (`InListAdRow(ads, slot)`, nội bộ): đọc `ads.slot(slot)`; `Loading` thì `NativeAdPlaceholder(size)`, `Loaded` thì `BoundNativeAd(state.ad, size)` của T-010, `Unavailable` thì không vẽ gì. Hai trạng thái đầu bọc `Modifier.padding(vertical = Spacing.md)` (khung "In-list ad slot", lề trên dưới 16); `Unavailable` không có lề nên hàng cao 0 dp. `size` theo `placement.format`.
+- Phần dựng quảng cáo đã tải: `BoundNativeAd(ad, size, modifier)` nội bộ của T-010 (`NativeAdViewBinding.kt`), vẽ quảng cáo của SDK trong `NativeAdView`, quảng cáo giả thì vẽ `NativeAdCard`. T-011 chỉ đọc file của T-010, không sửa. Tên hay chữ ký khác thì dừng (mục 7).
 
 **Ví dụ dùng (đưa vào `ads-guide.md`):**
 
@@ -136,7 +137,7 @@ LazyColumn { itemsWithInListAds(photos, ads, key = { it.id }) { PhotoRow(it) } }
 **Thứ tự commit (L-025):**
 
 1. Commit test (bước 3): `InListAdPositionsTest.kt`, `InListAdsStateTest.kt`, `InListAdsTest.kt`. Không biên dịch được vì `inListAdPositions`, `InListAds`, `itemsWithInListAds` chưa có: đó là lý do thất bại mong đợi, ghi vào nhật ký.
-2. Commit code (bước 4): `InListAdPositions.kt`, `InListAds.kt`, `AdsController.kt`, và `core/ads/build.gradle.kts` nếu cần.
+2. Commit code (bước 4): `InListAdPositions.kt`, `InListAds.kt`, `AdsController.kt`.
 3. Commit tài liệu: `docs/ops/ads-guide.md`.
 
 ### 3.2. Danh sách file
@@ -144,15 +145,14 @@ LazyColumn { itemsWithInListAds(photos, ads, key = { it.id }) { PhotoRow(it) } }
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InListAdPositions.kt` | `inListAdPositions`, `gridAdEvery` (public), `inListEvery` (internal) |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InListAds.kt` | `InListAds`, `NativeAdLoader`, `rememberInListAds`, `requireInListFormat`, `itemsWithInListAds` cho `LazyListScope` và `LazyGridScope` (public và bản nội bộ nhận `positions`, `adContent`), `InListAdRow`, `InListAdKey`, `InListAdContentType` |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `internal fun inListEvery(placement): Flow<Int?>`; `internal suspend fun loadNativeAd(placement): NativeAdState` nếu T-010 chưa có hàm tải một lần |
-| Sửa | `core/ads/build.gradle.kts` | Chỉ khi T-010 chưa thêm: `implementation(project(":core:designsystem"))` cho `Spacing`, `implementation(project(":core:logging"))` cho `AppLogger` nếu T-009 chưa thêm. Không thêm thư viện mới (`LazyGrid` có trong Compose foundation) |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InListAds.kt` | `InListAds`, `InListAdLoader`, `rememberInListAds`, `requireInListFormat`, `itemsWithInListAds` cho `LazyListScope` và `LazyGridScope` (public và bản nội bộ nhận `positions`, `adContent`), `InListAdRow`, `InListAdKey`, `InListAdContentType` |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `internal fun inListEvery(placement): Flow<Int?>` |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InListAdPositionsTest.kt` | Unit test hàm thuần |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InListAdsStateTest.kt` | Unit test giữ, tải một lần, hủy quảng cáo của từng ô, log |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InListAdsTest.kt` | Test giao diện Robolectric của hàm chèn cho `LazyColumn` và `LazyVerticalGrid` |
 | Sửa | `docs/ops/ads-guide.md` | Mục 3: in-list có trong `:core:ads`; mục 5 bước 4: cách dùng, ví dụ, N ở lưới |
 
-Không có ảnh chuẩn screenshot (ảnh `AdGalleryScreen_inlist_light` thuộc T-014; `:core:ads` không có Roborazzi). Không sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json` (không đổi khóa, không đổi vị trí). Không sửa `docs/STATUS.md` trong task (phiên tự chạy sinh lại trong PR báo cáo).
+Không có ảnh chuẩn screenshot (ảnh `AdGalleryScreen_inlist_light` thuộc T-014; T-010 đã thêm Roborazzi cho `:core:ads` nhưng T-011 không ghi ảnh). Không sửa `core/ads/build.gradle.kts`: phụ thuộc cần đã có từ T-009, T-010, `LazyGrid` có trong Compose foundation. Không sửa file của T-010. Không sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json` (không đổi khóa, không đổi vị trí). Không sửa `docs/STATUS.md` trong task (phiên tự chạy sinh lại trong PR báo cáo).
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu
 
@@ -176,14 +176,14 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 | Lưới: hàng quảng cáo không để hàng trên thiếu ô | Unit test | `InListAdPositionsTest.gridAdEvery_roundsUpToWholeRows`: `(3, 2) -> 4`, `(8, 2) -> 8`, `(8, 3) -> 9`, `(5, 1) -> 5`, `(5, 0) -> 5` |
 | KB-1 đặc biệt: chưa đồng ý hay vị trí tắt thì không chiếm chỗ | Unit test | `InListAdPositionsTest.inListEvery_nullWhenAdsNotAllowedOrBadValue`: `(false, 8) -> null`, `(true, 0) -> null`, `(true, -3) -> null`, `(true, Int.MAX_VALUE + 1L) -> null`, `(true, 8) -> 8` |
 | Chỉ native small hay medium | Unit test | `InListAdsStateTest.requireInListFormat_rejectsOtherFormats`: `BANNER`, `INTERSTITIAL` ném `IllegalArgumentException`; `NATIVE_SMALL`, `NATIVE_MEDIUM` qua |
-| Cuộn qua lại không tải lại (ads-guide.md, mục 6) | Unit test | `InListAdsStateTest.slot_loadsOnce_reusedOnSecondCall`: `NativeAdLoader` giả đếm số lần gọi; `slot(0)` hai lần thì loader được gọi một lần, trạng thái từ `Loading` sang `Loaded` (dùng `StandardTestDispatcher`, `advanceUntilIdle`) |
-| Mỗi ô một quảng cáo riêng | Unit test | `InListAdsStateTest.twoSlots_twoSeparateLoads`: `slot(0)`, `slot(1)` thì loader được gọi hai lần, hai trạng thái giữ hai `NativeAd` khác nhau (`mockk<NativeAd>(relaxed = true)`) |
+| Cuộn qua lại không tải lại (ads-guide.md, mục 6) | Unit test | `InListAdsStateTest.slot_loadsOnce_reusedOnSecondCall`: `InListAdLoader` giả trả `Loaded(FakeLoadedNativeAd(sampleNativeAdAssets))`, đếm số lần gọi; `slot(0)` hai lần thì loader được gọi một lần, trạng thái từ `Loading` sang `Loaded` (dùng `StandardTestDispatcher`, `advanceUntilIdle`) |
+| Mỗi ô một quảng cáo riêng | Unit test | `InListAdsStateTest.twoSlots_twoSeparateLoads`: `slot(0)`, `slot(1)` thì loader được gọi hai lần, hai trạng thái giữ hai `FakeLoadedNativeAd` khác nhau |
 | Ô không có quảng cáo không tải lại trên cùng màn hình | Unit test | `InListAdsStateTest.unavailableSlot_notRetriedOnSameScreen`: loader trả `Unavailable`, gọi `slot(0)` lần nữa thì không gọi loader thêm |
-| KB-1 đặc biệt: rời màn hình thì hủy | Unit test | `InListAdsStateTest.destroyAll_destroysEveryLoadedAd_andCancelsPendingLoads`: hai ô `Loaded` thì `verify { ad.destroy() }` cho từng `NativeAd`; một ô đang tải (loader treo bằng `CompletableDeferred`) thì việc tải bị hủy, quảng cáo về sau (nếu có) không được giữ |
+| KB-1 đặc biệt: rời màn hình thì hủy | Unit test | `InListAdsStateTest.destroyAll_destroysEveryLoadedAd_andCancelsPendingLoads`: hai ô `Loaded` thì `destroyCount == 1` cho từng `FakeLoadedNativeAd`; một ô đang tải (loader treo bằng `CompletableDeferred`) thì việc tải bị hủy, quảng cáo về sau (nếu có) không được giữ |
 | Log kết quả tải (ADR-0019) | Unit test | `InListAdsStateTest.slotResult_isLoggedOnceWithoutAdContent`: `RecordingAppLogger` có đúng một dòng `INFO` thẻ `Ads` chứa `slot 0` và `LOADED`, không chứa headline của quảng cáo giả |
 | KB-3, thứ tự trong `LazyColumn` (N = 3, 7 mục) | Compose UI test | `InListAdsTest.lazyColumn_sevenItemsEveryThree_adRowsAfterItems3And6`: hàm nội bộ với `positions = inListAdPositions(7, 3)`; `inlist_ad_0` nằm dưới `item_3` và trên `item_4` (so `getBoundsInRoot`); cuộn tới `inlist_ad_1` (`performScrollToNode`) thì nó nằm dưới `item_6` và trên `item_7`; tổng số hàng quảng cáo là 2 |
 | KB-3, ít hơn N mục thì không có, trong danh sách | Compose UI test | `InListAdsTest.lazyColumn_fewerItemsThanEvery_noAdRow`: 7 mục, N = 8: `onAllNodesWithTag("inlist_ad_0")` rỗng, `onAllNodesWithText("Ad")` rỗng |
-| KB-3, nhãn "Ad" rõ trong ô chèn | Compose UI test | `InListAdsTest.adRow_showsAdLabel`: `onNode(hasText("Ad") and hasAnyAncestor(hasTestTag("inlist_ad_0"))).assertExists()`; chữ "Ad" lấy từ chuỗi tài nguyên của T-010, không viết cứng ngoài test |
+| KB-3, nhãn "Ad" rõ trong ô chèn | Compose UI test | `InListAdsTest.adRow_showsAdLabel`: `onNode(hasText("Ad") and hasAnyAncestor(hasTestTag("inlist_ad_0"))).assertExists()`; chữ "Ad" lấy từ `R.string.ads_native_badge` của T-010, không viết cứng ngoài test |
 | KB-3, không nhầm với mục: cách mục 16 dp | Compose UI test, `NATIVE` | `InListAdsTest.adRow_isSixteenDpFromItemsAboveAndBelow`: khoảng từ đáy `item_3` tới đỉnh `NativeAdCard` trong `inlist_ad_0`, và từ đáy thẻ tới đỉnh `item_4`, đều bằng 16 dp (sai số 0.5 dp) |
 | Ô hết thời gian chờ thì thu lại, không để khoảng trống | Compose UI test | `InListAdsTest.unavailableSlot_takesNoHeight`: `InListAdRow` với `InListAds` có loader giả trả `Unavailable`: đỉnh `item_4` sát đáy `item_3` (khoảng 0 dp) |
 | Đang tải giữ chỗ | Compose UI test | `InListAdsTest.loadingSlot_showsPlaceholderOfSmallHeight`: loader treo, hàng quảng cáo cao 72 dp + 2 x 16 dp (chiều cao giữ chỗ small của thiết kế) |
@@ -193,7 +193,7 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 | KB-3 với quảng cáo thật, N đổi từ xa | Kiểm tra thủ công (sau T-014) | Trên bản staging, màn hình xem thử, phần in-list: thấy quảng cáo thử của Google sau mỗi N mục, có nhãn "Ad"; cuộn xuống rồi lên, `adb logcat -v threadtime \| grep ' VGL\.Ads'` không có dòng tải mới cho ô đã tải; rời màn hình rồi vào lại thì tải mới. Đổi `ads_inlist_every_count` (giá trị cục bộ T-008 hoặc Remote Config staging) thì lần cập nhật sau khoảng cách đổi theo |
 | Đúng thiết kế `AdGalleryScreen_inlist_light` | Screenshot test (thuộc T-014) | T-014 ghi `AdGalleryScreen_inlist_light.png` và ảnh `_small`, chạy so sánh với ảnh thiết kế. T-011 không ghi ảnh |
 
-**Ngoại lệ viết test trước:** sửa `docs/ops/ads-guide.md` chỉ là tài liệu, không có test. Phần bọc `NativeAdView` cho quảng cáo đã tải là của T-010, không test lại ở đây; phần gọi SDK trong `loadNativeAd` (nếu T-011 phải thêm) không có test JVM vì cần SDK quảng cáo thật, kiểm thủ công sau T-014.
+**Ngoại lệ viết test trước:** sửa `docs/ops/ads-guide.md` chỉ là tài liệu, không có test. Phần bọc `NativeAdView` (`BoundNativeAd`) và `AdsController.loadNativeAd` là của T-010, không test lại ở đây; hai phần đó với quảng cáo thật kiểm thủ công sau T-014.
 
 ## 5. Chấm rủi ro
 
@@ -210,15 +210,15 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 
 ## 6. Ảnh hưởng chéo
 
-- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thêm hai hàm nội bộ, không đổi hàm có sẵn); có thể `core/ads/build.gradle.kts` (chỉ thêm phụ thuộc module core đã có, nếu T-009, T-010 chưa thêm); `docs/ops/ads-guide.md` (T-010 cũng sửa). Đọc, không sửa: file native của T-010.
+- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thêm một hàm nội bộ, không đổi hàm có sẵn); `docs/ops/ads-guide.md` (T-010 cũng sửa). Đọc, không sửa: file native của T-010 (`BoundNativeAd`, `loadNativeAd`, `FakeNativeAds.kt`).
 - Task khác trong sprint có thể xung đột: T-010 (tạo `NativeAdSlot`, `NativeAdState`, sửa `AdsController.kt`, `ads-guide.md`), T-012 và T-013 (sửa `AdsController.kt`, `ads-guide.md`), T-014 (dùng `rememberInListAds`, `itemsWithInListAds` cho phần in-list, ghi ảnh `AdGalleryScreen_inlist_light`), T-017 (có thể thêm `fullScreenAdShowing` vào `AdsController.kt`).
 - Đề xuất thứ tự chạy: sau T-007, T-009, T-010 (phụ thuộc trực tiếp); trước T-014. Có thể chạy trước hay sau T-012, T-013; chạy liền nhau thì rebase `AdsController.kt` (các phần thêm không chồng nhau).
 
 ## 7. Điều kiện dừng riêng
 
-- T-010 đã merge mà không có hàm nội bộ vẽ một `NativeAd` đã tải (phần dựng nằm liền trong `NativeAdSlot`): dừng, không tự sửa file của T-010 vì không có trong danh sách; đề xuất tách hàm đó trong plan bản 2 (câu hỏi 4).
+- T-010 đã merge mà không có `BoundNativeAd(ad: LoadedNativeAd, size, modifier)` nội bộ hay `AdsController.loadNativeAd(placement): NativeAdState` đúng như mục 3.1: dừng, không tự sửa file của T-010 vì không có trong danh sách.
 - `NativeAdState`, `NativeAdCard`, `NativeAdPlaceholder` hay `AdsSettings.INLIST_EVERY_COUNT` có tên hoặc dạng khác hợp đồng chung đến mức phải đổi API công khai của plan này.
-- Cần thêm thư viện ngoài Compose foundation đã có, hay cần sửa `build-logic/` để `:core:ads` chạy được test Robolectric.
+- Cần thêm thư viện ngoài Compose foundation đã có, hay cần sửa `core/ads/build.gradle.kts` hoặc `build-logic/` để `:core:ads` chạy được test Robolectric.
 - Thiết kế hay spec đọc ra cách đặt khác mục 2 (ví dụ quảng cáo đầu tiên ngay sau mục 1).
 
 ## 8. Câu hỏi cho người duyệt
@@ -231,6 +231,7 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
    - Đề xuất của AI: có. Chỉ ô người dùng đã cuộn tới mới tải, nên số quảng cáo giữ bằng số ô đã thấy; danh sách rất dài mới cần giới hạn, khi đó thêm ở ticket sau.
 4. **T-010 cần có một hàm nội bộ vẽ một `NativeAd` đã tải (tách khỏi `NativeAdSlot`) để T-011 dùng lại.**
    - Đề xuất của AI: khi duyệt plan T-010, xác nhận plan đó có hàm này. Nếu không, plan T-011 thêm file native của T-010 vào danh sách sửa trước khi duyệt.
+   - Rà soát độc lập (2026-10-23): đã khớp. Plan T-010 có `BoundNativeAd(ad, size, modifier)` nội bộ và `AdsController.loadNativeAd(placement)` (dựa trên `loadOneNativeAd`) cho T-011; T-011 đổi tên giao diện tải của mình thành `InListAdLoader` để không trùng `NativeAdLoader` của T-010.
 5. **Có đặt mức N tối thiểu không (ví dụ không dưới 3)?** Hiện N = 1 trên Firebase nghĩa là quảng cáo xen giữa mọi mục.
    - Đề xuất của AI: không chặn trong code (giá trị là quyết định của người vận hành, ADR-0023); ghi khuyến nghị N ít nhất 5 trong `ads-guide.md`. Nếu muốn chặn cứng thì `inListEvery` trả null khi N nhỏ hơn mức tối thiểu.
 

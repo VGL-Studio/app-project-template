@@ -8,7 +8,7 @@ owner: Nhật
 status: planned
 risk: high
 size: L
-depends_on: [T-007]
+depends_on: [T-007, T-009]
 sprint:
 plan: features/ads/plans/T-010-native-small-va-medium.md
 created: 2026-10-21
