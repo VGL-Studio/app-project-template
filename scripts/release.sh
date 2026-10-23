@@ -3,6 +3,7 @@
 # The person then uploads the bundle in Play Console. Nothing here runs on GitHub.
 #
 # Usage:  scripts/release.sh [--commit <sha>] [--config <folder>]
+#         scripts/release.sh --list-placements <AdPlacement.kt>   (tests: print the keys that need a production ad unit)
 #   --commit  commit of main to release; default: the latest commit of origin/main.
 #   --config  release folder copied from the team's password manager;
 #             default: ~/.vgl-release/<applicationId>.
@@ -19,7 +20,8 @@
 # Only commits of main that passed main-guard.yml are built (commits touching docs only reuse the run of
 # the code below them). The build runs in a temporary worktree, so local changes never reach a release.
 #
-# Written during the template phase only. AI never changes this file afterwards (ADR-0009).
+# Written during the template phase only. AI never changes this file afterwards (ADR-0009), except when the
+# release owner allows it for one session (2026-10-23: native formats and staging-only placements).
 # Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
@@ -32,6 +34,18 @@ TEST_PUBLISHER="3940256099942544"
 STAGING_PROJECT_ID="fake-staging-project"
 BUNDLE="app/build/outputs/bundle/productionRelease/app-production-release.aab"
 MAPPING="app/build/outputs/mapping/productionRelease/mapping.txt"
+
+# Placement keys that need a production ad unit, from AdPlacement.kt on stdin: one per enum line
+# NAME("key", AdFormat.FORMAT). Formats may contain underscores (NATIVE_SMALL). Keys starting with gallery_ belong
+# to the staging-only ad gallery (docs/ops/ads-guide.md) and never ship, so they need no production unit.
+placement_keys() {
+  sed -nE 's/^[[:space:]]*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z_]+\),?$/\1/p' | { grep -v '^gallery_' || true; }
+}
+if [ "${1:-}" = "--list-placements" ]; then
+  [ "$#" -eq 2 ] || die "cách dùng: scripts/release.sh --list-placements <AdPlacement.kt>"
+  placement_keys < "$2"
+  exit 0
+fi
 
 commit_arg=""
 config_dir=""
@@ -137,7 +151,7 @@ jq -e --arg pkg "$app_id" 'any(.client[]; .client_info.android_client_info.packa
   die "google-services.json là file cấu hình giả của staging."
 placement_file="$(git ls-tree -r --name-only "$target" core/ads/src/main | grep '/AdPlacement\.kt$' | head -n 1)"
 [ -n "$placement_file" ] || die "không tìm thấy AdPlacement.kt trong :core:ads."
-placements="$(git show "$target:$placement_file" | sed -nE 's/^[[:space:]]*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z]+\),?$/\1/p')"
+placements="$(git show "$target:$placement_file" | placement_keys)"
 missing=""
 for key in $placements; do
   case " $configured_keys " in *" $key "*) ;; *) missing="$missing $key" ;; esac

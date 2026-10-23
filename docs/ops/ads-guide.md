@@ -74,7 +74,7 @@ Quy tắc chung:
 Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có vị trí đó (ADR-0004).
 
 1. **Spec:** mục Quảng cáo ghi vị trí, định dạng, màn hình, thời điểm, giới hạn tần suất, khóa bật tắt. Thiết kế đánh dấu vùng quảng cáo trên ảnh màn hình.
-2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`), đúng dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` trên một dòng: `scripts/release.sh` đọc danh sách vị trí bằng mẫu này.
+2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`), đúng dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` trên một dòng: `scripts/release.sh` đọc danh sách vị trí bằng mẫu này và đòi mã production cho mọi vị trí, trừ vị trí có khóa bắt đầu bằng `gallery_` (chỉ dùng cho màn hình xem thử ở staging, không bao giờ phát hành).
 3. **Khóa bật tắt:** `ads_<ten_vi_tri>_enabled`, mặc định tắt (ADR-0014). Tham số riêng của vị trí theo [remote-config.md](remote-config.md).
 4. **Màn hình:** đặt `AdSlot(placement)` (banner) hay composable native của `:core:ads` (đợt 2), hoặc `rememberShowInterstitial(placement)` gọi ở điểm dừng tự nhiên. Feature không gọi SDK quảng cáo.
 5. **Test:** screenshot test của màn hình không có quảng cáo (`LocalAdsController` mặc định rỗng); test ViewModel cho điểm gọi interstitial nếu có logic.
