@@ -11,7 +11,7 @@ private val wordStart = Regex("(?<=[a-z0-9])(?=[A-Z])")
 /**
  * The `screen` parameter of network_lost_shown (spec network, section 6), from the route of a `@Serializable`
  * destination: arguments dropped, the class name without its package and `Destination` suffix, in snake_case.
- * `com.x.SampleDestination` gives `sample`, `com.x.AdGalleryDestination/{id}` gives `ad_gallery`.
+ * `com.x.SampleDestination` gives `sample`, `com.x.PhotoDetailDestination/{id}` gives `photo_detail`.
  */
 internal fun screenNameOf(route: String?): String {
     val name = route.orEmpty()
