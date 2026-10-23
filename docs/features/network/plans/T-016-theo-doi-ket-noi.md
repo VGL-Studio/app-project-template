@@ -1,23 +1,31 @@
 ---
 ticket: T-016
 title: Theo dõi có Internet dùng được, dùng chung cho cả app
-status: approved
-version: 1
-risk_score:
+status: draft
+version: 2
+risk_score:                  # để trống: chạm điểm chặn (core, permission)
 risk_level: high
-token_estimate: 20M
+token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-23)
 blocking_points: [core, permission]
-run_order: 6
-reviewer: Nhật
-cross_reviewer: Nhật
-approved_at: 2026-10-23
+run_order:
+reviewer:
+cross_reviewer:
+approved_at:
 ---
 
 # PLAN T-016: THEO DÕI CÓ INTERNET DÙNG ĐƯỢC, DÙNG CHUNG CHO CẢ APP
 
+**Phiên bản 2 (2026-10-23), đổi so với bản 1 (đã duyệt 2026-10-23, nội dung ở commit `4cb757a`):**
+
+- Lấy code `:core:network` của app camera-pose làm nền (issue #72, PR VGL-Studio/camera-pose#23, commit merge `e23066751fd93e3f945137558287843b506620b3`). Bản 1 tự thiết kế `NetworkMonitor` (`isOnline`, `checkNow()`) và `DefaultNetworkMonitor`; bản 2 bỏ hai lớp đó, dùng `ConnectivitySource` của app (sửa định nghĩa có mạng) và tách phần chờ trước khi báo mất mạng thành một hàm riêng để `NetworkDialogController` của T-017 (cũng lấy từ app) dùng. Bảng đổi so với app ở mục 3.1.
+- Rà soát RUN-20261023-01: thêm `core/network/src/test/resources/robolectric.properties` (`sdk=35`).
+- Rà soát trước khi chạy: thêm test Robolectric `isConnected_readsActiveNetworkCapabilities` cho `AndroidConnectivitySource.isConnected()` (mục 4).
+- Mẫu plan mới: mục 3.3 có dòng "Quyền truy cập:" và "Thư viện và SDK:" (dẫn tới spec network mục 6), mục 3.4, mục 4.1 với lần chạy thử thật bằng `scripts/check.sh`.
+- Câu hỏi đã trả lời ở bản 1 (quyền ở module, module mới, không đặt trần thời gian chờ) giữ nguyên quyết định; câu hỏi 3, 5, 6 của bản 1 chuyển sang T-017 vì phần đó nay nằm trong bộ điều khiển popup.
+
 ## 1. Tóm tắt
 
-Tạo module mới `:core:network` với interface công khai `NetworkMonitor { val isOnline: Flow<Boolean>; suspend fun checkNow(): Boolean }`, cài bằng `ConnectivityManager.registerDefaultNetworkCallback`, coi là có mạng khi mạng mặc định có `NET_CAPABILITY_INTERNET` và `NET_CAPABILITY_VALIDATED` (ADR-0024). Có mạng thì báo ngay; mất mạng chỉ báo sau `network_lost_delay_seconds` (khóa mới, kiểu long, mặc định 2, khai báo bằng `RemoteKey` của T-007). Phần quyết định nằm sau một nguồn kết nối nội bộ thay được bằng nguồn giả, nên mọi tiêu chí về thời gian được kiểm bằng unit test với thời gian ảo; chưa có giao diện (popup là T-017).
+Tạo module mới `:core:network` với nguồn kết nối `ConnectivitySource` (chép từ app camera-pose, đổi định nghĩa: mạng mặc định phải có cả `NET_CAPABILITY_INTERNET` và `NET_CAPABILITY_VALIDATED`, ADR-0024), hàm `lostAfterDelay` phát một lần khi mất mạng liên tục đủ `network_lost_delay_seconds` (khóa mới khai báo bằng `RemoteKey` của T-007, mặc định 2), và Hilt module cấp nguồn kết nối cho T-017. Mọi tiêu chí về thời gian kiểm bằng unit test với thời gian ảo, ánh xạ capability và callback hệ thống kiểm bằng Robolectric; chưa có giao diện (popup là T-017).
 
 ## 2. Hiểu yêu cầu
 
@@ -25,256 +33,239 @@ Ticket xử lý các kịch bản sau trong `features/network/spec.md` (phần b
 
 | Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
-| KB-1 | Khi Wi-Fi bật nhưng không vào được Internet thì app coi là không có mạng | Mạng mặc định có `INTERNET` mà thiếu `VALIDATED` (Wi-Fi có cổng đăng nhập, Wi-Fi không ra Internet) là không có mạng. Không xét loại kết nối (Wi-Fi, di động) |
-| KB-1 | Khi màn hình loading tắt và không có mạng thì popup hiện ngay trên màn hình đầu tiên | Phần của T-016: giá trị đầu tiên của `isOnline` phát ngay, không chờ `network_lost_delay_seconds`, vì lúc mở app chưa có "mất mạng" nào để lọc chập chờn. Popup và màn hình đầu là T-017. Xem câu hỏi 3 |
-| KB-2 | Khi đang dùng mà mất Internet thì sau một khoảng chờ ngắn (mặc định 2 giây) popup hiện | `isOnline` đang `true`, nguồn báo mất: chỉ phát `false` khi mất liên tục đủ `network_lost_delay_seconds` giây. Có mạng lại trong lúc chờ thì không phát gì. Thời gian chờ đọc lại ở mỗi lần mất, nên đổi trên Firebase có tác dụng từ lần mất sau |
-| KB-2 | Khi bấm "Thử lại" mà vẫn không có mạng thì popup vẫn hiện | `checkNow()` đọc trạng thái hệ thống ngay lúc gọi, trả `false`; `isOnline` giữ (hoặc phát ngay) `false` |
-| KB-2 | Khi có mạng trở lại thì popup tự đóng | Nguồn báo có mạng thì `isOnline` phát `true` ngay, không chờ. `checkNow()` thấy có mạng cũng phát `true` ngay |
-| KB-3 | Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì popup không hiện | Bộ theo dõi chỉ dựa vào trạng thái mạng của hệ thống, không dựa vào kết quả tải của feature: lỗi máy chủ không làm `isOnline` đổi. Không cần code riêng, ghi một test để giữ |
+| KB-1 | Khi Wi-Fi bật nhưng không vào được Internet thì app coi là không có mạng | Mạng mặc định có `INTERNET` mà thiếu `VALIDATED` (Wi-Fi có cổng đăng nhập, Wi-Fi không ra Internet) là không có mạng. App camera-pose chỉ đòi `INTERNET` (plan T-011 của app, câu hỏi 1: có máy xác nhận chậm); dự án mẫu theo spec và ADR-0024, đòi cả hai. Không xét loại kết nối |
+| KB-1 | Khi màn hình loading tắt và không có mạng thì popup hiện ngay | Phần của T-016: `isConnected()` đọc trạng thái hệ thống ngay, không chờ. T-017 gọi hàm này khi rời màn hình loading để hiện popup ngay |
+| KB-2 | Khi đang dùng mà mất Internet thì sau một khoảng chờ ngắn (mặc định 2 giây) popup hiện | `lostAfterDelay` phát một lần khi nguồn báo mất liên tục đủ `network_lost_delay_seconds` giây; có mạng lại trong lúc chờ thì không phát. Thời gian chờ đọc lại ở mỗi lần mất, nên đổi trên Firebase có tác dụng từ lần mất sau |
+| KB-2 | Khi bấm "Thử lại" mà vẫn không có mạng / có mạng trở lại thì popup tự đóng | Phần của T-016: `isConnected()` cho nút "Thử lại", `connectivity()` báo có mạng ngay (không chờ). Quyết định đóng popup là T-017 |
+| KB-3 | Khi vẫn có mạng nhưng máy chủ lỗi hay quá thời gian thì popup không hiện | Nguồn kết nối chỉ dựa vào trạng thái mạng của hệ thống, không dựa vào kết quả tải. Một test giữ điều này |
 
-Thiết kế tham chiếu: Không có thiết kế riêng cho ticket này. Thiết kế popup (`features/network/design/`, ảnh `NetworkLostScreen_default_light`, `NetworkLostScreen_default_dark`) thuộc T-017; T-016 không có màn hình nên không có screenshot test.
+Thiết kế tham chiếu: Không có thiết kế riêng cho ticket này. Thiết kế popup (`features/network/design/`) thuộc T-017; T-016 không có màn hình nên không có screenshot test.
 
-ADR liên quan: ADR-0024 (định nghĩa có mạng, bộ theo dõi dùng chung ở module core), ADR-0023 (quy ước khóa, khai báo một chỗ, sinh bảng khóa), ADR-0003 (Remote Config cho tham số kinh doanh), ADR-0019 (log qua `AppLogger`), ADR-0001 (quy tắc phụ thuộc module). ADR-0013, ADR-0014, ADR-0020, ADR-0022: đã đọc, ticket không chạm quảng cáo, thiết kế hay định dạng quảng cáo.
+ADR liên quan: ADR-0024 (định nghĩa có mạng, module core dùng chung), ADR-0023 (khóa khai báo một chỗ, sinh bảng khóa), ADR-0003 (Remote Config cho tham số), ADR-0001 (quy tắc phụ thuộc module). ADR-0013, ADR-0014, ADR-0020, ADR-0022: đã đọc, ticket không chạm quảng cáo hay thiết kế.
 
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
 
-**Chọn module: tạo `:core:network`, không đặt vào `:core:data`.**
+**Nguồn code.** Mọi file của module mới lấy từ PR VGL-Studio/camera-pose#23 (T-011 của app, merge `e23066751fd93e3f945137558287843b506620b3`, đọc bằng `gh pr diff 23 -R VGL-Studio/camera-pose`), đổi tên gói `com.vglstudio.camera.pose.line.guide` thành `com.vglstudio.template`:
 
-- `:core:data` hiện chỉ có DataStore (lưu trên máy). Bộ theo dõi mạng là một mối quan tâm khác, cần `:core:config` (đọc khóa) và `:core:logging`; đặt vào `:core:data` thì mọi nơi dùng DataStore kéo theo phụ thuộc này và tên module không còn nói đúng vai trò.
-- Module riêng giống cách `:core:assets`, `:core:logging` đã làm (ADR-0015, ADR-0019): một vai trò, một module. Sau này các phần mạng khác (nếu có) có chỗ rõ ràng.
-- Chi phí: thêm một dòng `include` trong `settings.gradle.kts`, một dòng phụ thuộc trong `app/build.gradle.kts`, một dòng trong bảng module của `CLAUDE.md`. Convention plugin có sẵn (`template.android.library`, `template.hilt`), không sửa `build-logic/` hay `gradle/libs.versions.toml`. `scripts/check.sh` tự lặp qua `core/*/`, `checkModuleDependencies` tự xét mọi module: không phải sửa.
-- Phụ thuộc: `:core:network` dùng `implementation(project(":core:config"))` và `implementation(project(":core:logging"))`, chỉ core phụ thuộc core (ADR-0001). Feature không phụ thuộc `:core:network` (ADR-0024: feature không tự đọc trạng thái mạng); convention plugin của feature không đổi.
+| File ở dự án mẫu | Nguồn ở app | Cách lấy |
+| --- | --- | --- |
+| `core/network/build.gradle.kts` | `core/network/build.gradle.kts` | Chép, đổi `namespace`; bỏ `:core:logging` (T-017 thêm khi cần); thêm ba dòng `testImplementation` cho Robolectric |
+| `core/network/consumer-rules.pro` | cùng tên | Chép (rỗng) |
+| `core/network/src/main/AndroidManifest.xml` | cùng tên | Chép, sửa chú thích (dẫn spec network mục 6) |
+| `.../core/network/ConnectivitySource.kt` | `core/network/.../ConnectivitySource.kt` | Chép, sửa định nghĩa có mạng (bảng dưới), tách `hasUsableInternet` ra hàm `internal` để test |
+| `.../core/network/LostAfterDelay.kt` | phần `collectLatest { if (!connected) showAfterDelay() }` và `showAfterDelay()` của `NetworkDialogController.kt` | Tách thành hàm thuần trên `Flow` |
+| `.../core/network/NetworkSettings.kt` | `core/network/.../NetworkSettings.kt` | Viết lại theo `RemoteKey` (T-007); hai hằng thời gian của nút "Thử lại" để T-017 thêm |
+| `.../core/network/di/NetworkModule.kt` | `core/network/.../di/NetworkModule.kt` | Chép phần `connectivitySource` và `@NetworkScope`; phần `@Binds` cho bộ điều khiển để T-017 thêm |
+| `core/network/src/test/.../Fakes.kt` | `core/network/src/test/.../Fakes.kt` | Chép `FakeConnectivitySource`; `FakeRemoteSettings` viết lại theo `RemoteSettings.value(key)` của T-007; bỏ `FakeFeatureFlags` |
+| `core/network/src/test/.../NetworkSettingsTest.kt` | cùng tên | Viết lại cho `RemoteKey`, mặc định 2 |
+| `core/network/src/test/.../LostAfterDelayTest.kt`, `AndroidConnectivitySourceTest.kt` | không có ở app | Mới; các trường hợp thời gian lấy từ `NetworkDialogControllerTest` của app (`deviceOffline_shownOnlyAfterDelay`, `delay_followsRemoteSetting`, `flapping_underDelay_showsNothing`) |
 
-**Quyền `ACCESS_NETWORK_STATE`.** `registerDefaultNetworkCallback`, `getNetworkCapabilities` cần quyền này. Manifest gộp hiện tại của `stagingDebug` và `productionDebug` đã có `android.permission.ACCESS_NETWORK_STATE` (đến từ Google Mobile Ads và Firebase, ADR-0012), nên app không có quyền mới. Plan khai báo quyền này trong `core/network/src/main/AndroidManifest.xml` để module tự đủ: không phụ thuộc việc SDK quảng cáo vô tình mang quyền vào, và lint không báo `MissingPermission` khi xét riêng module. Đây vẫn là một dòng `uses-permission` mới trong một file manifest, nên plan ghi là chạm điểm chặn 3 để người duyệt quyết (câu hỏi 1). Không sửa `app/src/main/AndroidManifest.xml`. Kiểm chứng: danh sách `uses-permission` của manifest gộp `stagingDebug` trước và sau giống hệt (mục 4).
+**Phần đổi so với app:**
 
-**Interface công khai (`NetworkMonitor.kt`).**
+| Điểm | App camera-pose (PR #23) | Dự án mẫu (plan này) | Lý do |
+| --- | --- | --- | --- |
+| Định nghĩa có mạng | Chỉ `NET_CAPABILITY_INTERNET` | `INTERNET` và `VALIDATED` | Spec KB-1 tiêu chí 3, ADR-0024 |
+| `onAvailable` | Gửi `true` | Bỏ: lúc `onAvailable` hệ thống chưa xác nhận Internet; `onCapabilitiesChanged` báo đủ | Theo định nghĩa trên |
+| Khóa thời gian chờ | Chuỗi `"network_lost_delay_seconds"`, hằng mặc định 3, đọc bằng `settings.long(key, default)` | `RemoteKey.long("network_lost_delay_seconds", 2, ...)`, đọc bằng `settings.value(key)`, có trong `AppRemoteKeys` và bảng khóa sinh ra | Spec mục 8 (mặc định 2), ADR-0023, T-007 |
+| Thời gian chờ | Nằm trong `NetworkDialogController` | Hàm `lostAfterDelay` riêng trong T-016, T-017 dùng | Ticket T-016 giao phần theo dõi; test thời gian tách khỏi popup |
+| Giá trị chờ âm | Không xử lý (`delay` âm coi như 0) | `coerceAtLeast(0)` rõ ràng, có test | Quyết định bản 1, câu hỏi 4 |
+| Quyền `ACCESS_NETWORK_STATE` | Khai báo ở manifest của module và của `:app` | Chỉ ở manifest của module, không sửa `app/src/main/AndroidManifest.xml` | Spec mục 6 ghi khai báo ở module theo dõi kết nối |
+| Cờ tính năng | `NETWORK_DIALOG` (mặc định tắt) | Không có | ADR-0024, spec mục 8: luôn bật. Cờ nằm ở bộ điều khiển của app, T-016 không có |
+| `NetworkErrors.kt` (`Throwable.isNetworkFailure()`) | Có | Không lấy | Phân loại lỗi tải do `AssetFailureReason` của T-018 làm; giữ một chỗ |
+| Tên gói | `com.vglstudio.camera.pose.line.guide` | `com.vglstudio.template` | Dự án mẫu |
 
-```kotlin
-/**
- * Whether the device has usable Internet (ADR-0024): the default network has INTERNET and VALIDATED.
- * Only :app reads this; features never read the network state themselves.
- */
-interface NetworkMonitor {
-    /**
-     * Emits the current state at once, then each change. Back online is reported at once; a loss is reported
-     * only after `network_lost_delay_seconds` without usable Internet. The first value is never delayed.
-     */
-    val isOnline: Flow<Boolean>
+**Chọn module: `:core:network`** (giữ quyết định bản 1, câu hỏi 2). Phụ thuộc `implementation(project(":core:config"))`, chỉ core phụ thuộc core (ADR-0001). Thêm `include` trong `settings.gradle.kts`, một dòng phụ thuộc trong `app/build.gradle.kts` (để Hilt gom module), một dòng trong bảng module của `CLAUDE.md`. Convention plugin có sẵn (`template.android.library`, `template.hilt`), không sửa `build-logic/` hay `gradle/libs.versions.toml`. `scripts/check.sh` tự lặp `core/*/`, `checkModuleDependencies` tự xét mọi module.
 
-    /** Reads the system state now, reports it through [isOnline] at once (no delay) and returns it. For "Try again". */
-    suspend fun checkNow(): Boolean
-}
-```
-
-**Nguồn kết nối nội bộ (`ConnectivitySource.kt`, `internal`).**
+**`ConnectivitySource.kt`** (`internal`):
 
 ```kotlin
 internal interface ConnectivitySource {
-    /** Raw state, without delay: emits the current value at once, then every change. */
-    val hasUsableInternet: Flow<Boolean>
+    /** Usable Internet right now: the default network has INTERNET and VALIDATED (ADR-0024). */
+    fun isConnected(): Boolean
 
-    /** Raw state right now. */
-    fun isUsableNow(): Boolean
+    /** Current value at once, then every change. The system callback is registered only while collected. */
+    fun connectivity(): Flow<Boolean>
 }
 
 internal fun isUsableInternet(hasInternet: Boolean, isValidated: Boolean): Boolean = hasInternet && isValidated
 
-internal fun NetworkCapabilities?.hasUsableInternet(): Boolean =
-    this != null && isUsableInternet(hasCapability(NET_CAPABILITY_INTERNET), hasCapability(NET_CAPABILITY_VALIDATED))
+internal fun NetworkCapabilities?.hasUsableInternet(): Boolean
 ```
 
-`AndroidConnectivitySource(connectivityManager)`:
+`AndroidConnectivitySource(context)`: `isConnected()` đọc `getNetworkCapabilities(activeNetwork).hasUsableInternet()`; `connectivity()` là `callbackFlow`: gửi `isConnected()`, `registerDefaultNetworkCallback` (có từ API 24, minSdk 26), `onCapabilitiesChanged` gửi `hasUsableInternet()`, `onLost` gửi `false`, `awaitClose { unregisterNetworkCallback }`, rồi `distinctUntilChanged()`. Không đọc tên Wi-Fi, địa chỉ IP hay định danh mạng.
 
-- `hasUsableInternet` dựng bằng `callbackFlow`: gửi ngay `isUsableNow()`, rồi `registerDefaultNetworkCallback` (có từ API 24, minSdk là 26). `onCapabilitiesChanged(network, caps)` gửi `caps.hasUsableInternet()`; `onLost` gửi `false`. `awaitClose { unregisterNetworkCallback(callback) }`. Kết thúc bằng `distinctUntilChanged()` để hai báo cáo giống nhau liên tiếp không làm khởi động lại thời gian chờ.
-- `isUsableNow()`: `connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork).hasUsableInternet()`.
-- Không đọc hay ghi tên Wi-Fi, địa chỉ IP hay định danh mạng nào.
-
-**Thời gian chờ trước khi báo mất mạng (`LossDelay.kt`, `internal`, hàm thuần trên `Flow`).**
+**`LostAfterDelay.kt`** (`internal`):
 
 ```kotlin
-internal data class ConnectivitySignal(val online: Boolean, val immediate: Boolean)
-
-/** First value, back-online values and immediate signals pass at once; a loss passes after [delaySeconds]. */
-internal fun Flow<ConnectivitySignal>.reportLossAfter(delaySeconds: suspend () -> Long): Flow<Boolean>
+/** Emits once each time the source stays offline for delaySeconds(); a shorter loss emits nothing. */
+internal fun ConnectivitySource.lostAfterDelay(delaySeconds: suspend () -> Long): Flow<Unit> =
+    connectivity().transformLatest { connected ->
+        if (!connected) {
+            delay(delaySeconds().coerceAtLeast(0) * 1_000)
+            emit(Unit)
+        }
+    }
 ```
 
-Cài bằng `transformLatest`: giá trị đầu tiên, `online == true` hay `immediate == true` thì `emit(online)` ngay; còn lại `delay(delaySeconds().coerceAtLeast(0) * 1_000)` rồi `emit(false)`. Tín hiệu mới đến trong lúc chờ hủy lần chờ cũ (bản chất của `transformLatest`), nên mạng chập chờn ngắn hơn thời gian chờ không bao giờ thành `false`. Giá trị âm coi như 0 (báo ngay); không đặt trần (câu hỏi 4).
+`transformLatest` hủy lần chờ cũ khi có giá trị mới: mạng chập chờn ngắn hơn thời gian chờ không bao giờ phát. Giá trị đầu là mất mạng thì cũng chờ (T-017 tự hiện ngay bằng `isConnected()` khi rời loading).
 
-**Cài đặt (`DefaultNetworkMonitor.kt`, `internal`, `@Singleton`).** Nhận `ConnectivitySource`, `RemoteSettings`, `AppLogger` và một `CoroutineScope` (qualifier `@NetworkScope` nội bộ; Hilt cấp `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, test truyền `backgroundScope`).
-
-- `manualChecks = MutableSharedFlow<Boolean>(extraBufferCapacity = 1, onBufferOverflow = DROP_OLDEST)`.
-- `isOnline = merge(source.hasUsableInternet.map { ConnectivitySignal(it, immediate = false) }, manualChecks.map { ConnectivitySignal(it, immediate = true) }).reportLossAfter { settings.value(NetworkSettings.LOST_DELAY_SECONDS).first() }.distinctUntilChanged().onEach { log(it) }.shareIn(scope, SharingStarted.WhileSubscribed(5_000), replay = 1)`. Dùng chung một đăng ký callback cho mọi nơi thu thập; không ai thu thập thì sau 5 giây hủy đăng ký.
-- `checkNow()`: `val now = source.isUsableNow()`, log, `manualChecks.emit(now)`, trả `now`. Không ai đang thu thập thì tín hiệu bị bỏ, không sao vì lần thu thập sau đọc lại trạng thái từ đầu.
-- Log (ADR-0019), thẻ `Network`: `info("Network", "Online")`, `info("Network", "Offline")` khi `isOnline` đổi; `info("Network", "Check now: online|offline")` cho mỗi lần `checkNow()`; `debug` cho tín hiệu thô và thời gian chờ đang dùng. Không ghi tên mạng, loại mạng hay địa chỉ.
-
-**Khóa Remote Config (`NetworkSettings.kt`, `public object`).** Theo mẫu `AdsSettings` của T-007:
+**`NetworkSettings.kt`** (`public object`, theo mẫu `AdsSettings` của T-007):
 
 ```kotlin
 object NetworkSettings {
     val LOST_DELAY_SECONDS: RemoteKey<Long> = RemoteKey.long(
         name = "network_lost_delay_seconds",
         default = 2,
-        description = "Seconds without usable Internet before the app reports the connection as lost (ADR-0024).",
+        description = "Seconds without usable Internet before the network dialog shows (ADR-0024).",
     )
 
     fun all(): List<RemoteKey<*>> = listOf(LOST_DELAY_SECONDS)
 }
 ```
 
-Tên đúng ADR-0023 (`<module>_<tham số>`, đơn vị `_seconds` ở cuối, qua test `everyNumberKey_endsWithUnit` của T-007). Public để `:app` gom vào `AppRemoteKeys`.
+**Hilt (`di/NetworkModule.kt`, `internal`).** `@Provides @Singleton ConnectivitySource` từ `@ApplicationContext`; qualifier `internal annotation class NetworkScope` và `@Provides @Singleton @NetworkScope CoroutineScope(SupervisorJob() + Dispatchers.Default)` cho T-017. Chưa ai tiêm hai thứ này cho tới T-017, nên hành vi app không đổi.
 
-**Gom khóa ở `:app`.** `AppRemoteKeys.byModule` (T-007 tạo) thêm `":core:network" to NetworkSettings.all()` sau `":core:ads"`. Rồi chạy `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true` để sinh lại `docs/remote-config-keys.md` và `docs/remote-config-template.json` (một dòng mới, một tham số mới `NUMBER` giá trị `"2"`). Không sửa tay hai file này.
-
-**Nguồn giả cho test.**
-
-- `core/network/src/test/.../FakeConnectivitySource.kt` (`internal`, chỉ cho test của module): `MutableStateFlow<Boolean>` làm `hasUsableInternet`, `var now: Boolean` cho `isUsableNow()`, đếm số lần có người thu thập (`subscriptionCount`).
-- Không có bản giả công khai của `NetworkMonitor` trong `src/main`: test của T-017 cần những hành vi riêng (flow chưa phát gì, `checkNow` treo tới khi thả hay ném lỗi), nên plan T-017 tự viết bản giả trong `app/src/test` (câu hỏi 6).
-- `core/network/src/test/.../FakeRemoteSettings.kt`: `RemoteSettings` giả trả `MutableStateFlow` theo tên khóa, chưa có thì trả `key.default`. Cài theo interface sau T-007 (`value(key)`); T-008 không đổi interface (plan T-008 mục 3).
-
-**Hilt (`di/NetworkModule.kt`, `internal`).** `@Binds NetworkMonitor <- DefaultNetworkMonitor`, `@Binds ConnectivitySource <- AndroidConnectivitySource`, `@Provides ConnectivityManager` từ `@ApplicationContext` (`context.getSystemService(ConnectivityManager::class.java)`), `@Provides @Singleton @NetworkScope CoroutineScope`. `:app` phụ thuộc `:core:network` để Hilt gom module. Chưa ai tiêm `NetworkMonitor` cho tới T-017, nên hành vi app không đổi.
+**Gom khóa ở `:app`.** `AppRemoteKeys.byModule` (T-007) thêm `":core:network" to NetworkSettings.all()` sau `":core:ads"`, rồi `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true` sinh lại `docs/remote-config-keys.md` và `docs/remote-config-template.json`. Không sửa tay hai file này.
 
 **Nơi khác đọc file plan đổi (L-020).** Đã `grep -rn` trên `scripts/`, `.github/`, `build-logic/`, `*/src/test`, `*/src/androidTest`:
 
-- `settings.gradle.kts`, `app/build.gradle.kts`: `scripts/new-app.sh` thay đúng dòng `rootProject.name = "app-project-template"` của `settings.gradle.kts` và một chuỗi địa chỉ R2 trong `app/build.gradle.kts`; plan không đổi hai dòng đó. Không script nào khác đọc nội dung hai file theo dòng. `scripts/check.sh` lặp `core/*/` nên tự thấy module mới (chưa có `captureRoboImage` nên không có screenshot task). `scripts/release.sh` nhắc tới `app/build.gradle.kts`; plan chỉ thêm một dòng `implementation(project(":core:network"))`, không đổi biến thể, tham số `-P` hay task; không đọc hay sửa `release.sh`. `scripts/new-app.sh` dời mọi thư mục `*/src/*/kotlin/com/vglstudio/template` và thay tên gói trong mọi file (trừ ADR), nên module mới cũng được đổi gói mà không phải sửa script; test `new-app.sh replaces the package outside ADRs` của `scripts/tests/run.sh` kiểm điều này. Manifest của module không có thuộc tính `package` (namespace đặt trong `build.gradle.kts`), nên không có gì để đổi. `.github/workflows/pr-check.yml` lọc theo `core/**`, nên module mới tự kích hoạt CI. `build-logic/`: không sửa; `template.android.library` và `template.hilt` đủ (Robolectric khai báo trong `build.gradle.kts` của module vì chỉ convention Compose tự thêm).
-- `AppRemoteKeys.kt`: đọc bởi `RemoteConfigKeysTest` (T-007), có trong danh sách file; T-008 đọc qua tên khóa, không bị ảnh hưởng vì không có khóa trùng tên.
-- `docs/remote-config-keys.md`, `docs/remote-config-template.json`: đọc bởi `RemoteConfigKeysTest` qua `app/build.gradle.kts` (system property của T-007); hai file sinh lại trong cùng PR.
-- `CLAUDE.md`: chỉ thêm một dòng vào bảng module. Bốn nơi nhắc tới tên file này chỉ trích dẫn trong chữ, không đọc nội dung: `.github/ISSUE_TEMPLATE/from-app.yml` (nhãn lựa chọn "docs/, CLAUDE.md"), `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt` (chú thích "CLAUDE.md, step 10"), `scripts/device-session.sh` và `scripts/status.py` (in đường dẫn `docs/CLAUDE.md`, file khác). Không file nào bị ảnh hưởng.
+- `settings.gradle.kts`, `app/build.gradle.kts`: `scripts/new-app.sh` thay đúng dòng `rootProject.name` và chuỗi địa chỉ R2; plan không đổi hai dòng đó. `scripts/release.sh` nhắc tới `app/build.gradle.kts` vì truyền tham số `-P` của bản production; plan chỉ thêm một dòng `implementation(project(":core:network"))`, không đổi biến thể hay tham số, không mở hay sửa `release.sh`. `scripts/new-app.sh` dời mọi thư mục `*/src/*/kotlin/com/vglstudio/template` và thay tên gói trong mọi file, nên module mới cũng được đổi gói (test `new-app.sh replaces the package outside ADRs` của `scripts/tests/run.sh`). `.github/workflows/pr-check.yml` lọc `core/**`, module mới tự kích hoạt CI.
+- `AppRemoteKeys.kt`, `RemoteConfigKeysTest.kt`: do T-007 tạo, có trong danh sách file.
+- `docs/remote-config-keys.md`, `docs/remote-config-template.json`: đọc bởi `RemoteConfigKeysTest` qua system property của T-007; sinh lại trong cùng PR.
+- `CLAUDE.md`: chỉ thêm một dòng vào bảng module; các nơi nhắc tên file (`.github/ISSUE_TEMPLATE/from-app.yml`, chú thích "CLAUDE.md, step 10" trong `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt`, `scripts/device-session.sh`, `scripts/status.py`) chỉ trích dẫn, không đọc nội dung.
 
 **Thứ tự commit (L-025).**
 
-1. Commit khung module: `settings.gradle.kts`, `core/network/build.gradle.kts`, `core/network/consumer-rules.pro`, `core/network/src/main/AndroidManifest.xml`, `app/build.gradle.kts`. Build qua (module rỗng).
-2. Commit test (bước 3): mọi file trong `core/network/src/test/`, phần thêm vào `RemoteConfigKeysTest.kt`. Không biên dịch được vì `NetworkMonitor`, `NetworkSettings`, `reportLossAfter`... chưa có: đó là lý do thất bại đúng mong đợi, ghi vào nhật ký.
-3. Commit code (bước 4): mọi file `core/network/src/main/kotlin/`, `AppRemoteKeys.kt`.
-4. Commit sinh file: xác nhận `RemoteConfigKeysTest.keysFile_matchesCode` và `templateFile_matchesCode` thất bại vì thiếu khóa `network_lost_delay_seconds`, rồi chạy lệnh ghi lại, thêm hai file docs.
-5. Commit tài liệu: `CLAUDE.md`.
+1. Khung module: `settings.gradle.kts`, `core/network/build.gradle.kts`, `consumer-rules.pro`, manifest, `robolectric.properties`, dòng phụ thuộc ở `app/build.gradle.kts`.
+2. Test (bước 3): mọi file trong `core/network/src/test/kotlin/`, phần thêm vào `RemoteConfigKeysTest.kt`. Không biên dịch được vì `ConnectivitySource`, `lostAfterDelay`, `NetworkSettings` chưa có: đúng lý do mong đợi.
+3. Code (bước 4): mọi file `core/network/src/main/kotlin/`, `AppRemoteKeys.kt`.
+4. Sinh file: xác nhận `keysFile_matchesCode`, `templateFile_matchesCode` thất bại vì thiếu khóa, rồi chạy lệnh ghi lại.
+5. Tài liệu: `CLAUDE.md`.
 
 ### 3.2. Danh sách file
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
 | Sửa | `settings.gradle.kts` | Thêm `include(":core:network")` sau `:core:logging` |
-| Tạo | `core/network/build.gradle.kts` | Plugin `template.android.library`, `template.hilt`; `namespace = "com.vglstudio.template.core.network"`; `implementation` `:core:config`, `:core:logging`; `testImplementation(libs.robolectric)`, `testImplementation(libs.androidx.test.core)` (đã có trong `libs.versions.toml`) |
-| Tạo | `core/network/consumer-rules.pro` | Rỗng, như các module core khác (convention plugin trỏ tới file này) |
-| Tạo | `core/network/src/main/AndroidManifest.xml` | `uses-permission android.permission.ACCESS_NETWORK_STATE` (quyết định của anh Nhật, câu hỏi 1), kèm chú thích: quyền đã có trong manifest gộp qua SDK, khai báo để module tự đủ. Đây là manifest đầu tiên trong một module core; không có thuộc tính `package` |
-| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkMonitor.kt` | Interface công khai `NetworkMonitor` |
-| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/ConnectivitySource.kt` | `ConnectivitySource`, `isUsableInternet`, `NetworkCapabilities?.hasUsableInternet()`, `AndroidConnectivitySource` |
-| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/LossDelay.kt` | `ConnectivitySignal`, `Flow<ConnectivitySignal>.reportLossAfter` |
-| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/DefaultNetworkMonitor.kt` | Cài đặt, chia sẻ một callback, `checkNow`, log thẻ `Network`, qualifier `NetworkScope` |
+| Tạo | `core/network/build.gradle.kts` | Plugin `template.android.library`, `template.hilt`; `namespace = "com.vglstudio.template.core.network"`; `implementation(project(":core:config"))`; `testImplementation(libs.robolectric)`, `testImplementation(libs.androidx.test.core)`, `testImplementation(libs.androidx.test.ext.junit)` |
+| Tạo | `core/network/consumer-rules.pro` | Rỗng, như các module core khác |
+| Tạo | `core/network/src/main/AndroidManifest.xml` | `uses-permission android.permission.ACCESS_NETWORK_STATE`, chú thích dẫn spec network mục 6; không có thuộc tính `package` |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/ConnectivitySource.kt` | `ConnectivitySource`, `isUsableInternet`, `hasUsableInternet`, `AndroidConnectivitySource` |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/LostAfterDelay.kt` | `ConnectivitySource.lostAfterDelay` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/NetworkSettings.kt` | Khóa `network_lost_delay_seconds` (long, 2), `all()` |
-| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/di/NetworkModule.kt` | Hilt: hai `@Binds`, `ConnectivityManager`, scope |
-| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/FakeConnectivitySource.kt` | Nguồn giả của module |
-| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/FakeRemoteSettings.kt` | `RemoteSettings` giả theo tên khóa |
-| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/LossDelayTest.kt` | Test hàm `reportLossAfter` với thời gian ảo |
-| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/DefaultNetworkMonitorTest.kt` | Test bộ theo dõi với nguồn giả, khóa giả, `RecordingAppLogger` |
-| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/AndroidConnectivitySourceTest.kt` | Test Robolectric: ánh xạ capability, đăng ký và hủy callback |
+| Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/di/NetworkModule.kt` | Hilt: `ConnectivitySource`, `NetworkScope` |
+| Tạo | `core/network/src/test/resources/robolectric.properties` | `sdk=35` (rà soát RUN-20261023-01) |
+| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/Fakes.kt` | `FakeConnectivitySource`, `FakeRemoteSettings` |
+| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/LostAfterDelayTest.kt` | Thời gian chờ, thời gian ảo |
+| Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/AndroidConnectivitySourceTest.kt` | Robolectric: ánh xạ capability, callback, hủy đăng ký |
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/NetworkSettingsTest.kt` | Tên, kiểu, mặc định của khóa |
 | Sửa | `app/build.gradle.kts` | Thêm `implementation(project(":core:network"))` sau `:core:logging` |
 | Sửa | `app/src/main/kotlin/com/vglstudio/template/config/AppRemoteKeys.kt` | Thêm `":core:network" to NetworkSettings.all()` (file do T-007 tạo) |
-| Sửa | `app/src/test/kotlin/com/vglstudio/template/config/RemoteConfigKeysTest.kt` | Thêm test `networkKeys_areListed` (file do T-007 tạo) |
-| Sửa | `docs/remote-config-keys.md` | Sinh lại bằng lệnh ghi lại, không sửa tay: thêm dòng `network_lost_delay_seconds` |
-| Sửa | `docs/remote-config-template.json` | Sinh lại bằng lệnh ghi lại, không sửa tay: thêm tham số `network_lost_delay_seconds` |
-| Sửa | `CLAUDE.md` | Bảng "Cấu trúc module": thêm dòng `:core:network` (theo dõi có Internet dùng được, ADR-0024) |
+| Sửa | `app/src/test/kotlin/com/vglstudio/template/config/RemoteConfigKeysTest.kt` | Thêm `networkKeys_areListed` (file do T-007 tạo) |
+| Sửa | `docs/remote-config-keys.md` | Sinh lại bằng lệnh ghi lại |
+| Sửa | `docs/remote-config-template.json` | Sinh lại bằng lệnh ghi lại |
+| Sửa | `CLAUDE.md` | Bảng "Cấu trúc module": thêm dòng `:core:network` (theo dõi có Internet dùng được, popup mất mạng; ADR-0024) |
+| Sửa | `docs/features/network/tickets/T-016-theo-doi-ket-noi.md` | Trạng thái ticket theo phiên tự chạy |
+| Sửa | `docs/features/network/plans/T-016-theo-doi-ket-noi.md` | Nhật ký thực hiện |
 
-Không có ảnh chuẩn screenshot nào được ghi: ticket không có màn hình. File được bảo vệ (`.github/`, `scripts/check.sh`, `scripts/merge-if-green.sh`, `build-logic/`, `gradle/libs.versions.toml`, `scripts/release.sh`): không chạm. `app/src/main/AndroidManifest.xml`: không chạm.
+Không có ảnh chuẩn screenshot. File được bảo vệ (`.github/`, `scripts/check.sh`, `scripts/merge-if-green.sh`, `build-logic/`, `gradle/libs.versions.toml`, `scripts/release.sh`): không chạm. `app/src/main/AndroidManifest.xml`: không chạm.
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+- `app/build.gradle.kts` (L-020): `scripts/setup-check.sh` và `scripts/tests/run.sh` chỉ đọc dòng `ASSETS_BASE_URL` và `applicationId` của file này; plan không đổi hai dòng đó.
 
-- Cờ tính năng: Không có (spec mục 8: quy tắc áp dụng cho mọi app). Một khóa Remote Config mới `network_lost_delay_seconds` (long, mặc định 2), đúng spec mục 8.
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
+
+- Cờ tính năng: Không có (spec mục 8, ADR-0024). Khóa Remote Config mới `network_lost_delay_seconds` (long, mặc định 2), đúng spec mục 8.
 - Quảng cáo: Không chạm.
-- Sự kiện phân tích: Không chạm. Hai sự kiện `network_lost_shown`, `network_restored` thuộc T-017.
+- Sự kiện phân tích: Không chạm (hai sự kiện thuộc T-017).
 - File R2: Không chạm.
-- Dữ liệu trên máy: không lưu gì.
+- **Quyền truy cập:** `ACCESS_NETWORK_STATE` trong manifest của `:core:network` (spec network mục 6: quyền thường, khai báo ở module theo dõi kết nối; cần cho `registerDefaultNetworkCallback`, `getNetworkCapabilities`, `activeNetwork` trên mọi API từ 26 tới 36, không có `maxSdkVersion`). Quyền đã có trong manifest gộp qua Google Mobile Ads và Firebase, nên danh sách quyền của app không đổi (kiểm ở mục 4.1). Không thêm: `ACCESS_WIFI_STATE` (không đọc thông tin Wi-Fi), `INTERNET` (đã có, module không mở kết nối).
+- **Thư viện và SDK:** Không thêm thư viện mới. `ConnectivityManager`, `NetworkCapabilities` thuộc Android SDK. `kotlinx-coroutines` có sẵn qua convention. Test dùng `libs.robolectric`, `libs.androidx.test.core`, `libs.androidx.test.ext.junit` (đã có trong `gradle/libs.versions.toml`), khai báo `testImplementation` trong `core/network/build.gradle.kts` vì convention `template.android.library` không tự thêm; Turbine, coroutines-test có sẵn qua `KotlinAndroid.kt`.
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** shadow mạng của Robolectric 4.15.1 (`ShadowNetworkCapabilities.newInstance`, `ShadowConnectivityManager.getNetworkCallbacks`, `ShadowConnectivityManager.setNetworkCapabilities`) với `sdk=35`. Hai hàm đầu đã chạy thử qua (mục 4.1); `setNetworkCapabilities` (test `isConnected_readsActiveNetworkCapabilities`, thêm sau chạy thử) chưa chạy.
+- **Điều kiện chuyển:** test Robolectric của `AndroidConnectivitySourceTest` thất bại vì shadow thiếu hay đổi hành vi sau 2 lần sửa.
+- **Cách làm thay:** kiểm ánh xạ capability bằng hàm thuần `isUsableInternet` (test JVM thường, giữ tên test), và kiểm đăng ký, hủy callback, `isConnected()` bằng `mockk` của `ConnectivityManager` (`activeNetwork`, `getNetworkCapabilities`) (`mockk` có sẵn qua `KotlinAndroid.kt`). Tiêu chí và tên test ở mục 4 giữ nguyên. Không thêm file mới.
 
 ## 4. Kiểm thử
 
-Mọi test thời gian dùng `runTest` và thời gian ảo (`advanceTimeBy`, `currentTime`), Turbine để đọc `Flow`. Thời gian chờ mặc định 2 giây trừ khi ghi khác.
+Test thời gian dùng `runTest`, thời gian ảo (`advanceTimeBy`, `currentTime`) và Turbine. Thời gian chờ mặc định 2 giây trừ khi ghi khác.
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| KB-1, tiêu chí 2 (phần T-016): giá trị đầu không chờ | Unit test | `LossDelayTest.firstValueOffline_isEmittedAtOnce`: luồng bắt đầu bằng `(false, immediate=false)`, nhận `false` ở `currentTime == 0`. `firstValueOnline_isEmittedAtOnce`: tương tự với `true` |
-| KB-2, tiêu chí 1: chờ trước khi báo mất | Unit test | `LossDelayTest.lossLongerThanDelay_isReportedAfterDelay`: `true` lúc 0, `false` lúc 1 000 ms; ở 2 999 ms chưa có `false`, ở 3 000 ms nhận `false` |
-| KB-2, tiêu chí 1: mạng chập chờn không báo | Unit test | `LossDelayTest.lossShorterThanDelay_isNotReported`: `true` lúc 0, `false` lúc 1 000, `true` lúc 2 500; chạy tới 10 000 ms, chỉ nhận một giá trị `true` (sau `distinctUntilChanged` ở `DefaultNetworkMonitor`; ở mức hàm thuần nhận `true`, `true`) |
-| KB-2, tiêu chí 4: có mạng lại báo ngay | Unit test | `LossDelayTest.backOnline_isReportedAtOnce`: sau khi đã báo `false`, `true` lúc 5 000 ms được nhận ở đúng 5 000 ms |
-| KB-2, tiêu chí 3 và 4: "Thử lại" không chờ | Unit test | `LossDelayTest.immediateSignal_skipsDelay`: `true` lúc 0, `(false, immediate=true)` lúc 1 000, nhận `false` ở 1 000 |
-| Thời gian chờ đọc lại mỗi lần mất | Unit test | `LossDelayTest.delayIsReadAtEachLoss`: hàm chờ trả 2 rồi 5; lần mất thứ nhất báo sau 2 000 ms, lần thứ hai sau 5 000 ms |
-| Giá trị chờ không hợp lệ | Unit test | `LossDelayTest.zeroOrNegativeDelay_reportsAtOnce`: hàm chờ trả `0`, rồi `-3`; cả hai lần `false` được báo ngay |
-| KB-2, tiêu chí 1: mặc định 2 giây khi chưa có giá trị từ Firebase | Unit test | `DefaultNetworkMonitorTest.noRemoteValue_reportsLossAfter2Seconds`: `FakeRemoteSettings` không có giá trị, nguồn `true` rồi `false` lúc 0; `false` ở 2 000 ms, không trước |
-| Khóa từ Firebase được dùng | Unit test | `DefaultNetworkMonitorTest.remoteDelay_isUsed`: `network_lost_delay_seconds = 5`; `false` ở 5 000 ms |
-| KB-1, tiêu chí 3: Wi-Fi bật nhưng chưa xác nhận Internet | Unit test (Robolectric) | `AndroidConnectivitySourceTest.wifiWithInternetNotValidated_isNotUsable`: `NetworkCapabilities` tạo bằng `ShadowNetworkCapabilities.newInstance()`, thêm `TRANSPORT_WIFI` và `NET_CAPABILITY_INTERNET`, không có `VALIDATED`: `hasUsableInternet()` là `false`. `internetAndValidated_isUsable`: thêm cả hai: `true`. `noCapabilities_isNotUsable`: `null` là `false`. `ConnectivitySourceTest` thuần trên JVM: `isUsableInternet(true, false) == false`, `isUsableInternet(false, true) == false`, `isUsableInternet(true, true) == true` (viết trong cùng file) |
-| Callback hệ thống được nối đúng | Unit test (Robolectric) | `AndroidConnectivitySourceTest.callback_reportsCapabilitiesAndLoss`: thu thập `hasUsableInternet`, lấy callback từ `shadowOf(connectivityManager).networkCallbacks`, gọi `onCapabilitiesChanged` với capability đã xác nhận rồi `onLost`: nhận `true`, `false`. `cancel_unregistersCallback`: hủy thu thập thì `networkCallbacks` rỗng |
-| KB-1, tiêu chí 3 qua bộ theo dõi | Unit test | `DefaultNetworkMonitorTest.sourceNotUsable_isOffline`: nguồn giả bắt đầu `false` (Wi-Fi bật mà chưa xác nhận): `isOnline` phát `false` ngay ở 0 ms |
-| KB-2, tiêu chí 3: thử lại vẫn mất mạng | Unit test | `DefaultNetworkMonitorTest.checkNow_stillOffline_returnsFalseAndStaysOffline`: đã báo `false`, `now = false`; `checkNow()` trả `false`, không có giá trị mới |
-| KB-2, tiêu chí 4: thử lại có mạng | Unit test | `DefaultNetworkMonitorTest.checkNow_online_reportsOnlineAtOnce`: đã báo `false`, `now = true` (nguồn chưa báo); `checkNow()` trả `true`, `isOnline` phát `true` ở cùng `currentTime` |
-| Thử lại trong lúc đang chờ báo mất | Unit test | `DefaultNetworkMonitorTest.checkNow_duringPendingLoss_reportsOfflineAtOnce`: `true`, nguồn `false` lúc 0, `now = false`, `checkNow()` lúc 500 ms: nhận `false` ở 500 ms |
-| KB-3: lỗi máy chủ không làm đổi trạng thái | Unit test | `DefaultNetworkMonitorTest.onlineSource_staysOnline`: nguồn giữ `true` 60 000 ms ảo, chỉ có một giá trị `true` (bộ theo dõi không có đầu vào nào khác ngoài nguồn hệ thống) |
-| Dùng chung một callback | Unit test | `DefaultNetworkMonitorTest.twoCollectors_shareOneSubscription`: hai nơi thu thập, `FakeConnectivitySource.subscriptionCount == 1`; cả hai nhận cùng giá trị |
-| Log đúng ADR-0019 | Unit test | `DefaultNetworkMonitorTest.logsStateChangesAndChecks`: `RecordingAppLogger` có `INFO` thẻ `Network` "Offline", "Online", "Check now: online"; không entry nào chứa chữ khác ngoài các mẫu đã nêu (không tên mạng) |
-| Khóa đúng spec mục 8 và ADR-0023 | Unit test | `NetworkSettingsTest.lostDelay_isLong2Seconds`: tên `network_lost_delay_seconds`, `type == LONG`, `default == 2L`, mô tả không rỗng; `all_containsEveryDeclaredKey`: mọi field kiểu `RemoteKey` của `NetworkSettings::class.java.declaredFields` có trong `all()` |
-| Khóa có trong bảng khóa | Unit test | `RemoteConfigKeysTest.networkKeys_areListed`: `AppRemoteKeys.byModule[":core:network"] == NetworkSettings.all()`. Các test của T-007 (`keysFile_matchesCode`, `templateFile_matchesCode`, `everyKeyName_isUniqueAcrossModules`, `everyNumberKey_endsWithUnit`) qua sau khi sinh lại hai file |
-| Không có quyền mới với app | Kiểm tra trong phiên | Trước khi sửa, chạy `./gradlew :app:processStagingDebugManifest` và lưu danh sách `uses-permission` của `app/build/intermediates/merged_manifests/stagingDebug/processStagingDebugManifest/AndroidManifest.xml`; sau khi xong chạy lại và so: hai danh sách giống hệt. Ghi kết quả vào nhật ký và mô tả PR |
+| KB-2, tiêu chí 1: chờ trước khi báo mất | Unit test | `LostAfterDelayTest.lossLongerThanDelay_emitsAfterDelay`: nguồn `true`, đổi `false` lúc 0; ở 1 999 ms chưa phát, ở 2 001 ms nhận một `Unit` |
+| KB-2, tiêu chí 1: mạng chập chờn không báo | Unit test | `LostAfterDelayTest.flapping_emitsNothing`: ba lần mất 1 500 ms rồi có lại; tới 10 000 ms không phát gì |
+| Thời gian chờ đọc lại mỗi lần mất | Unit test | `LostAfterDelayTest.delayIsReadAtEachLoss`: hàm chờ trả 2 rồi 5; lần mất thứ nhất phát sau 2 000 ms, lần thứ hai sau 5 000 ms |
+| Giá trị chờ không hợp lệ | Unit test | `LostAfterDelayTest.zeroOrNegativeDelay_emitsAtOnce`: hàm chờ trả 0 rồi -3; cả hai lần phát ở cùng `currentTime` lúc mất |
+| Mất mạng ngay từ đầu | Unit test | `LostAfterDelayTest.offlineAtStart_emitsAfterDelay`: nguồn bắt đầu `false`; phát ở 2 000 ms, không trước |
+| KB-2, tiêu chí 4 (phần T-016): có mạng lại thì không phát | Unit test | `LostAfterDelayTest.backOnlineDuringDelay_cancelsLoss`: `false` lúc 0, `true` lúc 1 000; tới 10 000 ms không phát |
+| KB-1, tiêu chí 3: Wi-Fi bật nhưng chưa xác nhận | Unit test (Robolectric) | `AndroidConnectivitySourceTest.wifiWithInternetNotValidated_isNotUsable`: `ShadowNetworkCapabilities.newInstance()`, thêm `TRANSPORT_WIFI`, `INTERNET`, không `VALIDATED`: `false`; thêm cả hai: `true`; `null`: `false`. `isUsableInternet_needsBoth`: bốn tổ hợp của hàm thuần |
+| Callback hệ thống được nối đúng | Unit test (Robolectric) | `AndroidConnectivitySourceTest.callback_reportsCapabilitiesAndLoss_thenUnregisters`: thu thập `connectivity()`; giá trị đầu `false` (mạng mặc định của Robolectric chưa xác nhận, đã thấy khi chạy thử); `shadowOf(manager).networkCallbacks` có đúng 1; gọi `onCapabilitiesChanged` chưa xác nhận, rồi đã xác nhận, rồi `onLost`: nhận `true`, `false`; hủy thu thập thì `networkCallbacks` rỗng |
+| `isConnected()` đọc đúng mạng đang dùng | Unit test (Robolectric) | `AndroidConnectivitySourceTest.isConnected_readsActiveNetworkCapabilities`: mạng mặc định của Robolectric (chưa xác nhận): `false`; `shadowOf(manager).setNetworkCapabilities(manager.activeNetwork, caps)` với `caps` có `INTERNET` và `VALIDATED`: `true`; đổi sang `caps` chỉ có `INTERNET`: `false`. Gọi thẳng `isConnected()`, không qua `connectivity()` |
+| KB-3: chỉ dựa vào hệ thống | Unit test | `LostAfterDelayTest.onlineSource_neverEmits`: nguồn giữ `true` 60 000 ms ảo, không phát gì (không có đầu vào nào khác) |
+| Đăng ký callback chỉ khi có nơi thu thập | Unit test | `LostAfterDelayTest.collectsSourceOnlyWhileCollected`: `FakeConnectivitySource.collectors` là 1 khi đang thu thập, 0 sau khi hủy |
+| Khóa đúng spec mục 8 và ADR-0023 | Unit test | `NetworkSettingsTest.lostDelay_isLong2Seconds`: tên `network_lost_delay_seconds`, `type == LONG`, `default == 2L`, mô tả không rỗng; `all_containsEveryDeclaredKey` |
+| Khóa có trong bảng khóa | Unit test | `RemoteConfigKeysTest.networkKeys_areListed`: `AppRemoteKeys.byModule[":core:network"] == NetworkSettings.all()`. Test của T-007 (`keysFile_matchesCode`, `templateFile_matchesCode`, `everyKeyName_isUniqueAcrossModules`, `everyNumberKey_endsWithUnit`) qua sau khi sinh lại |
+| Không có quyền mới với app | Kiểm tra trong phiên | Trước và sau khi sửa, chạy `./gradlew :app:processStagingDebugMainManifest` và so danh sách `uses-permission` của `app/build/intermediates/merged_manifest/stagingDebug/processStagingDebugMainManifest/AndroidManifest.xml`: giống hệt (mục 4.1 đã thấy giống) |
 | Quy tắc module (ADR-0001) | Bộ kiểm tra hiện có | `checkModuleDependencies` trong `scripts/check.sh` qua |
-| Hành vi trên máy thật | Kiểm tra thủ công (dời sang T-017) | T-016 chưa có nơi nào thu thập `isOnline`, nên bản staging không đổi gì nhìn thấy được. Khi T-017 xong: bật Wi-Fi không ra Internet, tắt mạng, bật lại, xem `adb logcat -v threadtime \| grep ' VGL\.Network'` có "Offline" sau khoảng 2 giây và "Online" ngay khi có mạng |
+| Hành vi trên máy thật | Kiểm tra thủ công (dời sang T-017) | T-016 chưa có nơi thu thập, bản staging không đổi gì nhìn thấy được. Kiểm cùng T-017 |
 
-**Ngoại lệ viết test trước:** khung module (`settings.gradle.kts`, `build.gradle.kts`, `consumer-rules.pro`, manifest, dòng phụ thuộc ở `app/build.gradle.kts`) là cấu hình cần có để test chạy được, commit trước test. `docs/remote-config-keys.md`, `docs/remote-config-template.json` sinh từ code; test so file của T-007 đã có và thất bại vì thiếu khóa trước khi sinh lại. Dòng trong `CLAUDE.md` là tài liệu, không có test.
+**Ngoại lệ viết test trước:** khung module (`settings.gradle.kts`, `build.gradle.kts`, `consumer-rules.pro`, manifest, `robolectric.properties`, dòng phụ thuộc ở `app/build.gradle.kts`) commit trước test vì test cần nó để chạy. Hai file bảng khóa sinh từ code. Dòng trong `CLAUDE.md` là tài liệu.
+
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** 2026-10-23, worktree tạm ngoài repo (`git worktree add --detach <scratchpad>/trial-t016 origin/main`, commit `80cc3e2`), không commit, đã xóa sau khi chạy. Code thử: `:core:network` chép từ app (PR #23) đổi gói sang `com.vglstudio.template`, với `ConnectivitySource` đòi `VALIDATED`, `lostAfterDelay`, `NetworkModule`, manifest có `ACCESS_NETWORK_STATE`, `robolectric.properties` (`sdk=35`); test tạm `LostAfterDelayTest` (3 test: chờ đủ, chập chờn, đọc lại thời gian chờ) và `AndroidConnectivitySourceTest` (2 test: capability chưa xác nhận, callback rồi hủy đăng ký). `NetworkSettings` dùng hằng chuỗi vì T-007 (`RemoteKey`) chưa merge trên nhánh chính; phần `RemoteKey` theo hợp đồng plan T-007, kiểm khi chạy task.
+- **Lệnh:** `./gradlew :core:network:testDebugUnitTest` rồi `scripts/check.sh` (với `ANDROID_HOME=$HOME/Library/Android/sdk` và `JAVA_HOME` của Android Studio: JDK 26 mặc định của máy làm Gradle báo lỗi "26").
+- **Kết quả:** `scripts/check.sh` qua: "Test JVM: 110 test, 0 lỗi ... ./core/network: 5 test, 0 lỗi", "Module dependency rule OK", lint, ktlint, build staging qua, "Cổng chất lượng: QUA" (1 phút 24 giây). Kết quả đo được: `ShadowNetworkCapabilities.newInstance()` và `shadowOf(connectivityManager).networkCallbacks` có trong Robolectric 4.15.1 với `sdk=35`; mạng mặc định của Robolectric không có `VALIDATED` nên giá trị đầu của `connectivity()` là `false`, sau `onCapabilitiesChanged` đã xác nhận và `onLost` nhận `true`, `false`; hủy thu thập thì danh sách callback rỗng. Test thời gian cần `@OptIn(ExperimentalCoroutinesApi::class)` (không có thì chỉ là cảnh báo, không lỗi). Danh sách `uses-permission` của manifest gộp `stagingDebug` có module mới giống hệt bản build của nhánh chính (10 quyền, có sẵn `ACCESS_NETWORK_STATE`). Không cần phương án dự phòng ở mục 3.4.
+- **Thay đổi sau chạy thử (rà soát trước khi chạy):** thêm test `isConnected_readsActiveNetworkCapabilities`. Test này dùng `ShadowConnectivityManager.setNetworkCapabilities`, chưa gọi trong lần chạy thử (lần chạy thử chỉ dùng `ShadowNetworkCapabilities.newInstance` và `networkCallbacks` của cùng shadow); chưa chạy lại. Kết quả trên không đổi. Shadow này thiếu hay khác hành vi thì áp dụng điều kiện chuyển ở mục 3.4 như các test Robolectric khác của lớp.
 
 ## 5. Chấm rủi ro
 
 **Điểm chặn bị chạm:**
 
 - Mục 7 (module core dùng chung, cấu hình build): tạo `:core:network`, sửa `settings.gradle.kts`, `app/build.gradle.kts`.
-- Mục 3 (quyền trong `AndroidManifest.xml`): thêm dòng `ACCESS_NETWORK_STATE` vào manifest của module mới. Quyền không mới với app (manifest gộp đã có), nhưng spec không nêu quyền này và `CLAUDE.md` cấm thêm quyền ngoài spec, nên plan ghi là chạm để người duyệt quyết (câu hỏi 1).
-- Không chạm mục 1 (quảng cáo), mục 4 (sự kiện là việc của T-017), mục 9 (không lưu gì trên máy).
-
-Điểm 5 tiêu chí, chấm để người duyệt thấy mức độ dù plan đã xếp cao vì điểm chặn:
+- Mục 3 (quyền trong `AndroidManifest.xml`): dòng `ACCESS_NETWORK_STATE` trong manifest của module mới. Quyền không mới với app và nay có trong spec mục 6 (spec `changed`, chờ xác nhận lại); plan chỉ duyệt được sau khi spec được xác nhận lại.
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 3 | Module mới với interface công khai, sửa `:app` (`build.gradle.kts`, `AppRemoteKeys`), `settings.gradle.kts` và hai file docs sinh lại |
-| B. Độ rõ của yêu cầu | 1 | Spec đã xác nhận, ADR-0024 nêu rõ định nghĩa có mạng; AI tự quyết chọn module, giá trị đầu không chờ, cách `checkNow` bỏ qua thời gian chờ, không đặt trần thời gian chờ (câu hỏi 2 đến 4) |
-| C. Khả năng kiểm chứng tự động | 1 | Mọi tiêu chí của T-016 có unit test với thời gian ảo; hành vi với mạng thật trên máy chỉ kiểm được bằng tay, và dời sang T-017 vì chưa có nơi dùng |
-| D. Ảnh hưởng chéo | 2 | Sửa `app/build.gradle.kts`, `AppRemoteKeys.kt`, `RemoteConfigKeysTest.kt` và hai file bảng khóa mà T-007 tạo và các ticket native (T-010 đến T-013) cũng sinh lại; T-017 dựa vào API này |
-| E. Độ mới của kỹ thuật | 2 | `ConnectivityManager` với `callbackFlow`, `transformLatest` và shadow mạng của Robolectric chưa có trong dự án, nhưng là cách làm phổ biến |
-| **Tổng** | **9** | **Mức: Cao (điểm chặn 7 và 3; tổng điểm cũng đạt mức cao)** |
+| A. Phạm vi thay đổi | 3 | Module mới, sửa `:app` (`build.gradle.kts`, `AppRemoteKeys`), `settings.gradle.kts`, hai file docs sinh lại |
+| B. Độ rõ của yêu cầu | 1 | Spec và ADR-0024 rõ; có code app đã chạy làm nền; AI tự quyết tách `lostAfterDelay` và bỏ `onAvailable` |
+| C. Khả năng kiểm chứng tự động | 1 | Mọi tiêu chí của T-016 có unit test; hành vi mạng thật chỉ kiểm tay, dời sang T-017 |
+| D. Ảnh hưởng chéo | 2 | Sửa file do T-007 tạo, bảng khóa mà T-010 đến T-014 cũng sinh lại; T-017 dựa vào API này |
+| E. Độ mới của kỹ thuật | 2 | `ConnectivityManager` qua `callbackFlow`, `transformLatest`, shadow mạng của Robolectric lần đầu trong dự án (đã chạy thử, mục 4.1) |
+| **Tổng** | **9** | **Mức: Cao (điểm chặn 7 và 3)** |
 
 ## 6. Ảnh hưởng chéo
 
-- File hoặc thành phần dùng chung bị chạm: `settings.gradle.kts`, `app/build.gradle.kts`, `AppRemoteKeys.kt`, `RemoteConfigKeysTest.kt`, `docs/remote-config-keys.md`, `docs/remote-config-template.json`, `CLAUDE.md`. Dùng nhưng không sửa: `RemoteSettings`, `RemoteKey` (`:core:config`), `AppLogger`, `RecordingAppLogger` (`:core:logging`).
-- Phụ thuộc plan khác: **T-007** (bắt buộc, `depends_on`): `RemoteKey`, `RemoteSettings.value(key)`, `AppRemoteKeys`, `RemoteConfigKeysTest` và hai file bảng khóa phải đã merge. **T-008**: không bắt buộc; nếu đã merge thì `RemoteSettings` có thêm giá trị cục bộ của staging nhưng interface không đổi, khóa mạng không cần giá trị cục bộ (mặc định 2 dùng được trên staging).
-- Task khác trong sprint có thể xung đột: T-010 đến T-013 thêm vị trí vào `AdPlacement` và sinh lại hai file bảng khóa; T-007, T-015 sửa `app/build.gradle.kts` hoặc file build khác. Xung đột ở hai file sinh ra thì không gộp tay: lấy bản của nhánh chính rồi chạy lại lệnh ghi lại. T-017 dùng `NetworkMonitor` (bản giả của T-017 nằm trong `app/src/test`) và sửa `app/build.gradle.kts`.
-- Đề xuất thứ tự chạy: sau T-007, trước T-017. Không phụ thuộc T-009 đến T-015; có thể chạy song song với chúng nếu xử lý bảng khóa như trên.
+- File hoặc thành phần dùng chung bị chạm: `settings.gradle.kts`, `app/build.gradle.kts`, `AppRemoteKeys.kt`, `RemoteConfigKeysTest.kt`, hai file bảng khóa, `CLAUDE.md`. Dùng nhưng không sửa: `RemoteSettings`, `RemoteKey` (`:core:config`).
+- Phụ thuộc: **T-007** (bắt buộc): `RemoteKey`, `RemoteSettings.value(key)`, `AppRemoteKeys`, `RemoteConfigKeysTest`, hai file bảng khóa phải đã merge. T-008 không bắt buộc.
+- Task khác có thể xung đột: T-010 đến T-014 sinh lại hai file bảng khóa (xung đột thì lấy bản của nhánh chính rồi chạy lại lệnh ghi lại, không gộp tay). T-017 thêm file vào `:core:network` và sửa `NetworkModule.kt`, `NetworkSettings.kt`, `core/network/build.gradle.kts`. T-018 không chạm file của T-016.
+- Đề xuất thứ tự chạy: sau T-007, trước T-017. Độc lập với T-018 và T-009 đến T-015.
 
 ## 7. Điều kiện dừng riêng
 
-- Robolectric không có shadow cần thiết (`ShadowNetworkCapabilities.newInstance`, `ShadowConnectivityManager.getNetworkCallbacks`) ở phiên bản trong `libs.versions.toml`: dừng, không nâng phiên bản và không bỏ test; báo người chọn giữa kiểm ánh xạ chỉ bằng hàm thuần `isUsableInternet` hay hướng khác.
 - Danh sách `uses-permission` của manifest gộp `stagingDebug` thay đổi theo bất kỳ cách nào.
-- Cần sửa `build-logic/`, `gradle/libs.versions.toml` hay `scripts/check.sh` để module mới build, chạy test hay được lint (ví dụ thư viện test chưa khai báo trong `libs.versions.toml`).
+- Cần sửa `build-logic/`, `gradle/libs.versions.toml` hay `scripts/check.sh` để module mới build, chạy test hay được lint.
 - `checkModuleDependencies` báo lỗi, hoặc cần cho feature phụ thuộc `:core:network`.
 - T-007 chưa merge, hoặc API thật khác hợp đồng (`RemoteKey.long`, `RemoteSettings.value`, `AppRemoteKeys.byModule`).
+- Phương án dự phòng ở mục 3.4 cũng không qua.
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **Khai báo `ACCESS_NETWORK_STATE` trong manifest của `:core:network`?** Quyền đã có trong manifest gộp (Google Mobile Ads, Firebase), app không có quyền mới và khai báo Data safety không đổi. Đề xuất: khai báo, để module không phụ thuộc vào việc SDK khác vô tình mang quyền vào; plan kiểm danh sách quyền gộp không đổi. Phương án khác: không khai báo, dựa vào SDK (nếu sau này một app bỏ SDK quảng cáo thì bộ theo dõi ném `SecurityException`). Spec không nêu quyền này; nếu duyệt, đề nghị ghi một dòng vào spec mục 2 hay ADR-0024 ở PR tài liệu, ngoài T-016.
-   - Trả lời (anh Nhật, 2026-10-23): có khai báo `ACCESS_NETWORK_STATE` trong manifest của `:core:network`.
-2. **Module mới `:core:network` thay vì `:core:data`.** Đề xuất: module mới (lý do ở mục 3.1). Chi phí là một dòng ở `settings.gradle.kts`, `app/build.gradle.kts`, `CLAUDE.md`.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-3. **Giá trị đầu tiên không chờ.** Mở app khi đã mất mạng thì `isOnline` phát `false` ngay (spec KB-1: popup "hiện ngay"). Mặt trái: ngay sau khi máy vừa bật hay vừa đổi mạng, hệ thống có thể chưa xác nhận xong Internet, popup có thể hiện chốc lát rồi tự đóng. Đề xuất: giữ như vậy; nếu muốn, áp cùng thời gian chờ cho giá trị đầu (popup đầu tiên trễ 2 giây).
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-4. **Giới hạn của `network_lost_delay_seconds`.** Đề xuất: giá trị âm coi là 0, không đặt trần; đặt rất lớn trên Firebase thì thực tế tắt popup, đó là quyết định của người vận hành. Có muốn đặt trần (ví dụ 30 giây) không?
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-5. **"Thử lại" chỉ đọc lại trạng thái hệ thống**, không tự gửi yêu cầu thử ra Internet và không gọi `reportNetworkConnectivity` để hệ thống xác nhận lại. Đề xuất: giữ đơn giản như vậy; hệ thống tự xác nhận lại khi mạng đổi, và nguồn báo có mạng thì popup tự đóng. Nếu thấy trên máy thật "Thử lại" ít tác dụng thì làm ticket sau.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
-6. **Không có `FakeNetworkMonitor` công khai.** Bản đầu của plan đặt một bản giả công khai trong `src/main` cho T-017. Rà soát độc lập (2026-10-23) bỏ đi: plan T-017 cần bản giả có `checkNow` treo hay ném lỗi và flow chưa phát gì, nên đã tự viết bản giả trong `app/src/test`; giữ cả hai là hai bản giả trùng tên, một bản không ai dùng trong `src/main`. Nếu muốn một bản giả dùng chung cho các app sau, thêm lại ở ticket sau với đủ các hành vi đó.
-   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
+1. **Đòi `VALIDATED` khác với app camera-pose.** App chỉ đòi `INTERNET` vì có máy xác nhận chậm hay không bao giờ xác nhận (plan T-011 của app, câu hỏi 1). Spec KB-1 tiêu chí 3 và ADR-0024 đòi Wi-Fi không ra Internet cũng là mất mạng, nên dự án mẫu đòi cả hai. Đề xuất: giữ theo spec; nếu sau này thấy popup hiện nhầm trên máy xác nhận chậm thì sửa ADR-0024 ở ticket sau.
+   - Trả lời:
+2. **Spec network đang `changed`** (thêm mục 6 về quyền, 2026-10-23). Đề xuất: xác nhận lại spec trước hoặc cùng lúc duyệt plan này; plan không thêm quyền nào ngoài mục 6.
+   - Trả lời:
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
+<!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt
-- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
-- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 

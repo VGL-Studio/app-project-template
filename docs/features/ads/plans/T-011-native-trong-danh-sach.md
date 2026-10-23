@@ -1,16 +1,16 @@
 ---
 ticket: T-011
 title: Native trong danh sách
-status: approved            # draft | approved | stopped | done
-version: 1
+status: draft               # draft | approved | stopped | done
+version: 2
 risk_score:
 risk_level: high
 token_estimate: 20M
 blocking_points: [ads, core]
-run_order: 7
-reviewer: Nhật
-cross_reviewer: Nhật
-approved_at: 2026-10-23
+run_order:
+reviewer:
+cross_reviewer:
+approved_at:
 ---
 
 # PLAN T-011: NATIVE TRONG DANH SÁCH
@@ -18,6 +18,15 @@ approved_at: 2026-10-23
 ## 1. Tóm tắt
 
 Thêm vào `:core:ads` hàm thuần `inListAdPositions(itemCount, every)` tính chỗ đặt native trong danh sách, và hai hàm mở rộng cho `LazyListScope` và `LazyGridScope` chèn ô quảng cáo sau mỗi `ads_inlist_every_count` mục, không ở vị trí đầu, không chèn khi danh sách ít hơn N mục. Mỗi ô quảng cáo giữ quảng cáo đã tải khi người dùng cuộn qua lại (không tải lại), hủy hết khi rời màn hình. Kiểm chứng bằng unit test cho hàm tính vị trí và phần giữ quảng cáo, và test giao diện Robolectric cho thứ tự, khoảng cách, nhãn "Ad" của ô chèn; ảnh `AdGalleryScreen_inlist_light` thuộc T-014.
+
+**Phiên bản 2 (2026-10-23).** Bản 1 đã duyệt ngày 2026-10-23 (anh Nhật). Thay đổi theo rà soát danh sách chạy RUN-20261023-01:
+
+- Test `adRow_isSixteenDpFromItemsAboveAndBelow` đo qua `InListAdRow` thật (qua hàm public `itemsWithInListAds(items, ads)` với `InListAds` có loader giả), không qua `adContent` giả, để khoảng 16 dp của chính `InListAdRow` được kiểm (mục 4). `InListAdRow` mang `testTag` `inlist_ad_<slot>` (mục 3.1).
+- T-010 phiên bản 2 đổi phần gắn SDK thành hàm chung nhận bố cục bất kỳ, nhưng giữ nguyên `BoundNativeAd(ad, size, modifier)` mà T-011 dùng; T-011 không đổi cách gọi.
+- Theo mẫu plan mới: mục 3.3 thêm dòng quyền truy cập và thư viện (đều không thêm), mục 3.4 phương án dự phòng, mục 4.1 chạy thử (đã chạy thật). Mục 9 chờ duyệt lại.
+- Theo rà soát trước khi chạy: `requireInListFormat` kiểm bằng `require(format in setOf(...))`, không dùng `when` đủ nhánh, để định dạng mới của T-012, T-013 không làm hỏng biên dịch `InListAds.kt` (mục 3.1).
+
+Không đổi: phạm vi, API, danh sách file, các test khác, chấm rủi ro.
 
 ## 2. Hiểu yêu cầu
 
@@ -39,7 +48,7 @@ ADR liên quan: ADR-0013 (đồng ý trước khi tải quảng cáo), ADR-0014 
 
 ### 3.1. Cách làm
 
-Giả định T-007, T-009, T-010 đã merge, dùng đúng tên trong hợp đồng chung: `AdsSettings.INLIST_EVERY_COUNT`, `RemoteSettings.value(key)`, `AdsController.isEnabled(placement)` (gồm công tắc tổng, T-009), `AdFormat.NATIVE_SMALL`, `AdFormat.NATIVE_MEDIUM`, `NativeAdState` (`Loading`, `Loaded(ad: LoadedNativeAd)`, `Unavailable`), `LoadedNativeAd` (`assets`, `destroy()`), `NativeAdCard`, `NativeAdAssets`, `NativeAdSize`, `NativeAdPlaceholder`, `NativeAdSlot`, phần dựng nội bộ `BoundNativeAd(ad, size, modifier)`, hàm tải một quảng cáo `AdsController.loadNativeAd(placement): NativeAdState`, chuỗi `R.string.ads_native_badge`, file test `FakeNativeAds.kt` (`FakeLoadedNativeAd` đếm `destroy`, `sampleNativeAdAssets`) (T-010), `AppLogger` trong `:core:ads` (T-009). `core/ads/build.gradle.kts` đã có `:core:designsystem`, Roborazzi (T-010) và `:core:logging` (T-009).
+Giả định T-007, T-009, T-010 (phiên bản 2) đã merge, dùng đúng tên trong hợp đồng chung: `AdsSettings.INLIST_EVERY_COUNT`, `RemoteSettings.value(key)`, `AdsController.isEnabled(placement)` (gồm công tắc tổng, T-009), `AdFormat.NATIVE_SMALL`, `AdFormat.NATIVE_MEDIUM`, `NativeAdState` (`Loading`, `Loaded(ad: LoadedNativeAd)`, `Unavailable`), `LoadedNativeAd` (`assets`, `destroy()`), `NativeAdCard`, `NativeAdAssets`, `NativeAdSize`, `NativeAdPlaceholder`, `NativeAdSlot`, phần dựng nội bộ `BoundNativeAd(ad, size, modifier)`, hàm tải một quảng cáo `AdsController.loadNativeAd(placement): NativeAdState`, chuỗi `R.string.ads_native_badge`, file test `FakeNativeAds.kt` (`FakeLoadedNativeAd` đếm `destroy`, `sampleNativeAdAssets`) (T-010), `AppLogger` trong `:core:ads` (T-009). `core/ads/build.gradle.kts` đã có `:core:designsystem`, Roborazzi (T-010) và `:core:logging` (T-009).
 
 **Hàm thuần (`InListAdPositions.kt`, public).**
 
@@ -89,7 +98,7 @@ internal fun interface InListAdLoader {
 fun rememberInListAds(placement: AdPlacement): InListAds
 ```
 
-- `rememberInListAds` kiểm `placement.format` là `NATIVE_SMALL` hoặc `NATIVE_MEDIUM` bằng `require` (như `AdSlot` kiểm banner), qua hàm nội bộ `requireInListFormat(format)` để test được. Không có `LocalAdsController` (test, preview) thì `every` là null, `loader` là null: không chèn gì.
+- `rememberInListAds` kiểm `placement.format` là `NATIVE_SMALL` hoặc `NATIVE_MEDIUM` bằng `require` (như `AdSlot` kiểm banner), qua hàm nội bộ `requireInListFormat(format)` để test được. Thân hàm là `require(format in setOf(AdFormat.NATIVE_SMALL, AdFormat.NATIVE_MEDIUM))` (hoặc `when` có nhánh `else -> throw`), không bao giờ là `when` đủ nhánh trên `AdFormat`: T-012 thêm `NATIVE_COLLAPSIBLE`, T-013 thêm `NATIVE_FULL_SCREEN` mà không phải sửa `InListAds.kt`. Không có `LocalAdsController` (test, preview) thì `every` là null, `loader` là null: không chèn gì.
 - `every` lấy từ `AdsController.inListEvery(placement): Flow<Int?>` (hàm nội bộ mới): ghép `canRequestAds`, `isEnabled(placement)` và `settings.value(AdsSettings.INLIST_EVERY_COUNT)` rồi gọi `inListEvery(...)`. Thu bằng `collectAsStateWithLifecycle(initialValue = null)`: chưa biết thì chưa chèn, tránh danh sách nhảy khi giá trị đến.
 - `slot(index)` dùng một `mutableMapOf<Int, MutableState<NativeAdState>>`: lần đầu tạo trạng thái `Loading` và chạy `loader.load(placement)` trong `scope` (của `rememberCoroutineScope` ở mức màn hình); lần sau trả trạng thái đã có. Ô `Unavailable` không tải lại khi cuộn qua lại; vào lại màn hình thì tải mới.
 - `rememberInListAds` có `DisposableEffect` gọi `destroyAll()` khi rời màn hình: gọi `destroy()` cho mọi `LoadedNativeAd` trong trạng thái `Loaded`, hủy việc tải đang chạy, xóa map.
@@ -120,7 +129,7 @@ fun <T> LazyGridScope.itemsWithInListAds(
 - Hai hàm trên gọi hai hàm nội bộ cùng tên gốc nhận sẵn `positions: List<Int>` và `adContent: @Composable (slot: Int) -> Unit`. Test dùng hàm nội bộ với quảng cáo giả (`NativeAdCard` với `sampleNativeAdAssets` trong `FakeNativeAds.kt` của T-010), không cần SDK.
 - Duyệt mục theo thứ tự, gặp vị trí trong `positions` thì thêm một hàng quảng cáo. Khóa của hàng quảng cáo là một `private data class InListAdKey(placementKey: String, slot: Int)` để không trùng khóa của mục; `contentType` là một đối tượng riêng `InListAdContentType` để Compose không dùng lại khung của mục cho quảng cáo.
 - Lưới: N thực dùng là `gridAdEvery(every, columns)`; hàng quảng cáo `span = { GridItemSpan(maxLineSpan) }`, rộng hết lưới. Lưới không biết số cột khi dựng danh sách nên người gọi truyền `columns` (câu hỏi 2).
-- Nội dung một hàng quảng cáo (`InListAdRow(ads, slot)`, nội bộ): đọc `ads.slot(slot)`; `Loading` thì `NativeAdPlaceholder(size)`, `Loaded` thì `BoundNativeAd(state.ad, size)` của T-010, `Unavailable` thì không vẽ gì. Hai trạng thái đầu bọc `Modifier.padding(vertical = Spacing.md)` (khung "In-list ad slot", lề trên dưới 16); `Unavailable` không có lề nên hàng cao 0 dp. `size` theo `placement.format`.
+- Nội dung một hàng quảng cáo (`InListAdRow(ads, slot)`, nội bộ): đọc `ads.slot(slot)`; `Loading` thì `NativeAdPlaceholder(size)`, `Loaded` thì `BoundNativeAd(state.ad, size)` của T-010, `Unavailable` thì không vẽ gì. Hai trạng thái đầu bọc `Modifier.padding(vertical = Spacing.md)` (khung "In-list ad slot", lề trên dưới 16); `Unavailable` không có lề nên hàng cao 0 dp. `size` theo `placement.format`. Ngoài cùng của hàng có `Modifier.testTag("inlist_ad_<slot>")` (hằng số `internal fun inListAdTag(slot: Int)`), để test và màn hình xem thử của T-014 tìm được hàng thật.
 - Phần dựng quảng cáo đã tải: `BoundNativeAd(ad, size, modifier)` nội bộ của T-010 (`NativeAdViewBinding.kt`), vẽ quảng cáo của SDK trong `NativeAdView`, quảng cáo giả thì vẽ `NativeAdCard`. T-011 chỉ đọc file của T-010, không sửa. Tên hay chữ ký khác thì dừng (mục 7).
 
 **Ví dụ dùng (đưa vào `ads-guide.md`):**
@@ -154,12 +163,20 @@ LazyColumn { itemsWithInListAds(photos, ads, key = { it.id }) { PhotoRow(it) } }
 
 Không có ảnh chuẩn screenshot (ảnh `AdGalleryScreen_inlist_light` thuộc T-014; T-010 đã thêm Roborazzi cho `:core:ads` nhưng T-011 không ghi ảnh). Không sửa `core/ads/build.gradle.kts`: phụ thuộc cần đã có từ T-009, T-010, `LazyGrid` có trong Compose foundation. Không sửa file của T-010. Không sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json` (không đổi khóa, không đổi vị trí). Không sửa `docs/STATUS.md` trong task (phiên tự chạy sinh lại trong PR báo cáo).
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có.
 - Quảng cáo: thêm cách đặt native trong danh sách (định dạng của spec KB-3). Không thêm vị trí vào `AdPlacement`; vị trí in-list đầu tiên là của màn hình xem thử (T-014), app khai báo vị trí của mình theo spec của app. Đọc khóa đã có `ads_inlist_every_count` (T-007), không thêm khóa.
 - Sự kiện phân tích: Không chạm (ADR-0022: hiển thị và bấm lấy từ liên kết AdMob và Firebase).
 - File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. Chèn hàng vào danh sách và tải native qua `AdsController.loadNativeAd` của T-010 chỉ cần các quyền mà `play-services-ads` đã khai báo (`INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID`, spec ads mục 6); không sửa manifest.
+- **Thư viện và SDK:** Không thêm. `LazyListScope`, `LazyGridScope`, `GridItemSpan` thuộc Compose foundation (có qua Material 3 của plugin `template.android.compose`); `collectAsStateWithLifecycle` thuộc `androidx-lifecycle-runtime-compose`, đã là `implementation` của `:core:ads`. Không sửa `core/ads/build.gradle.kts`. Chạy thử ở mục 4.1 dùng `LazyColumn`, `rememberCoroutineScope`, `DisposableEffect` trong `:core:ads` và biên dịch được.
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** giữ trạng thái của ô trong `InListAds` (ngoài vòng đời hàng của `LazyColumn`) với `scope` của `rememberCoroutineScope`: test giao diện cần việc tải giả xong trong `waitForIdle`.
+- **Điều kiện chuyển:** các test giao diện có ô `Loaded` (`adRow_showsAdLabel`, `adRow_isSixteenDpFromItemsAboveAndBelow`) vẫn thấy hàng ở `Loading` sau `waitForIdle`, sau 2 lần sửa.
+- **Cách làm thay:** test truyền cho `InListAds` một `scope` tự tạo trên `Dispatchers.Main.immediate` (Robolectric chạy nó ngay trên luồng chính) thay cho `rememberCoroutineScope`; hàm khởi tạo `internal` đã nhận `scope` nên không đổi code chính, file test đã có trong mục 3.2, tiêu chí và tên test giữ nguyên.
 
 ## 4. Kiểm thử
 
@@ -184,7 +201,7 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 | KB-3, thứ tự trong `LazyColumn` (N = 3, 7 mục) | Compose UI test | `InListAdsTest.lazyColumn_sevenItemsEveryThree_adRowsAfterItems3And6`: hàm nội bộ với `positions = inListAdPositions(7, 3)`; `inlist_ad_0` nằm dưới `item_3` và trên `item_4` (so `getBoundsInRoot`); cuộn tới `inlist_ad_1` (`performScrollToNode`) thì nó nằm dưới `item_6` và trên `item_7`; tổng số hàng quảng cáo là 2 |
 | KB-3, ít hơn N mục thì không có, trong danh sách | Compose UI test | `InListAdsTest.lazyColumn_fewerItemsThanEvery_noAdRow`: 7 mục, N = 8: `onAllNodesWithTag("inlist_ad_0")` rỗng, `onAllNodesWithText("Ad")` rỗng |
 | KB-3, nhãn "Ad" rõ trong ô chèn | Compose UI test | `InListAdsTest.adRow_showsAdLabel`: `onNode(hasText("Ad") and hasAnyAncestor(hasTestTag("inlist_ad_0"))).assertExists()`; chữ "Ad" lấy từ `R.string.ads_native_badge` của T-010, không viết cứng ngoài test |
-| KB-3, không nhầm với mục: cách mục 16 dp | Compose UI test, `NATIVE` | `InListAdsTest.adRow_isSixteenDpFromItemsAboveAndBelow`: khoảng từ đáy `item_3` tới đỉnh `NativeAdCard` trong `inlist_ad_0`, và từ đáy thẻ tới đỉnh `item_4`, đều bằng 16 dp (sai số 0.5 dp) |
+| KB-3, không nhầm với mục: cách mục 16 dp | Compose UI test, `NATIVE` | `InListAdsTest.adRow_isSixteenDpFromItemsAboveAndBelow`: đo qua `InListAdRow` thật. `InListAds(AdPlacement.SAMPLE_NATIVE_SMALL, every = mutableStateOf<Int?>(3), loader = InListAdLoader { NativeAdState.Loaded(FakeLoadedNativeAd(sampleNativeAdAssets)) }, scope = rememberCoroutineScope(), logger = RecordingAppLogger())` dựng trong `setContent`; `LazyColumn { itemsWithInListAds(items = (1..7).toList(), ads = ads) { Text("List item $it", Modifier.testTag("item_$it")) } }` (hàm public, nên hàng là `InListAdRow`, không có `adContent` giả); `waitForIdle`. Khoảng từ đáy `item_3` tới đỉnh node `NativeAdTestTags.CARD` nằm trong `inlist_ad_0` (`hasAnyAncestor(hasTestTag("inlist_ad_0"))`, quảng cáo giả nên `BoundNativeAd` của T-010 vẽ `NativeAdLayout` trong cùng cây Compose), và từ đáy thẻ đó tới đỉnh `item_4`, đều bằng 16 dp (sai số 0.5 dp). Chạy thử ở mục 4.1 đo đúng 16 dp với một hàng có lề dọc `Spacing.md` trong `LazyColumn` |
 | Ô hết thời gian chờ thì thu lại, không để khoảng trống | Compose UI test | `InListAdsTest.unavailableSlot_takesNoHeight`: `InListAdRow` với `InListAds` có loader giả trả `Unavailable`: đỉnh `item_4` sát đáy `item_3` (khoảng 0 dp) |
 | Đang tải giữ chỗ | Compose UI test | `InListAdsTest.loadingSlot_showsPlaceholderOfSmallHeight`: loader treo, hàng quảng cáo cao 72 dp + 2 x 16 dp (chiều cao giữ chỗ small của thiết kế) |
 | Lưới: rộng hết hàng, sau hàng đủ ô | Compose UI test | `InListAdsTest.lazyGrid_twoColumnsEveryThree_adSpansFullWidthAfterItem4`: `LazyVerticalGrid(GridCells.Fixed(2))`, 7 mục, `every = 3`: hàng quảng cáo nằm dưới `item_3` và `item_4`, trên `item_5`, rộng bằng lưới |
@@ -194,6 +211,13 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 | Đúng thiết kế `AdGalleryScreen_inlist_light` | Screenshot test (thuộc T-014) | T-014 ghi `AdGalleryScreen_inlist_light.png` và ảnh `_small`, chạy so sánh với ảnh thiết kế. T-011 không ghi ảnh |
 
 **Ngoại lệ viết test trước:** sửa `docs/ops/ads-guide.md` chỉ là tài liệu, không có test. Phần bọc `NativeAdView` (`BoundNativeAd`) và `AdsController.loadNativeAd` là của T-010, không test lại ở đây; hai phần đó với quảng cáo thật kiểm thủ công sau T-014.
+
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** ngày 2026-10-23, hai worktree tạm ngoài repo từ `origin/main` (commit `39bbc70`, chưa có T-007 đến T-010), không commit, đã xóa. (1) Giữ trạng thái quảng cáo của ô ngoài vòng đời hàng: test tạm `TrialInListHoldTest.kt` trong `:core:ads`, một bộ giữ có `mutableMapOf<Int, MutableState<...>>` tạo bằng `remember` ngoài `LazyColumn`, tải bằng `rememberCoroutineScope`, `DisposableEffect` hủy khi rời cây; hàng quảng cáo có lề dọc 16 dp. (2) Đo khoảng 16 dp của hàng có lề dọc trong `LazyColumn` (test thứ hai trong lần chạy thử của T-010, mục 4.1 của plan T-010).
+- **Lệnh:** `./gradlew :core:ads:testDebugUnitTest --tests '*TrialInListHoldTest*'`, rồi `scripts/check.sh` (JDK 21 của Android Studio).
+- **Kết quả:** qua ngay lần đầu: tải 1 lần; cuộn tới mục 25 thì hàng `inlist_ad_0` rời cây giao diện, cuộn về đầu thì hàng hiện lại mà không tải lần hai; rời màn hình thì bộ giữ hủy 1 quảng cáo. Khoảng cách trên và dưới hàng: 16 dp (sai số 0.5 dp). `scripts/check.sh`: `Cổng chất lượng: QUA`, `:core:ads` 16 test 0 lỗi (gồm test thử), ktlint và lint qua. Phương án dự phòng ở mục 3.4 chưa cần thử.
+- **Thay đổi sau chạy thử:** cách viết `requireInListFormat` (`require(format in setOf(...))`, rà soát trước khi chạy) có sau lần chạy thử. Lần chạy thử không gọi hàm này, chỉ thử bộ giữ quảng cáo và khoảng cách hàng, nên kết quả trên không đổi.
 
 ## 5. Chấm rủi ro
 
@@ -205,7 +229,7 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 | B. Độ rõ của yêu cầu | 1 | Spec đã xác nhận, thiết kế đã duyệt; AI phải tự chọn quảng cáo có ở cuối danh sách hay không và cách làm tròn N ở lưới (câu hỏi 1, 2) |
 | C. Khả năng kiểm chứng tự động | 1 | Vị trí, nhãn, khoảng cách, giữ và hủy quảng cáo có test JVM; tải quảng cáo thật và cuộn trên máy chỉ kiểm thủ công sau T-014 |
 | D. Ảnh hưởng chéo | 2 | `AdsController.kt` cũng do T-007, T-009, T-010, T-012, T-013 sửa; dựa vào phần dựng của T-010 |
-| E. Độ mới của kỹ thuật | 2 | Giữ quảng cáo native theo ô ngoài vòng đời hàng của `LazyColumn` chưa có trong dự án, nhưng là cách phổ biến |
+| E. Độ mới của kỹ thuật | 2 | Giữ quảng cáo native theo ô ngoài vòng đời hàng của `LazyColumn` chưa có trong dự án, nhưng là cách phổ biến; đã chạy thử (mục 4.1) |
 | **Tổng** | **8** | **Mức: Cao (chạm điểm chặn)** |
 
 ## 6. Ảnh hưởng chéo
@@ -242,11 +266,13 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
+<!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt
-- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
-- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+
+Phiên bản 1 đã được anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), duyệt chéo: Nhật; câu hỏi 1 đến 5 ở mục 8 đã có trả lời và giữ nguyên ở phiên bản 2.
 
 ## 10. Nhật ký thực hiện
 

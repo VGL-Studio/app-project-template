@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed            # draft | confirmed | changed
+status: changed              # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -163,6 +163,13 @@ Tiêu chí chấp nhận:
 
 **Sự kiện phân tích:** không thêm. `ad_impression`, `ad_click` và doanh thu lấy từ liên kết AdMob và Firebase (ADR-0022).
 
+**Quyền của app và dịch vụ bên ngoài:**
+
+- Không có quyền nào phải hỏi người dùng.
+- SDK bên ngoài mới: mediation AppLovin (adapter `com.google.ads.mediation:applovin` kéo theo AppLovin SDK), ADR-0022. AppLovin chỉ khởi động qua AdMob sau khi người dùng đồng ý quảng cáo: bỏ `AppLovinInitProvider` của SDK (nó đọc mã quảng cáo của máy lúc mở app, trước khi có đồng ý).
+- Quyền khai báo trong manifest gộp: `INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID` (đã có, của Google Mobile Ads); thêm `VIBRATE` (AppLovin SDK dùng cho quảng cáo có rung, quyền thường, không hỏi người dùng). Bỏ `CHECK_LICENSE` và `ACCESS_WIFI_STATE` mà AppLovin SDK tự thêm (không cần cho quảng cáo).
+- Play Console: cập nhật mục An toàn dữ liệu với mạng quảng cáo AppLovin (mã quảng cáo của máy, dữ liệu tương tác quảng cáo) trước khi phát hành bản có mediation.
+
 ## 7. File tĩnh trên R2
 
 Không có.
@@ -198,6 +205,9 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 5. **Thêm adapter AppLovin là đổi `gradle/libs.versions.toml` (file được bảo vệ).**
    - Đề xuất của AI: ticket riêng, plan rủi ro cao, duyệt chéo; các ticket khác không phụ thuộc nó.
    - Trả lời: Làm luôn.
+6. **Quyền và SDK ở mục 6 (bổ sung 2026-10-23 theo rà soát danh sách chạy RUN-20261023-01).**
+   - Đề xuất của AI: chấp nhận như mục 6: thêm `VIBRATE`, bỏ `CHECK_LICENSE`, `ACCESS_WIFI_STATE` và `AppLovinInitProvider`; cập nhật An toàn dữ liệu trước khi phát hành.
+   - Trả lời:
 
 ## 10. Lịch sử
 
@@ -206,3 +216,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-21 | AI | Tạo bản đầu từ yêu cầu |
 | 2026-10-21 | Nhật | Trả lời 5 câu hỏi, xác nhận |
 | 2026-10-21 | AI | Tách ticket T-007 đến T-015. Hiểu câu 3 là màn hình mẫu bỏ banner, định dạng banner vẫn giữ trong `:core:ads` |
+| 2026-10-23 | AI | Thêm quyền của app và SDK AppLovin vào mục 6 (rà soát RUN-20261023-01: `VIBRATE` của T-015 chưa có trong spec); chuyển sang `changed`, chờ xác nhận lại |

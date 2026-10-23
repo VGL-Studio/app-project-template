@@ -1,19 +1,28 @@
 ---
 ticket: T-013
 title: Native toàn màn hình thay interstitial
-status: approved            # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft               # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 20M của scripts/token-usage.py estimate (2026-10-21), cộng 5M vì có màn hình theo thiết kế và ảnh so sánh
 blocking_points: [ads, core]
-run_order: 9                # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật              # người duyệt
-cross_reviewer: Nhật        # bắt buộc khi risk_level là high
-approved_at: 2026-10-23
+run_order:                  # AI điền sau họp đánh giá rủi ro
+reviewer:                   # người duyệt
+cross_reviewer:             # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-013: NATIVE TOÀN MÀN HÌNH THAY INTERSTITIAL
+
+**Phiên bản 2 (2026-10-23)**, sau rà soát trước phiên của RUN-20261023-01 (mục Kiểm tra trước khi duyệt). Thay đổi so với phiên bản 1 (đã duyệt 2026-10-23):
+
+- Bỏ Espresso: test nút quay lại dùng `Espresso.pressBack()`, mà `espresso-core` không có trên classpath biên dịch test của `:core:ads` (điểm chặn của rà soát). Nay test gọi `onBackPressedDispatcher.onBackPressed()` của **cửa sổ hộp thoại** (lấy bằng `LocalOnBackPressedDispatcherOwner` trong nội dung hộp thoại), không phải của activity: chạy thử (mục 4.1) cho thấy dispatcher của activity không tới hộp thoại Compose, mà đóng activity. `NativeFullScreenAdDialog` có thêm tham số `content` để test đặt nội dung giả.
+- Phần bọc `NativeAdView` dùng hàm gắn SDK dùng chung của T-010 phiên bản mới (nhận bố cục bất kỳ), không tự gắn view và không sửa file của T-010 (rà soát: `BoundNativeAd(ad, size)` của T-010 phiên bản 1 chỉ nhận hai cỡ).
+- Mục 3.3 có hai dòng "Quyền truy cập:", "Thư viện và SDK:" (dẫn tới spec mục 6); thêm mục 3.4 (phương án dự phòng) và mục 4.1 (chạy thử bằng `scripts/check.sh`).
+- Mục 6 ghi lại cho T-017: `setContent` của `MainActivity` phải giữ `FullScreenAdHost()` mà T-013 đặt.
+- Mục 9 để trống cho phiên bản 2; quyết định của phiên bản 1 giữ nguyên.
+- Theo rà soát trước khi chạy: thêm nhánh `NATIVE_FULL_SCREEN -> null` vào `AdFormat.nativeLoadSize()` của T-010 (`when` đủ nhánh duy nhất về cỡ tải, trong `AdsController.kt`), không sửa file của T-010, T-011 (mục 3.1).
 
 ## 1. Tóm tắt
 
@@ -38,7 +47,7 @@ Giả định về các task chạy trước (hợp đồng chung, giữ đúng 
 
 - T-007: `RemoteKey<T>`, `RemoteSettings.value(key)`, `AdsSettings` public, `AdsSettings.placementEnabled(p)`, `AppRemoteKeys` ở `:app`; test sinh `docs/remote-config-keys.md` và `docs/remote-config-template.json` từ `AdPlacement.entries`.
 - T-009: `AdsController.awaitFullScreenTurn(placement): Boolean` và `onFullScreenShown()` (nội bộ), `FullScreenAdPacer`, công tắc tổng trong `isEnabled(placement)`, `:core:ads` dùng `AppLogger`, cờ `fullScreenInProgress` chống gọi chồng.
-- T-010: `AdFormat.NATIVE_SMALL`, `NATIVE_MEDIUM`; `NativeAdAssets` (headline, advertiser, body, callToAction, icon, có media hay không); phần dựng Compose bọc `NativeAdView` (đăng ký từng view asset), nhãn "Ad" dùng chung, hằng số khoảng cách riêng (2, 6, 12 dp) của composable native; mã thử native trong `GoogleTestAdUnitIds`; `:core:ads` phụ thuộc `:core:designsystem` và có Roborazzi với ảnh chuẩn ở `core/ads/src/test/screenshots/`.
+- T-010 (phiên bản mới): `AdFormat.NATIVE_SMALL`, `NATIVE_MEDIUM`; `NativeAdAssets` (headline, advertiser, body, callToAction, icon, có media hay không); `LoadedNativeAd`, `SdkLoadedNativeAd`; hàm gắn SDK dùng chung `@Composable internal fun BoundNativeAd(ad: LoadedNativeAd, modifier: Modifier = Modifier, content: @Composable (NativeAdBinder) -> Unit)` trong `NativeAdViewBinding.kt`: dựng `NativeAdView`, để `content` vẽ bố cục bất kỳ và đăng ký view của từng asset (headline, advertiser, body, call to action, icon, `MediaView`) qua `NativeAdBinder`, rồi gọi `setNativeAd` sau khi mọi view đã gán; quảng cáo giả (không phải của SDK) thì chỉ vẽ `content` với bộ nối không làm gì. Tên hàm, kiểu `NativeAdBinder` hay chữ ký khác giả định này thì dừng (mục 7); nhãn "Ad" dùng chung, hằng số khoảng cách riêng (2, 6, 12 dp) của composable native; mã thử native trong `GoogleTestAdUnitIds`; `:core:ads` phụ thuộc `:core:designsystem`, có Roborazzi với ảnh chuẩn ở `core/ads/src/test/screenshots/` và `core/ads/src/test/resources/robolectric.properties` (`sdk=35`).
 
 ## 3. Giải pháp
 
@@ -101,6 +110,7 @@ internal class FreshAdCache<T>(private val maxAgeMillis: Long = MAX_AGE_MILLIS, 
 - `internal val nativeFullScreenAd: StateFlow<ShownNativeFullScreenAd?>`; `internal fun closeNativeFullScreenAd()`: hủy quảng cáo (`destroy`), đặt `null`, `presence.onClosed()`, log `"Native full-screen closed"`, tải sẵn cho lần sau.
 - Interstitial nối vào cùng `presence` (chỉ khi T-017 chưa nối), đúng chỗ plan T-017 ghi: `presence.onShowing()` ngay trước `ad.show(activity)`, cạnh `onFullScreenShown()`; `presence.onClosed()` trong `onAdDismissedFullScreenContent` và `onAdFailedToShowFullScreenContent`. Không đổi phần còn lại của `showInterstitial`.
 - Tải sẵn: `onConsentUpdated` hiện tải sẵn mọi vị trí `INTERSTITIAL`; đổi điều kiện lọc thành `it.format.isFullScreen` và `preloadWhenEnabled` chọn hàm tải theo định dạng. Native toàn màn hình tải bằng `AdLoader` với `NativeAdOptions`: `setAdChoicesPlacement(ADCHOICES_TOP_RIGHT)`, `setMediaAspectRatio(NativeMediaAspectRatio.ANY)`, `setVideoOptions(startMuted = true)`. Nếu T-010 đã có hàm tải native nhận `NativeAdOptions`, dùng lại hàm đó; nếu không, thêm hàm riêng `preloadNativeFullScreen(placement)` trong `AdsController`. Đã có trong bộ nhớ hay vị trí tắt thì không tải. Tải lỗi chỉ ghi `warn` (mã lỗi, không có nội dung quảng cáo).
+- Bảng cỡ tải `AdFormat.nativeLoadSize()` của T-010 (biểu thức `when` đủ nhánh trong `AdsController.kt`): thêm nhánh `NATIVE_FULL_SCREEN -> null`, vì native toàn màn hình không đi qua `nativeAd`/`loadNativeAd` mà tải sẵn bằng hàm riêng ở trên. Trình biên dịch buộc thêm nhánh này khi thêm giá trị vào `AdFormat`. `requireNativeFormat` (`NativeAdSlot.kt`, T-010) và `requireInListFormat` (`InListAds.kt`, T-011) có `else` hay dùng `require(format in setOf(...))`, nên không phải sửa và vẫn từ chối `NATIVE_FULL_SCREEN`.
 - Log chỉ có lý do và khóa vị trí, không có chữ của quảng cáo hay dữ liệu cá nhân (ADR-0019). Không ghi sự kiện phân tích (ADR-0022, quyết định 9).
 
 **Màn hình** (file mới `NativeFullScreenAdScreen.kt`), composable không trạng thái, công khai trong module để test và màn hình xem thử (T-014) dùng:
@@ -132,8 +142,8 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 **Phần có SDK** (file mới `NativeFullScreenAdHost.kt`):
 
 - `@Composable fun FullScreenAdHost()` công khai: lấy `LocalAdsController`, không có thì không vẽ gì; theo dõi `nativeFullScreenAd`; khác `null` thì vẽ `NativeFullScreenAdDialog(onClose = ads::closeNativeFullScreenAd)` chứa nội dung có quảng cáo thật.
-- `NativeFullScreenAdDialog` (nội bộ): `Dialog` của Compose với `nativeFullScreenDialogProperties()` = `DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false, usePlatformDefaultWidth = false, decorFitsSystemWindows = false)`; `onDismissRequest = onClose`, nên nút quay lại của máy đóng quảng cáo. Kích thước phủ kín cửa sổ.
-- Nội dung thật: bọc `NativeAdView` bằng phần dựng của T-010, đăng ký headline, advertiser, body, call to action, icon, `MediaView` (`ImageView.ScaleType.FIT_CENTER`, không kéo giãn hay cắt), rồi `setNativeAd(ad)`; truyền vào `NativeFullScreenAdScreen` qua slot `media` và qua asset. AdChoices do SDK đặt ở góc trên phải, slot `adChoices` để trống.
+- `NativeFullScreenAdDialog(onClose: () -> Unit, content: @Composable () -> Unit)` (nội bộ): `Dialog` của Compose với `nativeFullScreenDialogProperties()` = `DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false, usePlatformDefaultWidth = false, decorFitsSystemWindows = false)`; `onDismissRequest = onClose`, nên nút quay lại của máy đóng quảng cáo. Kích thước phủ kín cửa sổ. Hộp thoại là một cửa sổ riêng có `OnBackPressedDispatcher` riêng: nút quay lại khi quảng cáo đang hiện đi vào dispatcher của hộp thoại, không tới activity bên dưới (chạy thử, mục 4.1).
+- Nội dung thật: `BoundNativeAd(ad) { binder -> NativeFullScreenAdScreen(...) }` (hàm gắn dùng chung của T-010, mục 2): bố cục là `NativeFullScreenAdScreen`, mỗi asset (headline, advertiser, body, call to action, icon) và `MediaView` (`ImageView.ScaleType.FIT_CENTER`, không kéo giãn hay cắt, trong slot `media`) được đăng ký qua `binder`; `setNativeAd` do hàm của T-010 gọi. T-013 không tự tạo `NativeAdView` và không sửa `NativeAdViewBinding.kt`. AdChoices do SDK đặt ở góc trên phải, slot `adChoices` để trống.
 - Hộp thoại nằm trong `AppTheme` của `:app` nên tự theo chế độ sáng, tối. Xoay màn hình: `AdsController` là singleton nên quảng cáo vẫn còn, hộp thoại được vẽ lại.
 
 **`:app`:** `MainActivity.kt` đặt `FullScreenAdHost()` một lần trong `AppTheme`, sau `Surface { AppNavHost() }`. Không thêm quyền, không thêm thư viện.
@@ -142,7 +152,7 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 
 **Icon đóng:** vector `core/ads/src/main/res/drawable/ic_ads_close.xml` (24 dp, hai nét chéo 12 dp, nét 2 dp theo context), màu do `Icon(tint)` lấy từ `onSurface`. Không dùng `material-icons` (chưa có trong `gradle/libs.versions.toml`).
 
-**Commit test trước (bước 3, L-025):** commit test gồm mọi file test mới (mục 3.2), phần thêm vào `AdUnitIdsTest.kt`, và khung rỗng để test biên dịch: `AdFormat.NATIVE_FULL_SCREEN` (và nhánh mã thử trả chuỗi rỗng), `isFullScreen` trả `false`, `FullScreenAdPresence.showing` luôn `false` (bỏ nếu T-017 đã tạo lớp này), `FreshAdCache.take` trả `null`, `NativeFullScreenAdScreen` vẽ `Box` rỗng, `nativeFullScreenDialogProperties()` trả `DialogProperties()` mặc định, chuỗi `ads_close_full_screen`. Test thất bại ở phần kiểm tra, không ở biên dịch. Screenshot test thất bại vì chưa có ảnh chuẩn. Commit code ở bước 4 viết phần thật, nối `AdsController`, `MainActivity`, rồi ghi ảnh chuẩn (mục 3.2).
+**Commit test trước (bước 3, L-025):** commit test gồm mọi file test mới (mục 3.2), phần thêm vào `AdUnitIdsTest.kt`, và khung rỗng để test biên dịch: `AdFormat.NATIVE_FULL_SCREEN` (và nhánh mã thử trả chuỗi rỗng, nhánh `NATIVE_FULL_SCREEN -> null` của `nativeLoadSize()`), `isFullScreen` trả `false`, `FullScreenAdPresence.showing` luôn `false` (bỏ nếu T-017 đã tạo lớp này), `FreshAdCache.take` trả `null`, `NativeFullScreenAdScreen` vẽ `Box` rỗng, `nativeFullScreenDialogProperties()` trả `DialogProperties()` mặc định, `NativeFullScreenAdDialog(onClose, content)` vẽ thẳng `content` không có `Dialog` (dispatcher là của activity: `backPress_callsOnClose` thất bại ở `onClose == 1`, không ở biên dịch), chuỗi `ads_close_full_screen`. Test thất bại ở phần kiểm tra, không ở biên dịch. Screenshot test thất bại vì chưa có ảnh chuẩn. Commit code ở bước 4 viết phần thật, nối `AdsController`, `MainActivity`, rồi ghi ảnh chuẩn (mục 3.2).
 
 **Ảnh so sánh với thiết kế (ADR-0020):** ảnh chuẩn của `:core:ads` nằm ở `core/ads/src/test/screenshots/`, không ở `feature/ads/`, nên chạy thẳng công cụ so ảnh với thư mục của module core, ra một thư mục tạm: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/ads/design/screens core/ads/src/test/screenshots <thư mục tạm>`. Công cụ ghi đè toàn bộ `summary.md` của thư mục đích, nên không ghi thẳng vào `docs/features/ads/design/review/` (sẽ xóa dòng của T-010, T-014). Chỉ chép hai ảnh `NativeFullScreenAdScreen_default_light_compare.png`, `NativeFullScreenAdScreen_default_dark_compare.png` và thêm hai dòng của chúng vào `review/summary.md`, giữ dòng cũ (chưa có file thì tạo). Nếu T-010 đã cho script của ADR-0020 nhận module core, dùng cách T-010 chọn (câu hỏi 5).
 
@@ -154,13 +164,13 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | --- | --- | --- |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt` | `AdFormat.NATIVE_FULL_SCREEN`, `isFullScreen`; không thêm vị trí |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt` | Mã thử native video cho `NATIVE_FULL_SCREEN`; `testUnitFor(format)` nếu T-010 chưa tách |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `showFullScreenAd`, `showNativeFullScreen` (dùng chung `fullScreenInProgress`, `awaitFullScreenTurn`, `onFullScreenShown` của T-009), `nativeFullScreenAd`, `closeNativeFullScreenAd`, tải sẵn native toàn màn hình; `presence` và `fullScreenAdShowing`, interstitial báo `presence` (thêm nếu T-017 chưa thêm) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `showFullScreenAd`, `showNativeFullScreen` (dùng chung `fullScreenInProgress`, `awaitFullScreenTurn`, `onFullScreenShown` của T-009), `nativeFullScreenAd`, `closeNativeFullScreenAd`, tải sẵn native toàn màn hình; nhánh `NATIVE_FULL_SCREEN -> null` trong `AdFormat.nativeLoadSize()` (`when` đủ nhánh của T-010); `presence` và `fullScreenAdShowing`, interstitial báo `presence` (thêm nếu T-017 chưa thêm) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdSlot.kt` | Chỉ KDoc của `rememberShowInterstitial` trỏ sang `rememberShowFullScreenAd`; không đổi code |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAds.kt` | `rememberShowFullScreenAd(placement)` |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | Trạng thái quảng cáo toàn màn hình đang hiện, cùng API với plan T-017 (bỏ nếu T-017 đã tạo) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FreshAdCache.kt` | Bộ nhớ quảng cáo tải sẵn có hạn 1 giờ |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreen.kt` | Composable không trạng thái theo thiết kế |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdHost.kt` | `FullScreenAdHost`, `NativeFullScreenAdDialog`, `nativeFullScreenDialogProperties`, phần bọc `NativeAdView` |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdHost.kt` | `FullScreenAdHost`, `NativeFullScreenAdDialog(onClose, content)`, `nativeFullScreenDialogProperties`; nội dung thật qua `BoundNativeAd(ad) { binder -> ... }` của T-010 |
 | Tạo | `core/ads/src/main/res/drawable/ic_ads_close.xml` | Icon đóng 24 dp |
 | Sửa | `core/ads/src/main/res/values/strings.xml` | `ads_close_full_screen` = "Close ad" |
 | Sửa | `core/ads/build.gradle.kts` | Chỉ khi T-010 chưa thêm: `implementation(project(":core:designsystem"))`, plugin Roborazzi và `outputDir` `src/test/screenshots` như `core/designsystem/build.gradle.kts`. Không thêm thư viện mới |
@@ -171,7 +181,7 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FreshAdCacheTest.kt` | Hạn dùng, thay thế, hủy |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdsTest.kt` | `rememberShowFullScreenAd` nhận đúng định dạng, không làm gì khi không có controller |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreenTest.kt` | Test giao diện Robolectric: nút đóng, vị trí, chữ, kích thước |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdDialogTest.kt` | Thuộc tính hộp thoại, nút quay lại đóng quảng cáo |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdDialogTest.kt` | Thuộc tính hộp thoại; nút quay lại qua dispatcher của hộp thoại đóng quảng cáo, activity không bị đóng |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreenScreenshotTest.kt` | Ba screenshot test (mục 4) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdFakes.kt` | `NativeAdAssets` giả (chữ minh họa của thiết kế, chữ dài nhất), media và AdChoices giả cho ảnh |
 | Tạo | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_default_light.png` | Ảnh chuẩn, trùng tên ảnh thiết kế |
@@ -184,9 +194,8 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | Sửa | `docs/ops/ads-guide.md` | Mục 3 bỏ "(đợt 2)" của native toàn màn hình; mục 5 bước 4 |
 | Sửa | `docs/features/ads/tickets/T-013-native-toan-man-hinh.md` | Trạng thái ticket theo phiên tự chạy |
 | Sửa | `docs/features/ads/plans/T-013-native-toan-man-hinh.md` | Nhật ký thực hiện |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
-Không sửa: `docs/remote-config-keys.md`, `docs/remote-config-template.json` (không thêm vị trí hay khóa; test của T-007 xác nhận hai file vẫn khớp), `AdsSettings.kt`, `FullScreenAdPacer.kt`, `FullScreenAdGuard.kt` và test của chúng, `docs/features/ads/design/README.md` (thiết kế đã duyệt), `gradle/libs.versions.toml`, `AndroidManifest.xml`.
+Không sửa: `NativeAdViewBinding.kt` và `core/ads/src/test/resources/robolectric.properties` (của T-010), `docs/remote-config-keys.md`, `docs/remote-config-template.json` (không thêm vị trí hay khóa; test của T-007 xác nhận hai file vẫn khớp), `AdsSettings.kt`, `FullScreenAdPacer.kt`, `FullScreenAdGuard.kt` và test của chúng, `docs/features/ads/design/README.md` (thiết kế đã duyệt), `gradle/libs.versions.toml`, `AndroidManifest.xml`.
 
 Nơi khác đọc các file trên (đã tìm bằng `grep -rn` trong `scripts/`, `.github/`, `build-logic/`, `*/src/test`):
 
@@ -195,17 +204,25 @@ Nơi khác đọc các file trên (đã tìm bằng `grep -rn` trong `scripts/`,
 - `scripts/device-session.sh`: chỉ in tên `docs/CLAUDE.md` (mục Khi phân tích một phiên thử), không phải `CLAUDE.md` gốc mà task sửa. Không ảnh hưởng.
 - `.github/ISSUE_TEMPLATE/from-app.yml`: chỉ nêu "CLAUDE.md" như một lựa chọn trong danh sách loại đề xuất, không đọc nội dung. Không ảnh hưởng, không chạm `.github/`.
 - `core/ads/src/main/res/values/strings.xml`: `scripts/new-app.sh` chỉ sửa `strings.xml` của `:app`, không đọc file của `:core:ads`.
-- `docs/STATUS.md`: `scripts/tests/run.sh` chỉ đọc bản của repo giả trong thư mục tạm.
+- `docs/STATUS.md`: không đưa vào PR; trang chỉ sinh lại trên nhánh chính (`docs/CLAUDE.md`, mục Trang tiến độ, L-059).
 - `docs/features/ads/design/review/summary.md`: `.github/workflows/device-session.yml` chỉ đọc `summary.md` trong `test-sessions/` của phiên thử, không đọc file này. Script bọc sẵn của ADR-0020 xóa và sinh lại cả thư mục `review/` của feature, nhưng task không chạy script đó (chạy thẳng `DesignCompare.java` ra thư mục tạm, mục 3.1) và chỉ thêm dòng. Không ảnh hưởng, không sửa hai file này.
 - Ảnh chuẩn mới của `:core:ads`: `scripts/check.sh` tự tìm qua `captureRoboImage("src/test/screenshots/...")`, không cần sửa.
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có. Không thêm khóa Remote Config: vị trí native toàn màn hình (khi có) dùng `ads_<vị trí>_enabled` mặc định tắt (ADR-0014) và chung các khóa tần suất của interstitial (spec mục 8).
 - Quảng cáo: thêm định dạng native toàn màn hình theo KB-5 (điểm chặn 1). Không thêm, bớt hay di chuyển vị trí; vị trí của màn hình xem thử thuộc T-014.
 - Sự kiện phân tích: Không chạm (ADR-0022, quyết định 9).
 - Dữ liệu trên máy: không thêm; số đếm và thời điểm do T-009 lưu.
 - File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. Hộp thoại Compose, `NativeAdView`, `MediaView` và `OnBackPressedDispatcher` không cần quyền nào từ `minSdk` 26 tới `targetSdk` 36; manifest gộp giữ đúng các quyền đã có của Google Mobile Ads ghi ở spec mục 6 (Quyền của app và dịch vụ bên ngoài). Không khai báo Activity mới (câu hỏi 2).
+- **Thư viện và SDK:** Không thêm. Dùng thư viện đã có trên classpath biên dịch của `:core:ads`: `libs.play.services.ads` (`NativeAd`, `AdLoader`, `NativeAdOptions`, `MediaView`), `libs.androidx.activity.compose` (`LocalOnBackPressedDispatcherOwner`, `ComponentActivity`); Compose UI, `Dialog`, test Compose (`createAndroidComposeRule`) và Robolectric có sẵn qua plugin `template.android.compose`. Không dùng Espresso (`espresso-core` không có trên classpath biên dịch test, mục 4.1), không dùng `material-icons`. Spec mục 6 không có SDK mới cho task này.
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** (1) cách giả lập nút quay lại trong test Robolectric: lấy dispatcher của hộp thoại qua `LocalOnBackPressedDispatcherOwner` trong `content` (đã chạy thử, mục 4.1); (2) `NativeAdView` trong `Dialog` của Compose nhận lượt hiển thị và lượt bấm CTA trên máy (không kiểm được trên JVM).
+- **Điều kiện chuyển:** (1) `NativeFullScreenAdDialogTest.backPress_callsOnClose` vẫn thất bại sau 2 lần sửa vì `LocalOnBackPressedDispatcherOwner.current` trong hộp thoại trả `null` hay trả dispatcher của activity (bản Compose khác lúc chạy thử). (2) Không có phương án dự phòng: điều kiện dừng ở mục 7.
+- **Cách làm thay:** (1) test lấy hộp thoại đang mở bằng `ShadowDialog.getLatestDialog()` của Robolectric, ép sang `androidx.activity.ComponentDialog` và gọi `onBackPressedDispatcher.onBackPressed()` trên luồng chính; khẳng định giữ nguyên (`onClose` một lần, activity không `isFinishing`). Cùng file test, không thêm thư viện (Robolectric có sẵn).
 
 ## 4. Kiểm thử
 
@@ -229,7 +246,7 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 | KB-5, tiêu chí 1: khác góc AdChoices | Compose UI test | `NativeFullScreenAdScreenTest.closeButton_isTopLeft_awayFromAdChoices`: slot `adChoices` giả có `testTag("adChoices")`; nút đóng `left == 16.dp`, `top == 24.dp`; cạnh phải nút đóng nhỏ hơn cạnh trái AdChoices ít nhất 200 dp; cạnh dưới nút đóng cách cạnh trên CTA hơn 600 dp |
 | KB-5, tiêu chí 2: bấm nút đóng | Compose UI test | `NativeFullScreenAdScreenTest.tapClose_callsOnCloseOnce`: `performClick`, bộ đếm `onClose == 1` |
 | KB-5, tiêu chí 2: nút quay lại | Unit test | `NativeFullScreenAdDialogTest.dialogProperties_closeOnBackOnly`: `dismissOnBackPress == true`, `dismissOnClickOutside == false`, `usePlatformDefaultWidth == false` |
-| KB-5, tiêu chí 2: nút quay lại | Compose UI test | `NativeFullScreenAdDialogTest.backPress_callsOnClose`: dựng `NativeFullScreenAdDialog(onClose)` với nội dung giả, `Espresso.pressBack()`, `onClose` được gọi một lần |
+| KB-5, tiêu chí 2: nút quay lại | Compose UI test | `NativeFullScreenAdDialogTest.backPress_callsOnClose`: `createAndroidComposeRule<ComponentActivity>()`; dựng `NativeFullScreenAdDialog(onClose) { ... }`, nội dung giả lưu `LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher` và có `testTag("fakeAd")`; `composeRule.runOnUiThread { dispatcher.onBackPressed() }`, `waitForIdle()`: `onClose` được gọi đúng một lần, `composeRule.activity.isFinishing == false`. Không dùng Espresso, không gọi dispatcher của activity (mục 4.1) |
 | Đúng thiết kế: chữ và kiểu chữ | Compose UI test | `NativeFullScreenAdScreenTest.texts_followDesign`: thấy "Headline of the ad", "Advertiser", mô tả, "Install" và nhãn "Ad"; CTA cao 48 dp (`nativeFullScreenCta`), media cao ít nhất 120 dp |
 | Đúng thiết kế, sáng | Screenshot test | `NativeFullScreenAdScreenScreenshotTest.default_light` ghi `src/test/screenshots/NativeFullScreenAdScreen_default_light.png`, `FakeNativeAdAssets.Design`, media giả nền `surfaceContainer` với nhãn "Media", AdChoices giả 16 dp |
 | Đúng thiết kế, tối | Screenshot test | `NativeFullScreenAdScreenScreenshotTest.default_dark` ghi `src/test/screenshots/NativeFullScreenAdScreen_default_dark.png` |
@@ -242,6 +259,16 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 
 **Ngoại lệ viết test trước:** phần nối trong `AdsController.kt`, `NativeFullScreenAdHost.kt` (phần bọc `NativeAdView` và `MediaView`), `MainActivity.kt`, `AdSlot.kt` (chỉ KDoc), icon vector, `CLAUDE.md` và `ads-guide.md`: không có unit test vì cần SDK thật hay chỉ là tài liệu; kiểm qua build, test trên emulator có sẵn (`AppLaunchTest`: app vẫn khởi động khi có `FullScreenAdHost`) và kiểm tra thủ công sau T-014. Người duyệt cần đồng ý.
 
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** 2026-10-23, worktree tạm ngoài repo (`git worktree add --detach <scratchpad>/trial-t013-t014 origin/main`, commit `39bbc70`), code thử không commit, đã xóa worktree sau khi chạy. Cùng một lần chạy với phần thử của plan T-014. Test tạm `core/ads/src/test/kotlin/.../BackPressTrialTest.kt` (`createAndroidComposeRule<ComponentActivity>()`, `@GraphicsMode(NATIVE)`) với `Dialog` của Compose có đúng `DialogProperties` của mục 3.1, cộng `core/ads/src/test/resources/robolectric.properties` (`sdk=35`, như T-010 sẽ tạo). Ba cách giả lập nút quay lại:
+  1. `composeRule.runOnUiThread { composeRule.activity.onBackPressedDispatcher.onBackPressed() }` (cách rà soát gợi ý): `onDismissRequest` **không** được gọi (`closed=0`) và activity bị đóng (`isFinishing=true`). Dispatcher của activity không tới hộp thoại, vì hộp thoại là cửa sổ riêng có dispatcher riêng. Không dùng cách này.
+  2. Dispatcher của hộp thoại, lấy bằng `LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher` trong nội dung hộp thoại (khác dispatcher của activity), gọi `onBackPressed()` trên luồng chính: `onDismissRequest` được gọi đúng một lần, nội dung hộp thoại biến mất. Đây là cách của test ở mục 4.
+  3. Dự phòng (mục 3.4): `ShadowDialog.getLatestDialog() as ComponentDialog`, gọi `onBackPressedDispatcher.onBackPressed()`: `closed=1`, `isFinishing=false`.
+- **Lệnh:** `./gradlew :core:ads:testDebugUnitTest --tests '*BackPressTrialTest*'` (xem ba kết quả trên), rồi `scripts/check.sh` (JDK của Android Studio, `ANDROID_HOME=$HOME/Library/Android/sdk`).
+- **Kết quả:** lần đầu `scripts/check.sh` thất bại chỉ vì ktlint của code thử (`statement-wrapping`, `max-line-length`), không vì kỹ thuật; sau `ktlintFormat`, `scripts/check.sh` qua: "Test JVM: 108 test, 0 lỗi", `:core:ads` 18 test 0 lỗi, "Cổng chất lượng: QUA". Mọi lớp dùng (`Dialog`, `DialogProperties`, `LocalOnBackPressedDispatcherOwner`, `createAndroidComposeRule`, `ShadowDialog`, `androidx.activity.ComponentDialog`) có trên classpath biên dịch test của `:core:ads` hiện tại, không cần thêm thư viện; không dùng Espresso. Phần `NativeAdView` trong hộp thoại với quảng cáo thật không chạy thử được trên JVM (kiểm thủ công sau T-014, điều kiện dừng ở mục 7).
+- **Thay đổi sau chạy thử:** nhánh `NATIVE_FULL_SCREEN -> null` trong `nativeLoadSize()` có sau lần chạy thử (rà soát trước khi chạy). Lần chạy thử chỉ thử nút quay lại trong hộp thoại, không đụng bảng định dạng, nên kết quả trên không đổi.
+
 ## 5. Chấm rủi ro
 
 **Điểm chặn bị chạm:** quảng cáo (định dạng mới native toàn màn hình; điểm 1), module core dùng chung `:core:ads` (điểm 7). Không thêm quyền, SDK, vị trí hay sự kiện. Mức Cao, cần duyệt chéo; người phụ trách sản phẩm biết trước vì đây là định dạng quảng cáo toàn màn hình (risk-scoring.md, mục 3).
@@ -252,18 +279,19 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 | B. Độ rõ của yêu cầu | 1 | Spec đã xác nhận, thiết kế đã duyệt; AI tự quyết cách hiện (hộp thoại), hạn 1 giờ, mã thử video, không thêm vị trí (câu hỏi 1 đến 4) |
 | C. Khả năng kiểm chứng tự động | 2 | Logic, nút đóng, bố cục, ảnh có test tự động; quảng cáo thật, nút quay lại trên máy và tần suất chung chỉ kiểm được bằng tay sau T-014 |
 | D. Ảnh hưởng chéo | 3 | `AdsController.kt` cũng do T-009, T-010, T-012, T-017 sửa; `MainActivity.kt` do T-009, T-017 sửa; T-017 dựa vào `fullScreenAdShowing`; T-014 dựa vào hàm mới |
-| E. Độ mới của kỹ thuật | 2 | Hộp thoại Compose toàn màn hình bọc `NativeAdView` chưa có trong dự án; phổ biến, có tài liệu của Google |
+| E. Độ mới của kỹ thuật | 2 | Hộp thoại Compose toàn màn hình bọc `NativeAdView` và test nút quay lại qua dispatcher của hộp thoại chưa có trong dự án; phổ biến, có tài liệu của Google; cách test nút quay lại đã chạy thử (mục 4.1) |
 | **Tổng** | 11 | **Mức: Cao** (chạm điểm chặn) |
 
 ## 6. Ảnh hưởng chéo
 
-- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thêm hàm, đổi điều kiện tải sẵn, interstitial báo trạng thái đang hiện), `AdPlacement.kt` (`AdFormat` thêm giá trị: mọi `when` trên `AdFormat` phải xét thêm nhánh; hiện chỉ có `GoogleTestAdUnitIds`), `AdUnitIds.kt`, `MainActivity.kt`, `core/ads/build.gradle.kts` (nếu T-010 chưa sửa), `CLAUDE.md`, `strings.xml` của `:core:ads`. `docs/remote-config-keys.md` và `docs/remote-config-template.json` không đổi vì `AdPlacement` không đổi. Ảnh chuẩn của `:feature:sample` và `:core:designsystem` không đổi (`LocalAdsController` rỗng trong test).
+- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thêm hàm, đổi điều kiện tải sẵn, interstitial báo trạng thái đang hiện), `AdPlacement.kt` (`AdFormat` thêm giá trị: mọi `when` đủ nhánh trên `AdFormat` phải xét thêm nhánh; sau T-010 có hai: `GoogleTestAdUnitIds.of` và `AdFormat.nativeLoadSize()` trong `AdsController.kt`, đều trong file T-013 sửa. Hàm kiểm định dạng của T-010, T-011 có `else`, không sửa), `AdUnitIds.kt`, `MainActivity.kt`, `core/ads/build.gradle.kts` (nếu T-010 chưa sửa), `CLAUDE.md`, `strings.xml` của `:core:ads`. `docs/remote-config-keys.md` và `docs/remote-config-template.json` không đổi vì `AdPlacement` không đổi. Ảnh chuẩn của `:feature:sample` và `:core:designsystem` không đổi (`LocalAdsController` rỗng trong test).
 - Task khác trong sprint có thể xung đột: T-009 (tạo `awaitFullScreenTurn`, `onFullScreenShown`, sửa `MainActivity.kt`), T-010 (thêm `AdFormat`, nhánh mã thử, phần dựng native, `core/ads/build.gradle.kts`, `CLAUDE.md` bước 7), T-012 (thêm `AdFormat.NATIVE_COLLAPSIBLE`, sửa `AdsController.kt`), T-015 (sửa `core/ads/build.gradle.kts`), T-017 (`fullScreenAdShowing`, `MainActivity.kt`), T-014 (dùng `rememberShowFullScreenAd`, `NativeFullScreenAdScreen`, thêm vị trí).
-- Đề xuất thứ tự chạy: sau T-007, T-009, T-010 (bắt buộc: `depends_on`), sau T-012 nếu cùng phiên (cùng thêm nhánh vào `AdFormat` và `GoogleTestAdUnitIds`), trước T-014. Với T-017: chạy trước hay sau đều được nhưng không cùng lúc; ticket nào chạy trước thì thêm `fullScreenAdShowing`. Không chạy song song với T-015 (cùng `core/ads/build.gradle.kts`).
+- Đề xuất thứ tự chạy: sau T-007, T-009, T-010 (bắt buộc: `depends_on`), sau T-012 nếu cùng phiên (cùng thêm nhánh vào `AdFormat` và `GoogleTestAdUnitIds`), trước T-014. Với T-017: chạy trước hay sau đều được nhưng không cùng lúc; ticket nào chạy trước thì thêm `fullScreenAdShowing`. T-017 sửa `setContent` của `MainActivity` (popup mất mạng) phải giữ `FullScreenAdHost()` mà T-013 đặt sau `Surface { AppNavHost() }`; T-013 chạy sau T-017 thì thêm `FullScreenAdHost()` mà không bỏ phần của T-017. Không chạy song song với T-015 (cùng `core/ads/build.gradle.kts`).
 
 ## 7. Điều kiện dừng riêng
 
-- Hợp đồng của T-009 hay T-010 khác giả định ở mục 2 (tên `awaitFullScreenTurn`, `onFullScreenShown`, `fullScreenInProgress`, `NativeAdAssets`, phần dựng `NativeAdView`): dừng, không tự viết lại phần của task khác.
+- Hợp đồng của T-009 hay T-010 khác giả định ở mục 2 (tên `awaitFullScreenTurn`, `onFullScreenShown`, `fullScreenInProgress`, `NativeAdAssets`, `LoadedNativeAd`): dừng, không tự viết lại phần của task khác.
+- Hàm gắn SDK dùng chung của T-010 không có, khác tên hay khác chữ ký với `BoundNativeAd(ad, modifier, content: @Composable (NativeAdBinder) -> Unit)` (mục 2), hoặc chỉ nhận `NativeAdSize`: dừng, không tự gắn `NativeAdView` và không sửa `NativeAdViewBinding.kt`.
 - T-017 đã thêm `fullScreenAdShowing` nhưng khác tên hay kiểu hợp đồng (`StateFlow<Boolean>`), hoặc lớp giữ trạng thái khác `FullScreenAdPresence` (`showing`, `onShowing`, `onClosed`).
 - Cần thêm thư viện (ví dụ `material-icons`, `lifecycle-process`) hay sửa `gradle/libs.versions.toml`, `build-logic/`.
 - Cần thêm vị trí vào `AdPlacement` để test hay để thử (thuộc T-014, đổi bảng khóa).
@@ -285,14 +313,23 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
    - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Một lần gọi khi interstitial đang hiện.** AI đề xuất bỏ qua ngay (không xếp hàng chờ) để không có hai quảng cáo toàn màn hình liền nhau (`ads-guide.md`, bảng "không bao giờ làm").
    - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
+7. **(Phiên bản 2) Cách test nút quay lại.** AI đề xuất gọi dispatcher của cửa sổ hộp thoại (lấy trong `content`), vì dispatcher của activity không tới hộp thoại Compose (chạy thử, mục 4.1); dự phòng bằng `ShadowDialog` của Robolectric (mục 3.4). Phương án khác: chỉ test `onDismissRequest` qua `dialogProperties_closeOnBackOnly` và kiểm nút quay lại bằng tay, nhưng khi đó việc nút quay lại thật sự gọi `onClose` không có test tự động.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
+Phiên bản 1:
+
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
 - **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+
+Phiên bản 2:
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 

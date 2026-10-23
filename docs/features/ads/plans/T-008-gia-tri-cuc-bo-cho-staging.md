@@ -1,16 +1,16 @@
 ---
 ticket: T-008
 title: Giá trị Remote Config cục bộ cho bản staging
-status: approved            # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft            # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn
 risk_level: high             # low | medium | high
 token_estimate: 10M          # cỡ S, số gợi ý của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
 blocking_points: [core, ads]
-run_order: 2                # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật              # người duyệt
-cross_reviewer: Nhật        # bắt buộc khi risk_level là high
-approved_at: 2026-10-23
+run_order:              # AI điền sau họp đánh giá rủi ro
+reviewer:              # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-008: GIÁ TRỊ REMOTE CONFIG CỤC BỘ CHO BẢN STAGING
@@ -18,6 +18,8 @@ approved_at: 2026-10-23
 ## 1. Tóm tắt
 
 `RemoteSettings` đọc thêm một bộ giá trị khai báo trong `app/src/staging`, qua một qualifier mới `@LocalRemoteValues`, theo đúng cách `@LocallyEnabledFlags` đang làm với cờ. Thứ tự: giá trị từ Firebase, rồi giá trị cục bộ, rồi mặc định của khóa (ADR-0023, mục 5). Bản staging bật mọi vị trí của `AdPlacement`; production không khai báo gì nên nhận tập rỗng từ `@Multibinds` của `ConfigModule`. Kiểm chứng bằng unit test thứ tự ưu tiên ở `:core:config`, unit test bộ giá trị staging ở `:app`, và một test quét mã nguồn chứng minh chỉ source set `staging` khai báo giá trị cục bộ.
+
+**Phiên bản 2 (2026-10-23).** Bản 1 đã duyệt ngày 2026-10-23 (anh Nhật). Theo mẫu plan mới sau rà soát RUN-20261023-01: mục 3.3 thêm hai dòng quyền truy cập và thư viện (đều không thêm), mục 3.4 phương án dự phòng. Không đổi cách làm, danh sách file, test hay chấm rủi ro. Tiêu chí E là 1 nên không cần chạy thử (mục 4.1). Mục 9 chờ duyệt lại.
 
 ## 2. Hiểu yêu cầu
 
@@ -119,12 +121,18 @@ Không đặt `ads_enabled` vì mặc định đã bật. Vị trí mới thêm 
 
 Không file nào trong `scripts/`, `.github/`, `build-logic/` nhắc tới các file trên (đã tìm bằng `grep -rln`). `AdsSettings.kt` không sửa (T-007 đã để public). `AdsController.kt` đọc `RemoteSettings` nhưng interface không đổi nên không sửa. `StagingFeatureFlagsModule.kt`, `DefaultFeatureFlags.kt`, `LocallyEnabledFlags.kt` không đổi. `app/build.gradle.kts` không đổi: `junit4` đã có trong `testImplementation` của mọi module (`build-logic`, `KotlinAndroid.kt`), và các source set `test`, `testStaging` có sẵn theo quy ước của Android Gradle Plugin.
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có. Không đổi `FeatureFlag` hay `StagingFeatureFlagsModule`.
 - Quảng cáo: không thêm, bớt hay di chuyển vị trí. Trên bản staging, mọi vị trí đã có trong `AdPlacement` (hiện là `sample_bottom_banner`) được bật khi Firebase không trả giá trị, vẫn chỉ dùng mã thử của Google (ADR-0013). Production không đổi: vị trí mặc định tắt (ADR-0014).
 - Sự kiện phân tích: Không chạm.
 - File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. Task chỉ đổi đồ thị Hilt của `:core:config` và `app/src/staging`, không gọi API Android cần quyền, không sửa manifest (spec ads mục 6 không đổi vì task này).
+- **Thư viện và SDK:** Không thêm. `@ElementsIntoSet`, `@Multibinds` thuộc Dagger/Hilt đã có (`hilt-android` trong `gradle/libs.versions.toml`, cấp qua convention plugin `template.hilt`); test quét mã nguồn dùng `java.io`, JUnit 4 sẵn có. Không module nào thêm phụ thuộc thư viện.
+
+### 3.4. Phương án dự phòng
+
+- Không có. Tiêu chí E là 1: cách làm theo mẫu có sẵn của dự án (mục 5); điều kiện dừng riêng ở mục 7 giữ nguyên.
 
 ## 4. Kiểm thử
 
@@ -149,6 +157,10 @@ Khóa dùng trong test `:core:config`: khai báo riêng trong file test, ví d�
 | KB-8, quảng cáo hiện trên staging không cần Firebase thật | Kiểm tra thủ công | Cài bản staging build từ file giả (hoặc bản `staging.yml` khi project staging chưa đặt khóa vị trí), đồng ý ở hộp thoại, mở màn hình mẫu: thấy quảng cáo thử của Google ở `sample_bottom_banner`. Log `adb logcat -v threadtime \| grep ' VGL\.'` không có dòng báo vị trí tắt |
 
 **Ngoại lệ viết test trước:** `LocalRemoteValuesSourceSetTest` qua ngay trên code hiện tại, vì chưa file nào nhắc tới `LocalRemoteValues`; nó là hàng rào cho sau này, không chứng minh code mới. Để chứng minh test bắt được lỗi, AI thử tạm đặt một file nhắc tới qualifier trong `app/src/main` (không commit), thấy test thất bại, rồi xóa; ghi lần thử vào nhật ký. Người duyệt cần đồng ý.
+
+### 4.1. Chạy thử
+
+Không cần (E dưới 2).
 
 ## 5. Chấm rủi ro
 
@@ -198,11 +210,11 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
+<!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt
-- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
-- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 

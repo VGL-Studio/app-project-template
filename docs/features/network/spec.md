@@ -1,6 +1,6 @@
 ---
 feature: network
-status: confirmed            # draft | confirmed | changed
+status: changed              # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -95,6 +95,11 @@ Không có vị trí quảng cáo mới. Popup không có quảng cáo.
 
 Sự kiện ghi khi mất mạng sẽ được Firebase gửi khi có mạng trở lại. Xem câu hỏi 2.
 
+**Quyền của app và dịch vụ bên ngoài:**
+
+- Không có quyền nào phải hỏi người dùng, không có SDK bên ngoài mới.
+- Quyền khai báo: `ACCESS_NETWORK_STATE` trong manifest của module theo dõi kết nối (quyền thường, không hỏi người dùng). Quyền này đã có trong manifest gộp qua Google Mobile Ads và Firebase; khai báo lại ở module để module tự đủ.
+
 ## 7. File tĩnh trên R2
 
 Không có.
@@ -118,6 +123,9 @@ Không có cờ: quy tắc áp dụng cho mọi app (ADR-0024). Khóa Remote Con
 3. **Chữ trên popup.**
    - Đề xuất của AI: tiêu đề "Không có kết nối mạng"; nội dung "Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại."; nút "Thử lại". Bản tiếng Anh tương ứng.
    - Trả lời: Duyệt theo đề xuất.
+4. **Quyền ở mục 6 (bổ sung 2026-10-23 theo rà soát danh sách chạy RUN-20261023-01).**
+   - Đề xuất của AI: chấp nhận như mục 6.
+   - Trả lời:
 
 ## 10. Lịch sử
 
@@ -126,3 +134,4 @@ Không có cờ: quy tắc áp dụng cho mọi app (ADR-0024). Khóa Remote Con
 | 2026-10-21 | AI | Tạo bản đầu từ yêu cầu và đề xuất đã duyệt (ADR-0024) |
 | 2026-10-21 | Nhật | Trả lời 3 câu hỏi |
 | 2026-10-21 | Nhật | Xác nhận (AI ghi theo lời anh Nhật) |
+| 2026-10-23 | AI | Thêm quyền `ACCESS_NETWORK_STATE` vào mục 6 (rà soát RUN-20261023-01); chuyển sang `changed`, chờ xác nhận lại |
