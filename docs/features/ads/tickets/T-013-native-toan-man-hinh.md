@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-5]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-010, T-009]
 sprint:
-plan:
+plan: features/ads/plans/T-013-native-toan-man-hinh.md
 created: 2026-10-21
 ---
 

@@ -40,5 +40,5 @@ ADR-0003 dùng Remote Config cho cờ tính năng và tham số kinh doanh; ADR-
 ## Hệ quả
 
 - **Tích cực:** thử được quảng cáo trên staging; người vận hành có một bảng khóa đúng với bản app đang chạy; đổi cấu hình có dấu vết.
-- **Phải chấp nhận:** đổi `:core:config` và thêm script là plan rủi ro cao; khóa đã phát hành không đổi tên (đổi tên là khóa mới, khóa cũ giữ tới khi không còn bản app nào đọc).
+- **Phải chấp nhận:** đổi `:core:config` và thêm test sinh bảng khóa là plan rủi ro cao; khóa đã phát hành không đổi tên (đổi tên là khóa mới, khóa cũ giữ tới khi không còn bản app nào đọc).
 - **Việc AI phải tuân thủ:** đặt tên khóa theo quy ước của ADR này; không dùng khối JSON làm cấu hình; khai báo khóa mới kèm kiểu, mặc định an toàn và mô tả ở module sở hữu, rồi sinh lại bảng khóa trong cùng PR; không đổi tên hay đổi kiểu một khóa đã phát hành; không đổi giá trị trên Firebase (việc của người).
