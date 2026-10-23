@@ -140,7 +140,8 @@ expect "merge-if-green: a commit pushed minutes ago gets a warning" 1 \
   "$(NOW_EPOCH=1792288980 merge_run 12 --dry-run > /dev/null; grep -c 'mới 3 phút trước' "$work/mg.out")"
 merge_routes claude/RUN-20261018-01-report '{"behind_by": 0}' "$green_runs"
 merge_run 12 --dry-run > /dev/null
-expect "merge-if-green: the report PR may carry docs/STATUS.md" 0 "$(grep -c 'PR có docs/STATUS.md' "$work/mg.out" || true)"
+# The page is not in git (status-page.yml builds it on the status branch, L-061): no PR carries it, the report PR neither.
+expect "merge-if-green: the report PR with docs/STATUS.md also gets the warning" 1 "$(grep -c 'PR có docs/STATUS.md' "$work/mg.out" || true)"
 merge_routes claude/template-x '{"behind_by": 0}' "$lagging_runs" \
   ', "actions/runs?head_sha=abc1234&per_page=50": {"workflow_runs": [{"id": 77, "check_suite_id": 5, "status": "completed", "conclusion": "success"}]}'
 expect "merge-if-green: a lagging job of a green run counts as green" 0 "$(merge_run 12 --dry-run)"
@@ -457,6 +458,7 @@ elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=t
   expect "new-app.sh leaves pages that match the documents" 0 \
     "$(cd "$new_app" && python3 -I scripts/status.py --check > /dev/null && python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
   expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
+  expect "new-app.sh leaves the progress page out of git" "" "$(git -C "$new_app" ls-files docs/STATUS.md)"
 else
   expect "new-app.sh succeeds" ok failed
 fi
@@ -804,6 +806,8 @@ printf -- '# SỔ\n\n### L-001. Một bài\n\n- **Trạng thái:** proposed\n' >
 # Backticks of the page are matched with '.' in the patterns below.
 status_page() { STATUS_ROOT="$work/status-repo" python3 -I scripts/status.py "$@"; }
 expect "status: check fails before the page exists" 1 "$(status_page --check > /dev/null; echo $?)"
+expect "status: check without the page asks to run status.py, not to commit" 0 \
+  "$(status_page --check 2>&1 | grep -c 'commit' || true)"
 status_page > /dev/null
 page="$st/STATUS.md"
 expect "status: request without spec waits for people" 1 "$(grep -c '^- Yêu cầu chưa có spec: .*(Log cho AI)' "$page")"
@@ -824,6 +828,20 @@ expect "status: a lesson number used twice stops" 1 "$(status_page > "$work/stat
 expect "status: names the duplicate lesson number" 1 "$(grep -c 'L-002' "$work/status.out")"
 cp "$work/lessons.bak" "$st/lessons.md"
 status_page > /dev/null
+# The progress page is not in git on main: status-page.yml builds it after each push to main and pushes it to the
+# status branch only, so PRs never conflict on it (L-061).
+expect "status page: docs/STATUS.md is not tracked" "" "$(git ls-files docs/STATUS.md)"
+expect "status page: git ignores docs/STATUS.md" 0 "$(git check-ignore -q docs/STATUS.md; echo $?)"
+status_wf=.github/workflows/status-page.yml
+expect "status-page.yml pushes only the status branch" "1 0" \
+  "$(grep -c 'git push' "$status_wf" 2>/dev/null || echo 0) $(grep 'git push' "$status_wf" 2>/dev/null | grep -vc 'origin status$' || true)"
+expect "status-page.yml builds the page with status.py before pushing" yes \
+  "$(awk '/python3 scripts\/status.py/ { built = 1 } /git push/ { print (built ? "yes" : "no"); exit }' "$status_wf" 2>/dev/null)"
+expect "status-page.yml runs on pushes to main that change docs" 2 \
+  "$(grep -cE "^    branches: \[main\]$|^    paths: \['docs/\*\*'" "$status_wf" 2>/dev/null || true)"
+expect "status page: README links the page on the status branch, not a repository name" 1 \
+  "$(grep -c '](\.\./\.\./blob/status/docs/STATUS\.md)' README.md || true)"
+
 # status.py --sync moves each ticket's status after its plan's (L-050).
 sy="$work/sync-repo/docs/features/demo"
 mkdir -p "$sy/tickets" "$sy/plans"
