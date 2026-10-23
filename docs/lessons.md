@@ -333,3 +333,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `wait-run.sh` báo `HẠ TẦNG` (mã 4) khi mọi job đỏ đều chưa chạy bước nào, kèm chú thích của GitHub; báo `XUNG ĐỘT` (mã 5) khi PR `dirty` mà chưa có lần chạy. `auto-run.md`: mã 4 thì kết thúc phiên, giữ `running` để `resume-run.yml` tiếp tục, rồi chạy lại các lần chạy bị bỏ; mã 5 thì gộp nhánh chính. Có test.
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-wait-run-ha-tang`
+
+### L-065. Log tải file thất bại không có tiền tố `VGL.` và không cho biết nguyên nhân của lỗi bọc
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (plan T-032, PR #51 của app; bài học L-027 của app; issue #105)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** ở app, máy thật không tải được catalog vì tên miền file tĩnh không phân giải được. Dòng log `Assets: Could not download <đường dẫn>` không nói lý do; phải kiểm DNS bằng tay. Ở dự án mẫu, câu log đã có lý do và lớp lỗi ngoài cùng (PR #97), nhưng `:core:assets` vẫn gọi thẳng `android.util.Log` với thẻ `Assets`: lọc `grep ' VGL\.'` không thấy dòng này, Crashlytics không giữ nó, unit test không kiểm được. Lỗi bọc (`IOException` có nguyên nhân `UnknownHostException`) chỉ hiện `IOException`, lỗi HTTP không có mã.
+- **Cải tiến:** `:core:assets` phụ thuộc `:core:logging`; `AssetsModule` nhận `AppLogger` và ghi `warn` thẻ `Assets` (thành `VGL.Assets`, ADR-0019) qua `downloadFailureLogger`. Câu log ghi lý do, chuỗi lớp lỗi theo nguyên nhân (tối đa 5) và `status=<mã>` của lỗi HTTP; không ghi thông điệp lỗi, vì nó có thể chứa địa chỉ đầy đủ. Câu cũ cho một lỗi không bọc giữ nguyên. Có unit test với `RecordingAppLogger`.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-assets-applogger`

@@ -37,9 +37,18 @@ internal fun IOException.toFailureReason(): AssetFailureReason {
 
 private const val HTTP_NOT_FOUND = 404
 
+/** Enough to tell the cause apart, short enough for one logcat line. */
+private const val MAX_LOGGED_CLASSES = 5
+
 /**
- * The log line for a failed download: the reason and the error class, because the stack trace of
- * an UnknownHostException is often empty in logcat. The error message (it may hold the host) is left out.
+ * The log line for a failed download: the reason, the error classes along the cause chain ("IOException <-
+ * UnknownHostException") and the HTTP status if any, because the stack trace of an UnknownHostException is often
+ * empty in logcat and a wrapped error hides its cause. The error messages are left out: they may hold the address.
  */
-internal fun downloadFailureMessage(path: AssetPath, error: IOException): String =
-    "Could not download ${path.value}: ${error.toFailureReason()} (${error::class.java.simpleName})"
+internal fun downloadFailureMessage(path: AssetPath, error: IOException): String {
+    val chain = generateSequence<Throwable>(error) { it.cause }.take(MAX_LOGGED_CLASSES).toList()
+    val classes = chain.joinToString(" <- ") { it.javaClass.simpleName.ifEmpty { it.javaClass.name } }
+    val status = chain.firstNotNullOfOrNull { it as? HttpStatusException }?.status
+    val statusPart = if (status != null) ", status=$status" else ""
+    return "Could not download ${path.value}: ${error.toFailureReason()} ($classes$statusPart)"
+}
