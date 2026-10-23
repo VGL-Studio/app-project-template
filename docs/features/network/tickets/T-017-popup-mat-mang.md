@@ -5,10 +5,10 @@ feature: network
 spec: features/network/spec.md
 scenarios: [KB-1, KB-2, KB-3]
 owner: Nhật
-status: approved
+status: planned
 risk: high
 size: M
-depends_on: [T-016, T-009]
+depends_on: [T-016, T-018, T-009]
 sprint:
 plan: features/network/plans/T-017-popup-mat-mang.md
 created: 2026-10-21
@@ -22,7 +22,8 @@ created: 2026-10-21
 
 ## Phạm vi
 
-- Composable popup (chữ trong `strings.xml`, tiếng Việt và tiếng Anh), gắn ở `AppNavHost` hay `MainActivity`.
+- Bộ điều khiển popup trong `:core:network` (`NetworkDialogController`, `NetworkStatus`, `NetworkFailureReporter`), lấy từ app camera-pose (PR VGL-Studio/camera-pose#23); `:core:assets` báo khi tải file lỗi vì mạng (dùng `AssetFailureReason` của T-018).
+- Composable popup ở `:core:designsystem` (`NetworkDialog`, trạng thái chờ của `PrimaryButton`) theo thiết kế đã duyệt; chữ trong `strings.xml` của `:app` (tiếng Việt và tiếng Anh); `NetworkDialogHost` ở `:app` vẽ popup trong cửa sổ `Dialog` riêng.
 - Điều kiện không hiện: đang ở màn hình loading, đang có quảng cáo toàn màn hình (`:core:ads` cung cấp trạng thái).
 - Hai sự kiện phân tích qua `:core:analytics`; log qua `AppLogger`.
 - Test giao diện JVM và screenshot test theo tên ảnh thiết kế.
@@ -30,6 +31,7 @@ created: 2026-10-21
 **Không bao gồm:**
 
 - Bộ theo dõi kết nối (T-016).
+- Lý do tải file thất bại (`AssetFailureReason`, T-018).
 
 ## Rủi ro sơ bộ
 

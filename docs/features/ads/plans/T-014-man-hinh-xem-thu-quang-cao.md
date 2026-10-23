@@ -1,19 +1,27 @@
 ---
 ticket: T-014
 title: Màn hình xem thử quảng cáo chỉ ở bản staging
-status: approved            # draft | approved | stopped | done
-version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft               # draft | approved | stopped | done
+version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # cỡ M (gợi ý 20M của scripts/token-usage.py estimate, 2026-10-21), nâng lên: 3 trang, 7 ảnh chuẩn, sửa cả :core:ads và :app
 blocking_points: [ads, core, build]
-run_order: 11               # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật              # người duyệt
-cross_reviewer: Nhật        # bắt buộc khi risk_level là high
-approved_at: 2026-10-23
+run_order:                  # AI điền sau họp đánh giá rủi ro
+reviewer:                   # người duyệt
+cross_reviewer:             # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-014: MÀN HÌNH XEM THỬ QUẢNG CÁO CHỈ Ở BẢN STAGING
+
+**Phiên bản 3 (2026-10-23)**, sau rà soát trước phiên của RUN-20261023-01 (mục Kiểm tra trước khi duyệt). Thay đổi so với phiên bản 2 (đã duyệt 2026-10-23):
+
+- `AdPlacementTest.otherPlacements_areNotStagingOnly` dùng `SAMPLE_NATIVE_SMALL` thay `SAMPLE_BOTTOM_BANNER`: T-010 đổi vị trí mẫu, nên tên cũ không còn khi T-014 chạy (test không biên dịch được).
+- `docs/ops/ads-guide.md` mục 8: dòng "quảng cáo không hiện trên staging" đã được T-008 thay bằng câu về giá trị cục bộ của staging. T-014 giữ câu của T-008, chỉ thêm phần màn hình xem thử.
+- Mục 3.3 có hai dòng "Quyền truy cập:", "Thư viện và SDK:" (dẫn tới spec mục 6); thêm mục 3.4 (phương án dự phòng) và mục 4.1 (chạy thử bằng `scripts/check.sh`: activity và source set chỉ ở staging, biểu tượng thứ hai, test ở `src/testStaging`, Roborazzi ở `:app`).
+- Mục 9 để trống cho phiên bản 3; quyết định của phiên bản 2 giữ nguyên.
+- Theo rà soát trước khi chạy: phần đo và cuộn ở khung thấp chuyển từ `AdGalleryScreenScreenshotTest` sang `AdGalleryScreenTest` (`@Config` khung thấp trên từng hàm), lớp screenshot chỉ chụp; `lifecycle-runtime-compose` luôn thêm nếu `:app` chưa có; `robolectric.properties` đã có từ T-017 với hai dòng; ghi chú `AdGalleryActivity` không tính phiên (mục 3.1, mục 4).
 
 ## 1. Tóm tắt
 
@@ -100,7 +108,7 @@ Gọi lại hàm nội bộ nhận `positions` và `adContent` của T-011; `req
 
 **Lối vào chỉ ở staging.** File mới `app/src/staging/AndroidManifest.xml` khai báo `AdGalleryActivity` (`exported="true"`, `intent-filter` `MAIN` và `LAUNCHER`, nhãn `@string/ad_gallery_launcher_label` = "Ad gallery", cùng icon và theme với app). Manifest được gộp chỉ vào biến thể staging. Không thêm quyền. Lý do chọn activity riêng thay vì một đích trong `AppNavHost`: không phải sửa `MainActivity.kt`, `AppNavHost.kt` (T-013, T-017 cùng sửa), không phải đặt nút lối vào trong giao diện của app, và production không có một dòng nào về màn hình này. Đánh đổi: bản staging có hai biểu tượng trên máy (câu hỏi 6).
 
-**`AdGalleryActivity`** (`app/src/staging/.../adgallery/AdGalleryActivity.kt`, `@AndroidEntryPoint`): nhận `AdsController`, gọi `ads.gatherConsent(this)` trong `onCreate` và `ads.onUserInteraction()` như `MainActivity` (người thử có thể mở thẳng màn hình xem thử từ biểu tượng); `setContent { CompositionLocalProvider(LocalAdsController provides ads) { AppTheme { Surface(fillMaxSize) { AdGalleryRoute(onExit = ::finish) }; FullScreenAdHost() } } }`, đúng thứ tự T-013 đặt ở `MainActivity`. `enableEdgeToEdge()` và `safeDrawingPadding()` như app.
+**`AdGalleryActivity`** (`app/src/staging/.../adgallery/AdGalleryActivity.kt`, `@AndroidEntryPoint`): nhận `AdsController`, gọi `ads.gatherConsent(this)` trong `onCreate` và `ads.onUserInteraction()` như `MainActivity` (người thử có thể mở thẳng màn hình xem thử từ biểu tượng). `AdGalleryActivity` không gọi `onAppForeground`/`onAppBackground` của T-009 (không sửa phần đếm phiên): phiên và giới hạn mỗi phiên chỉ được đếm theo `MainActivity`; `setContent { CompositionLocalProvider(LocalAdsController provides ads) { AppTheme { Surface(fillMaxSize) { AdGalleryRoute(onExit = ::finish) }; FullScreenAdHost() } } }`, đúng thứ tự T-013 đặt ở `MainActivity`. `enableEdgeToEdge()` và `safeDrawingPadding()` như app.
 
 **Trạng thái và ViewModel** (`AdGalleryUiState.kt`, `AdGalleryViewModel.kt`, theo mẫu `:feature:sample`, đặt ở `:app` staging vì màn hình chỉ có ở đây):
 
@@ -142,7 +150,7 @@ interface AdGallerySlots {
 1. Test quét mã nguồn trong `app/src/test` (chạy trong `testStagingDebugUnitTest` mà CI chạy), như T-008 làm với `LocalRemoteValues`: ngoài `src/staging` và `src/testStaging`, không file nào của `:app` (`.kt`, `.xml`) chứa `AdGallery` hay `ad_gallery`; `src/staging` có `AdGalleryActivity.kt` và manifest staging khai báo nó (để test không qua vì đường dẫn sai); `src/main/AndroidManifest.xml` có đúng một activity `LAUNCHER`.
 2. Unit test `:core:ads`: `ConfiguredAdUnitIds` không đòi và không trả mã cho vị trí `stagingOnly`.
 
-**Tài liệu.** `docs/ops/ads-guide.md`: mục 5 đã có quy tắc `gallery_` từ PR #81, chỉ thêm một câu "`AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó"; mục 8 thay dòng "quảng cáo không hiện trên staging" bằng cách dùng màn hình xem thử (biểu tượng "Ad gallery", ba trang, tần suất như production, Ad Inspector chỉ mở trên emulator hay máy đã đăng ký thiết bị thử trên AdMob, đường dẫn hướng dẫn chính thức). `docs/features/ads/design/README.md` mục 8: kết quả đối chiếu 5 ảnh `AdGalleryScreen_*`.
+**Tài liệu.** `docs/ops/ads-guide.md`: mục 5 đã có quy tắc `gallery_` từ PR #81, chỉ thêm một câu "`AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó"; mục 8 giữ dòng T-008 đã viết ("staging bật mọi vị trí của `AdPlacement` bằng giá trị cục bộ (`StagingRemoteValuesModule`); Firebase staging vẫn tắt được từng vị trí"; dòng cũ "quảng cáo không hiện trên staging" không còn sau T-008), thêm sau dòng đó một gạch đầu dòng về màn hình xem thử (biểu tượng "Ad gallery", ba trang, tần suất như production, Ad Inspector chỉ mở trên emulator hay máy đã đăng ký thiết bị thử trên AdMob, đường dẫn hướng dẫn chính thức). Nếu khi task chạy mục 8 vẫn còn dòng "quảng cáo không hiện trên staging" thì T-008 chưa merge: dừng (mục 7). `docs/features/ads/design/README.md` mục 8: kết quả đối chiếu 5 ảnh `AdGalleryScreen_*`.
 
 **Nơi khác đọc file plan đổi (L-020).** `grep -rln` trên `scripts/`, `.github/`, `build-logic/`, mọi `src/test`:
 
@@ -175,7 +183,7 @@ interface AdGallerySlots {
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPlacementTest.kt` | Vị trí `gallery_*`: đúng 7, đều `stagingOnly`, khóa không trùng, đủ định dạng; vị trí khác không `stagingOnly` |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdInspectorTest.kt` | `adInspectorResult`, `rememberOpenAdInspector` không có controller |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InListAdsTest.kt` | Test xen hai vị trí |
-| Sửa | `app/build.gradle.kts` | Nếu T-017 chưa thêm (giống hệt dòng của plan T-017; chạy sau thì giữ phần đã có, không thêm lần hai): plugin `alias(libs.plugins.roborazzi)`, khối `roborazzi { outputDir.set(layout.projectDirectory.dir("src/test/screenshots")) }`, `implementation(libs.androidx.lifecycle.runtime.compose)`, `testImplementation(libs.roborazzi)`, `testImplementation(libs.roborazzi.compose)`, `testImplementation(libs.roborazzi.junit.rule)`. Mọi alias đã có trong `gradle/libs.versions.toml` |
+| Sửa | `app/build.gradle.kts` | Luôn thêm `implementation(libs.androidx.lifecycle.runtime.compose)` nếu file chưa có (T-017 không thêm dòng này; `:app` hiện chưa có). Phần Roborazzi chỉ thêm nếu T-017 chưa thêm (giống hệt dòng của plan T-017; chạy sau thì giữ phần đã có, không thêm lần hai): plugin `alias(libs.plugins.roborazzi)`, khối `roborazzi { outputDir.set(layout.projectDirectory.dir("src/test/screenshots")) }`, `testImplementation(libs.roborazzi)`, `testImplementation(libs.roborazzi.compose)`, `testImplementation(libs.roborazzi.junit.rule)`. Mọi alias đã có trong `gradle/libs.versions.toml` |
 | Tạo | `app/src/staging/AndroidManifest.xml` | Khai báo `AdGalleryActivity` với `LAUNCHER`, nhãn "Ad gallery". Không quyền |
 | Tạo | `app/src/staging/kotlin/com/vglstudio/template/adgallery/AdGalleryActivity.kt` | Activity, đồng ý quảng cáo, `LocalAdsController`, `FullScreenAdHost` |
 | Tạo | `app/src/staging/kotlin/com/vglstudio/template/adgallery/AdGalleryUiState.kt` | `AdGalleryUiState`, `GalleryFullScreen` |
@@ -183,7 +191,7 @@ interface AdGallerySlots {
 | Tạo | `app/src/staging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreen.kt` | `AdGalleryRoute`, `AdGalleryScreen`, ba trang, `AdGallerySlots`, `SdkAdGallerySlots` |
 | Tạo | `app/src/staging/res/values/strings.xml` | Chữ của màn hình (tiếng Anh), nhãn biểu tượng, hai thông báo Ad Inspector |
 | Tạo | `app/src/test/kotlin/com/vglstudio/template/AdGallerySourceSetTest.kt` | Test quét mã nguồn (mục 4) |
-| Tạo | `app/src/test/resources/robolectric.properties` | Nếu T-017 chưa tạo: đúng nội dung của plan T-017, `sdk=35` (như mọi module) và `application=android.app.Application` (Robolectric không dựng `TemplateApplication` có Hilt, Firebase). T-017 đã tạo thì không sửa; khi đó bỏ dòng này khỏi commit |
+| Tạo | `app/src/test/resources/robolectric.properties` | Đã có từ T-017 (hai dòng `sdk=35` và `application=android.app.Application`): không sửa, bỏ dòng này khỏi commit. Chạy trước T-017 thì tạo với đúng hai dòng đó (`application` để Robolectric không dựng `TemplateApplication` có Hilt, Firebase) |
 | Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryViewModelTest.kt` | Unit test ViewModel |
 | Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenTest.kt` | Test giao diện Robolectric |
 | Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenScreenshotTest.kt` | Screenshot test Roborazzi |
@@ -196,9 +204,9 @@ interface AdGallerySlots {
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_default_small.png` | Khung thấp, trang mặc định (nhiều khối nhất) (L-028) |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_inlist_small.png` | Khung thấp, trang trong danh sách |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_collapsible-expanded_small.png` | Khung thấp, trang thu gọn dạng mở (quảng cáo ghim đáy chiếm chỗ nhiều nhất) |
-| Tạo | `docs/remote-config-keys.md` | File do T-007 tạo (T-014 phụ thuộc T-007 qua T-008); task sinh lại, ghi đè bằng lệnh của T-007, không sửa tay: thêm 7 khóa `ads_gallery_*_enabled` |
-| Tạo | `docs/remote-config-template.json` | Như trên: sinh lại, ghi đè, thêm 7 tham số |
-| Sửa | `docs/ops/ads-guide.md` | Mục 5 (một câu về `stagingOnly`, sau phần PR #81 đã viết), mục 8 (màn hình xem thử, Ad Inspector) |
+| Ghi lại | `docs/remote-config-keys.md` | File do T-007 tạo (T-014 phụ thuộc T-007 qua T-008); task sinh lại, ghi đè bằng lệnh của T-007, không sửa tay: thêm 7 khóa `ads_gallery_*_enabled` |
+| Ghi lại | `docs/remote-config-template.json` | Như trên: sinh lại, ghi đè, thêm 7 tham số |
+| Sửa | `docs/ops/ads-guide.md` | Mục 5 (một câu về `stagingOnly`, sau phần PR #81 đã viết), mục 8 (giữ dòng giá trị cục bộ của T-008, thêm màn hình xem thử, Ad Inspector) |
 | Sửa | `docs/features/ads/design/README.md` | Mục 8: bảng tỷ lệ khác biệt của 5 ảnh `AdGalleryScreen_*` (lấy từ bảng tóm tắt trong thư mục tạm) và nhận xét của rà soát độc lập |
 | Tạo | `docs/features/ads/design/review/AdGalleryScreen_default_light_compare.png` | Ảnh so sánh |
 | Tạo | `docs/features/ads/design/review/AdGalleryScreen_default_dark_compare.png` | Ảnh so sánh |
@@ -210,12 +218,22 @@ Không sửa: `scripts/check.sh` (đã sửa ở PR #81), script so sánh thiế
 
 Ảnh so sánh thiết kế: không chạy script so sánh bọc sẵn của repo cho `ads` (script đó chỉ đọc `feature/ads/src/test/screenshots`, không có thư mục này, và xóa cả thư mục `review/`). Chạy thẳng chương trình so sánh vào thư mục tạm, rồi chỉ chép 5 ảnh `AdGalleryScreen_*_compare.png` và dòng của chúng: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/ads/design/screens app/src/test/screenshots <thư mục tạm>`.
 
-### 3.3. Cờ tính năng, quảng cáo, dữ liệu
+- `app/build.gradle.kts` (L-020): `scripts/setup-check.sh` và `scripts/tests/run.sh` chỉ đọc dòng `ASSETS_BASE_URL` và `applicationId` của file này; plan không đổi hai dòng đó.
+
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có. Màn hình chỉ có trong source set staging, không cần cờ.
 - Quảng cáo: thêm 7 vị trí `gallery_*` của "các vị trí của màn hình xem thử" trong spec mục 5 (mọi định dạng, chỉ staging, bật sẵn ở staging, tần suất như production). `stagingOnly` theo tiền tố `gallery_`, production không có mã và không hiện. Thêm hàm mở Ad Inspector (công cụ của AdMob, không phải định dạng hay vị trí). Không đổi vị trí, định dạng, tần suất nào đã có.
 - Sự kiện phân tích: Không chạm. Chỉ có log qua `AppLogger`.
 - File R2: Không chạm.
+- **Quyền truy cập:** Không thêm. Manifest của staging chỉ khai báo `AdGalleryActivity`, không có `uses-permission`; `MobileAds.openAdInspector` và quảng cáo thử dùng các quyền đã có của Google Mobile Ads ghi ở spec mục 6 (Quyền của app và dịch vụ bên ngoài). `Toast` không cần quyền.
+- **Thư viện và SDK:** Không thêm thư viện mới. `:app` thêm phụ thuộc đã có trong `gradle/libs.versions.toml`: `libs.androidx.lifecycle.runtime.compose` (implementation, luôn thêm nếu chưa có, vì T-017 không thêm); và nếu T-017 chưa thêm: plugin `libs.plugins.roborazzi`, `libs.roborazzi`, `libs.roborazzi.compose`, `libs.roborazzi.junit.rule` (testImplementation). `:core:ads` dùng `libs.play.services.ads` đã có (`MobileAds.openAdInspector`). Test Compose và Robolectric của `:app` có sẵn qua plugin `template.android.compose`; không dùng Espresso hay thư viện test của Hilt. Spec mục 6 không có SDK mới cho task này.
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** trang trong danh sách cần hàm xen hai vị trí (`itemsWithInListAds(items, ads: List<InListAds>)`) dựa trên hàm nội bộ nhận `positions` và `adContent` của T-011; nếu T-011 đã merge mà hàm nội bộ đó không có hay khác chữ ký, phải viết lại phần của T-011. Phần source set staging, activity thứ hai, test `src/testStaging` và Roborazzi của `:app` đã chạy thử qua `scripts/check.sh` (mục 4.1), không cần dự phòng.
+- **Điều kiện chuyển:** `InListAds.kt` sau T-011 không có hàm nội bộ nhận `positions` và `adContent` (kiểm khi bắt đầu task, trước commit test).
+- **Cách làm thay:** viết hàm xen hai vị trí trong `InListAds.kt` chỉ dựa trên phần công khai của T-011: `inListAdPositions(itemCount, every)` cho chỗ chèn, rồi với mỗi chỗ chèn thứ k gọi phần dựng ô quảng cáo của `ads[k % ads.size]` như `itemsWithInListAds` có sẵn làm; khóa hàng quảng cáo vẫn `InListAdKey(placementKey, slot)`. Không đổi hàm có sẵn của T-011. Chữ ký công khai và test ở mục 4 (`InListAdsTest.alternatingPlacements_takeTurns`, `emptyAds_isRejected`) giữ nguyên; test gọi hàm công khai thay vì hàm nội bộ. Phần T-011 cần mà không công khai (phần dựng ô) vẫn không gọi được thì dừng (mục 7, điều kiện 2).
 
 ## 4. Kiểm thử
 
@@ -224,7 +242,7 @@ Test viết trước code, thất bại trước khi viết code (thứ tự com
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
 | KB-8, 1: mỗi định dạng có một vị trí của màn hình xem thử | Unit test | `AdPlacementTest.galleryPlacements_coverEveryFormatOnce`: vị trí có khóa bắt đầu `gallery_` đúng 7; tập định dạng gồm `NATIVE_SMALL`, `NATIVE_MEDIUM`, `NATIVE_COLLAPSIBLE`, `INTERSTITIAL`, `NATIVE_FULL_SCREEN`; mọi khóa `AdPlacement` không trùng |
-| KB-8, 1 và 3: vị trí xem thử chỉ staging, khớp quy tắc của script phát hành | Unit test | `AdPlacementTest.stagingOnly_isExactlyGalleryPrefix`: với mọi `p` trong `AdPlacement.entries`, `p.stagingOnly == p.key.startsWith("gallery_")` (chuỗi viết thẳng trong test, cùng chuỗi `scripts/release.sh` bỏ qua); `AdPlacementTest.otherPlacements_areNotStagingOnly`: `SAMPLE_BOTTOM_BANNER` và các vị trí của T-010 đến T-013 không `stagingOnly` |
+| KB-8, 1 và 3: vị trí xem thử chỉ staging, khớp quy tắc của script phát hành | Unit test | `AdPlacementTest.stagingOnly_isExactlyGalleryPrefix`: với mọi `p` trong `AdPlacement.entries`, `p.stagingOnly == p.key.startsWith("gallery_")` (chuỗi viết thẳng trong test, cùng chuỗi `scripts/release.sh` bỏ qua); `AdPlacementTest.otherPlacements_areNotStagingOnly`: `SAMPLE_NATIVE_SMALL` (vị trí mẫu sau T-010, thay `SAMPLE_BOTTOM_BANNER`) và các vị trí khác không có tiền tố `gallery_` của T-010 đến T-013 không `stagingOnly` |
 | KB-8, 1: mã thử của Google cho mọi vị trí xem thử | Unit test | `AdUnitIdsTest.googleTestIds_coverGalleryPlacements`: `GoogleTestAdUnitIds.of(p)` bắt đầu bằng `ca-app-pub-3940256099942544/` với mọi `p.stagingOnly` |
 | KB-8, 1: bật sẵn ở staging không cần Firebase | Unit test có sẵn | `StagingRemoteValuesModuleTest.everyAdPlacement_isEnabled` (T-008) tự gồm 7 khóa mới; chạy lại, không sửa |
 | KB-8, 3: production không đòi, không dùng mã cho vị trí xem thử | Unit test | `AdUnitIdsTest` sửa kỳ vọng: `ConfiguredAdUnitIds("").missing == AdPlacement.entries.filterNot { it.stagingOnly }`; thêm `stagingOnlyPlacement_hasNoUnit_evenWhenConfigured`: `ConfiguredAdUnitIds("gallery_native_small=x").of(GALLERY_NATIVE_SMALL) == null` |
@@ -246,14 +264,14 @@ Test viết trước code, thất bại trước khi viết code (thứ tự com
 | Đúng thiết kế, trong danh sách | Screenshot test | `AdGalleryScreenScreenshotTest.inlist_light`: `InList(7)`, N = 3, ghi `src/test/screenshots/AdGalleryScreen_inlist_light.png` |
 | Đúng thiết kế, thu gọn đang mở | Screenshot test | `AdGalleryScreenScreenshotTest.collapsibleExpanded_light`: `Collapsible(6)`, `collapsed = false`, ghi `src/test/screenshots/AdGalleryScreen_collapsible-expanded_light.png` |
 | Đúng thiết kế, đã thu gọn | Screenshot test | `AdGalleryScreenScreenshotTest.collapsibleCollapsed_light`: `Collapsible(6)`, `collapsed = true`, ghi `src/test/screenshots/AdGalleryScreen_collapsible-collapsed_light.png` |
-| Màn hình thấp (L-028), trang mặc định | Screenshot test và Compose UI test khung `w360dp-h640dp-xxhdpi` | `AdGalleryScreenScreenshotTest.default_small` ghi `src/test/screenshots/AdGalleryScreen_default_small.png`; cùng test cuộn tới "Open Ad Inspector" và hàng "In-list ads" (`performScrollTo`), khẳng định nằm trọn trong 0..640 dp |
-| Màn hình thấp, trong danh sách | Screenshot test | `AdGalleryScreenScreenshotTest.inlist_small` ghi `src/test/screenshots/AdGalleryScreen_inlist_small.png`; cuộn tới "List item 7" được |
-| Màn hình thấp, thu gọn đang mở | Screenshot test và Compose UI test | `AdGalleryScreenScreenshotTest.collapsibleExpanded_small` ghi `src/test/screenshots/AdGalleryScreen_collapsible-expanded_small.png`; nút thu gọn và CTA nằm trọn trong 0..640 dp, danh sách cuộn được tới "List item 6" |
+| Màn hình thấp (L-028), trang mặc định | Screenshot test và Compose UI test khung `w360dp-h640dp-xxhdpi` | `AdGalleryScreenScreenshotTest.default_small` chỉ chụp, ghi `src/test/screenshots/AdGalleryScreen_default_small.png`. Phần đo ở lớp test giao diện (lớp screenshot chụp bằng `captureRoboImage` kèm khối nội dung không được có `createComposeRule()`, CLAUDE.md bước 10): `AdGalleryScreenTest.default_smallScreen_scrollsToEveryButton`, gắn `@Config(qualifiers = "w360dp-h640dp-xxhdpi")` trên hàm test, cuộn tới "Open Ad Inspector" và hàng "In-list ads" (`performScrollTo`), khẳng định nằm trọn trong 0..640 dp |
+| Màn hình thấp, trong danh sách | Screenshot test và Compose UI test | `AdGalleryScreenScreenshotTest.inlist_small` chỉ chụp, ghi `src/test/screenshots/AdGalleryScreen_inlist_small.png`. `AdGalleryScreenTest.inList_smallScreen_scrollsToLastItem` (`@Config(qualifiers = "w360dp-h640dp-xxhdpi")` trên hàm test): cuộn tới "List item 7" được |
+| Màn hình thấp, thu gọn đang mở | Screenshot test và Compose UI test | `AdGalleryScreenScreenshotTest.collapsibleExpanded_small` chỉ chụp, ghi `src/test/screenshots/AdGalleryScreen_collapsible-expanded_small.png`. `AdGalleryScreenTest.collapsibleExpanded_smallScreen_fitsAndScrolls` (`@GraphicsMode(NATIVE)`, `@Config(qualifiers = "w360dp-h640dp-xxhdpi")` trên hàm test): nút thu gọn và CTA nằm trọn trong 0..640 dp, danh sách cuộn được tới "List item 6" |
 | Đối chiếu thiết kế (ADR-0020) | Ảnh so sánh và rà soát độc lập | Chạy chương trình so sánh (mục 3.2), chép 5 ảnh `_compare.png`, ghi tỷ lệ khác biệt và nhận xét vào README mục 8. Khác biệt dự kiến: hàng nút "In-list ads", "Collapsible ad" ở trang mặc định (câu hỏi 7), icon quảng cáo giả không có ảnh |
 | Ảnh chuẩn khớp | CI | `scripts/check.sh` (sau PR #81) chạy `:app:verifyRoborazziStagingDebug` với 8 ảnh chuẩn ở mục 3.2 (câu hỏi 8) |
 | KB-8, 3: production không có màn hình (mã nguồn) | Unit test | `AdGallerySourceSetTest.onlyStagingSourceSets_mentionAdGallery`: duyệt mọi `.kt`, `.xml` dưới `src/` của `:app`, bỏ `src/staging`, `src/testStaging`, `src/test`; không file nào chứa `AdGallery` hay `ad_gallery`. `stagingDeclaresGallery`: `src/staging/AndroidManifest.xml` chứa `AdGalleryActivity` và có `src/staging/.../AdGalleryActivity.kt` (để test không qua vì đường dẫn sai). `mainManifest_hasOneLauncher`: `src/main/AndroidManifest.xml` có đúng một `android.intent.category.LAUNCHER` |
 | Staging build và lint qua với activity mới | Build | `:app:assembleStagingDebug`, `:app:lintStagingDebug` trong `scripts/check.sh` |
-| KB-8, 1 và 2 trên máy thật | Kiểm tra thủ công | Cài bản staging (file Firebase giả), thấy biểu tượng "Ad gallery"; mở, đồng ý ở hộp thoại; trang mặc định có small và medium quảng cáo thử (nhãn "Test Ad"); bấm "Interstitial" sau khi hết 180 giây ân hạn phiên đầu thì hiện, bấm lại ngay thì không (log `skipped`); "Native full screen" tương tự; "Open Ad Inspector" trên emulator mở được và thấy adapter AppLovin (KB-9, sau T-015); trên máy chưa đăng ký thì Toast báo lỗi; trang trong danh sách có quảng cáo sau mỗi 8 mục, xen small và medium; trang thu gọn: chạm nút thì gọn, không tự mở lại. `adb logcat -v threadtime \| grep ' VGL\.'` có các dòng `AdGallery` và `Ads` ở mục 3.1 |
+| KB-8, 1 và 2 trên máy thật | Kiểm tra thủ công | Cài bản staging (file Firebase giả), thấy biểu tượng "Ad gallery"; mở, đồng ý ở hộp thoại; trang mặc định có small và medium quảng cáo thử (nhãn "Test Ad"); bấm "Interstitial" sau khi hết 180 giây ân hạn phiên đầu thì hiện, bấm lại ngay thì không (log `skipped`); "Native full screen" tương tự; "Open Ad Inspector" trên emulator mở được và thấy adapter AppLovin (KB-9, sau T-015); trên máy chưa đăng ký thì Toast báo lỗi; trang trong danh sách có quảng cáo sau mỗi 8 mục, xen small và medium; trang thu gọn: chạm nút thì gọn, không tự mở lại. Lưu ý khi thử tần suất: `AdGalleryActivity` không gọi `onAppForeground`/`onAppBackground`, nên mở và đóng màn hình xem thử không bắt đầu phiên mới; giới hạn mỗi phiên chỉ đếm lại khi `MainActivity` vào nền rồi quay lại. `adb logcat -v threadtime \| grep ' VGL\.'` có các dòng `AdGallery` và `Ads` ở mục 3.1 |
 
 **Ngoại lệ viết test trước:**
 
@@ -262,6 +280,16 @@ Test viết trước code, thất bại trước khi viết code (thứ tự com
 - Ảnh chuẩn screenshot ghi sau khi code xong, không có trước.
 
 Người duyệt cần đồng ý các ngoại lệ trên.
+
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** 2026-10-23, worktree tạm ngoài repo (`git worktree add --detach <scratchpad>/trial-t013-t014 origin/main`, commit `39bbc70`), code thử không commit, đã xóa worktree sau khi chạy. Cùng một lần chạy với phần thử của plan T-014. Code thử tối thiểu cho phần dễ hỏng nhất:
+  - `app/build.gradle.kts`: plugin `libs.plugins.roborazzi`, khối `roborazzi { outputDir = src/test/screenshots }`, `libs.androidx.lifecycle.runtime.compose`, ba dòng `testImplementation` Roborazzi (đúng dòng của mục 3.2).
+  - `app/src/staging/AndroidManifest.xml` khai báo `.adgallery.AdGalleryActivity` (`exported`, `MAIN`, `LAUNCHER`, nhãn `@string/ad_gallery_launcher_label`, theme `Theme.App`); `app/src/staging/res/values/strings.xml`; `app/src/staging/kotlin/.../adgallery/AdGalleryActivity.kt` (`@AndroidEntryPoint`, `@Inject AdsController`, `gatherConsent`, `LocalAdsController`, `AppTheme`, `safeDrawingPadding`) và một composable đọc chuỗi của staging.
+  - `app/src/test/resources/robolectric.properties` (`sdk=35`, `application=android.app.Application`); test Robolectric ở `app/src/testStaging` dựng composable của staging, thấy chữ "Ad gallery (staging)" và chụp một ảnh Roborazzi tạm vào thư mục ảnh chuẩn của `:app` (đường dẫn ghi thẳng như quy tắc của `check.sh`); test quét mã nguồn ở `app/src/test` (đường dẫn tương đối `src/`, chạy từ thư mục `app/`).
+- **Lệnh:** `scripts/check.sh` (JDK của Android Studio, `ANDROID_HOME=$HOME/Library/Android/sdk`), hai lần.
+- **Kết quả:** lần đầu thất bại chỉ vì ktlint của code thử (`import-ordering`, `argument-list-wrapping`), không vì kỹ thuật; `check.sh` tự ghi ảnh mới của `:app` (`recordRoborazziStagingDebug`). Sau `ktlintFormat`, `scripts/check.sh` qua: `:app` 3 test 0 lỗi (test ở `src/testStaging` chạy trong `testStagingDebugUnitTest`), `:app:verifyRoborazziStagingDebug` qua, `:app:lintStagingDebug` không báo lỗi về activity `LAUNCHER` thứ hai (điều kiện dừng 5 không xảy ra), `:app:assembleStagingDebug` qua, "Cổng chất lượng: QUA". Manifest gộp của staging có 2 `LAUNCHER`, danh sách `uses-permission` không đổi so với trước (manifest staging không thêm quyền). Robolectric dựng được composable của `:app` với `android.app.Application`, không cần Hilt trong test. Không chạy thử: `MobileAds.openAdInspector` và quảng cáo thật (kiểm thủ công), hàm xen hai vị trí (phụ thuộc T-011, mục 3.4).
+- **Thay đổi sau chạy thử (rà soát trước khi chạy):** chuyển phần đo khung thấp sang `AdGalleryScreenTest` với `@Config` trên từng hàm, làm rõ việc thêm `lifecycle-runtime-compose`, ghi chú về phiên của `AdGalleryActivity`. Lần chạy thử đã dùng đúng `robolectric.properties` hai dòng và đúng dòng `lifecycle-runtime-compose`. Việc tách phần đo khỏi lớp screenshot chỉ đổi lớp chứa test, không đổi kỹ thuật đã thử (Robolectric ở `src/testStaging`, Roborazzi ở `:app`), nên kết quả trên không đổi; chưa chạy lại. Ghi chú về phiên chỉ là tài liệu.
 
 ## 5. Chấm rủi ro
 
@@ -275,7 +303,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 | B. Độ rõ của yêu cầu | 2 | Spec xác nhận, thiết kế đã duyệt; kiểm phát hành, ảnh `_collapsible-*`, so ảnh trong CI đã có quyết định (2026-10-23); còn câu hỏi ảnh hưởng cách làm: lối vào, cách chuyển trang không có trong thiết kế, hàm xen hai vị trí |
 | C. Khả năng kiểm chứng tự động | 2 | Vị trí, ViewModel, giao diện, ranh giới source set có test JVM; ảnh chuẩn của `:app` được CI so (PR #81); quảng cáo thật, Ad Inspector, tần suất chỉ kiểm thủ công |
 | D. Ảnh hưởng chéo | 3 | `AdPlacement.kt`, `AdUnitIds.kt`, `AdsController.kt`, `InListAds.kt`, `app/build.gradle.kts` cũng do T-010 đến T-013, T-015, T-017 sửa; thêm vị trí ảnh hưởng kiểm tra phát hành và bảng khóa mà mọi app dùng |
-| E. Độ mới của kỹ thuật | 2 | Source set staging có manifest và activity riêng, Ad Inspector, screenshot ở `:app` chưa có trong dự án (T-017 cũng thêm); phần còn lại theo mẫu `:feature:sample` |
+| E. Độ mới của kỹ thuật | 2 | Source set staging có manifest và activity riêng, Ad Inspector, screenshot ở `:app` chưa có trong dự án (T-017 cũng thêm); phần còn lại theo mẫu `:feature:sample`. Phần source set, activity, test `src/testStaging`, Roborazzi ở `:app` đã chạy thử (mục 4.1) |
 | **Tổng** | 12 | **Mức: Cao** |
 
 ## 6. Ảnh hưởng chéo
@@ -293,7 +321,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
   - PR #81 (bắt buộc merge trước, ngoài `depends_on` vì không phải ticket): `scripts/release.sh` bỏ qua `gallery_*`, `scripts/check.sh` so ảnh của `:app`.
   - T-007, T-008: bảng khóa, giá trị cục bộ staging (đã merge trước T-010).
   - T-015: Ad Inspector là nơi kiểm adapter AppLovin; không cùng file trừ có thể `core/ads/build.gradle.kts` (T-014 không sửa file này).
-  - T-017: cùng sửa `app/build.gradle.kts` (cùng plugin, khối `roborazzi`, cùng ba dòng `testImplementation` và `lifecycle-runtime-compose`) và cùng tạo `app/src/test/resources/robolectric.properties` (cùng nội dung `sdk=35`, `application=android.app.Application`); ai chạy sau thì dùng phần đã có, không thêm lần hai. T-017 đặt test ở `app/src/test`, T-014 ở `app/src/testStaging`: `robolectric.properties` trong `src/test/resources` áp cho cả hai.
+  - T-017: cùng sửa `app/build.gradle.kts` (cùng plugin, khối `roborazzi`, cùng ba dòng `testImplementation`; `lifecycle-runtime-compose` chỉ T-014 thêm) và cùng tạo `app/src/test/resources/robolectric.properties` (cùng nội dung `sdk=35`, `application=android.app.Application`); ai chạy sau thì dùng phần đã có, không thêm lần hai. T-017 đặt test ở `app/src/test`, T-014 ở `app/src/testStaging`: `robolectric.properties` trong `src/test/resources` áp cho cả hai.
   - T-016: không chung file (T-016 sinh lại hai file bảng khóa: xung đột thì lấy bản của nhánh chính rồi chạy lại lệnh sinh, không gộp tay).
 - Đề xuất thứ tự chạy: cuối đợt quảng cáo, sau T-010, T-011, T-012, T-013 (và sau T-015 nếu cùng phiên, để kiểm KB-9 ngay). Không chạy cùng lúc với T-017.
 
@@ -306,6 +334,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 7. `scripts/check.sh` báo lỗi ở phần ảnh chuẩn của `:app` mà nguyên nhân là script (không phải ảnh hay test của T-014): dừng, không sửa script.
 5. Lint của staging báo lỗi về activity thứ hai có `LAUNCHER` mà chỉ tắt được bằng cách bỏ qua quy tắc: dừng.
 6. Lần thử tạm đặt `AdGallery` trong `app/src/main` mà `AdGallerySourceSetTest` vẫn qua: dừng.
+8. `docs/ops/ads-guide.md` mục 8 vẫn còn dòng "quảng cáo không hiện trên staging" (T-008 chưa merge), hoặc `AdPlacement` vẫn có `SAMPLE_BOTTOM_BANNER` mà không có `SAMPLE_NATIVE_SMALL` (T-010 chưa merge): dừng.
 
 ## 8. Câu hỏi cho người duyệt
 
@@ -335,9 +364,17 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 <!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
+Phiên bản 2:
+
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
 - **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
+
+Phiên bản 3:
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 ## 10. Nhật ký thực hiện
 
