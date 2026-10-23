@@ -177,6 +177,16 @@ def is_reader(relative):
             or "/src/test/" in f"/{relative}" or "/src/androidTest/" in f"/{relative}")
 
 
+def mention_pattern(name, root_file=False):
+    """A mention of a file name as a whole word: 'new-app.md' does not match inside 'setup-new-app.md'.
+
+    A file at the repository root ('CLAUDE.md') also does not match after a slash, since 'docs/CLAUDE.md'
+    is another file. A base name of a nested file may follow a slash ('design-system/tokens.json').
+    """
+    before = r"[\w.\-/]" if root_file else r"[\w.\-]"
+    return re.compile(rf"(?<!{before}){re.escape(name)}(?![\w\-])")
+
+
 def reader_files():
     files = set()
     tracked = tracked_files()
@@ -361,12 +371,12 @@ def check(plan_path):
         name = path.rsplit("/", 1)[-1]
         if Path(name).suffix in NAME_SEARCH_SUFFIXES and name not in GENERIC_NAMES:
             names.append(name)
-        needles[path] = names
+        needles[path] = [mention_pattern(n, root_file=(n == path and "/" not in path)) for n in names]
     for reader, content in reader_files():
         if reader in listed or reader in text or reader == SELF:
             continue
         for path, names in needles.items():
-            if reader != path and any(name in content for name in names):
+            if reader != path and any(pattern.search(content) for pattern in names):
                 errors.append(
                     f"{reader} nhắc tới {path} mà plan sửa, nhưng không có trong mục 3.2. "
                     f"Thêm vào danh sách file, hoặc ghi trong plan vì sao {reader} không bị ảnh hưởng (L-020).")
