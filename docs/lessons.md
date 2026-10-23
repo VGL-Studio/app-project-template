@@ -342,3 +342,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `:core:assets` phụ thuộc `:core:logging`; `AssetsModule` nhận `AppLogger` và ghi `warn` thẻ `Assets` (thành `VGL.Assets`, ADR-0019) qua `downloadFailureLogger`. Câu log ghi lý do, chuỗi lớp lỗi theo nguyên nhân (tối đa 5) và `status=<mã>` của lỗi HTTP; không ghi thông điệp lỗi, vì nó có thể chứa địa chỉ đầy đủ. Câu cũ cho một lỗi không bọc giữ nguyên. Có unit test với `RecordingAppLogger`.
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-assets-applogger`
+
+### L-066. Trang tiến độ vẫn chậm và tốn một PR riêng; PR xung đột không có lần chạy CI
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-047, L-048, L-016 của app, issue #104)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** ở app, PR nào đổi trạng thái cũng commit `docs/STATUS.md`, nên `merge-if-green.sh --update` lần nào cũng nhận `422 merge conflict` (PR #51, #52 của app). GitHub không chạy workflow `pull_request` cho PR đang xung đột: PR #56 của app không có lần chạy `pr-check` nào, `wait-run.sh --pr` chờ trọn 40 phút. Cách của L-059 (chỉ PR báo cáo và PR trang riêng mang trang) bớt xung đột, nhưng trang trên nhánh chính chậm tới khi có người mở PR trang, và mỗi lần xem trang mới tốn một PR cùng một lần CI.
+- **Cải tiến:** `docs/STATUS.md` ra khỏi git (`.gitignore`). Workflow `status-page.yml` chạy `scripts/status.py` sau mỗi lần đẩy lên nhánh chính có đổi `docs/**` hay `scripts/status.py`, rồi đẩy đè nhánh `status` (nhánh chính cộng một commit chứa trang); không bao giờ đẩy lên nhánh chính. `merge-if-green.sh` báo chú ý khi PR nào có trang, kể cả PR báo cáo, và thôi nhắc mở PR trang. Liên kết tới trang là liên kết tương đối, không ghi tên repo. Có test. Ở app: lần chạy `status-page` 39936153612 xanh, các PR sau không còn xung đột vì trang.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-status-branch`
