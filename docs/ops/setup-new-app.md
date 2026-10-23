@@ -62,7 +62,7 @@ Làm theo `docs/ops/staging-and-runs.md`, mục 1.1. Tóm tắt:
 1. Tạo project Firebase riêng cho staging, thêm app Android `<applicationId>.staging`, tải `google-services.json`. Không chép file này vào repo; app đã có file giả để build (ADR-0012).
 2. **Release & Monitor > App Distribution > Get started**, tạo nhóm người test `team`, mời thành viên.
 3. Tạo tài khoản dịch vụ có vai trò **Firebase App Distribution Admin** và khóa JSON (các bước chi tiết ở mục 1.1).
-4. Remote Config của project staging: thêm khóa khi cần, ví dụ `ads_<vị trí>_enabled = true` để thấy quảng cáo thử trên bản staging (vị trí mặc định tắt, ADR-0014). Cờ tính năng đang làm thì đã bật sẵn cho staging trong code, không cần thêm.
+4. Remote Config của project staging: thêm khóa khi cần, ví dụ `is_show_<vị trí> = true` hay `show_open_ads = true` để thấy quảng cáo thử trên bản staging (mặc định tắt; tên khóa ở `docs/ops/ads-business-rules.md`, mục 10). Cờ tính năng đang làm thì đã bật sẵn cho staging trong code, không cần thêm.
 
 ## 5. Khóa ký staging, bí mật GitHub, chạy `staging`
 

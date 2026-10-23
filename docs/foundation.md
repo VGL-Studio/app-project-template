@@ -26,7 +26,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 - không tự thêm vị trí quảng cáo ngoài spec
 - không đưa mã quảng cáo thật vào code hay tài liệu
-- không khởi tạo SDK quảng cáo trước khi xử lý xong sự đồng ý của người dùng
+- khởi tạo SDK quảng cáo theo luật đồng ý của `docs/ops/ads-business-rules.md`, mục 1 (ADR-0026)
 
 ### [ADR-0005](adr/0005-no-child-audience.md): Không nhắm tới trẻ em
 
@@ -78,15 +78,16 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 ### [ADR-0013](adr/0013-ads-consent-and-guardrails.md): Quảng cáo AdMob chỉ khởi động sau hộp thoại đồng ý UMP, mã quảng cáo production đưa vào lúc build phát hành
 
-- feature chỉ dùng `AdSlot`, `rememberShowInterstitial` và `PrivacyOptionsButton`
+- feature chỉ dùng composable và hàm của `:core:ads` và `PrivacyOptionsButton`
 - không gọi `AdsController` hay SDK quảng cáo từ feature
 - không viết mã quảng cáo thật vào code, tài liệu hay tham số build trong repo
-- gọi quảng cáo toàn màn hình chỉ ở điểm dừng tự nhiên, không bao giờ lúc mở hay đóng app
+- feature chỉ gọi quảng cáo toàn màn hình ở hành động của người dùng
+- quảng cáo lúc mở app và khi quay lại app do `:core:ads` và vỏ app làm theo `docs/ops/ads-business-rules.md` (ADR-0026)
 
 ### [ADR-0014](adr/0014-ads-default-values.md): Giá trị mặc định của tham số quảng cáo, thay bảng mặc định trong ADR-0013
 
-- không đổi các giá trị mặc định này khi không có quyết định mới của người phụ trách sản phẩm
-- vị trí mới vẫn mặc định tắt
+- vị trí mới mặc định tắt
+- giá trị mặc định của khóa quảng cáo theo bảng khóa của `docs/ops/ads-business-rules.md`, mục 10 (ADR-0026), chỉ đổi khi người phụ trách sản phẩm quyết
 
 ### [ADR-0015](adr/0015-r2-assets-module.md): Module `:core:assets` tải file tĩnh từ R2 một lần, giữ trên máy, đường dẫn bắt buộc có phiên bản
 
@@ -126,6 +127,27 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - chép issue `flaky` đang mở vào báo cáo phiên
 - các quy tắc khác của ADR-0010 vẫn áp dụng
 
+### [ADR-0026](adr/0026-ads-follow-adskit-partner.md): Hành vi kinh doanh của quảng cáo theo bộ PARTNER của AdsKit, cách làm kỹ thuật theo cấu trúc của dự án mẫu
+
+- hành vi quảng cáo theo `docs/ops/ads-business-rules.md` (bộ PARTNER của AdsKit), không theo trí nhớ về AdsKit hay về ADR-0022
+- không chép code AdsKit và không chép khóa nào từ AdsKit
+- luật thuần của quảng cáo tách thành hàm có unit test với đồng hồ giả, đo thời gian bằng đồng hồ đơn điệu
+- khóa Remote Config quảng cáo dùng đúng tên trong bảng khóa của `ads-business-rules.md`, khóa mới cùng kiểu đặt tên và ghi rõ là tên do ta đặt
+- vị trí mới khai báo theo mô hình chung (mã, định dạng, nhóm giãn cách) với khóa suy ra theo mẫu, không thêm cờ, hàm hay composable mang tên tính năng của một app vào `:core:ads`
+- không ghi `ad_impression` từ app, doanh thu theo vị trí ghi bằng `ad_impression_placement`
+- giữ các quy tắc ở mục 10 của ADR-0026 kể cả khi spec yêu cầu khác, gặp yêu cầu như vậy thì ghi thành câu hỏi
+- không thêm vị trí, định dạng hay sự kiện ngoài spec đã duyệt
+
+### [ADR-0027](adr/0027-appsflyer.md): Dùng AppsFlyer trong :core:analytics cho doanh thu quảng cáo và phễu quảng cáo, khóa dev đưa vào lúc build, staging không gửi
+
+- chỉ gọi SDK AppsFlyer trong `:core:analytics`
+- không viết khóa dev AppsFlyer vào code, tài liệu, tham số build hay file trong repo
+- không gửi `af_revenue`, doanh thu quảng cáo chỉ qua `af_ad_revenue` bằng hàm ghi sự kiện thường
+- build không có khóa thì không khởi động AppsFlyer
+- không thêm sự kiện AppsFlyer ngoài `ads-business-rules.md` mục 8.3 và spec đã duyệt
+- mỗi sự kiện AppsFlyer đi qua công tắc từ xa của nó
+- không gửi dữ liệu cá nhân hay chữ người dùng nhập sang AppsFlyer
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
@@ -144,18 +166,9 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
 
-### [ADR-0022](adr/0022-ad-formats-native-standard.md): Quảng cáo theo nguyên tắc chính sách trước doanh thu, native thay banner và MREC theo quy chuẩn dp của nhóm, mediation AdMob và AppLovin
-
-- native toàn màn hình chỉ ở điểm dừng tự nhiên, có nút đóng dùng được ngay
-- không đặt quảng cáo theo bất kỳ dòng nào trong bảng "không bao giờ làm" của `docs/ops/ads-guide.md`, kể cả khi spec yêu cầu
-- gặp yêu cầu như vậy thì ghi thành câu hỏi
-- không đặt quảng cáo ở màn hình chức năng chính và luồng mở đầu lần đầu
-- native chỉ qua composable của `:core:ads`, kích thước tính bằng dp theo hệ thống thiết kế
-- không tự ghi sự kiện hiển thị quảng cáo
-
 ### [ADR-0023](adr/0023-remote-config-conventions.md): Khóa Remote Config phẳng, có kiểu, khai báo một chỗ trong code, sinh bảng khóa và file mẫu; staging có giá trị cục bộ
 
-- đặt tên khóa theo quy ước của ADR này
+- đặt tên khóa theo quy ước của ADR này (khóa quảng cáo theo ADR-0026 nếu ADR đó được duyệt)
 - không dùng khối JSON làm cấu hình
 - khai báo khóa mới kèm kiểu, mặc định an toàn và mô tả ở module sở hữu, rồi sinh lại bảng khóa trong cùng PR
 - không đổi tên hay đổi kiểu một khóa đã phát hành

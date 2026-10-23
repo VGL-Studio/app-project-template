@@ -1,73 +1,59 @@
 # HƯỚNG DẪN QUẢNG CÁO
 
-Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách chọn, đặt, thử và đo quảng cáo trong app của nhóm. Quyết định nằm ở ADR-0004, ADR-0013, ADR-0014 và ADR-0022; cấu hình từ xa ở [remote-config.md](remote-config.md) (ADR-0023). Repo `vgl-docs` và file "Quy chuẩn Native" cũ chỉ để tham khảo; khi khác tài liệu này thì theo tài liệu này.
+Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách đặt, thử, phát hành và đo quảng cáo trong app của nhóm. Hành vi của từng định dạng (khi nào nạp, khi nào hiện, chờ bao lâu, ghi số liệu gì) nằm ở [ads-business-rules.md](ads-business-rules.md): bộ PARTNER của AdsKit, viết lại cho dự án mẫu (ADR-0026). Quyết định khác: ADR-0004, ADR-0013 (đồng ý, mã quảng cáo), ADR-0027 (AppsFlyer); cấu hình từ xa ở [remote-config.md](remote-config.md).
 
-Mọi định dạng ở mục 3 có "Có" hay tên hàm ở cột `:core:ads` đều dùng được: banner, interstitial, native small, native medium, native trong danh sách, native thu gọn và native toàn màn hình.
+Các phần ghi **(đợt 3)** cần code của ticket T-019 tới T-036 (`docs/features/ads/tickets/`), chưa có trong `:core:ads`. Tới lúc đó, dùng những gì đợt 2 đã làm.
+
+Đợt 2 đã có trong `:core:ads` và dùng được ngay: banner, interstitial, native small, native medium, native trong danh sách và lưới, native thu gọn, native toàn màn hình, màn hình xem thử của staging. Các phần ghi "Hiện có (đợt 2)" nói cách dùng chúng cho tới khi ticket đợt 3 thay.
 
 ## 1. Nguyên tắc
 
-1. **Chính sách trước doanh thu.** Tài khoản AdMob hay Play bị hạn chế thì mất doanh thu của mọi app. Không có ngoại lệ cho bảng ở mục 2.
-2. **Người dùng mới được bảo vệ.** Luồng mở đầu lần đầu và thời gian ân hạn của phiên đầu không có quảng cáo toàn màn hình. Người dùng thấy giá trị của app trước, rồi mới thấy quảng cáo.
-3. **Màn hình chức năng chính không có quảng cáo.** Spec ghi màn hình nào là chức năng chính (ví dụ camera của app chụp ảnh).
-4. **Quảng cáo toàn màn hình chỉ ở điểm dừng tự nhiên:** sau khi người dùng xong một việc và trước việc tiếp theo; không khi mở hay đóng app, không giữa một thao tác.
-5. **Mọi thứ chỉnh được từ xa và mặc định tắt** (ADR-0014): từng vị trí, tần suất, công tắc tổng.
+1. **Hành vi theo một bộ luật.** Mọi app của nhóm dùng cùng luật PARTNER ở `ads-business-rules.md`. Không tự chế hành vi khác cho một app; muốn khác thì đề xuất sửa luật, kèm số liệu.
+2. **Cơ chế chung, vị trí riêng.** `:core:ads` chỉ có cơ chế (định dạng, cổng, nhóm giãn cách, hành động có điều kiện). Tính năng của từng app (nhận vật phẩm, xuất file, giới thiệu, lưới ảnh) là vị trí do app khai báo, không phải code trong `:core:ads` (`ads-business-rules.md`, mục Mô hình chung).
+3. **Bật từ xa, mặc định tắt.** Mọi định dạng và vị trí có khóa Remote Config, mặc định tắt. Bật dần theo [remote-config.md](remote-config.md), mục 5.
+4. **Vị trí là quyết định kinh doanh.** Chỉ thêm vị trí có trong spec đã duyệt. AI không tự thêm vị trí, định dạng hay sự kiện.
+5. **Theo dõi chính sách.** Bộ PARTNER có các hành vi Google có thể coi là gây khó chịu (ADR-0026, Hệ quả). Người vận hành theo dõi trung tâm chính sách của AdMob và Play, tắt khóa của định dạng bị cảnh báo trước, tìm nguyên nhân sau.
 
-## 2. Không bao giờ làm
+## 2. Luôn giữ
+
+Các quy tắc này vẫn giữ dưới bộ PARTNER (ADR-0026, mục 10). Không có ngoại lệ vì doanh thu. Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành câu hỏi cho người phụ trách sản phẩm.
 
 | Không làm | Vì sao |
 | --- | --- |
-| Đặt quảng cáo sát nút của app, ở chỗ người dùng sắp chạm, hay hiện lên đúng lúc người dùng đang chạm | Gây bấm nhầm: chính sách về vị trí đặt quảng cáo của AdMob |
-| CTA của quảng cáo giống nút của app (cùng màu, cùng hình), hay nút của app giống CTA | Gây nhầm lẫn giữa nội dung và quảng cáo |
-| Native, banner nằm ngay đầu danh sách lựa chọn (ngôn ngữ, cài đặt) như một mục của danh sách | Gây nhầm lẫn và bấm nhầm |
-| Quảng cáo toàn màn hình lúc mở app, lúc thoát app, hay trước khi người dùng làm xong hành động chính lần đầu | Quảng cáo bất ngờ, gây khó chịu: chính sách quảng cáo của Play |
-| Ép chờ trước khi đóng được quảng cáo, nút đóng nhỏ hay khó thấy | Như trên |
-| Hai quảng cáo toàn màn hình liền nhau (ví dụ native toàn màn hình ngay sau interstitial) | Như trên |
-| Tự vẽ, che, thu nhỏ hay đè lên biểu tượng AdChoices và nhãn quảng cáo | Chính sách native của AdMob |
-| Kéo giãn, cắt ảnh hay video của quảng cáo | Chính sách native của AdMob |
-| Native thu gọn tự bung lại, banner tự làm mới nhanh hơn mức của AdMob | Gây bấm nhầm, hiển thị không hợp lệ |
-| Đặt quảng cáo trong màn hình không có nội dung của app (màn hình chỉ có quảng cáo), trừ định dạng toàn màn hình hợp lệ | Chính sách AdMob |
+| Quảng cáo giả làm nút hay mục của app; CTA của quảng cáo giống nút chính của app (cùng màu, cùng hình), hay nút của app giống CTA | Gây nhầm lẫn giữa nội dung và quảng cáo: chính sách về vị trí đặt quảng cáo của AdMob |
+| Che, ẩn hay làm mờ nhãn "Ad" | Chính sách native của AdMob |
+| Tự vẽ, che, thu nhỏ hay đè lên biểu tượng AdChoices | Chính sách native của AdMob |
+| Kéo giãn hay cắt ảnh, video của quảng cáo | Chính sách native của AdMob |
+| Lớp quảng cáo nổi chiếm cả màn, đẩy thanh điều hướng của app ra ngoài hay nhận chạm thay app | Gây bấm nhầm (luật D-03) |
+| Hai quảng cáo toàn màn hình chồng nhau | Luật F-01 |
 | Bấm vào quảng cáo của chính mình, nhờ người khác bấm | Lưu lượng không hợp lệ |
 | Phát hành lại app bị đình chỉ bằng tên gói hay khóa ký khác | Play coi là lách chế tài, có thể khóa cả tài khoản |
-| Dùng mã quảng cáo thật trên bản staging hay máy của dev | Hiển thị không hợp lệ (ADR-0013) |
-
-Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành câu hỏi cho người phụ trách sản phẩm.
+| Dùng mã quảng cáo thật trên bản staging hay máy của dev; mã thật, khóa SDK (AppLovin...), khóa dev AppsFlyer trong repo | Hiển thị không hợp lệ; lộ bí mật (ADR-0013, ADR-0027) |
 
 ## 3. Định dạng
 
-| Định dạng | Thay cho | Dùng ở đâu | Có trong `:core:ads` |
+Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Khóa bật tắt ở mục 10 của tài liệu đó.
+
+| Định dạng | Dùng ở đâu | Khóa bật | Có trong `:core:ads` |
 | --- | --- | --- | --- |
-| Banner thích ứng | | Đáy màn hình danh sách, chi tiết | Có |
-| Interstitial | | Điểm dừng tự nhiên | Có |
-| Native small | Banner | Đáy hay giữa màn hình nội dung | Có |
-| Native medium | MREC | Trong nội dung, giữa các khối | Có |
-| Native in-list | | Trong danh sách hay lưới, cách nhau N mục | Có |
-| Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | `CollapsibleNativeAdSlot` |
-| Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | `rememberShowFullScreenAd` |
-| App open, rewarded | | Chưa làm; cần ADR mới khi một app cần | Không |
+| App open lúc mở app | Màn loading, lần đầu sau khi cài và lần thường | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` | (đợt 3) |
+| Quảng cáo khi quay lại app | Mọi lần app lên foreground, trừ lần đầu của process | `show_resum_ads`, `resume_ad_type` | (đợt 3) |
+| Interstitial | Hành động của người dùng (sang màn sau, xong một việc) | `is_show_<mã vị trí>`, cách nhau `ads_interval` hay `ads_interval_<nhóm>` | Có (đợt 2, `rememberShowFullScreenAd`), luật mới ở đợt 3 |
+| Native toàn màn hình sau inter (combo) | Ngay sau inter, đếm ngược 3 giây | `is_show_native_after_inter` | Native toàn màn hình đứng riêng có (đợt 2, `rememberShowFullScreenAd`); combo ở đợt 3 |
+| Thanh đáy: native nhỏ 80 dp và native thu gọn 250 dp, hoặc banner | Đáy màn hình nội dung, mỗi màn một vị trí | `is_show_<mã vị trí>`, `is_show_native_bottom`, `is_show_native_collap`, `time_expand_collap_ad` | Native small (`NativeAdSlot`) và native thu gọn (`CollapsibleNativeAdSlot`) có ở cỡ đợt 2; 80 dp, 250 dp và làm mới ở đợt 3 |
+| Banner cố định, banner thu gọn | Đáy màn hình | `is_show_<mã vị trí>` | Banner cố định có (đợt 2); làm mới theo đơn vị ở đợt 3 |
+| Native medium | Trong nội dung | `is_show_<mã vị trí>` | Có (đợt 2), kích thước mới ở đợt 3 |
+| Native trong tập hợp (ô lưới, danh sách, trang của pager) | Mỗi ô một quảng cáo riêng | `is_show_<mã vị trí>` | Danh sách và lưới có (đợt 2, `itemsWithInListAds`); pager ở đợt 3 |
+| Native ở một bước của luồng (giới thiệu, kết quả, hướng dẫn) | Bước do spec của app chọn | `is_show_<mã vị trí>` (luồng giới thiệu: `is_show_native_onboarding`) | (đợt 3) |
+| Rewarded với hộp thoại (hành động có điều kiện) | Trước một hành động người dùng chọn: nhận vật phẩm, xuất file, mở khóa | `is_show_<mã vị trí>` (ví dụ `is_show_rw_get_item`) | (đợt 3) |
 
-Chọn định dạng theo màn hình, không theo doanh thu từng định dạng: màn hình người dùng ở lâu (danh sách, chi tiết) hợp native small hay medium; điểm dừng giữa hai việc hợp interstitial.
+## 4. Native: kích thước và hình thức
 
-## 4. Quy chuẩn native
-
-Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small, medium, in-list, collapsible và toàn màn hình đã có. Bảng dưới là quy tắc phải giữ.
-
-| Cỡ | Thành phần | Quy tắc |
-| --- | --- | --- |
-| Small | Icon, tiêu đề, CTA, nhãn "Ad", AdChoices; mô tả hay điểm sao nếu có chỗ | Rộng hết vùng nội dung; không có media |
-| Medium | Như small, thêm media và mô tả | MediaView ít nhất 120 x 120 dp; giữ tỷ lệ ảnh, video của quảng cáo |
-| In-list | Small hay medium, cùng bề ngoài với mục của danh sách nhưng có nhãn "Ad" rõ | Không ở mục đầu; cách nhau ít nhất N mục (khóa Remote Config) |
-| Collapsible | Medium khi mở, small khi thu gọn | Chỉ thu gọn khi người dùng chạm nút thu gọn; nút thu gọn ít nhất 48 dp, không cùng góc với AdChoices; không tự bung lại |
-| Toàn màn hình | Media lớn, icon, tiêu đề, mô tả, CTA, nhãn "Ad", AdChoices, nút đóng | Nút đóng thấy và bấm được ngay từ đầu, ít nhất 48 dp, ở góc khác AdChoices và xa CTA; nút quay lại của máy cũng đóng; không đếm ngược bắt chờ; tính chung giới hạn tần suất với interstitial; không liền sau một quảng cáo toàn màn hình khác |
-
-Quy tắc chung:
-
-- Nhãn "Ad" và AdChoices luôn thấy được, không bị đè.
-- CTA khác hẳn nút chính của app (màu, hình dạng); vùng quảng cáo có ranh giới nhìn thấy được (nền, viền).
-- Cách mọi phần tử bấm được của app ít nhất 16 dp.
-- Đang tải: giữ chỗ đúng chiều cao, có hiệu ứng chờ, để bố cục không nhảy.
-- Không có quảng cáo: thu chỗ lại sau thời gian chờ; nếu vị trí nằm cạnh nút của app thì giữ chỗ trống để nút không dịch dưới tay người dùng.
-- Chế độ tối dùng màu tối của hệ thống thiết kế.
-- Hủy (`destroy`) quảng cáo cũ khi thay hay khi rời màn hình.
+- Kích thước theo layout của AdsKit và bản đặc tả độc lập (`ads-business-rules.md`, mục 5.7): khe đáy cao 80 dp (cả vẽ và chừa chỗ), native thu gọn 250 dp với nút thu gọn 32 dp, thẻ native ở bước của luồng 250 dp, nút đóng native sau inter 36 dp ở góc trên phải.
+- Màu, chữ, bo góc lấy từ token của `:core:designsystem` (ADR-0008), không lấy màu của AdsKit. Màu chữ native theo nền của vùng quảng cáo, không đổi theo chế độ tối của máy khi nền không đổi.
+- Thiết kế native trên Figma đang theo cỡ cũ của đợt 2 (`docs/features/ads/design/`); vẽ lại theo cỡ AdsKit ở T-035. Tới lúc đó, khi thiết kế và `ads-business-rules.md` khác nhau về kích thước, theo `ads-business-rules.md`.
+- Mỗi lượt hiện một quảng cáo riêng; rời màn thì hủy (luật O-01, O-03).
+- Hiện có (đợt 2): cỡ small và medium ở bảng dưới, tới khi T-035 vẽ lại và ticket đợt 3 đổi code.
 
 Small và medium trong `:core:ads` (plan T-010, số liệu từ `docs/features/ads/design/`):
 
@@ -84,12 +70,22 @@ Small và medium trong `:core:ads` (plan T-010, số liệu từ `docs/features/
 
 ## 5. Thêm một vị trí quảng cáo
 
-Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có vị trí đó (ADR-0004).
+Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có vị trí đó (ADR-0004). Vị trí theo mô hình chung (`ads-business-rules.md`, mục Mô hình chung): thêm vị trí cho một tính năng mới **không** thêm code vào `:core:ads`.
 
-1. **Spec:** mục Quảng cáo ghi vị trí, định dạng, màn hình, thời điểm, giới hạn tần suất, khóa bật tắt. Thiết kế đánh dấu vùng quảng cáo trên ảnh màn hình.
-2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`), đúng dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` trên một dòng: `scripts/release.sh` đọc danh sách vị trí bằng mẫu này và đòi mã production cho mọi vị trí, trừ vị trí có khóa bắt đầu bằng `gallery_` (chỉ dùng cho màn hình xem thử ở staging, không bao giờ phát hành). `AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó.
-3. **Khóa bật tắt:** `ads_<ten_vi_tri>_enabled`, mặc định tắt (ADR-0014), tự có qua `AdsSettings.placementEnabled` và tự vào bảng khóa qua `AdsSettings.all()`. Sinh lại bảng khóa bằng lệnh ở [remote-config.md](remote-config.md), mục 3, trong cùng PR. Tham số riêng của vị trí theo [remote-config.md](remote-config.md).
-4. **Màn hình:** đặt `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), hoặc `rememberShowFullScreenAd(placement)` (interstitial và native toàn màn hình) gọi ở điểm dừng tự nhiên; hàm cũ `rememberShowInterstitial` vẫn chạy cho interstitial. Native toàn màn hình hiện trong hộp thoại do `FullScreenAdHost()` của `:app` vẽ, dùng chung giới hạn tần suất với interstitial, và không hiện gì khi chưa tải sẵn xong. Feature không gọi SDK quảng cáo. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
+1. **Spec của app:** mục Quảng cáo ghi cho mỗi vị trí:
+   - Mã vị trí (chữ thường, gạch dưới), cũng là giá trị `ad_placement` trong số liệu.
+   - Định dạng, chọn trong danh sách của `:core:ads`: `app_open`, `interstitial`, `rewarded`, `banner`, `banner_collapsible`, `native_small`, `native_collap`, `native_fullscreen`, `native_step`, `native_medium`, `native_in_collection`.
+   - Màn hình, thời điểm, thuộc tính của định dạng:
+     - Inter: nhóm giãn cách (mặc định dùng `ads_interval`; nhóm riêng dùng `ads_interval_<nhóm>`), bỏ cổng khi đọc hay không, ghi mốc hay không.
+     - Rewarded: hành động nó giữ (nhận vật phẩm, xuất file...), chính sách khi không có quảng cáo (`block` mặc định, `allow`, `allow_after_<n>`).
+     - Native ở bước của luồng: luồng nào, bước nào.
+     - Native trong tập hợp: ẩn hay giữ chỗ khi hết quảng cáo, chèn mỗi N mục.
+     - Thanh đáy: màn nào có.
+   - Thiết kế đánh dấu vùng quảng cáo trên ảnh màn hình.
+2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`) với mã, định dạng và thuộc tính trên. Dòng giữ dạng một dòng mà `scripts/release.sh` đọc được (`TEN_VI_TRI("ten_vi_tri", AdFormat.X, ...),`): script đòi mã production cho mọi vị trí, trừ vị trí bắt đầu bằng `gallery_` (chỉ dùng cho màn xem thử ở staging, không bao giờ phát hành). `AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó. Mã đơn vị theo vị trí hay theo khe như AdsKit là câu hỏi 14 của spec ads; đổi cách này cần sửa `release.sh` (việc của người).
+3. **Khóa:** không đặt tên tay. Khóa suy ra từ khai báo: `is_show_<mã vị trí>` (mặc định tắt), `ads_interval_<nhóm>` nếu có nhóm riêng, `<tham số>_<mã vị trí>` cho tham số riêng (câu hỏi 28 của spec ads). Muốn giữ đúng chuỗi khóa của AdsKit thì chọn mã vị trí trùng (ví dụ vị trí `rw_get_item` cho `is_show_rw_get_item`). Bảng khóa sinh lại tự động. Tới khi đợt 3 xong (T-019), vị trí của đợt 2 vẫn dùng `ads_<ten_vi_tri>_enabled`.
+4. **Màn hình:** gọi composable hay hàm của `:core:ads` với vị trí: banner, native, thanh đáy, ô trong tập hợp, `rememberShowInterstitial(placement)` ở hành động của người dùng, hộp thoại rewarded trước hành động có điều kiện. Feature không gọi SDK quảng cáo, không đọc khóa quảng cáo. Màn hình mở màn khác của hệ thống (chọn ảnh, camera, chia sẻ) dùng cách chặn quảng cáo tự hiện của `:core:ads` (`ads-business-rules.md`, mục 6).
+   - Hiện có (đợt 2): `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), `rememberShowFullScreenAd(placement)` (interstitial và native toàn màn hình; hàm cũ `rememberShowInterstitial` vẫn chạy cho interstitial). Native toàn màn hình hiện trong hộp thoại do `FullScreenAdHost()` của `:app` vẽ, dùng chung giới hạn tần suất với interstitial, và không hiện gì khi chưa tải sẵn xong. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
    - **Native trong danh sách** (vị trí native small hay medium): gọi `rememberInListAds(placement)` ở mức màn hình, ngoài `LazyColumn` hay `LazyVerticalGrid`, rồi thay `items(...)` bằng `itemsWithInListAds(...)`:
 
      ```kotlin
@@ -101,13 +97,22 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
    - **Lưới:** truyền số cột, `itemsWithInListAds(items, ads, columns = 2) { ... }`. N được làm tròn lên bội số cột (N = 3, 2 cột thành 4) để hàng trên quảng cáo luôn đủ ô; hàng quảng cáo rộng hết lưới. Khi chọn N cho màn hình lưới, nên chọn sẵn bội số cột.
    - N trên Remote Config nên từ 5 trở lên; N = 1 nghĩa là quảng cáo xen giữa mọi mục. Code không chặn, giá trị là quyết định của người vận hành (ADR-0023).
    - **Native thu gọn** (vị trí định dạng `NATIVE_COLLAPSIBLE`): đặt `CollapsibleNativeAdSlot(placement)`. Màn hình gọi tự đặt nó ở đáy; slot chỉ chiếm chiều rộng được cho, không tự ghim. Quảng cáo mở dạng medium có nút thu gọn 48 dp ở góc trên trái, chạm thì thành dạng small và không mở lại trong lần vào màn hình đó, kể cả khi xoay máy, quay lại từ ngăn xếp hay tải quảng cáo mới. Screenshot test truyền `CollapsibleNativeAdCard(assets, collapsed, onCollapse = {})` giả.
-5. **Test:** test không có `LocalAdsController` nên `NativeAdSlot` không vẽ gì; screenshot test truyền `NativeAdCard` giả (hay `NativeAdPlaceholder(size, animated = false)` cho trạng thái đang tải) qua tham số quảng cáo của màn hình, để ảnh có quảng cáo như thiết kế, như `SampleScreenScreenshotTest`. Test ViewModel cho điểm gọi interstitial nếu có logic.
+5. **Test:** test không có `LocalAdsController` nên slot quảng cáo không vẽ gì; screenshot test truyền `NativeAdCard` giả (hay `NativeAdPlaceholder(size, animated = false)` cho trạng thái đang tải) qua tham số quảng cáo của màn hình, để ảnh có quảng cáo như thiết kế, như `SampleScreenScreenshotTest`; test ViewModel cho hành động có điều kiện (xem xong thì làm, không xem được thì theo chính sách) và điểm gọi interstitial nếu có logic.
 6. **Mã quảng cáo production:** tạo đơn vị quảng cáo trên AdMob, ghi vào `release.properties` lúc phát hành ([release.md](release.md)); không vào repo.
-7. **Bật:** sau khi bản production có vị trí đã lên Play, người phụ trách bật `ads_<ten_vi_tri>_enabled` trên Firebase theo [remote-config.md](remote-config.md), mục 5.
+7. **Bật:** sau khi bản production có vị trí đã lên Play, người phụ trách bật khóa trên Firebase theo [remote-config.md](remote-config.md), mục 5.
 
-## 6. Tần suất và thời điểm
+Cần một định dạng mới hay một cơ chế mới (không phải một vị trí mới) thì không làm trong app: đề xuất về dự án mẫu (`docs/ops/from-app.md`).
 
-Giá trị đề xuất ban đầu; chỉnh bằng Remote Config theo số liệu.
+## 6. Nhịp hiển thị
+
+Luật đầy đủ ở `ads-business-rules.md`, mục 3 và 4. Tóm tắt cho người vận hành:
+
+- `ads_interval` (mặc định 45 giây): khoảng tối thiểu từ lúc inter gần nhất của nhóm mặc định rời màn (hoặc cả cụm inter và native) tới inter sau. Vị trí có nhóm giãn cách riêng dùng `ads_interval_<nhóm>` và mốc riêng của nhóm. Chỉ tính trong một lần mở app; mở lại app thì bắt đầu lại. App open và rewarded không tính.
+- App open lúc mở app và inter lúc mở app (`open_ad_type = inter`) không bị `ads_interval` chặn; inter lúc mở app vẫn đẩy mốc.
+- Quảng cáo khi quay lại app không có khoảng chờ thời gian; bị bỏ khi người dùng vừa bấm quảng cáo, vừa mở màn của hệ thống hay rời app có chủ đích.
+- Banner làm mới theo cài đặt tự làm mới của đơn vị banner trên AdMob; native ở đáy và native thu gọn thay nội dung mỗi 60 giây khi app ở foreground.
+
+Hiện có (đợt 2), tới khi T-019 đổi sang luật trên:
 
 | Quy tắc | Khóa | Đề xuất |
 | --- | --- | --- |
@@ -119,7 +124,16 @@ Giá trị đề xuất ban đầu; chỉnh bằng Remote Config theo số liệ
 
 Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). Một phiên bắt đầu khi app khởi động, và bắt đầu lại khi app trở lại tiền cảnh sau ít nhất 30 phút ở nền (giống phiên của Firebase Analytics); số quảng cáo toàn màn hình của phiên chỉ đếm trong bộ nhớ. Banner làm mới theo cài đặt của đơn vị quảng cáo trên AdMob, không đặt dưới 60 giây; native không tự làm mới, chỉ tải mới khi người dùng vào lại màn hình.
 
-## 7. Mediation: AdMob và AppLovin
+## 7. Mediation: AdMob và chín mạng (đợt 3)
+
+- AdMob điều phối. Mạng con qua adapter chính thức của AdMob: AppLovin, Meta Audience Network, DT Exchange (Fyber), InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads (ADR-0026). Đợt 2 có AppLovin (T-015); tám mạng còn lại ở T-034.
+- Thêm adapter là thay đổi thư viện: plan rủi ro cao, so quyền trong manifest gộp trước và sau.
+- Khóa SDK AppLovin là cấu hình của từng app, đưa vào lúc build, không vào repo (ADR-0026). Đợt 2 (T-015, mục dưới) không đưa khóa vào app vì với bidding khóa nhập trên AdMob; phản hồi FB-20261023-01 cho thấy adapter báo `NOT_READY` trên staging khi app không có khóa. T-034 chốt cách đưa khóa vào lúc build.
+- Khai báo mạng trong nhóm mediation của từng đơn vị quảng cáo trên AdMob (việc của người).
+- Kiểm bằng Ad Inspector của AdMob trên bản staging (mã thử): mỗi adapter phải báo đã khởi tạo.
+- Hướng dẫn chính thức: https://developers.google.com/admob/android/mediation (mỗi mạng một trang con).
+
+### AppLovin (đợt 2, T-015)
 
 - AdMob điều phối, AppLovin là mạng con qua adapter chính thức của AdMob, bidding (ADR-0022, thay phần mạng con của ADR-0004).
 - **Thư viện:** `com.google.ads.mediation:applovin:13.6.4.2` (khóa `admob-mediation-applovin` trong `gradle/libs.versions.toml`), kéo theo `com.applovin:applovin-sdk:13.6.4`. Chỉ `:core:ads` phụ thuộc adapter; feature không thấy nó.
@@ -135,39 +149,48 @@ Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). 
 - **Kiểm tra trên staging:** sau khi đồng ý, logcat (`adb logcat -v threadtime | grep ' VGL\.'`, thẻ `Ads`) có dòng `Adapter com.google.ads.mediation.applovin.AppLovinMediationAdapter: READY`, ghi khi `MobileAds.initialize` báo xong. Trước khi đồng ý không có dòng `Adapter ...` nào và không có log khởi tạo của thẻ `AppLovinSdk`. Trên app có đơn vị quảng cáo thật: Ad Inspector, chế độ "single ad source testing" với "AppLovin (Bidding)", sau khi đăng ký máy thử trên AdMob và bật chế độ thử trên AppLovin.
 - **Nâng cấp adapter** là thay đổi thư viện: plan rủi ro cao. Nâng `play-services-ads` thì nâng adapter trong cùng plan, chọn bản adapter có ghi chú "Built and tested with" khớp bản Google Mobile Ads mới; kiểm lại tên provider và quyền trong manifest của AAR.
 - Hướng dẫn chính thức: https://developers.google.com/admob/android/mediation/applovin
+- **Với ADR-0026:** khóa SDK đưa vào lúc build (mục trên), thay dòng "Khóa SDK AppLovin không vào app". Bộ PARTNER khởi tạo SDK sớm, trước khi có đồng ý. Việc bỏ `AppLovinInitProvider` ở trên dựa trên ADR-0004 (không chạy mã mạng con trước đồng ý); T-034 xem lại quyết định này cùng tám mạng còn lại.
 
 ## 8. Thử trên staging
 
-- Staging luôn dùng mã thử của Google (ADR-0013).
+- Staging luôn dùng mã thử của Google theo định dạng (inter, banner, rewarded, app open, native; ADR-0013).
 - Bản staging dùng Firebase giả nên Remote Config không trả gì: staging bật mọi vị trí của `AdPlacement` bằng giá trị cục bộ (`StagingRemoteValuesModule`); Firebase staging vẫn tắt được từng vị trí.
-- Màn hình xem thử quảng cáo (chỉ staging, plan T-014): mở từ biểu tượng "Ad gallery" thứ hai trên máy. Ba trang: mặc định (native small, medium, nút "Interstitial", "Native full screen", "Open Ad Inspector"), "In-list ads" (xen small và medium sau mỗi N mục, N từ `ads_inlist_every_count`), "Collapsible ad"; nút quay lại của máy về trang mặc định. Dùng 7 vị trí `gallery_*`, tần suất quảng cáo toàn màn hình như production (bấm lại trong 45 giây, hay trong 180 giây ân hạn phiên đầu, thì không hiện). Màn hình này không tự bắt đầu phiên quảng cáo mới: phiên chỉ đếm theo màn hình chính. Màn hình chính đang mở mà mở màn hình xem thử thì màn hình chính vào nền, nên ở trong màn hình xem thử từ 30 phút trở lên rồi quay lại màn hình chính thì bắt đầu phiên quảng cáo mới. Ad Inspector chỉ mở trên emulator hoặc máy đã đăng ký thiết bị thử trên AdMob (https://support.google.com/admob/answer/9691433); máy chưa đăng ký thì màn hình báo lỗi kèm mã. Log ở thẻ `VGL.AdGallery` và `VGL.Ads`.
-- Hộp thoại đồng ý: staging giả lập vùng EEA để thấy hộp thoại.
-- Kiểm theo mục 4 và mục 2 trên máy thật: nhãn, AdChoices, khoảng cách tới nút, giữ chỗ khi tải, khi không có quảng cáo, chế độ tối.
+- Hộp thoại đồng ý: staging giả lập vùng EEA để thấy hộp thoại. Thử thêm: tắt mạng khi mở app (quyền tạm `ERROR_ALLOWED`), mở lại app sau khi đã đồng ý (`CACHED_EARLY`), rút đồng ý bằng nút quyền riêng tư.
+- Màn hình xem thử quảng cáo (chỉ staging, plan T-014): mở từ biểu tượng "Ad gallery" thứ hai trên máy. Ba trang: mặc định (native small, medium, nút "Interstitial", "Native full screen", "Open Ad Inspector"), "In-list ads" (xen small và medium sau mỗi N mục, N từ `ads_inlist_every_count`), "Collapsible ad"; nút quay lại của máy về trang mặc định. Dùng 7 vị trí `gallery_*`, tần suất quảng cáo toàn màn hình như production (bấm lại trong 45 giây, hay trong 180 giây ân hạn phiên đầu, thì không hiện). Màn hình này không tự bắt đầu phiên quảng cáo mới: phiên chỉ đếm theo màn hình chính. Màn hình chính đang mở mà mở màn hình xem thử thì màn hình chính vào nền, nên ở trong màn hình xem thử từ 30 phút trở lên rồi quay lại màn hình chính thì bắt đầu phiên quảng cáo mới. Ad Inspector chỉ mở trên emulator hoặc máy đã đăng ký thiết bị thử trên AdMob (https://support.google.com/admob/answer/9691433); máy chưa đăng ký thì màn hình báo lỗi kèm mã. Log ở thẻ `VGL.AdGallery` và `VGL.Ads`. Định dạng mới của đợt 3 thêm vào màn hình này ở T-036.
+- Kiểm trên máy thật theo mục 2: nhãn "Ad", AdChoices, nút đóng và đếm ngược, thu gọn và bung lại, thanh đáy không che điều hướng của app.
+- Xem log `adb logcat -v threadtime | grep ' VGL\.'`: mỗi quyết định cổng có một dòng (ADR-0019).
 
 ## 9. Trước khi phát hành
 
 - [ ] Mỗi vị trí trong `AdPlacement` có mã production trong `release.properties` (`release.sh` kiểm).
-- [ ] `app-ads.txt` đủ dòng cho mọi mạng đang dùng.
-- [ ] Hộp thoại đồng ý đã cấu hình trên AdMob (Privacy & messaging) cho các vùng cần, có "AppLovin Corp." trong danh sách đối tác quảng cáo (mục 7).
-- [ ] Tắt chế độ thử trên AppLovin và AdMob (máy thử, single ad source testing) trước khi phát hành.
-- [ ] Liên kết AdMob với Firebase (để có `ad_impression` và doanh thu, mục 10).
+- [ ] Khóa SDK AppLovin và khóa dev AppsFlyer có trong trình quản lý mật khẩu, đưa vào lúc build (ADR-0027).
+- [ ] `app-ads.txt` trên website của nhà phát triển có dòng của AdMob và của cả chín mạng con; lấy dòng từ bảng điều khiển của từng mạng. Thiếu dòng thì mạng đó có thể không trả quảng cáo.
+- [ ] Hộp thoại đồng ý đã cấu hình trên AdMob (Privacy & messaging) cho các vùng cần, có danh sách đối tác quảng cáo gồm chín mạng.
+- [ ] Liên kết AdMob với Firebase (để có `ad_impression` tự động); AppsFlyer đã nhận sự kiện từ bản phát hành thử.
+- [ ] Bản đầu tiên gửi `ad_placement` sang AppsFlyer hay gửi sự kiện đếm inter: đã báo nhóm thu hút người dùng (UA) và ghi ngày đổi lên dashboard (`ads-business-rules.md`, HD-07). App chuyển từ `ad_impression` sang `ad_impression_placement` cũng ghi ngày đổi và báo nhóm.
+- [ ] **Data safety** trên Play Console khai đủ SDK đang dùng: Google Mobile Ads, chín mạng con, AppsFlyer, Firebase. Các mạng quảng cáo thường thu thập: mã quảng cáo và mã thiết bị khác, tương tác với quảng cáo và app, chẩn đoán, vị trí gần đúng suy từ IP. Tra trang công bố dữ liệu của từng mạng lúc làm T-034 và ghi kết quả vào plan của ticket đó; khai đúng mục đích (quảng cáo, phân tích, chống gian lận).
+- [ ] Tắt chế độ thử trên AdMob và các mạng con (máy thử, single ad source testing) trước khi phát hành.
 - [ ] Rà từng vị trí theo mục 2 trên bản phát hành.
-- [ ] Mọi vị trí vẫn tắt trên Remote Config tới khi bản phát hành lên Play; bật dần theo [remote-config.md](remote-config.md).
+- [ ] Mọi khóa quảng cáo vẫn tắt trên Remote Config tới khi bản phát hành lên Play; bật dần theo [remote-config.md](remote-config.md).
 
 ## 10. Đo lường
 
-- **Sự kiện:** liên kết AdMob với Firebase thì `ad_impression`, `ad_click` và doanh thu được ghi tự động. App không tự ghi sự kiện hiển thị quảng cáo (ADR-0022). Kiểm bằng DebugView của Firebase.
-- **Chỉ số:** ARPDAU (doanh thu quảng cáo mỗi người dùng hoạt động mỗi ngày); số lượt hiển thị mỗi người dùng mỗi ngày theo định dạng; tỷ lệ lấp đầy và eCPM theo định dạng, quốc gia; tỷ lệ hiển thị so với yêu cầu. Luôn xem cùng giữ chân D1, D7 và điểm Play: tăng ARPDAU mà giữ chân hay điểm giảm là dấu hiệu quảng cáo quá dày.
+- **Firebase:** liên kết AdMob với Firebase thì `ad_impression` và doanh thu được ghi tự động. App tự ghi `ad_impression_placement` (doanh thu theo vị trí, không đếm đôi với `ad_impression`) và, khi bật khóa, số liệu vòng đời `ad_load_*`, `ad_opportunity`, `ad_show_fail`, `ad_clicked`, `ad_reward_earned`, `reward_dialog` (`ads-business-rules.md`, mục 8.2). Kiểm bằng DebugView.
+- **AppsFlyer:** `af_ad_revenue` cho mọi lượt hiển thị, phễu `af_inters_*`, `af_rewarded_*`, `af_native_*`, `af_inters_displayed_{N}_times`. Không có `af_revenue` (ADR-0027). Mỗi sự kiện có công tắc từ xa `is_log_af_*`, mặc định bật; tắt khẩn khi một sự kiện làm hỏng số liệu.
+- **Chỉ số:** ARPDAU; doanh thu theo vị trí và định dạng; số lượt hiển thị mỗi người dùng mỗi ngày; tỷ lệ lấp đầy và eCPM theo định dạng, quốc gia, mạng; tỷ lệ `shown` trên cơ hội (`ad_opportunity`). Luôn xem cùng giữ chân D1, D7 và điểm Play: tăng ARPDAU mà giữ chân hay điểm giảm là dấu hiệu quảng cáo quá dày.
 - **Báo cáo vận hành** (`docs/templates/ops-report.md`) ghi các chỉ số này theo kỳ, kèm mọi lần đổi cấu hình quảng cáo trong kỳ.
 
 ## Nguồn
 
-Tra ngày 2026-10-21; chính sách có thể đổi, đối chiếu lại trước khi dựa vào một chi tiết.
+Tra ngày 2026-10-21 và 2026-10-23; chính sách có thể đổi, đối chiếu lại trước khi dựa vào một chi tiết.
 
+- Luật nghiệp vụ và dẫn chứng AdsKit: [ads-business-rules.md](ads-business-rules.md)
 - Native advanced (Android): https://developers.google.com/admob/android/native/advanced
 - Native toàn màn hình: https://developers.google.com/admob/android/native/full-screen
-- MediaView tối thiểu 120 x 120 dp cho video: https://support.google.com/admanager/answer/7031536
+- App open: https://developers.google.com/admob/android/app-open
+- Banner thu gọn: https://developers.google.com/admob/android/banner/collapsible
 - Đo doanh thu quảng cáo bằng Firebase: https://firebase.google.com/docs/analytics/measure-ad-revenue
+- Mediation của AdMob: https://developers.google.com/admob/android/mediation
 - Hiệu quả quảng cáo AdMob trong Firebase: https://support.google.com/firebase/answer/7378163
 - Mediation AppLovin: https://developers.google.com/admob/android/mediation/applovin
 - Ad Inspector: https://developers.google.com/admob/android/ad-inspector
