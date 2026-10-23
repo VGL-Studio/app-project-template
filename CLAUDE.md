@@ -20,6 +20,7 @@
 | `:core:ads` | Vị trí quảng cáo, hộp thoại đồng ý, rào chắn chính sách, AdMob (ADR-0004, ADR-0013, ADR-0014) |
 | `:core:assets` | Tải file tĩnh từ R2, giữ trên máy để dùng khi mất mạng (ADR-0006, ADR-0015) |
 | `:core:logging` | Ghi log hành vi của app vào logcat và Crashlytics để phân tích khi có lỗi (ADR-0019) |
+| `:core:network` | Theo dõi có Internet dùng được, popup mất mạng (ADR-0024) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
