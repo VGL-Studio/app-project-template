@@ -46,6 +46,27 @@ class ScreenNameTest {
         assertEquals("sample", reportedScreenOf(SAMPLE_ROUTE))
     }
 
+    // AppNavHost reports reportedScreenOf(route) only for the routes where reportsScreen(route) is true.
+    private fun reported(routes: List<String?>): List<String?> = routes.filter(::reportsScreen).map(::reportedScreenOf)
+
+    @Test
+    fun activityRecreated_firstFrameWithoutEntry_isNotReported() {
+        // Rotation, dark mode or locale recreate the activity: the first frame has no back stack entry yet, then
+        // the restored destination comes back. The dialog controller must not see a passage through loading.
+        assertEquals(listOf("sample"), reported(listOf(null, SAMPLE_ROUTE)))
+    }
+
+    @Test
+    fun coldStart_reportsLoadingThenSample() {
+        // Cold start: no entry yet, then loading, then the start screen. The controller starts on loading already.
+        assertEquals(listOf(null, "sample"), reported(listOf(null, LOADING_ROUTE, SAMPLE_ROUTE)))
+    }
+
+    @Test
+    fun backToLoading_isStillReported() {
+        assertEquals(listOf("sample", null), reported(listOf(SAMPLE_ROUTE, LOADING_ROUTE)))
+    }
+
     private companion object {
         const val SAMPLE_ROUTE = "com.vglstudio.template.feature.sample.navigation.SampleDestination"
         const val LOADING_ROUTE = "com.vglstudio.template.feature.loading.navigation.LoadingDestination"

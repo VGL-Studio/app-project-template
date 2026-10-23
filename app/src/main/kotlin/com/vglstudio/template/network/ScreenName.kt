@@ -31,3 +31,6 @@ internal fun reportedScreenOf(route: String?): String? {
     if (route == null) return null
     return screenNameOf(route).takeUnless { it == LOADING }
 }
+
+/** Skeleton for the tests written first (T-017, review fix): reports every route, as before the fix. */
+internal fun reportsScreen(route: String?): Boolean = true

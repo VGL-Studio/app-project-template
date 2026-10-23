@@ -106,6 +106,39 @@ class NetworkDialogControllerTest {
         assertEquals(emptyList<AnalyticsEvent>(), events("network_restored"))
     }
 
+    @Test
+    fun sameScreenReportedAgain_keepsDialogAndRecordsNothing() = runTest {
+        // After the activity is recreated, :app reports the restored screen again (AppNavHost, reportsScreen).
+        val controller = controller()
+        reportFailure(controller)
+        connectivity.connected.value = false
+        controller.retry()
+        advanceTimeBy(2_001)
+        assertEquals(STILL_OFFLINE, controller.state.value)
+
+        controller.setScreen(SAMPLE)
+        runCurrent()
+
+        assertEquals(STILL_OFFLINE, controller.state.value)
+        assertEquals(1, events("network_lost_shown").size)
+        // The retry made before the recreation still counts when the network comes back.
+        setConnected(true)
+        assertEquals("1", events("network_restored").single().params["retry_count"])
+    }
+
+    @Test
+    fun networkFailureWhileOnline_survivesSameScreenReportedAgain() = runTest {
+        val controller = controller()
+        reportFailure(controller)
+        assertEquals(SHOWN, controller.state.value)
+
+        controller.setScreen(SAMPLE)
+        runCurrent()
+
+        assertEquals(SHOWN, controller.state.value)
+        assertEquals(1, events("network_lost_shown").size)
+    }
+
     // KB-1, criterion 2: leaving loading without network shows the dialog at once.
 
     @Test
