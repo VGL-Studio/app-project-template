@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filter
@@ -55,7 +56,7 @@ class AdsController @Inject internal constructor(
     private val consentDebug: ConsentDebugOptions,
     private val settings: RemoteSettings,
     historyStore: FullScreenAdHistoryStore,
-    private val logger: AppLogger,
+    internal val logger: AppLogger,
 ) {
     private val consentInformation by lazy { UserMessagingPlatform.getConsentInformation(context) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -200,6 +201,17 @@ class AdsController @Inject internal constructor(
      * showing an ad.
      */
     internal fun isEnabled(placement: AdPlacement): Flow<Boolean> = placementActive(settings, placement)
+
+    /**
+     * N of the in-list ads of [placement] ([rememberInListAds]): `ads_inlist_every_count`, or null while no ad row may
+     * be added (no consent yet, master switch or placement off, bad remote value).
+     */
+    internal fun inListEvery(placement: AdPlacement): Flow<Int?> = combine(
+        canRequestAds,
+        isEnabled(placement),
+        settings.value(AdsSettings.INLIST_EVERY_COUNT),
+    ) { canRequest, enabled, everyCount -> inListEvery(canRequest && enabled, everyCount) }
+        .distinctUntilChanged()
 
     internal fun unitId(placement: AdPlacement): String? = unitIds.of(placement).also {
         if (it == null) Log.e(TAG, "No ad unit for placement ${placement.key}; it shows no ad")

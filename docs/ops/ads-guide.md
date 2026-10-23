@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách chọn, đặt, thử và đo quảng cáo trong app của nhóm. Quyết định nằm ở ADR-0004, ADR-0013, ADR-0014 và ADR-0022; cấu hình từ xa ở [remote-config.md](remote-config.md) (ADR-0023). Repo `vgl-docs` và file "Quy chuẩn Native" cũ chỉ để tham khảo; khi khác tài liệu này thì theo tài liệu này.
 
-Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native trong danh sách, native thu gọn, native toàn màn hình); tới lúc đó chỉ dùng banner, interstitial, native small và native medium.
+Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native thu gọn, native toàn màn hình); tới lúc đó chỉ dùng banner, interstitial, native small, native medium và native trong danh sách.
 
 ## 1. Nguyên tắc
 
@@ -40,7 +40,7 @@ Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành c�
 | Interstitial | | Điểm dừng tự nhiên | Có |
 | Native small | Banner | Đáy hay giữa màn hình nội dung | Có |
 | Native medium | MREC | Trong nội dung, giữa các khối | Có |
-| Native in-list | | Trong danh sách hay lưới, cách nhau N mục | (đợt 2) |
+| Native in-list | | Trong danh sách hay lưới, cách nhau N mục | Có |
 | Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | (đợt 2) |
 | Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | (đợt 2) |
 | App open, rewarded | | Chưa làm; cần ADR mới khi một app cần | Không |
@@ -49,7 +49,7 @@ Chọn định dạng theo màn hình, không theo doanh thu từng định dạ
 
 ## 4. Quy chuẩn native
 
-Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small và medium đã có; in-list, collapsible và toàn màn hình là **(đợt 2)**. Bảng dưới là quy tắc phải giữ.
+Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small, medium và in-list đã có; collapsible và toàn màn hình là **(đợt 2)**. Bảng dưới là quy tắc phải giữ.
 
 | Cỡ | Thành phần | Quy tắc |
 | --- | --- | --- |
@@ -90,6 +90,16 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
 2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`), đúng dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` trên một dòng: `scripts/release.sh` đọc danh sách vị trí bằng mẫu này và đòi mã production cho mọi vị trí, trừ vị trí có khóa bắt đầu bằng `gallery_` (chỉ dùng cho màn hình xem thử ở staging, không bao giờ phát hành).
 3. **Khóa bật tắt:** `ads_<ten_vi_tri>_enabled`, mặc định tắt (ADR-0014), tự có qua `AdsSettings.placementEnabled` và tự vào bảng khóa qua `AdsSettings.all()`. Sinh lại bảng khóa bằng lệnh ở [remote-config.md](remote-config.md), mục 3, trong cùng PR. Tham số riêng của vị trí theo [remote-config.md](remote-config.md).
 4. **Màn hình:** đặt `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), hoặc `rememberShowInterstitial(placement)` gọi ở điểm dừng tự nhiên. Feature không gọi SDK quảng cáo. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
+   - **Native trong danh sách** (vị trí native small hay medium): gọi `rememberInListAds(placement)` ở mức màn hình, ngoài `LazyColumn` hay `LazyVerticalGrid`, rồi thay `items(...)` bằng `itemsWithInListAds(...)`:
+
+     ```kotlin
+     val ads = rememberInListAds(AdPlacement.MY_LIST_NATIVE)
+     LazyColumn { itemsWithInListAds(photos, ads, key = { it.id }) { PhotoRow(it) } }
+     ```
+
+     Quảng cáo thứ k nằm ngay sau mục thứ k x N (N là `ads_inlist_every_count`), chỉ nằm giữa hai mục: không ở đầu, không ở cuối, danh sách có N mục trở xuống thì không có quảng cáo. Chưa đồng ý, vị trí hay công tắc tổng tắt thì không chèn hàng nào. Mỗi ô một quảng cáo riêng, tải khi ô hiện lần đầu, giữ khi cuộn qua lại (không tải lại), hủy hết khi rời màn hình; ô không có quảng cáo sau thời gian chờ thì cao 0. Hàng quảng cáo có khóa và `contentType` riêng, không trùng khóa của mục.
+   - **Lưới:** truyền số cột, `itemsWithInListAds(items, ads, columns = 2) { ... }`. N được làm tròn lên bội số cột (N = 3, 2 cột thành 4) để hàng trên quảng cáo luôn đủ ô; hàng quảng cáo rộng hết lưới. Khi chọn N cho màn hình lưới, nên chọn sẵn bội số cột.
+   - N trên Remote Config nên từ 5 trở lên; N = 1 nghĩa là quảng cáo xen giữa mọi mục. Code không chặn, giá trị là quyết định của người vận hành (ADR-0023).
 5. **Test:** test không có `LocalAdsController` nên `NativeAdSlot` không vẽ gì; screenshot test truyền `NativeAdCard` giả (hay `NativeAdPlaceholder(size, animated = false)` cho trạng thái đang tải) qua tham số quảng cáo của màn hình, để ảnh có quảng cáo như thiết kế, như `SampleScreenScreenshotTest`. Test ViewModel cho điểm gọi interstitial nếu có logic.
 6. **Mã quảng cáo production:** tạo đơn vị quảng cáo trên AdMob, ghi vào `release.properties` lúc phát hành ([release.md](release.md)); không vào repo.
 7. **Bật:** sau khi bản production có vị trí đã lên Play, người phụ trách bật `ads_<ten_vi_tri>_enabled` trên Firebase theo [remote-config.md](remote-config.md), mục 5.
@@ -103,7 +113,7 @@ Giá trị đề xuất ban đầu; chỉnh bằng Remote Config theo số liệ
 | Khoảng cách tối thiểu giữa hai quảng cáo toàn màn hình | `ads_interstitial_min_interval_seconds` (đã có) | 45 giây, nâng lên nếu giữ chân giảm |
 | Ân hạn phiên đầu: không quảng cáo toàn màn hình trong khoảng này sau lần mở đầu tiên | `ads_first_session_grace_seconds` | 180 giây |
 | Tối đa quảng cáo toàn màn hình mỗi phiên | `ads_interstitial_max_per_session_count` | 4 |
-| Native in-list cách nhau (đợt 2) | `ads_inlist_every_count` | 8 mục |
+| Native in-list cách nhau | `ads_inlist_every_count` | 8 mục |
 | Công tắc tổng | `ads_enabled` | bật |
 
 Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). Một phiên bắt đầu khi app khởi động, và bắt đầu lại khi app trở lại tiền cảnh sau ít nhất 30 phút ở nền (giống phiên của Firebase Analytics); số quảng cáo toàn màn hình của phiên chỉ đếm trong bộ nhớ. Banner làm mới theo cài đặt của đơn vị quảng cáo trên AdMob, không đặt dưới 60 giây; native không tự làm mới, chỉ tải mới khi người dùng vào lại màn hình.
