@@ -7,12 +7,17 @@ import android.os.SystemClock
 import android.util.Log
 import com.google.ads.mediation.admob.AdMobAdapter
 import com.google.android.gms.ads.AdError
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.MediaAspectRatio
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.VideoOptions
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.nativead.NativeAdOptions
 import com.google.android.ump.ConsentDebugSettings
 import com.google.android.ump.ConsentInformation.PrivacyOptionsRequirementStatus
 import com.google.android.ump.ConsentRequestParameters
@@ -43,8 +48,8 @@ import kotlinx.coroutines.withContext
 /**
  * The only class that talks to the ads SDKs (ADR-0004). :app calls [gatherConsent], [onUserInteraction],
  * [onAppForeground] and [onAppBackground] from its activity and provides this controller to the UI through
- * [LocalAdsController]. Features use [AdSlot], [NativeAdSlot], [rememberShowInterstitial] and [PrivacyOptionsButton],
- * never this class or an SDK directly.
+ * [LocalAdsController], and draws native full-screen ads with [FullScreenAdHost]. Features use [AdSlot], [NativeAdSlot],
+ * [rememberShowFullScreenAd] and [PrivacyOptionsButton], never this class or an SDK directly.
  *
  * The ads SDK is initialized only once the consent form allows ads to be requested. Mediation adapters (AppLovin,
  * plan T-015) are initialized by the SDK at the same time, with no code of their own; their status is logged.
@@ -69,6 +74,20 @@ class AdsController @Inject internal constructor(
     private val startedActivities = StartedActivityCounter()
     private val loadedInterstitials = mutableMapOf<AdPlacement, InterstitialAd>()
     private var fullScreenInProgress = false
+    private val presence = FullScreenAdPresence()
+    private val preloadedNativeFullScreen = FreshAdCache<LoadedNativeAd>(onDiscard = { it.destroy() })
+    private val nativeFullScreenLoading = mutableSetOf<AdPlacement>()
+
+    /**
+     * True while a full-screen ad (interstitial or native full screen) is on screen. The network popup (ADR-0024,
+     * T-017) waits for it to close.
+     */
+    val fullScreenAdShowing: StateFlow<Boolean> = presence.showing
+
+    private val _nativeFullScreenAd = MutableStateFlow<ShownNativeFullScreenAd?>(null)
+
+    /** The native full-screen ad on screen, drawn by [FullScreenAdHost]; null when none. */
+    internal val nativeFullScreenAd: StateFlow<ShownNativeFullScreenAd?> = _nativeFullScreenAd.asStateFlow()
 
     private val _canRequestAds = MutableStateFlow(false)
 
@@ -149,21 +168,84 @@ class AdsController @Inject internal constructor(
                     return@withContext false
                 }
                 ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-                    override fun onAdDismissedFullScreenContent() = preloadInterstitial(placement)
+                    override fun onAdDismissedFullScreenContent() {
+                        presence.onClosed()
+                        preloadInterstitial(placement)
+                    }
 
                     override fun onAdFailedToShowFullScreenContent(error: AdError) {
                         Log.w(TAG, "Interstitial ${placement.key} failed to show: ${error.message}")
+                        presence.onClosed()
                         preloadInterstitial(placement)
                     }
                 }
                 // Counted before showing: an ad that fails to show still counts (fewer ads, never more).
                 onFullScreenShown()
+                presence.onShowing()
                 ad.show(activity)
                 true
             } finally {
                 fullScreenInProgress = false
             }
         }
+
+    /**
+     * Shows the full-screen ad of [placement], interstitial or native full screen, if the guardrails allow it, and
+     * returns whether it was shown ([rememberShowFullScreenAd]).
+     */
+    internal suspend fun showFullScreenAd(activity: Activity, placement: AdPlacement): Boolean =
+        when (placement.format) {
+            AdFormat.INTERSTITIAL -> showInterstitial(activity, placement)
+            AdFormat.NATIVE_FULL_SCREEN -> showNativeFullScreen(placement)
+            else -> throw IllegalArgumentException("${placement.key} is not a full-screen placement")
+        }
+
+    /**
+     * Shows the preloaded native full-screen ad of [placement] through [FullScreenAdHost], with the same guardrails
+     * and frequency rules as interstitials ([awaitFullScreenTurn], [onFullScreenShown]). Returns at once, showing
+     * nothing, when another full-screen ad is in progress or on screen, or when no fresh ad is preloaded (it then
+     * starts loading one for the next time): never waits for an ad to load (KB-5).
+     */
+    private suspend fun showNativeFullScreen(placement: AdPlacement): Boolean =
+        withContext(Dispatchers.Main.immediate) {
+            if (fullScreenInProgress || presence.showing.value) {
+                logger.info(TAG, "Native full-screen skipped: ANOTHER_SHOWING")
+                return@withContext false
+            }
+            if (!preloadedNativeFullScreen.hasFresh(placement, SystemClock.elapsedRealtime())) {
+                logger.info(TAG, "Native full-screen skipped: NOT_READY")
+                preloadNativeFullScreen(placement)
+                return@withContext false
+            }
+            fullScreenInProgress = true
+            try {
+                if (!awaitFullScreenTurn(placement)) return@withContext false
+                val ad = preloadedNativeFullScreen.take(placement, SystemClock.elapsedRealtime())
+                if (ad == null) {
+                    // Expired while waiting for the user to stop touching the screen.
+                    preloadNativeFullScreen(placement)
+                    return@withContext false
+                }
+                // Counted and reported right before showing, like interstitials.
+                onFullScreenShown()
+                presence.onShowing()
+                _nativeFullScreenAd.value = ShownNativeFullScreenAd(placement, ad)
+                logger.info(TAG, "Native full-screen shown: ${placement.key}")
+                true
+            } finally {
+                fullScreenInProgress = false
+            }
+        }
+
+    /** The user closed the native full-screen ad (close button or back button). Main thread only. */
+    internal fun closeNativeFullScreenAd() {
+        val shown = _nativeFullScreenAd.value ?: return
+        _nativeFullScreenAd.value = null
+        shown.ad.destroy()
+        presence.onClosed()
+        logger.info(TAG, "Native full-screen closed")
+        preloadNativeFullScreen(shown.placement)
+    }
 
     /**
      * Whether a full-screen ad of [placement] may be shown now, shared by every full-screen format: consent,
@@ -320,7 +402,7 @@ class AdsController @Inject internal constructor(
                     }
                 }
                 _canRequestAds.value = true
-                AdPlacement.entries.filter { it.format == AdFormat.INTERSTITIAL }.forEach(::preloadWhenEnabled)
+                AdPlacement.entries.filter { it.format.isFullScreen }.forEach(::preloadWhenEnabled)
             }
         }
     }
@@ -328,7 +410,50 @@ class AdsController @Inject internal constructor(
     /** Placements are off by default (ADR-0014): load an ad only once the placement is switched on remotely. */
     private fun preloadWhenEnabled(placement: AdPlacement) {
         scope.launch {
-            isEnabled(placement).distinctUntilChanged().filter { it }.collect { preloadInterstitial(placement) }
+            isEnabled(placement).distinctUntilChanged().filter { it }.collect {
+                when (placement.format) {
+                    AdFormat.NATIVE_FULL_SCREEN -> preloadNativeFullScreen(placement)
+                    else -> preloadInterstitial(placement)
+                }
+            }
+        }
+    }
+
+    /**
+     * Loads one native full-screen ad of [placement] for later, unless a fresh one is kept or loading, or the
+     * placement is off. Media of any aspect ratio, video muted, AdChoices in the top right corner.
+     */
+    private fun preloadNativeFullScreen(placement: AdPlacement) {
+        if (placement in nativeFullScreenLoading) return
+        if (preloadedNativeFullScreen.hasFresh(placement, SystemClock.elapsedRealtime())) return
+        val unitId = unitId(placement) ?: return
+        nativeFullScreenLoading += placement
+        scope.launch {
+            if (!canRequestAds.value || !isEnabled(placement).first()) {
+                nativeFullScreenLoading -= placement
+                return@launch
+            }
+            val options = NativeAdOptions.Builder()
+                .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT)
+                .setMediaAspectRatio(MediaAspectRatio.ANY)
+                .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
+                .build()
+            AdLoader.Builder(context, unitId)
+                .forNativeAd { ad ->
+                    nativeFullScreenLoading -= placement
+                    preloadedNativeFullScreen.put(placement, SdkLoadedNativeAd(ad), SystemClock.elapsedRealtime())
+                }
+                .withAdListener(
+                    object : AdListener() {
+                        override fun onAdFailedToLoad(error: LoadAdError) {
+                            nativeFullScreenLoading -= placement
+                            logger.warn(TAG, "Native full-screen ${placement.key} failed to load: ${error.code}")
+                        }
+                    },
+                )
+                .withNativeAdOptions(options)
+                .build()
+                .loadAd(adRequest())
         }
     }
 
@@ -358,6 +483,9 @@ class AdsController @Inject internal constructor(
     }
 }
 
+/** The native full-screen ad on screen and its placement. */
+internal class ShownNativeFullScreenAd(val placement: AdPlacement, val ad: LoadedNativeAd)
+
 /**
  * The size a native ad of this format is loaded at, `null` for formats that are not native. Exhaustive on purpose,
  * with no `else`: a new [AdFormat] must decide here how it loads.
@@ -369,4 +497,6 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
     // Opens expanded, with media, so it loads as medium.
     AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
+    // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
+    AdFormat.NATIVE_FULL_SCREEN -> null
 }

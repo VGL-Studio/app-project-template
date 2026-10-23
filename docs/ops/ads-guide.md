@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách chọn, đặt, thử và đo quảng cáo trong app của nhóm. Quyết định nằm ở ADR-0004, ADR-0013, ADR-0014 và ADR-0022; cấu hình từ xa ở [remote-config.md](remote-config.md) (ADR-0023). Repo `vgl-docs` và file "Quy chuẩn Native" cũ chỉ để tham khảo; khi khác tài liệu này thì theo tài liệu này.
 
-Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native toàn màn hình); tới lúc đó chỉ dùng banner, interstitial, native small, native medium, native trong danh sách và native thu gọn.
+Mọi định dạng ở mục 3 có "Có" hay tên hàm ở cột `:core:ads` đều dùng được: banner, interstitial, native small, native medium, native trong danh sách, native thu gọn và native toàn màn hình.
 
 ## 1. Nguyên tắc
 
@@ -42,14 +42,14 @@ Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành c�
 | Native medium | MREC | Trong nội dung, giữa các khối | Có |
 | Native in-list | | Trong danh sách hay lưới, cách nhau N mục | Có |
 | Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | `CollapsibleNativeAdSlot` |
-| Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | (đợt 2) |
+| Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | `rememberShowFullScreenAd` |
 | App open, rewarded | | Chưa làm; cần ADR mới khi một app cần | Không |
 
 Chọn định dạng theo màn hình, không theo doanh thu từng định dạng: màn hình người dùng ở lâu (danh sách, chi tiết) hợp native small hay medium; điểm dừng giữa hai việc hợp interstitial.
 
 ## 4. Quy chuẩn native
 
-Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small, medium, in-list và collapsible đã có; toàn màn hình là **(đợt 2)**. Bảng dưới là quy tắc phải giữ.
+Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small, medium, in-list, collapsible và toàn màn hình đã có. Bảng dưới là quy tắc phải giữ.
 
 | Cỡ | Thành phần | Quy tắc |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
 1. **Spec:** mục Quảng cáo ghi vị trí, định dạng, màn hình, thời điểm, giới hạn tần suất, khóa bật tắt. Thiết kế đánh dấu vùng quảng cáo trên ảnh màn hình.
 2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`), đúng dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` trên một dòng: `scripts/release.sh` đọc danh sách vị trí bằng mẫu này và đòi mã production cho mọi vị trí, trừ vị trí có khóa bắt đầu bằng `gallery_` (chỉ dùng cho màn hình xem thử ở staging, không bao giờ phát hành).
 3. **Khóa bật tắt:** `ads_<ten_vi_tri>_enabled`, mặc định tắt (ADR-0014), tự có qua `AdsSettings.placementEnabled` và tự vào bảng khóa qua `AdsSettings.all()`. Sinh lại bảng khóa bằng lệnh ở [remote-config.md](remote-config.md), mục 3, trong cùng PR. Tham số riêng của vị trí theo [remote-config.md](remote-config.md).
-4. **Màn hình:** đặt `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), hoặc `rememberShowInterstitial(placement)` gọi ở điểm dừng tự nhiên. Feature không gọi SDK quảng cáo. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
+4. **Màn hình:** đặt `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), hoặc `rememberShowFullScreenAd(placement)` (interstitial và native toàn màn hình) gọi ở điểm dừng tự nhiên; hàm cũ `rememberShowInterstitial` vẫn chạy cho interstitial. Native toàn màn hình hiện trong hộp thoại do `FullScreenAdHost()` của `:app` vẽ, dùng chung giới hạn tần suất với interstitial, và không hiện gì khi chưa tải sẵn xong. Feature không gọi SDK quảng cáo. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
    - **Native trong danh sách** (vị trí native small hay medium): gọi `rememberInListAds(placement)` ở mức màn hình, ngoài `LazyColumn` hay `LazyVerticalGrid`, rồi thay `items(...)` bằng `itemsWithInListAds(...)`:
 
      ```kotlin
