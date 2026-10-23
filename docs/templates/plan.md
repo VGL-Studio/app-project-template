@@ -100,7 +100,7 @@ Test trên emulator chỉ kiểm tra trạng thái ổn định sau khi chờ c�
 ### 4.1. Chạy thử
 
 <!--
-Bắt buộc khi tiêu chí E ở mục 5 từ 2 trở lên: kỹ thuật hay thư viện lần đầu dùng trong dự án (L-041).
+Bắt buộc khi tiêu chí E ở mục 5 từ 2 trở lên: kỹ thuật hay thư viện lần đầu dùng trong dự án (L-042).
 Chạy thử bằng một test tạm không commit, bằng đúng lệnh phiên dùng (`scripts/check.sh`) trên nhánh có code liên quan, trước khi duyệt.
 Robolectric không mô phỏng cửa sổ chồng nhau: phần trợ năng và chạm qua cửa sổ thêm bước kiểm tra thủ công.
 Ghi "Không cần (E dưới 2)" nếu không áp dụng. scripts/plan-check.py báo lỗi khi plan draft có E từ 2 mà thiếu mục này.

@@ -13,7 +13,7 @@ Bốn nguyên tắc của phiên tự chạy:
 
 1. Sau họp đánh giá rủi ro, AI lập danh sách chạy `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md): các plan đã duyệt, thứ tự chạy, số task tối đa, thời điểm muốn có bản staging (nếu có).
 2. Dev xem lại danh sách cùng mục Kiểm tra trước khi duyệt ([ops/pre-run-review.md](ops/pre-run-review.md)), rồi chuyển trạng thái sang `approved`. Chỉ duyệt khi `scripts/run-check.py` qua và không còn điểm chặn nào của lần rà soát chưa xử lý.
-3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine. Ưu tiên hai cách này: chỉ phiên của routine được `resume-run.yml` tự tiếp tục khi hết hạn mức. Phiên mở bằng `claude --cloud` từ terminal dừng hẳn khi hết hạn mức, người phải mở lại (L-043); chỉ dùng cách này khi có lý do, ví dụ dùng cloud session credits (L-043), và ghi lý do vào mục Kiểm tra đầu phiên.
+3. Dev kích hoạt phiên bằng workflow `start-run.yml` trên GitHub, hoặc bằng Run now của routine. Muốn bắt đầu vào một thời điểm cụ thể (ví dụ lúc hạn mức sử dụng được làm mới) thì hẹn một lần chạy cho routine. Ưu tiên hai cách này: chỉ phiên của routine được `resume-run.yml` tự tiếp tục khi hết hạn mức. Phiên mở bằng `claude --cloud` từ terminal dừng hẳn khi hết hạn mức, người phải mở lại (L-044); chỉ dùng cách này khi có lý do, ví dụ dùng cloud session credits (L-044), và ghi lý do vào mục Kiểm tra đầu phiên.
 4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính, kể cả PR chỉ có tài liệu: mỗi commit mới trên nhánh chính bắt task đang làm chạy lại CI một vòng. `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`, kể cả khi phiên đang chờ hạn mức được làm mới (mục 4, Tiếp tục phiên sau khi hết hạn mức).
 5. Một danh sách chạy chỉ chạy một lần. Danh sách đã `finished` không được kích hoạt lại; muốn chạy lại thì lập danh sách mới.
 6. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
@@ -147,7 +147,7 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 - Script báo nhánh chưa cập nhật theo nhánh chính thì cập nhật nhánh, đợi CI chạy lại rồi gọi lại script.
 - Script từ chối vì lý do khác thì không tìm cách vượt qua, mà dừng task và ghi lý do vào nhật ký.
 - Sau khi merge, chờ `main-guard` của commit merge: `scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge>` ở chế độ nền, trong lúc làm bước 10 và bước 1, 2 của task sau. Commit merge chỉ đổi tài liệu thì `main-guard` không chạy (`paths-ignore`), không cần chờ.
-- Trước khi đẩy commit đầu tiên của task sau, phải có kết quả của lần chờ đó, rồi kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Có thì kết thúc phiên. Kiểm tra ngay sau khi merge là quá sớm: `main-guard` mất khoảng 5 đến 12 phút, và issue chỉ được mở khi nó xong (L-042).
+- Trước khi đẩy commit đầu tiên của task sau, phải có kết quả của lần chờ đó, rồi kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Có thì kết thúc phiên. Kiểm tra ngay sau khi merge là quá sớm: `main-guard` mất khoảng 5 đến 12 phút, và issue chỉ được mở khi nó xong (L-043).
 
 ### Bước 10. Ghi nhật ký
 

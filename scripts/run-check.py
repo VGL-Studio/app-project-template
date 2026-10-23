@@ -6,14 +6,14 @@ Exit 0: no error (warnings may be printed). Exit 1: at least one error.
 
 plan-check.py looks at one plan at a time. This script looks at what only shows across the list and the
 documents behind it, the mistakes that stopped or slowed earlier sessions:
-  1. Every plan of the list exists, passes plan-check.py, and it and its ticket are approved (L-044).
+  1. Every plan of the list exists, passes plan-check.py, and it and its ticket are approved (L-045).
   2. The spec of every ticket is confirmed, has no unanswered question, and has no history row still
      waiting for confirmation; a plan approved before the spec's last change is a warning (stale plan).
   3. Every dependency of a ticket is merged already, or comes earlier in the list.
   4. Every scenario of the ticket appears in section 4 of the plan; a scenario with fewer test rows
      than acceptance criteria in the spec is a warning.
-  5. Two plans of the list that change the same file without depending on each other (L-044): a warning.
-  6. A list that is a single dependency chain (L-044), and exceptions to test-first: warnings for people.
+  5. Two plans of the list that change the same file without depending on each other (L-045): a warning.
+  6. A list that is a single dependency chain (L-045), and exceptions to test-first: warnings for people.
 RUN_CHECK_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(os.environ.get("RUN_CHECK_ROOT", Path(__file__).resolve().parent.parent))
 DOCS = ROOT / "docs"
 MERGED = {"on-staging", "accepted", "released"}
-# App shell code that test-first exceptions often leave without a JVM test; bugs there show only on ui-test (L-044).
+# App shell code that test-first exceptions often leave without a JVM test; bugs there show only on ui-test (L-045).
 SHELL_CODE = re.compile(r"AppNavHost|MainActivity|navigation/")
 
 
@@ -144,7 +144,7 @@ def check(run_path):
             continue
         fields = front_matter(ticket_path.read_text())
         if fields.get("status") != "approved":
-            errors.append(f"{ticket}: ticket đang '{fields.get('status')}', chưa approved (L-044).")
+            errors.append(f"{ticket}: ticket đang '{fields.get('status')}', chưa approved (L-045).")
         depends[ticket] = [t for t in ids(fields.get("depends_on")) if t.startswith("T-")]
         for dependency in depends[ticket]:
             if dependency in in_list[:position]:
@@ -178,7 +178,7 @@ def check(run_path):
         shell = sorted(set(SHELL_CODE.findall(exception.group(1)))) if exception else []
         if shell:
             warnings.append(f"{ticket}: ngoại lệ viết test trước gồm vỏ app ({', '.join(shell)}): lỗi ở đó chỉ lộ ra "
-                            "ở ui-test, vòng CI dài nhất (L-044). Cân nhắc một test Robolectric thay cho ngoại lệ.")
+                            "ở ui-test, vòng CI dài nhất (L-045). Cân nhắc một test Robolectric thay cho ngoại lệ.")
 
     listed = [t for t in in_list if t in files_of]
     for i, first in enumerate(listed):
@@ -187,10 +187,10 @@ def check(run_path):
             shared = sorted(files_of[first] & files_of[second])
             if shared and not related:
                 warnings.append(f"{first} và {second} cùng sửa {', '.join(shared[:3])}"
-                                f"{' ...' if len(shared) > 3 else ''} mà không phụ thuộc nhau (L-044).")
+                                f"{' ...' if len(shared) > 3 else ''} mà không phụ thuộc nhau (L-045).")
     independent = [t for t in in_list if not set(depends.get(t, [])) & set(in_list)]
     if len(in_list) > 1 and len(independent) == 1:
-        warnings.append("danh sách chỉ có một chuỗi phụ thuộc: một task dừng thì các task sau bị bỏ qua (L-044).")
+        warnings.append("danh sách chỉ có một chuỗi phụ thuộc: một task dừng thì các task sau bị bỏ qua (L-045).")
     return errors, warnings
 
 

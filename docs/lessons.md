@@ -95,7 +95,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/app-test-template-only`
 
-### L-040. Plan ghi sẵn phương án dự phòng đã duyệt, để phiên chuyển sang thay vì dừng task
+### L-041. Plan ghi sẵn phương án dự phòng đã duyệt, để phiên chuyển sang thay vì dừng task
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-039 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** plan, chung
@@ -107,7 +107,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-phien-tu-khac-phuc`
 
-### L-041. Kỹ thuật lần đầu dùng phải chạy thử bằng `scripts/check.sh` trước khi duyệt plan
+### L-042. Kỹ thuật lần đầu dùng phải chạy thử bằng `scripts/check.sh` trước khi duyệt plan
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-001, L-010 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** plan, chung
@@ -116,7 +116,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-phien-tu-khac-phuc`
 
-### L-042. Phiên kiểm `main-broken` trước khi `main-guard` của lần merge vừa rồi chạy xong
+### L-043. Phiên kiểm `main-broken` trước khi `main-guard` của lần merge vừa rồi chạy xong
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-028 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** quy trình, chung
@@ -125,7 +125,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-phien-tu-khac-phuc`
 
-### L-043. Phiên mở bằng `claude --cloud` không được `resume-run.yml` tiếp tục khi hết hạn mức
+### L-044. Phiên mở bằng `claude --cloud` không được `resume-run.yml` tiếp tục khi hết hạn mức
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-008, L-020 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** quy trình, chung
@@ -134,9 +134,9 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-phien-tu-khac-phuc`
 
-### L-044. Mâu thuẫn và test yếu chỉ được tìm thấy khi phiên đã chạy
+### L-045. Mâu thuẫn và test yếu chỉ được tìm thấy khi phiên đã chạy
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-040 của app, gom L-014, L-015, L-019, L-030; PR VGL-Studio/camera-pose#39, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-041 của app, gom L-014, L-015, L-019, L-030; PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:**
   - Khi chuẩn bị một danh sách chạy ở app, nhiều lỗi chỉ lộ ra nhờ rà soát bằng tay: một plan cần quyền mà spec không có; câu trả lời của người duyệt ở một plan trái với quy tắc ghi sự kiện mà plan khác vừa đặt; hai plan đặt cùng một phần giao diện vào hai ViewModel khác nhau.
@@ -149,9 +149,9 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-phien-tu-khac-phuc`
 
-### L-045. Quyền và thư viện cần thêm chỉ lộ ra khi viết code, phiên phải dừng hoặc đi vòng
+### L-046. Quyền và thư viện cần thêm chỉ lộ ra khi viết code, phiên phải dừng hoặc đi vòng
 
-- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-041, L-007 của app, PR VGL-Studio/camera-pose#39, issue #79)
+- **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-042, L-007 của app, PR VGL-Studio/camera-pose#39, issue #79)
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** ở app, một hàm CameraX trả `ListenableFuture` mà Guava không có trên classpath biên dịch; thêm thư viện là điều kiện dừng nên phiên phải gọi qua reflection. Một plan khác cần quyền lưu tệp trên Android 9 trở xuống mà spec không có, chỉ được thấy nhờ người rà soát bằng tay trước khi duyệt.
 - **Cải tiến:**
@@ -163,7 +163,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-phien-tu-khac-phuc`
 
-### L-046. Chạy lại `main-guard` trên đúng commit bị đổ lỗi, xanh, nhưng issue `main-broken` không tự đóng
+### L-047. Chạy lại `main-guard` trên đúng commit bị đổ lỗi, xanh, nhưng issue `main-broken` không tự đóng
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-036 của app, issue #79)
 - **Loại, phạm vi:** môi trường, chung
@@ -172,7 +172,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:**
 
-### L-047. Một test chập chờn trên `main-guard` kết thúc cả phiên
+### L-048. Một test chập chờn trên `main-guard` kết thúc cả phiên
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-029, L-037 của app, issue #79)
 - **Loại, phạm vi:** môi trường, chung
@@ -181,7 +181,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** proposed
 - **Áp dụng:** `CLAUDE.md` bước 10 (cách chụp trạng thái có hiệu ứng chạy mãi), nhánh `claude/from-camera-pose-phien-tu-khac-phuc`. Phần `main-guard.yml` chưa làm.
 
-### L-048. Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng
+### L-049. Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-038 của app, issue #79)
 - **Loại, phạm vi:** quy trình, chung

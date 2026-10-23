@@ -15,7 +15,7 @@ Finds, from the plan alone, the mistakes that otherwise stop a task in the middl
   5. An approved plan has its reviewers and date.
   6. The plan has a token estimate (token_estimate, docs/ops/token-usage.md); a missing one is only a warning.
   7. A plan whose criterion E (novelty of the technique, risk-scoring.md) scores 2 or more has a trial-run
-     section 4.1 that names scripts/check.sh (L-041). An error for a draft plan; only a warning for a plan
+     section 4.1 that names scripts/check.sh (L-042). An error for a draft plan; only a warning for a plan
      reviewed before this rule, so a session does not skip it.
   8. Permissions and libraries are decided while planning, not found during the session (risk-scoring.md,
      section 4, condition 2). Section 3.3 has the lines 'Quyền truy cập:' and 'Thư viện và SDK:'. A permission the
@@ -287,7 +287,7 @@ def check(plan_path):
     if (novelty and int(novelty.group(1)) >= 2 and status in ("draft", "approved")
             and "scripts/check.sh" not in section(text, TRIAL_RUN_HEADING)):
         message = (f"tiêu chí E là {novelty.group(1)} nhưng mục {TRIAL_RUN_HEADING} không có hoặc không ghi lần chạy thử "
-                   "bằng scripts/check.sh (L-041).")
+                   "bằng scripts/check.sh (L-042).")
         (errors if status == "draft" else warnings).append(message)
     if status in ("draft", "approved"):
         for message in permission_and_library_problems(text, fields, listed):

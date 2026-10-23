@@ -356,7 +356,7 @@ printf -- '---\nticket: T-915\nstatus: draft\nrisk_level: low\ntoken_estimate: 2
   "$(row Sửa feature/demo/A.kt)" > "$plans/T-915-a.md"
 plan_check "$plans/T-915-a.md" > /dev/null
 expect "plan-check: a token estimate removes the warning" 0 "$(grep -c 'token_estimate' "$work/plan-check.out")"
-# A new technique (criterion E from 2) needs a trial run with scripts/check.sh before review (L-041).
+# A new technique (criterion E from 2) needs a trial run with scripts/check.sh before review (L-042).
 novel='| E. Độ mới của kỹ thuật | 2 | x |'
 write_plan "$plans/T-919-a.md" medium draft "$(row Sửa feature/demo/A.kt)" "$novel"
 expect "plan-check: a draft plan with a new technique and no trial run stops" stop "$(plan_check "$plans/T-919-a.md")"
@@ -433,7 +433,7 @@ write_ticket T-001 ''
 write_run_plan T-002 feature/demo/A.kt '| Khác | Unit | `bTest` |'
 expect "run-check: a scenario without a test row stops" stop "$(run_check)"
 write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |'
-expect "run-check: two independent plans changing one file warn" 1 "$(run_check > /dev/null; grep -c 'L-044' "$work/run-check.out")"
+expect "run-check: two independent plans changing one file warn" 1 "$(run_check > /dev/null; grep -c 'L-045' "$work/run-check.out")"
 
 # token-usage.py counts tokens per task from transcripts, one usage per request, never failing the session.
 tokens="$work/token-repo"

@@ -75,5 +75,5 @@ Khi bắt đầu làm việc lại, nhóm trả lời câu hỏi "vì sao plan c
 | 2026-10-14 | Phiên bản đầu tiên | Thiết lập quy trình |
 | 2026-10-15 | Mục 4: bài học chung ghi vào sổ bài học, retro quyết định sửa gì | Có vòng cải tiến khép kín sau mỗi phiên |
 | 2026-10-17 | Mục 3: ngoại lệ duyệt chéo khi nhóm chỉ có một dev | Retro RUN-20261016-02: nhóm hiện có một dev, plan rủi ro cao không có người duyệt chéo khác |
-| 2026-10-22 | Mục 4, điều kiện 2: quyền và thư viện quyết lúc lập plan | Tránh dừng task vì quyền hay thư viện chỉ lộ ra trong phiên, từ app camera-pose (L-045) |
-| 2026-10-22 | Mục 4: chuyển sang phương án dự phòng đã duyệt không phải dừng | Ở app camera-pose, ba lần dừng task đều vì kỹ thuật của plan không chạy, trong khi cách thay đã rõ từ lúc viết plan (L-040) |
+| 2026-10-22 | Mục 4, điều kiện 2: quyền và thư viện quyết lúc lập plan | Tránh dừng task vì quyền hay thư viện chỉ lộ ra trong phiên, từ app camera-pose (L-046) |
+| 2026-10-22 | Mục 4: chuyển sang phương án dự phòng đã duyệt không phải dừng | Ở app camera-pose, ba lần dừng task đều vì kỹ thuật của plan không chạy, trong khi cách thay đã rõ từ lúc viết plan (L-041) |
