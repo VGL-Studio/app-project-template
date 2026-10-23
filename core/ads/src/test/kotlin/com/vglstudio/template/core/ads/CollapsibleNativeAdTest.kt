@@ -273,6 +273,42 @@ class CollapsibleNativeAdTest {
     }
 
     @Test
+    fun collapse_keepsIconAndAdvertiserRegistered() {
+        var adView: NativeAdView? = null
+        lateinit var state: CollapsibleAdState
+        composeRule.setContent {
+            AppTheme(darkTheme = false) {
+                state = rememberCollapsibleAdState()
+                NativeAdViewHost(
+                    bind = { adView = it },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md),
+                ) { binder ->
+                    CollapsibleNativeAdLayout(
+                        collapsibleTestAd("Headline of the ad"),
+                        state.collapsed,
+                        { state.collapse() },
+                        binder,
+                        showAdChoicesMarker = false,
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val view = checkNotNull(adView) { "bind never ran" }
+        // Control: both are registered while expanded.
+        assertNotNull("icon registered before collapsing", view.iconView)
+        assertNotNull("advertiser registered before collapsing", view.advertiserView)
+
+        collapse()
+
+        val icon = checkNotNull(view.iconView) { "icon not registered after collapsing" }
+        val advertiser = checkNotNull(view.advertiserView) { "advertiser not registered after collapsing" }
+        // The registered views are the ones on screen, not views released with the expanded layout.
+        assertTrue("registered icon is attached", icon.isAttachedToWindow)
+        assertTrue("registered advertiser is attached", advertiser.isAttachedToWindow)
+    }
+
+    @Test
     fun stateHolder_onlyCollapses() {
         val state = CollapsibleAdState(collapsed = false)
         assertFalse(state.collapsed)
