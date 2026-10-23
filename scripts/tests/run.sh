@@ -553,9 +553,9 @@ write_ticket() { # <id> <depends>
   printf -- '---\nid: %s\nstatus: approved\nspec: features/demo/spec.md\nscenarios: [KB-1]\ndepends_on: [%s]\n---\n' \
     "$1" "$2" > "$rr/docs/features/demo/tickets/$1-x.md"
 }
-write_run_plan() { # <id> <file> <test row>
-  printf -- '---\nticket: %s\nstatus: approved\nrisk_level: medium\nreviewer: A\napproved_at: 2026-10-02\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| Sửa | `%s` | x |\n\n## 4. Kiểm thử\n\n| Tiêu chí | Loại | Tên |\n| --- | --- | --- |\n%s\n\n## 9. Quyết định duyệt\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A\n' \
-    "$1" "$2" "$3" > "$rr/docs/features/demo/plans/$1-x.md"
+write_run_plan() { # <id> <file> <test row> [operation]
+  printf -- '---\nticket: %s\nstatus: approved\nrisk_level: medium\nreviewer: A\napproved_at: 2026-10-02\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| %s | `%s` | x |\n\n## 4. Kiểm thử\n\n| Tiêu chí | Loại | Tên |\n| --- | --- | --- |\n%s\n\n## 9. Quyết định duyệt\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A\n' \
+    "$1" "${4:-Sửa}" "$2" "$3" > "$rr/docs/features/demo/plans/$1-x.md"
 }
 write_run() { # <rows>
   printf -- '---\nstatus: draft\n---\n\n## 1. Danh sách chạy\n\n| Thứ tự | Ticket | Feature | Plan | Rủi ro | Phụ thuộc | Ghi chú |\n| --- | --- | --- | --- | --- | --- | --- |\n%b\n\n## 2. Kiểm tra\n' \
@@ -587,6 +587,16 @@ write_run_plan T-002 feature/demo/A.kt '| Khác | Unit | `bTest` |'
 expect "run-check: a scenario without a test row stops" stop "$(run_check)"
 write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |'
 expect "run-check: two independent plans changing one file warn" 1 "$(run_check > /dev/null; grep -c 'L-045' "$work/run-check.out")"
+# Two plans that both create one file, even dependent ones: only one may create it, the other reuses it (L-054).
+write_ticket T-002 'T-001'
+write_run_plan T-001 feature/demo/New.kt '| KB-1 | Unit | `aTest` |' Tạo
+write_run_plan T-002 feature/demo/New.kt '| KB-1 | Unit | `bTest` |' Tạo
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+expect "run-check: two plans creating one file warn" 1 "$(run_check > /dev/null; grep -c 'cùng ghi Tạo feature/demo/New.kt' "$work/run-check.out")"
+write_run_plan T-002 feature/demo/New.kt '| KB-1 | Unit | `bTest` |' Sửa
+expect "run-check: a later plan that changes the created file does not warn" 0 \
+  "$(run_check > /dev/null; grep -c 'cùng ghi Tạo' "$work/run-check.out")"
+write_ticket T-002 ''
 
 # token-usage.py counts tokens per task from transcripts, one usage per request, never failing the session.
 tokens="$work/token-repo"
@@ -700,6 +710,17 @@ expect "status: request shows tickets done" 1 "$(grep -c '| demo | .specified. �
 expect "status: ticket row has plan, estimate and runs" 1 \
   "$(grep -c '^| \[T-001\](features/demo/tickets/T-001-mot.md) | Một | .on-staging. | .done. (bản 2) | - | RUN-20261004-01 |$' "$page")"
 expect "status: check passes on a fresh page" 0 "$(status_page --check > /dev/null; echo $?)"
+# The lessons of an app may use "L-NNN:" and a status line with more fields; both forms are counted (L-057).
+# A lesson number used twice (two branches adding lessons at once) stops the script (L-056).
+cp "$st/lessons.md" "$work/lessons.bak"
+printf -- '# SỔ\n\n### L-001. Một bài\n\n- **Trạng thái:** proposed\n\n### L-002: Bài của app\n\n- **Trạng thái:** accepted. **Loại:** quy trình.\n' > "$st/lessons.md"
+status_page > /dev/null
+expect "status: lessons written as L-NNN: are counted" 1 "$(grep -c 'lessons.md)): 2 bài; 1 .accepted., 1 .proposed.' "$page")"
+printf -- '\n### L-002: Bài trùng số\n\n- **Trạng thái:** proposed\n' >> "$st/lessons.md"
+expect "status: a lesson number used twice stops" 1 "$(status_page > "$work/status.out" 2>&1; echo $?)"
+expect "status: names the duplicate lesson number" 1 "$(grep -c 'L-002' "$work/status.out")"
+cp "$work/lessons.bak" "$st/lessons.md"
+status_page > /dev/null
 # status.py --sync moves each ticket's status after its plan's (L-050).
 sy="$work/sync-repo/docs/features/demo"
 mkdir -p "$sy/tickets" "$sy/plans"
