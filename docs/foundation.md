@@ -62,7 +62,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 - chỉ merge bằng `scripts/merge-if-green.sh`
 - không sửa script này, các workflow trong `.github/` hay nội dung kiểm tra của cổng chất lượng, trừ khi đó chính là plan rủi ro cao đã được duyệt chéo
-- thấy nhãn `main-broken` thì dừng phiên
+- thấy nhãn `main-broken` thì dừng phiên, trừ trường hợp phiên tự revert commit merge của chính phiên theo ADR-0025
 
 ### [ADR-0011](adr/0011-toolchain-and-code-checks.md): Bộ công cụ build và kiểm tra code của dự án mẫu
 
@@ -157,3 +157,13 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - feature không tự đọc trạng thái mạng của hệ thống, mất mạng do `:app` xử lý bằng popup chung
 - lỗi tải khi vẫn có mạng vẫn báo trong `UiState` kèm thử lại
 - spec mới không ghi tiêu chí "dùng được khi không có mạng"
+
+### [ADR-0025](adr/0025-main-self-healing.md): Nhánh chính tự hồi phục khi đỏ: chạy lại test hỏng một lần, tự đóng issue khi chạy lại xanh, merge bản revert được kiểm bằng nội dung
+
+- `main-guard` chạy lại `check.sh` một lần khi chỉ có test thất bại và ghi issue `flaky` nếu lần chạy lại xanh
+- khi `main-broken` mở, chỉ merge PR mà `scripts/is-exact-revert.sh` xác nhận là bản revert đúng của commit gây lỗi
+- không sửa hay cập nhật nhánh `revert/` trước khi merge
+- phiên chỉ revert commit merge của chính phiên, theo `docs/auto-run.md` mục Khi nhánh chính đỏ vì task của phiên
+- AI vẫn không đóng, sửa hay bình luận để gỡ issue `main-broken`
+- chép issue `flaky` đang mở vào báo cáo phiên
+- các quy tắc khác của ADR-0010 vẫn áp dụng
