@@ -242,7 +242,7 @@ class InListAdsTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNode(adRows() and hasAnyAncestor(hasTestTag(CONTROL_LIST))).assertExists()
+        composeRule.onNode(hasTestTag("inlist_ad_0") and hasAnyAncestor(hasTestTag(CONTROL_LIST))).assertExists()
 
         assertNull(adsWithoutController!!.every)
         composeRule.onAllNodes(adRows("item_") and hasAnyAncestor(hasTestTag(LIST))).assertCountEquals(20)

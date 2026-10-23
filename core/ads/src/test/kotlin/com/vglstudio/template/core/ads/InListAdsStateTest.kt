@@ -7,6 +7,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -33,6 +35,11 @@ class InListAdsStateTest {
         }
     }
 
+    /**
+     * Loads run on the test scheduler but outside backgroundScope, whose work advanceUntilIdle does not run.
+     */
+    private fun TestScope.loadScope() = CoroutineScope(StandardTestDispatcher(testScheduler))
+
     private fun inListAds(loader: InListAdLoader, scope: CoroutineScope) = InListAds(
         placement = AdPlacement.SAMPLE_NATIVE_SMALL,
         every = mutableStateOf<Int?>(3),
@@ -53,7 +60,7 @@ class InListAdsStateTest {
     fun slot_loadsOnce_reusedOnSecondCall() = runTest {
         val ad = FakeLoadedNativeAd(sampleNativeAdAssets)
         val loader = CountingLoader { NativeAdState.Loaded(ad) }
-        val ads = inListAds(loader, backgroundScope)
+        val ads = inListAds(loader, loadScope())
 
         val first = ads.slot(0)
         assertEquals(NativeAdState.Loading, first.value)
@@ -70,7 +77,7 @@ class InListAdsStateTest {
     @Test
     fun twoSlots_twoSeparateLoads() = runTest {
         val loader = CountingLoader { NativeAdState.Loaded(FakeLoadedNativeAd(sampleNativeAdAssets)) }
-        val ads = inListAds(loader, backgroundScope)
+        val ads = inListAds(loader, loadScope())
 
         val first = ads.slot(0)
         val second = ads.slot(1)
@@ -85,7 +92,7 @@ class InListAdsStateTest {
     @Test
     fun unavailableSlot_notRetriedOnSameScreen() = runTest {
         val loader = CountingLoader { NativeAdState.Unavailable }
-        val ads = inListAds(loader, backgroundScope)
+        val ads = inListAds(loader, loadScope())
 
         val state = ads.slot(0)
         advanceUntilIdle()
@@ -115,7 +122,7 @@ class InListAdsStateTest {
                 }
             }
         }
-        val ads = inListAds(loader, backgroundScope)
+        val ads = inListAds(loader, loadScope())
 
         ads.slot(0)
         ads.slot(1)
@@ -140,7 +147,7 @@ class InListAdsStateTest {
     @Test
     fun slotResult_isLoggedOnceWithoutAdContent() = runTest {
         val loader = CountingLoader { NativeAdState.Loaded(FakeLoadedNativeAd(sampleNativeAdAssets)) }
-        val ads = inListAds(loader, backgroundScope)
+        val ads = inListAds(loader, loadScope())
 
         ads.slot(0)
         advanceUntilIdle()
