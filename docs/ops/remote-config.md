@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho dev, AI và người vận hành. Nó nói cách đặt tên, khai báo, thử và đổi các giá trị cấu hình từ xa qua Firebase Remote Config. Quyết định nằm ở ADR-0003 (cờ tính năng và tham số kinh doanh), ADR-0012 (nối Firebase), ADR-0014 (giá trị mặc định của quảng cáo), ADR-0018 (chờ cấu hình ở màn hình loading) và ADR-0023 (quy ước khóa).
 
-Các phần ghi **(đợt 2)** cần code chưa có trong `:core:config` (kiểu double và string, bảng khóa sinh tự động, giá trị cục bộ cho staging).
+Các phần ghi **(đợt 2)** cần code chưa có: giá trị cục bộ cho staging (`:core:config`) và công tắc tổng `ads_enabled` (đã khai báo trong `:core:ads` nhưng chưa được đọc).
 
 ## 1. Khóa dùng để làm gì
 
@@ -18,17 +18,17 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 
 - Chữ thường, nối bằng gạch dưới, tiền tố theo chủ: `feature_`, `ads_`, `<module>_`. Đơn vị ở cuối: `_seconds`, `_count`, `_percent`.
 - Cờ tính năng: `feature_<ten>_enabled`. Vị trí quảng cáo: `ads_<vị trí>_enabled`.
-- Kiểu: boolean, long, double (đợt 2), string (đợt 2). Không dùng khối JSON làm cấu hình (ADR-0023). Danh sách ngắn thì dùng string, ghi định dạng trong mô tả (ví dụ `"vi,en,hi"`).
+- Kiểu: boolean, long, double, string. Không dùng khối JSON làm cấu hình (ADR-0023). Danh sách ngắn thì dùng string, ghi định dạng trong mô tả (ví dụ `"vi,en,hi"`).
 - Khóa đã phát hành không đổi tên, không đổi kiểu. Cần khác thì tạo khóa mới; khóa cũ giữ tới khi không còn bản app nào đọc.
 
 ## 3. Thêm một khóa
 
 1. **Có trong spec hay plan:** cờ tính năng mới đi cùng feature; tham số kinh doanh (quảng cáo, giới hạn, ngưỡng) phải có trong spec đã duyệt.
-2. **Khai báo một chỗ** ở module sở hữu: tên, kiểu, giá trị mặc định, mô tả một câu. Mặc định là giá trị an toàn khi chưa tải được cấu hình: cờ và vị trí quảng cáo tắt; giới hạn tần suất nghiêng về ít quảng cáo.
-   - Cờ tính năng: một mục trong `FeatureFlag` (`:core:config`).
-   - Khóa quảng cáo: trong cấu hình của `:core:ads` (hiện là `AdsSettings`).
-   - Tham số khác: trong module core sở hữu, đọc qua `RemoteSettings`.
-3. **Sinh lại bảng khóa** `docs/remote-config-keys.md` và file mẫu cho Firebase bằng script, commit cùng PR (đợt 2; tới lúc đó ghi khóa mới vào mục Khóa của plan và spec).
+2. **Khai báo một chỗ** ở module sở hữu, bằng `RemoteKey` của `:core:config` (`RemoteKey.boolean`, `long`, `double`, `string`): tên, kiểu, giá trị mặc định, mô tả một câu viết tiếng Anh (hiện trên Firebase, tối đa 256 ký tự). Mặc định là giá trị an toàn khi chưa tải được cấu hình: cờ và vị trí quảng cáo tắt; giới hạn tần suất nghiêng về ít quảng cáo.
+   - Cờ tính năng: một mục trong `FeatureFlag` (`:core:config`), có mô tả; khóa có kiểu là `FeatureFlag.remoteKey`.
+   - Khóa quảng cáo: một `RemoteKey` trong `AdsSettings` (`:core:ads`), thêm vào `AdsSettings.all()` (test báo lỗi nếu quên). Khóa bật tắt của vị trí tự có qua `AdsSettings.placementEnabled`.
+   - Tham số khác: một `RemoteKey` trong module core sở hữu, đọc qua `RemoteSettings.value(key)`. Module core mới có khóa thì thêm vào `AppRemoteKeys` (`:app`).
+3. **Sinh lại bảng khóa** `docs/remote-config-keys.md` và file mẫu `docs/remote-config-template.json` bằng lệnh `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true`, commit cùng PR. Quên thì `RemoteConfigKeysTest` trong `scripts/check.sh` báo lỗi.
 4. **Test:** giá trị mặc định có test (như `AdsSettingsTest`, test mặc định tắt của `FeatureFlag`); ViewModel dùng nguồn cờ giả.
 5. **Staging:** cần thấy tính năng trên staging thì bật trong `app/src/staging` (`StagingFeatureFlagsModule` cho cờ; giá trị cục bộ cho tham số khác ở đợt 2).
 
@@ -55,4 +55,6 @@ Dùng Firebase A/B Testing trên một khóa đã có, với một chỉ số ch
 
 ## 7. Bảng khóa
 
-`docs/remote-config-keys.md` (đợt 2) liệt kê mọi khóa của bản app hiện tại: khóa, kiểu, mặc định, module, mô tả. Sinh từ code, không sửa tay; test báo lỗi khi lệch. Tới khi có, khóa hiện có nằm ở `FeatureFlag` và `AdsSettings`.
+[`docs/remote-config-keys.md`](../remote-config-keys.md) liệt kê mọi khóa của bản app hiện tại: khóa, kiểu, mặc định, module, mô tả. Sinh từ code (`AppRemoteKeys` của `:app`), không sửa tay; `RemoteConfigKeysTest` báo lỗi khi lệch. Sinh lại: `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true`.
+
+[`docs/remote-config-template.json`](../remote-config-template.json) là cùng danh sách theo định dạng template của Firebase Remote Config. Nhập file này thay cả bộ cấu hình của project, nên chỉ dùng cho project Firebase mới; project đang chạy thì thêm từng khóa bằng tay theo bảng.
