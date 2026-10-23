@@ -149,7 +149,7 @@ Luồng tải native của T-010 lấy cỡ tải qua `AdFormat.nativeLoadSize()
 | Tạo | `core/ads/src/main/res/drawable/ads_ic_collapse.xml` | Vector mũi tên xuống 24 dp, nét 2 dp, màu do `tint` |
 | Sửa | `core/ads/src/main/res/values/strings.xml` | `ads_collapse` = "Collapse ad" (mô tả cho trình đọc màn hình) |
 | Sửa | `core/ads/build.gradle.kts` | Chỉ khi T-010 chưa cấu hình screenshot cho `:core:ads`: plugin `alias(libs.plugins.roborazzi)`, `outputDir` là `src/test/screenshots`, ba thư viện test Roborazzi, giống `core/designsystem/build.gradle.kts`. Không thêm thư viện nào ngoài ba thư viện đã có trong `libs.versions.toml` |
-| Tạo | `core/ads/src/test/resources/robolectric.properties` | Chỉ khi T-010 chưa tạo: `sdk=35`, như `core/designsystem` |
+| Sửa | `core/ads/src/test/resources/robolectric.properties` | T-010 tạo (`sdk=35`); không đổi nội dung, chỉ dùng lại (L-054) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAdTest.kt` | Test giao diện Robolectric ở mục 4; quảng cáo giả `collapsibleTestAd(headline)` khai báo trong file |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAdScreenshotTest.kt` | 5 screenshot component ở mục 4 |
 | Tạo | `core/ads/src/test/screenshots/CollapsibleNativeAd_expanded_light.png` | Ảnh chuẩn component dạng mở, khung 411 x 891 |

@@ -204,8 +204,8 @@ interface AdGallerySlots {
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_default_small.png` | Khung thấp, trang mặc định (nhiều khối nhất) (L-028) |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_inlist_small.png` | Khung thấp, trang trong danh sách |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_collapsible-expanded_small.png` | Khung thấp, trang thu gọn dạng mở (quảng cáo ghim đáy chiếm chỗ nhiều nhất) |
-| Tạo | `docs/remote-config-keys.md` | File do T-007 tạo (T-014 phụ thuộc T-007 qua T-008); task sinh lại, ghi đè bằng lệnh của T-007, không sửa tay: thêm 7 khóa `ads_gallery_*_enabled` |
-| Tạo | `docs/remote-config-template.json` | Như trên: sinh lại, ghi đè, thêm 7 tham số |
+| Ghi lại | `docs/remote-config-keys.md` | File do T-007 tạo (T-014 phụ thuộc T-007 qua T-008); task sinh lại, ghi đè bằng lệnh của T-007, không sửa tay: thêm 7 khóa `ads_gallery_*_enabled` |
+| Ghi lại | `docs/remote-config-template.json` | Như trên: sinh lại, ghi đè, thêm 7 tham số |
 | Sửa | `docs/ops/ads-guide.md` | Mục 5 (một câu về `stagingOnly`, sau phần PR #81 đã viết), mục 8 (giữ dòng giá trị cục bộ của T-008, thêm màn hình xem thử, Ad Inspector) |
 | Sửa | `docs/features/ads/design/README.md` | Mục 8: bảng tỷ lệ khác biệt của 5 ảnh `AdGalleryScreen_*` (lấy từ bảng tóm tắt trong thư mục tạm) và nhận xét của rà soát độc lập |
 | Tạo | `docs/features/ads/design/review/AdGalleryScreen_default_light_compare.png` | Ảnh so sánh |
