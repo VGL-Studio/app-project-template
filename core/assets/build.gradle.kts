@@ -6,3 +6,7 @@ plugins {
 android {
     namespace = "com.vglstudio.template.core.assets"
 }
+
+dependencies {
+    implementation(project(":core:logging"))
+}
