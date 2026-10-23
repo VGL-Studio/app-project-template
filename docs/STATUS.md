@@ -4,6 +4,20 @@
 
 ## 1. Đang chờ người
 
+- Spec `changed` chờ xác nhận: [spec.md](features/ads/spec.md) (ads)
+- Plan `draft` chờ duyệt: [T-007-khoa-remote-config-co-kieu.md](features/ads/plans/T-007-khoa-remote-config-co-kieu.md)
+- Plan `draft` chờ duyệt: [T-008-gia-tri-cuc-bo-cho-staging.md](features/ads/plans/T-008-gia-tri-cuc-bo-cho-staging.md)
+- Plan `draft` chờ duyệt: [T-009-tan-suat-va-cong-tac-tong.md](features/ads/plans/T-009-tan-suat-va-cong-tac-tong.md)
+- Plan `draft` chờ duyệt: [T-010-native-small-va-medium.md](features/ads/plans/T-010-native-small-va-medium.md)
+- Plan `draft` chờ duyệt: [T-011-native-trong-danh-sach.md](features/ads/plans/T-011-native-trong-danh-sach.md)
+- Plan `draft` chờ duyệt: [T-012-native-thu-gon.md](features/ads/plans/T-012-native-thu-gon.md)
+- Plan `draft` chờ duyệt: [T-013-native-toan-man-hinh.md](features/ads/plans/T-013-native-toan-man-hinh.md)
+- Plan `draft` chờ duyệt: [T-014-man-hinh-xem-thu-quang-cao.md](features/ads/plans/T-014-man-hinh-xem-thu-quang-cao.md)
+- Plan `draft` chờ duyệt: [T-015-mediation-applovin.md](features/ads/plans/T-015-mediation-applovin.md)
+- Spec `changed` chờ xác nhận: [spec.md](features/network/spec.md) (network)
+- Plan `draft` chờ duyệt: [T-016-theo-doi-ket-noi.md](features/network/plans/T-016-theo-doi-ket-noi.md)
+- Plan `draft` chờ duyệt: [T-017-popup-mat-mang.md](features/network/plans/T-017-popup-mat-mang.md)
+- Plan `draft` chờ duyệt: [T-018-ly-do-loi-tai-file.md](features/network/plans/T-018-ly-do-loi-tai-file.md)
 - Danh sách chạy `draft` chờ duyệt: [RUN-20261023-01.md](runs/RUN-20261023-01.md)
 - Ticket đã duyệt, chưa vào danh sách chạy nào: [T-006-cuon-man-hinh-rat-thap.md](features/loading/tickets/T-006-cuon-man-hinh-rat-thap.md)
 - Bài học `proposed` chờ retro: L-032 (Máy Xiaomi chặn thao tác giả lập qua adb nếu chưa bật "Gỡ lỗi USB (Cài đặt bảo mật)")
@@ -21,15 +35,22 @@
 - Bài học `proposed` chờ retro: L-044 (Phiên mở bằng `claude --cloud` không được `resume-run.yml` tiếp tục khi hết hạn mức)
 - Bài học `proposed` chờ retro: L-045 (Mâu thuẫn và test yếu chỉ được tìm thấy khi phiên đã chạy)
 - Bài học `proposed` chờ retro: L-046 (Quyền và thư viện cần thêm chỉ lộ ra khi viết code, phiên phải dừng hoặc đi vòng)
-- Bài học `proposed` chờ retro: L-047 (Chạy lại `main-guard` trên đúng commit bị đổ lỗi, xanh, nhưng issue `main-broken` không tự đóng)
-- Bài học `proposed` chờ retro: L-048 (Một test chập chờn trên `main-guard` kết thúc cả phiên)
-- Bài học `proposed` chờ retro: L-049 (Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng)
 - Bài học `proposed` chờ retro: L-050 (Quy tắc của `check.sh`, giới hạn mạng của phiên cloud và trạng thái ticket chỉ lộ ra khi phiên đã chạy)
+- Bài học `proposed` chờ retro: L-051 (Điều hướng sau một hàm `suspend` chạy trên luồng nền, lỗi chỉ lộ ra ở `ui-test`)
+- Bài học `proposed` chờ retro: L-052 (Giao bước 3 đến 5 cho phiên con, trong worktree riêng)
+- Bài học `proposed` chờ retro: L-053 (Nút chữ trên nền khác màu tự đặt màu chữ, đè màu thiết kế)
+- Bài học `proposed` chờ retro: L-054 (Hai plan cùng ghi Tạo một file mà task chạy trước tạo ra)
+- Bài học `proposed` chờ retro: L-055 (Test kiểm giá trị mặc định qua ngay trên khung rỗng)
+- Bài học `proposed` chờ retro: L-056 (Bài học thêm ngoài phiên trùng số với bài học mà phiên thêm cùng lúc)
+- Bài học `proposed` chờ retro: L-057 (Trang tiến độ của app đếm 0 bài học vì sổ viết khác mẫu)
+- Bài học `proposed` chờ retro: L-058 (Plan đổi cổng chất lượng bỏ sót một kiểm tra mà trường hợp mới phải đi qua)
+- Bài học `proposed` chờ retro: L-059 (Thiết lập staging, file R2, DNS, Java, merge và trang tiến độ chỉ lộ lỗi giữa hay cuối phiên)
 - ADR `proposed` chờ quyết định: [0020-design-handoff-and-conformance.md](adr/0020-design-handoff-and-conformance.md)
 - ADR `proposed` chờ quyết định: [0021-clone-reference-apps.md](adr/0021-clone-reference-apps.md)
 - ADR `proposed` chờ quyết định: [0022-ad-formats-native-standard.md](adr/0022-ad-formats-native-standard.md)
 - ADR `proposed` chờ quyết định: [0023-remote-config-conventions.md](adr/0023-remote-config-conventions.md)
 - ADR `proposed` chờ quyết định: [0024-network-required.md](adr/0024-network-required.md)
+- ADR `proposed` chờ quyết định: [0025-main-self-healing.md](adr/0025-main-self-healing.md)
 
 ## 2. Yêu cầu
 
@@ -37,25 +58,25 @@
 | --- | --- | --- | --- | --- |
 | Quảng cáo native và remote config cho dự án mẫu (đợt 2) ([2026-10-21-native-va-remote-config.md](features/ads/requests/2026-10-21-native-va-remote-config.md)) | 2026-10-21 | ads | `specified` đã có spec | 0/9 |
 | Màn hình loading có thanh tiến trình ([2026-10-15-man-hinh-loading.md](features/loading/requests/2026-10-15-man-hinh-loading.md)) | 2026-10-15 | loading | `specified` đã có spec | 5/6 |
-| App luôn cần mạng ([2026-10-21-app-luon-can-mang.md](features/network/requests/2026-10-21-app-luon-can-mang.md)) | 2026-10-21 | network | `specified` đã có spec | 0/2 |
+| App luôn cần mạng ([2026-10-21-app-luon-can-mang.md](features/network/requests/2026-10-21-app-luon-can-mang.md)) | 2026-10-21 | network | `specified` đã có spec | 0/3 |
 
 ## 3. Feature
 
 ### ads
 
-Spec: [spec.md](features/ads/spec.md) `confirmed`. Ticket: 9 `approved`.
+Spec: [spec.md](features/ads/spec.md) `changed`. Ticket: 9 `planned`.
 
 | Ticket | Tên | Trạng thái | Plan | Ước tính token | Phiên chạy |
 | --- | --- | --- | --- | --- | --- |
-| [T-007](features/ads/tickets/T-007-khoa-remote-config-co-kieu.md) | Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động | `approved` | `approved` (bản 1) | 25M | RUN-20261023-01 |
-| [T-008](features/ads/tickets/T-008-gia-tri-cuc-bo-cho-staging.md) | Giá trị Remote Config cục bộ cho bản staging | `approved` | `approved` (bản 1) | 10M | RUN-20261023-01 |
-| [T-009](features/ads/tickets/T-009-tan-suat-va-cong-tac-tong.md) | Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
-| [T-010](features/ads/tickets/T-010-native-small-va-medium.md) | Native small và medium; màn hình mẫu dùng native small thay banner | `approved` | `approved` (bản 1) | 40M | RUN-20261023-01 |
-| [T-011](features/ads/tickets/T-011-native-trong-danh-sach.md) | Native trong danh sách | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
-| [T-012](features/ads/tickets/T-012-native-thu-gon.md) | Native thu gọn được | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
-| [T-013](features/ads/tickets/T-013-native-toan-man-hinh.md) | Native toàn màn hình thay interstitial | `approved` | `approved` (bản 1) | 25M | RUN-20261023-01 |
-| [T-014](features/ads/tickets/T-014-man-hinh-xem-thu-quang-cao.md) | Màn hình xem thử quảng cáo chỉ ở bản staging | `approved` | `approved` (bản 2) | 30M | RUN-20261023-01 |
-| [T-015](features/ads/tickets/T-015-mediation-applovin.md) | Mediation AdMob và AppLovin | `approved` | `approved` (bản 2) | 10M | RUN-20261023-01 |
+| [T-007](features/ads/tickets/T-007-khoa-remote-config-co-kieu.md) | Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động | `planned` | `draft` (bản 2) | 25M | RUN-20261023-01 |
+| [T-008](features/ads/tickets/T-008-gia-tri-cuc-bo-cho-staging.md) | Giá trị Remote Config cục bộ cho bản staging | `planned` | `draft` (bản 2) | 10M | RUN-20261023-01 |
+| [T-009](features/ads/tickets/T-009-tan-suat-va-cong-tac-tong.md) | Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên | `planned` | `draft` (bản 2) | 20M | RUN-20261023-01 |
+| [T-010](features/ads/tickets/T-010-native-small-va-medium.md) | Native small và medium; màn hình mẫu dùng native small thay banner | `planned` | `draft` (bản 2) | 40M | RUN-20261023-01 |
+| [T-011](features/ads/tickets/T-011-native-trong-danh-sach.md) | Native trong danh sách | `planned` | `draft` (bản 2) | 20M | RUN-20261023-01 |
+| [T-012](features/ads/tickets/T-012-native-thu-gon.md) | Native thu gọn được | `planned` | `draft` (bản 2) | 20M | RUN-20261023-01 |
+| [T-013](features/ads/tickets/T-013-native-toan-man-hinh.md) | Native toàn màn hình thay interstitial | `planned` | `draft` (bản 2) | 25M | RUN-20261023-01 |
+| [T-014](features/ads/tickets/T-014-man-hinh-xem-thu-quang-cao.md) | Màn hình xem thử quảng cáo chỉ ở bản staging | `planned` | `draft` (bản 3) | 30M | RUN-20261023-01 |
+| [T-015](features/ads/tickets/T-015-mediation-applovin.md) | Mediation AdMob và AppLovin | `planned` | `draft` (bản 3) | 10M | RUN-20261023-01 |
 
 Phản hồi: chưa có.
 
@@ -76,12 +97,13 @@ Phản hồi: 1 `fixed`, 1 `wontfix`.
 
 ### network
 
-Spec: [spec.md](features/network/spec.md) `confirmed`. Ticket: 2 `approved`.
+Spec: [spec.md](features/network/spec.md) `changed`. Ticket: 3 `planned`.
 
 | Ticket | Tên | Trạng thái | Plan | Ước tính token | Phiên chạy |
 | --- | --- | --- | --- | --- | --- |
-| [T-016](features/network/tickets/T-016-theo-doi-ket-noi.md) | Theo dõi có Internet dùng được, dùng chung cho cả app | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
-| [T-017](features/network/tickets/T-017-popup-mat-mang.md) | Popup mất mạng chung và chặn vào app khi không có mạng | `approved` | `approved` (bản 2) | 20M | RUN-20261023-01 |
+| [T-016](features/network/tickets/T-016-theo-doi-ket-noi.md) | Theo dõi có Internet dùng được, dùng chung cho cả app | `planned` | `draft` (bản 2) | 20M | RUN-20261023-01 |
+| [T-017](features/network/tickets/T-017-popup-mat-mang.md) | Popup mất mạng chung và chặn vào app khi không có mạng | `planned` | `draft` (bản 3) | 30M | RUN-20261023-01 |
+| [T-018](features/network/tickets/T-018-ly-do-loi-tai-file.md) | Lý do tải file R2 thất bại (AssetFailureReason) | `planned` | `draft` (bản 1) | 10M | RUN-20261023-01 |
 
 Phản hồi: chưa có.
 
@@ -89,9 +111,9 @@ Phản hồi: chưa có.
 
 | Phiên | Trạng thái | Bắt đầu | Ticket | Bản staging |
 | --- | --- | --- | --- | --- |
-| [RUN-20261023-01](runs/RUN-20261023-01.md) | `draft` |  | T-007, T-008, T-009, T-015, T-010, T-016, T-011, T-012, T-013, T-017, T-014 | - |
+| [RUN-20261023-01](runs/RUN-20261023-01.md) | `draft` |  | T-018, T-007, T-008, T-009, T-015, T-010, T-016, T-011, T-012, T-013, T-017, T-014 | - |
 
 ## 5. Bài học và ADR
 
-- Bài học ([lessons.md](lessons.md)): 19 bài; 19 `proposed`.
-- ADR: 24; 19 `accepted`, 5 `proposed`.
+- Bài học ([lessons.md](lessons.md)): 28 bài; 25 `proposed`, 3 `applied`.
+- ADR: 25; 19 `accepted`, 6 `proposed`.
