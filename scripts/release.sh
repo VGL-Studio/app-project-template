@@ -37,7 +37,7 @@ MAPPING="app/build/outputs/mapping/productionRelease/mapping.txt"
 
 # Placement keys that need a production ad unit, from AdPlacement.kt on stdin: one per enum line
 # NAME("key", AdFormat.FORMAT). Formats may contain underscores (NATIVE_SMALL). Keys starting with gallery_ belong
-# to the staging-only ad gallery (docs/ops/ads-guide.md) and never ship, so they need no production unit.
+# to the staging-only ad gallery (ads guide, section 5) and never ship, so they need no production unit.
 placement_keys() {
   sed -nE 's/^[[:space:]]*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z_]+\),?$/\1/p' | { grep -v '^gallery_' || true; }
 }
