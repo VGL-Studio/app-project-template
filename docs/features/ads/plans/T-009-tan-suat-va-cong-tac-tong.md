@@ -180,7 +180,6 @@ Log chỉ có lý do và số đếm, không có thời điểm hay dữ liệu 
 | Sửa | `docs/ops/ads-guide.md` | Mục 6: bỏ ghi chú "(đợt 2)" của ba dòng ân hạn, tối đa mỗi phiên, công tắc tổng; thêm một câu định nghĩa phiên |
 | Sửa | `docs/features/ads/tickets/T-009-tan-suat-va-cong-tac-tong.md` | Trạng thái ticket theo phiên tự chạy |
 | Sửa | `docs/features/ads/plans/T-009-tan-suat-va-cong-tac-tong.md` | Nhật ký thực hiện |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
 Không sửa: `AdSlot.kt` (đi qua `isEnabled`), `FullScreenAdGuard.kt` và `FullScreenAdGuardTest.kt` (giữ nguyên rào chắn trong bộ nhớ), `AdsSettings.kt` (khóa đã khai báo ở T-007), `core/data/` (dùng nguyên `DataStoreModule`), `docs/remote-config-keys.md` (không thêm khóa, không đổi mặc định).
 
@@ -272,7 +271,7 @@ Không cần (E dưới 2).
 ## 6. Ảnh hưởng chéo
 
 - File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (constructor, `isEnabled`, `showInterstitial`), `core/ads/build.gradle.kts`, `MainActivity.kt`, file DataStore dùng chung `app_preferences` (thêm hai khóa tiền tố `ads_`). `tokens.json`, ảnh chuẩn screenshot và `docs/remote-config-keys.md` không bị ảnh hưởng: task không đổi giao diện, không thêm khóa Remote Config; test và preview không cấp `AdsController` nên ảnh không có quảng cáo (ADR-0013).
-- `docs/STATUS.md`: `scripts/tests/run.sh` chỉ đọc `STATUS.md` của app mới và repo giả do test tạo trong thư mục tạm, không đọc file của repo. Không bị ảnh hưởng; `scripts/status.py --check` xác nhận trang khớp. `AdsController.kt`, `MainActivity.kt` và `core/ads/build.gradle.kts` không được script hay test nào đọc theo tên.
+- `docs/STATUS.md`: không đưa vào PR; trang chỉ sinh lại trên nhánh chính (`docs/CLAUDE.md`, mục Trang tiến độ, L-059).
 - Task khác trong sprint có thể xung đột: T-007 (sửa `AdsController.kt`, `AdsSettings.kt`, `AdsSettingsTest.kt`), T-008 (giá trị cục bộ cho staging, có thể chạm phần cung cấp `RemoteSettings`), T-010 (native small, thêm composable gọi `isEnabled`), T-015 (AppLovin, sửa `core/ads/build.gradle.kts`).
 - T-014 (`AdGalleryActivity` ở staging) gọi `gatherConsent` và `onUserInteraction` nhưng không gọi `onAppForeground` / `onAppBackground`. Thời điểm mở app lần đầu ghi trong `gatherConsent` nên người thử chỉ mở "Ad gallery" sau khi cài mới vẫn có ân hạn kết thúc đúng (câu hỏi 7); T-014 không phải sửa vì việc này. T-013 (`FullScreenAdHost` trong `MainActivity`) và T-017 (`MainActivity.onStart` gọi thêm `networkDialog.onAppForeground()` cạnh lời gọi của plan này) dùng đúng tên hàm của plan này.
 - Đề xuất thứ tự chạy: sau T-007 (bắt buộc) và sau T-008 nếu chạy cùng phiên, để kiểm tra thủ công KB-7 bằng giá trị cục bộ; trước T-010 đến T-013 để các composable native dùng ngay `isEnabled` có công tắc tổng. T-015 chạy trước hay sau đều được, nhưng không cùng lúc (cùng sửa `core/ads/build.gradle.kts`).

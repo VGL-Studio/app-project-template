@@ -160,7 +160,6 @@ Luồng tải native của T-010 lấy cỡ tải qua `AdFormat.nativeLoadSize()
 | Sửa | `docs/ops/ads-guide.md` | Mục 3: dòng "Native collapsible" cột "Có trong `:core:ads`" ghi `CollapsibleNativeAdSlot`; mục 5 bước 4: thêm `CollapsibleNativeAdSlot(placement)` cho vị trí định dạng `NATIVE_COLLAPSIBLE`, màn hình gọi tự đặt ở đáy |
 | Sửa | `docs/features/ads/tickets/T-012-native-thu-gon.md` | Trạng thái ticket theo phiên tự chạy |
 | Sửa | `docs/features/ads/plans/T-012-native-thu-gon.md` | Nhật ký thực hiện |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
 Không sửa:
 

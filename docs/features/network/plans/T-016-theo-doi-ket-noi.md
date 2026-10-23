@@ -172,6 +172,8 @@ object NetworkSettings {
 
 Không có ảnh chuẩn screenshot. File được bảo vệ (`.github/`, `scripts/check.sh`, `scripts/merge-if-green.sh`, `build-logic/`, `gradle/libs.versions.toml`, `scripts/release.sh`): không chạm. `app/src/main/AndroidManifest.xml`: không chạm.
 
+- `app/build.gradle.kts` (L-020): `scripts/setup-check.sh` và `scripts/tests/run.sh` chỉ đọc dòng `ASSETS_BASE_URL` và `applicationId` của file này; plan không đổi hai dòng đó.
+
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có (spec mục 8, ADR-0024). Khóa Remote Config mới `network_lost_delay_seconds` (long, mặc định 2), đúng spec mục 8.

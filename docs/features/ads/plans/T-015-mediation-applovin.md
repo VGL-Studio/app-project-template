@@ -136,14 +136,15 @@ Nguồn:
 | Sửa | `docs/ops/release.md` | Mục 1.4 `app-ads.txt`, bước kiểm ở mục 2.4 |
 | Sửa | `docs/features/ads/plans/T-015-mediation-applovin.md` | Nhật ký thực hiện (mục 10) |
 | Sửa | `docs/features/ads/tickets/T-015-mediation-applovin.md` | Trạng thái ticket |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
 Nơi đọc các file bị đổi (L-020), tìm bằng `scripts/plan-check.py` và `grep -rn`:
 
 - `gradle/libs.versions.toml`: `build-logic/settings.gradle.kts` nạp file này làm catalog `libs` cho convention plugin, và plugin chỉ đọc các khóa đã có (`compileSdk`, `minSdk`, `junit4`...), không đọc khóa mới; `build-logic/convention/src/main/kotlin/AndroidApplicationConventionPlugin.kt` chỉ nhắc tên file trong chú thích về lint; `scripts/plan-check.py` chỉ có tên file trong danh sách đường dẫn rủi ro cao. Không file nào bị ảnh hưởng, không sửa `build-logic/` hay script.
 - `docs/ops/release.md`: `scripts/release.sh` chỉ nhắc tên file trong thông báo lỗi ("Xem docs/ops/release.md"), không đọc nội dung; plan không chạm và không chạy script này (CLAUDE.md, mục Không được làm). Không bị ảnh hưởng.
-- `docs/STATUS.md`: `scripts/tests/run.sh` chỉ đọc `STATUS.md` của app mới và repo giả do test tạo trong thư mục tạm, không đọc file của repo. Không bị ảnh hưởng; `scripts/status.py --check` xác nhận trang khớp. `core/ads/build.gradle.kts` và `AdsController.kt` không được script hay test nào đọc theo tên.
+- `docs/STATUS.md`: không đưa vào PR; trang chỉ sinh lại trên nhánh chính (`docs/CLAUDE.md`, mục Trang tiến độ, L-059).
 - `core/ads/src/main/AndroidManifest.xml` (file mới; `app/src/main/AndroidManifest.xml` không đổi): `grep -rn AndroidManifest scripts/ .github/` chỉ thấy `scripts/app-explore/apk-screens.py`, script đọc manifest của APK app mẫu khi khảo sát, không đọc file của repo. Không bị ảnh hưởng. Plan T-014 (đang draft) định thêm test quét `app/src` và kiểm `src/main/AndroidManifest.xml` có đúng một activity `LAUNCHER`; T-015 không thêm activity nên test đó vẫn đúng. T-016 so danh sách quyền của manifest gộp trước và sau chính nó, không phụ thuộc T-015 chạy trước hay sau. Ảnh chuẩn screenshot không đổi: test và preview không cấp `AdsController`, nên không có quảng cáo trong ảnh (ADR-0013).
+
+- `gradle/libs.versions.toml` (L-020): `scripts/tests/run.sh` chỉ ghi và đọc bản giả của file này trong repo tạm của test (`$repo/gradle/libs.versions.toml`), không đọc bản thật.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 

@@ -194,7 +194,6 @@ Bố cục theo `design/context/NativeFullScreenAdScreen_default_light.md`, mụ
 | Sửa | `docs/ops/ads-guide.md` | Mục 3 bỏ "(đợt 2)" của native toàn màn hình; mục 5 bước 4 |
 | Sửa | `docs/features/ads/tickets/T-013-native-toan-man-hinh.md` | Trạng thái ticket theo phiên tự chạy |
 | Sửa | `docs/features/ads/plans/T-013-native-toan-man-hinh.md` | Nhật ký thực hiện |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
 Không sửa: `NativeAdViewBinding.kt` và `core/ads/src/test/resources/robolectric.properties` (của T-010), `docs/remote-config-keys.md`, `docs/remote-config-template.json` (không thêm vị trí hay khóa; test của T-007 xác nhận hai file vẫn khớp), `AdsSettings.kt`, `FullScreenAdPacer.kt`, `FullScreenAdGuard.kt` và test của chúng, `docs/features/ads/design/README.md` (thiết kế đã duyệt), `gradle/libs.versions.toml`, `AndroidManifest.xml`.
 
@@ -205,7 +204,7 @@ Nơi khác đọc các file trên (đã tìm bằng `grep -rn` trong `scripts/`,
 - `scripts/device-session.sh`: chỉ in tên `docs/CLAUDE.md` (mục Khi phân tích một phiên thử), không phải `CLAUDE.md` gốc mà task sửa. Không ảnh hưởng.
 - `.github/ISSUE_TEMPLATE/from-app.yml`: chỉ nêu "CLAUDE.md" như một lựa chọn trong danh sách loại đề xuất, không đọc nội dung. Không ảnh hưởng, không chạm `.github/`.
 - `core/ads/src/main/res/values/strings.xml`: `scripts/new-app.sh` chỉ sửa `strings.xml` của `:app`, không đọc file của `:core:ads`.
-- `docs/STATUS.md`: `scripts/tests/run.sh` chỉ đọc bản của repo giả trong thư mục tạm.
+- `docs/STATUS.md`: không đưa vào PR; trang chỉ sinh lại trên nhánh chính (`docs/CLAUDE.md`, mục Trang tiến độ, L-059).
 - `docs/features/ads/design/review/summary.md`: `.github/workflows/device-session.yml` chỉ đọc `summary.md` trong `test-sessions/` của phiên thử, không đọc file này. Script bọc sẵn của ADR-0020 xóa và sinh lại cả thư mục `review/` của feature, nhưng task không chạy script đó (chạy thẳng `DesignCompare.java` ra thư mục tạm, mục 3.1) và chỉ thêm dòng. Không ảnh hưởng, không sửa hai file này.
 - Ảnh chuẩn mới của `:core:ads`: `scripts/check.sh` tự tìm qua `captureRoboImage("src/test/screenshots/...")`, không cần sửa.
 

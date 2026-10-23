@@ -283,7 +283,6 @@ internal fun NativeAdViewHost(bind: (NativeAdView) -> Unit, modifier: Modifier =
 | Sửa | `docs/ops/release.md` | Ví dụ khóa vị trí `sample_native_small` |
 | Sửa | `docs/features/ads/tickets/T-010-native-small-va-medium.md` | Trạng thái ticket theo phiên tự chạy |
 | Sửa | `docs/features/ads/plans/T-010-native-small-va-medium.md` | Nhật ký thực hiện |
-| Sửa | `docs/STATUS.md` | Sinh lại bằng `scripts/status.py` |
 
 Không sửa: `AdSlot.kt` (banner giữ cho app cần), `AdsSettings.kt` (khóa vị trí sinh theo `AdPlacement`, `NATIVE_LOAD_TIMEOUT_SECONDS` đã có từ T-007), `FullScreenAdGuard.kt`, module Hilt của `:core:ads`, `app/` (staging tự bật vị trí mới nhờ T-008; `StagingAdsModule` dùng `GoogleTestAdUnitIds` đã có mã native), `AppLaunchTest.kt` (chờ thẻ `sample_screen`, không đổi), `SampleScreen_disabled_light.png` (không đổi; nếu ảnh lệch thì dừng, mục 7), `docs/design-system/tokens.json`, `:core:designsystem`. File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradle/libs.versions.toml`, `scripts/release.sh`): không chạm.
 

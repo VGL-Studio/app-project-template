@@ -196,6 +196,8 @@ Mặc định viết như giá trị trên Firebase: `true`, `45`, `0.5`; chuỗ
 
 File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradle/libs.versions.toml`): không chạm. Test mới ở `:app` chạy trong `testStagingDebugUnitTest` sẵn có của `check.sh`; không thêm thư viện.
 
+- `app/build.gradle.kts` (L-020): `scripts/setup-check.sh` và `scripts/tests/run.sh` chỉ đọc dòng `ASSETS_BASE_URL` và `applicationId` của file này; plan không đổi hai dòng đó.
+
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: không thêm cờ. Hai cờ hiện có (`SAMPLE`, `LOADING`) chỉ thêm mô tả, tên và mặc định giữ nguyên.

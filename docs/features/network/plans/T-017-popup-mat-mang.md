@@ -206,6 +206,8 @@ Giả định về task chạy trước (đúng tên hợp đồng):
 
 Không sửa: `scripts/check.sh`, script đối chiếu thiết kế, `gradle/libs.versions.toml`, `build-logic/`, mọi `AndroidManifest.xml`, `FeatureFlag.kt`, `StagingFeatureFlagsModule.kt`, `feature/loading/`, `app/src/androidTest/` (emulator CI có mạng; popup nếu hiện vẫn để `sample_screen` trong cây giao diện), hai file bảng khóa (T-017 không thêm khóa), `AdSlot.kt`, `AdPlacement.kt`.
 
+- `app/build.gradle.kts` (L-020): `scripts/setup-check.sh` và `scripts/tests/run.sh` chỉ đọc dòng `ASSETS_BASE_URL` và `applicationId` của file này; plan không đổi hai dòng đó.
+
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có (spec mục 8, ADR-0024). Bỏ cờ `NETWORK_DIALOG` của app. Khóa `network_lost_delay_seconds` thuộc T-016.
