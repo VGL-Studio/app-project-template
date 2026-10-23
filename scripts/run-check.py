@@ -53,6 +53,9 @@ def run_rows(text):
     """(ticket, plan path relative to docs/) of the table in section 1 of the run list, in order."""
     rows = []
     for line in chapter(text, 1).splitlines():
+        # The review table under "### Kiểm tra trước khi duyệt" also has a ticket in its second column.
+        if line.startswith("### "):
+            break
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if len(cells) < 4 or not re.fullmatch(r"T-\d+", cells[1]):
             continue
