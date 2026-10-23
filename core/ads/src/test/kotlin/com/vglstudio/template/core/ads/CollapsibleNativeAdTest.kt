@@ -123,8 +123,10 @@ class CollapsibleNativeAdTest {
     fun collapseButton_isAtLeast48dp() {
         setHost()
         val button = bounds(COLLAPSE)
-        assertTrue("button is ${button.right - button.left} wide", (button.right - button.left).value >= 48f - TOLERANCE)
-        assertTrue("button is ${button.bottom - button.top} high", (button.bottom - button.top).value >= 48f - TOLERANCE)
+        val width = (button.right - button.left).value
+        val height = (button.bottom - button.top).value
+        assertTrue("button is $width dp wide", width >= 48f - TOLERANCE)
+        assertTrue("button is $height dp high", height >= 48f - TOLERANCE)
     }
 
     @Test
@@ -331,8 +333,10 @@ class CollapsibleNativeAdTest {
         val screen = Rect(0f, 0f, 360f, 640f)
         listOf(COLLAPSE, NativeAdTestTags.CTA).forEach { tag ->
             val b = bounds(tag)
-            val inside = b.left.value >= screen.left - TOLERANCE && b.right.value <= screen.right + TOLERANCE &&
-                b.top.value >= screen.top - TOLERANCE && b.bottom.value <= screen.bottom + TOLERANCE
+            val inside = b.left.value >= screen.left - TOLERANCE &&
+                b.right.value <= screen.right + TOLERANCE &&
+                b.top.value >= screen.top - TOLERANCE &&
+                b.bottom.value <= screen.bottom + TOLERANCE
             assertTrue("$tag at $b is not inside the 360 x 640 dp screen", inside)
         }
         assertHeight(MEDIA, 160f)
