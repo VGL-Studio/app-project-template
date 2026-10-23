@@ -314,6 +314,53 @@ class InListAdsTest {
         composeRule.onAllNodesWithTag("inlist_ad_1").assertCountEquals(1)
     }
 
+    @Test
+    fun alternatingPlacements_takeTurns() {
+        composeRule.setContent {
+            AppTheme {
+                LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
+                    itemsWithInListAds(
+                        items = (1..7).toList(),
+                        positions = inListAdPositions(itemCount = 7, every = 3),
+                        placementKeys = listOf("a", "b"),
+                        adContents = listOf(
+                            { slot -> Text("ad a $slot", Modifier.testTag("ad_a")) },
+                            { slot -> Text("ad b $slot", Modifier.testTag("ad_b")) },
+                        ),
+                    ) {
+                        Text("List item $it", Modifier.testTag("item_$it"))
+                    }
+                }
+            }
+        }
+
+        // Every row fits on the 891 dp screen: read the order from top to bottom.
+        val order = listOf("item_1", "item_2", "item_3", "ad_a", "item_4", "item_5", "item_6", "ad_b", "item_7")
+        order.forEach { composeRule.onAllNodesWithTag(it).assertCountEquals(1) }
+        val tops = order.map { bounds(it).top.value }
+        assertEquals("rows out of order: $order -> $tops", tops.sorted(), tops)
+        // Control: the first slot is not the second placement, so the turn really changes.
+        composeRule.onAllNodesWithText("ad a 0").assertCountEquals(1)
+        composeRule.onAllNodesWithText("ad b 1").assertCountEquals(1)
+    }
+
+    @Test
+    fun emptyAds_isRejected() {
+        val error = runCatching {
+            composeRule.setContent {
+                AppTheme {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsWithInListAds(items = (1..7).toList(), ads = emptyList()) {
+                            Text("List item $it")
+                        }
+                    }
+                }
+            }
+            composeRule.waitForIdle()
+        }.exceptionOrNull()
+        assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+    }
+
     private companion object {
         const val LIST = "list"
         const val CONTROL_LIST = "control_list"

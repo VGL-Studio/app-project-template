@@ -17,8 +17,26 @@ class AdUnitIdsTest {
     @Test
     fun placementWithoutUnit_isReportedMissingAndShowsNoAd() {
         val ids = ConfiguredAdUnitIds("")
-        assertEquals(AdPlacement.entries.toList(), ids.missing)
+        // Staging-only placements (gallery_*) never ship, so a release needs no unit for them.
+        assertEquals(AdPlacement.entries.filterNot { it.stagingOnly }, ids.missing)
         assertNull(ids.of(AdPlacement.SAMPLE_NATIVE_SMALL))
+    }
+
+    @Test
+    fun stagingOnlyPlacement_hasNoUnit_evenWhenConfigured() {
+        val ids = ConfiguredAdUnitIds("gallery_native_small=x;sample_native_small=y")
+        // Control: the other placement of the same configuration gets its unit.
+        assertEquals("y", ids.of(AdPlacement.SAMPLE_NATIVE_SMALL))
+        assertNull(ids.of(AdPlacement.GALLERY_NATIVE_SMALL))
+    }
+
+    @Test
+    fun googleTestIds_coverGalleryPlacements() {
+        val gallery = AdPlacement.entries.filter { it.stagingOnly }
+        assertEquals(7, gallery.size)
+        gallery.forEach { placement ->
+            assertTrue(placement.key, GoogleTestAdUnitIds.of(placement).startsWith("ca-app-pub-3940256099942544/"))
+        }
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -36,7 +54,7 @@ class AdUnitIdsTest {
     @Test
     fun googleTestUnits_nativeFormats() {
         assertEquals("ca-app-pub-3940256099942544/2247696110", GoogleTestAdUnitIds.of(AdPlacement.SAMPLE_NATIVE_SMALL))
-        // NATIVE_MEDIUM has no placement in the app yet (T-014 adds one): checked through the format table.
+        // NATIVE_MEDIUM is also checked through the format table, independent of the placements.
         assertEquals("ca-app-pub-3940256099942544/1044960115", GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_MEDIUM))
         assertEquals("ca-app-pub-3940256099942544/2247696110", GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_SMALL))
     }
