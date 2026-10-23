@@ -115,4 +115,4 @@ Màn hình xem thử (T-014, 2026-10-23). Ảnh chuẩn ở `app/src/test/screen
 | `AdGalleryScreen_collapsible-expanded_light` | 0.7% | Ghim đáy, cách mép 16 dp. Dạng mở không vẽ ô AdChoices giả (dạng thu gọn có), đã biết từ T-012; chữ quảng cáo giả như trên |
 | `AdGalleryScreen_collapsible-collapsed_light` | 0.7% | Trùng thiết kế, khác ở chữ "i" của ô AdChoices giả |
 
-Nhận xét của rà soát độc lập: ghi khi rà soát (bước 6).
+Nhận xét của rà soát độc lập (RUN-20261024-01): chữ, thứ tự và vai trò màu (nút toàn màn hình `primary`, nút chuyển trang viền, bản tối) trùng thiết kế; chỉ khác ở hàng nút chuyển trang đã duyệt và quảng cáo giả; vị trí lệch nhiều nhất khoảng 1 px. Không có điểm chặn.
