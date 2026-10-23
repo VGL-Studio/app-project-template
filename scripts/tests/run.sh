@@ -670,6 +670,10 @@ write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 expect "run-check: a ready list passes" pass "$(run_check)"
 expect "run-check: a ready list has no warning" 0 "$(grep -c 'CHÚ Ý' "$work/run-check.out")"
+# The review table under section 1 also names tickets in its second column; it is not part of the list.
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"'\n\n### Kiểm tra trước khi duyệt\n\n| Mức | Ticket | Vấn đề | Xử lý |\n| --- | --- | --- | --- |\n| Nên sửa | T-002 | x | y |'
+expect "run-check: the review table is not read as the list" pass "$(run_check)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 write_spec changed 'Đồng ý.'
 expect "run-check: a spec waiting for confirmation stops" stop "$(run_check)"
 write_spec confirmed ''
