@@ -4,6 +4,7 @@ import com.vglstudio.template.core.ads.AdPlacement
 import com.vglstudio.template.core.ads.AdsSettings
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.RemoteKey
+import com.vglstudio.template.core.network.NetworkSettings
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -136,6 +137,11 @@ class RemoteConfigKeysTest {
         AdPlacement.entries.forEach { placement ->
             assertTrue("$placement is missing", AdsSettings.placementEnabled(placement) in keys)
         }
+    }
+
+    @Test
+    fun networkKeys_areListed() {
+        assertEquals(NetworkSettings.all(), AppRemoteKeys.byModule[":core:network"])
     }
 
     private fun assertFileMatches(property: String, expected: String, name: String) {
