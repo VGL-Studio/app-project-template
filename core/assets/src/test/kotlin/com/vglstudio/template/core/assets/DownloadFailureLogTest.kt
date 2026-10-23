@@ -24,7 +24,8 @@ class DownloadFailureLogTest {
 
     @Test
     fun httpError_addsTheStatus() {
-        val message = downloadFailureMessage(path, HttpStatusException(404, "https://assets.example.com/images/v2/hero.webp"))
+        val message =
+            downloadFailureMessage(path, HttpStatusException(404, "https://assets.example.com/images/v2/hero.webp"))
 
         assertEquals("Could not download images/v2/hero.webp: NOT_FOUND (HttpStatusException, status=404)", message)
         assertFalse(message.contains("assets.example.com"))
@@ -48,7 +49,14 @@ class DownloadFailureLogTest {
         downloadFailureLogger(logger)(path, error)
 
         assertEquals(
-            listOf(LogEntry(LogLevel.WARN, "Assets", "Could not download images/v2/hero.webp: NETWORK (UnknownHostException)", error)),
+            listOf(
+                LogEntry(
+                    LogLevel.WARN,
+                    "Assets",
+                    "Could not download images/v2/hero.webp: NETWORK (UnknownHostException)",
+                    error,
+                ),
+            ),
             logger.entries,
         )
     }

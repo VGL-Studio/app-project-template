@@ -1,12 +1,12 @@
 package com.vglstudio.template.core.assets.di
 
 import android.content.Context
-import android.util.Log
 import com.vglstudio.template.core.assets.AssetsConfig
 import com.vglstudio.template.core.assets.DefaultRemoteAssets
 import com.vglstudio.template.core.assets.HttpAssetDownloader
 import com.vglstudio.template.core.assets.RemoteAssets
-import com.vglstudio.template.core.assets.downloadFailureMessage
+import com.vglstudio.template.core.assets.downloadFailureLogger
+import com.vglstudio.template.core.logging.AppLogger
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,13 +22,14 @@ import kotlinx.coroutines.Dispatchers
 internal object AssetsModule {
     @Provides
     @Singleton
-    fun remoteAssets(@ApplicationContext context: Context, config: AssetsConfig): RemoteAssets = DefaultRemoteAssets(
-        config = config,
-        // Not the cache dir: the system may clear that, and files must stay available offline.
-        // Not backed up: they can always be downloaded again.
-        cacheDir = File(context.noBackupFilesDir, "r2-assets"),
-        downloader = HttpAssetDownloader(),
-        ioDispatcher = Dispatchers.IO,
-        onDownloadFailed = { path, error -> Log.w("Assets", downloadFailureMessage(path, error), error) },
-    )
+    fun remoteAssets(@ApplicationContext context: Context, config: AssetsConfig, logger: AppLogger): RemoteAssets =
+        DefaultRemoteAssets(
+            config = config,
+            // Not the cache dir: the system may clear that, and files must stay available offline.
+            // Not backed up: they can always be downloaded again.
+            cacheDir = File(context.noBackupFilesDir, "r2-assets"),
+            downloader = HttpAssetDownloader(),
+            ioDispatcher = Dispatchers.IO,
+            onDownloadFailed = downloadFailureLogger(logger),
+        )
 }
