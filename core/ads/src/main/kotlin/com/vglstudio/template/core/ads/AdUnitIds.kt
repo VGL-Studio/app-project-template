@@ -12,9 +12,15 @@ fun interface AdUnitIds {
 object GoogleTestAdUnitIds : AdUnitIds {
     const val APP_ID = "ca-app-pub-3940256099942544~3347511713"
 
-    override fun of(placement: AdPlacement): String = when (placement.format) {
+    override fun of(placement: AdPlacement): String = unitFor(placement.format)
+
+    /** The test unit of each format; also checks formats that have no placement yet. */
+    internal fun unitFor(format: AdFormat): String = when (format) {
         AdFormat.BANNER -> "ca-app-pub-3940256099942544/9214589741"
         AdFormat.INTERSTITIAL -> "ca-app-pub-3940256099942544/1033173712"
+        AdFormat.NATIVE_SMALL -> "ca-app-pub-3940256099942544/2247696110"
+        // Native video, so the media view can be tried with a video.
+        AdFormat.NATIVE_MEDIUM -> "ca-app-pub-3940256099942544/1044960115"
     }
 }
 

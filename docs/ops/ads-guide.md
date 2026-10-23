@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người phụ trách sản phẩm, dev và AI. Nó nói cách chọn, đặt, thử và đo quảng cáo trong app của nhóm. Quyết định nằm ở ADR-0004, ADR-0013, ADR-0014 và ADR-0022; cấu hình từ xa ở [remote-config.md](remote-config.md) (ADR-0023). Repo `vgl-docs` và file "Quy chuẩn Native" cũ chỉ để tham khảo; khi khác tài liệu này thì theo tài liệu này.
 
-Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native, tần suất lưu qua phiên, công tắc tổng); tới lúc đó chỉ dùng banner và interstitial.
+Các phần ghi **(đợt 2)** cần code chưa có trong `:core:ads` (native trong danh sách, native thu gọn, native toàn màn hình); tới lúc đó chỉ dùng banner, interstitial, native small và native medium.
 
 ## 1. Nguyên tắc
 
@@ -38,8 +38,8 @@ Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành c�
 | --- | --- | --- | --- |
 | Banner thích ứng | | Đáy màn hình danh sách, chi tiết | Có |
 | Interstitial | | Điểm dừng tự nhiên | Có |
-| Native small | Banner | Đáy hay giữa màn hình nội dung | (đợt 2) |
-| Native medium | MREC | Trong nội dung, giữa các khối | (đợt 2) |
+| Native small | Banner | Đáy hay giữa màn hình nội dung | Có |
+| Native medium | MREC | Trong nội dung, giữa các khối | Có |
 | Native in-list | | Trong danh sách hay lưới, cách nhau N mục | (đợt 2) |
 | Native collapsible | Banner thu gọn | Đáy màn hình; thu gọn khi người dùng chạm | (đợt 2) |
 | Native toàn màn hình | Interstitial | Điểm dừng tự nhiên, như interstitial | (đợt 2) |
@@ -47,9 +47,9 @@ Gặp spec hay yêu cầu ngược với bảng này: không làm, ghi thành c�
 
 Chọn định dạng theo màn hình, không theo doanh thu từng định dạng: màn hình người dùng ở lâu (danh sách, chi tiết) hợp native small hay medium; điểm dừng giữa hai việc hợp interstitial.
 
-## 4. Quy chuẩn native (đợt 2)
+## 4. Quy chuẩn native
 
-Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Số đo cụ thể chốt khi dựng component; bảng dưới là quy tắc phải giữ.
+Tính bằng dp. Mỗi cỡ là một component trong hệ thống thiết kế (Figma và `:core:ads`), dùng màu, chữ, bo góc của `:core:designsystem` để giống giao diện app (ADR-0008, ADR-0022). Small và medium đã có; in-list, collapsible và toàn màn hình là **(đợt 2)**. Bảng dưới là quy tắc phải giữ.
 
 | Cỡ | Thành phần | Quy tắc |
 | --- | --- | --- |
@@ -69,6 +69,19 @@ Quy tắc chung:
 - Chế độ tối dùng màu tối của hệ thống thiết kế.
 - Hủy (`destroy`) quảng cáo cũ khi thay hay khi rời màn hình.
 
+Small và medium trong `:core:ads` (plan T-010, số liệu từ `docs/features/ads/design/`):
+
+| Phần | Small | Medium |
+| --- | --- | --- |
+| Khung | cao 72 dp, rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 386 dp, như small |
+| Chỗ cho AdChoices | lề phải 24 dp, chữ và CTA không đè góc trên phải | lề trên 24 dp |
+| Icon | 40 dp, bo 8 dp | 40 dp, trong hàng đầu |
+| Media | không có | rộng hết, cao 196 dp, `MediaView` giữ tỷ lệ |
+| CTA | cao 36 dp, nền `tertiaryContainer`, bo 8 dp (nút chính của app: 52 dp, `primary`, bo 16 dp) | rộng hết, cao 36 dp |
+
+- Màn hình dùng `NativeAdSlot(placement)`: giữ chỗ bằng khối chờ khi tải, thu chỗ (cao 0) khi không có quảng cáo sau `ads_native_load_timeout_seconds`, hủy quảng cáo khi rời màn hình. Vị trí nằm cạnh nút của app thì truyền `keepSpaceWhenEmpty = true` để giữ khoảng trống đúng chiều cao, nút không dịch.
+- AdChoices do SDK vẽ ở góc trên phải; app không tự vẽ.
+
 ## 5. Thêm một vị trí quảng cáo
 
 Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có vị trí đó (ADR-0004).
@@ -76,8 +89,8 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
 1. **Spec:** mục Quảng cáo ghi vị trí, định dạng, màn hình, thời điểm, giới hạn tần suất, khóa bật tắt. Thiết kế đánh dấu vùng quảng cáo trên ảnh màn hình.
 2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`), đúng dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` trên một dòng: `scripts/release.sh` đọc danh sách vị trí bằng mẫu này và đòi mã production cho mọi vị trí, trừ vị trí có khóa bắt đầu bằng `gallery_` (chỉ dùng cho màn hình xem thử ở staging, không bao giờ phát hành).
 3. **Khóa bật tắt:** `ads_<ten_vi_tri>_enabled`, mặc định tắt (ADR-0014), tự có qua `AdsSettings.placementEnabled` và tự vào bảng khóa qua `AdsSettings.all()`. Sinh lại bảng khóa bằng lệnh ở [remote-config.md](remote-config.md), mục 3, trong cùng PR. Tham số riêng của vị trí theo [remote-config.md](remote-config.md).
-4. **Màn hình:** đặt `AdSlot(placement)` (banner) hay composable native của `:core:ads` (đợt 2), hoặc `rememberShowInterstitial(placement)` gọi ở điểm dừng tự nhiên. Feature không gọi SDK quảng cáo.
-5. **Test:** screenshot test của màn hình không có quảng cáo (`LocalAdsController` mặc định rỗng); test ViewModel cho điểm gọi interstitial nếu có logic.
+4. **Màn hình:** đặt `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), hoặc `rememberShowInterstitial(placement)` gọi ở điểm dừng tự nhiên. Feature không gọi SDK quảng cáo. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
+5. **Test:** test không có `LocalAdsController` nên `NativeAdSlot` không vẽ gì; screenshot test truyền `NativeAdCard` giả (hay `NativeAdPlaceholder(size, animated = false)` cho trạng thái đang tải) qua tham số quảng cáo của màn hình, để ảnh có quảng cáo như thiết kế, như `SampleScreenScreenshotTest`. Test ViewModel cho điểm gọi interstitial nếu có logic.
 6. **Mã quảng cáo production:** tạo đơn vị quảng cáo trên AdMob, ghi vào `release.properties` lúc phát hành ([release.md](release.md)); không vào repo.
 7. **Bật:** sau khi bản production có vị trí đã lên Play, người phụ trách bật `ads_<ten_vi_tri>_enabled` trên Firebase theo [remote-config.md](remote-config.md), mục 5.
 

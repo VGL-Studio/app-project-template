@@ -9,8 +9,8 @@ import org.junit.Test
 class AdUnitIdsTest {
     @Test
     fun configuredUnits_areParsedPerPlacementKey() {
-        val ids = ConfiguredAdUnitIds(" sample_bottom_banner = unit/1 ; other_key=unit/2;")
-        assertEquals("unit/1", ids.of(AdPlacement.SAMPLE_BOTTOM_BANNER))
+        val ids = ConfiguredAdUnitIds(" sample_native_small = unit/1 ; other_key=unit/2;")
+        assertEquals("unit/1", ids.of(AdPlacement.SAMPLE_NATIVE_SMALL))
         assertTrue(ids.missing.isEmpty())
     }
 
@@ -18,12 +18,12 @@ class AdUnitIdsTest {
     fun placementWithoutUnit_isReportedMissingAndShowsNoAd() {
         val ids = ConfiguredAdUnitIds("")
         assertEquals(AdPlacement.entries.toList(), ids.missing)
-        assertNull(ids.of(AdPlacement.SAMPLE_BOTTOM_BANNER))
+        assertNull(ids.of(AdPlacement.SAMPLE_NATIVE_SMALL))
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun malformedEntry_isRejected() {
-        ConfiguredAdUnitIds("sample_bottom_banner")
+        ConfiguredAdUnitIds("sample_native_small")
     }
 
     @Test
@@ -31,6 +31,14 @@ class AdUnitIdsTest {
         AdPlacement.entries.forEach { placement ->
             assertTrue(GoogleTestAdUnitIds.of(placement).startsWith("ca-app-pub-3940256099942544/"))
         }
+    }
+
+    @Test
+    fun googleTestUnits_nativeFormats() {
+        assertEquals("ca-app-pub-3940256099942544/2247696110", GoogleTestAdUnitIds.of(AdPlacement.SAMPLE_NATIVE_SMALL))
+        // NATIVE_MEDIUM has no placement in the app yet (T-014 adds one): checked through the format table.
+        assertEquals("ca-app-pub-3940256099942544/1044960115", GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_MEDIUM))
+        assertEquals("ca-app-pub-3940256099942544/2247696110", GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_SMALL))
     }
 
     @Test

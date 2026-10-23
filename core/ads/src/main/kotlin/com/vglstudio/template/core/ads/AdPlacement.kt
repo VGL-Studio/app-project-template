@@ -7,6 +7,12 @@ enum class AdFormat {
 
     /** Covers the whole screen, shown at a natural break with [rememberShowInterstitial]. */
     INTERSTITIAL,
+
+    /** Shown inside a screen with [NativeAdSlot], no media: icon, headline, "Ad" label, call to action. */
+    NATIVE_SMALL,
+
+    /** Shown inside a screen with [NativeAdSlot], with media (image or video); replaces MREC. */
+    NATIVE_MEDIUM,
 }
 
 /**
@@ -17,5 +23,5 @@ enum class AdFormat {
  * Production builds need a real ad unit for every placement (see [ConfiguredAdUnitIds]).
  */
 enum class AdPlacement(val key: String, val format: AdFormat) {
-    SAMPLE_BOTTOM_BANNER("sample_bottom_banner", AdFormat.BANNER),
+    SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
 }

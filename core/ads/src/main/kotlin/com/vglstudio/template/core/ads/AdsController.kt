@@ -32,16 +32,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * The only class that talks to the ads SDKs (ADR-0004). :app calls [gatherConsent], [onUserInteraction],
  * [onAppForeground] and [onAppBackground] from its activity and provides this controller to the UI through
- * [LocalAdsController]. Features use [AdSlot], [rememberShowInterstitial] and [PrivacyOptionsButton], never this
- * class or an SDK directly.
+ * [LocalAdsController]. Features use [AdSlot], [NativeAdSlot], [rememberShowInterstitial] and [PrivacyOptionsButton],
+ * never this class or an SDK directly.
  *
  * The ads SDK is initialized only once the consent form allows ads to be requested. Mediation adapters (AppLovin,
  * plan T-015) are initialized by the SDK at the same time, with no code of their own; their status is logged.
@@ -203,6 +205,53 @@ class AdsController @Inject internal constructor(
         if (it == null) Log.e(TAG, "No ad unit for placement ${placement.key}; it shows no ad")
     }
 
+    /**
+     * The states of one native ad of [placement] for a slot on screen ([nativeAdStates]): loading, then loaded or
+     * unavailable after `ads_native_load_timeout_seconds`. The ad is destroyed when the collection is cancelled.
+     * The caller checks consent and [isEnabled] first, like [NativeAdSlot].
+     */
+    internal fun nativeAd(placement: AdPlacement): Flow<NativeAdState> {
+        val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
+        return flow {
+            val unitId = unitId(placement)
+            if (unitId == null) {
+                emit(NativeAdState.Unavailable)
+                return@flow
+            }
+            emitAll(
+                nativeAdStates(
+                    SdkNativeAdLoader(context, adRequest()),
+                    unitId,
+                    size,
+                    nativeLoadTimeoutMillis(),
+                    logger,
+                    placement.key,
+                ),
+            )
+        }
+    }
+
+    /**
+     * Loads one native ad of [placement] ([loadOneNativeAd]): Loaded or Unavailable (also when there is no ad unit).
+     * The caller owns a Loaded ad and destroys it; one ad per item of a list (T-011). The caller checks consent and
+     * [isEnabled] first, like [NativeAdSlot].
+     */
+    internal suspend fun loadNativeAd(placement: AdPlacement): NativeAdState {
+        val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
+        val unitId = unitId(placement) ?: return NativeAdState.Unavailable
+        return loadOneNativeAd(
+            SdkNativeAdLoader(context, adRequest()),
+            unitId,
+            size,
+            nativeLoadTimeoutMillis(),
+            logger,
+            placement.key,
+        )
+    }
+
+    private suspend fun nativeLoadTimeoutMillis(): Long =
+        settings.value(AdsSettings.NATIVE_LOAD_TIMEOUT_SECONDS).first().coerceIn(0L, Long.MAX_VALUE / 1_000) * 1_000
+
     internal suspend fun adRequest(): AdRequest {
         val nonPersonalized = requestsNonPersonalizedAds(
             inRegulatedRegion = privacyOptionsRequired.value,
@@ -287,4 +336,15 @@ class AdsController @Inject internal constructor(
     private companion object {
         const val TAG = "Ads"
     }
+}
+
+/**
+ * The size a native ad of this format is loaded at, `null` for formats that are not native. Exhaustive on purpose,
+ * with no `else`: a new [AdFormat] must decide here how it loads.
+ */
+internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
+    AdFormat.BANNER -> null
+    AdFormat.INTERSTITIAL -> null
+    AdFormat.NATIVE_SMALL -> NativeAdSize.SMALL
+    AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
 }

@@ -15,4 +15,4 @@ Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu đ
 | `ads_interstitial_min_interval_seconds` | long | `45` | `:core:ads` | Minimum time between two full-screen ads (interstitial and full-screen native), in seconds. |
 | `ads_native_load_timeout_seconds` | long | `10` | `:core:ads` | Time to wait for a native ad before its space is removed when no ad is available, in seconds. |
 | `ads_personalized_regulated_regions_enabled` | boolean | `true` | `:core:ads` | Allows personalized ads in regions that require consent (EEA, UK, Switzerland), for users who consented. Users who declined never get them. |
-| `ads_sample_bottom_banner_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement sample_bottom_banner (banner). Off by default. |
+| `ads_sample_native_small_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement sample_native_small (native_small). Off by default. |

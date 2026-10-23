@@ -67,7 +67,7 @@ assetsBaseUrl=https://<địa chỉ production trên R2>/
 uploadKeyAlias=upload
 ```
 
-Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_bottom_banner`. Mật khẩu khóa upload không ghi vào thư mục này, script hỏi khi chạy.
+Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_native_small`. Mật khẩu khóa upload không ghi vào thư mục này, script hỏi khi chạy.
 
 ### 2.3. Chạy script
 

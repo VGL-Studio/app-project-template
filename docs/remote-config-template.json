@@ -46,9 +46,9 @@
       "description": "Allows personalized ads in regions that require consent (EEA, UK, Switzerland), for users who consented. Users who declined never get them.",
       "valueType": "BOOLEAN"
     },
-    "ads_sample_bottom_banner_enabled": {
+    "ads_sample_native_small_enabled": {
       "defaultValue": { "value": "false" },
-      "description": "Shows ads in the placement sample_bottom_banner (banner). Off by default.",
+      "description": "Shows ads in the placement sample_native_small (native_small). Off by default.",
       "valueType": "BOOLEAN"
     }
   }
