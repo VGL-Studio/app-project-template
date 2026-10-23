@@ -251,6 +251,50 @@ class InListAdsTest {
     }
 
     @Test
+    fun loadedSlots_destroyedWhenEveryBecomesNull_andLoadAgainWhenBack() {
+        var every by mutableStateOf<Int?>(3)
+        val loaded = mutableListOf<FakeLoadedNativeAd>()
+        val loader = InListAdLoader {
+            NativeAdState.Loaded(FakeLoadedNativeAd(sampleNativeAdAssets).also { loaded += it })
+        }
+        composeRule.setContent {
+            AppTheme {
+                val scope = rememberCoroutineScope()
+                val ads = remember {
+                    InListAds(
+                        placement = AdPlacement.SAMPLE_NATIVE_SMALL,
+                        every = derivedStateOf { every },
+                        loader = loader,
+                        scope = scope,
+                        logger = RecordingAppLogger(),
+                    )
+                }
+                LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
+                    itemsWithInListAds(items = (1..7).toList(), ads = ads) {
+                        Text("List item $it", Modifier.testTag("item_$it"))
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        // Control: two ads are loaded and none is destroyed while their rows are shown.
+        assertEquals(listOf(0, 0), loaded.map { it.destroyCount })
+
+        // Consent withdrawn or placement switched off while the screen is open.
+        every = null
+        composeRule.waitForIdle()
+        composeRule.onAllNodes(adRows()).assertCountEquals(0)
+        assertEquals(listOf(1, 1), loaded.map { it.destroyCount })
+
+        // Allowed again: the rows come back with fresh ads.
+        every = 3
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithTag("inlist_ad_0").assertCountEquals(1)
+        assertEquals(4, loaded.size)
+        assertEquals(listOf(0, 0), loaded.drop(2).map { it.destroyCount })
+    }
+
+    @Test
     fun adRowKeys_doNotClashWithItemKeys() {
         composeRule.setContent {
             AppTheme {
