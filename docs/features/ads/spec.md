@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -442,46 +442,46 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
    - Trả lời: chấp nhận như mục 6.
 7. **Có giữ công tắc tổng tắt mọi quảng cáo không? AdsKit không có.**
    - Đề xuất của AI: giữ, đặt theo kiểu AdsKit là `is_show_ads` (boolean, mặc định bật). Tắt thì không tải, không hiện mọi định dạng, kể cả app open và resume. Đây là cách nhanh nhất khi có cảnh báo chính sách; nó không đổi hành vi PARTNER khi bật.
-   - Trả lời:
+   - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 8. **Khóa quảng cáo cá nhân hóa ở vùng có luật (`ads_personalized_regulated_regions_enabled`, ADR-0014) có giữ không? AdsKit không có.**
    - Đề xuất của AI: bỏ khóa, để chuỗi đồng ý của UMP quyết như AdsKit: người đồng ý nhận quảng cáo cá nhân hóa, người từ chối thì Google đọc lựa chọn từ chuỗi đồng ý.
-   - Trả lời:
+   - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 9. **Rào chắn "chờ người dùng ngừng chạm 1 giây" trước interstitial (ADR-0013) có giữ không? AdsKit không có.**
    - Đề xuất của AI: bỏ. Interstitial theo AdsKit gọi ngay ở cú bấm của người dùng, nên rào chắn này làm mọi interstitial trễ 1 giây.
-   - Trả lời:
+   - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 10. **Ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên (KB-6, T-009) bỏ theo PARTNER?**
     - Đề xuất của AI: bỏ như đã ghi ở KB-6; code đợt 2 của T-009 được gỡ ở T-019 và T-022.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 11. **Vỏ app của dự án mẫu làm những luồng nào?**
     - Đề xuất của AI: màn loading làm quảng cáo mở app (lần đầu và lần thường, KB-13); `:core:ads` làm quảng cáo khi quay lại (KB-14). Dự án mẫu không có luồng giới thiệu: chỉ cung cấp native ở bước của luồng trong `:core:ads` và trên màn xem thử; app nào có luồng thì spec của app đặt vị trí. Các việc bắt buộc của `:app` theo bản đặc tả độc lập (HD-01 tới HD-07 của `ads-business-rules.md`: khởi tạo trong `Application`, đặt kế hoạch nạp sẵn trước kết quả đồng ý, hoàn tất cưỡng bức inter, công tắc nhánh rút gọn trước bước đồng ý, bộ chứa lớp phủ, lượt dò không đo, báo nhóm UA) đã có ở T-020 tới T-026 và không cần trả lời ở câu này.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 12. **Thời gian chờ ở màn loading theo PARTNER (đồng ý 10 giây, SDK 35 giây, quảng cáo mở app 40 giây) dài hơn giới hạn chờ Remote Config của ADR-0018. Theo PARTNER?**
     - Đề xuất của AI: theo PARTNER khi khóa quảng cáo mở app bật; khi khóa tắt thì màn loading giữ giới hạn của ADR-0018. Ghi chú vào ADR-0018 khi làm T-024.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 13. **Màn mẫu `:feature:sample` có minh họa một hành động có điều kiện (rewarded) không?**
     - Đề xuất của AI: không đặt trong `:feature:sample`, để màn mẫu giữ đơn giản và không bật quảng cáo nào ngoài spec. Màn xem thử ở staging có một vị trí `gallery_rw_action` minh họa đủ ba chính sách (`block`, `allow`, `allow_after_<n>`), và `ads-guide.md` mục 5 có ví dụ khai báo. Đổi 2026-10-23 (lượt 2): câu hỏi viết lại theo mô hình chung, ý cũ (rewarded trong màn mẫu) giữ nguyên.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 14. **Mã đơn vị quảng cáo theo khe (như AdsKit) hay theo vị trí (như hiện tại)?**
     - Đề xuất của AI: theo khe như AdsKit (`ads-business-rules.md` M-05, tên khe theo bản đặc tả độc lập để mỗi tên một nghĩa: `banner` là tự làm mới, `banner_collapsible` là nạp tay); vị trí chỉ để bật tắt và ghi doanh thu. Ít mã phải tạo hơn, và pool, nạp sẵn dùng chung một khe. Cần sửa `scripts/release.sh` và `release.properties` (việc của người hoặc plan rủi ro cao được duyệt chéo).
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 15. **Khóa dev AppsFlyer xử lý thế nào?**
     - Đề xuất của AI: như ADR-0027: production qua tham số build lúc phát hành; staging và CI không có khóa nên không gửi. Chưa cần app AppsFlyer riêng cho staging; khi cần thì thêm bí mật vào `staging.yml` bằng plan rủi ro cao.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 16. **Vẽ lại thiết kế native trên Figma theo kích thước AdsKit lúc nào?**
     - Đề xuất của AI: ticket T-035, làm trước các ticket code native của đợt 3 (T-027, T-030, T-032). AI dựng component theo kích thước AdsKit với token hiện có (khe đáy 80 dp theo câu 22), người duyệt; ảnh chuẩn screenshot của T-010 tới T-013 ghi lại theo plan của ticket sửa.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 17. **Nút quay lại của máy trên màn native sau inter làm gì? AdsKit không xử lý.**
     - Đề xuất của AI: trong 3 giây đếm ngược thì không làm gì; sau đó đóng như nút đóng. Nạp lỗi thì đóng ngay.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 18. **Tám adapter mới kéo thêm quyền vào manifest. Gỡ quyền không cần như đã làm với AppLovin (`CHECK_LICENSE`, `ACCESS_WIFI_STATE`) không? AdsKit không gỡ quyền nào.**
     - Đề xuất của AI: giữ cách của T-015: plan T-034 liệt kê quyền từng adapter kéo vào, giữ quyền thường mà quảng cáo cần, gỡ quyền không cần cho quảng cáo; đưa danh sách vào mục 6 để anh xác nhận trước khi duyệt plan.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 19. **Native trong danh sách chèn mỗi N mục (KB-3): AdsKit không có khóa này (ô lưới do app đặt). Giữ không, và tên khóa là gì?**
     - Đề xuất của AI: giữ, nhưng là tham số của từng vị trí trong tập hợp theo mô hình chung: `native_every_<mã vị trí>` (số mục, mặc định 8 hay theo spec của app), thay `ads_inlist_every_count`. Mẫu tên theo câu 28.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 20. **Khóa `ads_native_load_timeout_seconds` có giữ không? AdsKit co khe về 0 ngay khi nạp lỗi; native thu gọn chờ cố định 10 giây.**
     - Đề xuất của AI: bỏ, theo AdsKit.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 21. **Công tắc quyền tạm `is_enable_consent_shortcut` mặc định bật hay tắt? AdsKit mặc định tắt, app bật từ xa.**
     - Đề xuất của AI: mặc định bật, vì anh đã chọn khởi động sớm theo PARTNER; tắt từ xa khi có vấn đề về đồng ý.
     - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Mặc định tắt, như bản đặc tả và mã nguồn; nhánh rút gọn cần cả cấu hình lúc build của `:app` và công tắc từ xa cùng bật (`ads-business-rules.md`, S-12).
@@ -505,25 +505,25 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Có, mỗi sự kiện một công tắc, mặc định bật, hiệu lực từ sự kiện kế tiếp (mục 8.3, ADR-0027). `af_revenue` vẫn không bao giờ gửi.
 28. **Mẫu tên cho tham số riêng của một vị trí là gì?** Mô hình chung cần tham số theo vị trí (chèn mỗi N mục, chính sách rewarded khi không có quảng cáo).
     - Đề xuất của AI: `<tham số>_<mã vị trí>`, cùng thứ tự với khóa AdsKit (`is_show_<thứ>`, `ads_interval_<nhóm>`, `time_reload_<thứ>`: phần chỉ "cái gì" ở cuối). Ví dụ `native_every_<mã vị trí>`, `rw_no_ad_policy_<mã vị trí>`. Chỉ tạo khóa khi spec của app cần chỉnh từ xa; không thì là thuộc tính cố định trong `AdPlacement`.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 29. **Rewarded không có quảng cáo (chưa sẵn sàng, lỗi mạng) thì mặc định chặn hay cho làm hành động?**
     - Đề xuất của AI: mặc định `block` như bản đặc tả (A 03:188-190: xem không thành công thì chặn xuất file, người dùng thử lại được). Spec của app được chọn `allow` hay `allow_after_<n>` (cho làm sau n lần liên tiếp không có quảng cáo) cho hành động mà chặn sẽ làm người dùng bỏ app; chính sách chỉnh từ xa bằng khóa theo câu 28 khi spec cần. Người dùng tự đóng quảng cáo trước khi được thưởng thì luôn chặn, không chỉnh được.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 30. **Nhóm giãn cách riêng có liên quan tới nhóm mặc định không?** AdsKit chỉ có một mốc chung; màn âm thanh tự giữ bộ đếm riêng ở app và gọi inter với `recordInterval=false` (`M/AdsKit.kt:124-127`).
     - Đề xuất của AI: độc lập hai chiều: inter của nhóm riêng chỉ đọc và ghi mốc của nhóm mình (không bị `ads_interval` chặn, không dời mốc chung); inter của nhóm mặc định không đọc mốc của nhóm riêng. App open, resume, combo luôn ở nhóm mặc định. Cổng không chồng nhau và cổng đồng ý vẫn chung.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 31. **Màn native sau inter là đích điều hướng của `:app` hay lớp phủ của `:core:ads`?** Bản đặc tả để app chủ khai báo đường mở màn (A 07:79-84).
     - Đề xuất của AI: lớp phủ của `:core:ads`, vẽ trong một bộ chứa mà `:app` đặt một lần ở gốc giao diện (HD-05). Feature và luồng resume gọi combo mà không cần route; không đụng `AppNavHost`; `:core:ads` giữ suất chặn quảng cáo tự hiện và báo đóng cả cụm. App không dùng combo thì để `is_show_native_after_inter` tắt.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 32. **Native ở bước của luồng: một khóa cho cả luồng hay một khóa cho mỗi bước?**
     - Đề xuất của AI: một vị trí, một khóa cho cả luồng (giống `is_show_native_onboarding` của AdsKit); bước nào có quảng cáo là thông số trong spec của app. Người vận hành cần bật riêng từng bước thì spec của app khai báo thêm vị trí.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 33. **Ô native trong tập hợp khi hết quảng cáo: mặc định ẩn hay giữ khung chờ?**
     - Đề xuất của AI: mặc định ẩn (bản đặc tả, P-06); vị trí trong lưới có khung cố định khai báo "giữ chỗ khi cạn" trong spec của app.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 34. **Tên khóa của hành động xuất file là gì?** AdsKit gán chuỗi `is_show_rw_get_item` cho trường `isShowRewardedOnExport` (`DG:180`), tức một khóa mang tên "nhận vật phẩm" nhưng dùng cho xuất file.
     - Đề xuất của AI: dự án mẫu đặt mã vị trí theo hành động: `rw_get_item` cho nhận vật phẩm, `rw_export` cho xuất file (khóa `is_show_rw_export`, tên do ta đặt). App chuyển từ AdsKit mà đang dùng `is_show_rw_get_item` cho việc xuất file trên Firebase thì đặt mã vị trí `rw_get_item` để giữ khóa cũ, ghi lý do trong spec của app.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 
 ## 10. Lịch sử
 
@@ -537,3 +537,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-23 | Nhật | Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-23 | AI | Theo quyết định của anh Nhật (hành vi quảng cáo theo AdsKit PARTNER, ADR-0026; AppsFlyer, ADR-0027): đổi tiêu chí của KB-1 đến KB-10 (giữ chữ cũ, gạch ngang), thêm KB-11 đến KB-24, mục 5, 6, 8 theo AdsKit, câu hỏi 7 đến 21; tách ticket T-019 đến T-036. Chuyển sang `changed`, chờ xác nhận lại |
 | 2026-10-23 | AI | Theo quyết định của anh Nhật (theo bản đặc tả độc lập của AdsKit, kể cả mục "Đã chốt"): khe đáy 80 dp, combo vẫn sang native khi inter không lên màn, rewarded bấm lần hai ghi `busy`, quyền tạm mặc định tắt, giữ khung banner, công tắc lớp thu gọn và từng sự kiện AppsFlyer; ghi câu 21 đến 27 là đã trả lời. Theo yêu cầu tổng quát hóa: KB-19 thành hành động có điều kiện, KB-20 thành native ở bước của luồng, KB-21 thành native trong tập hợp, thêm KB-25; viết lại câu 13, 19; thêm câu 28 đến 34 |
+| 2026-10-23 | Nhật | Trả lời câu 7 đến 20 và 28 đến 34 theo đề xuất của AI; đồng ý các khóa tên do ta đặt (`is_show_native_collap`, `is_log_af_*`, `is_show_rw_export`) và kế hoạch nạp sẵn mặc định suy từ danh sách vị trí; xác nhận (AI ghi theo lời anh Nhật) |
