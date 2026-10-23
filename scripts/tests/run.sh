@@ -422,6 +422,17 @@ expect "plan-check: a script reading a changed file stops" stop "$(plan_check "$
 expect "plan-check: names the reader" 1 "$(grep -c 'scripts/reader.py nhắc tới docs/data/values.json' "$work/plan-check.out")"
 write_plan "$plans/T-904-a.md" medium draft "$(row Sửa docs/data/values.json)" 'scripts/reader.py chỉ đọc khóa a, không đổi.'
 expect "plan-check: a reader the plan explains passes" pass "$(plan_check "$plans/T-904-a.md")"
+# A file name counts only as a whole word: setup-guide.md is not guide.md, docs/ROOT.md is not ROOT.md.
+echo 'Read docs/ROOT.md, then setup-guide.md.' > "$repo/scripts/other.sh"
+touch "$repo/ROOT.md" "$repo/docs/data/guide.md"
+write_plan "$plans/T-916-a.md" medium draft "$(row Sửa ROOT.md)"
+expect "plan-check: a root file is not docs/ROOT.md" pass "$(plan_check "$plans/T-916-a.md")"
+write_plan "$plans/T-917-a.md" medium draft "$(row Sửa docs/data/guide.md)"
+expect "plan-check: guide.md is not setup-guide.md" pass "$(plan_check "$plans/T-917-a.md")"
+echo 'Read ROOT.md and data/guide.md.' > "$repo/scripts/other.sh"
+expect "plan-check: a root file named alone is a mention" stop "$(plan_check "$plans/T-916-a.md")"
+expect "plan-check: a base name after a folder is a mention" stop "$(plan_check "$plans/T-917-a.md")"
+rm "$repo/scripts/other.sh"
 write_plan "$plans/T-905-a.md" medium draft "$(row Sửa core/x/B.kt)"
 expect "plan-check: core module needs a high-risk plan" stop "$(plan_check "$plans/T-905-a.md")"
 write_plan "$plans/T-906-a.md" high approved "$(row Sửa core/x/B.kt)"
