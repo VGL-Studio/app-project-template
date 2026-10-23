@@ -5,7 +5,7 @@ enum class AdFormat {
     /** Shown inside a screen with [AdSlot]. */
     BANNER,
 
-    /** Covers the whole screen, shown at a natural break with [rememberShowInterstitial]. */
+    /** Covers the whole screen, shown at a natural break with [rememberShowFullScreenAd]. */
     INTERSTITIAL,
 
     /** Shown inside a screen with [NativeAdSlot], no media: icon, headline, "Ad" label, call to action. */
@@ -23,7 +23,7 @@ enum class AdFormat {
 
 /** Formats that cover the whole screen; they share the frequency rules of full-screen ads (T-009). */
 internal val AdFormat.isFullScreen: Boolean
-    get() = false
+    get() = this == AdFormat.INTERSTITIAL || this == AdFormat.NATIVE_FULL_SCREEN
 
 /**
  * Every ad placement of the app, declared in one place (ADR-0004).

@@ -95,6 +95,7 @@ private fun BannerAd(ads: AdsController, unitId: String, modifier: Modifier) {
 /**
  * Returns an action that shows the full-screen ad of [placement] if the guardrails allow it (ADR-0004).
  * Call the action at a natural break only. It does nothing in tests and previews.
+ * New code uses [rememberShowFullScreenAd], which shows both interstitial and native full-screen placements.
  */
 @Composable
 fun rememberShowInterstitial(placement: AdPlacement): () -> Unit {

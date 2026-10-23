@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import com.vglstudio.template.core.ads.AdsController
+import com.vglstudio.template.core.ads.FullScreenAdHost
 import com.vglstudio.template.core.ads.LocalAdsController
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.navigation.AppNavHost
@@ -33,6 +34,8 @@ class MainActivity : ComponentActivity() {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         AppNavHost()
                     }
+                    // Native full-screen ads open as a dialog over the current screen (ADR-0022).
+                    FullScreenAdHost()
                 }
             }
         }

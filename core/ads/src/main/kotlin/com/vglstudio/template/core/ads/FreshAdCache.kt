@@ -1,14 +1,34 @@
 package com.vglstudio.template.core.ads
 
-/** Preloaded ads per placement, each usable for [maxAgeMillis] after it was loaded. */
+/**
+ * Preloaded ads per placement, each usable for [maxAgeMillis] after it was loaded (Google advises against showing a
+ * native ad older than one hour). Times come from a monotonic clock (`SystemClock.elapsedRealtime`). An ad that is
+ * replaced or has expired goes to [onDiscard], which destroys it. Main thread only.
+ */
 internal class FreshAdCache<T>(private val maxAgeMillis: Long = MAX_AGE_MILLIS, private val onDiscard: (T) -> Unit) {
-    fun put(key: AdPlacement, ad: T, nowMillis: Long) = Unit
+    private class Entry<T>(val ad: T, val loadedAtMillis: Long)
 
-    fun hasFresh(key: AdPlacement, nowMillis: Long): Boolean = false
+    private val entries = mutableMapOf<AdPlacement, Entry<T>>()
 
-    fun take(key: AdPlacement, nowMillis: Long): T? = null
+    /** Keeps [ad] for [key], discarding the ad kept before it. */
+    fun put(key: AdPlacement, ad: T, nowMillis: Long) {
+        entries.put(key, Entry(ad, nowMillis))?.let { onDiscard(it.ad) }
+    }
 
-    fun contains(key: AdPlacement): Boolean = false
+    fun hasFresh(key: AdPlacement, nowMillis: Long): Boolean = entries[key]?.isFresh(nowMillis) == true
+
+    /** Removes and returns the ad of [key]; null, and the ad discarded, when it is older than [maxAgeMillis]. */
+    fun take(key: AdPlacement, nowMillis: Long): T? {
+        val entry = entries.remove(key) ?: return null
+        if (entry.isFresh(nowMillis)) return entry.ad
+        onDiscard(entry.ad)
+        return null
+    }
+
+    /** Whether an ad of [key] is kept, fresh or not. */
+    fun contains(key: AdPlacement): Boolean = key in entries
+
+    private fun Entry<T>.isFresh(nowMillis: Long): Boolean = nowMillis - loadedAtMillis < maxAgeMillis
 
     companion object {
         const val MAX_AGE_MILLIS = 60 * 60 * 1_000L
