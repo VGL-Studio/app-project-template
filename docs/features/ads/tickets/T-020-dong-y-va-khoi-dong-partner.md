@@ -26,6 +26,11 @@ Cổng đồng ý của `:core:ads` theo `docs/ops/ads-business-rules.md`, mục
 - Cổng ở đầu mọi lượt nạp và mọi lượt hiện của `:core:ads`.
 - Form UMP chặn quảng cáo khi quay lại app suốt lúc mở (S-16).
 - Log mỗi đường đồng ý bằng `AppLogger`.
+- Nhánh rút gọn cần cả cấu hình lúc build của `:app` và công tắc từ xa, mặc định cả hai tắt (S-12); thu hồi `ERROR_ALLOWED` không chốt, bật công tắc không thu hồi gì.
+- Luật chốt theo hai nhánh (S-06): nhánh tắt thì form lỗi vẫn chốt khi UMP đã cho phép.
+- Nút quyền riêng tư chỉ hiện khi UMP báo bắt buộc (S-14); form đồng ý chỉ giữ suất chặn khi `REQUIRED` (S-16); đặt lại đồng ý chỉ ở staging (S-18); tín hiệu khởi động đọc được trước khi khởi tạo (S-19).
+- Việc của `:app`: khởi tạo trong `Application` (HD-01); đưa công tắc nhánh rút gọn vào trước bước hỏi đồng ý (HD-04).
+- Test nghiệm thu gợi ý: `AT-CS-*`, `AT-KD-*` của bản đặc tả độc lập (`02-khoi-dong-va-consent.md`).
 
 **Không bao gồm:**
 

@@ -18,12 +18,15 @@ created: 2026-10-23
 
 ## Mô tả
 
-Banner cố định dùng khe `banner_partner` (tự làm mới trên AdMob), tạm dừng và chạy lại theo Activity, thử lại khi lỗi chỉ ở foreground; banner thu gọn mỗi yêu cầu một mã mới (B-01 tới B-05 của `docs/ops/ads-business-rules.md`).
+Banner cố định dùng khe `banner` (tự làm mới trên AdMob; mã nguồn AdsKit gọi `bannerPartner`), tạm dừng và chạy lại theo Activity, thử lại khi lỗi chỉ ở foreground; banner thu gọn dùng khe `banner_collapsible`, nạp tay mỗi 30 giây, mỗi yêu cầu một mã mới (B-01 tới B-06 của `docs/ops/ads-business-rules.md`).
 
 ## Phạm vi
 
 - Nạp lần đầu sau cổng đồng ý; mã rỗng thì không gửi yêu cầu.
 - Thử lại dời tới lần Activity hiện lại; test không nạp ở nền (AR-03).
+- Khe theo tên của bản đặc tả: `banner` tự làm mới, `banner_collapsible` nạp tay mỗi 30 giây với đơn vị không tự làm mới, mỗi lượt qua cổng đồng ý (B-02, B-03).
+- Rút đồng ý giữa phiên thì giữ khung banner và chỗ chừa (B-06, câu hỏi 25). Vòng nạp lại tay chỉ ở foreground (B-05, AR-03).
+- Test nghiệm thu gợi ý: `AT-BN-*` phần banner.
 
 **Không bao gồm:**
 

@@ -23,9 +23,12 @@ Interstitial đi qua cổng chung (N-01 tới N-05) và, khi `is_show_native_aft
 ## Phạm vi
 
 - Màn native sau inter: đếm ngược theo thời điểm tuyệt đối, chờ inter rời màn tối đa 2 giây, nút quay lại theo câu hỏi 17 của spec.
-- Đóng cụm thì đẩy mốc `ads_interval`; màn chặn quảng cáo tự hiện.
+- Đóng cụm thì đẩy mốc `ads_interval`; bộ điều phối combo giữ suất chặn quảng cáo tự hiện khi màn native hiện.
 - Đếm lần inter hiện từ lúc cài (lưu trên máy) cho T-033.
 - Screenshot test với đồng hồ dừng (CLAUDE.md, bước 10; L-048).
+- Combo vẫn sang native khi inter đã qua cổng mà không lên màn (K-01, đã chốt); cờ "lần gần nhất đã hiện" chỉ cho luồng khác của app (N-03).
+- Màn native sau inter là lớp phủ trong bộ chứa do `:app` đặt một lần ở gốc giao diện (HD-05, câu hỏi 31); bộ điều phối combo giữ suất chặn quảng cáo tự hiện và báo đóng cả cụm (K-05).
+- Test nghiệm thu gợi ý: `AT-INT-*`, `AT-NAI-*`.
 
 **Không bao gồm:**
 

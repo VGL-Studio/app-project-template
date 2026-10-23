@@ -18,6 +18,7 @@ là người dùng app tạo từ dự án mẫu, hoặc người vận hành ap
 Quyết định: ADR-0026 (hành vi theo AdsKit PARTNER, thay phần lớn ADR-0022), ADR-0027 (AppsFlyer), ADR-0023 (Remote Config).
 Luật chi tiết: docs/ops/ads-business-rules.md. Hướng dẫn: docs/ops/ads-guide.md, docs/ops/remote-config.md.
 Thay đổi 2026-10-23: tiêu chí bị thay giữ nguyên chữ cũ, gạch ngang, kèm dòng "Đổi 2026-10-23". Kịch bản mới từ KB-11.
+Cũng ngày 2026-10-23 (lượt 2): theo bản đặc tả độc lập của AdsKit và mô hình chung (ads-business-rules.md, mục Mô hình chung); sửa thẳng chữ của lượt 1 vì chưa xác nhận.
 -->
 
 ## 1. Mục tiêu
@@ -53,7 +54,7 @@ Một màn hình của app có vị trí native small đã bật.
 Tiêu chí chấp nhận:
 
 - [ ] Khi có quảng cáo thì thấy icon, tiêu đề, nút CTA, nhãn "Ad" và biểu tượng AdChoices; vùng quảng cáo có nền hoặc viền tách khỏi nội dung; CTA khác nút chính của app.
-- [ ] ~~Khi đang tải thì vùng quảng cáo giữ đúng chiều cao với hiệu ứng chờ, nội dung bên dưới không nhảy.~~ **Đổi 2026-10-23:** khi native nhỏ ở đáy thì vùng quảng cáo cao 56 dp; khi đang tải thì giữ đúng chiều cao đó với hiệu ứng chờ.
+- [ ] ~~Khi đang tải thì vùng quảng cáo giữ đúng chiều cao với hiệu ứng chờ, nội dung bên dưới không nhảy.~~ **Đổi 2026-10-23:** khi native nhỏ ở đáy thì vùng quảng cáo cao 80 dp; khi đang tải thì giữ đúng chiều cao đó với hiệu ứng chờ.
 - [ ] ~~Khi không có quảng cáo sau thời gian chờ thì vùng quảng cáo thu lại; nếu vị trí được khai báo là cạnh nút của app thì giữ khoảng trống để nút không dịch.~~ **Đổi 2026-10-23:** khi nạp lỗi thì vùng quảng cáo co về 0 dp, nội dung không chừa khoảng trống cho nó.
 - [ ] ~~Khi app ở chế độ tối thì quảng cáo dùng màu tối của hệ thống thiết kế.~~ **Đổi 2026-10-23:** màu lấy từ hệ thống thiết kế; chữ quảng cáo luôn đọc được trên nền của vùng quảng cáo, kể cả khi máy ở chế độ tối.
 - [ ] **Thêm 2026-10-23:** khi người dùng ở màn hình đủ 60 giây và app ở foreground thì nội dung quảng cáo được thay tại chỗ; nạp lỗi thì giữ quảng cáo cũ.
@@ -87,7 +88,7 @@ Tiêu chí chấp nhận:
 Tiêu chí chấp nhận:
 
 - [ ] ~~Khi vào màn hình thì quảng cáo ở dạng mở (như medium) ở đáy màn hình, có nút thu gọn ít nhất 48 dp, không cùng góc với AdChoices.~~ **Đổi 2026-10-23:** khi vào màn hình thì quảng cáo mở ở đáy, cao 250 dp, nổi trên thanh đáy, có nút thu gọn 32 dp ở góc trên phải; chỉ lấp chiều rộng, không che thanh điều hướng của app.
-- [ ] ~~Khi người dùng chạm nút thu gọn thì quảng cáo chuyển sang dạng gọn (như small).~~ **Đổi 2026-10-23:** khi người dùng chạm nút thu gọn thì lớp quảng cáo ẩn, lộ thanh đáy (native nhỏ 56 dp) bên dưới.
+- [ ] ~~Khi người dùng chạm nút thu gọn thì quảng cáo chuyển sang dạng gọn (như small).~~ **Đổi 2026-10-23:** khi người dùng chạm nút thu gọn thì lớp quảng cáo ẩn, lộ thanh đáy (native nhỏ 80 dp) bên dưới.
 - [ ] ~~Khi đã thu gọn thì quảng cáo không tự mở lại trong lúc người dùng còn ở màn hình đó, kể cả khi tải quảng cáo mới.~~ **Đổi 2026-10-23:** khi đã thu gọn thì quảng cáo tự mở lại sau số giây đặt từ xa (mặc định 30 giây, 0 là không mở lại), đếm từ lúc người dùng thu gọn; nội dung được thay mỗi 60 giây mà không đổi trạng thái thu gọn.
 
 ### KB-5. Native toàn màn hình thay interstitial
@@ -158,7 +159,9 @@ Tiêu chí chấp nhận:
 - [ ] Khi việc hỏi đồng ý lỗi vì mạng và app đang mở trên màn hình thì quảng cáo vẫn được tải; khi mạng về hay app được mở lại thì app hỏi lại đồng ý.
 - [ ] Khi app ở nền thì không có yêu cầu quảng cáo nào dựa trên quyền tạm khi lỗi mạng.
 - [ ] Khi việc hỏi lại cho biết cần hỏi người dùng thì app dừng tải và không hiện quảng cáo đã tải bằng quyền tạm, cho tới khi người dùng trả lời.
-- [ ] Khi người vận hành tắt quyền tạm từ xa thì quyền tạm khi lỗi mạng bị thu hồi ngay.
+- [ ] Khi app chưa bật quyền tạm (mặc định tắt, cả cấu hình của app lẫn công tắc từ xa) thì quảng cáo chỉ tải khi hộp thoại đồng ý cho phép; lỗi mạng của việc hỏi đồng ý không cho tải.
+- [ ] Khi người vận hành tắt quyền tạm từ xa thì quyền tạm khi lỗi mạng bị thu hồi ngay; quyền người dùng đã cho vẫn giữ.
+- [ ] Khi quyền tạm tắt mà hộp thoại đồng ý lỗi sau khi người dùng đã cho phép thì kết quả được giữ cho cả lần mở app, không hỏi lại.
 
 Trường hợp đặc biệt:
 
@@ -218,13 +221,16 @@ Tiêu chí chấp nhận:
 - [ ] Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược.
 - [ ] Khi đóng màn native thì người dùng đi tiếp tới màn đã chọn, và khoảng cách `ads_interval` tính từ lúc này.
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
-- [ ] Khi interstitial không hiện (chưa có, chưa qua khoảng cách) thì người dùng đi tiếp ngay, không có native.
+- [ ] Khi interstitial bị chặn ngay từ đầu (chưa có, chưa qua khoảng cách, đang có quảng cáo khác) thì người dùng đi tiếp ngay, không có native.
+- [ ] Khi interstitial đã được phép hiện nhưng không lên được màn (mất quảng cáo, lỗi hiển thị) và native sau inter đang bật thì vẫn có màn native toàn màn hình.
 
 ### KB-17. Thanh quảng cáo ở đáy màn hình
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi bật native ở đáy thì đáy màn hình có native nhỏ 56 dp và lớp native thu gọn 250 dp nổi trên (KB-4).
+- [ ] Khi bật native ở đáy thì đáy màn hình có native nhỏ 80 dp và lớp native thu gọn 250 dp nổi trên (KB-4).
+- [ ] Khi người vận hành tắt riêng lớp thu gọn thì native nhỏ ở đáy vẫn còn.
+- [ ] Khi đang chờ quảng cáo đầu tiên thì khe native nhỏ hiện khung chờ; khi tải lỗi thì khe co về 0.
 - [ ] Khi tắt native ở đáy thì đáy màn hình có banner.
 - [ ] Nội dung của màn hình chừa đúng chiều cao của thanh đáy khi thanh có quảng cáo, không chừa thừa hay thiếu.
 - [ ] Doanh thu và lượt bấm của thanh đáy tính cho màn hình đang hiện, không cho màn hình đầu tiên.
@@ -237,38 +243,44 @@ Tiêu chí chấp nhận:
 - [ ] Khi app ở nền thì banner không tải lại hay thử lại.
 - [ ] Khi dùng banner thu gọn thì mỗi lần làm mới là một banner bung ra mới.
 - [ ] Khi chưa có đồng ý thì banner không gửi yêu cầu.
+- [ ] Khi người dùng rút đồng ý lúc banner đang hiện thì khung banner giữ nguyên chiều cao, giao diện không nhảy; đồng ý lại thì banner tải lại trong khung đó.
+- [ ] Banner thu gọn được tải lại sau mỗi 30 giây, không dùng tự làm mới của AdMob.
 
-### KB-19. Quảng cáo có thưởng
+### KB-19. Quảng cáo có thưởng trước một hành động có điều kiện
 
-Người dùng chọn một hành động mở khóa hay xuất có thưởng.
+Người dùng chọn một hành động mà spec của app gắn với quảng cáo có thưởng (ví dụ nhận vật phẩm, xuất file, mở khóa).
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật rewarded thì hộp thoại hỏi xem quảng cáo hiện, có nút "Xem quảng cáo" và "Không, cảm ơn".
-- [ ] Khi người dùng xem đủ thì nhận thưởng ngay lúc quảng cáo báo thưởng, không chờ đóng.
-- [ ] Khi quảng cáo chưa sẵn sàng thì người dùng không nhận thưởng; nếu lỗi mạng thì app báo kiểm tra kết nối; hộp thoại đóng.
-- [ ] Khi người dùng đóng quảng cáo trước khi đủ thì không có thưởng.
-- [ ] Khi bấm "Xem quảng cáo" hai lần liền thì chỉ một quảng cáo được gọi.
+- [ ] Khi người vận hành bật vị trí rewarded của hành động đó thì hộp thoại hỏi xem quảng cáo hiện, có nút "Xem quảng cáo" và "Không, cảm ơn".
+- [ ] Khi vị trí tắt thì hành động làm ngay, không có hộp thoại.
+- [ ] Khi người dùng xem đủ thì nhận thưởng (hành động được làm) ngay lúc quảng cáo báo thưởng, không chờ đóng.
+- [ ] Khi quảng cáo chưa sẵn sàng thì hành động theo chính sách của vị trí: mặc định bị chặn và người dùng thử lại được; nếu lỗi mạng thì app báo kiểm tra kết nối; hộp thoại đóng.
+- [ ] Khi người dùng đóng quảng cáo trước khi đủ thì không có thưởng, hành động bị chặn.
+- [ ] ~~Khi bấm "Xem quảng cáo" hai lần liền thì chỉ một quảng cáo được gọi.~~ **Đổi 2026-10-23 (lượt 2):** khi bấm "Xem quảng cáo" lần hai trước khi quảng cáo lên màn thì app làm như AdsKit (không chặn) và số liệu ghi lần bấm đó là "bận" (`busy`).
 - [ ] Rewarded không bị chặn bởi khoảng cách `ads_interval` và không làm dời khoảng cách đó.
+- [ ] Hai app khác nhau gắn rewarded vào hai hành động khác nhau (nhận vật phẩm, xuất file) mà không sửa module core.
 
-### KB-20. Native trên luồng giới thiệu
+### KB-20. Native ở một bước của luồng
 
-Một app có luồng giới thiệu (onboarding) nhiều trang.
+Một app có luồng nhiều bước (giới thiệu, kết quả sau khi xử lý, hướng dẫn). Spec của app chọn bước nào có native.
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật native giới thiệu thì trang mà spec của app chọn có native cao 250 dp hoặc native toàn trang.
-- [ ] Hai trang kề nhau không hiện cùng một quảng cáo.
+- [ ] Khi người vận hành bật vị trí native của luồng thì bước mà spec của app chọn có native cao 250 dp hoặc native toàn trang.
+- [ ] Hai bước kề nhau không hiện cùng một quảng cáo.
 - [ ] Native toàn trang không có nút điều khiển riêng; nút Tiếp của app vẫn ở chỗ quen thuộc và không bị quảng cáo che.
-- [ ] Khi khóa tắt hay không có quảng cáo thì trang hiện bình thường, không có khoảng trống.
+- [ ] Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống.
+- [ ] Luồng giới thiệu dùng được khóa `is_show_native_onboarding` như các app AdsKit; luồng khác dùng khóa theo mã vị trí của nó.
 
-### KB-21. Native trong lưới và trang xem trước
+### KB-21. Native trong tập hợp (lưới, danh sách, trang của pager)
 
 Tiêu chí chấp nhận:
 
-- [ ] Mỗi ô quảng cáo trong lưới hay trang xem trước có một quảng cáo riêng, dạng thẻ dọc.
-- [ ] Khi không còn quảng cáo thì ô không hiện; quảng cáo về muộn vẫn hiện vào ô.
+- [ ] Mỗi ô quảng cáo trong lưới, danh sách hay trang của pager có một quảng cáo riêng, dạng thẻ dọc hoặc medium theo khai báo của vị trí.
+- [ ] Khi không còn quảng cáo thì ô không hiện (hoặc giữ khung chờ nếu vị trí khai báo giữ chỗ); quảng cáo về muộn vẫn hiện vào ô.
 - [ ] Ô chỉ tính là đã được xem khi trang của nó đứng yên trên màn hình.
+- [ ] Một quảng cáo người dùng đã thấy không hiện lại ở ô khác khi ô cũ rời màn.
 
 ### KB-22. Ghi doanh thu theo vị trí
 
@@ -281,6 +293,7 @@ Tiêu chí chấp nhận:
 - [ ] Native hiện mà mạng không báo doanh thu trong 2 giây thì vẫn có một lượt ghi giá trị 0.
 - [ ] Khi người vận hành bật số liệu chi tiết thì có thêm sự kiện tải, cơ hội hiển thị, lỗi hiển thị, lượt bấm.
 - [ ] Bản staging không gửi gì sang AppsFlyer.
+- [ ] Khi người vận hành tắt một sự kiện AppsFlyer từ xa thì sự kiện đó ngừng gửi từ lượt kế tiếp, các sự kiện khác vẫn gửi.
 
 ### KB-23. Không làm phiền khi app mở màn của hệ thống
 
@@ -298,6 +311,18 @@ Tiêu chí chấp nhận:
 - [ ] Khi tải native lỗi thì app thử lại với khoảng chờ tăng dần tới 60 giây; chưa có native nào thì thử lại sau 5 giây.
 - [ ] Khi mạng về sau khi mất thì mọi loại quảng cáo tải lại.
 - [ ] Khi app ở nền thì native không gửi yêu cầu.
+
+### KB-25. Thêm vị trí quảng cáo cho một app theo mô hình chung
+
+Dev của một app tạo từ dự án mẫu thêm quảng cáo cho một tính năng mới của app (ví dụ rewarded trước khi xuất file, inter ở màn âm thanh với khoảng cách riêng).
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi dev khai báo vị trí trong spec của app và trong danh sách vị trí (mã, định dạng, thuộc tính) thì vị trí dùng được mà không sửa module core.
+- [ ] Khi khai báo vị trí thì khóa bật tắt `is_show_<mã vị trí>` có trong bảng khóa sinh tự động, mặc định tắt.
+- [ ] Khi vị trí inter khai báo nhóm giãn cách riêng thì khóa `ads_interval_<nhóm>` có trong bảng khóa, và inter của nhóm đó không làm dời khoảng cách của nhóm mặc định.
+- [ ] Khi chọn mã vị trí trùng tên AdsKit (`rw_get_item`, `native_onboarding`, nhóm `sounds`) thì khóa trùng đúng chuỗi khóa mà app AdsKit đang dùng trên Firebase.
+- [ ] Doanh thu của vị trí ghi với `ad_placement` bằng mã vị trí.
 
 ## 4. Giao diện
 
@@ -383,13 +408,17 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | `ads_interval` | long (giây) | 45 | Khoảng cách giữa hai interstitial |
 | `is_show_native_after_inter` | boolean | tắt | Native toàn màn hình sau interstitial |
 | `is_show_native_bottom` | boolean | tắt | Thanh đáy là native (bật) hay banner (tắt) |
-| `time_expand_collap_ad` | long (giây) | 30 | Native thu gọn tự mở lại sau khi người dùng thu gọn; 0 là không |
-| `is_show_rw_get_item` | boolean | tắt | Rewarded ở hành động mở khóa hay xuất |
-| `is_show_native_onboarding` | boolean | tắt | Native trên luồng giới thiệu |
-| `is_show_<vị trí>` | boolean | tắt | Bật một vị trí của feature, thay `ads_<vị trí>_enabled` |
-| `is_enable_consent_shortcut` | boolean | bật (câu hỏi 21) | Quyền tạm khi đồng ý chưa trả lời xong |
+| `is_show_native_collap` | boolean | bật | Lớp native thu gọn trên thanh đáy khi khe đáy là native (tên do ta đặt) |
+| `time_expand_collap_ad` | long (giây) | 30 | Native thu gọn tự mở lại sau khi người dùng thu gọn; 0 là không (tên do ta đặt) |
+| `is_show_rw_get_item` | boolean | tắt | Khóa suy ra của vị trí rewarded `rw_get_item` (nhận vật phẩm), trùng chuỗi AdsKit. Vị trí rewarded khác dùng `is_show_<mã vị trí>`, ví dụ `is_show_rw_export` |
+| `is_show_native_onboarding` | boolean | tắt | Khóa suy ra của vị trí `native_onboarding` (native trên luồng giới thiệu), trùng chuỗi AdsKit |
+| `is_show_<mã vị trí>` | boolean | tắt | Bật một vị trí, thay `ads_<vị trí>_enabled` (suy ra theo mẫu) |
+| `ads_interval_<nhóm>` | long (giây) | theo spec | Khoảng cách của nhóm giãn cách riêng (suy ra theo mẫu) |
+| `<tham số>_<mã vị trí>` | theo tham số | theo spec | Tham số riêng của vị trí (câu hỏi 28) |
+| `is_enable_consent_shortcut` | boolean | tắt (câu hỏi 21) | Quyền tạm khi đồng ý chưa trả lời xong; cần thêm cấu hình của app, cũng mặc định tắt (tên do ta đặt) |
 | `is_log_ad_fullscreen_events` | boolean | tắt | Số liệu chi tiết của quảng cáo toàn màn hình |
 | `is_log_ad_slot_events` | boolean | tắt | Số liệu chi tiết của quảng cáo trong màn hình |
+| `is_log_af_*` (11 khóa, `ads-business-rules.md` mục 10.1) | boolean | bật | Công tắc từng sự kiện AppsFlyer (tên do ta đặt) |
 
 ## 9. Câu hỏi còn mở
 
@@ -424,22 +453,22 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Đề xuất của AI: bỏ như đã ghi ở KB-6; code đợt 2 của T-009 được gỡ ở T-019 và T-022.
     - Trả lời:
 11. **Vỏ app của dự án mẫu làm những luồng nào?**
-    - Đề xuất của AI: màn loading làm quảng cáo mở app (lần đầu và lần thường, KB-13); `:core:ads` làm quảng cáo khi quay lại (KB-14). Dự án mẫu không có luồng giới thiệu: chỉ cung cấp native giới thiệu trong `:core:ads` và trên màn xem thử; app nào có luồng giới thiệu thì spec của app đặt vị trí.
+    - Đề xuất của AI: màn loading làm quảng cáo mở app (lần đầu và lần thường, KB-13); `:core:ads` làm quảng cáo khi quay lại (KB-14). Dự án mẫu không có luồng giới thiệu: chỉ cung cấp native ở bước của luồng trong `:core:ads` và trên màn xem thử; app nào có luồng thì spec của app đặt vị trí. Các việc bắt buộc của `:app` theo bản đặc tả độc lập (HD-01 tới HD-07 của `ads-business-rules.md`: khởi tạo trong `Application`, đặt kế hoạch nạp sẵn trước kết quả đồng ý, hoàn tất cưỡng bức inter, công tắc nhánh rút gọn trước bước đồng ý, bộ chứa lớp phủ, lượt dò không đo, báo nhóm UA) đã có ở T-020 tới T-026 và không cần trả lời ở câu này.
     - Trả lời:
 12. **Thời gian chờ ở màn loading theo PARTNER (đồng ý 10 giây, SDK 35 giây, quảng cáo mở app 40 giây) dài hơn giới hạn chờ Remote Config của ADR-0018. Theo PARTNER?**
     - Đề xuất của AI: theo PARTNER khi khóa quảng cáo mở app bật; khi khóa tắt thì màn loading giữ giới hạn của ADR-0018. Ghi chú vào ADR-0018 khi làm T-024.
     - Trả lời:
-13. **Có đặt vị trí rewarded trong `:feature:sample` không?**
-    - Đề xuất của AI: không. Rewarded chỉ có trên màn xem thử ở staging; cách dùng ghi trong `ads-guide.md`. Màn mẫu giữ đơn giản cho người viết feature.
+13. **Màn mẫu `:feature:sample` có minh họa một hành động có điều kiện (rewarded) không?**
+    - Đề xuất của AI: không đặt trong `:feature:sample`, để màn mẫu giữ đơn giản và không bật quảng cáo nào ngoài spec. Màn xem thử ở staging có một vị trí `gallery_rw_action` minh họa đủ ba chính sách (`block`, `allow`, `allow_after_<n>`), và `ads-guide.md` mục 5 có ví dụ khai báo. Đổi 2026-10-23 (lượt 2): câu hỏi viết lại theo mô hình chung, ý cũ (rewarded trong màn mẫu) giữ nguyên.
     - Trả lời:
 14. **Mã đơn vị quảng cáo theo khe (như AdsKit) hay theo vị trí (như hiện tại)?**
-    - Đề xuất của AI: theo khe như AdsKit (11 khe, `ads-business-rules.md` M-05); vị trí chỉ để bật tắt và ghi doanh thu. Ít mã phải tạo hơn, và pool, nạp sẵn dùng chung một khe. Cần sửa `scripts/release.sh` và `release.properties` (việc của người hoặc plan rủi ro cao được duyệt chéo).
+    - Đề xuất của AI: theo khe như AdsKit (`ads-business-rules.md` M-05, tên khe theo bản đặc tả độc lập để mỗi tên một nghĩa: `banner` là tự làm mới, `banner_collapsible` là nạp tay); vị trí chỉ để bật tắt và ghi doanh thu. Ít mã phải tạo hơn, và pool, nạp sẵn dùng chung một khe. Cần sửa `scripts/release.sh` và `release.properties` (việc của người hoặc plan rủi ro cao được duyệt chéo).
     - Trả lời:
 15. **Khóa dev AppsFlyer xử lý thế nào?**
     - Đề xuất của AI: như ADR-0027: production qua tham số build lúc phát hành; staging và CI không có khóa nên không gửi. Chưa cần app AppsFlyer riêng cho staging; khi cần thì thêm bí mật vào `staging.yml` bằng plan rủi ro cao.
     - Trả lời:
 16. **Vẽ lại thiết kế native trên Figma theo kích thước AdsKit lúc nào?**
-    - Đề xuất của AI: ticket T-035, làm trước các ticket code native của đợt 3 (T-027, T-030, T-032). AI dựng component theo kích thước AdsKit với token hiện có, người duyệt; ảnh chuẩn screenshot của T-010 tới T-013 ghi lại theo plan của ticket sửa.
+    - Đề xuất của AI: ticket T-035, làm trước các ticket code native của đợt 3 (T-027, T-030, T-032). AI dựng component theo kích thước AdsKit với token hiện có (khe đáy 80 dp theo câu 22), người duyệt; ảnh chuẩn screenshot của T-010 tới T-013 ghi lại theo plan của ticket sửa.
     - Trả lời:
 17. **Nút quay lại của máy trên màn native sau inter làm gì? AdsKit không xử lý.**
     - Đề xuất của AI: trong 3 giây đếm ngược thì không làm gì; sau đó đóng như nút đóng. Nạp lỗi thì đóng ngay.
@@ -448,13 +477,52 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Đề xuất của AI: giữ cách của T-015: plan T-034 liệt kê quyền từng adapter kéo vào, giữ quyền thường mà quảng cáo cần, gỡ quyền không cần cho quảng cáo; đưa danh sách vào mục 6 để anh xác nhận trước khi duyệt plan.
     - Trả lời:
 19. **Native trong danh sách chèn mỗi N mục (KB-3): AdsKit không có khóa này (ô lưới do app đặt). Giữ không, và tên khóa là gì?**
-    - Đề xuất của AI: giữ, tên `native_inlist_every` (số mục, mặc định 8) theo kiểu AdsKit; thay `ads_inlist_every_count`.
+    - Đề xuất của AI: giữ, nhưng là tham số của từng vị trí trong tập hợp theo mô hình chung: `native_every_<mã vị trí>` (số mục, mặc định 8 hay theo spec của app), thay `ads_inlist_every_count`. Mẫu tên theo câu 28.
     - Trả lời:
 20. **Khóa `ads_native_load_timeout_seconds` có giữ không? AdsKit co khe về 0 ngay khi nạp lỗi; native thu gọn chờ cố định 10 giây.**
     - Đề xuất của AI: bỏ, theo AdsKit.
     - Trả lời:
 21. **Công tắc quyền tạm `is_enable_consent_shortcut` mặc định bật hay tắt? AdsKit mặc định tắt, app bật từ xa.**
     - Đề xuất của AI: mặc định bật, vì anh đã chọn khởi động sớm theo PARTNER; tắt từ xa khi có vấn đề về đồng ý.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Mặc định tắt, như bản đặc tả và mã nguồn; nhánh rút gọn cần cả cấu hình lúc build của `:app` và công tắc từ xa cùng bật (`ads-business-rules.md`, S-12).
+22. **Khe native nhỏ ở đáy cao 56 dp (mã nguồn vẽ) hay 80 dp (mã nguồn chừa chỗ, bản đặc tả đã chốt)?**
+    - Đề xuất của AI: một hằng số cho cả vẽ và chừa chỗ.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). 80 dp cho cả vẽ và chừa chỗ (A 05:68).
+23. **Pool native: ô trả về quảng cáo đã ghi lượt hiển thị thì hủy (bản đặc tả) hay trả lại vòng xoay (mã nguồn)?**
+    - Đề xuất của AI: theo bản đặc tả.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Hủy và nạp bù; quảng cáo chưa ghi lượt hiển thị thì trả lại vòng xoay (P-01a).
+24. **Rewarded bấm "Xem" lần hai trước khi quảng cáo lên màn: chặn (bản cũ của ta, R-06) hay giữ hành vi AdsKit (bản đặc tả đã chốt)?**
+    - Đề xuất của AI: theo bản đặc tả.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Không chặn, gọi hiện như AdsKit, ghi cơ hội `busy` (R-06, KB-19).
+25. **Rút đồng ý giữa phiên khi banner đang hiện: giữ khung hay co về 0?**
+    - Đề xuất của AI: theo bản đặc tả.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Giữ khung và chỗ chừa, tải lại trong khung khi đồng ý lại (B-06).
+26. **Lớp native thu gọn có công tắc riêng không?**
+    - Đề xuất của AI: có, `is_show_native_collap` (tên do ta đặt), mặc định bật để đi theo `is_show_native_bottom`.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Có công tắc riêng, mặc định đi theo `is_show_native_bottom`; tắt lớp thu gọn không mất khe đáy (D-01).
+27. **AppsFlyer có công tắc từ xa cho từng sự kiện không?**
+    - Đề xuất của AI: có, khóa `is_log_af_*` (tên do ta đặt), mặc định bật.
+    - Trả lời: theo bản đặc tả độc lập của AdsKit (anh Nhật, 2026-10-23). Có, mỗi sự kiện một công tắc, mặc định bật, hiệu lực từ sự kiện kế tiếp (mục 8.3, ADR-0027). `af_revenue` vẫn không bao giờ gửi.
+28. **Mẫu tên cho tham số riêng của một vị trí là gì?** Mô hình chung cần tham số theo vị trí (chèn mỗi N mục, chính sách rewarded khi không có quảng cáo).
+    - Đề xuất của AI: `<tham số>_<mã vị trí>`, cùng thứ tự với khóa AdsKit (`is_show_<thứ>`, `ads_interval_<nhóm>`, `time_reload_<thứ>`: phần chỉ "cái gì" ở cuối). Ví dụ `native_every_<mã vị trí>`, `rw_no_ad_policy_<mã vị trí>`. Chỉ tạo khóa khi spec của app cần chỉnh từ xa; không thì là thuộc tính cố định trong `AdPlacement`.
+    - Trả lời:
+29. **Rewarded không có quảng cáo (chưa sẵn sàng, lỗi mạng) thì mặc định chặn hay cho làm hành động?**
+    - Đề xuất của AI: mặc định `block` như bản đặc tả (A 03:188-190: xem không thành công thì chặn xuất file, người dùng thử lại được). Spec của app được chọn `allow` hay `allow_after_<n>` (cho làm sau n lần liên tiếp không có quảng cáo) cho hành động mà chặn sẽ làm người dùng bỏ app; chính sách chỉnh từ xa bằng khóa theo câu 28 khi spec cần. Người dùng tự đóng quảng cáo trước khi được thưởng thì luôn chặn, không chỉnh được.
+    - Trả lời:
+30. **Nhóm giãn cách riêng có liên quan tới nhóm mặc định không?** AdsKit chỉ có một mốc chung; màn âm thanh tự giữ bộ đếm riêng ở app và gọi inter với `recordInterval=false` (`M/AdsKit.kt:124-127`).
+    - Đề xuất của AI: độc lập hai chiều: inter của nhóm riêng chỉ đọc và ghi mốc của nhóm mình (không bị `ads_interval` chặn, không dời mốc chung); inter của nhóm mặc định không đọc mốc của nhóm riêng. App open, resume, combo luôn ở nhóm mặc định. Cổng không chồng nhau và cổng đồng ý vẫn chung.
+    - Trả lời:
+31. **Màn native sau inter là đích điều hướng của `:app` hay lớp phủ của `:core:ads`?** Bản đặc tả để app chủ khai báo đường mở màn (A 07:79-84).
+    - Đề xuất của AI: lớp phủ của `:core:ads`, vẽ trong một bộ chứa mà `:app` đặt một lần ở gốc giao diện (HD-05). Feature và luồng resume gọi combo mà không cần route; không đụng `AppNavHost`; `:core:ads` giữ suất chặn quảng cáo tự hiện và báo đóng cả cụm. App không dùng combo thì để `is_show_native_after_inter` tắt.
+    - Trả lời:
+32. **Native ở bước của luồng: một khóa cho cả luồng hay một khóa cho mỗi bước?**
+    - Đề xuất của AI: một vị trí, một khóa cho cả luồng (giống `is_show_native_onboarding` của AdsKit); bước nào có quảng cáo là thông số trong spec của app. Người vận hành cần bật riêng từng bước thì spec của app khai báo thêm vị trí.
+    - Trả lời:
+33. **Ô native trong tập hợp khi hết quảng cáo: mặc định ẩn hay giữ khung chờ?**
+    - Đề xuất của AI: mặc định ẩn (bản đặc tả, P-06); vị trí trong lưới có khung cố định khai báo "giữ chỗ khi cạn" trong spec của app.
+    - Trả lời:
+34. **Tên khóa của hành động xuất file là gì?** AdsKit gán chuỗi `is_show_rw_get_item` cho trường `isShowRewardedOnExport` (`DG:180`), tức một khóa mang tên "nhận vật phẩm" nhưng dùng cho xuất file.
+    - Đề xuất của AI: dự án mẫu đặt mã vị trí theo hành động: `rw_get_item` cho nhận vật phẩm, `rw_export` cho xuất file (khóa `is_show_rw_export`, tên do ta đặt). App chuyển từ AdsKit mà đang dùng `is_show_rw_get_item` cho việc xuất file trên Firebase thì đặt mã vị trí `rw_get_item` để giữ khóa cũ, ghi lý do trong spec của app.
     - Trả lời:
 
 ## 10. Lịch sử
@@ -468,3 +536,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-23 | Nhật | Trả lời câu 6 |
 | 2026-10-23 | Nhật | Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-23 | AI | Theo quyết định của anh Nhật (hành vi quảng cáo theo AdsKit PARTNER, ADR-0026; AppsFlyer, ADR-0027): đổi tiêu chí của KB-1 đến KB-10 (giữ chữ cũ, gạch ngang), thêm KB-11 đến KB-24, mục 5, 6, 8 theo AdsKit, câu hỏi 7 đến 21; tách ticket T-019 đến T-036. Chuyển sang `changed`, chờ xác nhận lại |
+| 2026-10-23 | AI | Theo quyết định của anh Nhật (theo bản đặc tả độc lập của AdsKit, kể cả mục "Đã chốt"): khe đáy 80 dp, combo vẫn sang native khi inter không lên màn, rewarded bấm lần hai ghi `busy`, quyền tạm mặc định tắt, giữ khung banner, công tắc lớp thu gọn và từng sự kiện AppsFlyer; ghi câu 21 đến 27 là đã trả lời. Theo yêu cầu tổng quát hóa: KB-19 thành hành động có điều kiện, KB-20 thành native ở bước của luồng, KB-21 thành native trong tập hợp, thêm KB-25; viết lại câu 13, 19; thêm câu 28 đến 34 |

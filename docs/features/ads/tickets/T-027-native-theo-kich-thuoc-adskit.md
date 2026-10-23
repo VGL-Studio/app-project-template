@@ -22,9 +22,12 @@ Native small, full và toàn màn hình của `:core:ads` đổi sang kích thư
 
 ## Phạm vi
 
-- Composable native nhỏ 56 dp, full, toàn màn hình theo thiết kế vẽ lại (T-035).
+- Composable native nhỏ 80 dp, full, toàn màn hình theo thiết kế vẽ lại (T-035).
 - Khe một quảng cáo: lấy, hủy, thử lại khi hai chỗ cùng chờ.
 - Ghi lại ảnh chuẩn screenshot của T-010 và T-013 theo plan.
+- Khe đáy native nhỏ 80 dp cho cả vẽ và chừa chỗ, một hằng số (D-02, D-04, câu hỏi 22); khung chờ khi chờ lượt đầu, báo app có hay không có quảng cáo.
+- Hủy quảng cáo về muộn và trả chỗ đang chờ (O-03); chuẩn bị yêu cầu lỗi là lỗi mã 0 (O-09); nhãn "Ad" góc trên trái, AdChoices góc trên phải, hàng sao (O-08).
+- Test nghiệm thu gợi ý: `AT-NT-*`.
 
 **Không bao gồm:**
 

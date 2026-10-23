@@ -23,8 +23,11 @@ created: 2026-10-23
 ## Phạm vi
 
 - Thứ tự cổng resume: hàm thuần có test cho từng cổng.
-- Resume là inter thì nối combo khi `is_show_native_after_inter` bật (sau T-026, dùng route của vỏ app).
+- Resume là inter thì nối combo khi `is_show_native_after_inter` bật (sau T-026, qua lớp phủ của `:core:ads`).
 - Ghi cơ hội vị trí `resume` theo mục 8.2.
+- Chưa được phục vụ thì lượt resume im lặng nhưng vẫn tiêu cờ lần đầu (A-10); cổng trước chặn thì không kích nạp (A-13); resume không bao giờ ra `throttled` vì `ads_interval` (mục 12, AS-01: không theo vế sai của bản đặc tả).
+- Resume là inter nối combo qua lớp phủ của `:core:ads` (HD-05, câu hỏi 31), không qua route của `:app`.
+- Test nghiệm thu gợi ý: `AT-RS-*`.
 
 **Không bao gồm:**
 

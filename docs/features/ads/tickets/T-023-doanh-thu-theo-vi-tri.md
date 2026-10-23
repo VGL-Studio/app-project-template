@@ -26,6 +26,9 @@ created: 2026-10-23
 - Ánh xạ mã lỗi sang `load_state`, giá trị micro sang tiền: hàm thuần có test.
 - Vị trí đọc lúc có sự kiện (PL-03, D-05).
 - Cập nhật mục 6 của spec nếu tham số đổi khi viết plan.
+- Firebase bỏ `ad_placement` khi rỗng, AppsFlyer gửi `""`; luật `latency_ms`; không có vị trí thì không ghi cơ hội; `load_state` chụp lúc quyết định, `ready`/`idle` theo A 06:203; bảng vị trí của lượt nạp; lượt dò trạng thái không đo (mục 8.2).
+- Giá trị `ad_placement` là mã vị trí trong `AdPlacement` (MC-01).
+- Test nghiệm thu gợi ý: `AT-DL-*` phần Firebase (`06-do-luong.md`).
 
 **Không bao gồm:**
 

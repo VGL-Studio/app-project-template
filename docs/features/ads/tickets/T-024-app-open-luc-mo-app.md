@@ -26,6 +26,8 @@ Màn loading chờ đồng ý, SDK và quảng cáo mở app với các trần c
 - Hàm hiện có cổng của `:core:ads` cho vỏ app; vỏ app không gọi SDK.
 - Màn loading (`:feature:loading`) và `AppNavHost` nối luồng; test Robolectric dựng vỏ app (L-051).
 - Ghi chú vào ADR-0018 về thời gian chờ khi khóa bật (câu hỏi 12).
+- Màn loading dò bằng "nạp nếu cần", lượt dò không đo (A-04, HD-06); chỉ bỏ đúng app open vừa chiếu (A-09); hàm ba tham số trả "đã hiện inter hay không" (A-02).
+- Test nghiệm thu gợi ý: `AT-AOA-*`.
 
 **Không bao gồm:**
 

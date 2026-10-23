@@ -25,6 +25,10 @@ Một cổng chung cho quảng cáo toàn màn hình theo `docs/ops/ads-business
 - Thay bộ tần suất của T-009 bằng mốc `ads_interval` theo I-01 tới I-05; test đổi giờ hệ thống không ảnh hưởng (AR-01).
 - Hồi phục kẹt: test thứ tự che rồi hiện lại (F-03).
 - Bộ đếm chặn và ba cách dùng; `MainActivity` và giao diện gốc nối theo G-04, có test Robolectric dựng vỏ app (L-051).
+- Nhóm giãn cách (MC-04): nhóm mặc định dùng `ads_interval`, nhóm riêng dùng `ads_interval_<nhóm>` và mốc riêng; `ignoreInterval`, `recordInterval` là thuộc tính của vị trí, không phải tham số của từng lượt gọi; quan hệ giữa các nhóm theo câu hỏi 30. Test: inter của nhóm riêng không dời mốc chung.
+- Hoàn tất cưỡng bức khi Activity giao cho inter bị hủy (N-04, HD-03); tín hiệu "đã rời màn" bị tiêu sau lần dùng đầu (F-03); gỡ cờ kẹt chạy trước hỏi lại đồng ý (G-06).
+- "Đã sẵn sàng chưa" không nạp, "nạp nếu cần" tôn trọng lịch thử lại (F-04).
+- Test nghiệm thu gợi ý: `AT-FS-*`, `AT-INT-*`, `AT-SP-*`, `AT-HD-*`.
 
 **Không bao gồm:**
 

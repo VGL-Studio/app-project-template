@@ -24,6 +24,7 @@ Màn xem thử chỉ ở staging (T-014) thêm nút gọi app open, combo inter 
 
 - Vị trí `gallery_*` cho định dạng mới.
 - Screenshot test theo thiết kế.
+- Một vị trí `gallery_rw_action` minh họa ba chính sách của hành động có điều kiện, nếu câu hỏi 13 chọn như đề xuất.
 
 **Không bao gồm:**
 

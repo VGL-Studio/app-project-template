@@ -18,12 +18,13 @@ created: 2026-10-23
 
 ## Mô tả
 
-Component native trong file thiết kế của dự án mẫu vẽ lại theo kích thước của AdsKit (`docs/ops/ads-business-rules.md`, mục 5.7): khe đáy 56 dp, thu gọn 250 dp với nút 32 dp, giới thiệu 250 dp, toàn màn hình, native sau inter có nút đóng 36 dp, ô lưới thẻ dọc, medium. Màu và chữ theo token. Cập nhật `docs/features/ads/design/` (ảnh và `context/`).
+Component native trong file thiết kế của dự án mẫu vẽ lại theo kích thước của AdsKit (`docs/ops/ads-business-rules.md`, mục 5.7): khe đáy 80 dp, thu gọn 250 dp với nút 32 dp, thẻ ở bước của luồng 250 dp, toàn màn hình, native sau inter có nút đóng 36 dp, ô lưới thẻ dọc, medium. Màu và chữ theo token. Cập nhật `docs/features/ads/design/` (ảnh và `context/`).
 
 ## Phạm vi
 
 - Dựng theo `docs/ops/design-workflow.md`; người duyệt.
 - Ghi rõ ảnh thiết kế nào thay ảnh của đợt 2 để các ticket code ghi lại ảnh chuẩn.
+- Khe đáy native nhỏ vẽ 80 dp (câu hỏi 22); thẻ ở bước của luồng và ô trong tập hợp đặt tên chung, không theo màn của một app.
 
 **Không bao gồm:**
 

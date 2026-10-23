@@ -25,6 +25,9 @@ Thêm SDK AppsFlyer vào `:core:analytics` theo ADR-0027: khóa dev qua tham s�
 - Thư viện mới trong `gradle/libs.versions.toml`; so quyền manifest gộp trước và sau, ghi vào spec mục 6.
 - Bản không gửi khi thiếu khóa; test không gọi SDK.
 - Không bao giờ gửi `af_revenue`; test chặn.
+- Công tắc từ xa cho từng sự kiện (`is_log_af_*`, mặc định bật, hiệu lực từ sự kiện kế tiếp; câu hỏi 27); `monetization_network` rỗng khi SDK không báo; `ad_placement` là `""` khi chưa có.
+- Ghi vào `ads-guide.md` mục 9 việc báo nhóm UA trước khi phát hành (HD-07).
+- Test nghiệm thu gợi ý: `AT-DL-*` phần AppsFlyer.
 
 **Không bao gồm:**
 

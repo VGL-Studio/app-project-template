@@ -25,6 +25,9 @@ created: 2026-10-23
 - Kế hoạch nạp sẵn: lớp thuần, test thứ tự nhóm và trần 6 giây với đồng hồ giả.
 - Luật thử lại toàn màn hình và native là hàm thuần có test biên.
 - Nạp lại khi mạng về (gộp 3 giây), đặt lại thời gian chờ của native; nạp bù native khi Activity chính hiện lại (S-25).
+- Hỏi cổng ngay trước khi gửi; lượt bị chặn lúc gửi không tính là lỗi, không hẹn thử lại (S-15); hai ngoại lệ không giữ lượt nạp sẵn và lệnh nạp sẵn khi quyền là "không" (S-23); chuẩn bị yêu cầu lỗi là lỗi mã 0 (O-09).
+- Kế hoạch nạp sẵn mặc định suy ra từ danh sách vị trí, `:app` đặt lại trong `Application` trước khi đồng ý có kết quả (HD-02).
+- Test nghiệm thu gợi ý: `AT-KD-*`, phần thử lại của `AT-FS-*` và `AT-NT-*`.
 
 **Không bao gồm:**
 

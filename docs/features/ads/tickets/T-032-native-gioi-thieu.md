@@ -1,6 +1,6 @@
 ---
 id: T-032
-title: Native trên luồng giới thiệu
+title: Native ở một bước của luồng (giới thiệu và luồng khác)
 feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-20]
@@ -14,7 +14,7 @@ plan:
 created: 2026-10-23
 ---
 
-# T-032: NATIVE TRÊN LUỒNG GIỚI THIỆU
+# T-032: NATIVE Ở MỘT BƯỚC CỦA LUỒNG (GIỚI THIỆU VÀ LUỒNG KHÁC)
 
 ## Mô tả
 
@@ -24,6 +24,9 @@ Native giới thiệu cao 250 dp từ pool 3 quảng cáo (đặt ngoài pager) 
 
 - Composable native giới thiệu và native toàn trang; chặn quảng cáo tự hiện khi trang native đang hiện.
 - Screenshot test theo thiết kế vẽ lại (T-035).
+- Native ở bước của luồng theo mô hình chung (MC-06): định dạng `native_step` (thẻ 250 dp, pool) và `native_fullscreen` (cả trang); một vị trí cho cả luồng, bước có quảng cáo do spec của app chọn (câu hỏi 32); luồng giới thiệu dùng vị trí `native_onboarding` (khóa `is_show_native_onboarding`). Không có composable mang tên "onboarding" hay số trang.
+- Khe của bước đầu xếp ở nhóm nạp sẵn đầu (HD-02).
+- Test nghiệm thu gợi ý: `AT-NT-*` phần pool và bước của luồng.
 
 **Không bao gồm:**
 
