@@ -106,7 +106,7 @@ Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). 
 ## 8. Thử trên staging
 
 - Staging luôn dùng mã thử của Google (ADR-0013).
-- Bản staging dùng Firebase giả nên Remote Config không trả gì: tới khi có giá trị cục bộ cho staging (ADR-0023, đợt 2), quảng cáo không hiện trên staging.
+- Bản staging dùng Firebase giả nên Remote Config không trả gì: staging bật mọi vị trí của `AdPlacement` bằng giá trị cục bộ (`StagingRemoteValuesModule`); Firebase staging vẫn tắt được từng vị trí.
 - Hộp thoại đồng ý: staging giả lập vùng EEA để thấy hộp thoại.
 - Kiểm theo mục 4 và mục 2 trên máy thật: nhãn, AdChoices, khoảng cách tới nút, giữ chỗ khi tải, khi không có quảng cáo, chế độ tối.
 

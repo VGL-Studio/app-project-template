@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho dev, AI và người vận hành. Nó nói cách đặt tên, khai báo, thử và đổi các giá trị cấu hình từ xa qua Firebase Remote Config. Quyết định nằm ở ADR-0003 (cờ tính năng và tham số kinh doanh), ADR-0012 (nối Firebase), ADR-0014 (giá trị mặc định của quảng cáo), ADR-0018 (chờ cấu hình ở màn hình loading) và ADR-0023 (quy ước khóa).
 
-Các phần ghi **(đợt 2)** cần code chưa có: giá trị cục bộ cho staging (`:core:config`) và công tắc tổng `ads_enabled` (đã khai báo trong `:core:ads` nhưng chưa được đọc).
+Các phần ghi **(đợt 2)** cần code chưa có: công tắc tổng `ads_enabled` (đã khai báo trong `:core:ads` nhưng chưa được đọc).
 
 ## 1. Khóa dùng để làm gì
 
@@ -30,13 +30,15 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
    - Tham số khác: một `RemoteKey` trong module core sở hữu, đọc qua `RemoteSettings.value(key)`. Module core mới có khóa thì thêm vào `AppRemoteKeys` (`:app`).
 3. **Sinh lại bảng khóa** `docs/remote-config-keys.md` và file mẫu `docs/remote-config-template.json` bằng lệnh `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true`, commit cùng PR. Quên thì `RemoteConfigKeysTest` trong `scripts/check.sh` báo lỗi.
 4. **Test:** giá trị mặc định có test (như `AdsSettingsTest`, test mặc định tắt của `FeatureFlag`); ViewModel dùng nguồn cờ giả.
-5. **Staging:** cần thấy tính năng trên staging thì bật trong `app/src/staging` (`StagingFeatureFlagsModule` cho cờ; giá trị cục bộ cho tham số khác ở đợt 2).
+5. **Staging:** cần thấy tính năng trên staging thì khai báo trong `app/src/staging`: cờ thêm vào `StagingFeatureFlagsModule`; tham số khác thêm một phần tử `LocalRemoteValue.of(<khóa>, <giá trị>)` vào tập trong `StagingRemoteValuesModule` (qualifier `@LocalRemoteValues` của `:core:config`). Mỗi khóa chỉ một giá trị cục bộ; trùng tên thì app dừng ngay khi khởi tạo. Production không có module này nên không có giá trị cục bộ nào.
 
 ## 4. Đọc giá trị trong app
 
 - Đọc giá trị đã kích hoạt, không chờ mạng (ADR-0012). Giá trị mới tới qua lần tải sau hay qua cập nhật thời gian thực; feature theo dõi `Flow`, không đọc một lần.
 - Chỉ màn hình loading chờ tải cấu hình lần đầu, có giới hạn thời gian (ADR-0018).
-- Thứ tự ưu tiên: giá trị bật riêng cho bản build (staging) > giá trị từ Firebase > mặc định trong code.
+- Thứ tự ưu tiên khác nhau giữa cờ và tham số:
+  - Cờ tính năng: cờ bật riêng cho bản build (`StagingFeatureFlagsModule`) luôn bật, Firebase không tắt được; cờ khác theo giá trị từ Firebase, rồi mặc định trong code (tắt).
+  - Tham số (`RemoteSettings`, kể cả khóa quảng cáo): giá trị từ Firebase > giá trị cục bộ của bản build (`StagingRemoteValuesModule`, chỉ staging) > mặc định trong code (ADR-0023, mục 5). Firebase staging vì vậy vẫn đổi được tham số và tắt được từng vị trí quảng cáo trên staging.
 
 ## 5. Đổi giá trị trên Firebase
 
@@ -48,6 +50,7 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 4. **Bấm Publish** và kiểm trên một máy (DebugView hay log của app).
 5. **Quay về:** dùng lịch sử phiên bản của Remote Config trên Firebase; ghi lần quay về vào sổ.
 6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt `ads_enabled` (đợt 2) hay khóa của vị trí, rồi mới tìm nguyên nhân.
+7. **Project staging chỉ đặt khóa muốn đổi**, không nhập cả file mẫu `docs/remote-config-template.json`. File mẫu đặt mọi vị trí quảng cáo `false`, mà giá trị từ Firebase thắng giá trị cục bộ, nên nhập file là mất quảng cáo trên staging.
 
 ## 6. Thử nghiệm A/B
 
