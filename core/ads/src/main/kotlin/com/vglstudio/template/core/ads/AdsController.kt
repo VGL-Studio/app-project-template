@@ -114,10 +114,7 @@ class AdsController @Inject internal constructor(
         withContext(Dispatchers.Main.immediate) {
             require(placement.format == AdFormat.INTERSTITIAL) { "${placement.key} is not a full-screen placement" }
             if (!canRequestAds.value || !isEnabled(placement).first()) return@withContext false
-            val minIntervalMillis = settings.long(
-                AdsSettings.INTERSTITIAL_MIN_INTERVAL_SECONDS,
-                AdsSettings.INTERSTITIAL_MIN_INTERVAL_SECONDS_DEFAULT,
-            ).first() * 1_000
+            val minIntervalMillis = settings.value(AdsSettings.INTERSTITIAL_MIN_INTERVAL_SECONDS).first() * 1_000
             val deadline = SystemClock.elapsedRealtime() + FullScreenAdGuard.MAX_WAIT_MILLIS
             while (true) {
                 val now = SystemClock.elapsedRealtime()
@@ -147,7 +144,7 @@ class AdsController @Inject internal constructor(
         }
 
     internal fun isEnabled(placement: AdPlacement): Flow<Boolean> =
-        settings.boolean(AdsSettings.placementEnabledKey(placement), AdsSettings.PLACEMENT_ENABLED_DEFAULT)
+        settings.value(AdsSettings.placementEnabled(placement))
 
     internal fun unitId(placement: AdPlacement): String? = unitIds.of(placement).also {
         if (it == null) Log.e(TAG, "No ad unit for placement ${placement.key}; it shows no ad")
@@ -156,10 +153,7 @@ class AdsController @Inject internal constructor(
     internal suspend fun adRequest(): AdRequest {
         val nonPersonalized = requestsNonPersonalizedAds(
             inRegulatedRegion = privacyOptionsRequired.value,
-            personalizedInRegulatedRegions = settings.boolean(
-                AdsSettings.PERSONALIZED_IN_REGULATED_REGIONS,
-                AdsSettings.PERSONALIZED_IN_REGULATED_REGIONS_DEFAULT,
-            ).first(),
+            personalizedInRegulatedRegions = settings.value(AdsSettings.PERSONALIZED_IN_REGULATED_REGIONS).first(),
         )
         val builder = AdRequest.Builder()
         if (nonPersonalized) {
