@@ -38,7 +38,7 @@ Lưu ý: test trên emulator (`app/src/androidTest`) chạy trong CI trên API 3
 3. Đẩy lên: `git remote add origin git@github.com:<tổ chức>/<repo>.git`, rồi `git push -u origin main`.
 4. Trong **Settings > Actions > General** của repo, kiểm tra Actions được phép chạy.
 
-Kiểm tra: tab **Actions** có workflow `main-guard` chạy cho commit đầu tiên và xanh. Nhãn `main-broken` được workflow tự tạo khi cần, không phải tạo tay.
+Kiểm tra: tab **Actions** có workflow `main-guard` chạy cho commit đầu tiên và xanh. Nhãn `main-broken` và `flaky` được workflow tự tạo khi cần, không phải tạo tay.
 
 Quy tắc: mọi PR vào `main` chỉ merge bằng `scripts/merge-if-green.sh <số PR>`, cả người lẫn AI (ADR-0010). Gói GitHub Free không chặn nút merge, nên đây là quy ước nhóm phải giữ.
 

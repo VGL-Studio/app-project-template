@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Merges a PR into the main branch, only when it passes the whole quality gate (ADR-0010).
+# Merges a PR into the main branch, only when it passes the whole quality gate (ADR-0010, ADR-0025).
 # This is the ONLY allowed way to merge into main, for people and AI alike.
 #
 # Usage:       scripts/merge-if-green.sh <PR number> [--dry-run | --update]
@@ -99,7 +99,7 @@ check_one() {
 evaluate() {
   RESULT="ready"
   MESSAGE=""
-  local pr_json state draft base broken run_branches run_branch run_id run_status behind_by failed c
+  local pr_json state draft base broken broken_json refuse_broken culprit revert_check run_branches run_branch run_id run_status behind_by failed c
 
   pr_json="$(gh api "repos/$REPO/pulls/$PR")"
   state="$(jq -r .state <<<"$pr_json")"
@@ -118,16 +118,36 @@ evaluate() {
   fi
   [[ "$base" == "$BASE_BRANCH" ]] || die "PR #$PR nhắm vào '$base', không phải '$BASE_BRANCH'."
 
-  # While main is broken (an open issue labelled main-broken, created by main-guard.yml), nothing is merged,
-  # with no exceptions. To merge a fix or a revert, a person closes the issue first (ADR-0010).
-  broken="$(gh api "repos/$REPO/issues?state=open&labels=main-broken&per_page=10" --jq '[.[].number] | join(",")')"
+  # While main is broken (an open issue labelled main-broken, created by main-guard.yml), nothing is merged
+  # (ADR-0010), with one exception (ADR-0025, point 3): a PR that is exactly the revert of the blamed commit.
+  # The content is checked, not the branch name: one commit right on top of the latest main whose file tree is
+  # what `git revert <culprit>` gives there (scripts/is-exact-revert.sh). Every other condition below still applies.
+  # IS_EXACT_REVERT replaces that script in the tests only.
+  broken_json="$(gh api "repos/$REPO/issues?state=open&labels=main-broken&per_page=10" --jq '[.[] | {number, body}]')"
+  broken="$(jq -r '[.[].number] | join(",")' <<<"$broken_json")"
+  EXACT_REVERT="no"
   if [[ -n "$broken" ]]; then
-    die "nhánh chính đang đỏ (mục mang nhãn main-broken: #$broken). Người phụ trách xử lý và đóng mục đó rồi mới merge tiếp."
+    refuse_broken="nhánh chính đang đỏ (mục mang nhãn main-broken: #$broken). Người phụ trách xử lý và đóng mục đó rồi mới merge tiếp."
+    [[ "$(jq length <<<"$broken_json")" == "1" ]] || die "$refuse_broken"
+    culprit="$(jq -r '.[0].body // "" | capture("<!-- culprit:(?<s>[0-9a-f]+) -->").s // ""' <<<"$broken_json")"
+    [[ -n "$culprit" ]] || die "$refuse_broken Mục #$broken không ghi commit gây lỗi."
+    # The PR head by its pull ref; if a proxy (cloud session) refuses that ref, by its branch name.
+    git fetch -q origin "+refs/pull/$PR/head:refs/merge-if-green/pr" "+refs/heads/$BASE_BRANCH:refs/merge-if-green/main" 2>/dev/null \
+      || git fetch -q origin "+refs/heads/$HEAD_REF:refs/merge-if-green/pr" "+refs/heads/$BASE_BRANCH:refs/merge-if-green/main" 2>/dev/null \
+      || die "$refuse_broken Không lấy được commit của PR #$PR để kiểm có phải bản revert không."
+    [[ "$(git rev-parse refs/merge-if-green/pr)" == "$HEAD_SHA" ]] \
+      || die "$refuse_broken Commit lấy về của PR #$PR khác ${HEAD_SHA:0:7}; gọi lại sau."
+    if ! revert_check="$("${IS_EXACT_REVERT:-$(dirname "$0")/is-exact-revert.sh}" "$culprit" "$HEAD_SHA" refs/merge-if-green/main)"; then
+      die "$refuse_broken $revert_check"
+    fi
+    echo "BẢN REVERT ĐÚNG: PR #$PR là bản revert của ${culprit:0:7}; vẫn kiểm mọi điều kiện còn lại." >&2
+    EXACT_REVERT="yes"
   fi
 
   # While an auto-run session runs, main must not move: only that session's own PRs (its task branches and its
-  # report branch) are merged (docs/auto-run.md, section 1). A session is running when its report branch holds its
-  # run file with status "running". Stale report branches of finished sessions do not block anything.
+  # report branch) are merged (docs/auto-run.md, section 1), plus the exact revert checked above, which the session
+  # merges to bring main back (ADR-0025, point 4). A session is running when its report branch holds its run file
+  # with status "running". Stale report branches of finished sessions do not block anything.
   run_branches="$(gh api "repos/$REPO/branches?per_page=100" --paginate \
     --jq '.[].name | select(test("^claude/RUN-[0-9]{8}-[0-9]{2}-report$"))')"
   for run_branch in $run_branches; do
@@ -137,7 +157,7 @@ evaluate() {
       -H "Accept: application/vnd.github.raw" 2>/dev/null || true; } \
       | sed -n '/^---$/,/^---$/s/^status:[[:space:]]*\([a-z]*\).*/\1/p' | head -n 1)"
     [[ "$run_status" == "running" ]] || continue
-    if [[ "$HEAD_REF" != "$run_branch" && "$HEAD_REF" != claude/T-[0-9]* ]]; then
+    if [[ "$HEAD_REF" != "$run_branch" && "$HEAD_REF" != claude/T-[0-9]* && "$EXACT_REVERT" != "yes" ]]; then
       die "phiên $run_id đang chạy. Trong lúc phiên chạy chỉ merge PR của chính phiên đó (docs/auto-run.md, mục 1). Chờ phiên kết thúc rồi gọi lại."
     fi
   done
