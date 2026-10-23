@@ -324,3 +324,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến (đề xuất, chưa làm):** `docs/auto-run.md` bước 7 (danh sách lệnh REST) thêm cách đọc PR và file của repo khác; `docs/ops/from-app.md` ghi plan lấy code từ app dùng `gh api`, không dùng `gh pr diff`.
 - **Trạng thái:** proposed
 - **Áp dụng:**
+
+### L-064. GitHub không chạy job (hết hạn mức) hay không chạy CI cho PR xung đột, phiên hiểu thành CI đỏ hoặc chờ 40 phút
+
+- **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-046, L-048 của app, issue #106)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** tổ chức hết hạn mức GitHub Actions: mọi job đỏ mà 0 bước, `wait-run.sh` chỉ báo `ĐỎ`; phiên sẽ sửa code hay revert vô ích. PR xung đột với nhánh chính không có lần chạy `pull_request` nào, `wait-run.sh --pr` chờ trọn 40 phút.
+- **Cải tiến:** `wait-run.sh` báo `HẠ TẦNG` (mã 4) khi mọi job đỏ đều chưa chạy bước nào, kèm chú thích của GitHub; báo `XUNG ĐỘT` (mã 5) khi PR `dirty` mà chưa có lần chạy. `auto-run.md`: mã 4 thì kết thúc phiên, giữ `running` để `resume-run.yml` tiếp tục, rồi chạy lại các lần chạy bị bỏ; mã 5 thì gộp nhánh chính. Có test.
+- **Trạng thái:** proposed
+- **Áp dụng:** nhánh `claude/from-camera-pose-wait-run-ha-tang`
