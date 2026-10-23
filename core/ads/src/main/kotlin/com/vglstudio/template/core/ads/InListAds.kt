@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,6 +54,14 @@ class InListAds internal constructor(
     /** Current N, or null while no ad row may be added. */
     val every: Int? get() = everyState.value
 
+    init {
+        // Consent withdrawn or placement switched off while the screen is open: the rows go away, so do their ads.
+        // Slots load again if ads are allowed again later.
+        scope.launch {
+            snapshotFlow { everyState.value }.collect { if (it == null) release() }
+        }
+    }
+
     /** The ad of the [index]-th ad row of the list: loaded on the first call, then the same state every time. */
     internal fun slot(index: Int): State<NativeAdState> {
         slots[index]?.let { return it }
@@ -76,6 +85,11 @@ class InListAds internal constructor(
     /** Destroys every loaded ad and cancels the loads still running. Called when the screen is left. */
     internal fun destroyAll() {
         destroyed = true
+        release()
+    }
+
+    /** Destroys every loaded ad and cancels the running loads; later calls to [slot] load again. */
+    private fun release() {
         loads.values.forEach { it.cancel() }
         loads.clear()
         slots.values.forEach { state -> (state.value as? NativeAdState.Loaded)?.ad?.destroy() }
@@ -130,7 +144,7 @@ fun rememberInListAds(placement: AdPlacement): InListAds {
 }
 
 /**
- * Adds [items] to a LazyColumn or LazyRow with a native ad row after every N items of [ads] (never first, never last).
+ * Adds [items] to a LazyColumn (vertical lists only) with a native ad row after every N items of [ads] (never first, never last).
  * The ad rows have their own keys and content type, so they never clash with the keys of [items].
  */
 fun <T> LazyListScope.itemsWithInListAds(
@@ -177,7 +191,7 @@ internal fun <T> LazyListScope.itemsWithInListAds(
 }
 
 /**
- * Adds [items] to a LazyVerticalGrid or LazyHorizontalGrid of [columns] columns, with a full-width ad row after every
+ * Adds [items] to a LazyVerticalGrid (vertical grids only) of [columns] columns, with a full-width ad row after every
  * N items of [ads], N rounded up to whole rows ([gridAdEvery]). The grid does not tell its column count while the list
  * is built, so the caller passes it.
  */
