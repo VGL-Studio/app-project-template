@@ -389,6 +389,20 @@ expect "plan-check: a library missing from the catalog stops" stop "$(plan_check
 expect "plan-check: names the missing library" 1 "$(grep -c 'com.squareup.okhttp3:okhttp' "$work/plan-check.out")"
 write_plan "$plans/T-927-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Dùng `androidx.core:core-ktx` (`libs.androidx.core.ktx`).'
 expect "plan-check: a library already in the catalog passes" pass "$(plan_check "$plans/T-927-a.md")"
+# A plan smaller than its feature declares the design images another ticket draws; they need no screenshot here.
+# shellcheck disable=SC2016
+write_plan "$plans/T-928-a.md" medium draft "$(row Sửa feature/demo/A.kt)" \
+  'Chạy scripts/design-compare.sh demo. Ảnh thiết kế của ticket khác (T-930): `DemoScreen_main_light`.'
+expect "plan-check: a design image of another ticket passes" pass "$(plan_check "$plans/T-928-a.md")"
+# shellcheck disable=SC2016
+write_plan "$plans/T-929-a.md" medium draft "$(row Sửa feature/demo/A.kt)" \
+  'Chạy scripts/design-compare.sh demo. Ảnh thiết kế của ticket khác (T-930): `DemoScreen_typo_light`.'
+expect "plan-check: an unknown image of another ticket stops" stop "$(plan_check "$plans/T-929-a.md")"
+expect "plan-check: names the unknown image" 1 "$(grep -c 'DemoScreen_typo_light' "$work/plan-check.out")"
+# shellcheck disable=SC2016
+write_plan "$plans/T-930-a.md" medium draft "$(row Sửa feature/demo/A.kt)" \
+  'Chạy scripts/design-compare.sh demo. Ảnh thiết kế của ticket khác: `DemoScreen_main_light`.'
+expect "plan-check: images of another ticket without the ticket id stop" stop "$(plan_check "$plans/T-930-a.md")"
 rm "$repo/feature/demo/AndroidManifest.xml" "$repo/app/src/main/AndroidManifest.xml" "$repo/gradle/libs.versions.toml"
 
 # run-check.py checks a whole run list: specs confirmed and answered, dependencies in order, scenarios tested.
