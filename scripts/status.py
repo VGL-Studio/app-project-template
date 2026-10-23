@@ -122,11 +122,23 @@ def lessons():
     found = []
     for block in re.split(r"^### ", path.read_text(), flags=re.M)[1:]:
         title = block.splitlines()[0]
-        status = re.search(r"^- \*\*Trạng thái:\*\*\s*(\S+)", block, re.M)
-        if re.match(r"L-\d+\.", title):
-            found.append({"id": title.split(".", 1)[0], "title": title.split(".", 1)[1].strip(),
+        # "L-001. Title" (template) or "L-001: Title" (some apps); the status may be followed by ". **Loại:** ..." (L-057).
+        heading = re.match(r"(L-\d+)[.:]\s*(.*)", title)
+        status = re.search(r"^- \*\*Trạng thái:\*\*\s*([a-z]+)", block, re.M)
+        if heading:
+            found.append({"id": heading.group(1), "title": heading.group(2).strip(),
                           "status": status.group(1) if status else ""})
     return found
+
+
+def duplicate_lessons(all_lessons):
+    """Lesson numbers used more than once, as when two branches add lessons at the same time (L-056)."""
+    seen, twice = set(), []
+    for lesson in all_lessons:
+        if lesson["id"] in seen and lesson["id"] not in twice:
+            twice.append(lesson["id"])
+        seen.add(lesson["id"])
+    return twice
 
 
 def adrs():
@@ -272,6 +284,11 @@ def sync():
 
 
 def main(argv):
+    twice = duplicate_lessons(lessons())
+    if twice:
+        print(f"docs/lessons.md: LỖI: số bài học dùng hai lần: {', '.join(twice)}. Đổi số bài học thêm sau "
+              "(và mọi chỗ nhắc tới nó) thành số tiếp theo của sổ.", file=sys.stderr)
+        return 1
     if "--sync" in argv[1:]:
         sync()
     page = render()
