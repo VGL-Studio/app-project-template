@@ -1,7 +1,7 @@
 ---
 ticket: T-016
 title: Theo dõi có Internet dùng được, dùng chung cho cả app
-status: approved
+status: done
 version: 2
 risk_score:                  # để trống: chạm điểm chặn (core, permission)
 risk_level: high
@@ -272,3 +272,15 @@ Phiên bản 2:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-016-theo-doi-ket-noi`, PR #103, merge commit `c77076e` lúc 10:25 UTC
+- **Đã làm:** module mới `:core:network` (khung module, `ConnectivitySource` và `AndroidConnectivitySource` đòi `INTERNET` và `VALIDATED`, `lostAfterDelay`, `NetworkSettings` với khóa `network_lost_delay_seconds`, `NetworkModule`); sinh lại bảng khóa; thêm dòng `:core:network` vào bảng module của `CLAUDE.md`. 5 commit theo mục 3.1. Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 15 test (8 `LostAfterDelayTest`, 4 `AndroidConnectivitySourceTest`, 2 `NetworkSettingsTest`, 1 `RemoteConfigKeysTest.networkKeys_areListed`), commit `2319569` trước code. Commit test không biên dịch được, đúng dự kiến (`Unresolved reference 'hasUsableInternet'`, `'AndroidConnectivitySource'`, `'lostAfterDelay'`, `'NetworkSettings'`...). Với khung tạm không commit, cả 15 test thất bại ở phần khẳng định (`expected:<[2000]> but was:<[]>`, `Expected item but found Complete`...). 3 test có bước đối chứng (L-055): `flapping_emitsNothing`, `backOnlineDuringDelay_cancelsLoss`, `onlineSource_neverEmits`. Sau commit code, hai test bảng khóa thất bại vì thiếu khóa mới trong file, sinh lại thì qua.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: `AndroidConnectivitySourceTest` dòng 66 đến 71 vẫn qua nếu mạng chưa xác thực bị coi là có mạng (`distinctUntilChanged` nuốt giá trị sau), nên thêm `expectNoEvents()`; ánh xạ đã có test riêng; `onlineSource_neverEmits` chứng minh ít (KB-3 do thiết kế bảo đảm); `FakeRemoteSettings` chưa dùng, để T-017; `seconds * 1_000` chỉ tràn với giá trị phi lý.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (276 test JVM, 0 lỗi); `pr-check.yml` xanh lần đầu (39938005840).
+- **Lệch so với plan:** thêm dòng `import kotlinx.coroutines.test.currentTime` còn thiếu trong `LostAfterDelayTest` trước khi commit test. Plan ghi manifest gộp có 10 quyền; thực tế 11 dòng (tính cả `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`), trước và sau giống hệt; `ACCESS_NETWORK_STATE` đã có sẵn. Không dùng phương án dự phòng: shadow `setNetworkCapabilities` của Robolectric 4.15.1 với `sdk=35` chạy được ngay.
+- **Việc còn lại:** hành vi trên máy dời sang T-017 (chưa có nơi thu thập luồng kết nối).
+- **Cần người xem:** `zeroOrNegativeDelay_emitsAtOnce` giữ đúng hành vi nhưng không bắt được việc quên `coerceAtLeast(0)` (`delay` coi số âm như 0).

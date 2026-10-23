@@ -1,7 +1,7 @@
 ---
 ticket: T-008
 title: Giá trị Remote Config cục bộ cho bản staging
-status: approved            # draft | approved | stopped | done
+status: done                # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -221,3 +221,15 @@ Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-10-23):
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261023-01, phiên bản plan 2
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-008-gia-tri-cuc-bo-cho-staging`, PR #99, merge commit `ec3e506` lúc 08:46 UTC
+- **Đã làm:** `LocalRemoteValue` và qualifier trong `:core:config`; `DefaultRemoteSettings` đọc Firebase, rồi giá trị cục bộ, rồi mặc định; production nhận tập rỗng qua `@Multibinds`; `StagingRemoteValuesModule` bật mọi vị trí quảng cáo trên staging; cập nhật `docs/ops/remote-config.md`, `docs/ops/ads-guide.md`. Bước 3 đến 5 do phiên con làm.
+- **Test viết trước:** 10 test (7 trong `DefaultRemoteSettingsTest`, 2 trong `StagingRemoteValuesModuleTest`, 1 `LocalRemoteValuesSourceSetTest`), commit `c013e0b` trước code. Trước khung rỗng: không biên dịch được (`Unresolved reference 'LocalRemoteValue'`). Commit test kèm khung rỗng (`LocalRemoteValue`, tham số `localValues` chưa dùng, `@Multibinds` vì Hilt báo `MissingBinding`, bộ giá trị staging rỗng): 9 test thất bại ở phần khẳng định; `withoutLocalValues_readsRemoteThenDefault_asBefore` qua ngay, đúng plan (giữ hành vi production). 2 test có bước đối chứng (L-055). Lần thử của plan: một file tạm nhắc qualifier trong `app/src/main` (không commit) làm test quét mã nguồn thất bại với `found: [src/main/kotlin/com/vglstudio/template/TmpProbe.kt]`.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: ép kiểu không kiểm tra trong `RemoteSettings.kt` khi giá trị cục bộ trùng tên một khóa khác kiểu ngoài `AppRemoteKeys` (nguy cơ thấp); test quét mã nguồn dò chuỗi chữ, một source set test tương lai nhắc qualifier sẽ bị báo nhầm; lần thử tạm ghi ở nhật ký này; kiểm tra thủ công bản staging chưa làm.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua (157 test JVM, 0 lỗi); `pr-check.yml` xanh lần đầu (39926062466).
+- **Lệch so với plan:** không có. Chi tiết: kiểm trùng tên bằng `require` trong `groupBy`; `@Suppress("UNCHECKED_CAST")` đặt trên hàm `value()` cho ktlint.
+- **Việc còn lại:** không có.
+- **Cần người xem:** kiểm tra thủ công mục 4 (bản staging dựng từ file Firebase giả, chấp nhận hộp thoại đồng ý, mở màn hình mẫu: có quảng cáo thử ở `sample_bottom_banner`, log `VGL.` không báo vị trí tắt); lời văn mới của `docs/ops/remote-config.md` mục 3 bước 5, mục 4 (hai thứ tự), mục 5 bước 7.

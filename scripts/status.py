@@ -13,6 +13,8 @@ Usage: scripts/status.py [--check | --sync]
 Every status comes from the front matter of requests, specs, tickets, plans, feedback, ADRs and run lists, and from
 the "Trạng thái" lines of docs/lessons.md. Nobody edits STATUS.md by hand: change the document, then run the script.
 The page has no date or time, so running it twice on the same documents gives the same file.
+The page is not in git on main (.gitignore): .github/workflows/status-page.yml runs this script after each push to
+main and pushes the page to the `status` branch (L-066). Run it locally to preview the page.
 STATUS_ROOT overrides the repository root (tests). The page is in Vietnamese for the team.
 """
 
@@ -296,8 +298,8 @@ def main(argv):
         if OUTPUT.is_file() and OUTPUT.read_text() == page:
             print("docs/STATUS.md khớp với tài liệu.")
             return 0
-        print("docs/STATUS.md chưa khớp với tài liệu. Chạy scripts/status.py để xem trang mới; chỉ commit trang "
-              "trong PR báo cáo của phiên hay PR trang tiến độ (docs/CLAUDE.md, mục Trang tiến độ).")
+        print("docs/STATUS.md chưa khớp với tài liệu. Chạy scripts/status.py để sinh lại trang; trang không có trong git, "
+              "status-page.yml sinh nó trên nhánh status (docs/CLAUDE.md, mục Trang tiến độ).")
         return 1
     OUTPUT.write_text(page)
     print("Đã ghi docs/STATUS.md.")
