@@ -176,10 +176,10 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 - **Ngày, nguồn:** 2026-10-22, app camera-pose (bài học L-029, L-033 của app, issue #79)
 - **Loại, phạm vi:** môi trường, chung
-- **Chuyện gì:** một screenshot test chụp trạng thái có vòng chờ chạy mãi thất bại một lần trên `main-guard`, xanh ở PR, ở cục bộ và khi chạy lại. Một lần đỏ đó mở `main-broken`, phiên kết thúc khi mới xong 2 trên 7 task.
+- **Chuyện gì:** một screenshot test chụp trạng thái có vòng chờ chạy mãi thất bại một lần trên `main-guard`, xanh ở PR, ở cục bộ và khi chạy lại. Một lần đỏ đó mở `main-broken`, phiên kết thúc khi mới xong 2 trên 7 task. Nguyên nhân, đo ở app: `captureRoboImage(path) { ... }` chờ luồng chính rảnh mà không có giới hạn; vòng chờ chạy mãi nên Robolectric vẽ khung hình khoảng 4 phút tới khi máy test hết bộ nhớ rồi mới chụp. Với bộ nhớ test mặc định, 5 lần qua; với 1g và 384m, ảnh lệch và test thất bại. Chụp bằng `runComposeUiTest` với đồng hồ dừng ở mốc cố định: 7 trên 7 lần qua với ba cỡ bộ nhớ, test chạy 0,25 giây.
 - **Cải tiến (đề xuất, chưa làm):** `main-guard.yml`: khi bước kiểm tra đỏ chỉ vì test thất bại, chạy lại riêng các test đó một lần trên cùng commit; xanh thì không mở `main-broken` mà mở hoặc bình luận vào issue `flaky` ghi tên test, để sửa test trong một ticket thường; vẫn đỏ thì làm như hiện nay. ADR-0010 mục 2 thêm quy tắc này; cần plan rủi ro cao có duyệt chéo. Ngoài ra, `pre-run-review.md` đã coi test có nguy cơ chập chờn (hiệu ứng chạy mãi, đồng hồ thật, mạng thật) là mức chặn.
 - **Trạng thái:** proposed
-- **Áp dụng:**
+- **Áp dụng:** `CLAUDE.md` bước 10 (cách chụp trạng thái có hiệu ứng chạy mãi), nhánh `claude/from-camera-pose-phien-tu-khac-phuc`. Phần `main-guard.yml` chưa làm.
 
 ### L-048. Phiên không tự đưa nhánh chính về trạng thái xanh được, kể cả bằng một bản revert đúng
 
