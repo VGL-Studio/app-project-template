@@ -30,6 +30,15 @@ Cất vào trình quản lý mật khẩu, mỗi app một mục:
 
 Tạo app trong Play Console, bật Play App Signing (mặc định với app mới), khai báo Data safety (ADR-0012) và đối tượng người dùng (ADR-0005).
 
+### 1.4. `app-ads.txt`
+
+Làm một lần cho mỗi nhà phát triển. File `app-ads.txt` đặt ở gốc tên miền website ghi trên trang Google Play của app (ví dụ `https://<tên miền>/app-ads.txt`). File nằm trên website, không vào repo.
+
+- Dòng của AdMob: lấy từ AdMob, mục **Apps > app-ads.txt**.
+- Dòng của AppLovin: lấy từ tài khoản AppLovin, theo hướng dẫn của AppLovin (mediation, [ads-guide.md](ads-guide.md) mục 7).
+
+Thiếu dòng của một mạng thì doanh thu của mạng đó giảm đáng kể.
+
 ## 2. Mỗi lần phát hành
 
 ### 2.1. Trước khi chạy script
@@ -82,5 +91,6 @@ Script làm theo thứ tự, dừng ngay khi có điều kiện không đạt:
 1. So dòng "Chứng chỉ ký (SHA-256)" script in ra với **Upload key certificate** trong **Play Console > Test and release > App integrity**. Lần tải đầu tiên của app mới chưa có chứng chỉ để so; khóa ký bản đầu tiên trở thành khóa upload.
 2. Tải file `.aab` lên kênh **Internal testing**. File mapping của R8 đã nằm trong file `.aab`, không cần tải riêng.
 3. Cài từ Google Play trên máy thật, kiểm tra quảng cáo thật hiện đúng vị trí và file trên R2 tải được.
-4. Chuyển bản đó sang kênh **Production** trên Play Console.
-5. Xóa thư mục phát hành khỏi máy.
+4. Kiểm trên AdMob, mục **Apps > app-ads.txt**, rằng `app-ads.txt` của app đã được xác minh (mục 1.4).
+5. Chuyển bản đó sang kênh **Production** trên Play Console.
+6. Xóa thư mục phát hành khỏi máy.
