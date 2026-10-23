@@ -6,6 +6,7 @@ import com.vglstudio.template.core.assets.AssetsConfig
 import com.vglstudio.template.core.assets.DefaultRemoteAssets
 import com.vglstudio.template.core.assets.HttpAssetDownloader
 import com.vglstudio.template.core.assets.RemoteAssets
+import com.vglstudio.template.core.assets.downloadFailureMessage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,6 +29,6 @@ internal object AssetsModule {
         cacheDir = File(context.noBackupFilesDir, "r2-assets"),
         downloader = HttpAssetDownloader(),
         ioDispatcher = Dispatchers.IO,
-        onDownloadFailed = { path, error -> Log.w("Assets", "Could not download ${path.value}", error) },
+        onDownloadFailed = { path, error -> Log.w("Assets", downloadFailureMessage(path, error), error) },
     )
 }
