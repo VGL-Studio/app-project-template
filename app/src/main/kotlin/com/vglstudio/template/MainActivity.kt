@@ -38,6 +38,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        ads.onAppForeground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ads.onAppBackground()
+    }
+
     override fun onUserInteraction() {
         super.onUserInteraction()
         ads.onUserInteraction()

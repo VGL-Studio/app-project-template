@@ -10,6 +10,8 @@ android {
 
 dependencies {
     implementation(project(":core:config"))
+    implementation(project(":core:data"))
+    implementation(project(":core:logging"))
 
     implementation(libs.play.services.ads)
     implementation(libs.user.messaging.platform)
