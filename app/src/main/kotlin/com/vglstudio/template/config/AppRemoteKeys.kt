@@ -3,6 +3,7 @@ package com.vglstudio.template.config
 import com.vglstudio.template.core.ads.AdsSettings
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.RemoteKey
+import com.vglstudio.template.core.network.NetworkSettings
 
 /**
  * Every Remote Config key of the app, by owning module (ADR-0023). A new core module with keys is added here.
@@ -13,5 +14,6 @@ object AppRemoteKeys {
     val byModule: Map<String, List<RemoteKey<*>>> = linkedMapOf(
         ":core:config" to FeatureFlag.entries.map { it.remoteKey },
         ":core:ads" to AdsSettings.all(),
+        ":core:network" to NetworkSettings.all(),
     )
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Normal permission, needed to watch the default network through ConnectivityManager (activeNetwork,
+        getNetworkCapabilities, registerDefaultNetworkCallback). Declared in the module that watches the connection,
+        as spec network section 6 says; :app does not declare it again.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+</manifest>
