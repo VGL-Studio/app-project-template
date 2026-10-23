@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.assets
 
+import com.vglstudio.template.core.network.NetworkFailureReporter
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -12,6 +13,8 @@ import kotlinx.coroutines.withContext
 /**
  * Keeps each file in [cacheDir] under its own path. A file is written to a temporary name first and renamed
  * when complete, so an interrupted download never leaves a partial file that looks ready.
+ * A download that fails because of the network is reported to [networkFailures], so the network dialog shows at once
+ * (spec network, KB-3); a file the server lacks or another error is the feature's own error to show.
  */
 internal class DefaultRemoteAssets(
     private val config: AssetsConfig,
@@ -19,6 +22,7 @@ internal class DefaultRemoteAssets(
     private val downloader: AssetDownloader,
     private val ioDispatcher: CoroutineDispatcher,
     private val onDownloadFailed: (AssetPath, IOException) -> Unit = { _, _ -> },
+    private val networkFailures: NetworkFailureReporter? = null,
 ) : RemoteAssets {
     private val locks = ConcurrentHashMap<AssetPath, Mutex>()
 
@@ -37,7 +41,9 @@ internal class DefaultRemoteAssets(
                 AssetResult.Ready(file)
             } catch (e: IOException) {
                 onDownloadFailed(path, e)
-                AssetResult.Unavailable
+                val reason = e.toFailureReason()
+                if (reason == AssetFailureReason.NETWORK) networkFailures?.reportNetworkFailure(SOURCE)
+                AssetResult.Unavailable(reason)
             } finally {
                 temp.delete()
             }
@@ -47,5 +53,8 @@ internal class DefaultRemoteAssets(
     private companion object {
         // Starts with a dot, which no AssetPath segment does, so it never clashes with a cached file.
         const val TEMP_DIR = ".download"
+
+        // Label of this module in the network log; never a path.
+        const val SOURCE = "assets"
     }
 }

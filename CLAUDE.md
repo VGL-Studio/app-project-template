@@ -20,6 +20,7 @@
 | `:core:ads` | Vị trí quảng cáo, hộp thoại đồng ý, rào chắn chính sách, AdMob (ADR-0004, ADR-0013, ADR-0014) |
 | `:core:assets` | Tải file tĩnh từ R2, giữ trên máy để dùng khi mất mạng (ADR-0006, ADR-0015) |
 | `:core:logging` | Ghi log hành vi của app vào logcat và Crashlytics để phân tích khi có lỗi (ADR-0019) |
+| `:core:network` | Theo dõi có Internet dùng được, popup mất mạng (ADR-0024) |
 | `:feature:<ten>` | Mỗi feature một module |
 | `build-logic` | Convention plugin dùng chung cho mọi module |
 
@@ -58,7 +59,7 @@ Làm theo đúng mẫu `:feature:sample`:
    - Ghi dữ liệu có thể ném `IOException`: bắt lỗi trong ViewModel, đưa vào `UiState` để màn hình báo cho người dùng, không để app dừng đột ngột. Luồng đọc DataStore tự thử lại khi gặp `IOException`.
 5. `<Ten>Screen.kt`: một composable `<Ten>Route` nối với ViewModel, một composable `<Ten>Screen` không trạng thái nhận `uiState` và các callback.
 6. `navigation/`: một đích `@Serializable` và hàm mở rộng `NavGraphBuilder.<ten>Screen()`. Đăng ký trong `AppNavHost` của `:app`. Điều hướng đứng sau một lời gọi `suspend` (đọc DataStore, tải file) chạy trên luồng chính: `scope.launch(Dispatchers.Main.immediate) { ... }`, vì coroutine có thể được tiếp tục trên luồng nền và `navigate` khi đó dừng app (L-051).
-7. Quảng cáo chỉ qua `AdSlot(placement)` (banner) và `rememberShowInterstitial(placement)` (toàn màn hình, chỉ gọi ở điểm dừng tự nhiên) của `:core:ads`, với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013). Vị trí mặc định tắt, chỉ hiện quảng cáo khi khóa `ads_<vị trí>_enabled` được bật trên Remote Config (ADR-0014). Làm theo `docs/ops/ads-guide.md` (bảng "không bao giờ làm", quy chuẩn native, các bước thêm vị trí; ADR-0022).
+7. Quảng cáo chỉ qua `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app) và `rememberShowFullScreenAd(placement)` (interstitial và native toàn màn hình, chỉ gọi ở điểm dừng tự nhiên) của `:core:ads`, với vị trí đã có trong `AdPlacement` theo spec đã duyệt (ADR-0013). Vị trí mặc định tắt, chỉ hiện quảng cáo khi khóa `ads_<vị trí>_enabled` được bật trên Remote Config (ADR-0014). Làm theo `docs/ops/ads-guide.md` (bảng "không bao giờ làm", quy chuẩn native, các bước thêm vị trí; ADR-0022). Test không có `AdsController` nên quảng cáo không hiện: màn hình nhận phần quảng cáo qua một tham số composable (mặc định `NativeAdSlot`), screenshot test truyền `NativeAdCard` giả, như `bottomAd` của `:feature:sample`.
 8. File tĩnh trên R2 chỉ qua `RemoteAssets.load(AssetPath(...))` của `:core:assets`, gọi từ ViewModel; kết quả `Unavailable` đưa vào `UiState` để người dùng thử lại. Đường dẫn tương đối, có phiên bản hoặc mã băm; nội dung đổi thì dùng đường dẫn mới (ADR-0015).
 9. Cờ tính năng mới khai báo trong `FeatureFlag` của `:core:config`, luôn mặc định tắt. Khóa Remote Config khác đặt tên và khai báo theo `docs/ops/remote-config.md` (ADR-0023). Muốn thấy feature trên bản staging thì thêm cờ vào `StagingFeatureFlagsModule` trong `app/src/staging`.
 10. Test, viết trước code (docs/auto-run.md, bước 3):
