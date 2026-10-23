@@ -132,6 +132,27 @@ class AdsController @Inject internal constructor(
         }
     }
 
+    /**
+     * Opens AdMob's Ad Inspector ([rememberOpenAdInspector], staging ad gallery only). Google opens it only on an
+     * emulator or a registered test device; elsewhere [onResult] gets [AdInspectorResult.Failed].
+     */
+    internal fun openAdInspector(activity: Activity, onResult: (AdInspectorResult) -> Unit) {
+        if (!canRequestAds.value) {
+            logger.info(TAG, "Ad Inspector skipped: ads not started")
+            onResult(AdInspectorResult.NotReady)
+            return
+        }
+        logger.info(TAG, "Ad Inspector opened")
+        MobileAds.openAdInspector(activity) { error ->
+            val result = adInspectorResult(error?.code)
+            when (result) {
+                is AdInspectorResult.Failed -> logger.warn(TAG, "Ad Inspector failed: ${result.code}")
+                else -> logger.info(TAG, "Ad Inspector closed")
+            }
+            onResult(result)
+        }
+    }
+
     /** Call from `Activity.onUserInteraction`: full-screen ads wait until the user stops touching the screen. */
     fun onUserInteraction() {
         guard.onUserInteraction(SystemClock.elapsedRealtime())

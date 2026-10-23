@@ -73,7 +73,7 @@ class PreviewAdGallerySlots(
             if (slot >= 0) {
                 item(key = "ad_$slot") {
                     val size = if (slot % 2 == 0) NativeAdSize.SMALL else NativeAdSize.MEDIUM
-                    Box(Modifier.fillMaxWidth().padding(vertical = Spacing.md).testTag(PreviewAdTags.inList(slot))) {
+                    Box(Modifier.fillMaxWidth().testTag(PreviewAdTags.inList(slot)).padding(vertical = Spacing.md)) {
                         NativeAdCard(assets, size)
                     }
                 }

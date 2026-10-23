@@ -16,9 +16,14 @@ class AdGallerySourceSetTest {
     // Staging holds the gallery; test sources mention it to check it.
     private val excludedSourceSets = setOf("staging", "testStaging", "test")
 
+    // Comments are not part of a build: ScreenName.kt (T-017) names `AdGalleryDestination` as a KDoc example.
+    private val comments = Regex("/\\*.*?\\*/|//[^\\n]*|<!--.*?-->", RegexOption.DOT_MATCHES_ALL)
+
     private fun File.filesMentioningGallery(): List<File> = walkTopDown()
         .filter { it.isFile && (it.extension == "kt" || it.extension == "xml") }
-        .filter { file -> file.readText().let { it.contains("AdGallery") || it.contains("ad_gallery") } }
+        .filter { file ->
+            file.readText().replace(comments, "").let { it.contains("AdGallery") || it.contains("ad_gallery") }
+        }
         .toList()
 
     @Test

@@ -43,8 +43,12 @@ class ConfiguredAdUnitIds(config: String) : AdUnitIds {
             key to unit
         }
 
-    /** Placements that have no ad unit in this build. A release must have none. */
-    val missing: List<AdPlacement> = AdPlacement.entries.filter { it.key !in units }
+    /**
+     * Placements that have no ad unit in this build. A release must have none. Staging-only placements
+     * ([AdPlacement.stagingOnly]) never ship, so they are never missing.
+     */
+    val missing: List<AdPlacement> = AdPlacement.entries.filter { !it.stagingOnly && it.key !in units }
 
-    override fun of(placement: AdPlacement): String? = units[placement.key]
+    /** Staging-only placements get no unit even when the configuration names them: production never shows them. */
+    override fun of(placement: AdPlacement): String? = if (placement.stagingOnly) null else units[placement.key]
 }

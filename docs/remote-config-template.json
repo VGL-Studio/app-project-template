@@ -21,6 +21,41 @@
       "description": "Time without full-screen ads at the start of the first session after install, in seconds.",
       "valueType": "NUMBER"
     },
+    "ads_gallery_inlist_medium_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_inlist_medium (native_medium). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_inlist_small_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_inlist_small (native_small). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_interstitial_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_interstitial (interstitial). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_collapsible_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_collapsible (native_collapsible). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_full_screen_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_full_screen (native_full_screen). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_medium_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_medium (native_medium). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
+    "ads_gallery_native_small_enabled": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in the placement gallery_native_small (native_small). Off by default. Staging ad gallery only.",
+      "valueType": "BOOLEAN"
+    },
     "ads_inlist_every_count": {
       "defaultValue": { "value": "8" },
       "description": "Number of list items between two native ads inside a list.",

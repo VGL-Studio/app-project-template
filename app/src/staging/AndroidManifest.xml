@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Staging only (plan T-014): the ad gallery opens from its own launcher icon, so production has no line of it.
+        No permission here: every new permission is a high-risk change (risk-scoring.md, blocking point 3).
+    -->
+
+    <application>
+        <activity
+            android:name=".adgallery.AdGalleryActivity"
+            android:exported="true"
+            android:label="@string/ad_gallery_launcher_label"
+            android:theme="@style/Theme.App">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

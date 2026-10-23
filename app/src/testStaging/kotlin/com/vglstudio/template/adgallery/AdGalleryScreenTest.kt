@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.width
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.R
+import com.vglstudio.template.core.ads.R as AdsR
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -34,7 +36,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import com.vglstudio.template.core.ads.R as AdsR
 
 /** The staging ad gallery with fake ads: pages, actions, design numbers and the low frame (plan T-014, section 4). */
 @RunWith(AndroidJUnit4::class)
@@ -79,7 +80,10 @@ class AdGalleryScreenTest {
 
     private fun assertInsideScreen(name: String, rect: DpRect) {
         assertTrue("$name starts above the screen: $rect", rect.top.value >= -TOLERANCE_DP)
-        assertTrue("$name ends below the screen (${rootHeight()}): $rect", rect.bottom <= rootHeight() + TOLERANCE_DP.dp)
+        assertTrue(
+            "$name ends below the screen (${rootHeight()}): $rect",
+            rect.bottom <= rootHeight() + TOLERANCE_DP.dp,
+        )
     }
 
     @Test
