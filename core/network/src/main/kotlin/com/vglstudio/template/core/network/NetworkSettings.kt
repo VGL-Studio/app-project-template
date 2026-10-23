@@ -12,4 +12,8 @@ object NetworkSettings {
     )
 
     fun all(): List<RemoteKey<*>> = listOf(LOST_DELAY_SECONDS)
+
+    /** "Retry" checks the network every [RETRY_POLL_MILLIS] for at most [RETRY_MAX_MILLIS] (spec network, KB-2). */
+    internal const val RETRY_MAX_MILLIS = 2_000L
+    internal const val RETRY_POLL_MILLIS = 250L
 }
