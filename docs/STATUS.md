@@ -4,17 +4,7 @@
 
 ## 1. Đang chờ người
 
-- Plan `draft` chờ duyệt: [T-007-khoa-remote-config-co-kieu.md](features/ads/plans/T-007-khoa-remote-config-co-kieu.md)
-- Plan `draft` chờ duyệt: [T-008-gia-tri-cuc-bo-cho-staging.md](features/ads/plans/T-008-gia-tri-cuc-bo-cho-staging.md)
-- Plan `draft` chờ duyệt: [T-009-tan-suat-va-cong-tac-tong.md](features/ads/plans/T-009-tan-suat-va-cong-tac-tong.md)
-- Plan `draft` chờ duyệt: [T-010-native-small-va-medium.md](features/ads/plans/T-010-native-small-va-medium.md)
-- Plan `draft` chờ duyệt: [T-011-native-trong-danh-sach.md](features/ads/plans/T-011-native-trong-danh-sach.md)
-- Plan `draft` chờ duyệt: [T-012-native-thu-gon.md](features/ads/plans/T-012-native-thu-gon.md)
-- Plan `draft` chờ duyệt: [T-013-native-toan-man-hinh.md](features/ads/plans/T-013-native-toan-man-hinh.md)
-- Plan `draft` chờ duyệt: [T-014-man-hinh-xem-thu-quang-cao.md](features/ads/plans/T-014-man-hinh-xem-thu-quang-cao.md)
-- Plan `draft` chờ duyệt: [T-015-mediation-applovin.md](features/ads/plans/T-015-mediation-applovin.md)
-- Plan `draft` chờ duyệt: [T-016-theo-doi-ket-noi.md](features/network/plans/T-016-theo-doi-ket-noi.md)
-- Plan `draft` chờ duyệt: [T-017-popup-mat-mang.md](features/network/plans/T-017-popup-mat-mang.md)
+- Danh sách chạy `draft` chờ duyệt: [RUN-20261023-01.md](runs/RUN-20261023-01.md)
 - Ticket đã duyệt, chưa vào danh sách chạy nào: [T-006-cuon-man-hinh-rat-thap.md](features/loading/tickets/T-006-cuon-man-hinh-rat-thap.md)
 - Bài học `proposed` chờ retro: L-032 (Máy Xiaomi chặn thao tác giả lập qua adb nếu chưa bật "Gỡ lỗi USB (Cài đặt bảo mật)")
 - Bài học `proposed` chờ retro: L-033 (Chạm theo tọa độ cũ trúng quảng cáo vừa hiện lên)
@@ -42,19 +32,19 @@
 
 ### ads
 
-Spec: [spec.md](features/ads/spec.md) `confirmed`. Ticket: 9 `planned`.
+Spec: [spec.md](features/ads/spec.md) `confirmed`. Ticket: 9 `approved`.
 
 | Ticket | Tên | Trạng thái | Plan | Ước tính token | Phiên chạy |
 | --- | --- | --- | --- | --- | --- |
-| [T-007](features/ads/tickets/T-007-khoa-remote-config-co-kieu.md) | Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động | `planned` | `draft` (bản 1) | 25M | - |
-| [T-008](features/ads/tickets/T-008-gia-tri-cuc-bo-cho-staging.md) | Giá trị Remote Config cục bộ cho bản staging | `planned` | `draft` (bản 1) | 10M | - |
-| [T-009](features/ads/tickets/T-009-tan-suat-va-cong-tac-tong.md) | Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên | `planned` | `draft` (bản 1) | 20M | - |
-| [T-010](features/ads/tickets/T-010-native-small-va-medium.md) | Native small và medium; màn hình mẫu dùng native small thay banner | `planned` | `draft` (bản 1) | 40M | - |
-| [T-011](features/ads/tickets/T-011-native-trong-danh-sach.md) | Native trong danh sách | `planned` | `draft` (bản 1) | 20M | - |
-| [T-012](features/ads/tickets/T-012-native-thu-gon.md) | Native thu gọn được | `planned` | `draft` (bản 1) | 20M | - |
-| [T-013](features/ads/tickets/T-013-native-toan-man-hinh.md) | Native toàn màn hình thay interstitial | `planned` | `draft` (bản 1) | 25M | - |
-| [T-014](features/ads/tickets/T-014-man-hinh-xem-thu-quang-cao.md) | Màn hình xem thử quảng cáo chỉ ở bản staging | `planned` | `draft` (bản 2) | 30M | - |
-| [T-015](features/ads/tickets/T-015-mediation-applovin.md) | Mediation AdMob và AppLovin | `planned` | `draft` (bản 1) | 10M | - |
+| [T-007](features/ads/tickets/T-007-khoa-remote-config-co-kieu.md) | Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động | `approved` | `approved` (bản 1) | 25M | RUN-20261023-01 |
+| [T-008](features/ads/tickets/T-008-gia-tri-cuc-bo-cho-staging.md) | Giá trị Remote Config cục bộ cho bản staging | `approved` | `approved` (bản 1) | 10M | RUN-20261023-01 |
+| [T-009](features/ads/tickets/T-009-tan-suat-va-cong-tac-tong.md) | Công tắc tổng, ân hạn phiên đầu, giới hạn mỗi phiên, khoảng cách lưu qua phiên | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
+| [T-010](features/ads/tickets/T-010-native-small-va-medium.md) | Native small và medium; màn hình mẫu dùng native small thay banner | `approved` | `approved` (bản 1) | 40M | RUN-20261023-01 |
+| [T-011](features/ads/tickets/T-011-native-trong-danh-sach.md) | Native trong danh sách | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
+| [T-012](features/ads/tickets/T-012-native-thu-gon.md) | Native thu gọn được | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
+| [T-013](features/ads/tickets/T-013-native-toan-man-hinh.md) | Native toàn màn hình thay interstitial | `approved` | `approved` (bản 1) | 25M | RUN-20261023-01 |
+| [T-014](features/ads/tickets/T-014-man-hinh-xem-thu-quang-cao.md) | Màn hình xem thử quảng cáo chỉ ở bản staging | `approved` | `approved` (bản 2) | 30M | RUN-20261023-01 |
+| [T-015](features/ads/tickets/T-015-mediation-applovin.md) | Mediation AdMob và AppLovin | `approved` | `approved` (bản 2) | 10M | RUN-20261023-01 |
 
 Phản hồi: chưa có.
 
@@ -75,18 +65,20 @@ Phản hồi: 1 `fixed`, 1 `wontfix`.
 
 ### network
 
-Spec: [spec.md](features/network/spec.md) `confirmed`. Ticket: 2 `planned`.
+Spec: [spec.md](features/network/spec.md) `confirmed`. Ticket: 2 `approved`.
 
 | Ticket | Tên | Trạng thái | Plan | Ước tính token | Phiên chạy |
 | --- | --- | --- | --- | --- | --- |
-| [T-016](features/network/tickets/T-016-theo-doi-ket-noi.md) | Theo dõi có Internet dùng được, dùng chung cho cả app | `planned` | `draft` (bản 1) | 20M | - |
-| [T-017](features/network/tickets/T-017-popup-mat-mang.md) | Popup mất mạng chung và chặn vào app khi không có mạng | `planned` | `draft` (bản 2) | 20M | - |
+| [T-016](features/network/tickets/T-016-theo-doi-ket-noi.md) | Theo dõi có Internet dùng được, dùng chung cho cả app | `approved` | `approved` (bản 1) | 20M | RUN-20261023-01 |
+| [T-017](features/network/tickets/T-017-popup-mat-mang.md) | Popup mất mạng chung và chặn vào app khi không có mạng | `approved` | `approved` (bản 2) | 20M | RUN-20261023-01 |
 
 Phản hồi: chưa có.
 
 ## 4. Phiên tự chạy
 
-Chưa có phiên nào.
+| Phiên | Trạng thái | Bắt đầu | Ticket | Bản staging |
+| --- | --- | --- | --- | --- |
+| [RUN-20261023-01](runs/RUN-20261023-01.md) | `draft` |  | T-007, T-008, T-009, T-015, T-010, T-016, T-011, T-012, T-013, T-017, T-014 | - |
 
 ## 5. Bài học và ADR
 

@@ -1,16 +1,16 @@
 ---
 ticket: T-011
 title: Native trong danh sách
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 1
 risk_score:
 risk_level: high
 token_estimate: 20M
 blocking_points: [ads, core]
-run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+run_order: 7
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-011: NATIVE TRONG DANH SÁCH
@@ -225,23 +225,28 @@ Mọi test chạy trên JVM trong `:core:ads:testDebugUnitTest` (đã nằm tron
 
 1. **Danh sách đúng N mục (hoặc 2N, 3N...) có đặt quảng cáo ở cuối không?** Spec chỉ nói ít hơn N mục thì không có.
    - Đề xuất của AI: không. Quảng cáo chỉ nằm giữa hai mục của app, nên luôn có nội dung app bên dưới, không bị hiểu là "mục cuối" hay nút tải thêm. Hệ quả: đúng N mục cũng không có quảng cáo, N + 1 mục mới có một quảng cáo.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 2. **Ở lưới, N không chia hết cho số cột thì làm sao?**
    - Đề xuất của AI: làm tròn N lên bội số cột gần nhất (`gridAdEvery`), người gọi truyền số cột. Ví dụ lưới 2 cột, N = 3 thành 4. Cách khác: giữ đúng N, chấp nhận hàng trên quảng cáo thiếu ô.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Giữ quảng cáo đã tải của mọi ô tới khi rời màn hình, không giới hạn số ô?**
    - Đề xuất của AI: có. Chỉ ô người dùng đã cuộn tới mới tải, nên số quảng cáo giữ bằng số ô đã thấy; danh sách rất dài mới cần giới hạn, khi đó thêm ở ticket sau.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **T-010 cần có một hàm nội bộ vẽ một `NativeAd` đã tải (tách khỏi `NativeAdSlot`) để T-011 dùng lại.**
    - Đề xuất của AI: khi duyệt plan T-010, xác nhận plan đó có hàm này. Nếu không, plan T-011 thêm file native của T-010 vào danh sách sửa trước khi duyệt.
    - Rà soát độc lập (2026-10-23): đã khớp. Plan T-010 có `BoundNativeAd(ad, size, modifier)` nội bộ và `AdsController.loadNativeAd(placement)` (dựa trên `loadOneNativeAd`) cho T-011; T-011 đổi tên giao diện tải của mình thành `InListAdLoader` để không trùng `NativeAdLoader` của T-010.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Có đặt mức N tối thiểu không (ví dụ không dưới 3)?** Hiện N = 1 trên Firebase nghĩa là quảng cáo xen giữa mọi mục.
    - Đề xuất của AI: không chặn trong code (giá trị là quyết định của người vận hành, ADR-0023); ghi khuyến nghị N ít nhất 5 trong `ads-guide.md`. Nếu muốn chặn cứng thì `inListEvery` trả null khi N nhỏ hơn mức tối thiểu.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

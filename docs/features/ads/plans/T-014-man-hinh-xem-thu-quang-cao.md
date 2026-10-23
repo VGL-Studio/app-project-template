@@ -1,16 +1,16 @@
 ---
 ticket: T-014
 title: Màn hình xem thử quảng cáo chỉ ở bản staging
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # cỡ M (gợi ý 20M của scripts/token-usage.py estimate, 2026-10-21), nâng lên: 3 trang, 7 ảnh chuẩn, sửa cả :core:ads và :app
 blocking_points: [ads, core, build]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 11               # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật              # người duyệt
+cross_reviewer: Nhật        # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-014: MÀN HÌNH XEM THỬ QUẢNG CÁO CHỈ Ở BẢN STAGING
@@ -137,11 +137,10 @@ interface AdGallerySlots {
 - **Trang thu gọn** theo `context/AdGalleryScreen_collapsible-*_light.md`: tiêu đề "Collapsible ad"; `LazyColumn` các mục chiếm phần còn lại (`weight(1f)`); quảng cáo thu gọn ghim ở đáy, cách mép dưới và hai bên 16 dp.
 - Mọi màu, chữ, khoảng cách lấy từ `MaterialTheme` và `Spacing`; mọi chữ của app nằm trong `app/src/staging/res/values/strings.xml` (tiếng Anh, README thiết kế mục 2). Chữ "List item N" là chuỗi có tham số. Test tag: `ad_gallery_screen`, `ad_gallery_default`, `ad_gallery_inlist`, `ad_gallery_collapsible`, `ad_gallery_inspector_button`.
 
-**Bằng chứng production không có màn hình xem thử, ba lớp:**
+**Bằng chứng production không có màn hình xem thử, hai lớp** (không build production trên máy: thiếu `google-services.json` của production, câu hỏi 3 của T-008 đã trả lời 2026-10-23):
 
 1. Test quét mã nguồn trong `app/src/test` (chạy trong `testStagingDebugUnitTest` mà CI chạy), như T-008 làm với `LocalRemoteValues`: ngoài `src/staging` và `src/testStaging`, không file nào của `:app` (`.kt`, `.xml`) chứa `AdGallery` hay `ad_gallery`; `src/staging` có `AdGalleryActivity.kt` và manifest staging khai báo nó (để test không qua vì đường dẫn sai); `src/main/AndroidManifest.xml` có đúng một activity `LAUNCHER`.
 2. Unit test `:core:ads`: `ConfiguredAdUnitIds` không đòi và không trả mã cho vị trí `stagingOnly`.
-3. Build production trên máy, chỉ biên dịch và gộp manifest, tham số giả như T-008 (câu hỏi 3 của T-008): `./gradlew :app:compileProductionDebugKotlin :app:processProductionDebugMainManifest -PadmobAppId=ca-app-pub-0000000000000000~0000000000 -PadUnits=sample_native_small=test -PassetsBaseUrl=https://example.invalid/`, rồi `grep -c AdGallery` trên manifest đã gộp của production trả 0 và trên thư mục lớp đã biên dịch không có `AdGallery*.class`. Ghi kết quả vào nhật ký.
 
 **Tài liệu.** `docs/ops/ads-guide.md`: mục 5 đã có quy tắc `gallery_` từ PR #81, chỉ thêm một câu "`AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó"; mục 8 thay dòng "quảng cáo không hiện trên staging" bằng cách dùng màn hình xem thử (biểu tượng "Ad gallery", ba trang, tần suất như production, Ad Inspector chỉ mở trên emulator hay máy đã đăng ký thiết bị thử trên AdMob, đường dẫn hướng dẫn chính thức). `docs/features/ads/design/README.md` mục 8: kết quả đối chiếu 5 ảnh `AdGalleryScreen_*`.
 
@@ -253,7 +252,6 @@ Test viết trước code, thất bại trước khi viết code (thứ tự com
 | Đối chiếu thiết kế (ADR-0020) | Ảnh so sánh và rà soát độc lập | Chạy chương trình so sánh (mục 3.2), chép 5 ảnh `_compare.png`, ghi tỷ lệ khác biệt và nhận xét vào README mục 8. Khác biệt dự kiến: hàng nút "In-list ads", "Collapsible ad" ở trang mặc định (câu hỏi 7), icon quảng cáo giả không có ảnh |
 | Ảnh chuẩn khớp | CI | `scripts/check.sh` (sau PR #81) chạy `:app:verifyRoborazziStagingDebug` với 8 ảnh chuẩn ở mục 3.2 (câu hỏi 8) |
 | KB-8, 3: production không có màn hình (mã nguồn) | Unit test | `AdGallerySourceSetTest.onlyStagingSourceSets_mentionAdGallery`: duyệt mọi `.kt`, `.xml` dưới `src/` của `:app`, bỏ `src/staging`, `src/testStaging`, `src/test`; không file nào chứa `AdGallery` hay `ad_gallery`. `stagingDeclaresGallery`: `src/staging/AndroidManifest.xml` chứa `AdGalleryActivity` và có `src/staging/.../AdGalleryActivity.kt` (để test không qua vì đường dẫn sai). `mainManifest_hasOneLauncher`: `src/main/AndroidManifest.xml` có đúng một `android.intent.category.LAUNCHER` |
-| KB-8, 3: production không có màn hình (bản build) | Build trên máy | Lệnh ở mục 3.1, lớp 3: manifest đã gộp của production không chứa `AdGallery`, không có lớp `AdGallery*`. Ghi vào nhật ký |
 | Staging build và lint qua với activity mới | Build | `:app:assembleStagingDebug`, `:app:lintStagingDebug` trong `scripts/check.sh` |
 | KB-8, 1 và 2 trên máy thật | Kiểm tra thủ công | Cài bản staging (file Firebase giả), thấy biểu tượng "Ad gallery"; mở, đồng ý ở hộp thoại; trang mặc định có small và medium quảng cáo thử (nhãn "Test Ad"); bấm "Interstitial" sau khi hết 180 giây ân hạn phiên đầu thì hiện, bấm lại ngay thì không (log `skipped`); "Native full screen" tương tự; "Open Ad Inspector" trên emulator mở được và thấy adapter AppLovin (KB-9, sau T-015); trên máy chưa đăng ký thì Toast báo lỗi; trang trong danh sách có quảng cáo sau mỗi 8 mục, xen small và medium; trang thu gọn: chạm nút thì gọn, không tự mở lại. `adb logcat -v threadtime \| grep ' VGL\.'` có các dòng `AdGallery` và `Ads` ở mục 3.1 |
 
@@ -305,10 +303,9 @@ Bảng điểm dưới đây chỉ để tham khảo:
 2. Sau T-010 đến T-013, tên trong hợp đồng chung khác (`NativeAdCard`, `NativeAdAssets`, `CollapsibleNativeAdCard`, `CollapsibleNativeAdSlot`, `rememberInListAds`, `itemsWithInListAds` và bản nội bộ nhận `positions`, `rememberShowFullScreenAd`, `FullScreenAdHost`): dừng, ghi API thật, sửa plan.
 3. T-012 đã merge mà vẫn có ảnh chuẩn tên `AdGalleryScreen_collapsible-*` trong `core/ads/src/test/screenshots/` hay ảnh so sánh của chúng trong `design/review/` (trái câu hỏi 2): dừng (không tự đổi tên hay xóa ảnh của task khác).
 4. Hilt hay Robolectric không dựng được `AdGalleryScreen` trong `app/src/testStaging` sau 3 lần sửa (ví dụ cần thư viện test của Hilt): dừng, không thêm thư viện.
-8. `scripts/check.sh` báo lỗi ở phần ảnh chuẩn của `:app` mà nguyên nhân là script (không phải ảnh hay test của T-014): dừng, không sửa script.
+7. `scripts/check.sh` báo lỗi ở phần ảnh chuẩn của `:app` mà nguyên nhân là script (không phải ảnh hay test của T-014): dừng, không sửa script.
 5. Lint của staging báo lỗi về activity thứ hai có `LAUNCHER` mà chỉ tắt được bằng cách bỏ qua quy tắc: dừng.
-6. Build production với tham số giả thất bại vì lý do khác màn hình xem thử (ví dụ đòi file Firebase thật): không xoay xở, ghi lại để người xem; không coi là lỗi của task nếu `scripts/check.sh` qua.
-7. Lần thử tạm đặt `AdGallery` trong `app/src/main` mà `AdGallerySourceSetTest` vẫn qua: dừng.
+6. Lần thử tạm đặt `AdGallery` trong `app/src/main` mà `AdGallerySourceSetTest` vẫn qua: dừng.
 
 ## 8. Câu hỏi cho người duyệt
 
@@ -319,22 +316,28 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
    Trả lời (anh Nhật, 2026-10-23): T-014 ghi `AdGalleryScreen_collapsible-*` ở màn hình thật (`:app`, staging), cùng `AdGalleryScreen_inlist_light` và ảnh so sánh của chúng. T-012 chỉ ghi ảnh component tên riêng (`CollapsibleNativeAd_*`). Mục 3.2 giữ nguyên.
 3. **Bảy khóa `ads_gallery_*_enabled` có vào bảng khóa và file mẫu không.** AI đề xuất có, kèm mô tả "Staging ad gallery only.": ít trường hợp riêng, và project Firebase staging tắt được từng vị trí xem thử. Phương án khác: `AdsSettings.all()` bỏ vị trí `stagingOnly`, bảng khóa không đổi; nhưng khi đó có khóa được đọc mà không nằm trong bảng, trái ADR-0023 mục 4.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Ad Inspector trên máy thật.** Google chỉ cho mở Ad Inspector trên emulator hoặc máy đã đăng ký thiết bị thử (AdMob, mục thiết bị thử). AI đề xuất: không thêm mã thiết bị vào repo; hướng dẫn trong ads-guide mục 8 cách đăng ký trên AdMob; màn hình báo lỗi bằng Toast. Phương án khác: khai báo danh sách mã thiết bị thử trong `StagingAdsModule` (mã thiết bị là dữ liệu của máy người trong nhóm, không nên vào repo).
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Hàm xen hai vị trí trong một danh sách (`InListAds.kt`).** Cần để trang trong danh sách giống thiết kế (small rồi medium). AI đề xuất thêm, vì app cũng có thể muốn xen hai cỡ. Phương án khác: không đổi API của T-011, trang chỉ dùng `GALLERY_INLIST_SMALL`, bỏ vị trí `GALLERY_INLIST_MEDIUM`, ảnh `_inlist_light` khác thiết kế ở quảng cáo thứ hai.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Lối vào bằng biểu tượng thứ hai trên máy.** AI đề xuất `AdGalleryActivity` có biểu tượng "Ad gallery" riêng trong bản staging: production không có dòng nào, không sửa `MainActivity`, `AppNavHost`. Đánh đổi: bản staging có hai biểu tượng; popup mất mạng (T-017) không có trong màn hình xem thử. Phương án khác: một đích trong `AppNavHost` qua hàm theo biến thể (`app/src/staging`, `app/src/production`) và một nút nhỏ chỉ staging đè lên giao diện, phải sửa `MainActivity.kt`, `AppNavHost.kt` (xung đột với T-013, T-017).
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 7. **Chuyển sang trang trong danh sách và trang thu gọn.** Thiết kế có 3 khung nhưng không có nút chuyển trang. AI đề xuất thêm hàng hai `OutlinedButton` "In-list ads", "Collapsible ad" dưới nút Ad Inspector, nút quay lại của máy về trang mặc định; ảnh `default_*` sẽ khác thiết kế ở vùng này. Nếu muốn khác (ví dụ tab ở đầu màn hình), cần bổ sung thiết kế trước khi duyệt.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 8. **CI không so ảnh chuẩn của `:app`.** `scripts/check.sh` chỉ duyệt `core/*/`, `feature/*/`. Plan T-017 có cùng câu hỏi. AI đề xuất: phiên tự chạy chạy `:app:verifyRoborazziStagingDebug` cục bộ và ghi kết quả; mở rộng `check.sh` và script so sánh thiết kế bọc sẵn cho `:app` và thư mục ảnh của module core là một plan rủi ro cao riêng, trả lời chung cho T-012, T-014, T-017.
 
    Trả lời (anh Nhật, 2026-10-23): `scripts/check.sh` đã sửa ở PR #81: so ảnh chuẩn của `:app` (`verifyRoborazziStagingDebug`, đọc cả `src/testStaging`). Bỏ phần so ảnh trên máy thay cho CI. Script so sánh thiết kế bọc sẵn vẫn chưa nhận `:app`: task chạy thẳng chương trình so sánh như mục 3.2.
 9. **`depends_on` của ticket.** Ticket đã ghi T-007 đến T-013 (rà soát 2026-10-23). Hai file bảng khóa ở mục 3.2 vẫn ghi Tạo vì hiện chưa có trên nhánh chính (`plan-check.py` so với repo); khi T-007 đã merge, phiên tự chạy coi là Sửa (sinh lại, không sửa tay). PR #81 không phải ticket nên ghi ở mục 6 và điều kiện dừng 1, không ở `depends_on`.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

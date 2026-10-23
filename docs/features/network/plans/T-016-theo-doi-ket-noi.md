@@ -1,16 +1,16 @@
 ---
 ticket: T-016
 title: Theo dõi có Internet dùng được, dùng chung cho cả app
-status: draft
+status: approved
 version: 1
 risk_score:
 risk_level: high
 token_estimate: 20M
 blocking_points: [core, permission]
-run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+run_order: 6
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-016: THEO DÕI CÓ INTERNET DÙNG ĐƯỢC, DÙNG CHUNG CHO CẢ APP
@@ -258,18 +258,23 @@ Mọi test thời gian dùng `runTest` và thời gian ảo (`advanceTimeBy`, `c
 1. **Khai báo `ACCESS_NETWORK_STATE` trong manifest của `:core:network`?** Quyền đã có trong manifest gộp (Google Mobile Ads, Firebase), app không có quyền mới và khai báo Data safety không đổi. Đề xuất: khai báo, để module không phụ thuộc vào việc SDK khác vô tình mang quyền vào; plan kiểm danh sách quyền gộp không đổi. Phương án khác: không khai báo, dựa vào SDK (nếu sau này một app bỏ SDK quảng cáo thì bộ theo dõi ném `SecurityException`). Spec không nêu quyền này; nếu duyệt, đề nghị ghi một dòng vào spec mục 2 hay ADR-0024 ở PR tài liệu, ngoài T-016.
    - Trả lời (anh Nhật, 2026-10-23): có khai báo `ACCESS_NETWORK_STATE` trong manifest của `:core:network`.
 2. **Module mới `:core:network` thay vì `:core:data`.** Đề xuất: module mới (lý do ở mục 3.1). Chi phí là một dòng ở `settings.gradle.kts`, `app/build.gradle.kts`, `CLAUDE.md`.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Giá trị đầu tiên không chờ.** Mở app khi đã mất mạng thì `isOnline` phát `false` ngay (spec KB-1: popup "hiện ngay"). Mặt trái: ngay sau khi máy vừa bật hay vừa đổi mạng, hệ thống có thể chưa xác nhận xong Internet, popup có thể hiện chốc lát rồi tự đóng. Đề xuất: giữ như vậy; nếu muốn, áp cùng thời gian chờ cho giá trị đầu (popup đầu tiên trễ 2 giây).
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Giới hạn của `network_lost_delay_seconds`.** Đề xuất: giá trị âm coi là 0, không đặt trần; đặt rất lớn trên Firebase thì thực tế tắt popup, đó là quyết định của người vận hành. Có muốn đặt trần (ví dụ 30 giây) không?
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **"Thử lại" chỉ đọc lại trạng thái hệ thống**, không tự gửi yêu cầu thử ra Internet và không gọi `reportNetworkConnectivity` để hệ thống xác nhận lại. Đề xuất: giữ đơn giản như vậy; hệ thống tự xác nhận lại khi mạng đổi, và nguồn báo có mạng thì popup tự đóng. Nếu thấy trên máy thật "Thử lại" ít tác dụng thì làm ticket sau.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Không có `FakeNetworkMonitor` công khai.** Bản đầu của plan đặt một bản giả công khai trong `src/main` cho T-017. Rà soát độc lập (2026-10-23) bỏ đi: plan T-017 cần bản giả có `checkNow` treo hay ném lỗi và flow chưa phát gì, nên đã tự viết bản giả trong `app/src/test`; giữ cả hai là hai bản giả trùng tên, một bản không ai dùng trong `src/main`. Nếu muốn một bản giả dùng chung cho các app sau, thêm lại ở ticket sau với đủ các hành vi đó.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

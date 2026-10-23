@@ -1,16 +1,16 @@
 ---
 ticket: T-008
 title: Giá trị Remote Config cục bộ cho bản staging
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn
 risk_level: high             # low | medium | high
 token_estimate: 10M          # cỡ S, số gợi ý của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
 blocking_points: [core, ads]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 2                # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật              # người duyệt
+cross_reviewer: Nhật        # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-008: GIÁ TRỊ REMOTE CONFIG CỤC BỘ CHO BẢN STAGING
@@ -97,7 +97,7 @@ Không đặt `ads_enabled` vì mặc định đã bật. Vị trí mới thêm 
 
 1. Unit test ở `:core:config`: với tập rỗng (đúng thứ production nhận), kết quả giống hệt trước T-008.
 2. Unit test quét mã nguồn trong `app/src/test`: ngoài `src/staging`, không file `.kt` nào của `:app` nhắc tới `LocalRemoteValues`. Test chạy trong `testStagingDebugUnitTest` mà CI đã chạy, nên không cần sửa `scripts/check.sh`. Lý do chọn quét mã nguồn: CI không chạy unit test của biến thể production, và repo chưa có thư viện test của Hilt (thêm thư viện là sửa `gradle/libs.versions.toml`, file bị khóa).
-3. `@Multibinds` nằm trong `ConfigModule` (dùng chung mọi biến thể), nên đồ thị Hilt của production luôn có tập, kể cả rỗng. Build production không có trong CI; AI chạy một lần trên máy `compileProductionDebugKotlin` với tham số giả (xem mục 4 và câu hỏi 3).
+3. `@Multibinds` nằm trong `ConfigModule` (dùng chung mọi biến thể), nên đồ thị Hilt của production luôn có tập, kể cả rỗng. Build production không có trong CI và không chạy trên máy (câu hỏi 3); việc production không đọc giá trị staging do lớp 1 và lớp 2 chứng minh.
 
 **Bảng khóa cột "staging"**: plan không thêm. `RemoteConfigKeysTest` của T-007 nằm ở `app/src/test`, biên dịch cho cả hai biến thể nên không được nhắc tới `StagingRemoteValuesModule` (chỉ có ở `app/src/staging`); muốn có cột này phải chuyển phần sinh bảng sang `app/src/testStaging` và sửa file của T-007. Xem câu hỏi 2.
 
@@ -145,7 +145,6 @@ Khóa dùng trong test `:core:config`: khai báo riêng trong file test, ví d�
 | Staging chỉ đặt khóa vị trí | Unit test | `StagingRemoteValuesModuleTest.onlyPlacementKeys_areSet`: mọi phần tử có tên dạng `ads_<vị trí>_enabled`; không có `ads_enabled` |
 | KB-8, production không có giá trị cục bộ (mã nguồn) | Unit test | `LocalRemoteValuesSourceSetTest.onlyStagingSourceSet_declaresLocalRemoteValues`: duyệt mọi `.kt` dưới `src/` của `:app` (thư mục làm việc của unit test là thư mục module), bỏ `src/staging`, `src/test`, `src/testStaging`; không file nào chứa `LocalRemoteValues`. Thêm một khẳng định là `src/staging` có ít nhất một file chứa chữ này, để test không qua khi đường dẫn sai |
 | Đồ thị Hilt của staging có tập và nhận phần đóng góp | Build | `:app:assembleStagingDebug` trong `scripts/check.sh` |
-| Đồ thị Hilt của production có tập rỗng | Build trên máy | `./gradlew :app:compileProductionDebugKotlin -PadmobAppId=ca-app-pub-0000000000000000~0000000000 -PadUnits=sample_bottom_banner=test -PassetsBaseUrl=https://example.invalid/`: chỉ biên dịch, giá trị giả, không tạo hay phát hành gì. Ghi kết quả vào nhật ký |
 | Ngoại lệ dừng app không có | Kiểm tra toàn bộ | `scripts/check.sh` qua |
 | KB-8, quảng cáo hiện trên staging không cần Firebase thật | Kiểm tra thủ công | Cài bản staging build từ file giả (hoặc bản `staging.yml` khi project staging chưa đặt khóa vị trí), đồng ý ở hộp thoại, mở màn hình mẫu: thấy quảng cáo thử của Google ở `sample_bottom_banner`. Log `adb logcat -v threadtime \| grep ' VGL\.'` không có dòng báo vị trí tắt |
 
@@ -161,7 +160,7 @@ Bảng điểm dưới đây chỉ để tham khảo:
 | --- | --- | --- |
 | A. Phạm vi thay đổi | 3 | Hai module: `:core:config`, `:app`; đổi hàm tạo của `DefaultRemoteSettings` |
 | B. Độ rõ của yêu cầu | 2 | ADR-0023 chốt thứ tự, nhưng hướng dẫn và cờ đang theo thứ tự ngược; API của T-007 lấy từ plan, chưa merge |
-| C. Khả năng kiểm chứng tự động | 1 | Thứ tự ưu tiên, bộ giá trị staging, ranh giới source set có unit test; quảng cáo hiện thật trên staging và build production kiểm tra ngoài CI |
+| C. Khả năng kiểm chứng tự động | 1 | Thứ tự ưu tiên, bộ giá trị staging, ranh giới source set có unit test; quảng cáo hiện thật trên staging kiểm tra thủ công; build production không kiểm (câu hỏi 3) |
 | D. Ảnh hưởng chéo | 2 | Sửa `RemoteSettings.kt`, `DefaultRemoteSettingsTest.kt`, `remote-config.md` mà T-007 cũng sửa, và `ads-guide.md` mà T-007, T-014 cũng sửa; T-009 đến T-014 dựa vào việc vị trí bật trên staging |
 | E. Độ mới của kỹ thuật | 1 | Biến thể của `@LocallyEnabledFlags`; `@ElementsIntoSet` và test quét mã nguồn trong `:app` chưa có trong dự án nhưng đơn giản |
 | **Tổng** | 9 | **Mức: Cao** |
@@ -182,24 +181,28 @@ Bảng điểm dưới đây chỉ để tham khảo:
 
 1. Sau T-007, `RemoteSettings` không có `value(key: RemoteKey<T>)`, `RemoteKey` không có `name` hay `default`, hoặc `DefaultRemoteSettings` không nằm trong `RemoteSettings.kt`: dừng, ghi API thật, sửa plan.
 2. Sau T-007, `AdsSettings.placementEnabled` không gọi được từ `:app` (ví dụ `AdsSettings` vẫn `internal`): dừng, không tự sửa `AdsSettings.kt`.
-3. Build production với tham số giả thất bại vì lý do khác thiếu tập `@LocalRemoteValues` (ví dụ đòi file Firebase thật): không xoay xở, ghi lại, để người xem; không coi là lỗi của task nếu `scripts/check.sh` qua.
-4. Lần thử tạm đặt qualifier trong `app/src/main` mà `LocalRemoteValuesSourceSetTest` vẫn qua: test không chặn được, dừng.
+3. Lần thử tạm đặt qualifier trong `app/src/main` mà `LocalRemoteValuesSourceSetTest` vẫn qua: test không chặn được, dừng.
 
 ## 8. Câu hỏi cho người duyệt
 
 1. **Thứ tự ưu tiên ở staging.** AI đề xuất giữ đúng ADR-0023: Firebase, rồi cục bộ, rồi mặc định, để project staging thật tập được việc tắt vị trí và đổi tần suất từ xa; với file giả hai thứ tự như nhau. Đánh đổi: khác cờ tính năng (cục bộ thắng), và nhập cả file mẫu vào project staging sẽ tắt quảng cáo staging; plan ghi cảnh báo vào hướng dẫn. Phương án khác: cục bộ thắng ở staging, giống cờ, staging luôn có quảng cáo nhưng không thử tắt từ xa được; khi đó phải sửa ADR-0023 mục 5 (ngoài plan này).
+   Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 2. **Cột "staging" trong bảng khóa.** AI đề xuất không làm trong T-008: phần sinh bảng của T-007 không thấy module staging, làm thì phải chuyển nó sang unit test staging của `:app` và sửa file của T-007. Nếu cần, mở ticket riêng sau khi T-007 merge, khi đã biết tên file.
+   Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Build production trên máy với tham số giả** (`compileProductionDebugKotlin`, chỉ biên dịch). AI đề xuất cho phép trong phiên tự chạy: đây là cách duy nhất kiểm đồ thị Hilt của production, giá trị giả, không chạm cấu hình production thật (risk-scoring.md, mục 4, điều 7). Rà soát thấy: `app/src/production` không có `google-services.json` (chỉ `app/src/staging` có file giả), mà task `processProductionDebugGoogleServices` chạy trước biên dịch, nên lệnh nhiều khả năng thất bại ở bước này; tạo file đó là cấu hình production, bị cấm. Khi đó áp điều kiện dừng 3 (ghi lại, không coi là lỗi của task). T-014 cũng dựa vào lệnh này. Nếu không đồng ý hay biết trước là không chạy được, bỏ dòng này ở mục 4 và dev chạy tay với file Firebase thật.
+   Trả lời (anh Nhật, 2026-10-23): đồng ý đề xuất bỏ lệnh. `compileProductionDebugKotlin` không chạy trong task (thiếu `google-services.json` của production, không được tạo); đã bỏ khỏi mục 4 và mọi chỗ nhắc tới. Việc production không đọc giá trị staging do unit test tập rỗng ở `:core:config` và test quét mã nguồn `LocalRemoteValuesSourceSetTest` chứng minh.
 4. **Ân hạn phiên đầu trên staging** (khóa của T-009, mặc định 180 giây). AI đề xuất để T-009 quyết định và thêm vào `StagingRemoteValuesModule`; T-008 chỉ bật vị trí như ticket ghi.
+   Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **CI không chạy unit test của biến thể production** (`scripts/check.sh` chỉ chạy `testStagingDebugUnitTest` ở `:app`). Plan dùng test quét mã nguồn chạy ở staging thay thế. Có nên đề xuất về dự án mẫu thêm `testProductionDebugUnitTest` vào `scripts/check.sh` (plan rủi ro cao riêng) không? AI đề xuất có, ngoài T-008.
+   Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

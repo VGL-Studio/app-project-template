@@ -1,16 +1,16 @@
 ---
 ticket: T-017
 title: Popup mất mạng chung và chặn vào app khi không có mạng
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-21)
 blocking_points: [analytics, core, build]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 10               # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật              # người duyệt
+cross_reviewer: Nhật        # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-017: POPUP MẤT MẠNG CHUNG VÀ CHẶN VÀO APP KHI KHÔNG CÓ MẠNG
@@ -258,20 +258,25 @@ Unit test chạy trên JVM với `MainDispatcherRule`, `runTest` và thời gian
 ## 8. Câu hỏi cho người duyệt
 
 1. **Chữ khi bấm "Thử lại" mà vẫn chưa có mạng.** Spec KB-2 yêu cầu popup "cho biết vẫn chưa có mạng" nhưng bảng chữ của thiết kế không có dòng này. AI đề xuất: thêm một dòng dưới nội dung, `bodyMedium`, màu `error`, căn giữa: "Vẫn chưa có kết nối. Hãy thử lại sau ít phút." / "Still no connection. Please try again in a moment."; có ảnh chuẩn riêng `NetworkLostScreen_stillOffline_light.png`. Phương án khác: không thêm dòng, chỉ rung nhẹ nút; hoặc bổ sung trạng thái này vào Figma trước.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 2. **Hiện ngay khi rời loading.** `isOnline` của T-016 chỉ báo mất mạng sau 2 giây; khi loading tắt, người dùng có thể thao tác trong 2 giây đầu. AI đề xuất: lần đầu rời màn hình loading và mỗi lần app quay lại từ nền, ViewModel gọi `checkNow()` và hiện popup ngay nếu không có mạng; khoảng chờ chỉ áp dụng khi mạng rớt lúc đang dùng.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Ngôn ngữ mặc định và lint.** Chuỗi của `:app` hiện tiếng Việt ở `values/` (như `:feature:loading`), tiếng Anh ở `values-en/`. Có `values-en` thì lint có thể đòi bản tiếng Anh cho `app_name` và cho chuỗi của module khác. AI đề xuất: giữ tiếng Việt mặc định; nếu lint chỉ báo `app_name` thì đánh dấu riêng dòng đó là không dịch bằng thuộc tính trên thẻ `<resources>` mà không đổi dòng `app_name` (new-app.sh thay đúng dòng đó); nếu lint báo chuỗi của module khác thì dừng (mục 7) để nhóm chọn chiến lược ngôn ngữ chung cho dự án mẫu. Người duyệt xác nhận ngôn ngữ mặc định của dự án mẫu là tiếng Việt.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Ảnh chuẩn của `:app` không được CI so.** `scripts/check.sh` chỉ duyệt `core/` và `feature/`. AI đề xuất: chấp nhận cho T-017 (phiên tự chạy so cục bộ bằng `:app:verifyRoborazziStagingDebug` và ghi vào nhật ký), và mở một ticket riêng, rủi ro cao, để `check.sh` duyệt cả `app/` (tên task có biến thể `StagingDebug`) và để script đối chiếu thiết kế nhận thư mục ảnh của `:app`. Phương án khác: gộp sửa `check.sh` vào T-017 (thêm file được bảo vệ vào plan này).
    - Trả lời (anh Nhật, 2026-10-23): `scripts/check.sh` đã sửa ở PR #81, so ảnh chuẩn của `:app` (`verifyRoborazziStagingDebug`, đọc cả `src/testStaging`). Bỏ phần so ảnh trên máy thay cho CI; T-017 cần PR #81 merge trước. Rà soát độc lập ghi thêm: vì `check.sh` chỉ nhận `captureRoboImage("src/test/screenshots/...")`, screenshot test đổi từ `captureScreenRoboImage` sang `onRoot().captureRoboImage` trên bố cục dựng lại (mục 3.1). Script đối chiếu thiết kế vẫn chỉ đọc `feature/<feature>/`, nên phiên tự chạy gọi thẳng `DesignCompare.java` như mục 3.1.
 5. **Tham số `screen`.** AI đề xuất rút từ `route` của đích: `sample`, `loading`, `ad_gallery`... Không cần mỗi feature khai báo tên. Đích có tham số chỉ lấy tên đích, không lấy giá trị tham số (tránh dữ liệu cá nhân).
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **`SampleScreen` thành công khai** chỉ để screenshot test của `:app` dựng đúng ảnh thiết kế. Phương án khác: dựng popup trên nền trống (ảnh khác thiết kế ở phần dưới, không phải sửa `:feature:sample`). AI đề xuất giữ cách trong plan vì README thiết kế ghi rõ dựng trên `SampleScreen`.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

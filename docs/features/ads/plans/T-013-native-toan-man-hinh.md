@@ -1,16 +1,16 @@
 ---
 ticket: T-013
 title: Native toàn màn hình thay interstitial
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 20M của scripts/token-usage.py estimate (2026-10-21), cộng 5M vì có màn hình theo thiết kế và ảnh so sánh
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 9                # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật              # người duyệt
+cross_reviewer: Nhật        # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-013: NATIVE TOÀN MÀN HÌNH THAY INTERSTITIAL
@@ -274,19 +274,25 @@ Unit test chạy trên JVM, không cần SDK. Test giao diện và screenshot ch
 ## 8. Câu hỏi cho người duyệt
 
 1. **Không thêm vị trí native toàn màn hình trong task này.** Spec mục 5 chỉ có vị trí của màn hình xem thử (T-014). AI đề xuất: T-013 chỉ thêm định dạng, hàm và màn hình; T-014 thêm vị trí (ví dụ `gallery_native_full_screen`) và sinh lại bảng khóa. Hệ quả: tới khi T-014 xong, native toàn màn hình chưa thử được trên bản staging; mục "Có trong bản staging" của ticket hoàn thành cùng T-014. Phương án khác: thêm một vị trí mẫu ở `:feature:sample`, nhưng spec không có điểm dừng tự nhiên nào ở màn hình mẫu.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 2. **Hiện bằng hộp thoại Compose hay bằng một Activity riêng.** AI đề xuất hộp thoại toàn màn hình do `FullScreenAdHost` (đặt một lần ở `:app`) vẽ: không phải khai báo Activity mới trong manifest, theo được theme sáng tối, màn hình bên dưới giữ nguyên. Phương án khác: Activity riêng trong `:core:ads` (tách hẳn khỏi giao diện app, nhưng thêm khai báo manifest và chuyển quảng cáo qua giữa hai Activity).
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Mã thử cho native toàn màn hình.** AI đề xuất mã thử native video (`.../1044960115`) để thử media video trên màn hình lớn; các cỡ native khác dùng mã native thường của T-010. Hay dùng chung mã native thường?
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Hạn dùng của native tải sẵn: 1 giờ, hằng số trong code.** Theo khuyến nghị của Google; không phải khóa Remote Config vì spec mục 8 không có. Đồng ý không?
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Ảnh so sánh của module core.** Script của ADR-0020 chỉ tìm ảnh ở `feature/<feature>/`, còn native nằm ở `core/ads/`. Plan chạy thẳng công cụ Java với thư mục của `:core:ads` và không sửa script. Nếu T-010 đã sửa script (thêm tham số thư mục ảnh), task dùng cách đó. Có muốn đề xuất sửa script ở một ticket riêng không?
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Một lần gọi khi interstitial đang hiện.** AI đề xuất bỏ qua ngay (không xếp hàng chờ) để không có hai quảng cáo toàn màn hình liền nhau (`ads-guide.md`, bảng "không bao giờ làm").
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

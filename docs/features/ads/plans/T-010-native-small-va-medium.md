@@ -1,16 +1,16 @@
 ---
 ticket: T-010
 title: Native small và medium; màn hình mẫu dùng native small thay banner
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 40M          # cỡ L, số gợi ý của scripts/token-usage.py estimate (2026-10-21, chưa có task đã đo)
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 5                # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật              # người duyệt
+cross_reviewer: Nhật        # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-010: NATIVE SMALL VÀ MEDIUM; MÀN HÌNH MẪU DÙNG NATIVE SMALL THAY BANNER
@@ -350,22 +350,30 @@ Bảng điểm dưới đây chỉ để tham khảo:
 1. **`scripts/release.sh` không đọc được vị trí native.** Biểu thức đọc `AdPlacement.kt` là `AdFormat\.[A-Z]+`, không khớp `AdFormat.NATIVE_SMALL`. Sau T-010, script không kiểm mã production của vị trí native nào (gồm `sample_native_small` và mọi vị trí native của app), nên bản phát hành có thể thiếu mã mà không bị chặn (app chỉ ghi log lỗi và không hiện quảng cáo). AI không được chạm `release.sh`. Đề xuất: dev sửa tay thành `AdFormat\.[A-Z_]+` trước lần phát hành production đầu tiên có native, kèm một ca thử trong `scripts/tests/run.sh`, trước hoặc cùng lúc T-010. Phương án khác: đặt tên định dạng không có gạch dưới (`NATIVESMALL`), lệch hợp đồng chung và khó đọc; AI không đề xuất.
    - Trả lời (anh Nhật, 2026-10-23): `release.sh` đã sửa ở PR #81 (đọc định dạng có gạch dưới, bỏ qua vị trí có khóa bắt đầu bằng `gallery_`). Cần PR #81 merge trước T-010.
 2. **Cách màn hình mẫu nhận quảng cáo giả cho screenshot.** Plan thêm tham số `bottomAd` cho `SampleScreen`, mặc định là `NativeAdSlot`, test truyền `NativeAdCard` giả. Feature sau làm theo mẫu này. Phương án khác: một `CompositionLocal` của `:core:ads` để `NativeAdSlot` tự vẽ quảng cáo giả trong test, màn hình không cần tham số, nhưng thêm một API chỉ dành cho test vào module core. AI đề xuất tham số.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Khai báo "vị trí cạnh nút của app".** Spec KB-1 nói vị trí được khai báo là cạnh nút thì giữ chỗ khi không có quảng cáo. Plan dùng tham số `keepSpaceWhenEmpty` của `NativeAdSlot` (người viết màn hình biết vị trí đặt). Phương án khác: thêm thuộc tính vào `AdPlacement` (khai báo một chỗ, nhưng đổi hàm tạo của enum mà T-011 đến T-014 cũng dùng). AI đề xuất tham số.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Ô đánh dấu AdChoices trong ảnh giả.** `NativeAdCard` vẽ một ô 16 dp ở góc trên phải để screenshot giống thiết kế; quảng cáo thật không vẽ (SDK vẽ AdChoices). Đồng ý không? Nếu không, ảnh chụp sẽ thiếu ô này so với thiết kế, chấp nhận lệch ở ảnh so sánh.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Phụ thuộc T-009.** Ticket ghi `depends_on: [T-007]`, nhưng plan dùng `AppLogger` trong `AdsController` và công tắc tổng trong `isEnabled` của T-009. Đề xuất: thêm T-009 vào `depends_on` của ticket khi duyệt (người sửa), và xếp T-010 sau T-009.
    - Rà soát độc lập (2026-10-23): đã thêm T-009 vào `depends_on` của ticket T-010; người duyệt xác nhận.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Đổi tên khóa bật tắt của vị trí mẫu.** `ads_sample_bottom_banner_enabled` thành `ads_sample_native_small_enabled`. Project Firebase staging đã đặt khóa cũ thì phải đặt khóa mới (T-008 vẫn bật sẵn trên bản build từ file giả). Đề xuất: ghi vào mô tả PR để dev cập nhật project staging; không giữ khóa cũ.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 7. **Native small không có `MediaView`.** Thiết kế và ads-guide mục 4 chọn small không có media. Chính sách native của AdMob yêu cầu hiện media chính khi quảng cáo có video hay ảnh chính; lớp kiểm tra native của SDK có thể cảnh báo. Đề xuất: làm đúng thiết kế, kiểm bằng lớp kiểm tra trên staging; có cảnh báo thì dừng (mục 7) để người phụ trách sản phẩm chọn: thêm media nhỏ vào small (đổi thiết kế) hay chỉ dùng medium.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 8. **Quảng cáo chỉ ở trạng thái `Ready` của màn hình mẫu.** Thiết kế ghi trạng thái tắt không có quảng cáo; plan cũng bỏ quảng cáo ở `Loading` (ngắn, tránh hai hiệu ứng chờ). Đồng ý không?
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 9. **Mã thử cho native medium.** Plan dùng mã thử native video (`.../1044960115`) để thử `MediaView` với video; small dùng mã native thường (`.../2247696110`). Đề xuất: đồng ý; nếu muốn medium luôn là ảnh tĩnh để dễ so thiết kế thì dùng chung mã thường.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

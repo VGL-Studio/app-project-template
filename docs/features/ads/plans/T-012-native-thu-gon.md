@@ -1,16 +1,16 @@
 ---
 ticket: T-012
 title: Native thu gọn được
-status: draft                # draft | approved | stopped | done
+status: approved            # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-21)
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 8                # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật              # người duyệt
+cross_reviewer: Nhật        # bắt buộc khi risk_level là high
+approved_at: 2026-10-23
 ---
 
 # PLAN T-012: NATIVE THU GỌN ĐƯỢC
@@ -234,20 +234,25 @@ Test giao diện chạy bằng Robolectric, `createComposeRule()`, `@GraphicsMod
 1. **Ảnh chuẩn mang tên `AdGalleryScreen_collapsible-*` nằm ở `:core:ads`.** README thiết kế gán hai ảnh này cho T-012, nhưng `AdGalleryScreen` là màn hình của T-014 ở `app/src/staging`. AI đề xuất: T-012 ghi hai ảnh này (và ảnh `_small`) trong `core/ads/src/test/screenshots/` bằng một khung chỉ có trong test, giống frame thiết kế; T-014 không ghi lại ảnh cùng tên, chỉ dùng `CollapsibleNativeAdSlot` trong màn hình thật. Phương án khác: T-012 chỉ ghi ảnh component (`CollapsibleNativeAd_expanded_light`, `_collapsed_light`) và để T-014 ghi hai ảnh tên `AdGalleryScreen_collapsible-*`; khi đó T-012 không có ảnh trùng tên thiết kế.
    Trả lời (anh Nhật, 2026-10-23): theo phương án khác. Ảnh chuẩn `AdGalleryScreen_collapsible-*` do T-014 ghi ở màn hình thật (`:app`, staging). T-012 chỉ ghi ảnh component tên riêng (`CollapsibleNativeAd_expanded_light`, `CollapsibleNativeAd_collapsed_light`, `CollapsibleNativeAd_expanded_small`, cùng hai ảnh tối), không ghi ảnh mang tên thiết kế, không tạo ảnh so sánh `design/review/` cho hai ảnh đó. Plan đã sửa theo ở mục 1, 3.1, 3.2, 4, 6.
 2. **Chiều cao giữ chỗ khi đang tải.** Thiết kế không có frame tải cho native thu gọn. AI đề xuất: giữ chỗ bằng dạng hiện tại, 342 dp khi chưa thu gọn, 72 dp khi đã thu gọn, để nội dung không nhảy khi quảng cáo hiện (KB-1). Phương án khác: luôn giữ 72 dp rồi bung ra 342 dp khi có quảng cáo; ít chiếm chỗ khi không có quảng cáo nhưng làm nội dung nhảy, dễ gây bấm nhầm.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **So sánh thiết kế cho module core.** Script bọc sẵn chỉ đọc `feature/<feature>/src/test/screenshots/`, nên với `ads` (không có `:feature:ads`) nó báo thiếu mọi ảnh. AI đề xuất: task chạy thẳng chương trình Java mà script gọi, với thư mục `core/ads/src/test/screenshots`; sau đợt quảng cáo, đề xuất một thay đổi nhỏ cho script (tham số thư mục ảnh chuẩn) bằng plan riêng. Lý do không sửa trong task này: plan T-010 đến T-014 đều cần cùng thay đổi, sửa ở một task sẽ xung đột với các task kia. Câu hỏi này có lẽ nên trả lời chung ở họp đánh giá cho cả đợt.
    Hệ quả của câu trả lời câu hỏi 1 (2026-10-23): không còn áp dụng cho T-012; T-012 không tạo ảnh so sánh; hai ảnh `AdGalleryScreen_collapsible-*` được so ở T-014. Plan đã bỏ bước chạy `DesignCompare.java`.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Có hiệu ứng khi thu gọn không?** AI đề xuất: không, chuyển ngay sang dạng gọn. Hiệu ứng co lại làm CTA và chữ di chuyển dưới tay người dùng trong lúc co, và làm screenshot khó ổn định. Có thể thêm sau nếu muốn.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Ghi kết quả đối chiếu vào README thiết kế đã duyệt.** README có `status: approved`; mục 7 và 8 có chỗ "kiểm khi code" và "Kết quả đối chiếu" chờ điền. AI đề xuất: chỉ đánh dấu và ghi kết quả của phần thu gọn ở hai mục này, không đổi nội dung thiết kế. Nếu muốn README chỉ do người sửa, bỏ dòng này khỏi danh sách file; kết quả vẫn có trong `review/summary.md`.
    Hệ quả của câu trả lời câu hỏi 1 (2026-10-23): không còn áp dụng cho T-012; kết quả đối chiếu hai ảnh thu gọn do T-014 ghi; plan đã bỏ README thiết kế khỏi danh sách file.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Trạng thái thu gọn sống bao lâu.** AI đề xuất: nhớ bằng `rememberSaveable`, nên xoay máy và quay lại màn hình từ ngăn xếp vẫn gọn; mở một lần mới của màn hình thì bắt đầu ở dạng mở. Phương án khác: nhớ suốt phiên app cho mỗi vị trí (ít quảng cáo lớn hơn, nhưng vượt tiêu chí "còn ở màn hình đó" và cần trạng thái trong `AdsController`).
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 

@@ -1,16 +1,16 @@
 ---
 ticket: T-007
 title: Khóa Remote Config có kiểu, khai báo một chỗ, bảng khóa sinh tự động
-status: draft
+status: approved
 version: 1
 risk_score:
 risk_level: high
 token_estimate: 25M
 blocking_points: [core]
-run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+run_order: 1
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-23
 ---
 
 # PLAN T-007: KHÓA REMOTE CONFIG CÓ KIỂU, KHAI BÁO MỘT CHỖ, BẢNG KHÓA SINH TỰ ĐỘNG
@@ -256,19 +256,25 @@ File được bảo vệ (`scripts/check.sh`, `.github/`, `build-logic/`, `gradl
 ## 8. Câu hỏi cho người duyệt
 
 1. **ADR-0023 mục 4 đã ghi "một test" sinh bảng khóa, plan làm đúng; mục Hệ quả của ADR còn câu "đổi `:core:config` và thêm script".** Đề xuất: sửa chữ "thêm script" thành "thêm test sinh bảng" trong ADR-0023 (đang `proposed`) ở PR tài liệu của đợt này, ngoài T-007.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 2. **Bỏ `RemoteSettings.boolean/long` nhận tên khóa dạng chuỗi.** Đề xuất: bỏ, vì chỉ `AdsController` dùng và giữ lại thì khóa có thể né chỗ khai báo chung. App đã tạo từ dự án mẫu có module core riêng gọi hàm cũ sẽ phải đổi khi kéo thay đổi về. Nếu muốn chuyển dần thì giữ hai hàm, đánh `@Deprecated`, bỏ ở ticket sau.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 3. **Chỗ gom khóa `AppRemoteKeys` đặt ở `app/src/main`, `AdsSettings` thành public.** Đề xuất: đồng ý, để T-008 (bật vị trí ở staging) và T-014 (màn hình xem thử) dùng được. Phương án khác: chỉ đặt trong `app/src/test`, giữ `AdsSettings` internal và thêm một hàm public trả danh sách khóa.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 4. **Nhập file mẫu vào Firebase thay cả bộ cấu hình của project.** Đề xuất: `docs/ops/remote-config.md` ghi rõ chỉ nhập cho project mới; project đang chạy thì thêm từng khóa bằng tay theo bảng. Chưa kiểm tra được trên Firebase thật vì staging dùng file giả (ADR-0012); người duyệt có muốn kiểm tra thủ công này trước khi đóng ticket không?
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 5. **Mô tả khóa viết tiếng Anh** (chuỗi trong code, CLAUDE.md mục Quy ước code), còn tiêu đề và chữ của `remote-config-keys.md` viết tiếng Việt. Đề xuất: giữ như vậy; người vận hành đọc mô tả tiếng Anh trên Firebase.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 6. **Khóa số phải kết thúc bằng `_seconds`, `_count` hay `_percent`** (test `everyNumberKey_endsWithUnit`). ADR-0023 chỉ nêu ba đơn vị này làm ví dụ. Đề xuất: test cứng ba đơn vị; cần đơn vị mới thì thêm vào test cùng plan của khóa đó.
+   - Trả lời (anh Nhật, 2026-10-23): theo đề xuất của AI.
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm hiện một dev đảm nhận cả hai vai)
+- **Ghi chú:** anh Nhật duyệt ngày 2026-10-23 ("Duyệt tất cả các plan"), sau rà soát độc lập của AI; AI ghi mục này theo lời anh. Câu hỏi ở mục 8 đã có trả lời. Cần PR #81 (`release.sh`, `check.sh`) merge trước phiên chạy.
 
 ## 10. Nhật ký thực hiện
 
