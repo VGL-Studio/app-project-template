@@ -15,7 +15,10 @@ interface RemoteSettings {
     fun <T : Any> value(key: RemoteKey<T>): Flow<T>
 }
 
-internal class DefaultRemoteSettings @Inject constructor(private val remote: RemoteFlagSource) : RemoteSettings {
+internal class DefaultRemoteSettings @Inject constructor(
+    private val remote: RemoteFlagSource,
+    @LocalRemoteValues localValues: Set<@JvmSuppressWildcards LocalRemoteValue>,
+) : RemoteSettings {
     override fun <T : Any> value(key: RemoteKey<T>): Flow<T> {
         val values: Flow<Any?> = when (key.type) {
             RemoteKey.Type.BOOLEAN -> remote.boolean(key.name)

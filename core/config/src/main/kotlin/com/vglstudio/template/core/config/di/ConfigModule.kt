@@ -6,6 +6,8 @@ import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.FeatureFlags
 import com.vglstudio.template.core.config.FirebaseRemoteConfigRefresher
 import com.vglstudio.template.core.config.FirebaseRemoteFlagSource
+import com.vglstudio.template.core.config.LocalRemoteValue
+import com.vglstudio.template.core.config.LocalRemoteValues
 import com.vglstudio.template.core.config.LocallyEnabledFlags
 import com.vglstudio.template.core.config.RemoteConfigRefresher
 import com.vglstudio.template.core.config.RemoteFlagSource
@@ -35,4 +37,9 @@ internal abstract class ConfigModule {
     @Multibinds
     @LocallyEnabledFlags
     abstract fun locallyEnabledFlags(): Set<FeatureFlag>
+
+    /** Declares the set so it exists (empty) in builds that give no key a local value, such as production. */
+    @Multibinds
+    @LocalRemoteValues
+    abstract fun localRemoteValues(): Set<LocalRemoteValue>
 }
