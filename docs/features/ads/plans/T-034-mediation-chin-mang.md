@@ -1,23 +1,23 @@
 ---
 ticket: T-034
 title: Mediation chín mạng
-status: stopped                 # draft | approved | stopped | done
+status: approved                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M, số tạm của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
 blocking_points: [ads, sdk, init-order, core, build-config]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-034: MEDIATION CHÍN MẠNG
 
 ## 1. Tóm tắt
 
-**Phiên bản 2 (2026-10-24, phiên RUN-20261024-02 soạn, `draft`).** Bản 1 dừng ở bước 4 vì môi trường cloud của phiên không tải được từ hai kho Maven mới: proxy của môi trường từ chối kết nối tới `artifact.bytedance.com` và `dl-maven-android.mintegral.com` (403, `connect_rejected`), đúng điều kiện chuyển của mục 3.4. Vì sao plan chưa đủ tốt: lần chạy thử ở mục 4.1 làm trên máy dev, không làm trong môi trường cloud của phiên, nên không thấy proxy chặn hai kho này (cùng loại với R2 ở L-050). Cách làm, danh sách file, test và chấm rủi ro không đổi. Thay đổi: mục 3.1 thêm cách tiếp tục trên nhánh cũ; điều kiện trước khi chạy lại là người cho phép hai tên miền trên trong chính sách mạng của môi trường cloud (hoặc chạy task trên máy dev). Mục 9 chờ duyệt lại.
+**Phiên bản 2 (2026-10-24, phiên RUN-20261024-02 soạn, `draft`).** Bản 1 dừng ở bước 4 vì môi trường cloud của phiên không tải được từ hai kho Maven mới: proxy của môi trường từ chối kết nối tới `artifact.bytedance.com` và `dl-maven-android.mintegral.com` (403, `connect_rejected`), đúng điều kiện chuyển của mục 3.4. Vì sao plan chưa đủ tốt: lần chạy thử ở mục 4.1 làm trên máy dev, không làm trong môi trường cloud của phiên, nên không thấy proxy chặn hai kho này (cùng loại với R2 ở L-050). Cách làm, danh sách file, test và chấm rủi ro không đổi. Thay đổi: mục 3.1 thêm cách tiếp tục trên nhánh cũ; điều kiện trước khi chạy lại là người cho phép hai tên miền trên trong chính sách mạng của môi trường cloud (hoặc chạy task trên máy dev). Mục 9 chờ duyệt lại. Sau rà soát độc lập trước RUN-20261024-03: mục 3.2 thêm năm test mới nhắc `ads-business-rules.md` chỉ trong chú thích (L-020, `plan-check.py`); mục 4.1 thêm bước chạy thử tải trong môi trường cloud (L-067).
 
 Thêm adapter chính thức của AdMob cho tám mạng còn lại (Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads) và SDK Unity Ads vào `gradle/libs.versions.toml` và `:core:ads`, cạnh AppLovin của T-015. Hai kho Maven mới (Pangle, Mintegral) vào `settings.gradle.kts`, mỗi kho chỉ cho đúng nhóm thư viện của nó. Không có code khởi tạo riêng: `MobileAds.initialize` khởi tạo mọi adapter và dòng log trạng thái của T-015 ghi từng adapter.
 
@@ -191,7 +191,12 @@ Nơi đọc các file bị đổi (L-020), tìm bằng `grep -rn <tên file> scr
 - `scripts/tests/run.sh`: `scripts/check.sh` chạy nó, không đọc nội dung. Không bị ảnh hưởng.
 - `app/lint.xml` (file mới): `grep -rn "lint.xml" scripts/ .github/ build-logic/` không thấy nơi nào đọc; lint của AGP tự đọc file ở thư mục module. `build-logic` không đặt `lintConfig`, nên không có cấu hình nào bị thay.
 - `docs/ops/release.md`: `scripts/release.sh` chỉ nhắc tên file trong thông báo lỗi; plan không chạm, không chạy script đó.
-- `docs/ops/ads-guide.md`, `docs/ops/ads-business-rules.md`: không script, workflow hay test nào đọc.
+- `docs/ops/ads-guide.md`, `docs/ops/ads-business-rules.md`: không script hay workflow nào đọc. (Phiên bản 2) Năm test do T-019, T-020, T-022 thêm sau lần viết đầu nhắc `ads-business-rules.md`, chỉ trong chú thích, để dẫn nguồn của giá trị chép tay; không test nào mở file hay đọc M-03, AR-04 mà plan sửa. Không bị ảnh hưởng:
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdFormatTest.kt` dòng 18: chú thích dẫn MC-02.
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` dòng 11, 38: chú thích dẫn mục 10 và 10.1 (bảng khóa).
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentGateTest.kt` dòng 10: chú thích dẫn mục S.
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdGuardTest.kt` dòng 9: chú thích dẫn mục 4.
+  - `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerSettingsTest.kt` dòng 8: chú thích dẫn mục 10.1.
 - `docs/STATUS.md`: không đưa vào PR (L-059).
 - Ảnh chuẩn screenshot không đổi: test và preview không có `AdsController`, không có quảng cáo trong ảnh.
 
@@ -264,6 +269,8 @@ Thứ tự commit (L-025): commit test của bước 3 gồm mọi test ở trê
   - `scripts/check.sh` lần 3 (có `app/lint.xml` trên): **qua**, "Cổng chất lượng: QUA", exit 0; 458 test JVM, 0 lỗi (`:app` 73, `:core:ads` 200), 42 ảnh screenshot, mọi test script qua. Plan lấy cách này, cần người duyệt đồng ý (câu hỏi 7).
   - R8: `./gradlew :app:minifyStagingReleaseWithR8` **qua** (exit 0), không cần quy tắc giữ lớp. 22 cảnh báo "Missing class", không phải lỗi: 20 lớp `com.android.billingclient.api.*` do mã `com.tiktok.iap.billing` (SDK TikTok Business đi kèm Pangle, đo doanh thu mua trong app) gọi tới, 2 lớp `com.bytedance.sdk` do chính Pangle gọi. Dự án không có Play Billing nên phần đó của TikTok không chạy.
   - Chưa thử trên máy: adapter khởi tạo (dự kiến `NOT_READY` trên staging), SDK Meta còn khởi tạo được qua adapter khi không có provider, không có mã mạng nào chạy trước đồng ý (kiểm thủ công 1 đến 3).
+- **Chạy thử tải trong môi trường cloud (phiên bản 2, L-067):** lần chạy thử trên làm trên máy dev nên không thấy proxy của môi trường cloud chặn hai kho mới. Trước khi duyệt phiên bản 2: người thêm `artifact.bytedance.com` và `dl-maven-android.mintegral.com` vào chính sách mạng của môi trường cloud, rồi chạy thử phần tải trong chính môi trường đó, trên nhánh `claude/T-034-mediation-chin-mang`: `./gradlew :core:ads:dependencies --configuration releaseRuntimeClasspath --refresh-dependencies` (hoặc `curl -sS -o /dev/null -w '%{http_code}'` tới hai kho). Kho nào chuyển hướng sang máy chủ khác (CDN) thì thêm cả máy chủ đó. Kết quả ghi vào mục Kiểm tra trước khi duyệt của danh sách chạy; còn 403 hay lỗi kết nối thì không đưa plan vào danh sách chạy.
+  - Kết quả: <người hoặc AI điền sau khi chạy thử trong môi trường cloud>
 
 ## 5. Chấm rủi ro
 
@@ -358,7 +365,7 @@ Rủi ro riêng: SDK Meta có thể dựa vào provider đã bỏ và chạy sai
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
-Phiên bản 2: chờ người duyệt.
+Phiên bản 2: **Duyệt**. Người duyệt: Nhật, duyệt chéo: Nhật. AI ghi theo lời anh Nhật, 2026-10-24, với điều kiện anh mở `artifact.bytedance.com`, `dl-maven-android.mintegral.com` cho môi trường cloud; còn 403 thì phiên dừng T-034 theo mục 7, task khác vẫn chạy, sau rà soát độc lập trước phiên của RUN-20261024-03 (các điểm chặn và nên sửa đã sửa trong phiên bản này).
 
 ## 10. Nhật ký thực hiện
 
