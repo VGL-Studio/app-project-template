@@ -3,8 +3,9 @@ package com.vglstudio.template.core.ads
 /**
  * Debug settings of the consent form (User Messaging Platform), bound in :app per build flavor.
  * Staging uses [EEA_TEST_DEVICE] so anyone can test the European consent form; production uses [NONE].
+ * [allowConsentReset] lets the staging build clear the stored consent to test the form again (S-18).
  */
-data class ConsentDebugOptions(val forceEea: Boolean) {
+data class ConsentDebugOptions(val forceEea: Boolean, val allowConsentReset: Boolean = false) {
     companion object {
         val NONE = ConsentDebugOptions(forceEea = false)
 
