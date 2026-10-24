@@ -159,11 +159,12 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 ### Bước 8. CI đầy đủ
 
 - `pr-check.yml` chạy toàn bộ kiểm tra ở bước 5. Test trên emulator chỉ chạy khi PR chạm vào code giao diện hoặc test giao diện (ADR-0010).
-- AI chờ CI bằng `scripts/wait-run.sh --pr <số PR>` cho đến khi `pr-check` kết thúc (mục Chờ workflow bên dưới), rồi gọi `merge-if-green.sh`.
+- AI chờ CI bằng `scripts/wait-run.sh --pr <số> --sha "$(git rev-parse HEAD)"` sau khi chính phiên đẩy commit lên nhánh của PR, cho đến khi `pr-check` kết thúc (mục Chờ workflow bên dưới), rồi gọi `merge-if-green.sh`.
 
 **Chờ workflow.** Mỗi lần hỏi GitHub trạng thái là một lượt gọi model đọc lại toàn bộ ngữ cảnh của phiên, nên không hỏi lặp lại bằng tay. `scripts/wait-run.sh` tự chờ trong một lệnh và in một dòng kết quả: mã 0 xanh, 1 đỏ (kèm tên job đỏ), 2 hết thời gian chờ thì gọi lại, 4 GitHub không chạy job (`HẠ TẦNG`), 5 PR xung đột với nhánh chính (`XUNG ĐỘT`). Chạy lệnh ở chế độ nền và làm việc khác trong lúc chờ nếu có (mục 4); không có việc khác thì chạy thường. Môi trường giới hạn một lệnh 10 phút thì dùng `--timeout 9` và gọi lại khi nhận mã 2.
 - Mã 4 (`HẠ TẦNG`): GitHub không cấp máy cho job, thường vì hết hạn mức Actions; job không chạy bước nào nên không có log. Không sửa code, không chạy lại, không tính vào 3 lần sửa của cùng một lỗi: làm theo mục 4, dòng "GitHub không chạy job" (L-064).
 - Mã 5 (`XUNG ĐỘT`): GitHub không chạy `pr-check` cho PR xung đột với nhánh chính, nên chờ thêm cũng không có lần chạy nào. Gộp nhánh chính vào nhánh (`git merge origin/main`), sửa xung đột trong phạm vi file của plan, đẩy, rồi chờ lại; không tính vào 3 lần sửa (L-064).
+- `--pr` chờ commit đầu hiện tại của PR, đọc lại mỗi vòng. Lần chạy của commit cũ bị hủy vì có commit mới thì không phải đỏ (L-083). `--sha` để không nhận nhầm kết quả của commit trước khi GitHub chưa cập nhật PR (vài giây sau lệnh đẩy). Sau `merge-if-green.sh --update` (commit do GitHub tạo, phiên không có mã) thì gọi không kèm `--sha`. `ĐỎ (cancelled)` chỉ còn khi chính commit đầu bị hủy: tra bảng tra lỗi như mọi lần đỏ.
 - CI đỏ thì AI đọc log để phân biệt lỗi thật với lỗi chập chờn. Lỗi chập chờn được chạy lại một lần. Lỗi thật thì quay lại bước 4, tối đa 3 lần cho cùng một lỗi, sau đó dừng task.
 - Khi `ui-test` đỏ, log của job có bước "Chi tiết test trên emulator" in toàn văn lỗi của từng test và log của app trên emulator (ADR-0019). Đọc bước đó trước khi kết luận. Bản đầy đủ nằm trong artifact `ui-test-report` của lần chạy: `gh api repos/{owner}/{repo}/actions/runs/<id>/artifacts`, rồi tải tệp zip theo `archive_download_url`.
 - Không thêm lệnh in chẩn đoán vào test để tìm lỗi trên CI; đọc chi tiết và log nói trên.
@@ -185,7 +186,7 @@ Theo ADR-0025, mục 4 (L-049). Phiên chỉ revert commit merge của chính ph
 
 1. Đọc issue bằng REST (bước 7) và lấy commit gây lỗi. So với các commit merge mà phiên ghi ở dòng thời gian của báo cáo; không khớp thì kết thúc phiên.
 2. Mở PR từ nhánh `revert/<7 ký tự đầu>` mà `main-guard` đã đẩy: `gh api -X POST "repos/{owner}/{repo}/pulls" -f head=revert/<sha> -f base=main -f title="Revert T-NNN (main-broken #<số issue>)" -f body="..."`. Không sửa nhánh đó và không gọi `merge-if-green.sh --update` cho PR này: `merge-if-green.sh` chỉ cho qua đúng một commit `git revert` nằm ngay trên nhánh chính mới nhất (`scripts/is-exact-revert.sh`). Không có nhánh `revert/` (issue ghi "Không tự revert được"), hoặc nhánh chính đã có commit mới sau commit gây lỗi khiến bản revert không còn nằm ngay trên nhánh chính: kết thúc phiên.
-3. Chờ CI bằng `scripts/wait-run.sh --pr <số>`, rồi merge bằng `scripts/merge-if-green.sh <số>`. Script từ chối thì kết thúc phiên, không tìm cách khác.
+3. Chờ CI bằng `scripts/wait-run.sh --pr <số> --sha "$(git rev-parse HEAD)"`, rồi merge bằng `scripts/merge-if-green.sh <số>`. Script từ chối thì kết thúc phiên, không tìm cách khác.
 4. Chờ `main-guard` của commit revert (`scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge>`). Xanh thì issue tự đóng; kiểm lại không còn issue `main-broken` đang mở rồi mới làm task sau. Còn đỏ thì kết thúc phiên.
 5. Task bị revert: ticket chuyển `stopped`, nhật ký plan ghi "đã merge rồi revert" kèm issue và PR revert, chuẩn bị cho người như task dừng (mục Chuẩn bị cho người khi task dừng). Task phụ thuộc task đó bị bỏ qua.
 

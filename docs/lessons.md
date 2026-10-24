@@ -406,3 +406,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: tiêu chí chấp nhận áp cho mọi lượt gửi (ví dụ "không gửi ở nền") thì liệt kê mọi đường gửi (lượt đầu, nạp sẵn, thử lại, nạp lại) và cho mỗi đường một test, hoặc đưa điều kiện vào một hàm thuần mà mọi đường dùng chung; không để đường nào chỉ nằm trong ngoại lệ nối.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
+
+### L-083. `wait-run.sh --pr` gọi ngay sau khi đẩy đọc lần chạy cũ bị hủy và báo đỏ
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (phiên có người theo dõi, PR #98, #100 của app; sửa ở T-044, PR #119 của app), issue #129
+- **Loại, phạm vi:** công cụ, chung
+- **Chuyện gì:** ở app camera-pose, phiên đẩy commit mới lên nhánh PR rồi gọi ngay `wait-run.sh --pr`. Script đọc commit đầu của PR đúng một lần lúc bắt đầu; GitHub chưa kịp cập nhật PR nên script chờ lần chạy của commit trước, lần chạy đó bị GitHub hủy khi commit mới có lần chạy, và script báo `ĐỎ (cancelled)`. Ba lần trong một buổi (PR #100 của app: commit `e35ae86` rồi `eba5f98`); phiên tự chạy gặp mã 1 sẽ đọc log, không thấy lỗi, và có thể tính nhầm vào 3 lần sửa hay chạy lại vô ích.
+- **Đề xuất sửa:** `scripts/wait-run.sh --pr` đọc lại commit đầu của PR mỗi vòng và đi theo commit mới; lần chạy bị hủy thì đọc lại commit đầu vài vòng trước khi gọi là đỏ; thêm `--sha <commit>` để chờ đúng commit vừa đẩy. `auto-run.md`, bước 8: chờ bằng `--sha "$(git rev-parse HEAD)"` sau khi chính phiên đẩy. Có test.
+- **Trạng thái:** accepted
+- **Áp dụng:**
