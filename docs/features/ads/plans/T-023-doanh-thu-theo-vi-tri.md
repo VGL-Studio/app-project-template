@@ -1,7 +1,7 @@
 ---
 ticket: T-023
 title: Doanh thu theo vị trí ad_impression_placement và số liệu vòng đời Firebase
-status: approved                 # draft | approved | stopped | done
+status: done                     # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core)
 risk_level: high             # low | medium | high
@@ -350,3 +350,15 @@ Phiên bản 2: **Duyệt**. Người duyệt: Nhật, duyệt chéo: Nhật. AI
 - **Lệch so với plan:** (1) `requestSent`, `loadSucceeded`, `loadFailed` của `AdTelemetry` nhận `now: Long`. (2) lượt dự phòng là hàm riêng `revenueFallback(...)`; `loadFailed` nhận thông báo lỗi của SDK (chỉ đọc trên máy, không gửi) và trả nhãn `load_state`; `showFailed` tự tính lý do bằng `showFailReasonOf`. (3) trước lần phát đầu của `flags.global` dùng `DEFAULT_GLOBAL_FLAGS` (hai khóa `is_log_*` tắt); cờ và Internet thu từ `start()`. (4) khóa khe toàn màn hình `preload:INTER`, `preload:NATIVE_FULL`. (5) native trong danh sách ghi theo định dạng của vị trí. (6) hàm phụ `opportunityLoadState`. Rà soát chấp nhận cả sáu.
 - **Việc còn lại:** trả lời câu hỏi 6 và duyệt phiên bản 2; T-021 (phụ thuộc T-023) bị bỏ qua trong phiên này.
 - **Cần người xem:** câu hỏi 6; kiểm thủ công DebugView ở mục 4 khi task merge.
+
+### RUN-20261024-03, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #135, commit `5386277`, 13:59 UTC).
+- **Nhánh, PR:** `claude/T-023-doanh-thu-theo-vi-tri`, PR #135. Gộp nhánh chính `90c8009` (đã có T-034); test `d7a50ed`, code `5386277`. Bước 3 đến 5 do phiên con làm trong worktree riêng.
+- **Test viết trước:** 2 test mới của câu hỏi 6, commit `d7a50ed` cùng khung rỗng (`LoadReport`, `NativeLoadUse`, `countedLoad`, `perRequestLoad`, `nativeLoadReport`). Trên khung rỗng: `inListRows_overlappingRequests_eachHasOwnLatency` thất bại `expected:<[no_fill]> but was:<[]>`; `inListRows_haveNoLoadAttempt_andDoNotCount` thất bại `expected:<3> but was:<0>`. 11 test cũ của file vẫn qua. Cả 2 test có bước đối chứng `SINGLE_AD` (L-055): gửi nối tiếp cho 250 và 300; `loadAttempt` 1, 2, 3 và `failuresInARow` 2 rồi 0.
+- **Code:** `perRequestLoad` trả đối tượng mới mỗi lần gọi, `sentAt` riêng, không chạm bộ đếm, `loadAttempt` luôn rỗng; `nativeLoadReport` chọn `countedLoad` (khóa `placement.key`) cho `SINGLE_AD` và `perRequestLoad` cho `LIST_ROW`, cả hai giữ mã vị trí (câu hỏi 7). `NativeAdMetrics` nhận `LoadReport`; bỏ `slotNativeEvents`; `nativeAd` dùng `SINGLE_AD`, `loadNativeAd` dùng `LIST_ROW`; native toàn màn hình dùng `countedLoad`.
+- **Kiểm tra cục bộ:** `scripts/check.sh` qua lần đầu: 581 test JVM, 0 lỗi (`:core:ads` 303); 42 ảnh screenshot, không ảnh mới hay đổi.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú: (1) test "không cộng bộ đếm" chỉ kiểm khóa `gallery_inlist_small`, cài sai đếm dưới khóa khác vẫn qua; (2) native bị hủy trước 2 giây thì hủy cả dự phòng, lượt hiển thị đó không có dòng doanh thu (plan cho phép; cần đối chiếu AdsKit `NativeAdManagerImpl`, ảnh hưởng T-033); (3) `DEFAULT_GLOBAL_FLAGS` chép ánh xạ của `DefaultAdsFlags`; (4) bảng vị trí nạp chưa có `NATIVE_MEDIUM`, `NATIVE_COLLAPSIBLE` và nhánh `pool` (việc của T-028); (5) hai khe một quảng cáo cùng vị trí dùng chung khóa đếm, như banner; (6) phần nối SDK không có test JVM, theo ngoại lệ đã duyệt.
+- **Kết quả CI:** `pr-check` xanh lần đầu (lần chạy 40099745767).
+- **Lệch so với plan:** `inListRows_haveNoLoadAttempt_andDoNotCount` thêm `assertEquals(3, metrics.events.size)` ở vế `LIST_ROW` để điều kiện "mọi `loadAttempt` rỗng" không đúng khi không có sự kiện; vì vậy khung rỗng thất bại ở vế này, không ở vế đối chứng. `RecordingAdMetrics` không có hàm xóa, vế đối chứng đọc `events.drop(n)`. Vế đối chứng của test thứ nhất dùng `SAMPLE_NATIVE_SMALL` (plan không nói vị trí). Không đổi điều test kiểm.
+- **Cần người xem:** kiểm DebugView trên staging theo mục 4; ghi chú 2 của rà soát.
