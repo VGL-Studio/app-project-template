@@ -5,12 +5,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -135,10 +138,51 @@ class LoadingScreenTest {
         assertTrue("footer top $footerTop overlaps error bottom $errorBottom", footerTop >= errorBottom)
     }
 
+    @Test
+    @Config(qualifiers = VERY_SHORT_SCREEN)
+    fun failed_onVeryShortScreen_retryButtonReachableByScrolling() {
+        var retries = 0
+        composeRule.setContent {
+            AppTheme {
+                LoadingScreen(uiState = LoadingUiState.Failed(0.68f), appName = APP_NAME, onRetry = { retries++ })
+            }
+        }
+        // The button starts off screen, so this frame really goes through the scroll path.
+        composeRule.onNodeWithTag(LoadingTestTags.RETRY).assertIsNotDisplayed()
+
+        composeRule.onNodeWithTag(LoadingTestTags.RETRY).performScrollTo().assertIsDisplayed()
+        // Unclipped bounds: clipped bounds of a node outside the screen collapse to zero.
+        val screenBottom = composeRule.onNodeWithTag(LoadingTestTags.SCREEN).getUnclippedBoundsInRoot().bottom
+        val retryBottom = composeRule.onNodeWithTag(LoadingTestTags.RETRY).getUnclippedBoundsInRoot().bottom
+        assertTrue("retry bottom $retryBottom is below screen bottom $screenBottom", retryBottom <= screenBottom)
+
+        composeRule.onNodeWithTag(LoadingTestTags.RETRY).performClick()
+        assertEquals(1, retries)
+    }
+
+    @Test
+    @Config(qualifiers = VERY_SHORT_SCREEN)
+    fun failed_onVeryShortScreen_footerBelowRetryAfterScrolling() {
+        composeRule.setContent {
+            AppTheme {
+                LoadingScreen(uiState = LoadingUiState.Failed(0.68f), appName = APP_NAME, onRetry = {})
+            }
+        }
+        val footer = composeRule.onNodeWithText(string(R.string.loading_footer))
+        footer.performScrollTo().assertIsDisplayed()
+
+        val footerTop = footer.getUnclippedBoundsInRoot().top
+        val retryBottom = composeRule.onNodeWithTag(LoadingTestTags.RETRY).getUnclippedBoundsInRoot().bottom
+        assertTrue("footer top $footerTop overlaps retry bottom $retryBottom", footerTop >= retryBottom)
+    }
+
     private companion object {
         const val APP_NAME = "Todo App"
 
         // Short phone frame (L-028, FB-20261017-01).
         const val SHORT_SCREEN = "w360dp-h640dp-xxhdpi"
+
+        // Frame where the error screen is taller than the screen, to go through the scroll path (T-006).
+        const val VERY_SHORT_SCREEN = "w320dp-h480dp-xxhdpi"
     }
 }
