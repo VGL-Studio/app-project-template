@@ -1,6 +1,7 @@
 package com.vglstudio.template.core.ads
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
@@ -16,13 +17,9 @@ import com.google.android.gms.ads.VideoOptions
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.nativead.NativeAdOptions
-import com.google.android.ump.ConsentDebugSettings
-import com.google.android.ump.ConsentInformation.PrivacyOptionsRequirementStatus
-import com.google.android.ump.ConsentRequestParameters
-import com.google.android.ump.UserMessagingPlatform
 import com.vglstudio.template.core.logging.AppLogger
+import com.vglstudio.template.core.network.InternetConnectivity
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -40,29 +38,34 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The only class that talks to the ads SDKs (ADR-0004). :app calls [gatherConsent], [onUserInteraction],
- * [onAppForeground] and [onAppBackground] from its activity and provides this controller to the UI through
- * [LocalAdsController], and draws native full-screen ads with [FullScreenAdHost]. Features use [AdSlot], [NativeAdSlot],
- * [rememberShowFullScreenAd] and [PrivacyOptionsButton], never this class or an SDK directly.
+ * The only class that talks to the ads SDKs (ADR-0004). :app calls [start] once in `Application.onCreate` (HD-01),
+ * [gatherConsent], [onUserInteraction], [onAppForeground] and [onAppBackground] from its activity, provides this
+ * controller to the UI through [LocalAdsController], and draws native full-screen ads with [FullScreenAdHost]. Features
+ * use [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd] and [PrivacyOptionsButton], never this class or an SDK
+ * directly.
  *
- * The ads SDK is initialized only once the consent form allows ads to be requested. Mediation adapters (AppLovin,
- * plan T-015) are initialized by the SDK at the same time, with no code of their own; their status is logged.
+ * Consent follows the PARTNER rules S-01 to S-19 ([ConsentCoordinator], [ConsentGate]): the ads SDK is initialized the
+ * first time the consent gate opens, and every request asks the gate right before it is sent ([mayRequestNow]).
+ * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
+ * their status is logged.
  */
 @Singleton
 class AdsController @Inject internal constructor(
     @param:ApplicationContext private val context: Context,
     private val unitIds: AdUnitIds,
-    private val consentDebug: ConsentDebugOptions,
+    consentDebug: ConsentDebugOptions,
     private val flags: AdsFlags,
+    private val connectivity: InternetConnectivity,
+    private val shortcutConfig: ConsentShortcutConfig,
     internal val logger: AppLogger,
 ) {
-    private val consentInformation by lazy { UserMessagingPlatform.getConsentInformation(context) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val initialized = AtomicBoolean(false)
 
     // Touched on the main thread only.
     private val guard = FullScreenAdGuard()
@@ -72,6 +75,25 @@ class AdsController @Inject internal constructor(
     private val presence = FullScreenAdPresence()
     private val preloadedNativeFullScreen = FreshAdCache<LoadedNativeAd>(onDiscard = { it.destroy() })
     private val nativeFullScreenLoading = mutableSetOf<AdPlacement>()
+
+    private val gate = ConsentGate()
+    private var tracker: AdsActivityTracker? = null
+    private val sdkStarted = MutableStateFlow(false)
+
+    /** Blocks the ads that show by themselves while a consent form is open (S-16, G-01); read by T-022, T-025. */
+    internal val foregroundAdSuppressor = ForegroundAdSuppressor()
+
+    private val coordinator = ConsentCoordinator(
+        platform = UmpConsentPlatform(context, consentDebug),
+        gate = gate,
+        suppressor = foregroundAdSuppressor,
+        isActivityGone = { it.isFinishing || it.isDestroyed || it.isChangingConfigurations },
+        isResumed = { it === tracker?.resumedActivity },
+        fullScreenShowing = { presence.showing.value },
+        allowReset = consentDebug.allowConsentReset,
+        logger = logger,
+        onGateOpened = ::onGateOpened,
+    )
 
     /**
      * True while a full-screen ad (interstitial or native full screen) is on screen. The network popup (ADR-0024,
@@ -84,48 +106,121 @@ class AdsController @Inject internal constructor(
     /** The native full-screen ad on screen, drawn by [FullScreenAdHost]; null when none. */
     internal val nativeFullScreenAd: StateFlow<ShownNativeFullScreenAd?> = _nativeFullScreenAd.asStateFlow()
 
-    private val _canRequestAds = MutableStateFlow(false)
+    /**
+     * True while the consent gate is open and the SDK is started. Turns false at once when the gate closes (S-10,
+     * S-14), so slots drop the ads they show (S-11, S-15). False before [start] (S-19).
+     */
+    val canRequestAds: StateFlow<Boolean> =
+        combine(gate.state, sdkStarted) { state, started -> state.allowed && started }
+            .stateIn(scope, SharingStarted.Eagerly, false)
 
-    /** True once consent allows ads and the SDK is started. */
-    val canRequestAds: StateFlow<Boolean> = _canRequestAds.asStateFlow()
+    /** How ads were allowed in this process (S-13); null before the first result (S-19). */
+    val consentPath: StateFlow<ConsentPath?> =
+        gate.state.map { it.path }.stateIn(scope, SharingStarted.Eagerly, null)
 
-    private val _privacyOptionsRequired = MutableStateFlow(false)
+    /**
+     * True once the consent round of this start has its final result, or the result was settled before. The loading
+     * screen waits for it, at most 10 seconds (T-024).
+     */
+    val consentFlowFinished: StateFlow<Boolean> = coordinator.finished
+
+    private val _sdkReady = MutableStateFlow(false)
+
+    /** True once the ads SDK has reported its initialization (`MobileAds.initialize` callback). */
+    val sdkReady: StateFlow<Boolean> = _sdkReady.asStateFlow()
 
     /**
      * True when the user must be able to reopen the consent form ([PrivacyOptionsButton]).
      * This is also how the module knows the user is in a region where the law requires consent.
      */
-    val privacyOptionsRequired: StateFlow<Boolean> = _privacyOptionsRequired.asStateFlow()
+    val privacyOptionsRequired: StateFlow<Boolean> = coordinator.privacyOptionsRequired
 
     /**
-     * Updates the consent status and shows the consent form when required. Call it in the activity's
-     * `onCreate` at every start. Consent given in an earlier session lets ads start while the update runs.
+     * Starts :core:ads, once per process, from `Application.onCreate` before any screen (S-01, HD-01): follows the
+     * activities that [appActivities] accepts, the consent shortcut (S-12, HD-04) and Internet (S-09). A second call
+     * does nothing.
      */
-    fun gatherConsent(activity: Activity) {
-        consentInformation.requestConsentInfoUpdate(
-            activity,
-            consentParameters(activity),
-            {
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
-                    error?.let { Log.w(TAG, "Consent form failed: ${it.errorCode} ${it.message}") }
-                    onConsentFlowFinished()
-                }
-            },
-            { error ->
-                Log.w(TAG, "Consent update failed: ${error.errorCode} ${error.message}")
-                onConsentFlowFinished()
+    fun start(application: Application, appActivities: AppActivityFilter) {
+        if (!coordinator.start()) {
+            logger.info(TAG, "Ads already started")
+            return
+        }
+        logger.info(TAG, "Ads started")
+        val activityTracker = AdsActivityTracker(
+            appActivities,
+            object : AdsActivityTracker.Listener {
+                override fun onForegroundChanged(foreground: Boolean) = coordinator.onForegroundChanged(foreground)
+
+                override fun onActivityResumed(activity: Activity) = onAppActivityResumed(activity)
             },
         )
-        onConsentUpdated()
+        tracker = activityTracker
+        application.registerActivityLifecycleCallbacks(activityTracker)
+        scope.launch {
+            flags.global
+                .map { shortcutActive(shortcutConfig.enabledInBuild, it.consentShortcutEnabled) }
+                .distinctUntilChanged()
+                .collect { coordinator.onShortcutChanged(it) }
+        }
+        scope.launch { connectivity.connected.collect { coordinator.onInternetChanged(it) } }
     }
 
-    /** Opens the privacy options form, so the user can change their consent at any time. */
+    /**
+     * Updates the consent status and shows the consent form when required (S-02). Call it in the activity's
+     * `onCreate` at every start.
+     */
+    fun gatherConsent(activity: Activity) {
+        coordinator.gather(activity)
+    }
+
+    /** Opens the privacy options form, so the user can change their consent at any time (S-14). */
     fun showPrivacyOptionsForm(activity: Activity) {
-        UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
-            error?.let { Log.w(TAG, "Privacy options form failed: ${it.errorCode} ${it.message}") }
-            onConsentUpdated()
+        coordinator.showPrivacyOptions(activity)
+    }
+
+    /** Clears the stored consent, staging only (S-18, [rememberResetConsent]). */
+    internal fun resetConsent() {
+        coordinator.reset()
+    }
+
+    /**
+     * Whether a request may be sent right now (S-08, S-15): the gate is open, the SDK started, and a right that only
+     * ERROR_ALLOWED gave is used in foreground only. Asked right before every request is sent.
+     */
+    internal fun mayRequestNow(): Boolean = sdkStarted.value && coordinator.mayRequestNow(tracker?.foreground ?: false)
+
+    /** An app activity is resumed (from [AdsActivityTracker]). */
+    private fun onAppActivityResumed(activity: Activity) {
+        // The regather of consent (S-09). T-022 puts the release of a stuck flag before this line (G-06).
+        coordinator.onActivityResumed(activity)
+    }
+
+    /** The consent gate opened: the first time starts the SDK, later times preload again (S-10, S-14). */
+    private fun onGateOpened(firstTime: Boolean) {
+        if (firstTime) {
+            startSdk()
+        } else if (sdkStarted.value) {
+            logger.info(TAG, "Consent gate opened again: preload")
+            fullScreenPlacements().forEach(::preloadNow)
         }
     }
+
+    private fun startSdk() {
+        scope.launch {
+            // Google recommends starting the SDK off the main thread.
+            withContext(Dispatchers.IO) {
+                // The listener runs once every adapter is initialized or timed out (KB-9).
+                MobileAds.initialize(context) { status ->
+                    adapterStatusLines(status.adapterStatusMap).forEach { logger.info(TAG, it) }
+                    _sdkReady.value = true
+                }
+            }
+            sdkStarted.value = true
+            fullScreenPlacements().forEach(::preloadWhenEnabled)
+        }
+    }
+
+    private fun fullScreenPlacements() = AdPlacement.entries.filter { it.format.isFullScreen }
 
     /**
      * Opens AdMob's Ad Inspector ([rememberOpenAdInspector], staging ad gallery only). Google opens it only on an
@@ -271,7 +366,10 @@ class AdsController @Inject internal constructor(
      */
     internal suspend fun awaitFullScreenTurn(placement: AdPlacement): Boolean =
         withContext(Dispatchers.Main.immediate) {
-            if (!canRequestAds.value || !isEnabled(placement).first()) return@withContext false
+            // The show gate of consent (S-11), then the placement switches.
+            if (!canRequestAds.value || !gate.state.value.allowed || !isEnabled(placement).first()) {
+                return@withContext false
+            }
             val minIntervalMillis = flags.global.first().adsIntervalSeconds * 1_000
             val deadline = SystemClock.elapsedRealtime() + FullScreenAdGuard.MAX_WAIT_MILLIS
             while (true) {
@@ -333,6 +431,11 @@ class AdsController @Inject internal constructor(
                 emit(NativeAdState.Unavailable)
                 return@flow
             }
+            if (!mayRequestNow()) {
+                logger.info(TAG, "Native ${placement.key} not requested: consent gate closed")
+                emit(NativeAdState.Unavailable)
+                return@flow
+            }
             emitAll(
                 nativeAdStates(
                     SdkNativeAdLoader(context, adRequest()),
@@ -362,6 +465,10 @@ class AdsController @Inject internal constructor(
     internal suspend fun loadNativeAd(placement: AdPlacement): NativeAdState {
         val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
         val unitId = unitId(placement) ?: return NativeAdState.Unavailable
+        if (!mayRequestNow()) {
+            logger.info(TAG, "Native ${placement.key} not requested: consent gate closed")
+            return NativeAdState.Unavailable
+        }
         return loadOneNativeAd(
             SdkNativeAdLoader(context, adRequest()),
             unitId,
@@ -375,51 +482,18 @@ class AdsController @Inject internal constructor(
     /** Personalization follows the consent string of UMP only (question 8 of the ads spec): no `npa` extra. */
     internal fun adRequest(): AdRequest = AdRequest.Builder().build()
 
-    private fun consentParameters(activity: Activity): ConsentRequestParameters {
-        val builder = ConsentRequestParameters.Builder()
-        if (consentDebug.forceEea) {
-            builder.setConsentDebugSettings(
-                ConsentDebugSettings.Builder(activity)
-                    .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
-                    .setForceTesting(true)
-                    .build(),
-            )
-        }
-        return builder.build()
-    }
-
-    /** The consent flow of this start is over (form closed or not needed, or the update failed). */
-    private fun onConsentFlowFinished() {
-        onConsentUpdated()
-    }
-
-    private fun onConsentUpdated() {
-        _privacyOptionsRequired.value =
-            consentInformation.privacyOptionsRequirementStatus == PrivacyOptionsRequirementStatus.REQUIRED
-        if (consentInformation.canRequestAds() && initialized.compareAndSet(false, true)) {
-            scope.launch {
-                // Google recommends starting the SDK off the main thread.
-                withContext(Dispatchers.IO) {
-                    // The listener runs once every adapter is initialized or timed out (KB-9).
-                    MobileAds.initialize(context) { status ->
-                        adapterStatusLines(status.adapterStatusMap).forEach { logger.info(TAG, it) }
-                    }
-                }
-                _canRequestAds.value = true
-                AdPlacement.entries.filter { it.format.isFullScreen }.forEach(::preloadWhenEnabled)
-            }
-        }
-    }
-
     /** Placements are off by default (ADR-0014): load an ad only once the placement is switched on remotely. */
     private fun preloadWhenEnabled(placement: AdPlacement) {
         scope.launch {
-            isEnabled(placement).distinctUntilChanged().filter { it }.collect {
-                when (placement.format) {
-                    AdFormat.NATIVE_FULL_SCREEN -> preloadNativeFullScreen(placement)
-                    else -> preloadInterstitial(placement)
-                }
-            }
+            isEnabled(placement).distinctUntilChanged().filter { it }.collect { preloadNow(placement) }
+        }
+    }
+
+    /** Preloads one full-screen ad of [placement] now; each loader checks the switches and the gate itself. */
+    private fun preloadNow(placement: AdPlacement) {
+        when (placement.format) {
+            AdFormat.NATIVE_FULL_SCREEN -> preloadNativeFullScreen(placement)
+            else -> preloadInterstitial(placement)
         }
     }
 
@@ -442,7 +516,7 @@ class AdsController @Inject internal constructor(
                 .setMediaAspectRatio(MediaAspectRatio.ANY)
                 .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
                 .build()
-            AdLoader.Builder(context, unitId)
+            val loader = AdLoader.Builder(context, unitId)
                 .forNativeAd { ad ->
                     nativeFullScreenLoading -= placement
                     preloadedNativeFullScreen.put(placement, SdkLoadedNativeAd(ad), SystemClock.elapsedRealtime())
@@ -457,7 +531,13 @@ class AdsController @Inject internal constructor(
                 )
                 .withNativeAdOptions(options)
                 .build()
-                .loadAd(adRequest())
+            // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
+            if (!mayRequestNow()) {
+                nativeFullScreenLoading -= placement
+                logger.info(TAG, "Native full-screen ${placement.key} not requested: consent gate closed")
+                return@launch
+            }
+            loader.loadAd(adRequest())
         }
     }
 
@@ -465,6 +545,11 @@ class AdsController @Inject internal constructor(
         val unitId = unitId(placement) ?: return
         scope.launch {
             if (placement in loadedInterstitials || !isEnabled(placement).first()) return@launch
+            // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
+            if (!mayRequestNow()) {
+                logger.info(TAG, "Interstitial ${placement.key} not requested: consent gate closed")
+                return@launch
+            }
             InterstitialAd.load(
                 context,
                 unitId,

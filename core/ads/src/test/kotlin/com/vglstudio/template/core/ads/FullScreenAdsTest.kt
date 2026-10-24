@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.logging.RecordingAppLogger
+import com.vglstudio.template.core.network.InternetConnectivity
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -77,6 +79,10 @@ class FullScreenAdsTest {
             unitIds = GoogleTestAdUnitIds,
             consentDebug = ConsentDebugOptions.NONE,
             flags = DefaultAdsFlags(FakeRemoteSettings()),
+            connectivity = object : InternetConnectivity {
+                override val connected = flowOf(true)
+            },
+            shortcutConfig = ConsentShortcutConfig.OFF,
             logger = RecordingAppLogger(),
         )
     }

@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:logging"))
+    implementation(project(":core:network"))
 
     implementation(libs.play.services.ads)
     implementation(libs.admob.mediation.applovin)
