@@ -1,21 +1,23 @@
 ---
 ticket: T-023
 title: Doanh thu theo vị trí ad_impression_placement và số liệu vòng đời Firebase
-status: approved                # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: stopped                 # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-24); nâng vì hai module và năm chỗ nối của SDK
 blocking_points: [analytics, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật                # người duyệt
-cross_reviewer: Nhật          # bắt buộc khi risk_level là high
-approved_at: 2026-10-24
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-023: DOANH THU THEO VỊ TRÍ AD_IMPRESSION_PLACEMENT VÀ SỐ LIỆU VÒNG ĐỜI FIREBASE
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-10-24, phiên RUN-20261024-02 soạn, `draft`).** Bản 1 dừng ở bước 6: phiên rà soát và phiên viết code hiểu khác nhau về native trong danh sách (vị trí có `nativeEvery`, `InListAds`). Plan và mục 8.2 của `ads-business-rules.md` chỉ quy định khe một quảng cáo (có `load_attempt`) và pool của T-028 (không có), không nói về các hàng native trong danh sách hiện có. Bản 1 coi mỗi vị trí trong danh sách là một khe có bộ đếm, dùng khóa `placement.key`; các hàng nạp song song nên đè thời điểm gửi của nhau trong `LoadAttemptCounter`, sai luật "`latency_ms` tính từ lúc gửi chính yêu cầu đó", và `load_attempt`, `failuresInARow` cộng lẫn lỗi của các hàng. Vì sao plan chưa đủ tốt: mục 3.1 không xét trường hợp nhiều yêu cầu cùng lúc của một vị trí. Thay đổi: thêm câu hỏi 6 ở mục 8; mục 3.1 thêm cách tiếp tục trên nhánh cũ. Danh sách file, các test khác và chấm rủi ro không đổi. Mục 9 chờ duyệt lại.
 
 Thêm vào `:core:analytics` một interface ghi số liệu quảng cáo `AdMetrics` (bản Firebase, bản ghi lại cho test) và vào `:core:ads` một bộ ghi `AdTelemetry` cùng các hàm thuần ánh xạ (mã định dạng, giá trị micro sang tiền, mã lỗi sang `load_state`, lý do hiện lỗi, vị trí của lượt nạp, `opportunity_result`), theo `docs/ops/ads-business-rules.md`, mục 8.1 và 8.2. Mọi định dạng đang có (interstitial, native toàn màn hình, native small, medium, thu gọn, trong danh sách, banner) nghe sự kiện doanh thu của SDK và ghi `ad_impression_placement` với vị trí đọc lúc sự kiện về; native có dự phòng giá trị 0 sau 2 giây; số liệu vòng đời (`ad_load_success`, `ad_load_fail`, `ad_opportunity`, `ad_show_fail`, `ad_clicked`) chỉ gửi khi khóa của nhóm bật và đang được phục vụ quảng cáo. Kiểm chứng bằng unit test cho từng hàm ánh xạ, từng cổng gửi, dự phòng native với đồng hồ giả, tên và kiểu tham số của Firebase, và kiểm DebugView trên staging.
 
@@ -47,6 +49,8 @@ Dựa trên các plan chưa merge khi viết plan này, dùng đúng tên:
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
+
+**Tiếp tục (phiên bản 2):** trên nhánh cũ `claude/T-023-doanh-thu-theo-vi-tri` (chưa có PR; commit test `748693b`, commit code `b2f5777`, `scripts/check.sh` đã qua). Phiên cập nhật nhánh theo nhánh chính, rồi chỉ làm phần theo câu trả lời câu hỏi 6: viết trước test mới `AdTelemetryTest.inListRows_overlappingRequests_eachHasOwnLatency` (hai lượt gửi chồng nhau của cùng một vị trí trong danh sách: mỗi kết quả có `latency_ms` tính từ lượt gửi của chính nó; đối chứng: hai lượt nối tiếp nhau cho đúng hai độ trễ), cùng test cho `load_attempt` theo phương án được chọn; rồi sửa `slotNativeEvents` trong `AdsController.kt`. Bước 6 rà soát lại toàn bộ thay đổi.
 
 **1. `:core:analytics`** (ADR-0027 quyết định 1: `:core:ads` gửi số liệu quảng cáo qua interface của module này):
 
@@ -281,6 +285,12 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdMetrics
    - Đề xuất của AI: ghi `ad_opportunity` cho mỗi lượt gọi hiện của vị trí native toàn màn hình (định dạng `NATIVE_FULL`), cùng thứ tự `busy`, `not_ready`, `throttled`, vì nó đi qua cùng cổng (T-022, câu hỏi 2).
    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-24).
 
+6. **(Phiên bản 2) Native trong danh sách tính là khe hay như pool?** Vị trí có `nativeEvery` (`InListAds`) nạp một yêu cầu riêng cho từng hàng, nhiều hàng cùng lúc.
+   - Phương án A: mỗi hàng là một khe có bộ đếm riêng (khóa `"<mã vị trí>#<số hàng>"`): có `load_attempt` theo hàng, `latency_ms` theo yêu cầu.
+   - Phương án B (đề xuất của AI): tính như pool, vì MC-07 nói native trong tập hợp lấy từ pool và T-028 sẽ thay `InListAds` bằng pool: không có `load_attempt`, `latency_ms` theo từng yêu cầu (thời điểm gửi giữ trong `NativeAdMetrics` của chính lượt nạp), không cộng vào `failuresInARow`.
+   - Cả hai phương án đều sửa lỗi độ trễ. Liên quan: khóa `preload:INTER`, `preload:NATIVE_FULL` dùng chung cho mọi vị trí cùng định dạng (đúng mục 3.1); app có nhiều vị trí inter cùng nạp thì gặp cùng lỗi, T-021 quyết.
+   - Trả lời:
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
@@ -289,6 +299,21 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdMetrics
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
+Phiên bản 2: chờ người duyệt.
+
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-02, phiên bản plan 1
+
+- **Kết quả:** dừng ở bước 6 (phiên rà soát và phiên viết code hiểu plan khác nhau, `auto-run.md` bước 6)
+- **Nhánh, PR:** `claude/T-023-doanh-thu-theo-vi-tri`, chưa mở PR. Commit `748693b` (test), `b2f5777` (code). Bước 3 đến 5 do phiên con làm trong worktree riêng.
+- **Đã làm:** như mục 3.1 của bản 1. `:core:analytics`: `AdMetrics`, `AdMetricEvent` (6 lớp con), `FirebaseAdMetrics`, `RecordingAdMetrics`, `@Binds` trong `AnalyticsModule`. `:core:ads`: `AdTelemetryRules.kt` (thêm `isSdkThrottledMessage`), `LoadAttemptCounter`, `NativeRevenueFallback` (2 000 ms), `AdTelemetry`; nối interstitial, native toàn màn hình, native (`NativeAdEvents` trong `SdkNativeAdLoader`), banner (`AdSlot.kt`); `AdsController` nhận `metrics`; `core/ads/build.gradle.kts` thêm `:core:analytics`.
+- **Test viết trước:** 32 test trong 5 file mới (`FirebaseAdMetricsTest` 7, `AdTelemetryRulesTest` 8, `LoadAttemptCounterTest` 3, `NativeRevenueFallbackTest` 3, `AdTelemetryTest` 11), commit `748693b` trước code. Trên khung rỗng (không commit, theo mục 4: commit test chỉ có file test) cả 32 thất bại ở phần kiểm, ví dụ `expected:<ad_load_fail> but was:<>`, `attempt` lần hai ra 1 thay vì 2, `onImpression` ra 0 thay vì 3000, `AdTelemetryTest` không ghi sự kiện nào. 8 test có bước đối chứng (L-055). Thêm 1 test ngoài bảng: `loadFailed_returnsLoadStateLabel`. Commit code chỉ thêm `metrics = RecordingAdMetrics()` vào `FullScreenAdsTest`, đúng plan.
+- **Kết quả kiểm cục bộ:** `scripts/check.sh` qua (572 test JVM, 0 lỗi, 42 ảnh, không ảnh chuẩn nào đổi).
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 12 ghi chú. Nên sửa: các hàng native trong danh sách nạp song song dùng chung khóa `placement.key` của `LoadAttemptCounter` (`AdsController.kt` `slotNativeEvents`, gọi từ `loadNativeAd`), nên `latency_ms` sai và `load_attempt`, `failuresInARow` cộng lẫn lỗi giữa các hàng. Phiên rà soát hiểu hàng trong danh sách gần với pool (không có `load_attempt`); phiên viết code coi là khe có bộ đếm; plan không nói. Phiên không chọn bên nào và dừng task. Ghi chú đáng xem: khóa `preload:INTER`, `preload:NATIVE_FULL` dùng chung cho mọi vị trí cùng định dạng; `DEFAULT_GLOBAL_FLAGS` chép lại phép ánh xạ của `DefaultAdsFlags`; doanh thu một lần mỗi lượt hiển thị, đa luồng, đúng 6 sự kiện và kiểu tham số, phụ thuộc module, phạm vi: đạt.
+- **Kết quả CI:** chưa đẩy PR.
+- **Lệch so với plan:** (1) `requestSent`, `loadSucceeded`, `loadFailed` của `AdTelemetry` nhận `now: Long`. (2) lượt dự phòng là hàm riêng `revenueFallback(...)`; `loadFailed` nhận thông báo lỗi của SDK (chỉ đọc trên máy, không gửi) và trả nhãn `load_state`; `showFailed` tự tính lý do bằng `showFailReasonOf`. (3) trước lần phát đầu của `flags.global` dùng `DEFAULT_GLOBAL_FLAGS` (hai khóa `is_log_*` tắt); cờ và Internet thu từ `start()`. (4) khóa khe toàn màn hình `preload:INTER`, `preload:NATIVE_FULL`. (5) native trong danh sách ghi theo định dạng của vị trí. (6) hàm phụ `opportunityLoadState`. Rà soát chấp nhận cả sáu.
+- **Việc còn lại:** trả lời câu hỏi 6 và duyệt phiên bản 2; T-021 (phụ thuộc T-023) bị bỏ qua trong phiên này.
+- **Cần người xem:** câu hỏi 6; kiểm thủ công DebugView ở mục 4 khi task merge.
