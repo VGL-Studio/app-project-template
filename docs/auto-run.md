@@ -158,9 +158,9 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 
 ### Khi không đẩy được
 
-Lệnh đẩy bị môi trường từ chối (bộ phân loại lệnh của phiên chặn, L-070, L-081), hoặc `scripts/save-branch.sh` trả mã 3:
+Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân loại lệnh của phiên chặn, L-081), hoặc `scripts/save-branch.sh` của phiên chính trả mã 3. Phiên con không đẩy nên không vào mục này: phiên chính đẩy thay như thường lệ (mục Giao bước 3 đến 5 cho phiên con, L-070).
 
-1. Không đẩy lại dưới dạng khác: không đổi tên nhánh, không gọi API để tạo ref, không giao cho phiên khác. Bộ phân loại từ chối lời gọi lệnh nên script không thấy được lần từ chối; chỉ phiên thấy.
+1. Sau khi lệnh đẩy của chính phiên chính bị từ chối, không đẩy lại dưới dạng khác: không đổi tên nhánh, không gọi API để tạo ref, không giao lần đẩy đó cho phiên con hay phiên khác. Bộ phân loại từ chối lời gọi lệnh nên script không thấy được lần từ chối; chỉ phiên thấy.
 2. Chạy `scripts/save-branch.sh --bundle-only <nhánh>` (nếu chưa có bundle). Bundle nằm ở `$HOME/rescue/`, ngoài worktree. Phần chưa commit thì commit trước (L-069).
 3. Dừng task theo `risk-scoring.md` mục 4. Plan và ticket giữ `approved`, vì không phải lỗi của plan. Nhật ký plan ghi mã commit.
 4. Chép đoạn "Nhánh chưa đẩy" mà script in ra, cùng nguyên văn lệnh bị từ chối và thông báo, vào báo cáo phiên.

@@ -289,7 +289,7 @@ if [[ "$merge_failed" == "yes" ]]; then
   found=""
   for attempt in 1 2 3; do
     found="$(merged_on_main)"
-    [[ -z "$found" ]] || break
+    [[ -z "$found" && "$attempt" -lt 3 ]] || break
     sleep "${MERGE_RECHECK_SECONDS:-10}"
   done
   [[ -n "$found" ]] || die "GitHub từ chối merge PR #$PR."
