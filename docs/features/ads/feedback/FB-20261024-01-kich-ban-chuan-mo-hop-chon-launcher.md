@@ -7,7 +7,7 @@ build: 0.1.0-staging (main 97ba714)
 feature: ads
 ticket: T-014
 severity: nang
-status: new
+status: fixed
 created: 2026-10-24
 ---
 
@@ -51,5 +51,5 @@ Kịch bản chuẩn mở đúng `MainActivity` của bản staging (`docs/ops/t
 
 - **Loại:** đề xuất của AI: lỗi của script (`scripts/device-session.sh` dòng 189), không phải lỗi của app.
 - **Xử lý:** đề xuất: script chọn activity `LAUNCHER` thuộc gói của app có tên `MainActivity` (hoặc lấy tên từ `aapt dump badging`, `launchable-activity`), hoặc gọi `am start` với `-a MAIN -c LAUNCHER -n <gói>/com.vglstudio.template.MainActivity`; test của script trong `scripts/tests/run.sh`. Phiên tự chạy không sửa `scripts/` (auto-run.md, mục 6).
-- **Lý do:** <...>
-- **Liên kết:** <plan hoặc ticket xử lý>
+- **Lý do:** anh Nhật đồng ý sửa ngoài phiên (2026-10-24). `scripts/device-session.sh` lấy mọi activity `LAUNCHER` của gói bằng `cmd package query-activities`, chọn activity tên `MainActivity`; chỉ có một activity thì dùng nó; còn lại thì dừng với thông báo rõ. Test trong `scripts/tests/run.sh` (hai launcher, không có `MainActivity`).
+- **Liên kết:** PR duyệt RUN-20261024-03 (nhánh `claude/duyet-run-20261024-03`). Số khởi động nguội của TS-20261024-01 và có thể của phiên thử RUN-20261024-01 không dùng được.

@@ -173,6 +173,19 @@ cmd_reset() {
   echo "Đã xóa dữ liệu của ${pkg}, như vừa cài. Mở app để thử lần mở đầu."
 }
 
+# Prints the activity the scenarios start. A staging build may have several LAUNCHER activities (for example the ad
+# preview screen of T-014); `resolve-activity` then returns the system chooser, so the app's MainActivity is picked.
+launcher_activity() {
+  local all main
+  all="$(adb shell cmd package query-activities --brief -a android.intent.action.MAIN \
+    -c android.intent.category.LAUNCHER "$1" | tr -d '\r' | sed -nE 's#^[[:space:]]*([^[:space:]=]+/[^[:space:]]+)$#\1#p')"
+  main="$(grep -E '[./]MainActivity$' <<<"${all}" | head -n 1 || true)"
+  if [[ -z "${main}" && -n "${all}" && "$(wc -l <<<"${all}" | tr -d ' ')" -eq 1 ]]; then
+    main="${all}"
+  fi
+  echo "${main}"
+}
+
 cmd_scenarios() {
   [[ "${1:-}" == "--yes" ]] || fail "kịch bản sẽ xóa dữ liệu của app và bật, tắt chế độ máy bay. Chạy lại với --yes nếu đồng ý."
   local ask_permissions=0
@@ -186,8 +199,8 @@ cmd_scenarios() {
   local dir pkg activity i out
   dir="$(sed -n 1p "${STATE_FILE}")"
   pkg="$(sed -n 3p "${STATE_FILE}")"
-  activity="$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "${pkg}" | tail -n 1 | tr -d '\r')"
-  [[ "${activity}" == */* ]] || fail "không tìm thấy màn hình khởi động của ${pkg}."
+  activity="$(launcher_activity "${pkg}")"
+  [[ "${activity}" == */* ]] || fail "không tìm thấy màn hình khởi động của ${pkg} (cần đúng một activity LAUNCHER, hoặc một activity tên MainActivity)."
   : > "${dir}/scenarios.txt"
   # Clearing the data also revokes runtime permissions, so they are granted again after every clear.
   clear_data() {
