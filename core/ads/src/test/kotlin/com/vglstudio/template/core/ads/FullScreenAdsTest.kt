@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import com.vglstudio.template.core.network.InternetConnectivity
 import kotlinx.coroutines.flow.flowOf
@@ -83,6 +84,7 @@ class FullScreenAdsTest {
                 override val connected = flowOf(true)
             },
             shortcutConfig = ConsentShortcutConfig.OFF,
+            metrics = RecordingAdMetrics(),
             logger = RecordingAppLogger(),
         )
     }
