@@ -121,4 +121,3 @@ class AdPlacementTest {
         AdPlacementDeclaration("x", AdFormat.NATIVE_FULL_SCREEN, ignoreInterval = true)
     }
 }
-

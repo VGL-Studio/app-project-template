@@ -35,7 +35,13 @@ class FullScreenShowDecisionTest {
     fun busy_beatsNotReadyAndThrottled() {
         assertEquals(
             BUSY,
-            decideFullScreenShow(consentOpen = true, enabled = true, busy = true, ready = false, intervalPassed = false),
+            decideFullScreenShow(
+                consentOpen = true,
+                enabled = true,
+                busy = true,
+                ready = false,
+                intervalPassed = false,
+            ),
         )
     }
 

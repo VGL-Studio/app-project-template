@@ -11,7 +11,8 @@ import org.junit.Test
  */
 class FullScreenAdGuardTest {
     private val guard = FullScreenAdGuard()
-    private val sounds = AdPlacementDeclaration("inter_sounds", AdFormat.INTERSTITIAL, AdIntervalGroup.named("sounds", 30))
+    private val sounds =
+        AdPlacementDeclaration("inter_sounds", AdFormat.INTERSTITIAL, AdIntervalGroup.named("sounds", 30))
 
     @Test
     fun newGuard_hasNoMark() {
