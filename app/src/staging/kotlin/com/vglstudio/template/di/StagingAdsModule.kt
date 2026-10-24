@@ -2,6 +2,7 @@ package com.vglstudio.template.di
 
 import com.vglstudio.template.core.ads.AdUnitIds
 import com.vglstudio.template.core.ads.ConsentDebugOptions
+import com.vglstudio.template.core.ads.ConsentShortcutConfig
 import com.vglstudio.template.core.ads.GoogleTestAdUnitIds
 import dagger.Module
 import dagger.Provides
@@ -20,4 +21,11 @@ object StagingAdsModule {
 
     @Provides
     fun consentDebugOptions(): ConsentDebugOptions = ConsentDebugOptions.EEA_TEST_DEVICE
+
+    /**
+     * The build half of the consent shortcut is on, so testers can try CACHED_EARLY and ERROR_ALLOWED by switching
+     * is_enable_consent_shortcut on in the staging Firebase project; the remote key stays off by default (S-12).
+     */
+    @Provides
+    fun consentShortcutConfig(): ConsentShortcutConfig = ConsentShortcutConfig(enabledInBuild = true)
 }

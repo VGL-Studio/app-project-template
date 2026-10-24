@@ -9,7 +9,7 @@ data class ConsentDebugOptions(val forceEea: Boolean, val allowConsentReset: Boo
     companion object {
         val NONE = ConsentDebugOptions(forceEea = false)
 
-        /** Treats every device as a test device located in the European Economic Area. */
-        val EEA_TEST_DEVICE = ConsentDebugOptions(forceEea = true)
+        /** Treats every device as a test device located in the European Economic Area; consent can be reset. */
+        val EEA_TEST_DEVICE = ConsentDebugOptions(forceEea = true, allowConsentReset = true)
     }
 }
