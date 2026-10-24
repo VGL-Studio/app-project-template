@@ -1,7 +1,7 @@
 ---
 id: ADR-0024
 title: App chỉ dùng được khi có Internet; mất mạng thì app chặn bằng một popup chung có nút thử lại
-status: proposed
+status: accepted
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-21
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
