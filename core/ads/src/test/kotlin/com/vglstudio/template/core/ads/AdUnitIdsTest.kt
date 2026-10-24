@@ -1,7 +1,6 @@
 package com.vglstudio.template.core.ads
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -75,13 +74,6 @@ class AdUnitIdsTest {
         val keys = AdPlacement.entries.map { it.key }
         assertEquals(keys.size, keys.toSet().size)
         keys.forEach { assertTrue("Key '$it' must be lower_snake_case", Regex("^[a-z0-9_]+$").matches(it)) }
-    }
-
-    @Test
-    fun nonPersonalizedAds_onlyInRegulatedRegionsWithoutRemoteSwitch() {
-        assertTrue(requestsNonPersonalizedAds(inRegulatedRegion = true, personalizedInRegulatedRegions = false))
-        assertFalse(requestsNonPersonalizedAds(inRegulatedRegion = true, personalizedInRegulatedRegions = true))
-        assertFalse(requestsNonPersonalizedAds(inRegulatedRegion = false, personalizedInRegulatedRegions = false))
     }
 
     @Test

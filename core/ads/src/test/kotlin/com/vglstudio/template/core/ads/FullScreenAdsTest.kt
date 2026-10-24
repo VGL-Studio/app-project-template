@@ -76,8 +76,7 @@ class FullScreenAdsTest {
             context = ApplicationProvider.getApplicationContext(),
             unitIds = GoogleTestAdUnitIds,
             consentDebug = ConsentDebugOptions.NONE,
-            settings = FakeRemoteSettings(),
-            historyStore = InMemoryFullScreenAdHistoryStore(),
+            flags = DefaultAdsFlags(FakeRemoteSettings()),
             logger = RecordingAppLogger(),
         )
     }
