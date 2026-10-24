@@ -1,21 +1,23 @@
 ---
 ticket: T-034
 title: Mediation chín mạng
-status: approved                # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: stopped                 # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M, số tạm của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
 blocking_points: [ads, sdk, init-order, core, build-config]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật                # người duyệt
-cross_reviewer: Nhật          # bắt buộc khi risk_level là high
-approved_at: 2026-10-24
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 ---
 
 # PLAN T-034: MEDIATION CHÍN MẠNG
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-10-24, phiên RUN-20261024-02 soạn, `draft`).** Bản 1 dừng ở bước 4 vì môi trường cloud của phiên không tải được từ hai kho Maven mới: proxy của môi trường từ chối kết nối tới `artifact.bytedance.com` và `dl-maven-android.mintegral.com` (403, `connect_rejected`), đúng điều kiện chuyển của mục 3.4. Vì sao plan chưa đủ tốt: lần chạy thử ở mục 4.1 làm trên máy dev, không làm trong môi trường cloud của phiên, nên không thấy proxy chặn hai kho này (cùng loại với R2 ở L-050). Cách làm, danh sách file, test và chấm rủi ro không đổi. Thay đổi: mục 3.1 thêm cách tiếp tục trên nhánh cũ; điều kiện trước khi chạy lại là người cho phép hai tên miền trên trong chính sách mạng của môi trường cloud (hoặc chạy task trên máy dev). Mục 9 chờ duyệt lại.
 
 Thêm adapter chính thức của AdMob cho tám mạng còn lại (Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads) và SDK Unity Ads vào `gradle/libs.versions.toml` và `:core:ads`, cạnh AppLovin của T-015. Hai kho Maven mới (Pangle, Mintegral) vào `settings.gradle.kts`, mỗi kho chỉ cho đúng nhóm thư viện của nó. Không có code khởi tạo riêng: `MobileAds.initialize` khởi tạo mọi adapter và dòng log trạng thái của T-015 ghi từng adapter.
 
@@ -106,6 +108,8 @@ Tra ngày 2026-10-24. Ghi vào `ads-guide.md` mục 9 để người khai Data s
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
+
+**Tiếp tục (phiên bản 2):** trên nhánh cũ `claude/T-034-mediation-chin-mang` (chưa có PR). Nhánh đã có commit test `c2b821a` (bước 3 xong, 9 test đã thất bại đúng lý do) và commit `1a105a9` khai báo thư viện ở bước 1 đến 3 dưới đây (chưa tải được). Phiên cập nhật nhánh theo nhánh chính, chạy lại để thấy hai test `hasNoMetaAudienceNetworkProvider`, `hasNoMintegralNetworkReceiver` thất bại khi đã có thư viện, rồi làm tiếp từ bước 4. Trước khi chạy: người kiểm `curl -sS -o /dev/null -w '%{http_code}' https://artifact.bytedance.com/repository/pangle/` và kho Mintegral trong môi trường cloud không còn trả lỗi kết nối 403 của proxy; còn 403 thì không đưa plan vào danh sách chạy.
 
 Làm theo mẫu T-015 (thư viện trong catalog, chỉ `:core:ads` phụ thuộc, dòng bỏ trong manifest của `:core:ads`, test classpath và test manifest gộp).
 
@@ -354,6 +358,21 @@ Rủi ro riêng: SDK Meta có thể dựa vào provider đã bỏ và chạy sai
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
+Phiên bản 2: chờ người duyệt.
+
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-02, phiên bản plan 1
+
+- **Kết quả:** dừng ở bước 4 (mục 3.4, điều kiện dừng 1 ở mục 7)
+- **Nhánh, PR:** `claude/T-034-mediation-chin-mang`, chưa mở PR. Commit `c2b821a` (test), `1a105a9` (khai báo thư viện, chưa tải được). Bước 3 đến 5 do phiên con làm trong worktree riêng.
+- **Đã làm:** viết 9 test của mục 4; khai báo chín thư viện, chín dòng `implementation` và hai kho có `content` theo bước 1 đến 3. Chưa làm bước 4 đến 9 (manifest, `secret-scan.py`, `app/lint.xml`, tài liệu).
+- **Test viết trước:** 9 test (2 classpath, 5 `MergedManifestTest`, 2 test `secret-scan` trong `scripts/tests/run.sh`), commit `c2b821a`. Lần 1 (chưa có thư viện): `networkAdapters_areOnClasspath` thất bại `ClassNotFoundException: com.google.ads.mediation.facebook.FacebookMediationAdapter`; `unityAdsSdk_isOnClasspath` thất bại `ClassNotFoundException: com.unity3d.ads.UnityAds`; `containsActivityOfEveryNetwork` thất bại "No com.facebook.ads. activity"; `secret-scan: an AppLovin SDK key fails` thất bại (script trả 0). `hasNoMetaAudienceNetworkProvider`, `hasNoMintegralNetworkReceiver`, `secret-scan: a fake AppLovin key passes` qua, đúng mục 4. 2 test có bước đối chứng (L-055): `permissionsAreExactlyTheAllowedSet` (bỏ `WAKE_LOCK` khỏi danh sách mong đợi thì thất bại, rồi đặt lại) và `hasNoAppLovinSdkKey` (thêm tạm `meta-data` `applovin.sdk.key` giá trị `FAKE` thì thất bại "applovin.sdk.key must not be in the app", rồi gỡ). Manifest gộp trước khi thêm thư viện có đúng 11 quyền của mục 4. Năm test cũ của T-015 không sửa, vẫn qua.
+- **Lý do dừng:** lần 2 (sau khi thêm thư viện) Gradle chỉ không tải được `com.pangle.global:pag-sdk:8.3.0.4` và `com.mbridge.msdk.oversea:mbridge_android_sdk:17.1.81`: "Could not GET 'https://artifact.bytedance.com/repository/pangle/...pag-sdk-8.3.0.4.pom'. Received status code 403 from server: Forbidden", tương tự với `dl-maven-android.mintegral.com`. Mọi thư viện khác tải được từ `google()`, `mavenCentral()`. Proxy của môi trường báo `connect_rejected` cho hai máy chủ đó; `curl` từ phiên chính cũng không kết nối được, trong khi `dl.google.com` trả 302. Đây là chặn theo chính sách mạng, không phải lỗi tạm (429, 5xx), nên không thử lại theo lịch ở bước 5. Không thêm init script, không đổi kho hay biến môi trường.
+- **Rà soát độc lập:** chưa làm (dừng trước bước 6).
+- **Kết quả CI:** chưa đẩy PR.
+- **Lệch so với plan:** chú thích một dòng ở bước 3 dài 124 ký tự ở đúng thụt lề, tách thành hai dòng (giới hạn 120 của ktlint). Test `an AppLovin SDK key fails` gộp kiểm che khóa vào cùng một `expect` (giá trị thực: "<mã trả về> <số lần khóa đầy đủ xuất hiện>", mong đợi "1 0"), giữ số test là hai. Không đổi điều test kiểm.
+- **Việc còn lại:** bước 4 đến 10 (xem mục 3.1, Tiếp tục).
+- **Cần người xem:** cho phép `artifact.bytedance.com` và `dl-maven-android.mintegral.com` trong chính sách mạng của môi trường cloud (`docs/ops/staging-and-runs.md`), hoặc chạy task trên máy dev; duyệt plan phiên bản 2.

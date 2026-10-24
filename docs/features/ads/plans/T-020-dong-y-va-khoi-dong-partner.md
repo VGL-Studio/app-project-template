@@ -1,7 +1,7 @@
 ---
 ticket: T-020
 title: Đồng ý quảng cáo và khởi động SDK theo PARTNER
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, consent, core)
 risk_level: high             # low | medium | high
@@ -378,3 +378,15 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGa
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-02, phiên bản plan 1
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-020-dong-y-va-khoi-dong-partner`, PR #124, merge commit `3513978` lúc 05:33 UTC. Bước 3 đến 5 do phiên con làm trong worktree riêng; test sau rà soát do phiên chính thêm.
+- **Đã làm:** như mục 3.1. `ConsentGate` (S-03 tới S-19); `ConsentCoordinator` (khởi động một lần, giữ lượt hỏi tới khi biết nhánh rút gọn theo HD-04, gộp lượt hỏi, hỏi lại khi mạng hay foreground trở lại và chờ đúng activity đã hỏi resume, bộ đếm chặn khi form `REQUIRED` và form quyền riêng tư, đặt lại khi `allowReset`, log mỗi đường một lần chỉ với mã lỗi số); `UmpConsentPlatform`, `ForegroundAdSuppressor`, `AdsActivityTracker` với `AppActivityFilter.inPackageOf`, `ConsentShortcutConfig`, `rememberResetConsent`; `InternetConnectivity`, `DefaultInternetConnectivity` ở `:core:network`. `AdsController`: `start(application, appActivities)`, `canRequestAds = gate.allowed && sdkStarted`, `consentPath`, `consentFlowFinished`, `sdkReady`, `resetConsent`, `mayRequestNow()` trước bốn chỗ gửi, `awaitFullScreenTurn` đòi `gate.allowed`. `TemplateApplication` gọi `ads.start`; staging `ConsentShortcutConfig(enabledInBuild = true)`, production `OFF`.
+- **Test viết trước:** 51 test (`ConsentGateTest` 20, `ConsentCoordinatorTest` 23, `AdsActivityTrackerTest` 5, `ForegroundAdSuppressorTest` 1, `ConsentDebugOptionsTest` 1, `DefaultInternetConnectivityTest` 1), commit `419e97f` trước code. Trên khung rỗng cả 51 thất bại đúng lý do: `ConsentGateTest` ở phần kiểm (đường `null` thay vì `CACHED_EARLY`, `ERROR_ALLOWED`; `allowed` luôn false); 18 test `ConsentCoordinatorTest` dừng ở `IllegalStateException "no update in progress"` của UMP giả (bộ điều phối rỗng không gọi `requestUpdate`), 5 test ở phần kiểm (`expected:<1> but was:<0>`); `DefaultInternetConnectivityTest` `expected [false, true] but was [false]`. 13 test có bước đối chứng (L-055). 6 test thêm ngoài bảng mục 4, trong các file test của mục 3.2. Không test nào của bước 3 bị sửa ở bước 4; `FullScreenAdsTest` đổi constructor trong commit code, đúng plan. Robolectric dựng được activity giả, không cần phương án dự phòng 3.4.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, các ghi chú. Nên sửa: không test nào chạy đường hỏi lại chờ activity resume, trong khi trên máy foreground báo từ `onActivityStarted` trước khi có activity resume; đã thêm `errorAllowed_foreground_regathersWhenAskedActivityResumes`, `errorAllowed_internetBackWhilePaused_regathersWhenAskedActivityResumes` (commit `2a65506`), đối chứng bỏ dòng gọi `runRegatherIfPossible` trong `onActivityResumed` thì cả hai thất bại `expected:<2> but was:<1>`. Ghi chú: `ConsentDebugSettings.Builder(activity)` trong tham số giữ lâu (nên dùng application context); `reset()` khi lượt cũ còn callback treo (chỉ staging); banner không hỏi `mayRequestNow()` (plan chỉ liệt kê bốn chỗ gửi, đề xuất cho T-021 hay B-01); test S-13, S-17 không tự thất bại được (S-17 kiểm bằng đọc code và kiểm thủ công).
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua lần đầu (504 test JVM), qua lại sau test thêm (506 test, 0 lỗi, 42 ảnh, không ảnh chuẩn nào đổi); `pr-check.yml` xanh lần đầu, có `ui-test` (40066119935).
+- **Lệch so với plan:** (1) tách `preloadNow(placement)` khỏi `preloadWhenEnabled` để cổng mở lại không chồng thêm bộ thu. (2) thêm hàm `internal` `isClassInPackage(className, packageName)` để test kiểm gói `...core.adsx` bằng tên lớp. (3) lỗi ở bước cập nhật (không phải bước form) khi nhánh rút gọn tắt cho đường `DENIED_OR_REQUIRED`, không cho tải, không chốt: plan chỉ quy định "không cho tải" và "không phải `ERROR_ALLOWED`", phiên con chọn tên đường; rà soát chấp nhận (một trong năm đường của S-13, đường `null` trái với `consentFlowFinished`).
+- **Việc còn lại:** T-021 gọi `coordinator.onPreloadRequested()`; T-022 dùng `ForegroundAdSuppressor`, `AdsActivityTracker` (chỗ gỡ cờ kẹt G-06 đã có chú thích).
+- **Cần người xem:** kiểm thủ công 5 bước ở dòng cuối bảng mục 4 trên staging (EEA giả); câu hỏi cho spec: người đã đồng ý trước mở app lúc mất mạng ở production (nhánh rút gọn tắt) không có quảng cáo cả phiên, kể cả khi mạng về, vì S-09 chỉ hỏi lại với `ERROR_ALLOWED`.
