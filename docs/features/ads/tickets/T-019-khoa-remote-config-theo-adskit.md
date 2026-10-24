@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: [T-007, T-008, T-009]
 sprint:
-plan:
+plan: features/ads/plans/T-019-khoa-remote-config-theo-adskit.md
 created: 2026-10-23
 ---
 

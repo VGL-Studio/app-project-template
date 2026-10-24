@@ -10,7 +10,7 @@ risk: high
 size: L
 depends_on: [T-019]
 sprint:
-plan:
+plan: features/ads/plans/T-020-dong-y-va-khoi-dong-partner.md
 created: 2026-10-23
 ---
 

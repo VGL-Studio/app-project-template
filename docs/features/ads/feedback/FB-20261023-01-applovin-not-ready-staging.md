@@ -7,7 +7,7 @@ build: 0.1.0-staging (commit 95f8673)
 feature: ads
 ticket: T-015
 severity: nhe                # chan | nang | nhe | gop-y
-status: new                  # new | triaged | planned | fixed | wontfix
+status: wontfix              # new | triaged | planned | fixed | wontfix
 created: 2026-10-23
 ---
 
@@ -48,7 +48,7 @@ Không có. Log ở artifact `device-session` của lần chạy 39955967527.
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-- **Loại:** đề xuất: góp ý mới (cách kiểm tiêu chí), không phải lỗi so với spec KB-9
-- **Xử lý:**
-- **Lý do:**
-- **Liên kết:** T-015
+- **Loại:** góp ý về cách kiểm tiêu chí, không phải lỗi so với spec KB-9
+- **Xử lý:** không sửa code. Spec ads KB-9 tách tiêu chí 2 thành hai vế (2026-10-24, plan T-034 câu hỏi 1).
+- **Lý do:** adapter AppLovin chỉ lấy khóa từ ánh xạ nguồn quảng cáo trên AdMob, không đọc khóa trong app; mã app thử của Google không có cấu hình mediation, nên mọi adapter báo `NOT_READY` trên staging, kể cả khi có khóa (plan T-034, mục 2). Anh Nhật quyết theo đề xuất, 2026-10-24.
+- **Liên kết:** T-015, T-034

@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: [T-015]
 sprint:
-plan:
+plan: features/ads/plans/T-034-mediation-chin-mang.md
 created: 2026-10-23
 ---
 

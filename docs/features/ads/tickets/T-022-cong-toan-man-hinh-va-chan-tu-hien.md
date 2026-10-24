@@ -8,9 +8,9 @@ owner: Nhật
 status: backlog
 risk: high
 size: M
-depends_on: [T-019, T-009]
+depends_on: [T-019, T-009, T-020]
 sprint:
-plan:
+plan: features/ads/plans/T-022-cong-toan-man-hinh-va-chan-tu-hien.md
 created: 2026-10-23
 ---
 

@@ -8,9 +8,9 @@ owner: Nhật
 status: backlog
 risk: high
 size: M
-depends_on: [T-019, T-010]
+depends_on: [T-019, T-010, T-022]
 sprint:
-plan:
+plan: features/ads/plans/T-023-doanh-thu-theo-vi-tri.md
 created: 2026-10-23
 ---
 
