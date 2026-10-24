@@ -395,8 +395,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** công cụ, chung
 - **Chuyện gì:** phiên con làm bước 3 tới 5 trong worktree `../task-T-021` và phiên rà soát đọc worktree đó, nhưng transcript của cả hai ghi `cwd` là thư mục chính và `gitBranch` là nhánh báo cáo (`claude/RUN-20261025-01-report`), vì phiên con chạy lệnh bằng `cd` hay đường dẫn tuyệt đối chứ không đổi thư mục làm việc của phiên. `scripts/token-usage.py report` gán toàn bộ 17.6M token vào dòng Chung, T-021 không có dòng riêng, nên không so được với `token_estimate` 20M.
 - **Đề xuất sửa:** `scripts/token-usage.py`: transcript trong `subagents/` gán theo nhánh mà phiên con thật sự làm (ví dụ nhánh nêu trong lời giao việc, hay nhánh của worktree mà các lệnh của nó dùng), không theo `gitBranch` của dòng; hoặc `auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: lời giao việc ghi một dòng `Task: T-NNN` để script đọc. Có test.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/token-usage.py` đọc dòng `Task: T-NNN` ở lời giao việc của phiên con (có test); `auto-run.md`, mục Giao bước 3 đến 5 cho phiên con; `ops/token-usage.md`; nhánh `claude/ap-dung-l-071-l-072`.
 
 ### L-072. Luật "không gửi ở nền" chỉ có test ở đường thử lại, đường nạp sẵn đầu nằm trong ngoại lệ nối
 
@@ -404,5 +404,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** plan T-021 viết test cho KB-24 tiêu chí 4 ở vòng thử lại native và ở `FullScreenReloads`, còn lượt nạp sẵn đầu của native toàn màn hình nằm trong phần nối của `AdsController` (ngoại lệ viết test trước). Code qua mọi test nhưng vẫn gửi lượt nạp sẵn đầu khi app ở nền; rà soát độc lập bắt được (mức chặn), sửa ở `d693cfd` mà không có test tự động.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: tiêu chí chấp nhận áp cho mọi lượt gửi (ví dụ "không gửi ở nền") thì liệt kê mọi đường gửi (lượt đầu, nạp sẵn, thử lại, nạp lại) và cho mỗi đường một test, hoặc đưa điều kiện vào một hàm thuần mà mọi đường dùng chung; không để đường nào chỉ nằm trong ngoại lệ nối.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
