@@ -407,7 +407,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
 
-### L-081. Thư viện mới qua `check.sh` và CI nhưng bản release (R8) hỏng, chỉ lộ khi phát staging
+### L-083. Thư viện mới qua `check.sh` và CI nhưng bản release (R8) hỏng, chỉ lộ khi phát staging
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-053 của app, issue #131)
 - **Loại, phạm vi:** môi trường, chung

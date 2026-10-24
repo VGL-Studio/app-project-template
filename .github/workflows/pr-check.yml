@@ -36,7 +36,7 @@ jobs:
           # ui: anything that runs in the app or changes how it is built (core modules without UI too,
           #     since a bug there can still crash the app at startup).
           # release: what can break the release build (R8) while the debug build passes: libraries, build files and
-          #     R8 rules (L-081).
+          #     R8 rules (L-083).
           filters: |
             code:
               - 'app/**'
@@ -101,7 +101,7 @@ jobs:
         run: scripts/check.sh 2>&1 | tee build.log
 
       # The quality gate builds debug only; R8 runs in the release build, so a library without its keep rules
-      # passes check.sh and fails at staging time (L-081). No secret: the fake Firebase file and no signing config
+      # passes check.sh and fails at staging time (L-083). No secret: the fake Firebase file and no signing config
       # give an unsigned APK, as on a dev machine.
       # The full release.log is uploaded with the reports, since the PR comment keeps only part of it.
       - name: Build bản release (R8)
