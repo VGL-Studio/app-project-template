@@ -46,6 +46,12 @@ internal class AdTelemetry(
         adapterClassName: String?,
     ) = logRevenue(format, unitId, placement, 0.0, FALLBACK_CURRENCY, adSource, adapterClassName, true)
 
+    /** The load of a slot with a failure counter: same as [requestSent], [loadSucceeded], [loadFailed]. */
+    fun countedLoad(format: AdFormat, slot: String, placement: String?): LoadReport = NO_OP_LOAD
+
+    /** One request that does not go through the counter: no `load_attempt`, latency of this request only. */
+    fun perRequestLoad(format: AdFormat, placement: String?): LoadReport = NO_OP_LOAD
+
     /** :core:ads sends a request for [slot] now. */
     fun requestSent(slot: String, now: Long) {
         counter.onRequestSent(slot, now)
@@ -154,5 +160,27 @@ internal class AdTelemetry(
     private companion object {
         const val TAG = "Ads"
         const val FALLBACK_CURRENCY = "USD"
+
+        val NO_OP_LOAD = object : LoadReport {
+            override fun sent(now: Long) = Unit
+            override fun succeeded(now: Long) = Unit
+            override fun failed(code: Int, sdkMessage: String?, now: Long): String = ""
+        }
     }
 }
+
+/** One load and its result, reported once each (plan T-023, question 6). */
+internal interface LoadReport {
+    fun sent(now: Long)
+    fun succeeded(now: Long)
+
+    /** Returns the `load_state` label of the error, like [AdTelemetry.loadFailed]. */
+    fun failed(code: Int, sdkMessage: String?, now: Long): String
+}
+
+/** How a native placement is loaded: one ad in its slot, or one row of a list (plan T-023, question 6). */
+internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW }
+
+/** The load report of a native [placement] used as [use]; the choice of [AdsController], testable without the SDK. */
+internal fun AdTelemetry.nativeLoadReport(placement: AdPlacement, use: NativeLoadUse): LoadReport =
+    perRequestLoad(placement.format, loadPlacementOf(placement.format, placement))

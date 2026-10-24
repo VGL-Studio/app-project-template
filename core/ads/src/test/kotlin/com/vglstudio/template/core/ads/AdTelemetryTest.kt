@@ -268,6 +268,89 @@ class AdTelemetryTest {
         assertFalse(values.any { it.toString().contains("ca-app-pub-x") })
     }
 
+    @Test
+    fun inListRows_overlappingRequests_eachHasOwnLatency() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        // Two rows of the same list load at the same time (question 6, option B).
+        val r1 = telemetry.nativeLoadReport(AdPlacement.GALLERY_INLIST_SMALL, NativeLoadUse.LIST_ROW)
+        val r2 = telemetry.nativeLoadReport(AdPlacement.GALLERY_INLIST_SMALL, NativeLoadUse.LIST_ROW)
+        r1.sent(1_000)
+        r2.sent(1_100)
+        r1.succeeded(1_250)
+        val label = r2.failed(3, null, 1_400)
+
+        assertEquals("no_fill", label)
+        assertEquals(2, metrics.events.size)
+        val success = metrics.events.filterIsInstance<AdMetricEvent.LoadSuccess>().single()
+        val fail = metrics.events.filterIsInstance<AdMetricEvent.LoadFail>().single()
+        assertEquals(250L, success.latencyMs)
+        assertEquals(300L, fail.latencyMs)
+        // Question 7: a list row keeps the placement key.
+        assertEquals("gallery_inlist_small", success.adPlacement)
+        assertEquals("gallery_inlist_small", fail.adPlacement)
+
+        // Control (L-055): the same two results of a single-ad slot, one after the other, give 250 and 300.
+        val listEvents = metrics.events.size
+        val single = telemetry.nativeLoadReport(AdPlacement.SAMPLE_NATIVE_SMALL, NativeLoadUse.SINGLE_AD)
+        single.sent(1_000)
+        single.succeeded(1_250)
+        single.sent(2_000)
+        single.failed(3, null, 2_300)
+        assertEquals(
+            listOf(250L, 300L),
+            metrics.events.drop(listEvents).map {
+                when (it) {
+                    is AdMetricEvent.LoadSuccess -> it.latencyMs
+                    is AdMetricEvent.LoadFail -> it.latencyMs
+                    else -> null
+                }
+            },
+        )
+    }
+
+    @Test
+    fun inListRows_haveNoLoadAttempt_andDoNotCount() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        // Three loads of list rows (fail, fail, success), each with a new report.
+        listOf(false, false, true).forEachIndexed { i, success ->
+            val row = telemetry.nativeLoadReport(AdPlacement.GALLERY_INLIST_SMALL, NativeLoadUse.LIST_ROW)
+            row.sent(i * 100L)
+            if (success) row.succeeded(i * 100L + 10) else row.failed(3, null, i * 100L + 10)
+            if (i == 1) assertEquals(0, counter.failuresInARow("gallery_inlist_small"))
+        }
+        assertEquals(3, metrics.events.size)
+        assertEquals(listOf<Int?>(null, null, null), metrics.events.map { it.loadAttemptOrMissing() })
+        assertEquals(0, counter.failuresInARow("gallery_inlist_small"))
+
+        // Control (L-055): the same sequence for a single-ad slot counts 1, 2, 3 and moves the counter.
+        val listEvents = metrics.events.size
+        listOf(false, false, true).forEachIndexed { i, success ->
+            val slot = telemetry.nativeLoadReport(AdPlacement.SAMPLE_NATIVE_SMALL, NativeLoadUse.SINGLE_AD)
+            slot.sent(1_000 + i * 100L)
+            if (success) {
+                assertEquals(2, counter.failuresInARow("sample_native_small"))
+                slot.succeeded(1_000 + i * 100L + 10)
+            } else {
+                slot.failed(3, null, 1_000 + i * 100L + 10)
+            }
+        }
+        assertEquals(listOf<Int?>(1, 2, 3), metrics.events.drop(listEvents).map { it.loadAttemptOrMissing() })
+        assertEquals(0, counter.failuresInARow("sample_native_small"))
+    }
+
+    /** `load_attempt` of a load event; any other event is a test error. */
+    private fun AdMetricEvent.loadAttemptOrMissing(): Int? = when (this) {
+        is AdMetricEvent.LoadSuccess -> loadAttempt
+        is AdMetricEvent.LoadFail -> loadAttempt
+        else -> throw AssertionError("Not a load event: $this")
+    }
+
     private companion object {
         const val SLOT = "preload:INTER"
         const val NATIVE_SLOT = "sample_native_small"
