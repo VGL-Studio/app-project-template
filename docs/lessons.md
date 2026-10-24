@@ -406,3 +406,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: tiêu chí chấp nhận áp cho mọi lượt gửi (ví dụ "không gửi ở nền") thì liệt kê mọi đường gửi (lượt đầu, nạp sẵn, thử lại, nạp lại) và cho mỗi đường một test, hoặc đưa điều kiện vào một hàm thuần mà mọi đường dùng chung; không để đường nào chỉ nằm trong ngoại lệ nối.
 - **Trạng thái:** proposed
 - **Áp dụng:**
+
+### L-084. Hàng chờ plan cạn sau mỗi phiên, phiên kế tiếp phải chờ người và AI viết plan
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-061, ticket T-045, PR #120 của app), issue #133
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** sau một phiên chạy hết danh sách, không còn plan `approved` nào. Phải có một phiên có người theo dõi viết plan rồi mới lập được danh sách kế tiếp; ở app, khoảng cách giữa hai phiên (03:35 tới 16:53 UTC) chủ yếu là chờ plan.
+- **Đề xuất sửa:** cuối phiên, sau khi PR báo cáo đã merge, phiên soạn plan `draft` cho các ticket `ready` kế tiếp (`plan_queue` của danh sách chạy, mặc định 2): `scripts/plan-queue.py` chọn ticket (spec đã chốt, không câu hỏi mở, phụ thuộc đã có plan, chưa có nhánh hay PR plan), mỗi plan một PR, có chạy thử, `plan-check.py` và rà soát độc lập, giới hạn 45/60 phút; câu hỏi cho người gom vào mục "Plan soạn sẵn và câu hỏi cho người" của báo cáo. Phiên không duyệt, không merge PR plan. Ở mẫu, sửa thêm điểm rà soát của app: đọc mọi PR mở bằng `gh api --paginate` (app dừng ở 100), và URL `origin` không phải GitHub thì thoát 2 mà không in URL (có thể chứa token).
+- **Trạng thái:** accepted
+- **Áp dụng:**
