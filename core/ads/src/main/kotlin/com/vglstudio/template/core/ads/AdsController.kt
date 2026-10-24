@@ -600,7 +600,11 @@ class AdsController @Inject internal constructor(
             }
             emitAll(
                 nativeAdStates(
-                    SdkNativeAdLoader(context, adRequest(), slotNativeEvents(placement, unitId)),
+                    SdkNativeAdLoader(
+                        context,
+                        adRequest(),
+                        nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD),
+                    ),
                     unitId,
                     size,
                     NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -632,7 +636,7 @@ class AdsController @Inject internal constructor(
             return NativeAdState.Unavailable
         }
         return loadOneNativeAd(
-            SdkNativeAdLoader(context, adRequest(), slotNativeEvents(placement, unitId)),
+            SdkNativeAdLoader(context, adRequest(), nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW)),
             unitId,
             size,
             NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -641,14 +645,17 @@ class AdsController @Inject internal constructor(
         )
     }
 
-    /** The metrics of one native ad of a slot: its placement is the one of the screen using the slot. */
-    private fun slotNativeEvents(placement: AdPlacement, unitId: String): NativeAdEvents = NativeAdMetrics(
-        format = placement.format,
-        unitId = unitId,
-        slot = placement.key,
-        loadPlacement = loadPlacementOf(placement.format, placement),
-        placement = { placement },
-    )
+    /**
+     * The metrics of one native load of [placement] used as [use]: the load report comes from [nativeLoadReport]
+     * (a list row gets its own report on each call, so rows loading at once do not mix: question 6 of plan T-023).
+     */
+    private fun nativeAdMetrics(placement: AdPlacement, unitId: String, use: NativeLoadUse): NativeAdEvents =
+        NativeAdMetrics(
+            format = placement.format,
+            unitId = unitId,
+            load = telemetry.nativeLoadReport(placement, use),
+            placement = { placement },
+        )
 
     /**
      * Hands the SDK callbacks of one native ad to [telemetry]: load result, paid event, impression with the
@@ -657,8 +664,7 @@ class AdsController @Inject internal constructor(
     private inner class NativeAdMetrics(
         private val format: AdFormat,
         private val unitId: String,
-        private val slot: String,
-        private val loadPlacement: String?,
+        private val load: LoadReport,
         private val placement: () -> AdPlacement?,
         private val onLoadFailed: (label: String) -> Unit = {},
     ) : NativeAdEvents {
@@ -669,17 +675,17 @@ class AdsController @Inject internal constructor(
 
         @Volatile private var adapterClassName: String? = null
 
-        override fun onRequestSent() = telemetry.requestSent(slot, clock.nowMillis())
+        override fun onRequestSent() = load.sent(clock.nowMillis())
 
         override fun onLoaded(ad: NativeAd) {
             val adapter = ad.responseInfo?.loadedAdapterResponseInfo
             adSource = adapter?.adSourceName
             adapterClassName = adapter?.adapterClassName
-            telemetry.loadSucceeded(format, slot, loadPlacement, clock.nowMillis())
+            load.succeeded(clock.nowMillis())
         }
 
         override fun onFailed(code: Int, sdkMessage: String?) {
-            onLoadFailed(telemetry.loadFailed(format, slot, loadPlacement, code, sdkMessage, clock.nowMillis()))
+            onLoadFailed(load.failed(code, sdkMessage, clock.nowMillis()))
         }
 
         override fun onPaid(value: AdValue) {
@@ -754,8 +760,11 @@ class AdsController @Inject internal constructor(
             val events = NativeAdMetrics(
                 format = AdFormat.NATIVE_FULL_SCREEN,
                 unitId = unitId,
-                slot = preloadSlot(AdFormat.NATIVE_FULL_SCREEN),
-                loadPlacement = loadPlacementOf(AdFormat.NATIVE_FULL_SCREEN, placement),
+                load = telemetry.countedLoad(
+                    AdFormat.NATIVE_FULL_SCREEN,
+                    preloadSlot(AdFormat.NATIVE_FULL_SCREEN),
+                    loadPlacementOf(AdFormat.NATIVE_FULL_SCREEN, placement),
+                ),
                 placement = { cell.value },
                 onLoadFailed = { lastLoadErrors[placement] = it },
             )

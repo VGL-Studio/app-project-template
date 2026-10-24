@@ -47,10 +47,50 @@ internal class AdTelemetry(
     ) = logRevenue(format, unitId, placement, 0.0, FALLBACK_CURRENCY, adSource, adapterClassName, true)
 
     /** The load of a slot with a failure counter: same as [requestSent], [loadSucceeded], [loadFailed]. */
-    fun countedLoad(format: AdFormat, slot: String, placement: String?): LoadReport = NO_OP_LOAD
+    fun countedLoad(format: AdFormat, slot: String, placement: String?): LoadReport = object : LoadReport {
+        override fun sent(now: Long) = requestSent(slot, now)
 
-    /** One request that does not go through the counter: no `load_attempt`, latency of this request only. */
-    fun perRequestLoad(format: AdFormat, placement: String?): LoadReport = NO_OP_LOAD
+        override fun succeeded(now: Long) = loadSucceeded(format, slot, placement, now)
+
+        override fun failed(code: Int, sdkMessage: String?, now: Long): String =
+            loadFailed(format, slot, placement, code, sdkMessage, now)
+    }
+
+    /**
+     * One request that does not go through the counter (a row of a list, like a pool: question 6, option B): no
+     * `load_attempt`, latency from the send of this very request. Each call gives a new report.
+     */
+    fun perRequestLoad(format: AdFormat, placement: String?): LoadReport = object : LoadReport {
+        @Volatile private var sentAt: Long? = null
+
+        override fun sent(now: Long) {
+            sentAt = now
+        }
+
+        override fun succeeded(now: Long) {
+            if (!lifecycleOn(format)) return
+            log(AdMetricEvent.LoadSuccess(format.metricCode(), placement, loadAttempt = null, latencyMs = latency(now)))
+        }
+
+        override fun failed(code: Int, sdkMessage: String?, now: Long): String {
+            val label = loadStateAfterError(code, offline(), isSdkThrottledMessage(sdkMessage))
+            if (lifecycleOn(format)) {
+                log(
+                    AdMetricEvent.LoadFail(
+                        format.metricCode(),
+                        placement,
+                        loadAttempt = null,
+                        latencyMs = latency(now),
+                        loadErrorCode = code.toString(),
+                        loadState = label,
+                    ),
+                )
+            }
+            return label
+        }
+
+        private fun latency(now: Long): Long? = sentAt?.let { now - it }
+    }
 
     /** :core:ads sends a request for [slot] now. */
     fun requestSent(slot: String, now: Long) {
@@ -160,12 +200,6 @@ internal class AdTelemetry(
     private companion object {
         const val TAG = "Ads"
         const val FALLBACK_CURRENCY = "USD"
-
-        val NO_OP_LOAD = object : LoadReport {
-            override fun sent(now: Long) = Unit
-            override fun succeeded(now: Long) = Unit
-            override fun failed(code: Int, sdkMessage: String?, now: Long): String = ""
-        }
     }
 }
 
@@ -182,5 +216,11 @@ internal interface LoadReport {
 internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW }
 
 /** The load report of a native [placement] used as [use]; the choice of [AdsController], testable without the SDK. */
-internal fun AdTelemetry.nativeLoadReport(placement: AdPlacement, use: NativeLoadUse): LoadReport =
-    perRequestLoad(placement.format, loadPlacementOf(placement.format, placement))
+internal fun AdTelemetry.nativeLoadReport(placement: AdPlacement, use: NativeLoadUse): LoadReport {
+    // A list row keeps the placement key of its screen (question 7); only a real pool (T-028) logs `pool`.
+    val loadPlacement = loadPlacementOf(placement.format, placement)
+    return when (use) {
+        NativeLoadUse.SINGLE_AD -> countedLoad(placement.format, placement.key, loadPlacement)
+        NativeLoadUse.LIST_ROW -> perRequestLoad(placement.format, loadPlacement)
+    }
+}
