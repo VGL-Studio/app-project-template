@@ -83,4 +83,16 @@ class AdUnitIdsTest {
         assertFalse(requestsNonPersonalizedAds(inRegulatedRegion = true, personalizedInRegulatedRegions = true))
         assertFalse(requestsNonPersonalizedAds(inRegulatedRegion = false, personalizedInRegulatedRegions = false))
     }
+
+    @Test
+    fun googleTestUnits_newFormats() {
+        assertEquals("ca-app-pub-3940256099942544/9257395921", GoogleTestAdUnitIds.unitFor(AdFormat.APP_OPEN))
+        assertEquals("ca-app-pub-3940256099942544/5224354917", GoogleTestAdUnitIds.unitFor(AdFormat.REWARDED))
+        assertEquals("ca-app-pub-3940256099942544/9214589741", GoogleTestAdUnitIds.unitFor(AdFormat.BANNER_COLLAPSIBLE))
+        assertEquals("ca-app-pub-3940256099942544/1044960115", GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_STEP))
+        assertEquals(
+            "ca-app-pub-3940256099942544/1044960115",
+            GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_IN_COLLECTION),
+        )
+    }
 }

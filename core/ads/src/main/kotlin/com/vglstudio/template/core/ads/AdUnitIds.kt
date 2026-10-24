@@ -25,6 +25,10 @@ object GoogleTestAdUnitIds : AdUnitIds {
         AdFormat.NATIVE_COLLAPSIBLE -> "ca-app-pub-3940256099942544/1044960115"
         // Native video, to try a video on the large media area.
         AdFormat.NATIVE_FULL_SCREEN -> "ca-app-pub-3940256099942544/1044960115"
+        // Step 3 skeleton (plan T-019).
+        AdFormat.APP_OPEN, AdFormat.REWARDED, AdFormat.BANNER_COLLAPSIBLE, AdFormat.NATIVE_STEP,
+        AdFormat.NATIVE_IN_COLLECTION,
+        -> ""
     }
 }
 

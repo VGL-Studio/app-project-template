@@ -61,6 +61,31 @@ object AdsSettings {
         description = "Time to wait for a native ad before its space is removed when no ad is available, in seconds.",
     )
 
+    // Step 3 skeleton (plan T-019): the new keys exist, all() and keysFor still return the old list.
+    val IS_SHOW_ADS = RemoteKey.boolean("is_show_ads", true, "Skeleton.")
+    val SHOW_OPEN_ADS = RemoteKey.boolean("show_open_ads", false, "Skeleton.")
+    val SHOW_OPEN_ADS_FIRST_OPEN = RemoteKey.boolean("show_open_ads_first_open", false, "Skeleton.")
+    val OPEN_AD_TYPE = RemoteKey.string("open_ad_type", "aoa", "Skeleton.")
+    val SHOW_RESUM_ADS = RemoteKey.boolean("show_resum_ads", false, "Skeleton.")
+    val RESUME_AD_TYPE = RemoteKey.string("resume_ad_type", "aoa", "Skeleton.")
+    val ADS_INTERVAL = RemoteKey.long("ads_interval", 45L, "Skeleton.")
+    val IS_SHOW_NATIVE_AFTER_INTER = RemoteKey.boolean("is_show_native_after_inter", false, "Skeleton.")
+    val IS_SHOW_NATIVE_BOTTOM = RemoteKey.boolean("is_show_native_bottom", false, "Skeleton.")
+    val IS_SHOW_NATIVE_COLLAP = RemoteKey.boolean("is_show_native_collap", true, "Skeleton.")
+    val TIME_EXPAND_COLLAP_AD = RemoteKey.long("time_expand_collap_ad", 30L, "Skeleton.")
+    val IS_ENABLE_CONSENT_SHORTCUT = RemoteKey.boolean("is_enable_consent_shortcut", false, "Skeleton.")
+    val IS_LOG_AD_FULLSCREEN_EVENTS = RemoteKey.boolean("is_log_ad_fullscreen_events", false, "Skeleton.")
+    val IS_LOG_AD_SLOT_EVENTS = RemoteKey.boolean("is_log_ad_slot_events", false, "Skeleton.")
+
+    internal fun placementEnabled(declaration: AdPlacementDeclaration): RemoteKey<Boolean> =
+        RemoteKey.boolean("ads_${declaration.code}_enabled", false, "Skeleton.")
+
+    fun interval(group: AdIntervalGroup): RemoteKey<Long> = ADS_INTERVAL
+
+    fun nativeEvery(placement: AdPlacement): RemoteKey<Long>? = null
+
+    internal fun keysFor(placements: List<AdPlacementDeclaration>): List<RemoteKey<*>> = all()
+
     /** Off by default: a placement shows ads only once the product owner switches it on remotely (ADR-0014). */
     fun placementEnabled(placement: AdPlacement): RemoteKey<Boolean> = RemoteKey.boolean(
         name = "ads_${placement.key}_enabled",

@@ -24,4 +24,10 @@ object StagingRemoteValuesModule {
     @LocalRemoteValues
     fun everyAdPlacementEnabled(): Set<LocalRemoteValue> =
         AdPlacement.entries.map { LocalRemoteValue.of(AdsSettings.placementEnabled(it), true) }.toSet()
+
+    // Step 3 skeleton (plan T-019).
+    @Provides
+    @ElementsIntoSet
+    @LocalRemoteValues
+    fun globalAdSwitchesOn(): Set<LocalRemoteValue> = emptySet()
 }

@@ -520,4 +520,8 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
     // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
     AdFormat.NATIVE_FULL_SCREEN -> null
+    // Step 3 skeleton (plan T-019).
+    AdFormat.APP_OPEN, AdFormat.REWARDED, AdFormat.BANNER_COLLAPSIBLE, AdFormat.NATIVE_STEP,
+    AdFormat.NATIVE_IN_COLLECTION,
+    -> null
 }
