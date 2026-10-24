@@ -1131,6 +1131,19 @@ expect "device-session: a refused grant is recorded" 2 \
   "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null; FAKE_ADB_GRANT_FAILS=android.permission.CAMERA session /dev/null scenarios --yes > /dev/null
      grep -c '^permissions granted=POST_NOTIFICATIONS failed=CAMERA$' "$(find "$work/sessions" -maxdepth 1 -name "TS-*" | sort | tail -n 1)/scenarios.txt")"
 session /dev/null stop > /dev/null
+# A staging build with a second LAUNCHER activity (the ad preview of T-014) still starts MainActivity (FB-20261024-01).
+: > "$FAKE_ADB_CALLS"
+expect "device-session: two launchers start MainActivity, not the chooser" 0 \
+  "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null
+     FAKE_ADB_LAUNCHERS="com.example.app/com.example.app.ads.AdPreviewActivity com.example.app/com.example.app.MainActivity" \
+       session /dev/null scenarios --yes)"
+expect "device-session: every scenario launch opens MainActivity" 4 \
+  "$(grep -c '^shell am start -W -n com.example.app/com.example.app.MainActivity$' "$FAKE_ADB_CALLS")"
+session /dev/null stop > /dev/null
+expect "device-session: two launchers without MainActivity are refused" 1 \
+  "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null
+     FAKE_ADB_LAUNCHERS="com.example.app/.A com.example.app/.B" session /dev/null scenarios --yes)"
+session /dev/null stop > /dev/null
 unset DEVICE_SESSION_SLEEP FAKE_ADB_CALLS FAKE_ADB_RUNTIME_PERMISSIONS
 
 # app-explore: the guard refuses taps that would open an ad or start a purchase (docs/ops/clone-study.md).
