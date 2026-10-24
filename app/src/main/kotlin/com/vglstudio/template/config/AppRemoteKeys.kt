@@ -1,6 +1,7 @@
 package com.vglstudio.template.config
 
 import com.vglstudio.template.core.ads.AdsSettings
+import com.vglstudio.template.core.analytics.AppsFlyerSettings
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.RemoteKey
 import com.vglstudio.template.core.network.NetworkSettings
@@ -14,6 +15,7 @@ object AppRemoteKeys {
     val byModule: Map<String, List<RemoteKey<*>>> = linkedMapOf(
         ":core:config" to FeatureFlag.entries.map { it.remoteKey },
         ":core:ads" to AdsSettings.all(),
+        ":core:analytics" to AppsFlyerSettings.all(),
         ":core:network" to NetworkSettings.all(),
     )
 }

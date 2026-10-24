@@ -25,6 +25,13 @@ object GoogleTestAdUnitIds : AdUnitIds {
         AdFormat.NATIVE_COLLAPSIBLE -> "ca-app-pub-3940256099942544/1044960115"
         // Native video, to try a video on the large media area.
         AdFormat.NATIVE_FULL_SCREEN -> "ca-app-pub-3940256099942544/1044960115"
+        AdFormat.APP_OPEN -> "ca-app-pub-3940256099942544/9257395921"
+        AdFormat.REWARDED -> "ca-app-pub-3940256099942544/5224354917"
+        // Google has no collapsible test unit of its own: the adaptive banner unit.
+        AdFormat.BANNER_COLLAPSIBLE -> "ca-app-pub-3940256099942544/9214589741"
+        // Native video, like the other native cards with media.
+        AdFormat.NATIVE_STEP -> "ca-app-pub-3940256099942544/1044960115"
+        AdFormat.NATIVE_IN_COLLECTION -> "ca-app-pub-3940256099942544/1044960115"
     }
 }
 
