@@ -163,6 +163,39 @@ class ConsentCoordinatorTest {
     }
 
     @Test
+    fun errorAllowed_foreground_regathersWhenAskedActivityResumes() {
+        // On a device the foreground signal comes from onActivityStarted, before any activity is resumed.
+        val env = Env().errorAllowed()
+        env.resumed.clear()
+        env.coordinator.onForegroundChanged(false)
+        env.coordinator.onForegroundChanged(true)
+        assertEquals(1, env.updates)
+
+        // Control: another activity resuming does not run the waiting regather.
+        env.resumed += activityB
+        env.coordinator.onActivityResumed(activityB)
+        assertEquals(1, env.updates)
+
+        env.resumed += activityA
+        env.coordinator.onActivityResumed(activityA)
+        assertEquals(2, env.updates)
+        assertEquals(activityA, env.platform.updateActivities.last())
+    }
+
+    @Test
+    fun errorAllowed_internetBackWhilePaused_regathersWhenAskedActivityResumes() {
+        val env = Env().errorAllowed()
+        env.resumed.clear()
+        env.coordinator.onInternetChanged(false)
+        env.coordinator.onInternetChanged(true)
+        assertEquals(1, env.updates)
+
+        env.resumed += activityA
+        env.coordinator.onActivityResumed(activityA)
+        assertEquals(2, env.updates)
+    }
+
+    @Test
     fun temporaryThenRequired_closesBeforeForm() {
         val env = Env().started(shortcut = true)
         env.platform.canRequest = true
