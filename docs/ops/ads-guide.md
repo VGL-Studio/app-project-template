@@ -121,6 +121,19 @@ Luật đầy đủ ở `ads-business-rules.md`, mục 3 và 4. Tóm tắt cho n
 
 Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-rules.md`, mục 10; bảng sinh từ code ở `docs/remote-config-keys.md`.
 
+### Nạp sẵn và nạp lại (T-021)
+
+Luật đầy đủ ở `ads-business-rules.md`, S-20 tới S-25, F-04 tới F-06, O-05, O-09.
+
+- **Không khe nào tự nạp khi được tạo.** Mọi lượt nạp sẵn đi qua kế hoạch nạp sẵn (`AdPreloadPlan`): danh sách nhóm định dạng chạy lần lượt; nhóm sau bắt đầu khi mọi khe của nhóm trước xong (có quảng cáo, lỗi hay đang chờ thử lại) hoặc sau tối đa 6 giây. Định dạng không có trong kế hoạch thì không được nạp sẵn.
+- **Kế hoạch mặc định** suy ra từ danh sách vị trí (`AdPreloadPlan.fromPlacements()`): nhóm đầu là app open và native của bước đầu luồng (khe người dùng thấy đầu tiên), nhóm sau là mọi định dạng còn lại. Dự án mẫu hôm nay chỉ có một nhóm.
+- **App đặt kế hoạch riêng** bằng `ads.setPreloadPlan(AdPreloadPlan(listOf(setOf(AdFormat.APP_OPEN), setOf(AdFormat.INTERSTITIAL, ...))))` trong `Application.onCreate`, ngay sau `ads.start(...)`, trước khi activity đầu tiên hỏi đồng ý. Một định dạng chỉ ở một nhóm.
+- **Lúc chạy:** lần đầu khi SDK sẵn sàng (callback của `MobileAds.initialize`, hoặc 35 giây sau khi gọi khởi tạo nếu callback không về); khi cổng đồng ý mở lại; khi một vị trí toàn màn hình được bật từ xa; khi mạng về. Lượt bị chặn vì cổng đóng được giữ một lượt và chạy một lần khi cổng mở; khi quyền thật của UMP là "không" thì không giữ.
+- **Thử lại sau lỗi nạp:** interstitial chờ 2, 4, 6, 8 rồi 10 giây mỗi lần, không bỏ cuộc; native (khe trong màn và native toàn màn hình) thử lại sau 5 giây khi chưa có quảng cáo. Bộ đếm lỗi về 0 khi nạp được, đếm riêng từng vị trí. Interstitial đóng hay hiện lỗi thì nạp lại sau 2 giây; native toàn màn hình nạp lại ngay.
+- **Mạng về:** Internet dùng được ổn định 3 giây sau khi mất thì kế hoạch nạp lại và khe native đang chờ thử lại gửi ngay. Mở app khi đang ở chế độ máy bay rồi tắt cũng tính là mạng về.
+- **Native không nạp ở nền:** mọi yêu cầu native của khe trong màn và native toàn màn hình (cả lượt đầu, lượt nạp sẵn và lượt thử lại) chờ app lên foreground. Hàng native trong danh sách chưa theo luật này (chờ pool của T-028). Activity của app hiện lại thì các khe native trong kế hoạch được nạp bù theo thứ tự kế hoạch, khi kế hoạch đã chạy xong ít nhất một lần và không có quảng cáo toàn màn hình.
+- Log thẻ `Ads` để kiểm trên máy: `SDK ready: callback` hay `SDK ready: 35 s cap`, `Preload SDK_READY: RUN`, `Preload group 1/1 started: ...`, `Retry gallery_interstitial in 2000 ms (failures 1, code 2)`, `Native sample_native_small retry in 5000 ms (failures 1)`, `Network back`.
+
 ## 7. Mediation: AdMob và chín mạng
 
 - AdMob điều phối. Mạng con qua adapter chính thức của AdMob: AppLovin, Meta Audience Network, DT Exchange (Fyber), InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads (ADR-0026). AppLovin có từ T-015, tám mạng còn lại từ T-034 (mục dưới).
@@ -172,7 +185,7 @@ Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-ru
   - **`<queries>`:** thêm 19 mục: Custom Tabs, `VIEW`, `MAIN`, `market://`, các kho ứng dụng, `com.facebook.katana`, dịch vụ của Digital Turbine và năm gói của công cụ root máy (`com.topjohnwu.magisk`, `eu.chainfire.supersu`, `com.koushikdutta.superuser`, `com.noshufou.android.su`, `com.thirdparty.superuser`). Không phải `QUERY_ALL_PACKAGES`, không phải quyền; người khai Data safety cần biết (mục 9).
 - **Lint:** Picasso (phụ thuộc bắt buộc của InMobi) có mã gửi thông báo, lint báo `NotificationPermission`. `app/lint.xml` bỏ qua quy tắc này chỉ cho phát hiện có `com.squareup.picasso.` (plan T-034, câu hỏi 7); không thêm `POST_NOTIFICATIONS`. Nâng InMobi hay Picasso thì xem lại dòng này.
 - **R8:** bản release của staging thu gọn được, không cần quy tắc giữ lớp. Cảnh báo "Missing class" (không phải lỗi) cho `com.android.billingclient.api.*` từ SDK TikTok Business đi kèm Pangle; dự án không có Play Billing nên phần đó không chạy.
-- **Unity và ironSource cần `Activity` khi nạp** banner, interstitial, rewarded (trang hướng dẫn của Google). `:core:ads` hiện nạp interstitial bằng `ApplicationContext`, nên hai mạng này có thể không thắng đấu giá cho interstitial. Plan T-021, T-026 (viết lại cách nạp quảng cáo toàn màn hình) nạp bằng `Activity` đang mở khi có.
+- **Unity và ironSource cần `Activity` khi nạp** banner, interstitial, rewarded (trang hướng dẫn của Google). Từ T-021, `:core:ads` nạp interstitial bằng activity đang mở của app khi có (không bao giờ bằng activity của SDK), không có thì bằng `ApplicationContext`. Native toàn màn hình vẫn nạp bằng `ApplicationContext`; rewarded (T-031) và banner (T-029) theo cách của plan đó.
 - **Mintegral:** năm 2020 Snyk báo cáo SDK của Mintegral (khi đó là SourMint) theo dõi lượt bấm và URL trong app; Mintegral bác bỏ và đưa kết quả kiểm toán. Dự án mẫu giữ Mintegral theo ADR-0026 (plan T-034, câu hỏi 3); từng app cân nhắc khi khai Data safety.
 - **Kích thước:** APK `stagingDebug` chưa thu gọn tăng khoảng 24 MB (23,4 MB lên 47,4 MB). App muốn bỏ bớt mạng thì đề xuất ADR của app.
 - **Việc của người trên AdMob** (trang của từng mạng): thêm từng mạng vào danh sách đối tác quảng cáo của thông điệp GDPR và các bang Mỹ; ánh xạ mã của từng mạng trong nhóm mediation; bật chế độ thử của mạng khi thử và tắt trước khi phát hành; `app-ads.txt` có dòng của từng mạng ([release.md](release.md), mục 1.4).
