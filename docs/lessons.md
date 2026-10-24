@@ -385,5 +385,6 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** phiên con làm bước 3 đến 5 của T-021 trong worktree riêng; lần `git push` đầu, ngay sau commit test, bị bộ phân loại của auto mode chặn ("Unrequested Commit in a Connected App"). Hai phiên con trước trong cùng phiên (T-034, T-023) đẩy được, nên chặn không đều. Phiên con làm tiếp tới `scripts/check.sh` qua rồi báo; phiên chính không đẩy thay, vì đẩy thay phần bị từ chối là vượt quyền. Task dừng ở bước 7 với hai commit chỉ trong container, sẽ mất khi container bị thu hồi.
 - **Đề xuất sửa:** người xem lại cấu hình quyền của routine (cho phép `git push` tới nhánh `claude/T-*` cho cả phiên con), hoặc `auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: phiên chính đẩy nhánh task, phiên con chỉ commit; phiên con gặp lệnh bị từ chối thì dừng ngay và báo, không làm tiếp phần chưa đẩy được.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `auto-run.md`, mục Giao bước 3 đến 5 cho phiên con (phiên con chỉ commit, phiên chính đẩy; lệnh bị từ chối thì dừng ngay); nhánh `claude/ap-dung-l-070`.
 
