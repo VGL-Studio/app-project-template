@@ -184,9 +184,9 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 ### [ADR-0028](adr/0028-mo-rong-pham-vi-co-kiem-soat.md): Phiên tự chạy được nối chỗ gọi mà task khác cùng danh sách đổi, và phải tự sửa điểm nên sửa trong phạm vi plan, đều có test viết trước
 
 - chỉ sửa file ngoài mục 3.2 để nối chỗ gọi mà task khác của cùng danh sách đã tạo hay đổi sau khi plan được duyệt (tính cả task đã merge ở danh sách trước khi task được chuyển sang)
-- phần nối có test viết trước, tối đa 3 file và 40 dòng code mỗi task đếm bằng `git diff --numstat` không tính test, không chạm file của điểm chặn ở mục 1 của `risk-scoring.md`
+- phần nối có test viết trước, tối đa 3 file và 40 dòng code mỗi task đếm bằng `git diff --numstat` không tính test, nằm ngoài mọi điểm chặn ở mục 1 của `risk-scoring.md` (gồm mọi module `:core:*`, đường dẫn R2, khóa DataStore, xét từng dòng sửa)
 - ở bước 6, phải sửa điểm nên sửa nằm trong file được phép, có test viết trước thất bại đúng lý do, không đổi điều test của plan kiểm
-- giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa
+- giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa, và mỗi task tối đa 2 vòng rà soát lại vì điểm nên sửa, sau đó điểm còn lại ghi vào báo cáo
 - điểm nên sửa mâu thuẫn với plan, spec hay test của plan thì ghi vào báo cáo kèm phương án, không tự sửa
 - mỗi phần ngoài mục 3.2 và mỗi lần sửa theo rà soát được ghi vào nhật ký plan và mô tả PR, và được rà soát độc lập xét riêng
 - mọi điều kiện dừng khác của `risk-scoring.md` vẫn áp dụng

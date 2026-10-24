@@ -809,6 +809,54 @@ write_run "$(run_row 1 T-002)$(run_row 2 T-001)\n\nBỏ đề xuất thứ tự:
 expect "run-check: a dropped order hint with a reason passes" pass "$(run_check)"
 expect "run-check: a dropped order hint with a reason warns once" 1 "$(grep -c 'CHÚ Ý.*T-001 trước T-002' "$work/run-check.out" || true)"
 
+# The order hint parser is conservative (review of PR 141): only a hint whose subject is the plan's own task stops
+# the list; a hint about two other tasks is only a warning; negation, options and "hoặc" give no hint.
+# Each case is a sentence in the plan of T-003, with a list order that the wrong reading would break.
+write_ticket T-003 ''
+touch "$rr/feature/demo/C.kt"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+plan3() { write_run_plan T-003 feature/demo/C.kt '| KB-1 | Unit | `cTest` |' Sửa '' "$1"; }
+plan3 '- Đề xuất thứ tự chạy: T-002 chạy sau T-001.'
+write_run "$(run_row 1 T-003)$(run_row 2 T-001)$(run_row 3 T-002)"
+expect "run-check: 'B chạy sau A' in another plan is not about this plan" pass "$(run_check)"
+expect "run-check: 'B chạy sau A' gives no pair with this plan" 0 "$(grep -c 'T-003' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)$(run_row 3 T-003)"
+expect "run-check: a hint about two other plans only warns" pass "$(run_check)"
+expect "run-check: the warning reads 'B chạy sau A' as A before B" 1 \
+  "$(grep -c 'CHÚ Ý.*T-001 trước T-002' "$work/run-check.out" || true)"
+plan3 '- Đề xuất thứ tự chạy: T-001 chạy trước T-002.'
+write_run "$(run_row 1 T-002)$(run_row 2 T-003)$(run_row 3 T-001)"
+expect "run-check: 'A chạy trước B' in another plan does not stop" pass "$(run_check)"
+expect "run-check: 'A chạy trước B' is not read as this plan before B" 0 \
+  "$(grep -c 'T-003 trước T-002' "$work/run-check.out" || true)"
+expect "run-check: 'A chạy trước B' is read as A before B" 1 "$(grep -c 'CHÚ Ý.*T-001 trước T-002' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-003)$(run_row 2 T-001)$(run_row 3 T-002)"
+plan3 '- Đề xuất thứ tự chạy: không nên chạy sau T-001.'
+expect "run-check: 'không nên chạy sau' is no hint" pass "$(run_check)"
+expect "run-check: 'không nên chạy sau' has no L-078 message" 0 "$(grep -c 'L-078' "$work/run-check.out" || true)"
+plan3 '- Đề xuất thứ tự chạy: chưa cần chạy sau T-001.'
+expect "run-check: 'chưa' is no hint" pass "$(run_check)"
+write_run "$(run_row 1 T-002)$(run_row 2 T-003)$(run_row 3 T-001)"
+plan3 '- Đề xuất thứ tự chạy: có thể sau T-001 hoặc trước T-002.'
+expect "run-check: 'có thể ... hoặc ...' is no hint" pass "$(run_check)"
+expect "run-check: 'có thể ... hoặc ...' has no L-078 message" 0 "$(grep -c 'L-078' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-003)$(run_row 2 T-001)$(run_row 3 T-002)"
+plan3 '- Thứ Tự Chạy: sau T-001.'
+expect "run-check: the order label is read in any case" stop "$(run_check)"
+plan3 '- Đề xuất thứ tự chạy: sau T-001, T-002.'
+write_run "$(run_row 1 T-001)$(run_row 2 T-003)$(run_row 3 T-002)"
+expect "run-check: 'sau A, B' reads every task of the list" stop "$(run_check)"
+expect "run-check: 'sau A, B' names the second task" 1 "$(grep -c 'T-002 trước T-003' "$work/run-check.out" || true)"
+plan3 '- Đề xuất thứ tự chạy: sau T-001 và T-002.'
+expect "run-check: 'sau A và B' reads every task of the list" stop "$(run_check)"
+# Positive control: the same list with the plan's own task as explicit subject stops.
+plan3 '- Đề xuất thứ tự chạy: T-003 chạy sau T-002.'
+expect "run-check: a hint with this plan as subject stops" stop "$(run_check)"
+plan3 '- Đề xuất thứ tự chạy: T-003 chạy trước T-002.'
+expect "run-check: a hint with this plan as subject that the list follows passes" pass "$(run_check)"
+rm -f "$rr/docs/features/demo/tickets/T-003-x.md" "$rr/docs/features/demo/plans/T-003-x.md" "$rr/feature/demo/C.kt"
+
 # Files of other plans: a plan using a file that a later plan creates (and not in its own section 3.2).
 git init -q "$rr"
 mkdir -p "$rr/feature/other"

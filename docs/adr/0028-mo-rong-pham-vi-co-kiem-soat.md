@@ -37,10 +37,13 @@ Nếu không quyết, phiên tiếp tục dừng task vì chỗ gọi, và lỗi
 
 - File đó được tạo hay đổi, sau khi plan được duyệt, bởi một task khác của cùng danh sách chạy đã merge trong phiên này hay phiên trước. Task đang làm được chuyển sang từ một danh sách chạy trước thì task đã merge của danh sách đó cũng tính là cùng danh sách; nhật ký plan ghi mã danh sách chạy của task đã đổi chỗ gọi.
 - Phần sửa chỉ nối chỗ gọi: truyền tham số mới, gọi hàm mới, đổi tên theo thay đổi của chính plan, ở các file gọi thứ mà plan đổi. Phần sửa không thêm hành vi nào chưa ghi trong plan đang chạy hay plan đã tạo file đó.
-- File không thuộc điểm chặn ở mục 1 của `docs/risk-scoring.md`:
-  - không thuộc `.github/`, `scripts/`, `build-logic/`, `gradle/`, file `*.gradle.kts`;
-  - không phải `AndroidManifest.xml`, `consumer-rules.pro`, `proguard-rules.pro`;
-  - không phải file của `:core:ads`, file của `:core:analytics`, ảnh chuẩn của module khác.
+- Phần sửa nằm ngoài mọi điểm chặn ở mục 1 của `docs/risk-scoring.md` (cả chín điểm), xét cả file lẫn nội dung sửa:
+  - không sửa file của bất kỳ module `:core:*` nào (điểm 7), file cấu hình build (`*.gradle.kts`, `build-logic/`, `gradle/`, `consumer-rules.pro`, `proguard-rules.pro`), CI và quy trình (`.github/`, `scripts/`), `AndroidManifest.xml` (điểm 3);
+  - không đổi vị trí, định dạng hay nhịp quảng cáo, sự kiện phân tích hay dữ liệu gửi ra khỏi máy, hộp thoại đồng ý, thứ tự khởi tạo SDK, liên kết ra ngoài app (điểm 1, 4, 5, 6), kể cả khi dòng đó nằm trong file của feature;
+  - không thêm hay đổi đường dẫn file trên R2 (`AssetPath`), khóa DataStore hay lược đồ dữ liệu cục bộ (điểm 8, 9): các điểm này không đếm được theo file, nên phiên xét từng dòng sửa;
+  - không sửa ảnh chuẩn screenshot của module khác.
+
+  Phần nối chạm một điểm chặn, dù chỉ một dòng, thì dừng theo điều kiện 1.
 - Có test viết trước cho phần nối, thất bại đúng lý do, commit trước code như bước 3.
 - Phần sửa nhỏ: tổng cộng không quá 3 file thêm và 40 dòng code cho mỗi task. Đếm bằng `git diff --numstat origin/main...HEAD -- <các file ngoài mục 3.2>`, cộng dòng thêm và dòng xóa, không tính file test (`src/test/`, `src/androidTest/`, `scripts/tests/`). Mô tả PR ghi lệnh đó và kết quả.
 
@@ -55,6 +58,8 @@ Vượt bất kỳ điều kiện nào thì dừng như điều kiện 1 cũ.
 Điểm nên sửa mâu thuẫn với plan, spec hay một test của plan (ví dụ plan tự mâu thuẫn giữa mục 4 và mục 8) thì không tự sửa: ghi vào báo cáo kèm phương án để người quyết.
 
 Sửa xong thì chạy lại bước 5 và rà soát độc lập lần nữa cho phần vừa sửa. Giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa, như "3 lần sửa cho cùng một lỗi", không cộng dồn giữa các điểm của một task. Một điểm hết 3 lần sửa thì hoàn tác phần sửa của điểm đó, ghi vào báo cáo, rồi làm tiếp các điểm còn lại.
+
+Mỗi lần sửa lại cần một lần rà soát, và lần rà soát đó có thể tìm ra điểm nên sửa mới, nên cần thêm giới hạn tổng: mỗi task có tối đa 2 vòng rà soát lại vì điểm nên sửa. Sau vòng thứ 2, mọi điểm nên sửa còn lại, kể cả điểm mới mà vòng đó tìm ra, không sửa nữa mà ghi vào báo cáo để người quyết. Điểm mức chặn ở bất kỳ vòng nào vẫn xử lý như mức chặn (quay lại bước 4, giới hạn 3 lần sửa cho cùng một lỗi).
 
 **3. Ghi lại.** Mỗi lần dùng quyết định 1 hay 2 đều phải ghi lại:
 
@@ -85,4 +90,4 @@ Rà soát độc lập (bước 6) xét riêng phần ngoài mục 3.2. Phần �
   - Một task có thể chạm tới 3 file ngoài mục 3.2.
   - Rà soát độc lập phải xét thêm phần đó.
   - Mỗi lần sửa theo rà soát tốn thêm thời gian bước 5 và một lần rà soát.
-- **Việc AI phải tuân thủ:** chỉ sửa file ngoài mục 3.2 để nối chỗ gọi mà task khác của cùng danh sách đã tạo hay đổi sau khi plan được duyệt (tính cả task đã merge ở danh sách trước khi task được chuyển sang); phần nối có test viết trước, tối đa 3 file và 40 dòng code mỗi task đếm bằng `git diff --numstat` không tính test, không chạm file của điểm chặn ở mục 1 của `risk-scoring.md`; ở bước 6, phải sửa điểm nên sửa nằm trong file được phép, có test viết trước thất bại đúng lý do, không đổi điều test của plan kiểm; giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa; điểm nên sửa mâu thuẫn với plan, spec hay test của plan thì ghi vào báo cáo kèm phương án, không tự sửa; mỗi phần ngoài mục 3.2 và mỗi lần sửa theo rà soát được ghi vào nhật ký plan và mô tả PR, và được rà soát độc lập xét riêng; mọi điều kiện dừng khác của `risk-scoring.md` vẫn áp dụng.
+- **Việc AI phải tuân thủ:** chỉ sửa file ngoài mục 3.2 để nối chỗ gọi mà task khác của cùng danh sách đã tạo hay đổi sau khi plan được duyệt (tính cả task đã merge ở danh sách trước khi task được chuyển sang); phần nối có test viết trước, tối đa 3 file và 40 dòng code mỗi task đếm bằng `git diff --numstat` không tính test, nằm ngoài mọi điểm chặn ở mục 1 của `risk-scoring.md` (gồm mọi module `:core:*`, đường dẫn R2, khóa DataStore, xét từng dòng sửa); ở bước 6, phải sửa điểm nên sửa nằm trong file được phép, có test viết trước thất bại đúng lý do, không đổi điều test của plan kiểm; giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa, và mỗi task tối đa 2 vòng rà soát lại vì điểm nên sửa, sau đó điểm còn lại ghi vào báo cáo; điểm nên sửa mâu thuẫn với plan, spec hay test của plan thì ghi vào báo cáo kèm phương án, không tự sửa; mỗi phần ngoài mục 3.2 và mỗi lần sửa theo rà soát được ghi vào nhật ký plan và mô tả PR, và được rà soát độc lập xét riêng; mọi điều kiện dừng khác của `risk-scoring.md` vẫn áp dụng.
