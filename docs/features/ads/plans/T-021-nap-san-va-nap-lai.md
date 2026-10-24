@@ -1,7 +1,7 @@
 ---
 ticket: T-021
 title: Nạp sẵn theo nhóm, chờ SDK, thử lại và nạp lại khi có mạng
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -473,3 +473,14 @@ Phiên bản 2: **Duyệt**. Người duyệt: Nhật, duyệt chéo: Nhật. AI
 - **Lệch so với plan (phiên con báo):** commit test có 10 khung rỗng trong `src/main` để biên dịch được; khung rỗng `defaultPreloadPlan` trả mọi `AdFormat.entries`; `FakePreloadSlot` thêm `now`, `order`, `settleAt` là `var`; `networkReturns` coi giá trị đầu `false` là mất mạng ngay, cài bằng `channelFlow` cộng `collectLatest`; `preloadInterstitial`, `preloadNativeFullScreen` chặn theo `!needsLoad(...)` thay cho "khác `Idle`" để lượt thử lại tới hạn nạp được; `nativeLoadOnce` gọi `events.onFailed(0, null)` khi dựng loader ném lỗi; `nativeAd` phát `Loading` trước `Unavailable`; `sdkReady` đặt trên luồng chính.
 - **Việc còn lại:** đẩy nhánh, bước 6 đến 10.
 - **Cần người xem:** quyết định cho phép phiên (hay phiên con) đẩy nhánh task trong môi trường cloud. Nếu container đã bị thu hồi thì hai commit mất: chạy lại plan phiên bản 2 từ đầu trong danh sách chạy mới.
+
+### RUN-20261025-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #140, commit merge `2753c20`, 2026-10-24 15:50 UTC). Làm lại từ bước 1 vì nhánh của RUN-20261024-03 không có trên GitHub. Phiên con làm bước 3 tới 5 trong worktree riêng và chỉ commit; phiên chính đẩy nhánh sau mỗi commit, không bị chặn (L-070).
+- **Nhánh, PR:** `claude/T-021-nap-san-va-nap-lai`, tạo từ nhánh chính `71b390a`; PR #140. Commit: `13b485a` (test cùng 10 khung rỗng), `42613c4` (code), `d693cfd` (sửa điểm chặn của rà soát).
+- **Test viết trước:** 58 test trong 10 lớp, cả 58 thất bại đúng lý do trên khung rỗng, đều là `AssertionError` (ví dụ `AdRetryPolicyTest` "n = 1 expected:<2000> but was:<0>"; `FullScreenLoadContextTest` "expected same:<ComponentActivity> was not:<Application>"; `NativeAdRetryTest.everyNativeLoad_attachesFreshTelemetryEvents` "the first load got no events"). 11 test có bước đối chứng (L-055); các test có thể qua ngay trên khung rỗng được thêm đối chứng trước lần chạy đầu, nên không test nào qua ngay. Thêm 1 test sau rà soát (`NativeAdRetryTest.loaderNotBuilt_reportsCode0ToEventsAndRetriesAt5s`), đã kiểm test đỏ khi bỏ dòng code nó kiểm.
+- **Kiểm tra cục bộ:** `scripts/check.sh` qua: 640 test JVM, 0 lỗi (`:core:ads` 362); 42 ảnh screenshot, không ảnh mới hay đổi. 23 file đổi, đều trong mục 3.2. Không dùng phương án dự phòng 3.4 (`AdsActivityTracker` có `onForegroundChanged`).
+- **Rà soát độc lập:** 1 chặn, 2 nên sửa, 3 ghi chú. Chặn: `preloadNativeFullScreen` gửi lượt nạp sẵn đầu khi app ở nền (KB-24 tiêu chí 4); đã sửa ở `d693cfd`, khe giữ `Loading` trong lúc chờ foreground. Nên sửa, không sửa ở task này vì phải đổi bảng quyết định S-23 của plan: lượt `PLACEMENT_ENABLED`, `NETWORK_BACK`, `GATE_REOPENED` tới khi kế hoạch hay lượt nạp bù native đang chạy bị bỏ (`IGNORE_RUNNING`), không được giữ; vị trí bật từ xa giữa lượt chạy chưa được nạp sẵn tới lần xin sau. Ghi chú: interstitial thử lại mỗi 10 giây kể cả ở nền (đúng F-05); `networkReturns` coi giá trị đầu `false` là mất mạng ngay (đúng test L-A16); thiếu test cho `onFailed(0, null)` (đã thêm).
+- **Kết quả CI:** `pr-check` xanh ở vòng đầu (lần chạy 40108059198), 1 vòng CI.
+- **Lệch so với plan (phiên con báo):** commit test có 10 khung rỗng trong `src/main`; khung rỗng `defaultPreloadPlan` trả mọi `AdFormat.entries`; `FakePreloadSlot` thêm `now`, `order`, `settleAt` là `var`; `networkReturns` coi giá trị đầu `false` là mất mạng, cài bằng `channelFlow` cộng `collectLatest`; `AdsController` dùng `networkReturns(online)` (giá trị `start()` đã đọc) để không theo dõi mạng hai lần; `enabledNow` là map cập nhật bằng một collector `combine` trong `start()`; nạp sẵn chặn theo `!needsLoad(...)` thay cho "khác `Idle`"; lượt `SDK_READY` xin sau `_sdkReady.first { it }` trong `startSdk`; `nativeLoadOnce` gọi `events.onFailed(0, null)` khi dựng loader ném lỗi rồi ném lại; khe native phát `Loading` trước `Unavailable` khi cổng đóng lúc gửi; `AdPreloader` gọi lại `onGateChanged()` khi kế hoạch chạy xong; nạp bù native dùng `nativeOnly()` và không đặt `finishedOnce`; `PreloadDecisionTest.order` có 8 dòng (thêm dòng đối chứng); `ads-guide.md` mục 7 sửa dòng của T-034.
+- **Cần người xem:** kiểm thủ công trên staging theo mục 4 (dòng "Trên máy"); quyết định có làm plan mới cho điểm nên sửa `IGNORE_RUNNING` không.
