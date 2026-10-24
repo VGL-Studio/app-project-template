@@ -75,7 +75,7 @@ Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra k
 
    Mỗi khi `scripts/cloud-setup.sh` thay đổi trên nhánh chính, mở lại môi trường (biểu tượng cài đặt cạnh tên môi trường), dán lại toàn bộ nội dung mới vào Setup script và lưu. Môi trường được dựng lại từ script ở phiên kế tiếp.
 
-   Script có số phiên bản (`SETUP_VERSION`), tăng mỗi lần sửa. Đầu mỗi phiên, `scripts/cloud-env-check.sh` so số này với số mà môi trường đã chạy; khác nhau thì phiên kết thúc ngay và báo cáo ghi rõ cần dán lại, thay vì mất nửa giờ chờ lỗi tải. Kiểm tra nhanh sau khi dán: mở một phiên mới với môi trường này, chạy `scripts/cloud-env-check.sh`.
+   Script có số phiên bản (`SETUP_VERSION`), tăng mỗi lần sửa. Đầu mỗi phiên, `scripts/cloud-env-check.sh` so số này với số mà môi trường đã chạy; khác nhau thì phiên kết thúc ngay và báo cáo ghi rõ cần dán lại, thay vì mất nửa giờ chờ lỗi tải. Script cũng kiểm Java có chạy được Gradle của dự án (`scripts/java-check.sh`), Gradle wrapper có khởi động được (`./gradlew --version`, giới hạn 300 giây) và SDK có nền tảng `compileSdk` (L-075). Kiểm tra nhanh sau khi dán: mở một phiên mới với môi trường này, chạy `scripts/cloud-env-check.sh`; kết quả là một dòng nêu phiên bản setup script, Java, Gradle wrapper và SDK chạy được.
 3. Trên https://claude.ai/code/routines, bấm **New routine**: chọn repo này, môi trường vừa tạo, trigger **API** (không đặt lịch), model **Opus 5.5** (chọn ở ô model trong khung prompt). Ở mục **Connectors**, gỡ hết các connector; phiên tự chạy không cần connector nào.
 4. Prompt của routine (chép nguyên văn):
 
@@ -109,7 +109,8 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 
 1. Danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md` có trạng thái `approved` đã được merge vào nhánh chính.
 2. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy.
-3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), hoặc môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8. Các lỗi này trước đây chỉ lộ ra ở cuối phiên, khi phát bản staging (L-059). Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
+3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4), hoặc `main-guard` chưa qua trên commit gần nhất có đổi code của nhánh chính (`scripts/main-guard-status.sh`, L-076). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8. Các lỗi này trước đây chỉ lộ ra ở cuối phiên, khi phát bản staging (L-059). Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
+4. Bị từ chối vì `main-guard` chưa chạy (`CHƯA KIỂM`, thường vì GitHub không phát sự kiện push sau một lần merge): **Actions > main-guard > Run workflow** trên `main` (hoặc lệnh mà thông báo in ra), chờ xanh, rồi chạy lại `start-run`. Đang chạy (`CHỜ`): chờ xong rồi chạy lại.
 
 Lưu ý:
 
@@ -156,7 +157,7 @@ Routine không dùng được cloud session credits: phiên của routine luôn 
 **Trước khi mở.** Không có `start-run.yml` nên người tự làm các kiểm tra của workflow đó:
 
 1. Danh sách chạy `approved` đã merge vào nhánh chính.
-2. Không có issue đang mở mang nhãn `main-broken` hay `env-broken`: `gh issue list --label main-broken --state open`, rồi cùng lệnh với `env-broken`.
+2. Không có issue đang mở mang nhãn `main-broken` hay `env-broken`: `gh issue list --label main-broken --state open`, rồi cùng lệnh với `env-broken`. `scripts/main-guard-status.sh` in `XANH` (mục 2.3, bước 4 khi không xanh).
 3. Không có phiên tự chạy nào khác đang chạy (không có danh sách chạy `running` trên một nhánh báo cáo).
 4. Ghi số dư credit lúc này (trang cài đặt tài khoản trên claude.ai) để tính tiền phiên đã dùng.
 
