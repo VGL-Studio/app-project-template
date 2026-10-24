@@ -358,7 +358,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** plan T-034 thêm hai kho Maven (`artifact.bytedance.com` của Pangle, `dl-maven-android.mintegral.com` của Mintegral). Lần chạy thử ở mục 4.1 làm trên máy dev nên tải được. Trong phiên, proxy của môi trường cloud trả 403 (`connect_rejected`) cho đúng hai máy chủ đó, `dl.google.com` vẫn tới được; Gradle báo "Could not GET ... Received status code 403 from server: Forbidden". Task dừng ở bước 4 theo mục 3.4 của plan, sau khi test đã viết xong (cùng loại với R2 ở L-050).
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan thêm kho Maven hay máy chủ tải mới thì chạy thử phần tải trong chính môi trường cloud của phiên (`claude --cloud`, hoặc một lệnh `curl` trong môi trường đó), ghi kết quả vào mục 4.1; bị chặn thì người thêm máy chủ vào chính sách mạng của môi trường trước khi duyệt plan. `scripts/run-check.py` có thể báo chú ý khi plan sửa `settings.gradle.kts` mà mục 4.1 không nhắc môi trường cloud.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan; nhánh `claude/duyet-run-20261024-03`. Phần `run-check.py` chưa làm.
 
 ### L-068. Plan không xét nhiều yêu cầu cùng lúc của một vị trí, rà soát và người viết hiểu khác nhau
 
@@ -366,7 +367,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** plan T-023 và mục 8.2 của `ads-business-rules.md` chỉ quy định `load_attempt`, `latency_ms` cho khe một quảng cáo và cho pool. Native trong danh sách hiện có (`InListAds`) nạp nhiều yêu cầu song song cho cùng một vị trí. Phiên viết code coi vị trí là một khe có bộ đếm, khóa theo mã vị trí, nên các hàng đè thời điểm gửi của nhau; phiên rà soát coi hàng trong danh sách như pool. Task dừng ở bước 6, T-021 bị bỏ qua theo phụ thuộc.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan ghi số liệu hay trạng thái theo vị trí thì liệt kê mọi cách nạp hiện có của vị trí đó (một quảng cáo, nhiều hàng song song, pool) và nói rõ cách tính cho từng cách; mục kiểm thử có một test cho hai yêu cầu chồng nhau.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan; nhánh `claude/duyet-run-20261024-03`.
 
 ### L-069. Phần chưa commit của task dừng chỉ nằm trong container
 
@@ -374,4 +376,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** T-034 dừng ở bước 4 khi phần khai báo thư viện (ba file) đã viết nhưng chưa build được. Phiên con hoàn tác và lưu thành tệp patch trong thư mục tạm của container, sẽ mất khi container bị thu hồi. Phiên chính commit lại phần đó lên nhánh task (`1a105a9`) để người tiếp tục trên máy dev.
 - **Đề xuất sửa:** `auto-run.md`, mục Chuẩn bị cho người khi task dừng: phần code đã viết mà chưa qua kiểm tra thì vẫn commit lên nhánh task (thông điệp ghi rõ chưa build được, nhánh không có PR), không để trong container. Mô tả cách làm này trong nội dung giao việc cho phiên con.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `auto-run.md`, mục Chuẩn bị cho người khi task dừng; nhánh `claude/duyet-run-20261024-03`.
