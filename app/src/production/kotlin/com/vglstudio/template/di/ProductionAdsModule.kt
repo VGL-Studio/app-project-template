@@ -4,6 +4,7 @@ import com.vglstudio.template.BuildConfig
 import com.vglstudio.template.core.ads.AdUnitIds
 import com.vglstudio.template.core.ads.ConfiguredAdUnitIds
 import com.vglstudio.template.core.ads.ConsentDebugOptions
+import com.vglstudio.template.core.ads.ConsentShortcutConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,4 +19,8 @@ object ProductionAdsModule {
 
     @Provides
     fun consentDebugOptions(): ConsentDebugOptions = ConsentDebugOptions.NONE
+
+    /** The consent shortcut is off in production builds (S-12). */
+    @Provides
+    fun consentShortcutConfig(): ConsentShortcutConfig = ConsentShortcutConfig.OFF
 }

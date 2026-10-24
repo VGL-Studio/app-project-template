@@ -11,8 +11,9 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * Screenshot tests (Roborazzi). Reference images live in src/test/screenshots and are compared on every CI run.
  * A changed reference image must be listed in the plan and reviewed by a person.
- * Each test has the name of a design image in docs/features/loading/design/screens/, with the same sample
- * app name and progress, so scripts/design-compare.sh can compare them (ADR-0020).
+ * Tests at the standard frame have the name of a design image in docs/features/loading/design/screens/, with
+ * the same sample app name and progress, so scripts/design-compare.sh can compare them (ADR-0020).
+ * The `_small` tests at the short frame (L-028) have no design image and are not compared with the design.
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

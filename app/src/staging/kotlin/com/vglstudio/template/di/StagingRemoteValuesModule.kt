@@ -24,4 +24,22 @@ object StagingRemoteValuesModule {
     @LocalRemoteValues
     fun everyAdPlacementEnabled(): Set<LocalRemoteValue> =
         AdPlacement.entries.map { LocalRemoteValue.of(AdsSettings.placementEnabled(it), true) }.toSet()
+
+    /**
+     * App open, resume, combo, native bottom slot and the ad lifecycle logs are on for testers (plan T-019,
+     * question 3). Left as on production: the master switch (on by default), the consent shortcut (off: it also
+     * needs a build setting), the ad types and the interval.
+     */
+    @Provides
+    @ElementsIntoSet
+    @LocalRemoteValues
+    fun globalAdSwitchesOn(): Set<LocalRemoteValue> = listOf(
+        AdsSettings.SHOW_OPEN_ADS,
+        AdsSettings.SHOW_OPEN_ADS_FIRST_OPEN,
+        AdsSettings.SHOW_RESUM_ADS,
+        AdsSettings.IS_SHOW_NATIVE_AFTER_INTER,
+        AdsSettings.IS_SHOW_NATIVE_BOTTOM,
+        AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS,
+        AdsSettings.IS_LOG_AD_SLOT_EVENTS,
+    ).map { LocalRemoteValue.of(it, true) }.toSet()
 }

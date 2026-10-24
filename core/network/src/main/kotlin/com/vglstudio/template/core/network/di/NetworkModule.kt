@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.SystemClock
 import com.vglstudio.template.core.network.AndroidConnectivitySource
 import com.vglstudio.template.core.network.ConnectivitySource
+import com.vglstudio.template.core.network.DefaultInternetConnectivity
+import com.vglstudio.template.core.network.InternetConnectivity
 import com.vglstudio.template.core.network.NetworkClock
 import com.vglstudio.template.core.network.NetworkDialogController
 import com.vglstudio.template.core.network.NetworkFailureReporter
@@ -34,6 +36,9 @@ internal abstract class NetworkBindingsModule {
 
     @Binds
     abstract fun networkFailureReporter(controller: NetworkDialogController): NetworkFailureReporter
+
+    @Binds
+    abstract fun internetConnectivity(connectivity: DefaultInternetConnectivity): InternetConnectivity
 }
 
 @Module

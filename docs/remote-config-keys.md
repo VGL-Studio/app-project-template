@@ -8,19 +8,39 @@ Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu đ
 | --- | --- | --- | --- | --- |
 | `feature_loading_enabled` | boolean | `false` | `:core:config` | Shows the loading screen that prepares the app before the start screen. |
 | `feature_sample_enabled` | boolean | `false` | `:core:config` | Shows the sample feature screen, the reference pattern for new features. |
-| `ads_enabled` | boolean | `true` | `:core:ads` | Master switch for every ad. When false, the app shows no ad at all. |
-| `ads_first_session_grace_seconds` | long | `180` | `:core:ads` | Time without full-screen ads at the start of the first session after install, in seconds. |
-| `ads_gallery_inlist_medium_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_inlist_medium (native_medium). Off by default. Staging ad gallery only. |
-| `ads_gallery_inlist_small_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_inlist_small (native_small). Off by default. Staging ad gallery only. |
-| `ads_gallery_interstitial_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_interstitial (interstitial). Off by default. Staging ad gallery only. |
-| `ads_gallery_native_collapsible_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_native_collapsible (native_collapsible). Off by default. Staging ad gallery only. |
-| `ads_gallery_native_full_screen_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_native_full_screen (native_full_screen). Off by default. Staging ad gallery only. |
-| `ads_gallery_native_medium_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_native_medium (native_medium). Off by default. Staging ad gallery only. |
-| `ads_gallery_native_small_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement gallery_native_small (native_small). Off by default. Staging ad gallery only. |
-| `ads_inlist_every_count` | long | `8` | `:core:ads` | Number of list items between two native ads inside a list. |
-| `ads_interstitial_max_per_session_count` | long | `4` | `:core:ads` | Maximum number of full-screen ads shown in one session. |
-| `ads_interstitial_min_interval_seconds` | long | `45` | `:core:ads` | Minimum time between two full-screen ads (interstitial and full-screen native), in seconds. |
-| `ads_native_load_timeout_seconds` | long | `10` | `:core:ads` | Time to wait for a native ad before its space is removed when no ad is available, in seconds. |
-| `ads_personalized_regulated_regions_enabled` | boolean | `true` | `:core:ads` | Allows personalized ads in regions that require consent (EEA, UK, Switzerland), for users who consented. Users who declined never get them. |
-| `ads_sample_native_small_enabled` | boolean | `false` | `:core:ads` | Shows ads in the placement sample_native_small (native_small). Off by default. |
+| `ads_interval` | long | `45` | `:core:ads` | Minimum time between two full-screen ads of the default interval group, in seconds. |
+| `is_enable_consent_shortcut` | boolean | `false` | `:core:ads` | Remote switch of the consent shortcut (CACHED_EARLY, ERROR_ALLOWED); also needs the build setting of the app. False takes ERROR_ALLOWED back at once. Name set by the template, not an AdsKit key. |
+| `is_log_ad_fullscreen_events` | boolean | `false` | `:core:ads` | Logs the Firebase lifecycle events of full-screen ads. Name set by the template, not an AdsKit key. |
+| `is_log_ad_slot_events` | boolean | `false` | `:core:ads` | Logs the Firebase lifecycle events of ad slots (banner, native). Name set by the template, not an AdsKit key. |
+| `is_show_ads` | boolean | `true` | `:core:ads` | Master switch for every ad. When false, the app loads and shows no ad at all. Name set by the template, not an AdsKit key. |
+| `is_show_gallery_inlist_medium` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_inlist_medium (native_medium). |
+| `is_show_gallery_inlist_small` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_inlist_small (native_small). |
+| `is_show_gallery_interstitial` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_interstitial (interstitial). |
+| `is_show_gallery_native_collapsible` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_collapsible (native_collap). |
+| `is_show_gallery_native_full_screen` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_full_screen (native_fullscreen). |
+| `is_show_gallery_native_medium` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_medium (native_medium). |
+| `is_show_gallery_native_small` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_small (native_small). |
+| `is_show_native_after_inter` | boolean | `false` | `:core:ads` | Shows a full-screen native ad right after an interstitial (combo). |
+| `is_show_native_bottom` | boolean | `false` | `:core:ads` | Bottom slot of every bottom ad bar: a small native ad when true, a banner when false. |
+| `is_show_native_collap` | boolean | `true` | `:core:ads` | Collapsible native layer on the bottom ad bar, only when is_show_native_bottom is also true. Name set by the template, not an AdsKit key. |
+| `is_show_sample_native_small` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Derived key of placement sample_native_small (native_small). |
+| `native_every_gallery_inlist_medium` | long | `8` | `:core:ads` | Number of items between two native ads of this placement, in items. Derived key of placement gallery_inlist_medium (native_medium). |
+| `native_every_gallery_inlist_small` | long | `8` | `:core:ads` | Number of items between two native ads of this placement, in items. Derived key of placement gallery_inlist_small (native_small). |
+| `open_ad_type` | string | `"aoa"` | `:core:ads` | Ad shown when the app opens: inter for an interstitial, any other value for an app open ad. |
+| `resume_ad_type` | string | `"aoa"` | `:core:ads` | Ad shown when the user comes back: only inter gives an interstitial, any other value an app open ad. |
+| `show_open_ads` | boolean | `false` | `:core:ads` | Shows the ad when the app opens, from the second open on. |
+| `show_open_ads_first_open` | boolean | `false` | `:core:ads` | Shows the ad when the app opens for the first time after install. |
+| `show_resum_ads` | boolean | `false` | `:core:ads` | Shows an ad when the user comes back to the app. Name kept with the AdsKit typo. |
+| `time_expand_collap_ad` | long | `30` | `:core:ads` | Time after the user collapses the collapsible native ad before it expands again, in seconds; 0 means never. Name set by the template, not an AdsKit key. |
+| `is_log_af_ad_revenue` | boolean | `true` | `:core:analytics` | Sends af_ad_revenue for every paid ad impression. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_inters_ad_eligible` | boolean | `true` | `:core:analytics` | Sends af_inters_ad_eligible. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_inters_api_called` | boolean | `true` | `:core:analytics` | Sends af_inters_api_called. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_inters_displayed` | boolean | `true` | `:core:analytics` | Sends af_inters_displayed. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_inters_displayed_n_times` | boolean | `true` | `:core:analytics` | Sends af_inters_displayed_{N}_times. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_native_ad_displayed` | boolean | `true` | `:core:analytics` | Sends af_native_ad_displayed. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_native_ad_eligible` | boolean | `true` | `:core:analytics` | Sends af_native_ad_eligible. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_native_api_called` | boolean | `true` | `:core:analytics` | Sends af_native_api_called. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_rewarded_ad_displayed` | boolean | `true` | `:core:analytics` | Sends af_rewarded_ad_displayed. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_rewarded_ad_eligible` | boolean | `true` | `:core:analytics` | Sends af_rewarded_ad_eligible. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
+| `is_log_af_rewarded_api_called` | boolean | `true` | `:core:analytics` | Sends af_rewarded_api_called. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
 | `network_lost_delay_seconds` | long | `2` | `:core:network` | Seconds without usable Internet before the network dialog shows (ADR-0024). |
