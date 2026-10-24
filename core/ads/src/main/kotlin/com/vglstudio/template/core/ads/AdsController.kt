@@ -842,7 +842,7 @@ class AdsController @Inject internal constructor(
     /**
      * Loads one native full-screen ad of [placement] for later, unless a fresh one is kept, one is loading or a retry
      * is not due (F-04), or the placement is off. Media of any aspect ratio, video muted, AdChoices in the top right
-     * corner. A failure retries by O-05 ([FullScreenReloads]).
+     * corner. Sent in foreground only; a failure retries by O-05 ([FullScreenReloads]).
      */
     private fun preloadNativeFullScreen(placement: AdPlacement) {
         // The gate is asked right before sending, below.
@@ -850,6 +850,11 @@ class AdsController @Inject internal constructor(
         val unitId = unitId(placement) ?: return
         loadStates[placement] = FullScreenLoadState.Loading
         scope.launch {
+            // O-05, L-A19: a native request, the first one too, is never sent in background; the load is put off until
+            // the app is in foreground again. The slot stays Loading meanwhile, so the plan and loadIfNeeded do not
+            // start a second load (F-04); the gate and the switch are read once the wait is over.
+            if (!foregroundState.value) logger.info(TAG, "Native full-screen ${placement.key} waits for foreground")
+            foregroundState.first { it }
             if (!canRequestAds.value || !isEnabled(placement).first()) {
                 loadStates -= placement
                 return@launch

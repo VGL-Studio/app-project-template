@@ -2,6 +2,7 @@ package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -254,6 +255,37 @@ class NativeAdRetryTest {
             assertSame(made[index], events)
         }
         assertNotSame(given[0], given[1])
+    }
+
+    @Test
+    fun loaderNotBuilt_reportsCode0ToEventsAndRetriesAt5s() = runTest {
+        val made = mutableListOf<NativeAdEvents>()
+        var builds = 0
+        val buildTimes = mutableListOf<Long>()
+        val load = nativeLoadOnce(
+            newEvents = { mockk<NativeAdEvents>(relaxed = true).also { made += it } },
+            newLoader = {
+                builds++
+                buildTimes += testScheduler.currentTime
+                if (builds == 1) throw IllegalStateException("sdk torn down")
+                loader
+            },
+            unitId = UNIT_ID,
+            size = NativeAdSize.SMALL,
+            timeoutMillis = 10_000,
+            logger = logger,
+            placementKey = KEY,
+        )
+        val (states, _) = collectStates(load)
+        runCurrent()
+
+        assertEquals(listOf(NativeAdState.Loading, NativeAdState.Unavailable), states)
+        verify(exactly = 1) { made.first().onFailed(0, null) }
+        at(4_999)
+        assertEquals(listOf(0L), buildTimes)
+        at(5_000)
+        assertEquals(listOf(0L, 5_000L), buildTimes)
+        assertEquals(1, loader.requests.size)
     }
 
     private companion object {
