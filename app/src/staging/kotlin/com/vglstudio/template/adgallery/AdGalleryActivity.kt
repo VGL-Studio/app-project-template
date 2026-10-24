@@ -8,11 +8,10 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import com.vglstudio.template.core.ads.AdsController
+import com.vglstudio.template.core.ads.AdsHost
 import com.vglstudio.template.core.ads.FullScreenAdHost
-import com.vglstudio.template.core.ads.LocalAdsController
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -35,7 +34,8 @@ class AdGalleryActivity : ComponentActivity() {
         // Shows the consent form when required; the ads SDK starts only after it (ADR-0004).
         ads.gatherConsent(this)
         setContent {
-            CompositionLocalProvider(LocalAdsController provides ads) {
+            // Provides the ads controller and reports the block of resume ads (G-04).
+            AdsHost(ads) {
                 AppTheme {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         AdGalleryRoute(
@@ -49,10 +49,5 @@ class AdGalleryActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onUserInteraction() {
-        super.onUserInteraction()
-        ads.onUserInteraction()
     }
 }

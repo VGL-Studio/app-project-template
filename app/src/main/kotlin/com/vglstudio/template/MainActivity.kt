@@ -6,14 +6,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.vglstudio.template.core.ads.AdsController
+import com.vglstudio.template.core.ads.AdsHost
 import com.vglstudio.template.core.ads.FullScreenAdHost
-import com.vglstudio.template.core.ads.LocalAdsController
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.network.NetworkDialogController
 import com.vglstudio.template.navigation.AppNavHost
@@ -35,7 +34,8 @@ class MainActivity : ComponentActivity() {
         // Shows the consent form when required; the ads SDK starts only after it (ADR-0004).
         ads.gatherConsent(this)
         setContent {
-            CompositionLocalProvider(LocalAdsController provides ads) {
+            // Provides the ads controller and reports the block of resume ads (G-04).
+            AdsHost(ads) {
                 // The network dialog waits while a full-screen ad is on screen (spec network, KB-2).
                 val fullScreenAdShowing by ads.fullScreenAdShowing.collectAsState()
                 LaunchedEffect(fullScreenAdShowing) { networkDialog.setFullScreenAdShowing(fullScreenAdShowing) }
@@ -70,10 +70,5 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         ads.onAppBackground()
-    }
-
-    override fun onUserInteraction() {
-        super.onUserInteraction()
-        ads.onUserInteraction()
     }
 }

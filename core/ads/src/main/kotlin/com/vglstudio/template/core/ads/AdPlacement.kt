@@ -97,6 +97,10 @@ enum class AdPlacement(
     val intervalGroup: AdIntervalGroup = AdIntervalGroup.DEFAULT,
     /** Default N of `native_every_<key>` (one ad after every N items), list formats only (MC-07). */
     val nativeEvery: Int? = null,
+    /** True when this placement shows without reading the `ads_interval` gate (MC-04, I-04); full screen only. */
+    val ignoreInterval: Boolean = false,
+    /** False when closing this placement moves no `ads_interval` mark (MC-04, I-04); full screen only. */
+    val recordInterval: Boolean = true,
 ) {
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
 
@@ -118,7 +122,7 @@ enum class AdPlacement(
 
     /** The declaration of this placement, checked when the class is loaded. */
     internal val declaration: AdPlacementDeclaration =
-        AdPlacementDeclaration(key, format, intervalGroup, nativeEvery, stagingOnly)
+        AdPlacementDeclaration(key, format, intervalGroup, nativeEvery, stagingOnly, ignoreInterval, recordInterval)
 }
 
 /**
@@ -132,11 +136,18 @@ internal data class AdPlacementDeclaration(
     val intervalGroup: AdIntervalGroup = AdIntervalGroup.DEFAULT,
     val nativeEvery: Int? = null,
     val stagingOnly: Boolean = false,
+    /** The gate of `ads_interval` is not read (MC-04, I-04). */
+    val ignoreInterval: Boolean = false,
+    /** Closing it moves the mark of its group (MC-04, I-04). */
+    val recordInterval: Boolean = true,
 ) {
     init {
         require(CODE_PATTERN.matches(code)) { "Placement code '$code' must be lower snake case" }
         require(intervalGroup == AdIntervalGroup.DEFAULT || format == AdFormat.INTERSTITIAL) {
             "Placement $code: only an interstitial has an interval group of its own"
+        }
+        require((!ignoreInterval && recordInterval) || format.isFullScreen) {
+            "Placement $code: ignoreInterval and recordInterval are for full-screen formats only"
         }
         if (nativeEvery != null) {
             require(format in NATIVE_EVERY_FORMATS) { "Placement $code: nativeEvery is for list formats only" }

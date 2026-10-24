@@ -3,7 +3,6 @@ package com.vglstudio.template.core.ads
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdListener
@@ -25,7 +24,6 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,10 +43,16 @@ import kotlinx.coroutines.withContext
 
 /**
  * The only class that talks to the ads SDKs (ADR-0004). :app calls [start] once in `Application.onCreate` (HD-01),
- * [gatherConsent], [onUserInteraction], [onAppForeground] and [onAppBackground] from its activity, provides this
- * controller to the UI through [LocalAdsController], and draws native full-screen ads with [FullScreenAdHost]. Features
- * use [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd] and [PrivacyOptionsButton], never this class or an SDK
- * directly.
+ * [gatherConsent], [onAppForeground] and [onAppBackground] from its activity, places [AdsHost] at the root of its UI
+ * (it provides [LocalAdsController], G-04), and draws native full-screen ads with [FullScreenAdHost]. Features use
+ * [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd], [rememberAdSuppression], [SuppressResumeAds],
+ * [rememberMarkLeavingApp] and [PrivacyOptionsButton], never this class or an SDK directly.
+ *
+ * Full-screen ads follow docs/ops/ads-business-rules.md, sections 3, 4 and 6 (plan T-022): one decision order
+ * ([decideFullScreenShow]), a showing flag with a cap ([FullScreenAdPresence]), `ads_interval` marks per interval
+ * group written when an interstitial closes ([FullScreenAdGuard], [MonotonicClock]), stuck recovery
+ * ([StuckFullScreenRecovery]) and a completion that runs once ([FullScreenCompletion]). Lifecycle events of the app's
+ * activities come from [AdsActivityTracker], so :app calls nothing more for them.
  *
  * Consent follows the PARTNER rules S-01 to S-19 ([ConsentCoordinator], [ConsentGate]): the ads SDK is initialized the
  * first time the consent gate opens, and every request asks the gate right before it is sent ([mayRequestNow]).
@@ -68,13 +72,20 @@ class AdsController @Inject internal constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Touched on the main thread only.
+    private val clock: MonotonicClock = SystemMonotonicClock
     private val guard = FullScreenAdGuard()
     private val startedActivities = StartedActivityCounter()
     private val loadedInterstitials = mutableMapOf<AdPlacement, InterstitialAd>()
-    private var fullScreenInProgress = false
     private val presence = FullScreenAdPresence()
+    private val stuck = StuckFullScreenRecovery()
     private val preloadedNativeFullScreen = FreshAdCache<LoadedNativeAd>(onDiscard = { it.destroy() })
-    private val nativeFullScreenLoading = mutableSetOf<AdPlacement>()
+
+    /** Loading and waiting for a retry, per full-screen placement; ready and idle are read from the loaded ads. */
+    private val loadStates = mutableMapOf<AdPlacement, FullScreenLoadState>()
+
+    /** The completion of the full-screen turn on screen, and of the native full-screen ad on screen. */
+    private var currentTurn: FullScreenCompletion? = null
+    private var nativeTurn: FullScreenCompletion? = null
 
     private val gate = ConsentGate()
     private var tracker: AdsActivityTracker? = null
@@ -82,6 +93,12 @@ class AdsController @Inject internal constructor(
 
     /** Blocks the ads that show by themselves while a consent form is open (S-16, G-01); read by T-022, T-025. */
     internal val foregroundAdSuppressor = ForegroundAdSuppressor()
+
+    /** The block of the ads that show by themselves, with the leave mark and the shell's report (G-02 to G-05). */
+    internal val resumeSuppression = ResumeSuppression(foregroundAdSuppressor, logger)
+
+    /** True while resume ads must not show (KB-23); read by the resume ad (T-025). */
+    internal val resumeAdsSuppressed: StateFlow<Boolean> = resumeSuppression.resumeAdsSuppressed
 
     private val coordinator = ConsentCoordinator(
         platform = UmpConsentPlatform(context, consentDebug),
@@ -93,6 +110,13 @@ class AdsController @Inject internal constructor(
         allowReset = consentDebug.allowConsentReset,
         logger = logger,
         onGateOpened = ::onGateOpened,
+    )
+
+    /** G-06: stuck recovery before the regather of consent (S-09), then the leave mark. */
+    private val resumeSteps = ActivityResumeSteps(
+        recoverStuck = { recoverStuckFullScreen(it) },
+        regatherConsent = { coordinator.onActivityResumed(it) },
+        releaseLeaveMark = { resumeSuppression.onActivityResumed() },
     )
 
     /**
@@ -151,7 +175,12 @@ class AdsController @Inject internal constructor(
             object : AdsActivityTracker.Listener {
                 override fun onForegroundChanged(foreground: Boolean) = coordinator.onForegroundChanged(foreground)
 
-                override fun onActivityResumed(activity: Activity) = onAppActivityResumed(activity)
+                override fun onActivityResumed(activity: Activity) = resumeSteps.onResumed(activity)
+
+                override fun onActivityPaused(activity: Activity) =
+                    stuck.onActivityPaused(System.identityHashCode(activity), presence.current?.hostActivityId)
+
+                override fun onActivityDestroyed(activity: Activity) = onAppActivityDestroyed(activity)
             },
         )
         tracker = activityTracker
@@ -189,10 +218,29 @@ class AdsController @Inject internal constructor(
      */
     internal fun mayRequestNow(): Boolean = sdkStarted.value && coordinator.mayRequestNow(tracker?.foreground ?: false)
 
-    /** An app activity is resumed (from [AdsActivityTracker]). */
-    private fun onAppActivityResumed(activity: Activity) {
-        // The regather of consent (S-09). T-022 puts the release of a stuck flag before this line (G-06).
-        coordinator.onActivityResumed(activity)
+    /**
+     * F-03, first step of every resume (G-06): the activity that showed the full-screen ad was paused and is resumed
+     * while the ad still reads as showing. Lowers the flag, writes the mark of the ad's group now and runs the
+     * waiting completion once; the ad's screen itself is left alone.
+     */
+    private fun recoverStuckFullScreen(activity: Activity) {
+        val shown = presence.current
+        if (!stuck.onActivityResumed(System.identityHashCode(activity), shown?.hostActivityId)) return
+        val placement = shown?.placement ?: return
+        recordIntervalMark(placement)
+        logger.warn(TAG, "Full-screen ${placement.key} stuck: flag released")
+        endCurrentTurn("stuck_recovered")
+    }
+
+    /**
+     * N-04, HD-03: the activity that showed the full-screen ad is destroyed before the ad reported its close. Lowers
+     * the flag and runs the waiting completion once (forced completion).
+     */
+    private fun onAppActivityDestroyed(activity: Activity) {
+        val shown = presence.current ?: return
+        if (shown.hostActivityId != System.identityHashCode(activity)) return
+        logger.warn(TAG, "Full-screen ${shown.placement.key}: host destroyed before close")
+        endCurrentTurn("host_destroyed")
     }
 
     /** The consent gate opened: the first time starts the SDK, later times preload again (S-10, S-14). */
@@ -243,11 +291,6 @@ class AdsController @Inject internal constructor(
         }
     }
 
-    /** Call from `Activity.onUserInteraction`: full-screen ads wait until the user stops touching the screen. */
-    fun onUserInteraction() {
-        guard.onUserInteraction(SystemClock.elapsedRealtime())
-    }
-
     /**
      * Call from `Activity.onStart`. Counts the started activities of the app, so switching between activities or
      * rotating the screen is not a return to the app (kept for the resume ad, T-025).
@@ -262,131 +305,173 @@ class AdsController @Inject internal constructor(
     }
 
     /**
-     * Shows the full-screen ad of [placement] if the guardrails allow it, and returns whether it was shown.
-     * Call it at a natural break (end of a level, after saving), never when the app opens or closes.
+     * Shows the interstitial of [placement] if the full-screen gate allows it, and returns whether it was shown.
+     * [onFinished] runs exactly once: at once when the turn is blocked or no ad is loaded (N-02, F-07), else when the
+     * ad closes, fails to show, is found stuck or loses its activity (N-04). Call it at a natural break (end of a
+     * level, after saving), never when the app opens or closes.
      */
-    suspend fun showInterstitial(activity: Activity, placement: AdPlacement): Boolean =
+    suspend fun showInterstitial(activity: Activity, placement: AdPlacement, onFinished: () -> Unit = {}): Boolean =
         withContext(Dispatchers.Main.immediate) {
             require(placement.format == AdFormat.INTERSTITIAL) { "${placement.key} is not a full-screen placement" }
-            // A second call while the first one reads the flags or waits is dropped.
-            if (fullScreenInProgress) return@withContext false
-            fullScreenInProgress = true
-            try {
-                if (!awaitFullScreenTurn(placement)) return@withContext false
-                val ad = loadedInterstitials.remove(placement)
-                if (ad == null) {
+            val decision = decideFullScreenTurn(placement)
+            if (decision != FullScreenShowDecision.SHOW) return@withContext skipTurn(placement, decision, onFinished)
+            if (!presence.tryBegin(placement, System.identityHashCode(activity), clock.nowMillis())) {
+                return@withContext skipTurn(placement, FullScreenShowDecision.BUSY, onFinished)
+            }
+            val ad = loadedInterstitials.remove(placement)
+            if (ad == null) {
+                presence.onClosed()
+                return@withContext skipTurn(placement, FullScreenShowDecision.NOT_READY, onFinished)
+            }
+            val turn = beginTurn(onFinished)
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    // First line (I-05): the mark is written before anything else can fail.
+                    recordIntervalMark(placement)
+                    endTurn(turn, "closed")
                     preloadInterstitial(placement)
-                    return@withContext false
                 }
-                ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-                    override fun onAdDismissedFullScreenContent() {
-                        presence.onClosed()
-                        preloadInterstitial(placement)
-                    }
 
-                    override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                        Log.w(TAG, "Interstitial ${placement.key} failed to show: ${error.message}")
-                        presence.onClosed()
-                        preloadInterstitial(placement)
-                    }
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    logger.warn(TAG, "Interstitial ${placement.key} failed to show: ${error.code}")
+                    endTurn(turn, "show_failed")
+                    preloadInterstitial(placement)
                 }
-                // Counted before showing: an ad that fails to show still counts (fewer ads, never more).
-                onFullScreenShown()
-                presence.onShowing()
-                ad.show(activity)
-                true
-            } finally {
-                fullScreenInProgress = false
             }
+            logger.info(TAG, "Interstitial shown: ${placement.key}")
+            ad.show(activity)
+            true
         }
 
     /**
-     * Shows the full-screen ad of [placement], interstitial or native full screen, if the guardrails allow it, and
-     * returns whether it was shown ([rememberShowFullScreenAd]).
+     * Shows the full-screen ad of [placement], interstitial or native full screen, if the full-screen gate allows it,
+     * and returns whether it was shown ([rememberShowFullScreenAd]). [onFinished] runs once, as for
+     * [showInterstitial].
      */
-    internal suspend fun showFullScreenAd(activity: Activity, placement: AdPlacement): Boolean =
-        when (placement.format) {
-            AdFormat.INTERSTITIAL -> showInterstitial(activity, placement)
-            AdFormat.NATIVE_FULL_SCREEN -> showNativeFullScreen(placement)
-            else -> throw IllegalArgumentException("${placement.key} is not a full-screen placement")
-        }
+    internal suspend fun showFullScreenAd(
+        activity: Activity,
+        placement: AdPlacement,
+        onFinished: () -> Unit = {},
+    ): Boolean = when (placement.format) {
+        AdFormat.INTERSTITIAL -> showInterstitial(activity, placement, onFinished)
+        AdFormat.NATIVE_FULL_SCREEN -> showNativeFullScreen(placement, onFinished)
+        else -> throw IllegalArgumentException("${placement.key} is not a full-screen placement")
+    }
 
     /**
-     * Shows the preloaded native full-screen ad of [placement] through [FullScreenAdHost], with the same guardrails
-     * and frequency rules as interstitials ([awaitFullScreenTurn], [onFullScreenShown]). Returns at once, showing
-     * nothing, when another full-screen ad is in progress or on screen, or when no fresh ad is preloaded (it then
-     * starts loading one for the next time): never waits for an ad to load (KB-5).
+     * Shows the preloaded native full-screen ad of [placement] through [FullScreenAdHost], with the same gate as
+     * interstitials ([decideFullScreenTurn]); it reads and writes the `ads_interval` mark like one (question 2 of plan
+     * T-022). Returns at once, showing nothing, when the gate says no; never waits for an ad to load (KB-5). It is
+     * drawn by the composition, not by an activity of its own, so it has no host activity for stuck recovery.
      */
-    private suspend fun showNativeFullScreen(placement: AdPlacement): Boolean =
+    private suspend fun showNativeFullScreen(placement: AdPlacement, onFinished: () -> Unit): Boolean =
         withContext(Dispatchers.Main.immediate) {
-            if (fullScreenInProgress || presence.showing.value) {
-                logger.info(TAG, "Native full-screen skipped: ANOTHER_SHOWING")
-                return@withContext false
+            val decision = decideFullScreenTurn(placement)
+            if (decision != FullScreenShowDecision.SHOW) return@withContext skipTurn(placement, decision, onFinished)
+            val now = clock.nowMillis()
+            if (!presence.tryBegin(placement, NO_HOST_ACTIVITY, now)) {
+                return@withContext skipTurn(placement, FullScreenShowDecision.BUSY, onFinished)
             }
-            if (!preloadedNativeFullScreen.hasFresh(placement, SystemClock.elapsedRealtime())) {
-                logger.info(TAG, "Native full-screen skipped: NOT_READY")
-                preloadNativeFullScreen(placement)
-                return@withContext false
+            val ad = preloadedNativeFullScreen.take(placement, now)
+            if (ad == null) {
+                presence.onClosed()
+                return@withContext skipTurn(placement, FullScreenShowDecision.NOT_READY, onFinished)
             }
-            fullScreenInProgress = true
-            try {
-                if (!awaitFullScreenTurn(placement)) return@withContext false
-                val ad = preloadedNativeFullScreen.take(placement, SystemClock.elapsedRealtime())
-                if (ad == null) {
-                    // Expired while waiting for the user to stop touching the screen.
-                    preloadNativeFullScreen(placement)
-                    return@withContext false
-                }
-                // Counted and reported right before showing, like interstitials.
-                onFullScreenShown()
-                presence.onShowing()
-                _nativeFullScreenAd.value = ShownNativeFullScreenAd(placement, ad)
-                logger.info(TAG, "Native full-screen shown: ${placement.key}")
-                true
-            } finally {
-                fullScreenInProgress = false
-            }
+            nativeTurn = beginTurn(onFinished)
+            _nativeFullScreenAd.value = ShownNativeFullScreenAd(placement, ad)
+            logger.info(TAG, "Native full-screen shown: ${placement.key}")
+            true
         }
 
     /** The user closed the native full-screen ad (close button or back button). Main thread only. */
     internal fun closeNativeFullScreenAd() {
         val shown = _nativeFullScreenAd.value ?: return
+        // First line (I-05), as for the close of an interstitial.
+        recordIntervalMark(shown.placement)
         _nativeFullScreenAd.value = null
         shown.ad.destroy()
-        presence.onClosed()
+        val turn = nativeTurn
+        nativeTurn = null
+        if (turn != null) endTurn(turn, "closed") else presence.onClosed()
         logger.info(TAG, "Native full-screen closed")
         preloadNativeFullScreen(shown.placement)
     }
 
     /**
-     * Whether a full-screen ad of [placement] may be shown now, shared by every full-screen format: consent,
-     * [isEnabled], then the in-memory guardrails ([FullScreenAdGuard]) with `ads_interval`, waiting a little while the
-     * user is touching the screen. The interval lives in this process only (I-03). When it returns true, the caller
-     * shows the ad and calls [onFullScreenShown] right before.
+     * The full-screen gate of [placement], shared by every full-screen format, in the order of [decideFullScreenShow]:
+     * consent (S-11), the placement switches, another full-screen ad on screen (F-01, F-02), a loaded ad (F-04), then
+     * the `ads_interval` mark of the placement's group unless it declares [AdPlacement.ignoreInterval] (I-01, I-04,
+     * MC-04). Reads the flags, never loads.
      */
-    internal suspend fun awaitFullScreenTurn(placement: AdPlacement): Boolean =
+    internal suspend fun decideFullScreenTurn(placement: AdPlacement): FullScreenShowDecision =
         withContext(Dispatchers.Main.immediate) {
-            // The show gate of consent (S-11), then the placement switches.
-            if (!canRequestAds.value || !gate.state.value.allowed || !isEnabled(placement).first()) {
-                return@withContext false
-            }
-            val minIntervalMillis = flags.global.first().adsIntervalSeconds * 1_000
-            val deadline = SystemClock.elapsedRealtime() + FullScreenAdGuard.MAX_WAIT_MILLIS
-            while (true) {
-                val now = SystemClock.elapsedRealtime()
-                when (val decision = guard.decide(now, minIntervalMillis)) {
-                    FullScreenAdGuard.Decision.TooSoon -> return@withContext false
-                    is FullScreenAdGuard.Decision.Wait ->
-                        if (now + decision.millis > deadline) return@withContext false else delay(decision.millis)
-                    FullScreenAdGuard.Decision.Show -> break
-                }
-            }
-            true
+            val enabled = isEnabled(placement).first()
+            val intervalMillis = flags.intervalSeconds(placement.intervalGroup).first() * 1_000
+            val now = clock.nowMillis()
+            decideFullScreenShow(
+                consentOpen = canRequestAds.value && gate.state.value.allowed,
+                enabled = enabled,
+                busy = presence.isBusy(now),
+                ready = isFullScreenAdReady(placement),
+                intervalPassed = !placement.declaration.readsInterval() ||
+                    guard.allows(placement.intervalGroup, intervalMillis, now),
+            )
         }
 
-    /** Records a full-screen ad about to be shown, for every full-screen format. Main thread only. */
-    internal fun onFullScreenShown() {
-        guard.onShown(SystemClock.elapsedRealtime())
+    /**
+     * Whether a full-screen ad of [placement] is loaded and may be shown now. Reads the state only, never loads
+     * (F-04); for the loading screen (T-024) and the retry rules (T-021).
+     */
+    internal fun isFullScreenAdReady(placement: AdPlacement): Boolean =
+        fullScreenLoadState(placement) == FullScreenLoadState.Ready
+
+    /** Loads a full-screen ad of [placement] unless one is loading, loaded, or waiting for a retry (F-04). */
+    internal fun loadFullScreenAdIfNeeded(placement: AdPlacement) {
+        if (needsLoad(fullScreenLoadState(placement), clock.nowMillis(), canRequestAds.value)) preloadNow(placement)
+    }
+
+    private fun fullScreenLoadState(placement: AdPlacement): FullScreenLoadState = when {
+        placement.format == AdFormat.INTERSTITIAL && placement in loadedInterstitials -> FullScreenLoadState.Ready
+        placement.format == AdFormat.NATIVE_FULL_SCREEN &&
+            preloadedNativeFullScreen.hasFresh(placement, clock.nowMillis()) -> FullScreenLoadState.Ready
+        else -> loadStates[placement] ?: FullScreenLoadState.Idle
+    }
+
+    /** I-02, I-05: the mark of [placement]'s group moves now, if the placement pushes a mark (MC-04). */
+    private fun recordIntervalMark(placement: AdPlacement) {
+        if (placement.declaration.pushesIntervalMark()) guard.record(placement.intervalGroup, clock.nowMillis())
+    }
+
+    /** The completion of a turn that starts showing now; a turn left over after the cap of F-02 finishes first. */
+    private fun beginTurn(onFinished: () -> Unit): FullScreenCompletion {
+        currentTurn?.complete("cap_expired")
+        return FullScreenCompletion(logger).also {
+            it.set(onFinished)
+            currentTurn = it
+        }
+    }
+
+    /** Ends [turn]: lowers the flag only when it is still the turn on screen, then runs its completion once. */
+    private fun endTurn(turn: FullScreenCompletion, reason: String) {
+        if (currentTurn === turn) {
+            currentTurn = null
+            presence.onClosed()
+        }
+        turn.complete(reason)
+    }
+
+    /** Ends the turn on screen, from stuck recovery or forced completion. */
+    private fun endCurrentTurn(reason: String) {
+        val turn = currentTurn
+        if (turn != null) endTurn(turn, reason) else presence.onClosed()
+    }
+
+    /** A turn that does not show: logs [decision], loads when no ad is ready (F-07), and finishes at once (N-02). */
+    private fun skipTurn(placement: AdPlacement, decision: FullScreenShowDecision, onFinished: () -> Unit): Boolean {
+        logger.info(TAG, "Full-screen ${placement.key} skipped: $decision")
+        if (decision == FullScreenShowDecision.NOT_READY) loadFullScreenAdIfNeeded(placement)
+        FullScreenCompletion(logger).apply { set(onFinished) }.complete(decision.name.lowercase())
+        return false
     }
 
     /**
@@ -502,13 +587,12 @@ class AdsController @Inject internal constructor(
      * placement is off. Media of any aspect ratio, video muted, AdChoices in the top right corner.
      */
     private fun preloadNativeFullScreen(placement: AdPlacement) {
-        if (placement in nativeFullScreenLoading) return
-        if (preloadedNativeFullScreen.hasFresh(placement, SystemClock.elapsedRealtime())) return
+        if (fullScreenLoadState(placement) != FullScreenLoadState.Idle) return
         val unitId = unitId(placement) ?: return
-        nativeFullScreenLoading += placement
+        loadStates[placement] = FullScreenLoadState.Loading
         scope.launch {
             if (!canRequestAds.value || !isEnabled(placement).first()) {
-                nativeFullScreenLoading -= placement
+                loadStates -= placement
                 return@launch
             }
             val options = NativeAdOptions.Builder()
@@ -518,13 +602,13 @@ class AdsController @Inject internal constructor(
                 .build()
             val loader = AdLoader.Builder(context, unitId)
                 .forNativeAd { ad ->
-                    nativeFullScreenLoading -= placement
-                    preloadedNativeFullScreen.put(placement, SdkLoadedNativeAd(ad), SystemClock.elapsedRealtime())
+                    loadStates -= placement
+                    preloadedNativeFullScreen.put(placement, SdkLoadedNativeAd(ad), clock.nowMillis())
                 }
                 .withAdListener(
                     object : AdListener() {
                         override fun onAdFailedToLoad(error: LoadAdError) {
-                            nativeFullScreenLoading -= placement
+                            loadStates -= placement
                             logger.warn(TAG, "Native full-screen ${placement.key} failed to load: ${error.code}")
                         }
                     },
@@ -533,7 +617,7 @@ class AdsController @Inject internal constructor(
                 .build()
             // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
             if (!mayRequestNow()) {
-                nativeFullScreenLoading -= placement
+                loadStates -= placement
                 logger.info(TAG, "Native full-screen ${placement.key} not requested: consent gate closed")
                 return@launch
             }
@@ -541,12 +625,19 @@ class AdsController @Inject internal constructor(
         }
     }
 
+    /** Loads one interstitial of [placement] for later, unless one is kept or loading, or the placement is off. */
     private fun preloadInterstitial(placement: AdPlacement) {
+        if (fullScreenLoadState(placement) != FullScreenLoadState.Idle) return
         val unitId = unitId(placement) ?: return
+        loadStates[placement] = FullScreenLoadState.Loading
         scope.launch {
-            if (placement in loadedInterstitials || !isEnabled(placement).first()) return@launch
+            if (!isEnabled(placement).first()) {
+                loadStates -= placement
+                return@launch
+            }
             // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
             if (!mayRequestNow()) {
+                loadStates -= placement
                 logger.info(TAG, "Interstitial ${placement.key} not requested: consent gate closed")
                 return@launch
             }
@@ -556,11 +647,13 @@ class AdsController @Inject internal constructor(
                 adRequest(),
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
+                        loadStates -= placement
                         loadedInterstitials[placement] = ad
                     }
 
                     override fun onAdFailedToLoad(error: LoadAdError) {
-                        Log.w(TAG, "Interstitial ${placement.key} failed to load: ${error.message}")
+                        loadStates -= placement
+                        logger.warn(TAG, "Interstitial ${placement.key} failed to load: ${error.code}")
                     }
                 },
             )
@@ -569,6 +662,9 @@ class AdsController @Inject internal constructor(
 
     private companion object {
         const val TAG = "Ads"
+
+        /** Host of a full-screen ad drawn by the composition; `System.identityHashCode` gives 0 only for null. */
+        const val NO_HOST_ACTIVITY = 0
 
         /** Time to wait for a native ad before its space is removed (kept from wave 2 until T-027). */
         const val NATIVE_LOAD_TIMEOUT_MILLIS = 10_000L
