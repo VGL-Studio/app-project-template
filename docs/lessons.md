@@ -406,3 +406,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: tiêu chí chấp nhận áp cho mọi lượt gửi (ví dụ "không gửi ở nền") thì liệt kê mọi đường gửi (lượt đầu, nạp sẵn, thử lại, nạp lại) và cho mỗi đường một test, hoặc đưa điều kiện vào một hàm thuần mà mọi đường dùng chung; không để đường nào chỉ nằm trong ngoại lệ nối.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
+
+### L-073. PR chỉ sửa một script mà không sửa `scripts/tests/` thì `pr-check` không chạy test của script
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-070 của app, issue #138)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** trong `scripts/`, bộ lọc `code` của `pr-check.yml` chỉ có `scripts/check.sh`, `scripts/test-summary.sh`, `scripts/tests/**` và `scripts/find-breaking-commit.sh`. Một PR chỉ sửa `scripts/merge-if-green.sh`, `wait-run.sh`, `run-check.py`, `plan-check.py`, `device-session.sh` hay script khác mà không đụng `scripts/tests/` thì `build-and-test` bị bỏ qua: `scripts/tests/run.sh` (do `check.sh` gọi) không chạy, PR vẫn xanh, lỗi chỉ lộ ở `main-guard` sau khi merge. Ở app, các PR sửa script trước nay qua được chỉ vì luôn thêm test vào `run.sh`.
+- **Đề xuất sửa:** thêm `scripts/**` vào bộ lọc `code` của `pr-check.yml`; không thêm vào bộ lọc `ui`, vì test của script không cần emulator.
+- **Trạng thái:** accepted
+- **Áp dụng:** `.github/workflows/pr-check.yml`, bộ lọc `code`; nhánh `claude/from-camera-pose-pr-check-scripts`.
