@@ -778,6 +778,23 @@ token_usage report --since '2026-10-18 00:00 UTC' --run RUN-20261018-01 --csv do
 expect "token-usage: running again (started_at form) replaces the rows of the run" 3 "$(wc -l < "$tokens/docs/metrics/t.csv" | tr -d ' ')"
 expect "token-usage: the csv keeps the estimate and the total" 1 \
   "$(grep -c '^RUN-20261018-01,2026-10-18,T-031,M,2000,2,20,200,2000,180,2400,$' "$tokens/docs/metrics/t.csv")"
+# A subagent working in a worktree by path carries the report branch; its brief names the task on its own line (L-071).
+mkdir -p "$work/projects-brief/p/s/subagents"
+{
+  printf '{"type":"user","message":{"role":"user","content":"Plan: x\\nTask: T-031\\nWorktree: ../task-T-031"}}\n'
+  usage_line b1 claude/RUN-20261018-01-report 2026-10-18T01:12:00Z 90
+} > "$work/projects-brief/p/s/subagents/agent-1.jsonl"
+{ # Mentioning a task inside a sentence is not a task line.
+  printf '{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Review the run, see Task: T-031 notes"}]}}\n'
+  usage_line b2 claude/RUN-20261018-01-report 2026-10-18T01:13:00Z 90
+} > "$work/projects-brief/p/s/subagents/agent-2.jsonl"
+usage_line b3 claude/RUN-20261018-01-report 2026-10-18T01:14:00Z 90 > "$work/projects-brief/p/s.jsonl"
+TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-brief" python3 -I scripts/token-usage.py report \
+  --since 2026-10-18T00:00:00Z > "$work/tokens-brief.out"
+expect "token-usage: a subagent whose brief has a Task line counts for that task" 1 \
+  "$(grep -c '^| T-031 | M | 2k | 1k | 0.6x | 1 |' "$work/tokens-brief.out")"
+expect "token-usage: a task named in passing and the main session stay shared" 1 \
+  "$(grep -c '^| Chung (ngoài task) | - | - | 2k | - | 2 |' "$work/tokens-brief.out")"
 expect "token-usage: no transcripts is not a failure" 0 \
   "$(TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/none" python3 -I scripts/token-usage.py report > /dev/null; echo $?)"
 expect "token-usage: estimate falls back to the starting value" 1 \
