@@ -1,16 +1,16 @@
 ---
 ticket: T-022
 title: Cổng quảng cáo toàn màn hình, mốc ads_interval, hồi phục kẹt, chặn quảng cáo tự hiện
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-24); nâng vì khoảng 30 file ở hai module
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-022: CỔNG QUẢNG CÁO TOÀN MÀN HÌNH, MỐC ADS_INTERVAL, HỒI PHỤC KẸT, CHẶN QUẢNG CÁO TỰ HIỆN
@@ -48,7 +48,7 @@ ADR liên quan: ADR-0013 (phần còn hiệu lực), ADR-0019, ADR-0024 (popup m
 Dựa trên hai plan chưa merge khi viết plan này, dùng đúng tên:
 
 - T-019 (`docs/features/ads/plans/T-019-khoa-remote-config-theo-adskit.md`): `AdsFlags.intervalSeconds(group: AdIntervalGroup): Flow<Long>`, `AdPlacement(key, format, intervalGroup = AdIntervalGroup.DEFAULT, nativeEvery = null)`, `AdIntervalGroup.DEFAULT`, `AdIntervalGroup.named(name, defaultSeconds)`, `internal data class AdPlacementDeclaration`, `AdFormat.APP_OPEN`, `AdFormat.REWARDED`. Sau T-019, `FullScreenAdGuard` vẫn còn (mốc ghi lúc hiện, tính cả native toàn màn hình, chờ ngừng chạm 1 giây), đúng như câu hỏi 8 của plan T-019 để dành ba điểm này cho task này.
-- T-020 (`docs/features/ads/plans/T-020-dong-y-va-khoi-dong-partner.md`): `ForegroundAdSuppressor` (`acquire(source): Hold`, `suppressed: StateFlow<Boolean>`), `AdsActivityTracker` (báo `onActivityResumed`, `onActivityPaused`, `onActivityDestroyed`, `foreground`), `AdsController.onActivityResumed` gọi `coordinator.onActivityResumed` (hỏi lại đồng ý, S-09), `canRequestAds` là cổng đồng ý.
+- T-020 (`docs/features/ads/plans/T-020-dong-y-va-khoi-dong-partner.md`): `ForegroundAdSuppressor` (`acquire(source): Hold`, `suppressed: StateFlow<Boolean>`), `AdsActivityTracker` (báo `onActivityResumed`, `onActivityPaused`, `onActivityDestroyed`, `foreground`; chỉ cho activity của app qua `AppActivityFilter`, activity của SDK bị bỏ qua), `AdsController.onActivityResumed` gọi `coordinator.onActivityResumed` (hỏi lại đồng ý, S-09), `canRequestAds` là cổng đồng ý.
 
 ## 3. Giải pháp
 
@@ -56,7 +56,7 @@ Dựa trên hai plan chưa merge khi viết plan này, dùng đúng tên:
 
 Mọi luật thuần là lớp hay hàm không gọi Android, nhận thời điểm từ ngoài (đồng hồ giả trong test), như `FullScreenAdGuard` và `StartedActivityCounter` hiện có. `AdsController` nối chúng với SDK và vòng đời.
 
-**1. Đồng hồ đơn điệu** (`MonotonicClock.kt`, mới): `internal fun interface MonotonicClock { fun nowMillis(): Long }` và `internal object SystemMonotonicClock : MonotonicClock` trả `SystemClock.elapsedRealtime()`. `AdsController` dùng nó ở mọi chỗ của task này (AR-01).
+**1. Đồng hồ đơn điệu** (`MonotonicClock.kt`, mới): `internal fun interface MonotonicClock { fun nowMillis(): Long }`; hai nguồn thời gian được truyền vào, `internal interface TimeSources { fun elapsedRealtimeMillis(): Long; fun wallClockMillis(): Long }`, bản thật `AndroidTimeSources` trả `SystemClock.elapsedRealtime()` và `System.currentTimeMillis()`; `internal fun monotonicClockOf(sources: TimeSources): MonotonicClock` chỉ đọc `elapsedRealtimeMillis()`; `internal object SystemMonotonicClock : MonotonicClock by monotonicClockOf(AndroidTimeSources)`. Giờ của máy có trong `TimeSources` để test đổi được nó bằng nguồn giả và chứng minh đồng hồ không đọc nó (mục 4); code của task không đọc giờ của máy ở chỗ nào khác. `AdsController` dùng `SystemMonotonicClock` ở mọi chỗ của task này (AR-01). Test chạy trên JVM, không nhờ Robolectric lùi giờ hệ thống (sửa theo rà soát trước phiên, 2026-10-24).
 
 **2. Mốc giãn cách** (`FullScreenAdGuard.kt`, viết lại; giữ tên lớp vì T-019 dùng tên này làm đối chứng trong `RemovedPacingRulesTest`):
 
@@ -139,7 +139,7 @@ internal class ResumeSuppression(suppressor: ForegroundAdSuppressor) {
     fun onShellReported(suppressedInComposition: Boolean)
     /** G-03, way 3: after leaving the app on purpose succeeded. */
     fun markLeavingApp()
-    /** G-03 way 3, G-05: the next activity resume releases the mark, whether or not the app went to background. */
+    /** G-03 way 3, G-05: the next resume of an app activity releases the mark, whether or not the app went to background; SDK activities are filtered out by AdsActivityTracker. */
     fun onActivityResumed()
 }
 ```
@@ -157,7 +157,7 @@ internal class ResumeSuppression(suppressor: ForegroundAdSuppressor) {
 - Bỏ `guard.onUserInteraction`, hàm `onUserInteraction()` và vòng chờ trong `awaitFullScreenTurn`. `awaitFullScreenTurn` thành `decideFullScreenTurn(placement): FullScreenShowDecision` (`suspend`, đọc `isEnabled(placement).first()` và `flags.intervalSeconds(placement.intervalGroup).first()`).
 - `showInterstitial(activity, placement, onFinished: () -> Unit = {})` và `showNativeFullScreen(placement, onFinished)`: quyết định khác `SHOW` thì gọi `onFinished` ngay (N-02, F-07), `NOT_READY` thì `loadFullScreenAdIfNeeded` (F-04, F-07). `SHOW`: `presence.tryBegin(placement, System.identityHashCode(activity), now)`, `completion.set(onFinished)`, rồi hiện. Callback đóng thật: dòng đầu `guard.record(group, now)` nếu `pushesIntervalMark` (I-05), rồi `presence.onClosed()`, `completion.complete("closed")`, nạp lại. Hiện lỗi: `presence.onClosed()`, `completion.complete("show_failed")`, nạp lại; không ghi mốc. `closeNativeFullScreenAd` như callback đóng.
 - `onFullScreenShown()` bỏ (mốc không còn ghi lúc hiện).
-- Từ `AdsActivityTracker` (T-020): `onActivityPaused` gọi `stuck.onActivityPaused`; `onActivityResumed` qua `ActivityResumeSteps` (gỡ cờ kẹt: hạ cờ, ghi mốc nhóm của vị trí đang hiện, `completion.complete("stuck_recovered")`); `onActivityDestroyed(activity)`: activity đang hiện quảng cáo mà cờ còn bật thì `presence.onClosed()`, `completion.complete("host_destroyed")` (N-04, HD-03; `:app` không cần gọi gì).
+- Từ `AdsActivityTracker` (T-020; chỉ activity của app, activity của SDK như `AdActivity` hay activity của adapter bị bộ lọc của T-020 bỏ qua, nên `pause`, `resume` của chính activity quảng cáo không gỡ cờ kẹt và không nhả dấu rời app; sửa theo rà soát trước phiên, 2026-10-24): `onActivityPaused` gọi `stuck.onActivityPaused`; `onActivityResumed` qua `ActivityResumeSteps` (gỡ cờ kẹt: hạ cờ, ghi mốc nhóm của vị trí đang hiện, `completion.complete("stuck_recovered")`); `onActivityDestroyed(activity)`: activity đang hiện quảng cáo mà cờ còn bật thì `presence.onClosed()`, `completion.complete("host_destroyed")` (N-04, HD-03; `:app` không cần gọi gì).
 - `internal val resumeSuppression`, `internal val resumeAdsSuppressed` cho T-025; `consent form` của T-020 đã dùng cùng bộ đếm.
 - `FullScreenAds.kt`: `rememberShowFullScreenAd(placement: AdPlacement, onFinished: () -> Unit = {})`; hàm nội bộ `rememberFullScreenAdAction` giữ chữ ký (test của T-013 dùng), `onFinished` đi qua closure. Gọi cũ không đổi.
 
@@ -173,7 +173,7 @@ internal class ResumeSuppression(suppressor: ForegroundAdSuppressor) {
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/MonotonicClock.kt` | `MonotonicClock`, `SystemMonotonicClock` |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/MonotonicClock.kt` | `MonotonicClock`, `TimeSources`, `AndroidTimeSources`, `monotonicClockOf`, `SystemMonotonicClock` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdGuard.kt` | Viết lại: mốc theo nhóm (I-01 tới I-05, MC-04), `pushesIntervalMark`, `readsInterval`; bỏ chờ ngừng chạm |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | `tryBegin`, trần 10 phút, `current` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt` | `ignoreInterval`, `recordInterval` cho `AdPlacement` và `AdPlacementDeclaration`, kiểm khai báo |
@@ -191,7 +191,7 @@ internal class ResumeSuppression(suppressor: ForegroundAdSuppressor) {
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdGuardTest.kt` | Viết lại theo mục 4 |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Thêm F-01, F-02; giữ test cũ |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPlacementTest.kt` | Thêm test hai thuộc tính; giữ test cũ |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/MonotonicClockTest.kt` | Robolectric: theo `elapsedRealtime`, không theo giờ hệ thống |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/MonotonicClockTest.kt` | JVM với nguồn thời gian giả: theo thời gian từ lúc khởi động máy, không theo giờ của máy |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenShowDecisionTest.kt` | Thứ tự quyết định |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/StuckFullScreenRecoveryTest.kt` | F-03 |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenCompletionTest.kt` | N-02, N-04 |
@@ -223,19 +223,19 @@ Nơi đọc các file bị sửa (L-020, đã tìm `git grep` trong `scripts/`, 
 - Dữ liệu: không lưu gì trên máy; mốc và cờ chỉ trong bộ nhớ.
 - File R2: Không chạm.
 - **Quyền truy cập:** Không thêm. `SystemClock.elapsedRealtime()` và callback vòng đời không cần quyền.
-- **Thư viện và SDK:** Không thêm. `SideEffect`, `DisposableEffect`, `CompositionLocalProvider` (Compose, có sẵn trong `:core:ads`), `FullScreenContentCallback` (`play-services-ads`, `libs.play.services.ads`) đã có trên classpath biên dịch của `:core:ads`; `ShadowSystemClock` của Robolectric (`libs.robolectric`, test) có sẵn qua convention plugin compose.
+- **Thư viện và SDK:** Không thêm. `SideEffect`, `DisposableEffect`, `CompositionLocalProvider` (Compose, có sẵn trong `:core:ads`), `FullScreenContentCallback` (`play-services-ads`, `libs.play.services.ads`) đã có trên classpath biên dịch của `:core:ads`; `SystemClock.elapsedRealtime()` thuộc Android SDK. `MonotonicClockTest` không dùng `ShadowSystemClock`.
 
 ### 3.4. Phương án dự phòng
 
-- **Điểm chưa chắc:** `MonotonicClockTest` đổi giờ hệ thống trong Robolectric (`SystemClock.setCurrentTimeMillis`) và tiến `elapsedRealtime` (`ShadowSystemClock.advanceBy`); lần chạy thử (mục 4.1) không gọi hai hàm này.
-- **Điều kiện chuyển:** test thất bại vì Robolectric không cho đổi giờ hệ thống hay không tách hai đồng hồ (không vì code), sau 2 lần sửa.
-- **Cách làm thay:** test JVM thuần: `AdsController` nhận `MonotonicClock` (mặc định `SystemMonotonicClock`); test kiểm `SystemMonotonicClock` không gọi `System.currentTimeMillis` bằng cách so với `SystemClock.elapsedRealtime()` dưới Robolectric mặc định (cùng giá trị), cộng test giãn cách với đồng hồ giả lùi (`clockBehindMark_isTreatedAsPassed`). Tiêu chí KB-15 thứ hai giữ nguyên.
+- **Điểm chưa chắc:** Không còn. Bản nháp trước dùng Robolectric lùi giờ hệ thống trong `MonotonicClockTest` và để test JVM làm phương án dự phòng; Robolectric có thể từ chối lùi giờ, hay lùi cả `System.currentTimeMillis` mà code nạp lại đọc, khiến một cài đặt sai vẫn qua. Plan dùng thẳng test JVM với nguồn thời gian giả (mục 3.1 bước 1, mục 4) (sửa theo rà soát trước phiên, 2026-10-24).
+- **Điều kiện chuyển:** Không có.
+- **Cách làm thay:** Không có. Dòng `AndroidTimeSources` gọi thẳng `SystemClock`, `System` không có unit test (ngoại lệ ở mục 4), như `UmpConsentPlatform` của T-020.
 
 ## 4. Kiểm thử
 
 Unit test JVM với đồng hồ giả (số mili giây do test truyền vào), vị trí giả là `AdPlacementDeclaration` dựng trong test như T-019: `inter = ("inter_x", INTERSTITIAL)`, `sounds = ("inter_sounds", INTERSTITIAL, AdIntervalGroup.named("sounds", 30))`, `open = ("open_x", APP_OPEN)`, `rw = ("rw_x", REWARDED)`, `nfs = ("nfs_x", NATIVE_FULL_SCREEN)`. Mặc định `ads_interval` 45 giây. Test Robolectric dùng `createAndroidComposeRule<ComponentActivity>()` và `ForegroundAdSuppressor`, `ResumeSuppression` thật.
 
-Bước 3 (test viết trước) có khung rỗng để biên dịch: `FullScreenAdGuard` mới với `allows` luôn true, `record` không làm gì; `decideFullScreenShow` luôn `SHOW`; `StuckFullScreenRecovery.onActivityResumed` luôn false; `FullScreenCompletion.complete` không chạy gì; `ActivityResumeSteps.onResumed` không gọi gì; `needsLoad` luôn true; `ResumeSuppression.resumeAdsSuppressed` luôn false; composable của `AdSuppression.kt` rỗng; `FullScreenAdPresence.tryBegin` luôn true; `AdPlacement` có hai thuộc tính mới không kiểm. Commit test của bước 3: mọi file test mới và phần sửa ba file test có sẵn. Test cũ của `FullScreenAdGuardTest` về chờ ngừng chạm bị xóa cùng commit test, vì luật bị bỏ theo câu hỏi 9 của spec (không phải nới test để qua; người duyệt xác nhận ở câu hỏi 4) (L-025).
+Bước 3 (test viết trước) có khung rỗng để biên dịch: `monotonicClockOf` trả `sources.wallClockMillis()` (sai có chủ ý, để `MonotonicClockTest` thất bại đúng lý do); `FullScreenAdGuard` mới với `allows` luôn true, `record` không làm gì; `decideFullScreenShow` luôn `SHOW`; `StuckFullScreenRecovery.onActivityResumed` luôn false; `FullScreenCompletion.complete` không chạy gì; `ActivityResumeSteps.onResumed` không gọi gì; `needsLoad` luôn true; `ResumeSuppression.resumeAdsSuppressed` luôn false; composable của `AdSuppression.kt` rỗng; `FullScreenAdPresence.tryBegin` luôn true; `AdPlacement` có hai thuộc tính mới không kiểm. Commit test của bước 3: mọi file test mới và phần sửa ba file test có sẵn. Test cũ của `FullScreenAdGuardTest` về chờ ngừng chạm bị xóa cùng commit test, vì luật bị bỏ theo câu hỏi 9 của spec (không phải nới test để qua; người duyệt xác nhận ở câu hỏi 4) (L-025).
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
@@ -245,7 +245,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `FullScree
 | KB-15, tiêu chí 1 (I-01, biên) | Unit test | `FullScreenAdGuardTest.interval_blocksUntilElapsed_boundaryPasses`: mốc 0; `allows` ở 44 999 false, 45 000 true |
 | KB-15, tiêu chí 1 (mốc lúc đóng, I-02, I-05) | Unit test | `FullScreenAdGuardTest.markIsCloseTime_notShowTime`: kịch bản "hiện lúc 0, đóng lúc 30 000" nghĩa là chỉ `record(DEFAULT, 30_000)`; `allows` ở 60 000 false, ở 75 000 true. `pushesIntervalMark_onlyInterFamily`: `inter`, `nfs` true; `open`, `rw` false; `inter` khai báo `recordInterval = false` thì false. Khung rỗng thất bại vì `allows` luôn true |
 | KB-15, tiêu chí 1 (nhóm, MC-04, câu hỏi 30) | Unit test | `FullScreenAdGuardTest.customGroupInter_doesNotMoveDefaultMark`: `record(sounds.group, 0)`: `allows(DEFAULT, 45_000, 1)` true, `allows(sounds.group, 30_000, 1)` false. `defaultInter_doesNotBlockCustomGroup`: ngược lại. `ignoreInterval_skipsTheGate`: `readsInterval()` false với `ignoreInterval = true`, true khi mặc định |
-| KB-15, tiêu chí 2 (AR-01) | Unit test Robolectric | `MonotonicClockTest.followsElapsedRealtime_notWallClock`: đọc `SystemMonotonicClock.nowMillis()`; `SystemClock.setCurrentTimeMillis` lùi 1 giờ: giá trị không đổi; `ShadowSystemClock.advanceBy(Duration.ofSeconds(5))`: tăng 5 000. Khung rỗng của bước 3 đã trả `SystemClock.elapsedRealtime()` thì test qua ngay; đối chứng (L-055): cùng test so với `System.currentTimeMillis()` sau khi lùi giờ, hai giá trị khác nhau (test dò được đồng hồ sai). `FullScreenAdGuardTest.clockBehindMark_isTreatedAsPassed`: `record(DEFAULT, 100_000)`, `allows(DEFAULT, 45_000, 50_000)` true |
+| KB-15, tiêu chí 2 (AR-01) | Unit test | `MonotonicClockTest.followsElapsedTime_notWallClock`: `FakeTimeSources` (lớp trong file test, hai số do test đặt) với thời gian từ lúc khởi động 10 000 và giờ máy 1 700 000 000 000; `monotonicClockOf(fake).nowMillis()` là 10 000; lùi giờ máy 1 giờ và tăng thời gian từ lúc khởi động 5 000: 15 000. `intervalDecision_ignoresWallClockJump`: `guard.record(DEFAULT, clock.nowMillis())` ở 10 000; lùi giờ máy 1 giờ, tăng thời gian từ lúc khởi động 10 000: `allows(DEFAULT, 45_000, clock.nowMillis())` false; tăng tới 55 000: true. Khung rỗng của bước 3: `monotonicClockOf` trả `sources.wallClockMillis()`, nên test thất bại đúng lý do (đồng hồ theo giờ máy lùi về trước mốc, khoảng âm coi như đã qua, cổng mở sớm). Không dùng Robolectric hay `ShadowSystemClock`. `FullScreenAdGuardTest.clockBehindMark_isTreatedAsPassed`: `record(DEFAULT, 100_000)`, `allows(DEFAULT, 45_000, 50_000)` true |
 | KB-15, tiêu chí 4 (F-01) | Unit test | `FullScreenAdPresenceTest.secondShowWhileShowing_isDropped`: `tryBegin(..., now = 0)` true, lần hai ở 1 000 false, sau `onClosed()` true. `FullScreenShowDecisionTest.busy_beatsNotReadyAndThrottled`: `busy = true`, `ready = false`, `intervalPassed = false` ra `BUSY`. `FullScreenCompletionTest.blockedTurn_completesAtOnce`: lượt không `SHOW` chạy hàm hoàn tất 1 lần ngay, không còn hàm chờ (không xếp hàng) |
 | KB-15, tiêu chí 4 (F-02) | Unit test | `FullScreenAdPresenceTest.showingFlag_expiresAfterTenMinutes`: `tryBegin` ở 0; lượt mới ở 599 999 false; ở 600 000 true. Khung rỗng thất bại ở vế 599 999 (luôn true) |
 | KB-15, tiêu chí 5 (F-03) | Unit test | `StuckFullScreenRecoveryTest.pausedThenResumedHost_isStuckOnce`: đang hiện trên activity 1; `onActivityPaused(1)`, `onActivityResumed(1)` true; `onActivityResumed(1)` lần nữa false (tín hiệu bị tiêu). `resumeWithoutPause_isNotStuck` (L-A03): `onActivityResumed(1)` không có `pause` trước: false. `otherActivity_isNotStuck`: pause và resume activity 2: false. `notShowing_isNotStuck`: `showingHostId = null`: false |
@@ -264,13 +264,13 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `FullScree
 | Đồ thị và vỏ app | Build và test có sẵn | `scripts/check.sh` biên dịch `MainActivity`, `AdGalleryActivity` (bỏ `onUserInteraction` mà còn lời gọi thì lỗi biên dịch); `AppLaunchTest` trên emulator; ảnh chuẩn của `:app` không đổi (giao diện không đổi) |
 | Trên máy (staging, màn xem thử) | Kiểm tra thủ công | 1) Bấm "Interstitial", đóng, bấm lại ngay: không hiện, log `THROTTLED`; chờ 45 giây sau lúc đóng (không phải lúc hiện): hiện. 2) Bấm "Interstitial" rồi bấm "Native full screen" nhanh: chỉ một cái, log `BUSY`. 3) Đổi giờ máy lùi 1 giờ giữa hai lần bấm: khoảng cách vẫn 45 giây. 4) Đang hiện inter, bấm nút Home rồi mở lại app từ danh sách app gần đây: nếu quảng cáo không còn, log `stuck_recovered` hoặc `closed`, app dùng được. 5) Log có `Consent` (T-020) sau `stuck` khi cả hai xảy ra. Lệnh: `adb logcat -v threadtime \| grep ' VGL\.Ads'` |
 
-**Ngoại lệ viết test trước:** phần nối trong `AdsController.kt` (callback của SDK, `tryBegin` trước `show`, ghi mốc ở dòng đầu của callback đóng, đăng ký `ActivityResumeSteps`, `onActivityDestroyed`), `MainActivity.kt` và `AdGalleryActivity.kt` (thay `CompositionLocalProvider` bằng `AdsHost`, bỏ `onUserInteraction`), `FullScreenAds.kt` (thêm tham số có mặc định), `ads-guide.md`. `AdsController` gắn với SDK và không có unit test riêng; mọi quyết định nằm trong các lớp thuần ở trên. Phần vỏ app không để trần: hợp đồng G-04 được test trên `AdsHostContent` bằng Robolectric (`AdsHostTest`), là đúng composable mà `MainActivity` đặt; `MainActivity` không có hàm `suspend` nào đổi (L-051). Người duyệt cần đồng ý với các ngoại lệ này.
+**Ngoại lệ viết test trước:** phần nối trong `AdsController.kt` (callback của SDK, `tryBegin` trước `show`, ghi mốc ở dòng đầu của callback đóng, đăng ký `ActivityResumeSteps`, `onActivityDestroyed`), `MainActivity.kt` và `AdGalleryActivity.kt` (thay `CompositionLocalProvider` bằng `AdsHost`, bỏ `onUserInteraction`), `FullScreenAds.kt` (thêm tham số có mặc định), `AndroidTimeSources` trong `MonotonicClock.kt` (hai dòng gọi thẳng `SystemClock.elapsedRealtime()`, `System.currentTimeMillis()`), `ads-guide.md`. `AdsController` gắn với SDK và không có unit test riêng; mọi quyết định nằm trong các lớp thuần ở trên. Phần vỏ app không để trần: hợp đồng G-04 được test trên `AdsHostContent` bằng Robolectric (`AdsHostTest`), là đúng composable mà `MainActivity` đặt; `MainActivity` không có hàm `suspend` nào đổi (L-051). Người duyệt cần đồng ý với các ngoại lệ này.
 
 ### 4.1. Chạy thử
 
 - **Đã chạy thử:** 2026-10-24, chung một lần chạy với plan T-020 (mục 4.1 của plan đó), trong worktree của người viết plan trên commit `adf9450`, code thử không commit, đã gỡ hết. Phần của task này trong test tạm `TrialStartupTest.kt` (Robolectric, `createAndroidComposeRule<ComponentActivity>()`): (1) callback vòng đời đăng ký trên `Application` thấy `pause` rồi `resume` của cùng activity (cơ sở của F-03) và `destroy` (N-04); (2) composable đọc một `StateFlow<Int>` bằng `collectAsState` trong composition và báo `count > 0` bằng `SideEffect`, đổi giá trị 0, 1, 0 với `waitForIdle` giữa các lần (cơ sở của G-02, G-04).
 - **Lệnh:** `scripts/check.sh` (`JAVA_HOME` của Android Studio, `ANDROID_HOME=/Users/khacnhat/Library/Android/sdk`), ba lần như plan T-020.
-- **Kết quả:** (1) chuỗi sự kiện `created, started, resumed, paused, resumed, ...` đúng thứ tự, `destroy` báo `isChangingConfigurations` đúng (true khi `recreate()`, false khi hủy thật). (2) Giá trị báo được đúng `[false, true, false]`: `SideEffect` chạy sau mỗi lần dựng lại và chỉ sau `waitForIdle`. Lần 3 của `scripts/check.sh`: "Test JVM: 457 test, 0 lỗi", "Cổng chất lượng: QUA". Chưa chạy thử: `ShadowSystemClock.advanceBy` và `SystemClock.setCurrentTimeMillis` (phương án dự phòng ở mục 3.4), callback của SDK quảng cáo thật (kiểm thủ công).
+- **Kết quả:** (1) chuỗi sự kiện `created, started, resumed, paused, resumed, ...` đúng thứ tự, `destroy` báo `isChangingConfigurations` đúng (true khi `recreate()`, false khi hủy thật). (2) Giá trị báo được đúng `[false, true, false]`: `SideEffect` chạy sau mỗi lần dựng lại và chỉ sau `waitForIdle`. Lần 3 của `scripts/check.sh`: "Test JVM: 457 test, 0 lỗi", "Cổng chất lượng: QUA". Chưa chạy thử: callback của SDK quảng cáo thật (kiểm thủ công). `ShadowSystemClock.advanceBy` và `SystemClock.setCurrentTimeMillis` không còn cần (`MonotonicClockTest` chạy trên JVM, mục 3.4).
 
 ## 5. Chấm rủi ro
 
@@ -342,11 +342,11 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `FullScree
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
 ## 10. Nhật ký thực hiện
 

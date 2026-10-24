@@ -1,16 +1,16 @@
 ---
 ticket: T-021
 title: Nạp sẵn theo nhóm, chờ SDK, thử lại và nạp lại khi có mạng
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-24); nâng vì dựa trên code của bốn plan chưa merge và nối nhiều chỗ trong AdsController
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-021: NẠP SẴN THEO NHÓM, CHỜ SDK, THỬ LẠI VÀ NẠP LẠI KHI CÓ MẠNG
@@ -55,9 +55,9 @@ ADR liên quan: ADR-0001, ADR-0004, ADR-0019, ADR-0024 (theo dõi Internet chung
 Dựa trên bốn plan chưa merge khi viết plan này (chạy trước trong cùng phiên theo thứ tự T-019, T-020, T-022, T-023, T-021), dùng đúng tên:
 
 - T-019 (`docs/features/ads/plans/T-019-khoa-remote-config-theo-adskit.md`): `AdsFlags` (`placementEnabled`), `AdPlacement(key, format, intervalGroup, nativeEvery)`, 11 giá trị `AdFormat` (`APP_OPEN`, `NATIVE_STEP`, `REWARDED`...), `AdPlacementDeclaration`; `AdsController.isEnabled(placement)` đọc `AdsFlags`.
-- T-020 (`docs/features/ads/plans/T-020-dong-y-va-khoi-dong-partner.md`): `AdsController.start(application)`, `canRequestAds`, `mayRequestNow()`, `consentPath: StateFlow<ConsentPath?>` với `ConsentPath.DENIED_OR_REQUIRED`, `consentFlowFinished`, `sdkReady`, `onGateOpened(firstTime)`, `coordinator.onPreloadRequested()`, `InternetConnectivity` (`connected: Flow<Boolean>`), `AdsActivityTracker` (foreground, `resumedActivity`, báo `onActivityResumed`). T-020 có một lượt nạp sẵn lại đơn giản trong `onGateOpened(false)` (gọi `preloadWhenEnabled`); task này thay bằng kế hoạch.
+- T-020 (`docs/features/ads/plans/T-020-dong-y-va-khoi-dong-partner.md`): `AdsController.start(application, appActivities)`, `canRequestAds`, `mayRequestNow()`, `consentPath: StateFlow<ConsentPath?>` với `ConsentPath.DENIED_OR_REQUIRED`, `consentFlowFinished`, `sdkReady`, `onGateOpened(firstTime)`, `coordinator.onPreloadRequested()`, `InternetConnectivity` (`connected: Flow<Boolean>`), `AdsActivityTracker` (foreground, `resumedActivity`, báo `onActivityResumed`; chỉ activity của app qua `AppActivityFilter`, activity của SDK bị bỏ qua). T-020 có một lượt nạp sẵn lại đơn giản trong `onGateOpened(false)` (gọi `preloadWhenEnabled`); task này thay bằng kế hoạch.
 - T-022 (`docs/features/ads/plans/T-022-cong-toan-man-hinh-va-chan-tu-hien.md`): `MonotonicClock`, `SystemMonotonicClock`, `FullScreenLoadState` (`Idle`, `Loading`, `Ready`, `WaitingRetry(dueAtMillis)`), `needsLoad`, `isFullScreenAdReady`, `loadFullScreenAdIfNeeded`, `AdPlacement.ignoreInterval`, `recordInterval`, `ActivityResumeSteps`, `FullScreenAdPresence.showing`.
-- T-023 (`docs/features/ads/plans/T-023-doanh-thu-theo-vi-tri.md`): `LoadAttemptCounter` (`onRequestSent`, `onFailed`, `failuresInARow`), `AdTelemetry.loadFailed`, `AdTelemetry.opportunity`.
+- T-023 (`docs/features/ads/plans/T-023-doanh-thu-theo-vi-tri.md`): `LoadAttemptCounter` (`onRequestSent`, `onFailed`, `failuresInARow`; cập nhật ở mọi lượt nạp, kể cả khi số liệu tắt), `AdTelemetry.loadFailed`, `AdTelemetry.opportunity`, `NativeAdEvents` và tham số `events` của `SdkNativeAdLoader` (móc doanh thu của native mà `nativeAd` truyền vào).
 
 ## 3. Giải pháp
 
@@ -194,6 +194,7 @@ internal fun retryingNativeAdStates(
 - Trước mỗi lần gửi: chờ `foreground` true, rồi hỏi `mayRequestNow()`; false thì ghi log `Native <mã> request blocked`, phát `Unavailable` nếu chưa phát, và kết thúc (S-15: không tính lỗi, không hẹn). Khe sẽ được dựng lại khi `canRequestAds` đổi (code có sẵn của `NativeAdSlot`).
 - `load` ném lỗi (không phải hủy coroutine) thì là lỗi mã 0 (O-09), log `Native <mã> failed: 0 (request not built)`.
 - Chờ thử lại: `withTimeoutOrNull(AdRetryPolicy.nativeDelayMillis(n, holdsAd = false)) { retryResets.first { it != generationAtFailure } }`.
+- `internal fun nativeLoadOnce(events: NativeAdEvents?, newLoader: (NativeAdEvents?) -> NativeAdLoader, unitId: String, size: NativeAdSize, logger: AppLogger, placementKey: String): suspend () -> NativeAdState` (cùng file): mỗi lần gọi dựng loader mới bằng `newLoader(events)` rồi `loadOneNativeAd(loader, unitId, size, NATIVE_LOAD_TIMEOUT_MILLIS, logger, placementKey)`. Tách ra để test kiểm được móc `NativeAdEvents` của T-023 luôn đi tới loader ở mọi lượt (bước 10).
 - `nativeAdStates` và `loadOneNativeAd` (`NativeAdLoading.kt`) giữ nguyên; test của T-010 không đổi.
 
 **8. Khe toàn màn hình** (`FullScreenReloads.kt`, mới, F-05, F-06, S-15, O-09):
@@ -216,12 +217,12 @@ internal class FullScreenReloads(
 }
 ```
 
-- `onLoadFailed`: n là `failuresInARow(placement)` đọc **sau** khi T-023 đã ghi lỗi này (`AdTelemetry.loadFailed` gọi `LoadAttemptCounter.onFailed` ở dòng trước); chờ `fullScreenDelayMillis(n)` cho `INTERSTITIAL` (sau này `APP_OPEN`, `REWARDED`), `nativeDelayMillis(n, holdsAd = false)` và chờ foreground cho `NATIVE_FULL_SCREEN` (câu hỏi 4). Tới hạn thì gọi `loadIfNeeded`, nơi T-022 xử lý cổng đóng lúc tới hạn (F-04) và T-020 kiểm `mayRequestNow()` trước khi gửi. Log `Retry <mã vị trí> in 4000 ms (failures 2, code 3)`, không ghi mã đơn vị.
+- `onLoadFailed`: n là `failuresInARow(placement)` đọc **sau** khi đường nạp đã đếm lỗi này: `LoadAttemptCounter.onFailed` chạy ở mọi lỗi nạp, ở dòng trước, do chính đường nạp cập nhật (lời gọi `AdTelemetry.loadFailed` của T-023 đếm ở dòng đầu, trước và ngoài cổng ghi sự kiện), không phụ thuộc khóa `is_log_ad_*` hay `serving`; test `AdTelemetryTest.loadCounter_updatesWhenLoggingOff` của T-023 giữ điều này (sửa theo rà soát trước phiên, 2026-10-24); chờ `fullScreenDelayMillis(n)` cho `INTERSTITIAL` (sau này `APP_OPEN`, `REWARDED`), `nativeDelayMillis(n, holdsAd = false)` và chờ foreground cho `NATIVE_FULL_SCREEN` (câu hỏi 4). Tới hạn thì gọi `loadIfNeeded`, nơi T-022 xử lý cổng đóng lúc tới hạn (F-04) và T-020 kiểm `mayRequestNow()` trước khi gửi. Log `Retry <mã vị trí> in 4000 ms (failures 2, code 3)`, không ghi mã đơn vị.
 - Lượt hẹn mới thay lượt hẹn cũ của cùng vị trí (hủy `Job` cũ), nên không có hai lượt hẹn chồng nhau.
 
 `FullScreenPreloadSlot.kt` (mới): `internal class FullScreenPreloadSlot(placement, enabled: () -> Boolean, state: () -> FullScreenLoadState, load: (AdPlacement) -> Unit) : PreloadSlot`; `loadIfNeeded` chỉ gọi `load` khi vị trí đang bật; `settled` là vị trí tắt hoặc trạng thái khác `Loading`.
 
-**9. Context để nạp** (`FullScreenLoadContext.kt`, mới, câu hỏi 4 của plan T-034): `internal fun fullScreenLoadContext(resumed: Activity?, application: Context): Context` trả activity đang resume nếu nó chưa `isFinishing`, chưa `isDestroyed`; không thì `application`. Không giữ activity sau lời gọi nạp.
+**9. Context để nạp** (`FullScreenLoadContext.kt`, mới, câu hỏi 4 của plan T-034): `internal fun fullScreenLoadContext(resumed: Activity?, application: Context): Context` trả activity đang resume nếu nó chưa `isFinishing`, chưa `isDestroyed`; không thì `application`. `resumed` là `tracker.resumedActivity`, luôn là activity của app (activity của SDK bị bộ lọc của T-020 bỏ qua), nên quảng cáo không bao giờ nạp bằng `AdActivity` hay activity của adapter. Không giữ activity sau lời gọi nạp.
 
 **10. Nối vào `AdsController`** (không đổi constructor; `FullScreenAdsTest` không phải sửa):
 
@@ -235,7 +236,8 @@ internal class FullScreenReloads(
 - Nạp interstitial: `InterstitialAd.load(fullScreenLoadContext(tracker.resumedActivity, context), ...)`. Dựng `adRequest()` và lời gọi nạp bọc `try`/`catch`: lỗi thì đi chung đường với `onAdFailedToLoad` với mã 0 (O-09; T-023 ghi `ad_load_fail` mã `"0"`, `load_state` `internal`). `onAdFailedToLoad`: sau phần ghi của T-023, `loadStates[placement] = fullScreenReloads.onLoadFailed(placement, code)`. Lượt bị `mayRequestNow()` chặn: `loadStates[placement] = fullScreenReloads.onSendBlocked(placement)`.
 - Native toàn màn hình: cùng cách (`AdLoader.Builder` vẫn dùng `ApplicationContext`, câu hỏi 4 của T-034 chỉ nói banner, interstitial, rewarded).
 - Đóng hay hiện lỗi (chỗ T-022 đang "nạp lại"): `fullScreenReloads.onClosedOrShowFailed(placement)`.
-- `nativeAd(placement)`: trả `retryingNativeAdStates(load = { loadOneNativeAd(SdkNativeAdLoader(context, adRequest()), unitId, size, NATIVE_LOAD_TIMEOUT_MILLIS, logger, placement.key) }, foregroundState, ::mayRequestNow, preloader.nativeRetryResets, logger, placement.key)`; lượt kiểm `mayRequestNow()` của T-020 trước lời gọi nạp chuyển vào vòng này. `loadNativeAd` (danh sách) giữ nguyên.
+- `nativeAd(placement)`: trả `retryingNativeAdStates(load = nativeLoadOnce(events = <NativeAdEvents của vị trí mà T-023 đang truyền>, newLoader = { e -> SdkNativeAdLoader(context, adRequest(), events = e) }, unitId, size, logger, placement.key), foregroundState, ::mayRequestNow, preloader.nativeRetryResets, logger, placement.key)`; lượt kiểm `mayRequestNow()` của T-020 trước lời gọi nạp chuyển vào vòng này. `loadNativeAd` (danh sách) giữ nguyên.
+- Viết lại `nativeAd` **giữ nguyên** móc `NativeAdEvents` (`events`) mà T-023 truyền vào `SdkNativeAdLoader` (plan T-023, mục 3.1 bước 6): mỗi lượt nạp, kể cả lượt thử lại, dựng `SdkNativeAdLoader` mới với cùng `events` của vị trí, để native vẫn ghi `ad_impression_placement` và dự phòng doanh thu 2 giây. Dùng đúng biểu thức dựng `NativeAdEvents` mà T-023 đã đặt trong `nativeAd`, không dựng lại theo cách khác (sửa theo rà soát trước phiên, 2026-10-24).
 - Log thẻ `Ads` (ADR-0019): lượt xin nạp sẵn và quyết định (`Preload NETWORK_BACK: HOLD`), lượt giữ được chạy hay bỏ, mạng về, SDK sẵn sàng, mỗi lần hẹn thử lại, lượt bị chặn lúc gửi, nạp bù bị bỏ và lý do. Không ghi mã đơn vị.
 
 **11. Tài liệu:** `docs/ops/ads-guide.md` mục 6 thêm đoạn "Nạp sẵn và nạp lại" (kế hoạch mặc định, cách `:app` đặt kế hoạch bằng `ads.setPreloadPlan(...)` trong `Application.onCreate` trước khi activity đầu tiên hỏi đồng ý, thời gian thử lại, mạng về, native không nạp ở nền). Mục 7: nếu dòng "Unity và ironSource cần `Activity` khi nạp" của T-034 đã có thì ghi interstitial đã nạp bằng activity đang mở từ T-021; chưa có thì không sửa mục 7.
@@ -254,7 +256,7 @@ Thứ tự sau task: `Application.onCreate` (`ads.start`, kế hoạch mặc đ�
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/PreloadDecision.kt` | `PreloadReason`, `PreloadDecision`, `PreloadGate`, `decidePreload`, `sdkReadyAt` (bước 4) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPreloader.kt` | Bộ điều phối S-23, S-24, S-25 (bước 5) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NetworkReturns.kt` | Gộp đổi mạng 3 giây (bước 6) |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRetry.kt` | `retryingNativeAdStates` (bước 7) |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRetry.kt` | `retryingNativeAdStates`, `nativeLoadOnce` (bước 7) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenReloads.kt` | Hẹn thử lại, nạp lại sau khi đóng, lượt bị chặn (bước 8) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenPreloadSlot.kt` | Khe toàn màn hình trong kế hoạch (bước 8) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenLoadContext.kt` | Activity đang mở hay `ApplicationContext` (bước 9) |
@@ -265,7 +267,7 @@ Thứ tự sau task: `Application.onCreate` (`ads.start`, kế hoạch mặc đ�
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/PreloadDecisionTest.kt` | Bảng quyết định S-23, trần 35 giây |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPreloaderTest.kt` | Giữ lượt, chạy một lần, mạng về, nạp bù, `setPlan` |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NetworkReturnsTest.kt` | Gộp 3 giây, máy bay lúc mở app |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdRetryTest.kt` | 5 giây, nền, cổng lúc gửi, đặt lại khi mạng về, lỗi mã 0 |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdRetryTest.kt` | 5 giây, nền, cổng lúc gửi, đặt lại khi mạng về, lỗi mã 0, móc `NativeAdEvents` của T-023 tới loader |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenReloadsTest.kt` | 2, 4, 6, 8, 10 giây; về 0 sau thành công; F-06; S-15 |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenPreloadSlotTest.kt` | Vị trí tắt, trạng thái nạp |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenLoadContextTest.kt` | Robolectric: activity đang mở, đang đóng, `null` |
@@ -300,7 +302,7 @@ Nơi đọc các file bị sửa (L-020, đã tìm `git grep` trong `scripts/`, 
 
 Unit test JVM. Thời gian là thời gian ảo của `runTest` (`testScheduler.currentTime`), đồng hồ của lớp là `MonotonicClock { testScheduler.currentTime }`, hàm phụ `at(millis)` như `NativeAdLoadingTest`. `FakePreloadSlot(format, settleAt: Long? = null)` ghi `loadCalls` (thời điểm mỗi lần `loadIfNeeded`) và `settled()` true từ `settleAt`. `FakeNativeAdLoader`, `FakeLoadedNativeAd` có sẵn (T-010). `LoadAttemptCounter` thật của T-023. `RecordingAppLogger`. Vị trí thật `AdPlacement.GALLERY_INTERSTITIAL`, `AdPlacement.GALLERY_NATIVE_FULL_SCREEN` (mã `gallery_native_full_screen`, T-013).
 
-Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdRetryPolicy` trả 0 ở mọi hàm; `defaultPreloadPlan` trả một nhóm gồm mọi định dạng; `AdPreloadPlan` không kiểm gì; `PreloadPlanRunner.run` gọi `loadIfNeeded` của mọi khe trong mọi nhóm ngay rồi trả; `decidePreload` luôn `RUN`; `sdkReadyAt` trả `callbackArrived`; `AdPreloader.request` chạy ngay, không giữ, `nativeRetryResets` không đổi; `networkReturns` phát mỗi lần nhận `true`; `retryingNativeAdStates` gọi `load` một lần, không thử lại; `FullScreenReloads` gọi `loadIfNeeded` ngay và trả `WaitingRetry(0)`; `FullScreenPreloadSlot.settled` luôn true; `fullScreenLoadContext` luôn trả `application`. Commit test của bước 3: mọi file test mới và `FakePreloadSlot.kt`. Không sửa file test có sẵn (L-025).
+Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdRetryPolicy` trả 0 ở mọi hàm; `defaultPreloadPlan` trả một nhóm gồm mọi định dạng; `AdPreloadPlan` không kiểm gì; `PreloadPlanRunner.run` gọi `loadIfNeeded` của mọi khe trong mọi nhóm ngay rồi trả; `decidePreload` luôn `RUN`; `sdkReadyAt` trả `callbackArrived`; `AdPreloader.request` chạy ngay, không giữ, `nativeRetryResets` không đổi; `networkReturns` phát mỗi lần nhận `true`; `retryingNativeAdStates` gọi `load` một lần, không thử lại; `nativeLoadOnce` gọi `newLoader(null)` (bỏ móc, sai có chủ ý); `FullScreenReloads` gọi `loadIfNeeded` ngay và trả `WaitingRetry(0)`; `FullScreenPreloadSlot.settled` luôn true; `fullScreenLoadContext` luôn trả `application`. Commit test của bước 3: mọi file test mới và `FakePreloadSlot.kt`. Không sửa file test có sẵn (L-025).
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
@@ -328,9 +330,10 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdRetryPo
 | S-25 | Unit test, thời gian ảo | `AdPreloaderTest.activityResumed_refillsNativeInPlanOrder`: kế hoạch `[{NATIVE_STEP}, {INTERSTITIAL, NATIVE_SMALL}]` đã chạy xong; `onActivityResumed(false)`: khe `NATIVE_STEP` gọi trước khe `NATIVE_SMALL`, khe `INTERSTITIAL` không được gọi thêm. `activityResumed_skipsWhenNeverFinishedRunningOrFullScreenShowing`: ba trường hợp, mỗi trường hợp 0 lần gọi; đối chứng là trường hợp đầu bài |
 | Khe toàn màn hình trong kế hoạch | Unit test | `FullScreenPreloadSlotTest.disabled_neverLoads_andIsSettled`; `enabled_loadsAndSettlesByState`: `Idle` thì gọi `load`; `Loading` thì `settled` false; `Ready`, `WaitingRetry` thì true. Khung rỗng thất bại ở `Loading` |
 | Câu hỏi 4 của plan T-034 | Unit test Robolectric | `FullScreenLoadContextTest.resumedActivity_isUsed`: `Robolectric.buildActivity(ComponentActivity::class.java).setup()` trả chính activity đó. `finishingDestroyedOrNull_fallsBackToApplication`: `finish()`, `destroy()`, `null` đều trả `application`. Khung rỗng thất bại ở bài đầu |
+| Native giữ móc doanh thu của T-023 (KB-22 tiêu chí 1 và 3 không lùi) | Unit test, thời gian ảo | `NativeAdRetryTest.everyNativeLoad_attachesTelemetryEvents`: `events = mockk<NativeAdEvents>(relaxed = true)`; `newLoader` giả ghi lại đối số rồi trả `FakeNativeAdLoader`; `retryingNativeAdStates(load = nativeLoadOnce(events, newLoader, ...))`, lỗi ở 0, thành công ở 5 000: `newLoader` được gọi 2 lần, cả hai lần với đúng `events` (cùng đối tượng, không `null`). Khung rỗng thất bại vì nhận `null`. Cách nối trong `AdsController.nativeAd` (truyền đúng `NativeAdEvents` của T-023) là ngoại lệ dưới, kiểm thêm bằng tay ở bước 5 của kiểm thủ công |
 | Hủy khi rời màn | Unit test, thời gian ảo | `NativeAdRetryTest.loadedAd_isDestroyedWhenCollectionEnds`: `Loaded` rồi hủy job: `destroyCount == 1`. `cancelDuringWait_sendsNothing` (L-061, vị trí tắt giữa chừng làm khe rời màn): lỗi ở 0, hủy ở 1 000: 1 yêu cầu tới 60 000 |
 | Nối trong `AdsController`, app khởi động | Build và test có sẵn | `scripts/check.sh` biên dịch `:core:ads` và Hilt của `:app` (constructor không đổi); `FullScreenAdsTest`, `NativeAdSlotTest` có sẵn qua; `AppLaunchTest` trên emulator của CI |
-| Trên máy (staging) | Kiểm tra thủ công | 1) Đồng ý sẵn, bật chế độ máy bay, mở app, mở màn xem thử: log `VGL.Ads` có `Preload SDK_READY` (hoặc `SDK ready: 35 s cap` nếu callback không về), các dòng `Retry gallery_interstitial in 2000 ms`, `4000 ms`... không quá `10000 ms`; native mẫu không hiện, log thử lại mỗi 5 giây. 2) Tắt chế độ máy bay: khoảng 3 giây sau có `Network back` và `Preload NETWORK_BACK: RUN`; native ở đáy hiện mà không cần vào lại màn; interstitial sẵn sàng (bấm "Interstitial" thì hiện). 3) Đang mất mạng, bấm nút Home 1 phút: không có dòng gửi native nào trong lúc ở nền; mở lại thì gửi ngay. 4) Đóng interstitial: dòng nạp lại sau khoảng 2 giây. Lệnh: `adb logcat -v threadtime \| grep ' VGL\.Ads'` |
+| Trên máy (staging) | Kiểm tra thủ công | 1) Đồng ý sẵn, bật chế độ máy bay, mở app, mở màn xem thử: log `VGL.Ads` có `Preload SDK_READY` (hoặc `SDK ready: 35 s cap` nếu callback không về), các dòng `Retry gallery_interstitial in 2000 ms`, `4000 ms`... không quá `10000 ms`; native mẫu không hiện, log thử lại mỗi 5 giây. 2) Tắt chế độ máy bay: khoảng 3 giây sau có `Network back` và `Preload NETWORK_BACK: RUN`; native ở đáy hiện mà không cần vào lại màn; interstitial sẵn sàng (bấm "Interstitial" thì hiện). 3) Đang mất mạng, bấm nút Home 1 phút: không có dòng gửi native nào trong lúc ở nền; mở lại thì gửi ngay. 4) Đóng interstitial: dòng nạp lại sau khoảng 2 giây. 5) Native mẫu hiện sau một lần thử lại (bước 2): log `VGL.Ads` vẫn có dòng ghi doanh thu của native (dòng `debug` của T-023, định dạng `NATIVE_SMALL`, vị trí `sample_native_small`), thật hay dự phòng 0 sau 2 giây. Lệnh: `adb logcat -v threadtime \| grep ' VGL\.Ads'` |
 
 **Ngoại lệ viết test trước:** phần nối trong `AdsController.kt` (trường mới, `onGateOpened`, đồng hồ 35 giây, collector của cổng, mạng và vị trí, `onActivityResumed`, `setPreloadPlan`, lời gọi `InterstitialAd.load` với context mới, `try`/`catch` của O-09, chỗ gọi `FullScreenReloads`, `nativeAd` dùng vòng thử lại) và `docs/ops/ads-guide.md`. `AdsController` gắn với SDK và không có unit test riêng (như T-019, T-020, T-022, T-023); mọi quyết định nằm trong các lớp và hàm thuần ở trên, đã có test. Task không đổi hàm `suspend` nào mà vỏ app gọi và không sửa `MainActivity`, `AppNavHost`, `TemplateApplication`, nên không cần test dựng vỏ app theo L-051. Người duyệt cần đồng ý với các ngoại lệ này.
 
@@ -388,6 +391,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdRetryPo
 - `needsLoad` của T-022 vẫn coi `WaitingRetry` đã tới hạn là "đang chờ" khi cổng đóng (không theo A 03:30-32), và phải sửa `FullScreenLoadState.kt` để qua.
 - Cần đổi constructor của `AdsController` (phải sửa `FullScreenAdsTest.kt`), hay sửa `NativeAdLoading.kt`, `NativeAdSlot.kt`, `CollapsibleNativeAd.kt`, `InListAds.kt`, `ActivityResumeSteps.kt`, `MainActivity.kt`, `TemplateApplication.kt` để qua.
 - `NativeAdSlotTest`, `CollapsibleNativeAdTest` hay `NativeAdLoadingTest` có sẵn đỏ sau khi `nativeAd` dùng vòng thử lại.
+- Móc của T-023 không ở chỗ plan này chờ: `SdkNativeAdLoader` không nhận `events: NativeAdEvents?`, hay `AdsController.nativeAd` không truyền một `NativeAdEvents` của vị trí vào `SdkNativeAdLoader`. Dừng, không tự dựng móc doanh thu và không viết lại `nativeAd` mà bỏ móc (native sẽ mất `ad_impression_placement` và dự phòng 2 giây).
 - Kiểm thủ công thấy log gửi native trong lúc app ở nền, hay khoảng thử lại toàn màn hình vượt 10 giây hoặc ngắn hơn 2 giây.
 
 ## 8. Câu hỏi cho người duyệt
@@ -413,7 +417,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdRetryPo
    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-24).
 
 6. **"Activity chính hiện lại" của S-25 là activity nào?** `:core:ads` không biết activity nào là chính.
-   - Đề xuất của AI: mọi activity của app mà `AdsActivityTracker` báo resume (production chỉ có `MainActivity`; staging có thêm `AdGalleryActivity`, cũng hiện quảng cáo). Nạp bù vẫn bị chặn khi có quảng cáo toàn màn hình, nên activity của quảng cáo không kích nạp bù.
+   - Đề xuất của AI: mọi activity của app mà `AdsActivityTracker` báo resume. Bộ theo dõi chỉ tính activity qua `AppActivityFilter` do `:app` cấp (tên lớp bắt đầu bằng gói của `MainActivity`, plan T-020 mục 3.1 bước 4); activity của SDK (`AdActivity` của Google, activity của adapter T-034) bị bỏ qua, không kích nạp bù. Trong dự án mẫu đó là `MainActivity`, và ở staging thêm `AdGalleryActivity` (cũng hiện quảng cáo). Nạp bù vẫn bị chặn khi có quảng cáo toàn màn hình (sửa theo rà soát trước phiên, 2026-10-24).
    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-24).
 
 7. **S-09 "hỏi xong mới nạp".** Plan T-020 không cho biết lượt hỏi lại đang chạy hay đã xong.
@@ -426,11 +430,11 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdRetryPo
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
 ## 10. Nhật ký thực hiện
 

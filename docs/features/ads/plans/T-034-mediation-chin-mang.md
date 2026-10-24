@@ -1,16 +1,16 @@
 ---
 ticket: T-034
 title: Mediation chín mạng
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M, số tạm của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
 blocking_points: [ads, sdk, init-order, core, build-config]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-034: MEDIATION CHÍN MẠNG
@@ -32,7 +32,8 @@ Ticket xử lý các kịch bản sau trong `features/ads/spec.md`:
 | Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
 | KB-9 | Khi đơn vị quảng cáo có một trong chín mạng trong nhóm mediation trên AdMob thì app nhận được quảng cáo của mạng đó mà không đổi code. | App chỉ cần có adapter và SDK của mạng trong bản build. Nhóm mediation, mã của từng mạng (khóa SDK AppLovin, app key ironSource, game ID Unity, app ID Pangle...) và `app-ads.txt` là cấu hình của người trên AdMob và trang của từng mạng. Chỉ kiểm hết được trên app có mã AdMob thật (câu hỏi 1). Hai mạng (Unity, ironSource) yêu cầu nạp banner, interstitial, rewarded bằng `Activity`; `:core:ads` hiện nạp interstitial bằng `ApplicationContext`, nên hai mạng này có thể không thắng đấu giá cho interstitial tới khi T-021, T-026 đổi cách nạp (câu hỏi 4) |
-| KB-9 | Khi mở Ad Inspector trên staging thì thấy cả chín adapter đã khởi tạo. | Đọc bytecode (mục 2, Tra cứu): **mọi** adapter lấy mã của mạng từ cấu hình mediation mà AdMob gửi xuống. Bản staging dùng mã app thử của Google, không có nhóm mediation, nên cả chín adapter sẽ báo `NOT_READY` kèm lỗi "thiếu mã" trên staging, như AppLovin ở FB-20261023-01. Tiêu chí này vì vậy không đạt được nguyên văn trên staging. Plan hiểu là: trên staging, log trạng thái (và Ad Inspector khi mở được) liệt kê đủ chín adapter, chứng minh chúng có trong bản build và được `MobileAds.initialize` gọi; trạng thái `READY` kiểm ở app đầu tiên có mã thật (câu hỏi 1) |
+| KB-9, tiêu chí 2, vế 1 (sửa 2026-10-24 theo câu hỏi 1) | Khi mở staging thì log trạng thái (và Ad Inspector khi mở được) liệt kê đủ chín adapter; mã app thử của Google không có cấu hình mediation nên trên staging adapter báo `NOT_READY`. | Đọc bytecode (mục 2, Tra cứu): **mọi** adapter lấy mã của mạng từ cấu hình mediation mà AdMob gửi xuống, nên trên staging cả chín báo `NOT_READY` kèm lỗi "thiếu mã", như AppLovin ở FB-20261023-01. Đạt khi log trạng thái của một lần `MobileAds.initialize` có đủ chín adapter, chứng minh chúng có trong bản build và được khởi tạo. Kiểm: test classpath (adapter có trong bản build) và kiểm thủ công 1 (mục 4) |
+| KB-9, tiêu chí 2, vế 2 (spec ghi thành dòng riêng "Thêm 2026-10-24") | Khi một app có mã AdMob thật và nhóm mediation đủ chín mạng thì Ad Inspector thấy cả chín adapter đã khởi tạo. | Không kiểm được trong dự án mẫu (không có mã thật). Kiểm ở app đầu tiên có mã AdMob thật: kiểm thủ công 4 (mục 4), ghi vào báo cáo phiên thử của app đó (câu hỏi 1) |
 | KB-9 | Khóa SDK của AppLovin không nằm trong repo; bản staging chạy được khi không có khóa đó. | Adapter không đọc khóa từ app (mục 2). Plan: app không mang khóa; `secret-scan.py` chặn khóa trong repo; test manifest gộp kiểm staging không có `applovin.sdk.key`. Staging chạy được khi không có khóa: đã đúng hôm nay (FB-20261023-01: app chạy, adapter `NOT_READY`) (câu hỏi 2) |
 
 Thiết kế tham chiếu: Không có thiết kế riêng (không đổi giao diện).
@@ -225,7 +226,7 @@ Test JVM, chạy trong `scripts/check.sh`. Tên lớp viết thẳng trong test 
 | --- | --- | --- |
 | KB-9, tiêu chí 1: adapter của tám mạng có trong bản build | Unit test `:core:ads` | `MediationAdapterClasspathTest.networkAdapters_areOnClasspath`: với từng tên lớp `com.google.ads.mediation.facebook.FacebookMediationAdapter`, `com.google.ads.mediation.fyber.FyberMediationAdapter`, `com.google.ads.mediation.inmobi.InMobiMediationAdapter`, `com.google.ads.mediation.ironsource.IronSourceMediationAdapter`, `com.google.ads.mediation.mintegral.MintegralMediationAdapter`, `com.google.ads.mediation.moloco.MolocoMediationAdapter`, `com.google.ads.mediation.pangle.PangleMediationAdapter`, `com.google.ads.mediation.unity.UnityMediationAdapter`: `Class.forName(name, false, javaClass.classLoader)` không ném lỗi và lớp gán được cho `com.google.android.gms.ads.mediation.Adapter`; thông báo lỗi ghi tên lớp. Trước khi thêm thư viện: thất bại `ClassNotFoundException: com.google.ads.mediation.facebook.FacebookMediationAdapter` |
 | Như trên, SDK Unity Ads khai báo riêng | Unit test `:core:ads` | `MediationAdapterClasspathTest.unityAdsSdk_isOnClasspath`: `Class.forName("com.unity3d.ads.UnityAds", false, ...)` không ném lỗi. Adapter Unity không kéo SDK theo (POM), nên test này bắt lỗi quên dòng `libs.unity.ads`. Trước khi thêm: `ClassNotFoundException` |
-| KB-9, tiêu chí 1: SDK của tám mạng vào manifest gộp | Unit test `:app` | `MergedManifestTest.mergedManifest_containsActivityOfEveryNetwork`: với mỗi tiền tố `com.facebook.ads.`, `com.fyber.inneractive.`, `com.inmobi.ads.`, `com.ironsource.`, `com.mbridge.msdk.`, `com.moloco.sdk.`, `com.bytedance.sdk.openadsdk.`, `com.unity3d.ads.`, có ít nhất một `activity` tên bắt đầu bằng tiền tố đó; thông báo lỗi ghi tiền tố thiếu. Test này cũng chặn ba test "không có" bên dưới qua chỉ vì SDK chưa vào bản build. Trước khi thêm thư viện: thất bại ở `com.facebook.ads.` |
+| KB-9, tiêu chí 1: SDK của tám mạng vào manifest gộp | Unit test `:app` | `MergedManifestTest.mergedManifest_containsActivityOfEveryNetwork`: với mỗi tiền tố `com.facebook.ads.`, `com.fyber.inneractive.`, `com.inmobi.ads.`, `com.ironsource.`, `com.mbridge.msdk.`, `com.moloco.sdk.`, `com.bytedance.sdk.openadsdk.`, `com.unity3d.ads.`, có ít nhất một `activity` tên bắt đầu bằng tiền tố đó; thông báo lỗi ghi tiền tố thiếu. Tiền tố của Unity đã kiểm ngày 2026-10-24 (rà soát trước phiên) trên manifest trong AAR `com.unity3d.ads:unity-ads:4.21.0` của bộ nhớ đệm Gradle: activity duy nhất là `com.unity3d.ads.adplayer.FullScreenWebViewDisplay`, khớp "Unity 1" ở mục 2; `InlineStoreActivity` thuộc SDK ironSource có tên `com.unity3d.ironsourceads.internal.services.InlineStoreActivity`, không khớp `com.unity3d.ads.`, nên test vẫn bắt được khi quên `libs.unity.ads`. Test này cũng chặn ba test "không có" bên dưới qua chỉ vì SDK chưa vào bản build. Trước khi thêm thư viện: thất bại ở `com.facebook.ads.` |
 | Spec câu hỏi 18: không quyền mới | Unit test `:app` | `MergedManifestTest.mergedManifest_permissionsAreExactlyTheAllowedSet`: danh sách `uses-permission` đã sắp xếp bằng đúng danh sách đo ở mục 4.1 (11 quyền: `android.permission.ACCESS_ADSERVICES_AD_ID`, `android.permission.ACCESS_ADSERVICES_ATTRIBUTION`, `android.permission.ACCESS_ADSERVICES_TOPICS`, `ACCESS_NETWORK_STATE`, `FOREGROUND_SERVICE`, `INTERNET`, `VIBRATE`, `WAKE_LOCK`, `com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`, `AD_ID`, `com.vglstudio.template.staging.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`), viết đủ tên trong test. Quyền mới sau này (nâng SDK) làm test đỏ, buộc plan quyết. Test này qua ngay trước khi thêm thư viện (danh sách không đổi): bước đối chứng (L-055) là chạy test với một tên quyền bị bỏ khỏi danh sách mong đợi, thấy test thất bại, rồi đặt lại; AI ghi cả hai lần vào nhật ký |
 | ADR-0004, ADR-0026 mục 3: SDK Meta không khởi động trước đồng ý | Unit test `:app` | `MergedManifestTest.mergedManifest_hasNoMetaAudienceNetworkProvider`: không `provider` nào tên `com.facebook.ads.AudienceNetworkContentProvider`. Sau khi thêm thư viện, trước khi sửa manifest: thất bại, thông báo "AudienceNetworkContentProvider starts the Meta SDK before consent" |
 | Receiver xuất ra ngoài không cần | Unit test `:app` | `MergedManifestTest.mergedManifest_hasNoMintegralNetworkReceiver`: không `receiver` nào tên `com.mbridge.msdk.foundation.same.broadcast.NetWorkChangeReceiver`. Sau khi thêm thư viện, trước khi sửa manifest: thất bại |
@@ -236,10 +237,10 @@ Test JVM, chạy trong `scripts/check.sh`. Tên lớp viết thẳng trong test 
 | Manifest gộp chỉ đổi như mục 2 | Lệnh, AI ghi vào nhật ký | `./gradlew :app:processStagingDebugMainManifest` trước và sau; so `uses-permission`, `provider`, `receiver`, meta-data của `androidx.startup.InitializationProvider`: chỉ khác như mục 2 (thêm bốn provider giữ lại, `AdsSdkInitializer`, activity, service; không thêm quyền). Báo cáo `app/build/outputs/logs/manifest-merger-staging-debug-report.txt` có `REJECTED` cho đúng hai phần tử mới (Meta, Mintegral) cùng ba phần tử của T-015 |
 | M-07: R8 của bản release không lỗi vì adapter | Lệnh, AI ghi vào nhật ký | `./gradlew :app:minifyStagingReleaseWithR8`: qua, không có lỗi "Missing class" từ gói của tám mạng. Lỗi thì dừng (mục 7, điều kiện 4) |
 | Build, lint, ktlint, quy tắc phụ thuộc, test và ảnh chuẩn cũ | `scripts/check.sh` | Qua toàn bộ (đã chạy thử, mục 4.1). Trước khi tạo `app/lint.xml`, `:app:lintStagingDebug` thất bại với đúng một lỗi `NotificationPermission` từ `com.squareup.picasso`; AI ghi lần thất bại đó vào nhật ký |
-| Kiểm thủ công 1, KB-9 tiêu chí 2 (người, bản staging của `staging.yml`) | Kiểm tra thủ công | Cài bản staging, đồng ý, `adb logcat -v threadtime \| grep ' VGL\.Ads'`: có 10 dòng `Adapter ...` (chín adapter cùng `com.google.android.gms.ads.MobileAds`) trong cùng một lần `MobileAds.initialize` báo xong. Chín adapter dự kiến `NOT_READY` với thông báo thiếu mã của mạng (câu hỏi 1); dòng nào có lỗi khác (lớp thiếu, `SecurityException`, ngoại lệ) thì tạo phản hồi cho T-034. Khi mở được Ad Inspector (T-014): mục adapter liệt kê đủ chín mạng |
+| Kiểm thủ công 1, KB-9 tiêu chí 2 vế 1 (người, bản staging của `staging.yml`) | Kiểm tra thủ công | Cài bản staging, đồng ý, `adb logcat -v threadtime \| grep ' VGL\.Ads'`: có 10 dòng `Adapter ...` (chín adapter cùng `com.google.android.gms.ads.MobileAds`) trong cùng một lần `MobileAds.initialize` báo xong. Chín adapter dự kiến `NOT_READY` với thông báo thiếu mã của mạng (câu hỏi 1); dòng nào có lỗi khác (lớp thiếu, `SecurityException`, ngoại lệ) thì tạo phản hồi cho T-034. Khi mở được Ad Inspector (T-014): mục adapter liệt kê đủ chín mạng |
 | Kiểm thủ công 2, ADR-0004 (người, cùng phiên thử) | Kiểm tra thủ công | Xóa dữ liệu app, mở app, chưa trả lời hộp thoại đồng ý: logcat không có dòng của các thẻ `AudienceNetwork`, `FBAudienceNetwork`, `UnityAds`, `IronSource`, `LevelPlay`, `Mintegral`, `MBridge`, `PAGSdk`, `Moloco`, `InMobi`, `Fyber`, `AppLovinSdk` báo khởi tạo hay gửi yêu cầu. Có thì báo người duyệt (mục 7, điều kiện 8) |
 | Kiểm thủ công 3, app chạy lâu (người, cùng phiên thử) | Kiểm tra thủ công | Dùng app ít nhất 30 phút sau khi đồng ý, qua lại các màn có quảng cáo, nền rồi mở lại, xoay máy: không `FATAL EXCEPTION`, không ngoại lệ có `com.facebook.ads`, `com.mbridge`, `com.unity3d`, `com.ironsource`, `com.bytedance`, `com.moloco`, `com.inmobi`, `com.fyber` trong stack trace |
-| Kiểm thủ công 4, KB-9 tiêu chí 1, 2 (người, app đầu tiên có mã AdMob thật) | Kiểm tra thủ công | Nhóm mediation có đủ chín mạng, máy thử đã đăng ký: log có 10 dòng `READY`; Ad Inspector, single ad source testing với từng mạng tải được quảng cáo thử. Ghi vào báo cáo phiên thử của app đó |
+| Kiểm thủ công 4, KB-9 tiêu chí 1 và tiêu chí 2 vế 2 (người, app đầu tiên có mã AdMob thật) | Kiểm tra thủ công | Nhóm mediation có đủ chín mạng, máy thử đã đăng ký: log có 10 dòng `READY`; Ad Inspector, single ad source testing với từng mạng tải được quảng cáo thử. Ghi vào báo cáo phiên thử của app đó |
 
 **Ngoại lệ viết test trước:** `app/lint.xml` là cấu hình lint, kiểm bằng `scripts/check.sh` (dòng trên), không có test riêng. Tài liệu (`ads-guide.md`, `release.md`, `ads-business-rules.md`) không có test. Việc mạng nhận được quảng cáo thật và khởi tạo `READY` chỉ kiểm được trên app có mã thật (kiểm thủ công 4). Việc các SDK không chạy trước đồng ý sau khi bỏ provider chỉ kiểm được trên máy (kiểm thủ công 2). Người duyệt đồng ý ngoại lệ này.
 
@@ -347,11 +348,11 @@ Rủi ro riêng: SDK Meta có thể dựa vào provider đã bỏ và chạy sai
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
 ## 10. Nhật ký thực hiện
 

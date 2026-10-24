@@ -1,16 +1,16 @@
 ---
 ticket: T-020
 title: Đồng ý quảng cáo và khởi động SDK theo PARTNER
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, consent, core)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # cỡ L, số gợi ý 30M (scripts/token-usage.py estimate, 2026-10-24)
 blocking_points: [ads, consent, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-020: ĐỒNG Ý QUẢNG CÁO VÀ KHỞI ĐỘNG SDK THEO PARTNER
@@ -122,6 +122,8 @@ internal class ConsentCoordinator(
     gate: ConsentGate,
     suppressor: ForegroundAdSuppressor,
     isActivityGone: (Activity) -> Boolean,       // isFinishing || isDestroyed || isChangingConfigurations
+    isResumed: (Activity) -> Boolean,            // S-09: the asked activity is the app activity resumed now (AdsActivityTracker)
+    fullScreenShowing: () -> Boolean,            // S-09: no regather while a full-screen ad shows (FullScreenAdPresence)
     allowReset: Boolean,                         // ConsentDebugOptions.allowConsentReset
     logger: AppLogger,
     onGateOpened: (firstTime: Boolean) -> Unit,  // controller: init the SDK the first time, else preload again
@@ -140,14 +142,27 @@ internal class ConsentCoordinator(
 
 **3. Bộ đếm chặn** (`ForegroundAdSuppressor.kt`, G-01): `acquire(source: String): Hold`, `Hold.release()` chỉ có tác dụng lần đầu; bộ đếm không xuống âm; `suppressed: StateFlow<Boolean>` là `count > 0`. Task này tạo bộ đếm và dùng cho S-16. T-022 thêm ba cách dùng cho feature, báo xuống theo G-02, hợp đồng vỏ app G-04 và dùng lại lớp này không sửa (mục 6).
 
-**4. Theo dõi activity** (`AdsActivityTracker.kt`): cài `Application.ActivityLifecycleCallbacks`, đăng ký trong `AdsController.start(application)`. Đếm activity ở `started` bằng `StartedActivityCounter` có sẵn (foreground của S-08, S-09), giữ activity đang resume (WeakReference), báo `onActivityResumed`, `onActivityPaused`, `onActivityDestroyed` cho `AdsController`. Cả `AdGalleryActivity` của staging cũng được đếm mà không cần sửa. `onAppForeground`, `onAppBackground` mà `MainActivity` gọi giữ nguyên (T-019 giữ chúng cho log; T-025 quyết có bỏ không).
+**4. Theo dõi activity** (`AdsActivityTracker.kt`): cài `Application.ActivityLifecycleCallbacks`, đăng ký trong `AdsController.start(application, appActivities)`. Callback trên `Application` thấy cả activity của SDK: `AdActivity` của Google và khoảng 39 activity mà adapter của T-034 thêm. Bộ theo dõi **chỉ tính activity của app**, theo bộ lọc do `:app` cấp (sửa theo rà soát trước phiên, 2026-10-24):
+
+```kotlin
+/** Which activities belong to the app. SDK activities (AdActivity, mediation adapters) are ignored by ads. */
+fun interface AppActivityFilter {
+    fun isAppActivity(activity: Activity): Boolean
+    companion object {
+        /** Class name starts with the package of [anchor] plus a dot (MainActivity::class.java), so the staging suffix of the application id does not matter. */
+        fun inPackageOf(anchor: Class<*>): AppActivityFilter
+    }
+}
+```
+
+Activity không qua bộ lọc bị bỏ qua hoàn toàn: không đếm vào foreground, không thành activity đang resume, không báo `onActivityResumed`, `onActivityPaused`, `onActivityDestroyed`. Vì vậy foreground (S-08, S-09), hỏi lại trên activity đang resume (S-09), activity để nạp quảng cáo (`resumedActivity`, T-021), gỡ cờ kẹt và nhả dấu rời app (T-022) chỉ theo activity của app. Khi quảng cáo toàn màn hình của SDK che app, activity của app ở `stopped` nên `foreground` false trong lúc đó; lúc này có quảng cáo toàn màn hình nên hỏi lại (S-09) và nạp bù (T-021) vốn đã bị chặn. Trong activity của app, đếm activity ở `started` bằng `StartedActivityCounter` có sẵn, giữ activity đang resume (WeakReference), báo ba sự kiện trên cho `AdsController`. `AdGalleryActivity` của staging (gói `com.vglstudio.template.adgallery`) qua bộ lọc mà không cần sửa. `onAppForeground`, `onAppBackground` mà `MainActivity` gọi giữ nguyên (T-019 giữ chúng cho log; T-025 quyết có bỏ không).
 
 **5. Theo dõi Internet chung** (`:core:network`, S-09, S-24): thêm interface công khai `InternetConnectivity { val connected: Flow<Boolean> }` (giá trị hiện tại ngay, rồi mỗi lần đổi), cài bằng `DefaultInternetConnectivity` bọc `ConnectivitySource.connectivity()` có sẵn (đòi `VALIDATED`, ADR-0024), bind trong `NetworkBindingsModule`. Không viết bộ theo dõi thứ hai. `core/ads/build.gradle.kts` thêm `implementation(project(":core:network"))` (core phụ thuộc core, ADR-0001; `:core:network` không phụ thuộc `:core:ads` nên không có vòng). T-021 dùng lại interface này cho nạp lại khi mạng về.
 
 **6. Nối vào `AdsController`:**
 
 - Constructor thêm `connectivity: InternetConnectivity`, `shortcutConfig: ConsentShortcutConfig` (cùng `flags: AdsFlags` của T-019). `consentInformation`, `onConsentUpdated`, `onConsentFlowFinished`, `initialized` cũ bị thay bằng bộ điều phối.
-- `fun start(application: Application)` (công khai, HD-01): gọi một lần từ `TemplateApplication.onCreate`; lần sau không làm gì (S-01). Đăng ký `AdsActivityTracker`; thu `flags.global.map { it.consentShortcutEnabled }` ghép với `shortcutConfig.enabledInBuild` vào `gate.onShortcutChanged`; thu `connectivity.connected` vào `coordinator.onInternetChanged`.
+- `fun start(application: Application, appActivities: AppActivityFilter)` (công khai, HD-01): gọi một lần từ `TemplateApplication.onCreate`; lần sau không làm gì (S-01). Đăng ký `AdsActivityTracker` với bộ lọc này; thu `flags.global.map { it.consentShortcutEnabled }` ghép với `shortcutConfig.enabledInBuild` vào `gate.onShortcutChanged`; thu `connectivity.connected` vào `coordinator.onInternetChanged`.
 - `gatherConsent(activity)`, `showPrivacyOptionsForm(activity)`: chuyển cho bộ điều phối, giữ chữ ký (`MainActivity`, `AdGalleryActivity`, `PrivacyOptionsButton` không đổi).
 - `canRequestAds: StateFlow<Boolean>` giữ tên và nghĩa với giao diện: `gate.allowed && sdkInitialized`. Về false ngay khi cổng đóng (S-10, S-14), nên `AdSlot`, `NativeAdSlot`, `CollapsibleNativeAdSlot`, `rememberInListAds` bỏ quảng cáo đang có mà không sửa các file đó (S-11, S-15).
 - `internal fun mayRequestNow(): Boolean` = `canRequestAds.value && gate.mayRequestNow(tracker.foreground)`; gọi ngay trước mỗi lượt gửi trong `AdsController` (`preloadInterstitial` trước `InterstitialAd.load`, `preloadNativeFullScreen` trước `loadAd`, `nativeAd` và `loadNativeAd` trước `loader.load`); false thì kết thúc lượt, không gửi, ghi log, không hẹn gì (S-15).
@@ -159,7 +174,7 @@ internal class ConsentCoordinator(
 
 **7. Việc của `:app`:**
 
-- `TemplateApplication`: `@Inject lateinit var ads: AdsController`, `onCreate` gọi `ads.start(this)` sau `super.onCreate()` (HD-01). Trial ở mục 4.1 cho thấy tiêm vào `Application` của Hilt và đăng ký callback chạy được.
+- `TemplateApplication`: `@Inject lateinit var ads: AdsController`, `onCreate` gọi `ads.start(this, AppActivityFilter.inPackageOf(MainActivity::class.java))` sau `super.onCreate()` (HD-01). Bộ lọc theo gói của `MainActivity` (`MainActivity::class.java.packageName`), không theo application id, nên đuôi `.staging` không ảnh hưởng và app tạo từ dự án mẫu không phải sửa. Trial ở mục 4.1 cho thấy tiêm vào `Application` của Hilt và đăng ký callback chạy được.
 - Cấu hình lúc build của nhánh rút gọn: `data class ConsentShortcutConfig(val enabledInBuild: Boolean)` trong `:core:ads` (`OFF` là mặc định), bind theo flavor như `ConsentDebugOptions`: `ProductionAdsModule` trả `ConsentShortcutConfig.OFF`; `StagingAdsModule` trả `ConsentShortcutConfig(enabledInBuild = true)` để người thử bật `is_enable_consent_shortcut` trên Firebase staging mà không cần build khác (khóa từ xa vẫn mặc định tắt, nên staging mặc định vẫn đi theo UMP; câu hỏi 2).
 - HD-04 (đưa công tắc vào trước bước hỏi đồng ý, đưa lại khi Remote Config đổi): giá trị từ xa do `:core:ads` tự đọc từ `AdsFlags` (khóa thuộc `:core:ads`, mục 10.1); bộ điều phối giữ lượt hỏi tới khi có giá trị đầu (giá trị đã lưu hay mặc định, phát ngay theo hợp đồng của `RemoteSettings`). `:app` chỉ cấp phần lúc build (câu hỏi 3).
 - `ConsentDebugOptions` thêm `allowConsentReset: Boolean = false`; `EEA_TEST_DEVICE` có `true`, `NONE` có `false` (S-18: production không có đường đặt lại).
@@ -176,7 +191,7 @@ Thứ tự khởi tạo sau task: `Application.onCreate` (Hilt, `ads.start`: cal
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/ConsentCoordinator.kt` | Bộ điều phối lượt hỏi, hỏi lại, form quyền riêng tư, đặt lại, log |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/ConsentPlatform.kt` | Interface `ConsentPlatform`, `UmpConsentPlatform` bọc UMP |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/ForegroundAdSuppressor.kt` | Bộ đếm chặn quảng cáo tự hiện (G-01) |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsActivityTracker.kt` | Callback vòng đời của `Application`: foreground, activity đang resume |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsActivityTracker.kt` | Callback vòng đời của `Application`: foreground, activity đang resume; `AppActivityFilter` bỏ qua activity của SDK |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/ConsentShortcutConfig.kt` | Cấu hình lúc build của nhánh rút gọn |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/ConsentReset.kt` | `rememberResetConsent()` (S-18) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `start`, constructor, nối bộ điều phối, `canRequestAds`, `mayRequestNow` trước mỗi lượt gửi, cổng hiện, `consentPath`, `consentFlowFinished`, `sdkReady`, `resetConsent`, `onGateOpened`, `onActivityResumed` |
@@ -184,14 +199,15 @@ Thứ tự khởi tạo sau task: `Application.onCreate` (Hilt, `ads.start`: cal
 | Sửa | `core/ads/build.gradle.kts` | `implementation(project(":core:network"))` |
 | Tạo | `core/network/src/main/kotlin/com/vglstudio/template/core/network/InternetConnectivity.kt` | Interface công khai và `DefaultInternetConnectivity` |
 | Sửa | `core/network/src/main/kotlin/com/vglstudio/template/core/network/di/NetworkModule.kt` | `@Binds` `InternetConnectivity` trong `NetworkBindingsModule` |
-| Sửa | `app/src/main/kotlin/com/vglstudio/template/TemplateApplication.kt` | Tiêm `AdsController`, `ads.start(this)` (HD-01) |
+| Sửa | `app/src/main/kotlin/com/vglstudio/template/TemplateApplication.kt` | Tiêm `AdsController`, `ads.start(this, AppActivityFilter.inPackageOf(MainActivity::class.java))` (HD-01) |
 | Sửa | `app/src/staging/kotlin/com/vglstudio/template/di/StagingAdsModule.kt` | `ConsentShortcutConfig(enabledInBuild = true)` |
 | Sửa | `app/src/production/kotlin/com/vglstudio/template/di/ProductionAdsModule.kt` | `ConsentShortcutConfig.OFF` |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentGateTest.kt` | Luật của máy trạng thái (mục 4) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentCoordinatorTest.kt` | Lượt hỏi, gộp, hỏi lại, form, rút, đặt lại, S-19 (mục 4) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeConsentPlatform.kt` | UMP giả: ghi lại lời gọi, trả lời theo kịch bản |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ForegroundAdSuppressorTest.kt` | G-01 |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsActivityTrackerTest.kt` | Robolectric: foreground, resume, pause, hủy |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsActivityTrackerTest.kt` | Robolectric: foreground, resume, pause, hủy, bỏ qua activity của SDK; khai báo `AppTestActivity : ComponentActivity` trong gói của test |
+| Tạo | `core/ads/src/test/kotlin/com/example/fakesdk/FakeSdkActivity.kt` | Activity giả của SDK, gói khác gói của app (`com.example.fakesdk`) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentDebugOptionsTest.kt` | Chỉ cấu hình staging cho đặt lại |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdsTest.kt` | Dựng `AdsController` với tham số mới (`connectivity` giả, `ConsentShortcutConfig.OFF`) |
 | Tạo | `core/network/src/test/kotlin/com/vglstudio/template/core/network/DefaultInternetConnectivityTest.kt` | Phát lại đúng `connectivity()` của nguồn |
@@ -220,14 +236,14 @@ Nơi đọc các file bị sửa (L-020, đã tìm `git grep` trong `scripts/`, 
 ### 3.4. Phương án dự phòng
 
 - **Điểm chưa chắc:** test Robolectric `AdsActivityTrackerTest` dùng `Robolectric.buildActivity(ComponentActivity::class.java)` và callback đăng ký trên `ApplicationProvider.getApplicationContext<Application>()`; chạy thử đã qua (mục 4.1), nhưng thứ tự callback khi `recreate()` có thể khác trên bản Robolectric sau này.
-- **Điều kiện chuyển:** `AdsActivityTrackerTest` thất bại vì thứ tự hay số lần callback của Robolectric (không vì logic đếm) sau 2 lần sửa.
-- **Cách làm thay:** tách phần quyết định của bộ theo dõi thành hàm thuần nhận chuỗi sự kiện (`created`, `started`, `resumed`, `paused`, `stopped`, `destroyed` với mã activity), test trên JVM không Robolectric; `AdsActivityTracker` chỉ chuyển callback sang hàm đó. Test viết trước giữ nguyên ý (foreground, resume, hủy).
+- **Điều kiện chuyển:** `AdsActivityTrackerTest` thất bại vì thứ tự hay số lần callback của Robolectric (không vì logic đếm), hay vì Robolectric không dựng được `AppTestActivity`, `FakeSdkActivity` (activity không khai báo trong manifest của test), sau 2 lần sửa.
+- **Cách làm thay:** tách phần quyết định của bộ theo dõi thành hàm thuần nhận chuỗi sự kiện (`created`, `started`, `resumed`, `paused`, `stopped`, `destroyed` với mã activity), test trên JVM không Robolectric; `AdsActivityTracker` chỉ chuyển callback sang hàm đó. Bộ lọc nhận tên lớp của activity trong chuỗi sự kiện, nên trường hợp activity của SDK vẫn được test trên JVM. Test viết trước giữ nguyên ý (foreground, resume, hủy, bỏ qua activity của SDK).
 
 ## 4. Kiểm thử
 
 Unit test JVM với `FakeConsentPlatform` (ghi lại lời gọi `requestUpdate`, `showFormIfRequired`, `showPrivacyForm`, `reset` và activity; callback chỉ chạy khi test gọi `completeUpdate()`, `failUpdate(code)`, `closeForm(code?)`; `canRequestAds`, `consentFormRequired`, `privacyOptionsRequired` do test đặt), `ConsentGate` thật, `ForegroundAdSuppressor` thật, `RecordingAppLogger`. Activity là `mockk<Activity>(relaxed = true)` hay `Robolectric.buildActivity` khi cần trạng thái thật; `isActivityGone` và `isResumed` là lambda do test đặt. Không có đồng hồ: các luật đồng ý không có khoảng chờ (trần 10 giây là T-024).
 
-Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGate` có trạng thái đầu cố định và hàm sự kiện không làm gì; `ConsentCoordinator` có hàm rỗng; `ForegroundAdSuppressor.acquire` trả `Hold` không đếm; `AdsActivityTracker` có callback rỗng; `umpFailureOf` trả `CONFIGURATION`, `shortcutActive` trả false; `InternetConnectivity`, `DefaultInternetConnectivity` trả `flowOf(false)`; `ConsentShortcutConfig`, `allowConsentReset` có sẵn. Commit test của bước 3 gồm mọi file test mới ở mục 3.2 và `FakeConsentPlatform`; sửa `FullScreenAdsTest` vào commit code của bước 4 (chỉ biên dịch được khi constructor đổi) (L-025).
+Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGate` có trạng thái đầu cố định và hàm sự kiện không làm gì; `ConsentCoordinator` có hàm rỗng; `ForegroundAdSuppressor.acquire` trả `Hold` không đếm; `AdsActivityTracker` có callback rỗng; `AppActivityFilter.inPackageOf` trả bộ lọc nhận mọi activity; `umpFailureOf` trả `CONFIGURATION`, `shortcutActive` trả false; `InternetConnectivity`, `DefaultInternetConnectivity` trả `flowOf(false)`; `ConsentShortcutConfig`, `allowConsentReset` có sẵn. Commit test của bước 3 gồm mọi file test mới ở mục 3.2 và `FakeConsentPlatform`; sửa `FullScreenAdsTest` vào commit code của bước 4 (chỉ biên dịch được khi constructor đổi) (L-025).
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
@@ -237,7 +253,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGa
 | KB-11, tiêu chí 3 (S-09, mạng về) | Unit test | `ConsentCoordinatorTest.errorAllowed_internetBack_regathersOnSameActivity`: sau `ERROR_ALLOWED` trên activity A đang resume: `onInternetChanged(false)` rồi `true` thì `requestUpdate` lần 2 trên A; `completeUpdate()` với `canRequestAds = true` ra `GRANTED`, `settled`. Đối chứng: `onInternetChanged(true)` khi đường là `GRANTED` không gọi lại |
 | KB-11, tiêu chí 3 (S-09, mở lại app) | Unit test | `ConsentCoordinatorTest.errorAllowed_foreground_regathers`: `onForegroundChanged(false)` rồi `true` gọi lại trên A. `regather_skippedWhenActivityPausedOrOtherOrAdShowing`: A không resume, hay activity đã hỏi là A mà sự kiện tới khi chỉ B còn, hay `fullScreenShowing = true`: không gọi lại |
 | KB-11, tiêu chí 4 (S-08) | Unit test | `ConsentGateTest.errorAllowed_background_mayNotRequest`: `ERROR_ALLOWED`: `mayRequestNow(foreground = false)` false, `true` thì true. Đối chứng: `GRANTED` và `CACHED_EARLY` ở nền vẫn true. Khung rỗng thất bại vì `allowed` luôn false nên vế foreground cũng false |
-| KB-11, tiêu chí 4 (foreground thật) | Unit test Robolectric | `AdsActivityTrackerTest.foreground_followsStartedActivities`: `buildActivity(ComponentActivity).setup()`: `foreground` true; `stop()`: false; hai activity chuyển qua nhau (A start, B start, A stop): vẫn true. `resumedActivity` là activity vừa resume, `null` sau `pause()` |
+| KB-11, tiêu chí 4 (foreground thật) | Unit test Robolectric | Bộ theo dõi trong mọi test dùng `AppActivityFilter.inPackageOf(AppTestActivity::class.java)`. `AdsActivityTrackerTest.foreground_followsStartedActivities`: `buildActivity(AppTestActivity).setup()`: `foreground` true; `stop()`: false; hai activity chuyển qua nhau (A start, B start, A stop): vẫn true. `resumedActivity` là activity vừa resume, `null` sau `pause()` |
 | KB-11, tiêu chí 5 (S-10, S-11) | Unit test | `ConsentCoordinatorTest.temporaryThenRequired_closesBeforeForm`: `CACHED_EARLY` rồi `completeUpdate()` với `canRequestAds = false`, `consentFormRequired = true`: tại lúc `showFormIfRequired` được gọi (test đọc trạng thái trong lời gọi giả), `allowed` đã false; `path == DENIED_OR_REQUIRED`. Đóng form với `canRequestAds = true`: `allowed`, `onGateOpened(false)` gọi 1 lần (nạp sẵn lại) |
 | KB-11, tiêu chí 6 (S-12, nhánh tắt) | Unit test | `ConsentGateTest.shortcutOff_networkFailureGivesNothing`: nhánh tắt, `onRequestSent(true)` không mở; `onUpdateFailed(NETWORK, _)` không mở, `path` không phải `ERROR_ALLOWED`. `ConsentGateTest.shortcutActive_needsBoth`: bảng 4 dòng, chỉ (true, true) ra true |
 | KB-11, tiêu chí 7 (S-12, thu hồi) | Unit test | `ConsentGateTest.shortcutTurnedOff_revokesErrorAllowedOnly`: `ERROR_ALLOWED` rồi `onShortcutChanged(false)`: `allowed` false, không `settled`, `regatherDue` false. `CACHED_EARLY` rồi tắt: `allowed` vẫn true. `GRANTED` rồi tắt: vẫn true. Tắt rồi bật lại: không đổi gì (`turningOn_revokesNothing`) |
@@ -246,7 +262,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGa
 | KB-11, đặc biệt 2 (S-05) | Unit test | `ConsentCoordinatorTest.interruptedForm_regathersNextTime`: `closeForm(1)` với `isActivityGone = true`: `INTERRUPTED_REGATHER`, không `settled`; `gather` lần sau gọi `requestUpdate` lần 2. `ConsentGateTest.configurationError_givesNoTemporaryRight`: nhánh bật, `onUpdateFailed(CONFIGURATION, false)`: `allowed` false |
 | KB-12, tiêu chí 1 (S-14, S-15) | Unit test | `ConsentCoordinatorTest.privacyFormWithdrawn_closesEveryGate`: `GRANTED`, `showPrivacyOptions`, `closeForm(null)` với `canRequestAds = false`: `allowed` false, `path == DENIED_OR_REQUIRED`, `mayRequestNow(true)` false. Khung rỗng thất bại ở đối chứng: trước khi rút, `mayRequestNow(true)` true |
 | KB-12, tiêu chí 2 (S-14) | Unit test | `ConsentCoordinatorTest.privacyFormRegranted_initsOrPreloads`: rút rồi cấp lại khi SDK đã khởi tạo: `onGateOpened(firstTime = false)` 1 lần; trường hợp chưa từng mở (đường `DENIED_OR_REQUIRED` từ đầu) rồi cấp: `onGateOpened(true)` 1 lần |
-| S-01, HD-01 | Unit test | `ConsentCoordinatorTest.start_twice_isIgnored`: `start()` lần 1 true, lần 2 false. Lời gọi `ads.start(this)` trong `TemplateApplication`: ngoại lệ viết test trước (dưới) |
+| S-01, HD-01 | Unit test | `ConsentCoordinatorTest.start_twice_isIgnored`: `start()` lần 1 true, lần 2 false. Lời gọi `ads.start(this, AppActivityFilter.inPackageOf(MainActivity::class.java))` trong `TemplateApplication`: ngoại lệ viết test trước (dưới) |
 | S-02 | Unit test | `ConsentCoordinatorTest.gather_updatesThenShowsFormThenReads`: thứ tự lời gọi của `FakeConsentPlatform` là `requestUpdate`, `showFormIfRequired`, rồi `canRequestAds` được đọc sau `closeForm` |
 | S-07 | Unit test | `ConsentCoordinatorTest.secondGatherWhileRunning_sharesTheFirst`: `gather(A)` rồi `gather(A)` trước `completeUpdate`: `requestUpdate` 1 lần, `showFormIfRequired` 1 lần sau khi xong |
 | S-13 | Unit test | `ConsentCoordinatorTest.everyPath_isLogged`: mỗi đường trong 5 đường có đúng một dòng `info` thẻ `Ads` chứa tên đường; không dòng nào chứa thông báo lỗi của UMP (giả trả thông báo `secret-message`, kiểm không xuất hiện) |
@@ -256,6 +272,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGa
 | HD-04 | Unit test | `ConsentCoordinatorTest.gatherWaitsForShortcutValue`: `start()`, `gather(A)` trước `onShortcutChanged`: không gọi UMP; `onShortcutChanged(true)` thì gọi, và lỗi mạng sau đó ra `ERROR_ALLOWED` (nhánh bật được dùng cho lượt đầu) |
 | G-01 (dùng cho S-16) | Unit test | `ForegroundAdSuppressorTest.countsSources_neverNegative`: hai `Hold`; nhả một thì vẫn `suppressed`; nhả cả hai thì false; nhả lại một `Hold` không làm bộ đếm âm (thêm `Hold` mới thì `suppressed` lại true). Khung rỗng thất bại vì không đếm |
 | Theo dõi Internet chung | Unit test | `DefaultInternetConnectivityTest.followsSourceConnectivity`: `FakeConnectivitySource` (có sẵn trong `core/network/src/test`) phát false, true: `connected` phát false, true. Khung rỗng thất bại vì luôn false |
+| Activity của SDK bị bỏ qua (foreground, resume, rời app, activity để nạp) | Unit test Robolectric | `AdsActivityTrackerTest.sdkActivity_isIgnored`: `AppTestActivity` `setup()` rồi `buildActivity(FakeSdkActivity).setup()` và `AppTestActivity` `pause().stop()` (quảng cáo che app): `foreground` false, `resumedActivity` null, không có `onActivityResumed` nào cho `FakeSdkActivity`; `FakeSdkActivity` `pause().stop().destroy()` rồi `AppTestActivity` `start().resume()`: đúng một `onActivityResumed(AppTestActivity)`, `onActivityDestroyed` không được báo cho `FakeSdkActivity`. Đối chứng (L-055): cùng chuỗi với `AppActivityFilter { true }` thì `resumedActivity` là `FakeSdkActivity`. `appActivityFilter_matchesPackagePrefixOnly`: `inPackageOf(AppTestActivity::class.java)` nhận `AppTestActivity`, từ chối `FakeSdkActivity`; lớp ở gói có cùng tiền tố mà không có dấu chấm (`com.vglstudio.template.core.adsx`) cũng bị từ chối (kiểm trên tên lớp). Khung rỗng thất bại vì không lọc |
 | Activity của lượt hỏi bị hủy (S-09) | Unit test Robolectric | `AdsActivityTrackerTest.destroyedActivity_isReported`: `destroy()` báo `onActivityDestroyed` một lần với `isChangingConfigurations` đúng giá trị (`recreate()` ra true) |
 | Đồ thị Hilt, app khởi động | Build và test có sẵn | `scripts/check.sh` biên dịch Hilt của `:app` (thiếu binding `InternetConnectivity` hay `ConsentShortcutConfig` thì lỗi biên dịch); `AppLaunchTest` trên emulator của CI chạy `TemplateApplication.onCreate` thật |
 | Đồng ý trên máy (staging, EEA giả) | Kiểm tra thủ công | 1) Cài mới: form hiện; log `VGL.Ads` có `Consent path:` và không có `Adapter ...` trước khi trả lời; đồng ý thì có `GRANTED` và dòng adapter. 2) Mở lại: không có form, `GRANTED` (nhánh tắt). 3) Bật chế độ máy bay, xóa dữ liệu app, mở: không có quảng cáo, log lỗi mạng của lượt hỏi, không có `ERROR_ALLOWED`. 4) Trên Firebase staging bật `is_enable_consent_shortcut`, lặp bước 3: `ERROR_ALLOWED`, tắt chế độ máy bay: log hỏi lại. 5) Nút quyền riêng tư ở màn mẫu: rút đồng ý thì native ở đáy biến mất, log `DENIED_OR_REQUIRED`; đồng ý lại thì native hiện lại không cần mở lại app. Lệnh: `adb logcat -v threadtime \| grep ' VGL\.Ads'` |
@@ -282,7 +299,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGa
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 3 | Ba module (`:core:ads`, `:core:network`, `:app`), thêm API công khai (`start`, `consentPath`, `consentFlowFinished`, `sdkReady`, `InternetConnectivity`, `ConsentShortcutConfig`, `rememberResetConsent`) |
+| A. Phạm vi thay đổi | 3 | Ba module (`:core:ads`, `:core:network`, `:app`), thêm API công khai (`start`, `AppActivityFilter`, `consentPath`, `consentFlowFinished`, `sdkReady`, `InternetConnectivity`, `ConsentShortcutConfig`, `rememberResetConsent`) |
 | B. Độ rõ của yêu cầu | 1 | Spec đã xác nhận, luật có dẫn chứng; AI tự quyết vài chi tiết: cấu hình build của staging, HD-04 do `:core:ads` tự đọc khóa, nút đặt lại để T-036 (mục 8) |
 | C. Khả năng kiểm chứng tự động | 2 | Mọi luật có unit test với UMP giả; hành vi thật của UMP (form EEA, lỗi mạng thật, rút đồng ý) chỉ kiểm được bằng tay trên máy |
 | D. Ảnh hưởng chéo | 3 | Đổi lúc SDK khởi tạo mà mọi định dạng dựa vào; `AdsController.kt` cũng do T-019, T-021, T-022, T-023 sửa; T-021, T-024, T-025, T-033 dựa vào API mới |
@@ -352,11 +369,11 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `ConsentGa
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
 ## 10. Nhật ký thực hiện
 

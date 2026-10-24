@@ -1,16 +1,16 @@
 ---
 ticket: T-023
 title: Doanh thu theo vị trí ad_impression_placement và số liệu vòng đời Firebase
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (analytics, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-24); nâng vì hai module và năm chỗ nối của SDK
 blocking_points: [analytics, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-023: DOANH THU THEO VỊ TRÍ AD_IMPRESSION_PLACEMENT VÀ SỐ LIỆU VÒNG ĐỜI FIREBASE
@@ -87,7 +87,7 @@ sealed interface AdMetricEvent {
 - `FullScreenShowDecision.opportunityResult(): String?`: `SHOW` ra `shown`, `BUSY` ra `busy`, `NOT_READY` ra `not_ready`, `THROTTLED` ra `throttled`, `CONSENT_CLOSED` và `DISABLED` ra `null` (không phải cơ hội).
 - `loadStateAtDecision(state: FullScreenLoadState, lastErrorLabel: String?): String`: `Ready` ra `ready`, `Loading` ra `loading`, có nhãn lỗi gần nhất ra nhãn đó, còn lại `idle`. `shown` luôn đi với `ready`.
 
-**3. Bộ đếm lượt nạp** (`LoadAttemptCounter.kt`, mới): theo khóa khe (mã vị trí hay `preload` của định dạng): `onRequestSent(slot, now)`, `onLoaded(slot, now): LoadOutcome(attempt, latencyMs)`, `onFailed(slot, now): LoadOutcome`. `attempt` = số lỗi liên tiếp trước đó + 1, về 0 khi thành công; `latencyMs` chỉ có khi callback ứng với một lượt gửi đã ghi (lượt tự làm mới của banner không có). `failuresInARow(slot)` cho T-021 tính thời gian chờ thử lại (F-05, O-05).
+**3. Bộ đếm lượt nạp** (`LoadAttemptCounter.kt`, mới): theo khóa khe (mã vị trí hay `preload` của định dạng): `onRequestSent(slot, now)`, `onLoaded(slot, now): LoadOutcome(attempt, latencyMs)`, `onFailed(slot, now): LoadOutcome`. `attempt` = số lỗi liên tiếp trước đó + 1, về 0 khi thành công; `latencyMs` chỉ có khi callback ứng với một lượt gửi đã ghi (lượt tự làm mới của banner không có). `failuresInARow(slot)` cho T-021 tính thời gian chờ thử lại (F-05, O-05). Bộ đếm là trạng thái của đường nạp, không phải của số liệu: được cập nhật ở **mọi** lượt gửi, thành công và lỗi, không phụ thuộc khóa `is_log_ad_*` hay việc đang được phục vụ quảng cáo (`serving`); tắt số liệu không được làm thời gian chờ thử lại của T-021 đứng ở 2 giây (sửa theo rà soát trước phiên, 2026-10-24).
 
 **4. Dự phòng doanh thu native** (`NativeRevenueFallback.kt`, mới, T-02): mỗi quảng cáo native một đối tượng; `onImpression(now): Long` trả thời điểm tới hạn (`now + 2_000`); `onPaidEvent(): Boolean` true nếu sự kiện này được ghi (lần đầu), và hủy dự phòng; `onDue(now): Boolean` true nếu phải ghi lượt `USD`, `0.0` (chưa ghi lần nào, đã tới hạn). Chỗ nối hẹn bằng `delay` trong scope của `AdsController`, hủy khi quảng cáo bị hủy.
 
@@ -99,19 +99,21 @@ internal class AdTelemetry(
     private val lifecycleSwitches: () -> AdsGlobalFlags,   // latest value of AdsFlags.global, read at each event
     private val serving: () -> Boolean,                    // canRequestAds.value
     private val offline: () -> Boolean,                    // latest InternetConnectivity value, negated
+    private val counter: LoadAttemptCounter,               // updated on every send and result, switches or not
     private val logger: AppLogger,
 )
 ```
 
 - `revenue(format, unitId, placement: () -> AdPlacement?, valueMicros, currency, adSource, adapterClassName)`: luôn ghi. `placement()` ném lỗi thì coi như không có vị trí (PL-04).
-- `loadSucceeded`, `loadFailed`, `opportunity`, `showFailed`, `clicked`: chỉ ghi khi khóa của nhóm (`logFullScreenEvents` hay `logSlotEvents`) bật và `serving()`. `opportunity` bỏ qua khi kết quả là `null` hay không có vị trí (A 06:197).
+- `AdTelemetry` giữ `LoadAttemptCounter` (truyền vào constructor). `requestSent(slot)`, `loadSucceeded`, `loadFailed` cập nhật bộ đếm (`onRequestSent`, `onLoaded`, `onFailed`) ở dòng đầu, luôn luôn, trước và ngoài cổng nhóm và ngoài `try`/`catch` của `metrics.log`; chỗ nối của mục 6 gọi chúng ở mọi lượt gửi và mọi kết quả, dù số liệu đang tắt.
+- `loadSucceeded`, `loadFailed`, `opportunity`, `showFailed`, `clicked`: chỉ **ghi sự kiện** khi khóa của nhóm (`logFullScreenEvents` hay `logSlotEvents`) bật và `serving()`. `opportunity` bỏ qua khi kết quả là `null` hay không có vị trí (A 06:197).
 - Mọi lời gọi `metrics.log` bọc `try`/`catch`: lỗi thì `logger.warn` thẻ `Ads` với tên lớp lỗi, luồng quảng cáo chạy tiếp. Không đưa thông báo lỗi của SDK vào tham số nào (`load_error_code` là mã số dạng chuỗi).
 - Log (ADR-0019): mỗi lượt ghi doanh thu một dòng `debug` (định dạng, vị trí, có phải dự phòng), không ghi mã đơn vị.
 
 **6. Nối với SDK** (các chỗ dưới chỉ đọc dữ liệu của SDK và gọi `AdTelemetry`; không có quyết định nào ở đây):
 
 - `AdsController`: constructor thêm `metrics: AdMetrics`; dựng `AdTelemetry` với `flags.global` thu vào một `StateFlow` (giá trị mặc định của T-019 trước lần phát đầu), `canRequestAds`, `InternetConnectivity.connected` thu vào một `StateFlow`.
-  - Interstitial: lúc gửi `onRequestSent("preload:INTER")`; `onAdLoaded`: `loadSucceeded`, `ad.setOnPaidEventListener` (vị trí đọc từ một ô giữ vị trí của lượt hiện, đặt lại ở mỗi lượt hiện, PL-03); `onAdFailedToLoad`: `loadFailed` với `loadStateAfterError`. Lượt hiện: `decideFullScreenTurn` (T-022) ra quyết định, `opportunity(placement, decision.opportunityResult(), loadStateAtDecision(...))` chụp trước khi kích nạp (8.2); `FullScreenContentCallback.onAdClicked`: `clicked`; `onAdFailedToShowFullScreenContent`: `showFailed(code, showFailReasonOf(code))`.
+  - Interstitial: lúc gửi `requestSent("preload:INTER")` (cập nhật bộ đếm); `onAdLoaded`: `loadSucceeded`, `ad.setOnPaidEventListener` (vị trí đọc từ một ô giữ vị trí của lượt hiện, đặt lại ở mỗi lượt hiện, PL-03); `onAdFailedToLoad`: `loadFailed` với `loadStateAfterError`. Lượt hiện: `decideFullScreenTurn` (T-022) ra quyết định, `opportunity(placement, decision.opportunityResult(), loadStateAtDecision(...))` chụp trước khi kích nạp (8.2); `FullScreenContentCallback.onAdClicked`: `clicked`; `onAdFailedToShowFullScreenContent`: `showFailed(code, showFailReasonOf(code))`.
   - Native toàn màn hình: như interstitial (vị trí lượt nạp `preload`), cộng `AdListener.onAdImpression` để hẹn dự phòng.
   - `nativeAd`, `loadNativeAd`: truyền vào `SdkNativeAdLoader` một `NativeAdEvents` (interface nội bộ mới trong `SdkNativeAdLoader.kt`) gắn với vị trí của màn.
 - `SdkNativeAdLoader.kt`: nhận `events: NativeAdEvents?` (mặc định `null`); trong `forNativeAd` gắn `setOnPaidEventListener`; `AdListener` thêm `onAdImpression` (dự phòng), `onAdClicked`, và gọi `loadSucceeded`, `loadFailed`. Interface `NativeAdLoader` và `loadOneNativeAd` không đổi, nên `FakeNativeAdLoader` và test hiện có giữ nguyên.
@@ -193,6 +195,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdMetrics
 | KB-22, tiêu chí 4 (`load_state`) | Unit test | `AdTelemetryRulesTest.loadStateAfterError_table`: offline với mọi mã ra `network`; 3, 9 `no_fill`; 1 với `sdkThrottled` `sdk_throttled`, không thì `invalid`; 8, 10, 11 `invalid`; 0 `internal`; 2, 7 `unknown`. `loadStateAtDecision_snapshot`: `Ready` `ready`, `Loading` `loading`, `Idle` với nhãn `no_fill` ra `no_fill`, `Idle` không nhãn `idle`, `WaitingRetry` với nhãn `network` ra `network` |
 | KB-22, tiêu chí 4 (`ad_show_fail`) | Unit test | `AdTelemetryRulesTest.showFailReason_table`: 0 tới 4 ra năm lý do của mục 8.2, 9 ra `unknown`. `FirebaseAdMetricsTest.showFail_params`: `show_error_code` là chuỗi `"3"`, `show_fail_reason` |
 | KB-22, tiêu chí 4 (`ad_clicked`, `ad_load_*`) | Unit test | `FirebaseAdMetricsTest.loadFail_params`: `ad_format`, `ad_placement`, `load_attempt` (`Long`), `latency_ms` (`Long`), `load_error_code` (chuỗi), `load_state`. `clicked_params`: `ad_format`, `ad_placement` |
+| Bộ đếm không theo công tắc số liệu | Unit test | `AdTelemetryTest.loadCounter_updatesWhenLoggingOff`: cả hai khóa tắt và `serving = false`; `requestSent`, `loadFailed` hai lần cho cùng khe: `counter.failuresInARow(slot)` là 1 rồi 2, `RecordingAdMetrics` không có sự kiện nào; `requestSent`, `loadSucceeded`: về 0. Đối chứng (L-055): cùng chuỗi với khóa bật và `serving = true` cho cùng số đếm và có sự kiện. Khung rỗng thất bại vì `AdTelemetry` không đếm. T-021 dựa vào test này |
 | `load_attempt`, `latency_ms` | Unit test | `LoadAttemptCounterTest.attemptCountsFailuresInARow`: gửi, lỗi, gửi, lỗi, gửi, thành công: `attempt` 1, 2, 3; sau thành công, lượt tiếp `attempt` 1; `failuresInARow` 2 trước thành công, 0 sau. `latencyFromThisRequest`: gửi ở 1 000, kết quả ở 1 250: 250. `callbackWithoutRequest_hasNoLatency`: `onLoaded` không có `onRequestSent` trước (banner tự làm mới): `latencyMs == null`. Khung rỗng thất bại ở attempt thứ hai |
 | Vị trí của lượt nạp (8.2) | Unit test | `AdTelemetryRulesTest.loadPlacement_table`: `INTERSTITIAL`, `NATIVE_FULL_SCREEN`, `APP_OPEN`, `REWARDED` với màn bất kỳ ra `preload`; `NATIVE_SMALL` với màn ra mã màn, không màn ra `preload`; `BANNER` không màn ra `null` |
 | Nhóm định dạng | Unit test | `AdTelemetryRulesTest.metricGroup_fullScreenFour`: đúng 4 định dạng ra `FULL_SCREEN` |
@@ -280,11 +283,11 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: `AdMetrics
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
 ## 10. Nhật ký thực hiện
 

@@ -1,16 +1,16 @@
 ---
 ticket: T-019
 title: Khóa Remote Config quảng cáo theo tên AdsKit và danh sách vị trí theo mô hình chung
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-24); nâng vì khoảng 40 file ở ba module
 blocking_points: [ads, core, build]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-24
 ---
 
 # PLAN T-019: KHÓA REMOTE CONFIG QUẢNG CÁO THEO TÊN ADSKIT VÀ DANH SÁCH VỊ TRÍ THEO MÔ HÌNH CHUNG
@@ -139,6 +139,7 @@ enum class OpenAdType { APP_OPEN, INTERSTITIAL }
 
 - Trong task này mọi vị trí không phải `gallery_*` giữ đúng dạng một dòng script đọc được (dự án mẫu chỉ có `sample_native_small`, không có nhóm riêng hay tham số).
 - Thêm test `AdPlacementSourceTest` đọc `src/main/.../AdPlacement.kt`, áp đúng biểu thức của `release.sh` (chép lại, chú thích dẫn dòng 42), so tập mã đọc được với `AdPlacement.entries.filterNot { it.stagingOnly }`. App khai báo vị trí có nhóm riêng hay tham số mà chưa sửa script thì test này đỏ, thay vì bản phát hành thiếu mã. Sửa biểu thức trong `release.sh` là việc của người (câu hỏi 1 ở mục 8).
+- `docs/ops/ads-guide.md` mục 5 bước 2 (câu hỏi 1 ở mục 8): bỏ dạng `TEN_VI_TRI("ten_vi_tri", AdFormat.X, ...),`, ghi dạng đúng `TEN_VI_TRI("ten_vi_tri", AdFormat.X),` và giới hạn hiện tại: dòng của vị trí không phải `gallery_*` phải là một dòng, không có thuộc tính (nhóm giãn cách riêng, `nativeEvery`, `ignoreInterval`...) sau định dạng, cho tới khi người sửa biểu thức dòng 42 của `release.sh`; dòng có thuộc tính làm `AdPlacementSourceTest` đỏ. Vị trí cần thuộc tính thì hỏi người sửa script trước khi khai báo.
 
 **Hệ quả chuyển đổi cho vị trí của đợt 2:**
 
@@ -202,7 +203,7 @@ Log (ADR-0019): giữ thẻ `Ads`; không ghi tên khóa kèm giá trị của n
 | Ghi lại | `docs/remote-config-keys.md` | Sinh lại bằng `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true`, không sửa tay |
 | Ghi lại | `docs/remote-config-template.json` | Sinh lại cùng lệnh |
 | Sửa | `docs/ops/remote-config.md` | Bỏ ghi chú đợt 2 (dòng 5, 26, 58), mục 3 bước 2 nêu khóa suy ra (`placementEnabled`, `interval`, `nativeEvery`) và `AppsFlyerSettings` |
-| Sửa | `docs/ops/ads-guide.md` | Bỏ ghi chú "tới khi T-019" (mục 5 bước 3, mục 6), bảng "Hiện có (đợt 2)" của mục 6 thay bằng câu dẫn về mục 10 của `ads-business-rules.md`; N của native trong danh sách là `native_every_<mã vị trí>` |
+| Sửa | `docs/ops/ads-guide.md` | Mục 5 bước 2: dạng dòng khai báo và giới hạn của `release.sh` (mục 3.1, câu hỏi 1); bỏ ghi chú "tới khi T-019" (mục 5 bước 3, mục 6), bảng "Hiện có (đợt 2)" của mục 6 thay bằng câu dẫn về mục 10 của `ads-business-rules.md`; N của native trong danh sách là `native_every_<mã vị trí>` |
 | Sửa | `docs/features/ads/tickets/T-019-khoa-remote-config-theo-adskit.md` | Trạng thái ticket theo phiên tự chạy |
 | Sửa | `docs/features/ads/plans/T-019-khoa-remote-config-theo-adskit.md` | Nhật ký thực hiện |
 
@@ -351,11 +352,11 @@ Không cần (E dưới 2). Đã kiểm trước một điểm đo được bằ
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
+<!-- Người duyệt điền. AI ghi lại theo lời người duyệt. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
 ## 10. Nhật ký thực hiện
 
