@@ -1,7 +1,7 @@
 ---
 ticket: T-034
 title: Mediation chín mạng
-status: approved                 # draft | approved | stopped | done
+status: done                     # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -383,3 +383,15 @@ Phiên bản 2: **Duyệt**. Người duyệt: Nhật, duyệt chéo: Nhật. AI
 - **Lệch so với plan:** chú thích một dòng ở bước 3 dài 124 ký tự ở đúng thụt lề, tách thành hai dòng (giới hạn 120 của ktlint). Test `an AppLovin SDK key fails` gộp kiểm che khóa vào cùng một `expect` (giá trị thực: "<mã trả về> <số lần khóa đầy đủ xuất hiện>", mong đợi "1 0"), giữ số test là hai. Không đổi điều test kiểm.
 - **Việc còn lại:** bước 4 đến 10 (xem mục 3.1, Tiếp tục).
 - **Cần người xem:** cho phép `artifact.bytedance.com` và `dl-maven-android.mintegral.com` trong chính sách mạng của môi trường cloud (`docs/ops/staging-and-runs.md`), hoặc chạy task trên máy dev; duyệt plan phiên bản 2.
+
+### RUN-20261024-03, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #134, commit `71d73c9`, 13:29 UTC).
+- **Nhánh, PR:** `claude/T-034-mediation-chin-mang`, PR #134. Gộp nhánh chính `3cb29be`; code `bf9c4ac` (manifest, `app/lint.xml`, `secret-scan.py`), `f57ca3d` (tài liệu), `71d73c9` (sửa theo rà soát). Bước 4 và 5 do phiên con làm trong worktree riêng.
+- **Môi trường:** `pag-sdk-8.3.0.4.pom` và `mbridge_android_sdk-17.1.81.pom` trả 200 từ môi trường cloud; lần build đầu tải đủ thư viện từ hai kho mới, không có lỗi tải. Log không có `repo.maven.apache.org` hay `repo1.maven.org`.
+- **Test viết trước:** 9 test của `c2b821a` (phiên trước). Lần 2, có thư viện, chưa sửa manifest: `hasNoMetaAudienceNetworkProvider` thất bại "AudienceNetworkContentProvider starts the Meta SDK before consent", `hasNoMintegralNetworkReceiver` thất bại "NetWorkChangeReceiver is exported and never gets the system broadcast it filters"; 8 test còn lại của `MergedManifestTest` và 3 test classpath qua. Lần 3, sau khi sửa manifest: `MergedManifestTest` 10/10 qua. Lint trước khi có `app/lint.xml`: đúng 1 lỗi `NotificationPermission` từ `com.squareup.picasso.RemoteViewsAction.NotificationAction`. 6 test `secret-scan` qua sau khi sửa script.
+- **Kiểm tra cục bộ:** `scripts/check.sh` qua lần đầu: 547 test JVM, 0 lỗi; 42 ảnh screenshot, không ảnh mới hay đổi. `:app:dependencies --configuration stagingReleaseRuntimeClasspath`: chín tọa độ đúng phiên bản, `play-services-ads` 25.5.0, UMP 4.0.0, `kotlin-stdlib` 2.2.10, không thư viện nào trong catalog đổi; thư viện bị nâng khớp mục 4.1 (thêm `appcompat-resources` 1.4.2, `failureaccess` 1.0.2, `checker-qual` 3.41.0; `j2objc-annotations` không còn vì guava 33). Báo cáo manifest-merger: `REJECTED` cho 3 phần tử của T-015, provider Meta và receiver Mintegral; dòng `REJECTED` cho `RECEIVE_BOOT_COMPLETED` của `work-runtime` có sẵn trên nhánh chính. `:app:minifyStagingReleaseWithR8` qua, 22 cảnh báo "Missing class" như mục 4.1.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa (câu "`MergedManifestTest` bắt khi tên đổi" trong `ads-guide.md` sai: test chỉ kiểm tên cũ; đã sửa `71d73c9`), 4 ghi chú (mẫu khóa AppLovin chỉ áp dòng có chữ `applovin`; `hasNoAppLovinSdkKey` chỉ kiểm meta-data, resource và `BuildConfig` dựa vào `secret-scan`; KB-9 tiêu chí 2 chỉ kiểm thủ công; nhật ký ghi ở bước 10).
+- **Kết quả CI:** `pr-check` xanh lần đầu (lần chạy 40097146576).
+- **Lệch so với plan:** lần chạy đối chứng (dependencies, manifest-merger trên nhánh chính) làm trong worktree của task bằng cách tạm chép 4 file build của nhánh chính rồi đặt lại, không commit. `secret-scan.py` thêm bảng `LINE_FILTERS` để mẫu 86 ký tự chỉ áp dòng có chữ `applovin`. Câu nối trong `release.md` mục 1.4 rút gọn để khỏi lặp câu có sẵn.
+- **Cần người xem:** kiểm thủ công 1 đến 3 trên bản staging, kiểm thủ công 4 trên app đầu tiên có mã AdMob thật; ADR-0026 mục 8 vẫn ghi chữ "lúc build" (plan không sửa ADR).
