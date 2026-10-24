@@ -406,3 +406,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: tiêu chí chấp nhận áp cho mọi lượt gửi (ví dụ "không gửi ở nền") thì liệt kê mọi đường gửi (lượt đầu, nạp sẵn, thử lại, nạp lại) và cho mỗi đường một test, hoặc đưa điều kiện vào một hàm thuần mà mọi đường dùng chung; không để đường nào chỉ nằm trong ngoại lệ nối.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
+
+### L-074. Thư viện mới qua `check.sh` và CI nhưng bản release (R8) hỏng, chỉ lộ khi phát staging
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-053 của app, issue #131)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** ở app, một task thêm `play-review-ktx`. `check.sh`, `pr-check` và `main-guard` chỉ build bản debug, nên R8 (`:app:minifyStagingReleaseWithR8`) hỏng vì `Missing class com.google.android.gms.common.annotation.NoNullnessRewrite` chỉ lộ ở `device-session` cuối phiên, sau khi PR đã merge. Bản staging không phát được cho tới khi có PR sửa luật R8.
+- **Cải tiến:** `pr-check.yml` có bộ lọc `release` (`gradle/libs.versions.toml`, file `*.gradle.kts`, `build-logic/**`, `gradle.properties`, `proguard-rules.pro`, `consumer-rules.pro`, chính workflow); khi bộ lọc khớp, `build-and-test` chạy thêm `./gradlew :app:assembleStagingRelease` (không cần bí mật: file Firebase giả, APK không ký), bình luận lỗi nêu rõ bản release thất bại. `docs/CLAUDE.md`, mục Khi viết plan: plan thêm thư viện hay module chạy thử `:app:assembleStagingRelease` ở mục 4.1 và ghi luật R8 vào mục 3.2. `auto-run.md` bước 8: bước release đỏ là lỗi thật của task. Ở app: PR thử #93 đỏ đúng lỗi R8 đã gặp.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-pr-check-release`
