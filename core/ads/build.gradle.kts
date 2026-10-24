@@ -17,6 +17,7 @@ extensions.configure<RoborazziExtension> {
 }
 
 dependencies {
+    implementation(project(":core:analytics"))
     implementation(project(":core:config"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))

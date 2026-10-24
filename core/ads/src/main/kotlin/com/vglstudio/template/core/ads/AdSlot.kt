@@ -24,8 +24,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
 import kotlinx.coroutines.launch
 
 /**
@@ -53,11 +55,16 @@ fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
         Box(modifier = modifier)
         return
     }
-    BannerAd(ads = ads, unitId = unitId, modifier = modifier)
+    BannerAd(ads = ads, placement = placement, unitId = unitId, modifier = modifier)
 }
 
+/**
+ * The banner of [placement]. Its paid events, load results and clicks go to the ad metrics (plan T-023): no
+ * zero-value fallback for banners (T-02); only the first result after [AdView.loadAd] has a latency, the refreshes
+ * of the SDK have none (A 06:157).
+ */
 @Composable
-private fun BannerAd(ads: AdsController, unitId: String, modifier: Modifier) {
+private fun BannerAd(ads: AdsController, placement: AdPlacement, unitId: String, modifier: Modifier) {
     BoxWithConstraints(modifier = modifier) {
         val context = LocalContext.current
         val screenWidthDp = LocalConfiguration.current.screenWidthDp
@@ -67,9 +74,13 @@ private fun BannerAd(ads: AdsController, unitId: String, modifier: Modifier) {
             AdView(context).apply {
                 adUnitId = unitId
                 setAdSize(adSize)
+                attachBannerMetrics(ads, placement, unitId)
             }
         }
-        LaunchedEffect(adView) { adView.loadAd(ads.adRequest()) }
+        LaunchedEffect(adView) {
+            ads.telemetry.requestSent(placement.key, ads.metricsNowMillis())
+            adView.loadAd(ads.adRequest())
+        }
 
         val lifecycleOwner = LocalLifecycleOwner.current
         DisposableEffect(adView, lifecycleOwner) {
@@ -89,6 +100,37 @@ private fun BannerAd(ads: AdsController, unitId: String, modifier: Modifier) {
 
         // The height is reserved before the ad loads, so the screen does not jump when it appears.
         AndroidView(factory = { adView }, modifier = Modifier.fillMaxWidth().height(adSize.height.dp))
+    }
+}
+
+private fun AdView.attachBannerMetrics(ads: AdsController, placement: AdPlacement, unitId: String) {
+    val telemetry = ads.telemetry
+    val format = placement.format
+    val loadPlacement = loadPlacementOf(format, placement)
+    setOnPaidEventListener { value ->
+        val adapter = responseInfo?.loadedAdapterResponseInfo
+        telemetry.revenue(
+            format,
+            unitId,
+            { placement },
+            value.valueMicros,
+            value.currencyCode,
+            adapter?.adSourceName,
+            adapter?.adapterClassName,
+        )
+    }
+    val slot = placement.key
+    adListener = object : AdListener() {
+        override fun onAdLoaded() {
+            telemetry.loadSucceeded(format, slot, loadPlacement, ads.metricsNowMillis())
+        }
+
+        override fun onAdFailedToLoad(error: LoadAdError) {
+            val now = ads.metricsNowMillis()
+            telemetry.loadFailed(format, slot, loadPlacement, error.code, error.message, now)
+        }
+
+        override fun onAdClicked() = telemetry.clicked(format, placement)
     }
 }
 
