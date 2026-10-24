@@ -6,13 +6,43 @@ import androidx.core.graphics.drawable.toBitmap
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MediaAspectRatio
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdOptions
 
-/** Loads native ads with the Google Mobile Ads SDK. Main thread only, like the SDK. */
-internal class SdkNativeAdLoader(private val context: Context, private val request: AdRequest) : NativeAdLoader {
+/**
+ * The SDK callbacks of one native ad that the ad metrics read (plan T-023). Only reads data of the SDK; every
+ * decision is made by [AdTelemetry].
+ */
+internal interface NativeAdEvents {
+    fun onRequestSent()
+
+    fun onLoaded(ad: NativeAd)
+
+    /** [sdkMessage] is read on the device only, never sent (section 8.2). */
+    fun onFailed(code: Int, sdkMessage: String?)
+
+    fun onPaid(value: AdValue)
+
+    fun onImpression()
+
+    fun onClicked()
+
+    /** The ad is destroyed: the zero-value fallback of T-02 is cancelled. */
+    fun onDestroyed()
+}
+
+/**
+ * Loads native ads with the Google Mobile Ads SDK. Main thread only, like the SDK. [events] gets the callbacks the
+ * ad metrics read; one loader loads one ad.
+ */
+internal class SdkNativeAdLoader(
+    private val context: Context,
+    private val request: AdRequest,
+    private val events: NativeAdEvents? = null,
+) : NativeAdLoader {
     override fun load(
         unitId: String,
         size: NativeAdSize,
@@ -29,21 +59,41 @@ internal class SdkNativeAdLoader(private val context: Context, private val reque
                 }
             }
             .build()
-        AdLoader.Builder(context, unitId)
-            .forNativeAd { ad -> onLoaded(SdkLoadedNativeAd(ad)) }
+        val loader = AdLoader.Builder(context, unitId)
+            .forNativeAd { ad ->
+                events?.let { metrics ->
+                    // Attached at load (T-01), before the ad can be shown.
+                    ad.setOnPaidEventListener { metrics.onPaid(it) }
+                    metrics.onLoaded(ad)
+                }
+                onLoaded(SdkLoadedNativeAd(ad, events))
+            }
             .withAdListener(
                 object : AdListener() {
-                    override fun onAdFailedToLoad(error: LoadAdError) = onFailed(error.code)
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        events?.onFailed(error.code, error.message)
+                        onFailed(error.code)
+                    }
+
+                    override fun onAdImpression() {
+                        events?.onImpression()
+                    }
+
+                    override fun onAdClicked() {
+                        events?.onClicked()
+                    }
                 },
             )
             .withNativeAdOptions(options)
             .build()
-            .loadAd(request)
+        events?.onRequestSent()
+        loader.loadAd(request)
     }
 }
 
 /** A native ad from the SDK; [nativeAd] is bound to the NativeAdView by [BoundNativeAd]. */
-internal class SdkLoadedNativeAd(val nativeAd: NativeAd) : LoadedNativeAd {
+internal class SdkLoadedNativeAd(val nativeAd: NativeAd, private val events: NativeAdEvents? = null) :
+    LoadedNativeAd {
     override val assets = NativeAdAssets(
         headline = nativeAd.headline.orEmpty(),
         advertiser = nativeAd.advertiser,
@@ -54,5 +104,8 @@ internal class SdkLoadedNativeAd(val nativeAd: NativeAd) : LoadedNativeAd {
         hasMedia = nativeAd.mediaContent != null,
     )
 
-    override fun destroy() = nativeAd.destroy()
+    override fun destroy() {
+        events?.onDestroyed()
+        nativeAd.destroy()
+    }
 }

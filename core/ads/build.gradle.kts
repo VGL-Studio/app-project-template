@@ -17,6 +17,7 @@ extensions.configure<RoborazziExtension> {
 }
 
 dependencies {
+    implementation(project(":core:analytics"))
     implementation(project(":core:config"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
@@ -25,6 +26,15 @@ dependencies {
 
     implementation(libs.play.services.ads)
     implementation(libs.admob.mediation.applovin)
+    implementation(libs.admob.mediation.meta)
+    implementation(libs.admob.mediation.dtexchange)
+    implementation(libs.admob.mediation.inmobi)
+    implementation(libs.admob.mediation.ironsource)
+    implementation(libs.admob.mediation.mintegral)
+    implementation(libs.admob.mediation.moloco)
+    implementation(libs.admob.mediation.pangle)
+    implementation(libs.admob.mediation.unity)
+    implementation(libs.unity.ads)
     implementation(libs.user.messaging.platform)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
