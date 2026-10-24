@@ -31,7 +31,18 @@ internal fun decidePreload(
     gate: PreloadGate,
     everRequested: Boolean,
     running: Boolean,
-): PreloadDecision = PreloadDecision.RUN
+): PreloadDecision = when {
+    !gate.sdkStarted -> PreloadDecision.IGNORE_SDK_NOT_STARTED
+    gate.consentDenied -> PreloadDecision.IGNORE_CONSENT_DENIED
+    !everRequested && reason != PreloadReason.SDK_READY -> PreloadDecision.IGNORE_NEVER_REQUESTED
+    running -> PreloadDecision.IGNORE_RUNNING
+    !gate.sdkReady || !gate.mayRequest -> PreloadDecision.HOLD
+    else -> PreloadDecision.RUN
+}
+
+/** S-21: the longest wait for the init callback of the SDK. */
+internal const val SDK_READY_CAP_MILLIS = 35_000L
 
 /** S-21: ready at the init callback, or 35 s after init started; never before init started (S-19). */
-internal fun sdkReadyAt(initStartedAt: Long?, callbackArrived: Boolean, now: Long): Boolean = callbackArrived
+internal fun sdkReadyAt(initStartedAt: Long?, callbackArrived: Boolean, now: Long): Boolean =
+    initStartedAt != null && (callbackArrived || now - initStartedAt >= SDK_READY_CAP_MILLIS)

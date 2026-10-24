@@ -38,11 +38,32 @@ class PreloadDecisionTest {
                 false,
                 PreloadDecision.IGNORE_CONSENT_DENIED,
             ),
-            Row("never requested", PreloadReason.NETWORK_BACK, open, false, false, PreloadDecision.IGNORE_NEVER_REQUESTED),
+            Row(
+                "never requested",
+                PreloadReason.NETWORK_BACK,
+                open,
+                false,
+                false,
+                PreloadDecision.IGNORE_NEVER_REQUESTED,
+            ),
             Row("first preload", PreloadReason.SDK_READY, open, false, false, PreloadDecision.RUN),
             Row("running", PreloadReason.NETWORK_BACK, open, true, true, PreloadDecision.IGNORE_RUNNING),
-            Row("SDK not ready", PreloadReason.NETWORK_BACK, open.copy(sdkReady = false), true, false, PreloadDecision.HOLD),
-            Row("gate closed", PreloadReason.NETWORK_BACK, open.copy(mayRequest = false), true, false, PreloadDecision.HOLD),
+            Row(
+                "SDK not ready",
+                PreloadReason.NETWORK_BACK,
+                open.copy(sdkReady = false),
+                true,
+                false,
+                PreloadDecision.HOLD,
+            ),
+            Row(
+                "gate closed",
+                PreloadReason.NETWORK_BACK,
+                open.copy(mayRequest = false),
+                true,
+                false,
+                PreloadDecision.HOLD,
+            ),
         )
         rows.forEach { row ->
             assertEquals(row.name, row.expected, decidePreload(row.reason, row.gate, row.everRequested, row.running))

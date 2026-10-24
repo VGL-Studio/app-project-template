@@ -37,7 +37,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -65,6 +64,10 @@ import kotlinx.coroutines.withContext
  *
  * Consent follows the PARTNER rules S-01 to S-19 ([ConsentCoordinator], [ConsentGate]): the ads SDK is initialized the
  * first time the consent gate opens, and every request asks the gate right before it is sent ([mayRequestNow]).
+ *
+ * Preloads follow S-20 to S-25 (plan T-021): no slot loads by itself; every preload, reload when Internet comes back
+ * and native refill goes through the plan ([AdPreloadPlan], [AdPreloader]) once the SDK is ready. Failed loads retry
+ * by F-05 and O-05 ([FullScreenReloads], [retryingNativeAdStates]).
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
  */
@@ -112,6 +115,19 @@ class AdsController @Inject internal constructor(
     private val gate = ConsentGate()
     private var tracker: AdsActivityTracker? = null
     private val sdkStarted = MutableStateFlow(false)
+
+    /** True while an app activity is started, as [AdsActivityTracker] reports it; native requests wait for it. */
+    private val foregroundState = MutableStateFlow(false)
+
+    /** When `MobileAds.initialize` was called (S-21), and whether its callback came. */
+    private var sdkInitStartedAt: Long? = null
+    private var sdkCallbackArrived = false
+
+    /** Failures in a row per load slot: the metrics and the retry waits read the same counter (plan T-021). */
+    private val loadCounter = LoadAttemptCounter()
+
+    /** The switch of each full-screen placement, as last read in [start]; off until then (ADR-0014). */
+    private val enabledNow = mutableMapOf<AdPlacement, Boolean>()
 
     /** Latest values read by the metrics, collected from [start]; before it nothing is served (S-19). */
     private val latestGlobalFlags = MutableStateFlow<AdsGlobalFlags?>(null)
@@ -170,7 +186,7 @@ class AdsController @Inject internal constructor(
         lifecycleSwitches = { latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS },
         serving = { canRequestAds.value },
         offline = { !online.value },
-        counter = LoadAttemptCounter(),
+        counter = loadCounter,
         logger = logger,
     )
 
@@ -186,8 +202,46 @@ class AdsController @Inject internal constructor(
 
     private val _sdkReady = MutableStateFlow(false)
 
-    /** True once the ads SDK has reported its initialization (`MobileAds.initialize` callback). */
+    /**
+     * True once the ads SDK has reported its initialization (`MobileAds.initialize` callback), or 35 s after it was
+     * started (S-21). Only the preload plan waits for it; [canRequestAds] does not (question 10 of plan T-021).
+     */
     val sdkReady: StateFlow<Boolean> = _sdkReady.asStateFlow()
+
+    private val fullScreenReloads = FullScreenReloads(
+        scope = scope,
+        clock = clock,
+        failuresInARow = { loadCounter.failuresInARow(preloadCounterKey(it.key)) },
+        loadIfNeeded = { loadFullScreenAdIfNeeded(it) },
+        foreground = foregroundState,
+        logger = logger,
+    )
+
+    /** One slot of the preload plan per full-screen placement. */
+    private val preloadSlots: List<PreloadSlot> = fullScreenPlacements().map { placement ->
+        FullScreenPreloadSlot(
+            placement = placement,
+            enabled = { enabledNow[placement] == true },
+            state = { fullScreenLoadState(placement) },
+            load = { loadFullScreenAdIfNeeded(it) },
+        )
+    }
+
+    private val preloader = AdPreloader(
+        scope = scope,
+        runner = PreloadPlanRunner(clock, logger),
+        slotsOf = { format -> preloadSlots.filter { it.format == format } },
+        gate = {
+            PreloadGate(
+                sdkStarted = sdkStarted.value,
+                sdkReady = _sdkReady.value,
+                mayRequest = mayRequestNow(),
+                consentDenied = gate.state.value.path == ConsentPath.DENIED_OR_REQUIRED,
+            )
+        },
+        askConsentAgain = { coordinator.onPreloadRequested() },
+        logger = logger,
+    )
 
     /**
      * True when the user must be able to reopen the consent form ([PrivacyOptionsButton]).
@@ -209,9 +263,16 @@ class AdsController @Inject internal constructor(
         val activityTracker = AdsActivityTracker(
             appActivities,
             object : AdsActivityTracker.Listener {
-                override fun onForegroundChanged(foreground: Boolean) = coordinator.onForegroundChanged(foreground)
+                override fun onForegroundChanged(foreground: Boolean) {
+                    foregroundState.value = foreground
+                    coordinator.onForegroundChanged(foreground)
+                }
 
-                override fun onActivityResumed(activity: Activity) = resumeSteps.onResumed(activity)
+                override fun onActivityResumed(activity: Activity) {
+                    resumeSteps.onResumed(activity)
+                    // S-25, after the steps of G-06.
+                    preloader.onActivityResumed(presence.showing.value)
+                }
 
                 override fun onActivityPaused(activity: Activity) =
                     stuck.onActivityPaused(System.identityHashCode(activity), presence.current?.hostActivityId)
@@ -234,6 +295,34 @@ class AdsController @Inject internal constructor(
             }
         }
         scope.launch { flags.global.collect { latestGlobalFlags.value = it } }
+        collectPreloadTriggers()
+    }
+
+    /**
+     * What asks the plan for a preload besides the SDK getting ready: a full-screen placement switched on remotely
+     * (S-20), a change of the gate for a held preload (S-23), Internet back (S-24).
+     */
+    private fun collectPreloadTriggers() {
+        val placements = fullScreenPlacements()
+        scope.launch {
+            combine(placements.map { placement -> isEnabled(placement).map { placement to it } }) { it.toMap() }
+                .collect { switches ->
+                    val switchedOn = switches.any { (placement, on) -> on && enabledNow[placement] != true }
+                    enabledNow.putAll(switches)
+                    if (switchedOn) preloader.request(PreloadReason.PLACEMENT_ENABLED)
+                }
+        }
+        scope.launch {
+            combine(canRequestAds, sdkReady, consentPath, foregroundState) { _, _, _, _ -> }
+                .collect { preloader.onGateChanged() }
+        }
+        // The value read in start, so Internet is watched once (S-24, T-016).
+        scope.launch { networkReturns(online).collect { preloader.onNetworkReturned() } }
+    }
+
+    /** Sets the preload plan (HD-02); call it in `Application.onCreate`, before consent has a result. */
+    fun setPreloadPlan(plan: AdPreloadPlan) {
+        preloader.setPlan(plan)
     }
 
     /** Milliseconds of the monotonic clock, for the load latency of the ad metrics. */
@@ -294,23 +383,41 @@ class AdsController @Inject internal constructor(
             startSdk()
         } else if (sdkStarted.value) {
             logger.info(TAG, "Consent gate opened again: preload")
-            fullScreenPlacements().forEach(::preloadNow)
+            preloader.request(PreloadReason.GATE_REOPENED)
         }
     }
 
     private fun startSdk() {
+        sdkInitStartedAt = clock.nowMillis()
+        // S-21: the SDK counts as ready 35 s after it was started, even without its callback.
+        scope.launch {
+            delay(SDK_READY_CAP_MILLIS)
+            updateSdkReady("35 s cap")
+        }
         scope.launch {
             // Google recommends starting the SDK off the main thread.
             withContext(Dispatchers.IO) {
                 // The listener runs once every adapter is initialized or timed out (KB-9).
                 MobileAds.initialize(context) { status ->
                     adapterStatusLines(status.adapterStatusMap).forEach { logger.info(TAG, it) }
-                    _sdkReady.value = true
+                    scope.launch {
+                        sdkCallbackArrived = true
+                        updateSdkReady("callback")
+                    }
                 }
             }
             sdkStarted.value = true
-            fullScreenPlacements().forEach(::preloadWhenEnabled)
+            // The first preload of the plan, once the SDK is both started and ready (S-20, S-21).
+            _sdkReady.first { it }
+            preloader.request(PreloadReason.SDK_READY)
         }
+    }
+
+    /** Main thread. */
+    private fun updateSdkReady(source: String) {
+        if (_sdkReady.value || !sdkReadyAt(sdkInitStartedAt, sdkCallbackArrived, clock.nowMillis())) return
+        logger.info(TAG, "SDK ready: $source")
+        _sdkReady.value = true
     }
 
     private fun fullScreenPlacements() = AdPlacement.entries.filter { it.format.isFullScreen }
@@ -379,14 +486,14 @@ class AdsController @Inject internal constructor(
                     // First line (I-05): the mark is written before anything else can fail.
                     recordIntervalMark(placement)
                     endTurn(turn, "closed")
-                    preloadInterstitial(placement)
+                    fullScreenReloads.onClosedOrShowFailed(placement)
                 }
 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
                     logger.warn(TAG, "Interstitial ${placement.key} failed to show: ${error.code}")
                     telemetry.showFailed(AdFormat.INTERSTITIAL, placement, error.code)
                     endTurn(turn, "show_failed")
-                    preloadInterstitial(placement)
+                    fullScreenReloads.onClosedOrShowFailed(placement)
                 }
 
                 override fun onAdClicked() = telemetry.clicked(AdFormat.INTERSTITIAL, placement)
@@ -452,7 +559,7 @@ class AdsController @Inject internal constructor(
         nativeTurn = null
         if (turn != null) endTurn(turn, "closed") else presence.onClosed()
         logger.info(TAG, "Native full-screen closed")
-        preloadNativeFullScreen(shown.placement)
+        fullScreenReloads.onClosedOrShowFailed(shown.placement)
     }
 
     /**
@@ -581,9 +688,11 @@ class AdsController @Inject internal constructor(
     }
 
     /**
-     * The states of one native ad of [placement] for a slot on screen ([nativeAdStates]): loading, then loaded or
-     * unavailable after [NATIVE_LOAD_TIMEOUT_MILLIS]. The ad is destroyed when the collection is cancelled.
-     * The caller checks consent and [isEnabled] first, like [NativeAdSlot].
+     * The states of one native ad of [placement] for a slot on screen ([retryingNativeAdStates]): loading, then loaded,
+     * or unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back
+     * cuts the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
+     * (T-023). The ad is destroyed when the collection is cancelled. The caller checks consent and [isEnabled] first,
+     * like [NativeAdSlot].
      */
     internal fun nativeAd(placement: AdPlacement): Flow<NativeAdState> {
         val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
@@ -593,23 +702,22 @@ class AdsController @Inject internal constructor(
                 emit(NativeAdState.Unavailable)
                 return@flow
             }
-            if (!mayRequestNow()) {
-                logger.info(TAG, "Native ${placement.key} not requested: consent gate closed")
-                emit(NativeAdState.Unavailable)
-                return@flow
-            }
             emitAll(
-                nativeAdStates(
-                    SdkNativeAdLoader(
-                        context,
-                        adRequest(),
-                        nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD),
+                retryingNativeAdStates(
+                    load = nativeLoadOnce(
+                        newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD) },
+                        newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
+                        unitId = unitId,
+                        size = size,
+                        timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
+                        logger = logger,
+                        placementKey = placement.key,
                     ),
-                    unitId,
-                    size,
-                    NATIVE_LOAD_TIMEOUT_MILLIS,
-                    logger,
-                    placement.key,
+                    foreground = foregroundState,
+                    mayRequestNow = ::mayRequestNow,
+                    retryResets = preloader.nativeRetryResets,
+                    logger = logger,
+                    placementKey = placement.key,
                 ),
             )
         }
@@ -723,13 +831,6 @@ class AdsController @Inject internal constructor(
     /** Personalization follows the consent string of UMP only (question 8 of the ads spec): no `npa` extra. */
     internal fun adRequest(): AdRequest = AdRequest.Builder().build()
 
-    /** Placements are off by default (ADR-0014): load an ad only once the placement is switched on remotely. */
-    private fun preloadWhenEnabled(placement: AdPlacement) {
-        scope.launch {
-            isEnabled(placement).distinctUntilChanged().filter { it }.collect { preloadNow(placement) }
-        }
-    }
-
     /** Preloads one full-screen ad of [placement] now; each loader checks the switches and the gate itself. */
     private fun preloadNow(placement: AdPlacement) {
         when (placement.format) {
@@ -739,11 +840,13 @@ class AdsController @Inject internal constructor(
     }
 
     /**
-     * Loads one native full-screen ad of [placement] for later, unless a fresh one is kept or loading, or the
-     * placement is off. Media of any aspect ratio, video muted, AdChoices in the top right corner.
+     * Loads one native full-screen ad of [placement] for later, unless a fresh one is kept, one is loading or a retry
+     * is not due (F-04), or the placement is off. Media of any aspect ratio, video muted, AdChoices in the top right
+     * corner. A failure retries by O-05 ([FullScreenReloads]).
      */
     private fun preloadNativeFullScreen(placement: AdPlacement) {
-        if (fullScreenLoadState(placement) != FullScreenLoadState.Idle) return
+        // The gate is asked right before sending, below.
+        if (!needsLoad(fullScreenLoadState(placement), clock.nowMillis(), gateOpen = true)) return
         val unitId = unitId(placement) ?: return
         loadStates[placement] = FullScreenLoadState.Loading
         scope.launch {
@@ -751,62 +854,85 @@ class AdsController @Inject internal constructor(
                 loadStates -= placement
                 return@launch
             }
-            val options = NativeAdOptions.Builder()
-                .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT)
-                .setMediaAspectRatio(MediaAspectRatio.ANY)
-                .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
-                .build()
             val cell = PlacementCell()
             val events = NativeAdMetrics(
                 format = AdFormat.NATIVE_FULL_SCREEN,
                 unitId = unitId,
                 load = telemetry.countedLoad(
                     AdFormat.NATIVE_FULL_SCREEN,
-                    preloadSlot(AdFormat.NATIVE_FULL_SCREEN),
+                    preloadCounterKey(placement.key),
                     loadPlacementOf(AdFormat.NATIVE_FULL_SCREEN, placement),
                 ),
                 placement = { cell.value },
                 onLoadFailed = { lastLoadErrors[placement] = it },
             )
-            val loader = AdLoader.Builder(context, unitId)
-                .forNativeAd { ad ->
-                    loadStates -= placement
-                    lastLoadErrors -= placement
-                    ad.setOnPaidEventListener { events.onPaid(it) }
-                    events.onLoaded(ad)
-                    val loaded = SdkLoadedNativeAd(ad, events)
-                    nativeFullScreenCells[loaded] = cell
-                    preloadedNativeFullScreen.put(placement, loaded, clock.nowMillis())
-                }
-                .withAdListener(
-                    object : AdListener() {
-                        override fun onAdFailedToLoad(error: LoadAdError) {
-                            loadStates -= placement
-                            logger.warn(TAG, "Native full-screen ${placement.key} failed to load: ${error.code}")
-                            events.onFailed(error.code, error.message)
-                        }
-
-                        override fun onAdImpression() = events.onImpression()
-
-                        override fun onAdClicked() = events.onClicked()
-                    },
-                )
-                .withNativeAdOptions(options)
-                .build()
             // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
             if (!mayRequestNow()) {
-                loadStates -= placement
+                loadStates[placement] = fullScreenReloads.onSendBlocked(placement)
                 logger.info(TAG, "Native full-screen ${placement.key} not requested: consent gate closed")
                 return@launch
             }
-            events.onRequestSent()
-            loader.loadAd(adRequest())
+            try {
+                val options = NativeAdOptions.Builder()
+                    .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT)
+                    .setMediaAspectRatio(MediaAspectRatio.ANY)
+                    .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
+                    .build()
+                val loader = AdLoader.Builder(context, unitId)
+                    .forNativeAd { ad ->
+                        loadStates -= placement
+                        lastLoadErrors -= placement
+                        ad.setOnPaidEventListener { events.onPaid(it) }
+                        events.onLoaded(ad)
+                        val loaded = SdkLoadedNativeAd(ad, events)
+                        nativeFullScreenCells[loaded] = cell
+                        preloadedNativeFullScreen.put(placement, loaded, clock.nowMillis())
+                    }
+                    .withAdListener(
+                        object : AdListener() {
+                            override fun onAdFailedToLoad(error: LoadAdError) {
+                                logger.warn(TAG, "Native full-screen ${placement.key} failed to load: ${error.code}")
+                                onNativeFullScreenLoadFailed(placement, events, error.code, error.message)
+                            }
+
+                            override fun onAdImpression() = events.onImpression()
+
+                            override fun onAdClicked() = events.onClicked()
+                        },
+                    )
+                    .withNativeAdOptions(options)
+                    .build()
+                val request = adRequest()
+                events.onRequestSent()
+                loader.loadAd(request)
+            } catch (e: Exception) {
+                // O-09: the request could not be built or sent; never the message of the error.
+                logger.warn(TAG, "Native full-screen ${placement.key} failed to load: 0 (request not built)")
+                onNativeFullScreenLoadFailed(placement, events, 0, null)
+            }
         }
     }
 
-    /** Loads one interstitial of [placement] for later, unless one is kept or loading, or the placement is off. */
+    /** The load of the native full-screen ad of [placement] failed: counted (T-023), then a retry (O-05). */
+    private fun onNativeFullScreenLoadFailed(
+        placement: AdPlacement,
+        events: NativeAdEvents,
+        code: Int,
+        message: String?,
+    ) {
+        loadStates -= placement
+        events.onFailed(code, message)
+        loadStates[placement] = fullScreenReloads.onLoadFailed(placement, code)
+    }
+
+    /**
+     * Loads one interstitial of [placement] for later, unless one is kept, one is loading or a retry is not due
+     * (F-04), or the placement is off. Loaded with the resumed activity of the app when there is one (question 4 of
+     * plan T-034). A failure retries by F-05 ([FullScreenReloads]).
+     */
     private fun preloadInterstitial(placement: AdPlacement) {
-        if (fullScreenLoadState(placement) != FullScreenLoadState.Idle) return
+        // The gate is asked right before sending, below.
+        if (!needsLoad(fullScreenLoadState(placement), clock.nowMillis(), gateOpen = true)) return
         val unitId = unitId(placement) ?: return
         loadStates[placement] = FullScreenLoadState.Loading
         scope.launch {
@@ -816,58 +942,70 @@ class AdsController @Inject internal constructor(
             }
             // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
             if (!mayRequestNow()) {
-                loadStates -= placement
+                loadStates[placement] = fullScreenReloads.onSendBlocked(placement)
                 logger.info(TAG, "Interstitial ${placement.key} not requested: consent gate closed")
                 return@launch
             }
-            val slot = preloadSlot(AdFormat.INTERSTITIAL)
+            val slot = preloadCounterKey(placement.key)
             val loadPlacement = loadPlacementOf(AdFormat.INTERSTITIAL, placement)
-            telemetry.requestSent(slot, clock.nowMillis())
-            InterstitialAd.load(
-                context,
-                unitId,
-                adRequest(),
-                object : InterstitialAdLoadCallback() {
-                    override fun onAdLoaded(ad: InterstitialAd) {
-                        loadStates -= placement
-                        lastLoadErrors -= placement
-                        telemetry.loadSucceeded(AdFormat.INTERSTITIAL, slot, loadPlacement, clock.nowMillis())
-                        val cell = PlacementCell()
-                        val adapter = ad.responseInfo.loadedAdapterResponseInfo
-                        ad.setOnPaidEventListener { value ->
-                            telemetry.revenue(
-                                AdFormat.INTERSTITIAL,
-                                unitId,
-                                { cell.value },
-                                value.valueMicros,
-                                value.currencyCode,
-                                adapter?.adSourceName,
-                                adapter?.adapterClassName,
-                            )
-                        }
-                        interstitialCells[ad] = cell
-                        loadedInterstitials[placement] = ad
-                    }
-
-                    override fun onAdFailedToLoad(error: LoadAdError) {
-                        loadStates -= placement
-                        logger.warn(TAG, "Interstitial ${placement.key} failed to load: ${error.code}")
-                        lastLoadErrors[placement] = telemetry.loadFailed(
+            val callback = object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    loadStates -= placement
+                    lastLoadErrors -= placement
+                    telemetry.loadSucceeded(AdFormat.INTERSTITIAL, slot, loadPlacement, clock.nowMillis())
+                    val cell = PlacementCell()
+                    val adapter = ad.responseInfo.loadedAdapterResponseInfo
+                    ad.setOnPaidEventListener { value ->
+                        telemetry.revenue(
                             AdFormat.INTERSTITIAL,
-                            slot,
-                            loadPlacement,
-                            error.code,
-                            error.message,
-                            clock.nowMillis(),
+                            unitId,
+                            { cell.value },
+                            value.valueMicros,
+                            value.currencyCode,
+                            adapter?.adSourceName,
+                            adapter?.adapterClassName,
                         )
                     }
-                },
-            )
+                    interstitialCells[ad] = cell
+                    loadedInterstitials[placement] = ad
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    logger.warn(TAG, "Interstitial ${placement.key} failed to load: ${error.code}")
+                    onInterstitialLoadFailed(placement, slot, loadPlacement, error.code, error.message)
+                }
+            }
+            try {
+                val request = adRequest()
+                telemetry.requestSent(slot, clock.nowMillis())
+                InterstitialAd.load(fullScreenLoadContext(tracker?.resumedActivity, context), unitId, request, callback)
+            } catch (e: Exception) {
+                // O-09: the request could not be built or sent; never the message of the error.
+                logger.warn(TAG, "Interstitial ${placement.key} failed to load: 0 (request not built)")
+                onInterstitialLoadFailed(placement, slot, loadPlacement, 0, null)
+            }
         }
     }
 
-    /** The counter slot of the loads that serve no screen yet (section 8.2). */
-    private fun preloadSlot(format: AdFormat): String = "$PRELOAD:${format.metricCode()}"
+    /** A load of the interstitial of [placement] failed: counted first (T-023), then a retry (F-05). */
+    private fun onInterstitialLoadFailed(
+        placement: AdPlacement,
+        slot: String,
+        loadPlacement: String?,
+        code: Int,
+        message: String?,
+    ) {
+        loadStates -= placement
+        lastLoadErrors[placement] = telemetry.loadFailed(
+            AdFormat.INTERSTITIAL,
+            slot,
+            loadPlacement,
+            code,
+            message,
+            clock.nowMillis(),
+        )
+        loadStates[placement] = fullScreenReloads.onLoadFailed(placement, code)
+    }
 
     private companion object {
         const val TAG = "Ads"

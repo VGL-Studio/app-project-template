@@ -22,20 +22,18 @@ class FullScreenReloadsTest {
     /** Times of each loadIfNeeded call, per placement. */
     private val loads = mutableMapOf<AdPlacement, MutableList<Long>>()
 
-    private fun TestScope.reloads(
-        failuresInARow: (AdPlacement) -> Int,
-        onLoad: (AdPlacement) -> Unit = {},
-    ) = FullScreenReloads(
-        scope = backgroundScope,
-        clock = MonotonicClock { testScheduler.currentTime },
-        failuresInARow = failuresInARow,
-        loadIfNeeded = {
-            loads.getOrPut(it) { mutableListOf() } += testScheduler.currentTime
-            onLoad(it)
-        },
-        foreground = foreground,
-        logger = logger,
-    )
+    private fun TestScope.reloads(failuresInARow: (AdPlacement) -> Int, onLoad: (AdPlacement) -> Unit = {}) =
+        FullScreenReloads(
+            scope = backgroundScope,
+            clock = MonotonicClock { testScheduler.currentTime },
+            failuresInARow = failuresInARow,
+            loadIfNeeded = {
+                loads.getOrPut(it) { mutableListOf() } += testScheduler.currentTime
+                onLoad(it)
+            },
+            foreground = foreground,
+            logger = logger,
+        )
 
     private fun loadsOf(placement: AdPlacement): List<Long> = loads[placement].orEmpty()
 
@@ -68,7 +66,10 @@ class FullScreenReloadsTest {
         assertEquals(FullScreenLoadState.WaitingRetry(dueAtMillis = 6_000), states[1].second)
         assertEquals(FullScreenLoadState.WaitingRetry(dueAtMillis = 50_000), states[6].second)
         assertTrue(
-            logger.entries.any { it.tag == "Ads" && it.message == "Retry gallery_interstitial in 4000 ms (failures 2, code 3)" },
+            logger.entries.any {
+                it.tag == "Ads" &&
+                    it.message == "Retry gallery_interstitial in 4000 ms (failures 2, code 3)"
+            },
         )
     }
 

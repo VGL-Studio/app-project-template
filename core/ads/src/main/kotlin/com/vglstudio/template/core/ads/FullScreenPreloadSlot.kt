@@ -1,6 +1,6 @@
 package com.vglstudio.template.core.ads
 
-/** A full-screen placement in the preload plan. */
+/** A full-screen placement in the preload plan: loads only while switched on; settled unless it is loading (S-22). */
 internal class FullScreenPreloadSlot(
     private val placement: AdPlacement,
     private val enabled: () -> Boolean,
@@ -13,5 +13,5 @@ internal class FullScreenPreloadSlot(
         if (enabled()) load(placement)
     }
 
-    override fun settled(): Boolean = true
+    override fun settled(): Boolean = !enabled() || state() != FullScreenLoadState.Loading
 }
