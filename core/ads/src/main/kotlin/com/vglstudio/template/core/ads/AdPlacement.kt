@@ -87,8 +87,9 @@ class AdIntervalGroup private constructor(
  * [AdsSettings] derives every key of a placement from this declaration.
  * Production builds need a real ad unit for every placement except the staging-only ones (see [ConfiguredAdUnitIds]).
  *
- * A placement that is not staging only stays on one line `NAME("code", AdFormat.X),` with no attribute after the
- * format: scripts/release.sh reads only that form (AdPlacementSourceTest, docs/ops/ads-guide.md, section 5).
+ * A placement that is not staging only stays on one line, `NAME("code", AdFormat.X),` or with its attributes after
+ * the format: scripts/release.sh reads only one-line declarations (AdPlacementSourceTest, docs/ops/ads-guide.md,
+ * section 5).
  */
 enum class AdPlacement(
     val key: String,
