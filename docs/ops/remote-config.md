@@ -2,8 +2,6 @@
 
 Tài liệu này dành cho dev, AI và người vận hành. Nó nói cách đặt tên, khai báo, thử và đổi các giá trị cấu hình từ xa qua Firebase Remote Config. Quyết định nằm ở ADR-0003 (cờ tính năng và tham số kinh doanh), ADR-0012 (nối Firebase), ADR-0014 (giá trị mặc định của quảng cáo), ADR-0018 (chờ cấu hình ở màn hình loading), ADR-0023 (quy ước khóa) và ADR-0026 (khóa quảng cáo theo tên AdsKit).
 
-Các phần ghi **(đợt 2)** cần code chưa có: công tắc tổng `ads_enabled` (đã khai báo trong `:core:ads` nhưng chưa được đọc).
-
 ## 1. Khóa dùng để làm gì
 
 | Loại | Ví dụ | Ai đọc |
@@ -23,7 +21,6 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
   - Khóa chung khác: `show_<thứ>_ads` cho loại quảng cáo theo thời điểm; loại `<thứ>_type` (giá trị chuỗi, ví dụ `aoa`, `inter`); thời gian `time_<việc>_<thứ>`; công tắc số liệu `is_log_<thứ>`.
   - Khóa không có trong bảng khóa chính thức của AdsKit ghi rõ "tên do ta đặt" trong bảng khóa (mục 10 của `ads-business-rules.md`).
   - Đơn vị ghi trong mô tả khóa (giây, lần), không ghi ở cuối tên.
-  - Khóa `ads_<vị trí>_enabled` và `ads_interstitial_min_interval_seconds` của đợt 2 được đổi sang tên mới ở T-019 (đợt 3). App nào đã phát hành bản đọc khóa cũ thì giữ khóa cũ trên Firebase tới khi không còn bản đó (dòng cuối của mục này).
 - Kiểu: boolean, long, double, string. Không dùng khối JSON làm cấu hình (ADR-0023). Danh sách ngắn thì dùng string, ghi định dạng trong mô tả (ví dụ `"vi,en,hi"`).
 - Khóa đã phát hành không đổi tên, không đổi kiểu. Cần khác thì tạo khóa mới; khóa cũ giữ tới khi không còn bản app nào đọc.
 
@@ -32,7 +29,9 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 1. **Có trong spec hay plan:** cờ tính năng mới đi cùng feature; tham số kinh doanh (quảng cáo, giới hạn, ngưỡng) phải có trong spec đã duyệt.
 2. **Khai báo một chỗ** ở module sở hữu, bằng `RemoteKey` của `:core:config` (`RemoteKey.boolean`, `long`, `double`, `string`): tên, kiểu, giá trị mặc định, mô tả một câu viết tiếng Anh (hiện trên Firebase, tối đa 256 ký tự). Mặc định là giá trị an toàn khi chưa tải được cấu hình: cờ và vị trí quảng cáo tắt; giới hạn tần suất nghiêng về ít quảng cáo.
    - Cờ tính năng: một mục trong `FeatureFlag` (`:core:config`), có mô tả; khóa có kiểu là `FeatureFlag.remoteKey`.
-   - Khóa quảng cáo: một `RemoteKey` trong `AdsSettings` (`:core:ads`), thêm vào `AdsSettings.all()` (test báo lỗi nếu quên), tên theo bảng khóa của `ads-business-rules.md`. Khóa bật tắt của vị trí tự có qua `AdsSettings.placementEnabled`.
+   - Khóa quảng cáo chung: một `RemoteKey` trong `AdsSettings` (`:core:ads`), thêm vào `AdsSettings.all()` (test báo lỗi nếu quên), tên theo bảng khóa của `ads-business-rules.md`. Tên không có trong bảng khóa chính thức của AdsKit thì mô tả tự kết thúc bằng câu `Name set by the template, not an AdsKit key.` `:core:ads` chỉ đọc khóa qua `AdsFlags`.
+   - Khóa của vị trí quảng cáo không khai báo tay: suy ra từ dòng của vị trí trong `AdPlacement` và tự có trong `AdsSettings.all()`: `AdsSettings.placementEnabled` (`is_show_<mã vị trí>`), `AdsSettings.interval` (`ads_interval_<nhóm>` của nhóm giãn cách riêng), `AdsSettings.nativeEvery` (`native_every_<mã vị trí>` khi vị trí khai báo `nativeEvery`). Mô tả của khóa suy ra kết thúc bằng `Derived key of ...`.
+   - Công tắc sự kiện AppsFlyer `is_log_af_*`: trong `AppsFlyerSettings` (`:core:analytics`).
    - Tham số khác: một `RemoteKey` trong module core sở hữu, đọc qua `RemoteSettings.value(key)`. Module core mới có khóa thì thêm vào `AppRemoteKeys` (`:app`).
 3. **Sinh lại bảng khóa** `docs/remote-config-keys.md` và file mẫu `docs/remote-config-template.json` bằng lệnh `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true`, commit cùng PR. Quên thì `RemoteConfigKeysTest` trong `scripts/check.sh` báo lỗi.
 4. **Test:** giá trị mặc định có test (như `AdsSettingsTest`, test mặc định tắt của `FeatureFlag`); ViewModel dùng nguồn cờ giả.
@@ -55,7 +54,7 @@ Feature không đọc Remote Config trực tiếp (ADR-0003); nó đọc cờ qu
 3. **Kiểu giá trị trên Firebase khớp kiểu trong code** (boolean là `true`/`false`, số không có đơn vị).
 4. **Bấm Publish** và kiểm trên một máy (DebugView hay log của app).
 5. **Quay về:** dùng lịch sử phiên bản của Remote Config trên Firebase; ghi lần quay về vào sổ.
-6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt khóa của định dạng hay vị trí bị cảnh báo (ví dụ `is_show_native_after_inter`, `show_open_ads`), rồi mới tìm nguyên nhân. Công tắc tổng: `is_show_ads` (spec ads, câu hỏi 7); vị trí của đợt 2 dùng `ads_enabled` tới T-019.
+6. **Sự cố quảng cáo** (vi phạm chính sách, lỗi hiển thị): tắt khóa của định dạng hay vị trí bị cảnh báo (ví dụ `is_show_native_after_inter`, `show_open_ads`), rồi mới tìm nguyên nhân. Công tắc tổng: `is_show_ads` (spec ads, câu hỏi 7).
 7. **Project staging chỉ đặt khóa muốn đổi**, không nhập cả file mẫu `docs/remote-config-template.json`. File mẫu đặt mọi khóa bật quảng cáo `false`, mà giá trị từ Firebase thắng giá trị cục bộ, nên nhập file là mất quảng cáo trên staging.
 
 ## 6. Thử nghiệm A/B

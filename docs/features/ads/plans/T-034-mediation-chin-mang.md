@@ -1,8 +1,8 @@
 ---
 ticket: T-034
 title: Mediation chín mạng
-status: approved                # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: approved                 # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M, số tạm của scripts/token-usage.py estimate (chưa đủ 5 task đã đo)
@@ -16,6 +16,8 @@ approved_at: 2026-10-24
 # PLAN T-034: MEDIATION CHÍN MẠNG
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-10-24, phiên RUN-20261024-02 soạn, `draft`).** Bản 1 dừng ở bước 4 vì môi trường cloud của phiên không tải được từ hai kho Maven mới: proxy của môi trường từ chối kết nối tới `artifact.bytedance.com` và `dl-maven-android.mintegral.com` (403, `connect_rejected`), đúng điều kiện chuyển của mục 3.4. Vì sao plan chưa đủ tốt: lần chạy thử ở mục 4.1 làm trên máy dev, không làm trong môi trường cloud của phiên, nên không thấy proxy chặn hai kho này (cùng loại với R2 ở L-050). Cách làm, danh sách file, test và chấm rủi ro không đổi. Thay đổi: mục 3.1 thêm cách tiếp tục trên nhánh cũ; điều kiện trước khi chạy lại là người cho phép hai tên miền trên trong chính sách mạng của môi trường cloud (hoặc chạy task trên máy dev). Mục 9 chờ duyệt lại. Sau rà soát độc lập trước RUN-20261024-03: mục 3.2 thêm năm test mới nhắc `ads-business-rules.md` chỉ trong chú thích (L-020, `plan-check.py`); mục 4.1 thêm bước chạy thử tải trong môi trường cloud (L-067).
 
 Thêm adapter chính thức của AdMob cho tám mạng còn lại (Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads) và SDK Unity Ads vào `gradle/libs.versions.toml` và `:core:ads`, cạnh AppLovin của T-015. Hai kho Maven mới (Pangle, Mintegral) vào `settings.gradle.kts`, mỗi kho chỉ cho đúng nhóm thư viện của nó. Không có code khởi tạo riêng: `MobileAds.initialize` khởi tạo mọi adapter và dòng log trạng thái của T-015 ghi từng adapter.
 
@@ -107,6 +109,8 @@ Tra ngày 2026-10-24. Ghi vào `ads-guide.md` mục 9 để người khai Data s
 
 ### 3.1. Cách làm
 
+**Tiếp tục (phiên bản 2):** trên nhánh cũ `claude/T-034-mediation-chin-mang` (chưa có PR). Nhánh đã có commit test `c2b821a` (bước 3 xong, 9 test đã thất bại đúng lý do) và commit `1a105a9` khai báo thư viện ở bước 1 đến 3 dưới đây (chưa tải được). Phiên cập nhật nhánh theo nhánh chính, chạy lại để thấy hai test `hasNoMetaAudienceNetworkProvider`, `hasNoMintegralNetworkReceiver` thất bại khi đã có thư viện, rồi làm tiếp từ bước 4. Trước khi chạy: người kiểm `curl -sS -o /dev/null -w '%{http_code}' https://artifact.bytedance.com/repository/pangle/` và kho Mintegral trong môi trường cloud không còn trả lỗi kết nối 403 của proxy; còn 403 thì không đưa plan vào danh sách chạy.
+
 Làm theo mẫu T-015 (thư viện trong catalog, chỉ `:core:ads` phụ thuộc, dòng bỏ trong manifest của `:core:ads`, test classpath và test manifest gộp).
 
 1. `gradle/libs.versions.toml`, nhóm `# Ads`, ngay dưới `admobMediationApplovin`: thêm chín phiên bản `admobMediationMeta = "6.22.0.1"`, `admobMediationDtExchange = "8.5.0.0"`, `admobMediationInmobi = "11.5.0.0"`, `admobMediationIronsource = "9.6.1.0"`, `admobMediationMintegral = "17.1.81.1"`, `admobMediationMoloco = "4.13.0.0"`, `admobMediationPangle = "8.3.0.4.0"`, `admobMediationUnity = "4.21.0.0"`, `unityAds = "4.21.0"`. Ngay dưới thư viện `admob-mediation-applovin`: `admob-mediation-meta` (`com.google.ads.mediation:facebook`), `admob-mediation-dtexchange` (`com.google.ads.mediation:fyber`), `admob-mediation-inmobi`, `admob-mediation-ironsource`, `admob-mediation-mintegral`, `admob-mediation-moloco`, `admob-mediation-pangle`, `admob-mediation-unity` (`com.google.ads.mediation:<tên>`), `unity-ads` (`com.unity3d.ads:unity-ads`), mỗi dòng `version.ref` tới phiên bản tương ứng. Không đổi phiên bản nào khác.
@@ -187,7 +191,12 @@ Nơi đọc các file bị đổi (L-020), tìm bằng `grep -rn <tên file> scr
 - `scripts/tests/run.sh`: `scripts/check.sh` chạy nó, không đọc nội dung. Không bị ảnh hưởng.
 - `app/lint.xml` (file mới): `grep -rn "lint.xml" scripts/ .github/ build-logic/` không thấy nơi nào đọc; lint của AGP tự đọc file ở thư mục module. `build-logic` không đặt `lintConfig`, nên không có cấu hình nào bị thay.
 - `docs/ops/release.md`: `scripts/release.sh` chỉ nhắc tên file trong thông báo lỗi; plan không chạm, không chạy script đó.
-- `docs/ops/ads-guide.md`, `docs/ops/ads-business-rules.md`: không script, workflow hay test nào đọc.
+- `docs/ops/ads-guide.md`, `docs/ops/ads-business-rules.md`: không script hay workflow nào đọc. (Phiên bản 2) Năm test do T-019, T-020, T-022 thêm sau lần viết đầu nhắc `ads-business-rules.md`, chỉ trong chú thích, để dẫn nguồn của giá trị chép tay; không test nào mở file hay đọc M-03, AR-04 mà plan sửa. Không bị ảnh hưởng:
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdFormatTest.kt` dòng 18: chú thích dẫn MC-02.
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` dòng 11, 38: chú thích dẫn mục 10 và 10.1 (bảng khóa).
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentGateTest.kt` dòng 10: chú thích dẫn mục S.
+  - `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdGuardTest.kt` dòng 9: chú thích dẫn mục 4.
+  - `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerSettingsTest.kt` dòng 8: chú thích dẫn mục 10.1.
 - `docs/STATUS.md`: không đưa vào PR (L-059).
 - Ảnh chuẩn screenshot không đổi: test và preview không có `AdsController`, không có quảng cáo trong ảnh.
 
@@ -260,6 +269,8 @@ Thứ tự commit (L-025): commit test của bước 3 gồm mọi test ở trê
   - `scripts/check.sh` lần 3 (có `app/lint.xml` trên): **qua**, "Cổng chất lượng: QUA", exit 0; 458 test JVM, 0 lỗi (`:app` 73, `:core:ads` 200), 42 ảnh screenshot, mọi test script qua. Plan lấy cách này, cần người duyệt đồng ý (câu hỏi 7).
   - R8: `./gradlew :app:minifyStagingReleaseWithR8` **qua** (exit 0), không cần quy tắc giữ lớp. 22 cảnh báo "Missing class", không phải lỗi: 20 lớp `com.android.billingclient.api.*` do mã `com.tiktok.iap.billing` (SDK TikTok Business đi kèm Pangle, đo doanh thu mua trong app) gọi tới, 2 lớp `com.bytedance.sdk` do chính Pangle gọi. Dự án không có Play Billing nên phần đó của TikTok không chạy.
   - Chưa thử trên máy: adapter khởi tạo (dự kiến `NOT_READY` trên staging), SDK Meta còn khởi tạo được qua adapter khi không có provider, không có mã mạng nào chạy trước đồng ý (kiểm thủ công 1 đến 3).
+- **Chạy thử tải trong môi trường cloud (phiên bản 2, L-067):** lần chạy thử trên làm trên máy dev nên không thấy proxy của môi trường cloud chặn hai kho mới. Trước khi duyệt phiên bản 2: người thêm `artifact.bytedance.com` và `dl-maven-android.mintegral.com` vào chính sách mạng của môi trường cloud, rồi chạy thử phần tải trong chính môi trường đó, trên nhánh `claude/T-034-mediation-chin-mang`: `./gradlew :core:ads:dependencies --configuration releaseRuntimeClasspath --refresh-dependencies` (hoặc `curl -sS -o /dev/null -w '%{http_code}'` tới hai kho). Kho nào chuyển hướng sang máy chủ khác (CDN) thì thêm cả máy chủ đó. Kết quả ghi vào mục Kiểm tra trước khi duyệt của danh sách chạy; còn 403 hay lỗi kết nối thì không đưa plan vào danh sách chạy.
+  - Kết quả: <người hoặc AI điền sau khi chạy thử trong môi trường cloud>
 
 ## 5. Chấm rủi ro
 
@@ -354,6 +365,21 @@ Rủi ro riêng: SDK Meta có thể dựa vào provider đã bỏ và chạy sai
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-24, sau khi anh trả lời các câu ở mục 8 và sau rà soát độc lập trước phiên của RUN-20261024-02 (các điểm nên sửa đã sửa trong plan trước khi duyệt).
 
+Phiên bản 2: **Duyệt**. Người duyệt: Nhật, duyệt chéo: Nhật. AI ghi theo lời anh Nhật, 2026-10-24, với điều kiện anh mở `artifact.bytedance.com`, `dl-maven-android.mintegral.com` cho môi trường cloud; còn 403 thì phiên dừng T-034 theo mục 7, task khác vẫn chạy, sau rà soát độc lập trước phiên của RUN-20261024-03 (các điểm chặn và nên sửa đã sửa trong phiên bản này).
+
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-02, phiên bản plan 1
+
+- **Kết quả:** dừng ở bước 4 (mục 3.4, điều kiện dừng 1 ở mục 7)
+- **Nhánh, PR:** `claude/T-034-mediation-chin-mang`, chưa mở PR. Commit `c2b821a` (test), `1a105a9` (khai báo thư viện, chưa tải được). Bước 3 đến 5 do phiên con làm trong worktree riêng.
+- **Đã làm:** viết 9 test của mục 4; khai báo chín thư viện, chín dòng `implementation` và hai kho có `content` theo bước 1 đến 3. Chưa làm bước 4 đến 9 (manifest, `secret-scan.py`, `app/lint.xml`, tài liệu).
+- **Test viết trước:** 9 test (2 classpath, 5 `MergedManifestTest`, 2 test `secret-scan` trong `scripts/tests/run.sh`), commit `c2b821a`. Lần 1 (chưa có thư viện): `networkAdapters_areOnClasspath` thất bại `ClassNotFoundException: com.google.ads.mediation.facebook.FacebookMediationAdapter`; `unityAdsSdk_isOnClasspath` thất bại `ClassNotFoundException: com.unity3d.ads.UnityAds`; `containsActivityOfEveryNetwork` thất bại "No com.facebook.ads. activity"; `secret-scan: an AppLovin SDK key fails` thất bại (script trả 0). `hasNoMetaAudienceNetworkProvider`, `hasNoMintegralNetworkReceiver`, `secret-scan: a fake AppLovin key passes` qua, đúng mục 4. 2 test có bước đối chứng (L-055): `permissionsAreExactlyTheAllowedSet` (bỏ `WAKE_LOCK` khỏi danh sách mong đợi thì thất bại, rồi đặt lại) và `hasNoAppLovinSdkKey` (thêm tạm `meta-data` `applovin.sdk.key` giá trị `FAKE` thì thất bại "applovin.sdk.key must not be in the app", rồi gỡ). Manifest gộp trước khi thêm thư viện có đúng 11 quyền của mục 4. Năm test cũ của T-015 không sửa, vẫn qua.
+- **Lý do dừng:** lần 2 (sau khi thêm thư viện) Gradle chỉ không tải được `com.pangle.global:pag-sdk:8.3.0.4` và `com.mbridge.msdk.oversea:mbridge_android_sdk:17.1.81`: "Could not GET 'https://artifact.bytedance.com/repository/pangle/...pag-sdk-8.3.0.4.pom'. Received status code 403 from server: Forbidden", tương tự với `dl-maven-android.mintegral.com`. Mọi thư viện khác tải được từ `google()`, `mavenCentral()`. Proxy của môi trường báo `connect_rejected` cho hai máy chủ đó; `curl` từ phiên chính cũng không kết nối được, trong khi `dl.google.com` trả 302. Đây là chặn theo chính sách mạng, không phải lỗi tạm (429, 5xx), nên không thử lại theo lịch ở bước 5. Không thêm init script, không đổi kho hay biến môi trường.
+- **Rà soát độc lập:** chưa làm (dừng trước bước 6).
+- **Kết quả CI:** chưa đẩy PR.
+- **Lệch so với plan:** chú thích một dòng ở bước 3 dài 124 ký tự ở đúng thụt lề, tách thành hai dòng (giới hạn 120 của ktlint). Test `an AppLovin SDK key fails` gộp kiểm che khóa vào cùng một `expect` (giá trị thực: "<mã trả về> <số lần khóa đầy đủ xuất hiện>", mong đợi "1 0"), giữ số test là hai. Không đổi điều test kiểm.
+- **Việc còn lại:** bước 4 đến 10 (xem mục 3.1, Tiếp tục).
+- **Cần người xem:** cho phép `artifact.bytedance.com` và `dl-maven-android.mintegral.com` trong chính sách mạng của môi trường cloud (`docs/ops/staging-and-runs.md`), hoặc chạy task trên máy dev; duyệt plan phiên bản 2.

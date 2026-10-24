@@ -201,7 +201,7 @@ Sau đó AI chuyển sang task tiếp theo trong danh sách. Task phụ thuộc 
 
 ### Chuẩn bị cho người khi task dừng
 
-Phiên không tự xoay xở khi dừng, nhưng soạn sẵn cách tiếp tục, để một lần dừng chỉ tốn vài phút của người thay vì một vòng làm lại:
+Phiên không tự xoay xở khi dừng, nhưng soạn sẵn cách tiếp tục, để một lần dừng chỉ tốn vài phút của người thay vì một vòng làm lại. Phần code đã viết mà chưa qua kiểm tra vẫn được commit lên nhánh task (thông điệp ghi rõ chưa build được hay chưa qua test; nhánh không có PR), không để trong container hay tệp patch tạm, vì container bị thu hồi sau phiên; nội dung giao việc cho phiên con nói rõ điều này (L-069).
 
 1. **Plan phiên bản mới, trạng thái `draft`:** trên nhánh báo cáo, ngay sau mục nhật ký của lần dừng. Tăng `version`, xóa `reviewer`, `cross_reviewer`, `approved_at`, `run_order`; mục 1 ghi "vì sao plan chưa đủ tốt" theo cách hiểu của phiên và thay đổi so với phiên bản trước; mục 3.1 ghi cách tiếp tục (thường là tiếp tục trên nhánh cũ); mục 9 thêm chỗ trống cho phiên bản mới. Plan mới phải qua `scripts/plan-check.py`. Plan vẫn ở trạng thái `stopped` cho tới khi người duyệt phiên bản mới.
 2. **PR sửa nguyên nhân, khi nguyên nhân nằm ngoài plan** (ví dụ test của script đọc file mà plan đổi, L-020) và cách sửa nhỏ, rõ: nhánh `claude/fix-T-NNN-<tu-khoa>` tạo từ nhánh chính, mở PR ở dạng nháp (`draft: true`), gắn nhãn `needs-human`, mô tả ghi lý do và cách đã thử. Phiên không merge PR này và không đổi nó sang sẵn sàng; `merge-if-green.sh` từ chối PR nháp và PR mang nhãn `needs-human`. PR này không được chạm cấu hình production, bí mật, `scripts/release.sh` hay tài liệu quy trình (tài liệu quy trình đổi qua retro, mục 6).

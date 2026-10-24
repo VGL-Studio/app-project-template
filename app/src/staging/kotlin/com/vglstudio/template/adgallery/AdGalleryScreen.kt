@@ -90,7 +90,7 @@ interface AdGallerySlots {
 
 /**
  * Real ads of the gallery, from the staging-only placements `gallery_*`. In the list, small and medium take turns
- * (two placements, one format each); N comes from `ads_inlist_every_count`, as for any list of the app.
+ * (two placements, one format each); N comes from `native_every_<placement code>`, as for any list of the app.
  */
 internal class SdkAdGallerySlots : AdGallerySlots {
     // Set by inListEvery() during the composition of the in-list page, read when its lazy list is built after it.

@@ -113,9 +113,10 @@ internal fun requireInListFormat(format: AdFormat) {
 
 /**
  * The in-list ads of [placement] (native small or medium) for one screen. Call it outside the lazy list, then pass it
- * to [itemsWithInListAds]. No row is added until ads are allowed (consent given, SDK started, `ads_enabled` and the
- * placement switched on remotely); N comes from `ads_inlist_every_count` and follows remote changes. Without an ads
- * controller (tests, previews) no row is ever added.
+ * to [itemsWithInListAds]. No row is added until ads are allowed (consent given, SDK started, `is_show_ads` and
+ * `is_show_<code>` switched on remotely); N comes from `native_every_<code>` (default [AdPlacement.nativeEvery]) and
+ * follows remote changes. A placement that declares no `nativeEvery` adds no row. Without an ads controller (tests,
+ * previews) no row is ever added.
  */
 @Composable
 fun rememberInListAds(placement: AdPlacement): InListAds {

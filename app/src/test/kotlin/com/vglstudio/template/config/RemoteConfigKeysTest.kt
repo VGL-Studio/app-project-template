@@ -2,6 +2,7 @@ package com.vglstudio.template.config
 
 import com.vglstudio.template.core.ads.AdPlacement
 import com.vglstudio.template.core.ads.AdsSettings
+import com.vglstudio.template.core.analytics.AppsFlyerSettings
 import com.vglstudio.template.core.config.FeatureFlag
 import com.vglstudio.template.core.config.RemoteKey
 import com.vglstudio.template.core.network.NetworkSettings
@@ -117,9 +118,10 @@ class RemoteConfigKeysTest {
         assertEquals(names.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
     }
 
+    /** Ad keys keep the AdsKit names and state their unit in the description (ADR-0026, decision 9). */
     @Test
     fun everyNumberKey_endsWithUnit() {
-        val numberKeys = AppRemoteKeys.byModule.values.flatten()
+        val numberKeys = AppRemoteKeys.byModule.filterKeys { it != ":core:ads" }.values.flatten()
             .filter { it.type == RemoteKey.Type.LONG || it.type == RemoteKey.Type.DOUBLE }
         assertTrue("No number keys listed", numberKeys.isNotEmpty())
         numberKeys.forEach { key ->
@@ -136,6 +138,34 @@ class RemoteConfigKeysTest {
         FeatureFlag.entries.forEach { flag -> assertTrue("$flag is missing", flag.remoteKey in keys) }
         AdPlacement.entries.forEach { placement ->
             assertTrue("$placement is missing", AdsSettings.placementEnabled(placement) in keys)
+        }
+    }
+
+    @Test
+    fun adsNumberKeys_stateUnitInDescription() {
+        val numberKeys = AppRemoteKeys.byModule.getValue(":core:ads")
+            .filter { it.type == RemoteKey.Type.LONG || it.type == RemoteKey.Type.DOUBLE }
+        assertTrue("No number keys in :core:ads", numberKeys.isNotEmpty())
+        numberKeys.forEach { key ->
+            assertTrue(
+                "Number key '${key.name}' must state its unit (seconds, items) in the description (ADR-0026)",
+                Regex("\\b(seconds|items)\\b").containsMatchIn(key.description),
+            )
+        }
+    }
+
+    @Test
+    fun analyticsKeys_areListed() {
+        assertEquals(AppsFlyerSettings.all(), AppRemoteKeys.byModule[":core:analytics"])
+        assertEquals(11, AppsFlyerSettings.all().size)
+    }
+
+    @Test
+    fun everyPlacementShowKey_isInTableOff() {
+        val lines = keysMarkdown(AppRemoteKeys.byModule).lines()
+        AdPlacement.entries.forEach { placement ->
+            val row = "| `is_show_${placement.key}` | boolean | `false` | `:core:ads` | "
+            assertEquals(placement.key, 1, lines.count { it.startsWith(row) })
         }
     }
 

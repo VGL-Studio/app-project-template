@@ -1,7 +1,7 @@
 ---
 ticket: T-019
 title: Khóa Remote Config quảng cáo theo tên AdsKit và danh sách vị trí theo mô hình chung
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
@@ -361,3 +361,15 @@ Không cần (E dưới 2). Đã kiểm trước một điểm đo được bằ
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-02, phiên bản plan 1
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-019-khoa-remote-config-theo-adskit`, PR #123, merge commit `2000bf1` lúc 04:57 UTC. Bước 3 đến 5 do phiên con làm trong worktree riêng.
+- **Đã làm:** như mục 3.1. `AdFormat` 11 định dạng của MC-02; `AdIntervalGroup`, `AdPlacementDeclaration` kiểm khai báo; `gallery_inlist_*` có `nativeEvery = 8`. `AdsSettings` 14 khóa của mục 10.1, khóa suy ra `is_show_<mã>`, `native_every_<mã>`, `ads_interval_<nhóm>` qua `placementParamKey`, `keysFor`, `ADSKIT_KEY_NAMES`. `AdsFlags`, `AdsGlobalFlags`, `OpenAdType`, `DefaultAdsFlags`, gắn bằng `di/AdsFlagsModule`. `AdsController` nhận `AdsFlags`; khoảng cách toàn màn hình theo `ads_interval`, chỉ trong process; không thêm `npa`; `NATIVE_LOAD_TIMEOUT_MILLIS = 10_000`; `inListEvery` trả `null` và ghi cảnh báo khi vị trí không có `nativeEvery`. Gỡ các lớp của T-009 và test của chúng. `AppsFlyerSettings` 11 khóa `is_log_af_*` (mặc định bật), `:core:analytics` phụ thuộc `:core:config`. Staging bật `is_show_<mã>` mọi vị trí và 7 công tắc chung. Sinh lại bảng khóa bằng `-PremoteConfigKeys.update=true`; sửa `remote-config.md`, `ads-guide.md`.
+- **Test viết trước:** 50 test mới hoặc viết lại, cộng `everyNumberKey_endsWithUnit` đổi quy tắc theo câu hỏi 6; commit `aed5a75` trước code. 47 test thất bại đúng lý do trên khung rỗng, ví dụ: `wave2Keys_areGone` "ads_enabled is a wave 2 key"; `placementsAreOffByDefault` mong `is_show_sample_native_small`, nhận `ads_sample_native_small_enabled`; `AdsFlagsTest` mong INTERSTITIAL nhận APP_OPEN, mong 30 nhận 45; `RemovedPacingRulesTest` constructor còn nhận `RemoteSettings`; `AppsFlyerSettingsTest` mong 11 khóa, nhận 0; `StagingRemoteValuesModuleTest` "show_open_ads is not on". Ba test qua trước khi có code, đúng mục 4: `global_usesTableDefaultsWhenNothingSet` (đối chứng `global_followsEveryRemoteValue` thất bại) và hai test chặn của `AdPlacementSourceTest`. 14 test có bước đối chứng (L-055). Không test nào của bước 3 bị sửa ở bước 4; `FullScreenAdsTest` đổi constructor và bỏ `nonPersonalizedAds_*` trong commit code, đúng mục 4.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, các ghi chú. Nên sửa: `ads-guide.md` mục 8 còn tả `ads_inlist_every_count`, ân hạn phiên đầu và phiên 30 phút; đã sửa (commit `01e5cf3`). Ghi chú: chữ cũ ngoài mục 3.2 ở KDoc `FullScreenAds.kt:13`, `NativeAdSlot.kt:18` (`ads_native_load_timeout_seconds`) và `CLAUDE.md` dòng 62 ("tới T-019", người sửa); `DefaultAdsFlags` không `@Singleton`; mốc riêng theo nhóm giãn cách thuộc T-022 (câu hỏi 8). Sáu điểm lệch dưới đây được rà soát chấp nhận.
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua lần đầu (453 test JVM, 0 lỗi, 42 ảnh, không ảnh chuẩn nào đổi); `pr-check.yml` xanh lần đầu (40063763594).
+- **Lệch so với plan:** (1) `StagingRemoteValuesModule` thêm hàm `globalAdSwitchesOn()` riêng, khung rỗng của nó vào commit test để test biên dịch được. (2) `core/analytics/build.gradle.kts` vào commit test vì khung `AppsFlyerSettings` cần `RemoteKey`. (3) `AdPlacementSourceTest`: kiểm "dòng có `intervalGroup` không đọc được" thành test riêng `releaseScript_skipsLinesWithAttributes` thay vì bước đối chứng trong test chính. (4) `ads-guide.md` sửa thêm mục 4 (khóa thời gian chờ native đã gỡ, nay "sau 10 giây") và đoạn sau bảng đợt 2 ở mục 6. (5) `AdIntervalGroup.named` từ chối thêm tên không phải snake case và mặc định âm. (6) KDoc cũ ở `FullScreenAds.kt:13` để nguyên vì ngoài mục 3.2.
+- **Việc còn lại:** sửa KDoc `FullScreenAds.kt`, `NativeAdSlot.kt` ở task sau chạm hai file đó (T-022, T-021); người sửa `CLAUDE.md` dòng 62 và biểu thức dòng 42 của `scripts/release.sh` (câu hỏi 1).
+- **Cần người xem:** tạo khóa `is_show_*` trên Firebase cho app đang bật vị trí bằng khóa cũ trước khi phát hành; kiểm thủ công ở mục 4 trên bản staging.
