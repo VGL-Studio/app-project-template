@@ -890,6 +890,119 @@ expect "status-page.yml runs on pushes to main that change docs" 2 \
 expect "status page: README links the page on the status branch, not a repository name" 1 \
   "$(grep -c '](\.\./\.\./blob/status/docs/STATUS\.md)' README.md || true)"
 
+# Section 6 of the page, "Sẵn sàng phát hành", is built from sources already in the repo (L-086):
+# AdPlacement.kt, the "Cần người kiểm tra" part of finished run reports, tickets, feedback and the origin URL.
+ad_dir="$work/status-repo/core/ads/src/main/kotlin/x"
+mkdir -p "$ad_dir" "$work/status-repo/app/src/production"
+write_ad_placement() {
+  printf -- 'enum class AdPlacement(\n    val key: String,\n) {\n    HOME_BANNER("home_banner", AdFormat.BANNER),\n    LIST_NATIVE("list_native", AdFormat.NATIVE_SMALL, nativeEvery = 8),\n    GALLERY_INTERSTITIAL("gallery_interstitial", AdFormat.INTERSTITIAL),\n    DONE_INTERSTITIAL("done_interstitial", AdFormat.INTERSTITIAL),\n    ;\n}\n' > "$ad_dir/AdPlacement.kt"
+}
+write_ad_placement
+printf -- 'val adUnit = "PROD-MARKER-T047"\n' > "$work/status-repo/app/src/production/ProdAds.kt"
+printf -- 'admob.app.id=PROD-MARKER-T047\n' > "$work/status-repo/release.properties"
+printf -- '\n### Cần người kiểm tra\n\n- [x] Đã xem ảnh\n  - a\n  - b\n- [ ] Kiểm FPS trên máy thật\n- [ ] Ảnh chuẩn mới: `feature/<tên>/src/test/screenshots/A.png`\n- [ ] Ảnh chuẩn screenshot mới: <màn hình, đường dẫn ảnh>\n- [ ] Test chập chờn: Không có (issue flaky không mở).\n- [ ] Ảnh chuẩn screenshot mới: không có (dừng trước bước ghi ảnh).\n- [ ] Tiêu chí kiểm tra thủ công (máy thật, người): không có\n- [ ] Kịch bản emulator lỗi hay bỏ qua: Không có\n- [ ] T-040: ghi chú, không có test cho trường hợp revert\n- [ ] Mũi tên <-> và so sánh a < b, c > d\n- [ ] Dòng rất dài chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ `lệnh rất dài không được cắt giữa chừng` đuôi\n- [ ] Điểm rà soát mức ghi chú:\n  - x\n  - y\n\n### Task bị dừng\n\n- [ ] Không phải việc của mục kiểm\n' >> "$st/runs/RUN-20261004-01.md"
+printf -- '---\nid: RUN-20261005-01\nstatus: running\n---\n\n### Cần người kiểm tra\n\n- [ ] Kiểm A\n' > "$st/runs/RUN-20261005-01.md"
+printf -- '---\nid: RUN-20261006-01\nstatus: finished\n---\n\n## 3. Báo cáo\n\n### Cần người kiểm tra\n\n- [ ] Kiểm B\n' > "$st/runs/RUN-20261006-01.md"
+printf -- '---\nid: RUN-20261006-02\nstatus: finished\n---\n\n### Cần người kiểm tra\n\n### Task bị dừng\n\n- [ ] Không phải việc của mục kiểm\n' > "$st/runs/RUN-20261006-02.md"
+status_page > /dev/null
+expect "status: page ends with the release readiness section" "1 5" \
+  "$(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true) $(grep -c '^## [1-5]\. ' "$page" || true)"
+expect "status: release readiness lists every ad placement key that ships, with attributes and NATIVE_SMALL" "1 1 0" \
+  "$(grep -c '^- .*release.md.*.home_banner. (banner), .list_native. (native_small), .done_interstitial. (interstitial)\.$' "$page" || true) $(grep -c '^- Bản production cần một mã quảng cáo thật' "$page" || true) $(grep -c 'gallery_interstitial' "$page" || true)"
+cp "$ad_dir/AdPlacement.kt" "$work/AdPlacement.kt.bak"
+printf -- '    LATE_BANNER(\n        "late_banner",\n        AdFormat.BANNER,\n    ),\n' >> "$ad_dir/AdPlacement.kt"
+status_page > /dev/null
+expect "status: a placement wrapped over several lines is named, as release.sh refuses it" 1 \
+  "$(grep -c 'khai báo vị trí trên nhiều dòng' "$page" || true)"
+cp "$work/AdPlacement.kt.bak" "$ad_dir/AdPlacement.kt"
+rm "$ad_dir/AdPlacement.kt"
+status_page > /dev/null
+expect "status: release readiness says when AdPlacement.kt is missing" 1 "$(grep -c 'Không tìm thấy' "$page" || true)"
+write_ad_placement
+status_page > /dev/null
+expect "status: unchecked manual checks of finished runs are listed" 6 \
+  "$(grep -c '^- \[RUN-20261004-01\](runs/RUN-20261004-01.md): ' "$page" || true)"
+expect "status: <-> and a < b, c > d are not template placeholders" 1 "$(grep -c 'Mũi tên <-> và so sánh' "$page" || true)"
+expect "status: a long item is cut before a code span, not inside it" "1 0" \
+  "$(grep -c 'Dòng rất dài .*chữ\.\.\.$' "$page" || true) $(grep -c 'lệnh rất dài' "$page" || true)"
+expect "status: manual checks are Kiểm FPS, the screenshot path, T-040 and the note point" "1 1 1 1" \
+  "$(grep -c 'RUN-20261004-01.md): Kiểm FPS trên máy thật' "$page" || true) $(grep -c 'RUN-20261004-01.md): Ảnh chuẩn mới' "$page" || true) $(grep -c 'RUN-20261004-01.md): T-040: ' "$page" || true) $(grep -c 'RUN-20261004-01.md): Điểm rà soát' "$page" || true)"
+expect "status: a path with <...> inside backticks is kept" 1 \
+  "$(grep -c 'feature/<tên>/src/test/screenshots/A.png' "$page" || true)"
+expect "status: a template line is skipped" "0 1" \
+  "$(grep -c '<màn hình, đường dẫn ảnh>' "$page" || true) $(grep -c 'RUN-20261004-01.md): Kiểm FPS' "$page" || true)"
+expect "status: children of a checked item are not counted" "0 1" \
+  "$(grep 'Kiểm FPS' "$page" | grep -c 'dòng con' || true) $(grep -c 'Điểm rà soát mức ghi chú: (2 dòng con)$' "$page" || true)"
+expect "status: only the text after the first colon decides \"không có\"" 1 \
+  "$(grep -c 'T-040: ghi chú, không có test cho trường hợp revert$' "$page" || true)"
+expect "status: items after the next heading and the done items are not listed" "0 0 0 6" \
+  "$(grep -c 'Không phải việc' "$page" || true) $(grep -c 'Đã xem ảnh' "$page" || true) $(grep -c 'issue flaky' "$page" || true) $(grep -c '^- \[RUN-20261004-01\]' "$page" || true)"
+expect "status: the run template still has the manual check section" yes \
+  "$(awk '/^### Cần người kiểm tra$/ { s = 1; next } s && /^- \[ \] / { found = 1 } END { print (found ? "yes" : "no") }' docs/templates/run.md)"
+expect "status: manual checks skip runs not finished" "0 1" \
+  "$(grep -c 'Kiểm A' "$page" || true) $(grep -c 'RUN-20261006-01.md): Kiểm B' "$page" || true)"
+expect "status: an empty or unterminated manual check section does not break the page" "0 1 0" \
+  "$(status_page > /dev/null 2>&1; echo $?) $(grep -c 'RUN-20261006-01.md): Kiểm B' "$page" || true) $(status_page --check > /dev/null; echo $?)"
+expect "status: tickets not on staging are listed by feature" "1 0 0" \
+  "$(grep -c '^- demo: T-002 .approved.$' "$page" || true) $(grep '^- demo: ' "$page" | grep -c 'T-001' || true) $(grep -c 'gồm ticket quy trình' "$page" || true)"
+mkdir -p "$st/features/proc/tickets"
+printf -- '---\ntitle: Quy trình\nstatus: ready\n---\n' > "$st/features/proc/tickets/T-003-quy-trinh.md"
+status_page > /dev/null
+expect "status: a ticket of a feature without a spec marks process tickets" "1 1" \
+  "$(grep -c 'gồm ticket quy trình' "$page" || true) $(grep -c '^- proc: T-003 .ready.$' "$page" || true)"
+expect "status: open feedback is listed in release readiness" 1 \
+  "$(grep -c '^- FB-20261003-01 .new., mức .nhe.: Nút sai màu$' "$page" || true)"
+# Remote URL: the tests export a fake origin (https://github.com/o/r.git, L-068); outside a repository git still reads it.
+expect "status: release readiness links open issues of the origin repo" "1 1" \
+  "$(grep -cF 'https://github.com/o/r/issues?q=is%3Aissue+is%3Aopen)' "$page" || true) $(grep -cF 'label%3Amain-broken' "$page" || true)"
+GIT_CONFIG_COUNT=0 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 status_page > /dev/null
+expect "status: without a readable remote there is a sentence and no link" "1 0" \
+  "$(grep -c 'Không đọc được repo GitHub' "$page" || true) $(grep -c 'github.com/o/r' "$page" || true)"
+GIT_CONFIG_VALUE_0=https://user:tok@github.com/o/r.git status_page > /dev/null
+expect "status: a remote URL with credentials does not leak them" "1 0" \
+  "$(grep -c 'https://github.com/o/r/issues' "$page" || true) $(grep -cw 'tok' "$page" || true)"
+GIT_CONFIG_VALUE_0=git@github.com:o/r.git status_page > /dev/null
+expect "status: an ssh remote gives the same link" 1 "$(grep -cF 'https://github.com/o/r/issues?q=' "$page" || true)"
+GIT_CONFIG_VALUE_0=https://mirror.example/github.com/o/r.git status_page > /dev/null
+expect "status: a remote that only has github.com in its path gives no link" "1 0" \
+  "$(grep -c 'Không đọc được repo GitHub' "$page" || true) $(grep -c 'github.com/o/r/issues' "$page" || true)"
+printf -- '---\nid: RUN-20261007-01\nstatus: finished\n---\n\n### Cần người kiểm tra\n\n- [ ] Kiểm C \xff\n' > "$st/runs/RUN-20261007-01.md"
+expect "status: a report that is not UTF-8 stops the script, as any other document does" 1 \
+  "$(status_page > /dev/null 2>&1; echo $?)"
+rm "$st/runs/RUN-20261007-01.md"
+printf -- '---\ntitle: Không spec\nspec:\nstatus: ready\n---\n' > "$st/features/demo/tickets/T-004-khong-spec.md"
+status_page > /dev/null
+expect "status: a ticket with an empty spec marks process tickets" 1 "$(grep -c 'gồm ticket quy trình' "$page" || true)"
+rm "$st/features/demo/tickets/T-004-khong-spec.md"
+status_page > /dev/null
+status_page > /dev/null
+# Nothing under app/src/production or release* is read: record every file the script opens (audit hook).
+opened="$work/status-opened.txt"
+STATUS_ROOT="$work/status-repo" OPENED="$opened" python3 -I -c '
+import atexit, os, runpy, sys
+seen = []
+sys.addaudithook(lambda event, args: seen.append(args[0]) if event == "open" and isinstance(args[0], str) else None)
+atexit.register(lambda: open(os.environ["OPENED"], "w").write("\n".join(seen) + "\n"))
+sys.argv = ["scripts/status.py"]
+runpy.run_path("scripts/status.py", run_name="__main__")
+' > /dev/null
+under_root="$(grep "^$work/status-repo/" "$opened" | sed "s|^$work/status-repo/||" || true)"
+under_root="$(sort -u <<<"$under_root")"
+expect "status: release readiness opens only docs and AdPlacement.kt" "0 0 1 1" \
+  "$(grep -v -e '^docs/' -e '/AdPlacement.kt$' <<<"$under_root" | grep -c . || true) $(grep -v '^docs/' <<<"$under_root" | grep -c -e 'production' -e 'release' || true) $(grep -c '^docs/lessons.md$' <<<"$under_root" || true) $(grep -c '/AdPlacement.kt$' <<<"$under_root" || true)"
+no_marker="$(grep -c PROD-MARKER-T047 "$page" || true)"
+printf -- '- [ ] Dấu PROD-MARKER-T047 trong mục kiểm\n' >> "$st/runs/RUN-20261006-01.md"
+status_page > /dev/null
+expect "status: release readiness never reads production config" "0 1" \
+  "$no_marker $(grep -c PROD-MARKER-T047 "$page" || true)"
+perl -pi -e 's/^- \[ \] Kiểm FPS/- [x] Kiểm FPS/' "$st/runs/RUN-20261004-01.md"
+status_page > /dev/null
+expect "status: a checked item leaves the page" "0 1" \
+  "$(grep -c 'Kiểm FPS' "$page" || true) $(grep -c 'RUN-20261004-01.md): T-040' "$page" || true)"
+expect "status: check passes after the release readiness section" "0 1" \
+  "$(status_page --check > /dev/null; echo $?) $(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true)"
+
+
 # status.py --sync moves each ticket's status after its plan's (L-050).
 sy="$work/sync-repo/docs/features/demo"
 mkdir -p "$sy/tickets" "$sy/plans"
