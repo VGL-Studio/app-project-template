@@ -469,9 +469,14 @@ release_fails_with "malformed ad unit entry" "mục adUnits"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/"
 release_fails_with "assets address without https" "assetsBaseUrl phải"
 release_fails_with "unknown argument" "tham số không hợp lệ" --upload
-expect "release.sh: native placements need a production ad unit, gallery ones do not" \
-  "sample_bottom_banner sample_native_small home_full_screen" \
+expect "release.sh: native placements and placements with attributes need a production ad unit, gallery ones do not" \
+  "sample_bottom_banner sample_native_small home_full_screen inter_sounds list_native" \
   "$(scripts/release.sh --list-placements scripts/tests/fixtures/release/AdPlacement.kt | tr '\n' ' ' | sed 's/ $//')"
+printf '%s\n' 'enum class AdPlacement(val key: String) {' '    WRAPPED(' '        "wrapped",' '        AdFormat.BANNER,' '    ),' '}' \
+  > "$work/WrappedAdPlacement.kt"
+expect "release.sh refuses a placement wrapped over several lines" "1 1" \
+  "$(code=0; out="$(scripts/release.sh --list-placements "$work/WrappedAdPlacement.kt" 2>&1)" || code=$?
+     echo "$code $(grep -c 'nhiều dòng (dòng 2)' <<< "$out")")"
 
 # new-app.sh renames the template into a new repository and leaves out the template's own files.
 # It exists only in the template repository: an app made from it has no new-app.sh, so the app skips these tests.
@@ -942,6 +947,18 @@ expect "secret-scan: a real-looking ad unit in a report fails" 1 \
   "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: the finding is masked" 0 \
   "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py | grep -c '2222222222' || true)"
+# An AppLovin SDK key is 86 characters; built from pieces so this file holds no key-like string (plan T-034).
+applovin_piece="Ab3dEf6hIj"
+applovin_key="$(printf "$applovin_piece%.0s" 1 2 3 4 5 6 7 8)Kl3nOp"
+mkdir -p "$work/scan-applovin" "$work/scan-applovin-fake"
+printf 'applovin.sdk.key=%s\n' "$applovin_key" > "$work/scan-applovin/strings.md"
+expect "secret-scan: an AppLovin SDK key fails" "1 0" \
+  "$(SECRET_SCAN_ROOT="$work/scan-applovin" python3 -I scripts/secret-scan.py > /dev/null; echo $?) $(
+    SECRET_SCAN_ROOT="$work/scan-applovin" python3 -I scripts/secret-scan.py | grep -c "$applovin_key" || true)"
+printf 'applovin_sdk_key: FAKE%sKl\n' "$(printf "$applovin_piece%.0s" 1 2 3 4 5 6 7 8)" \
+  > "$work/scan-applovin-fake/strings.md"
+expect "secret-scan: a fake AppLovin key passes" 0 \
+  "$(SECRET_SCAN_ROOT="$work/scan-applovin-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: this repository has no real ad IDs or keys" 0 \
   "$(python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 
@@ -1130,6 +1147,19 @@ session /dev/null stop > /dev/null
 expect "device-session: a refused grant is recorded" 2 \
   "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null; FAKE_ADB_GRANT_FAILS=android.permission.CAMERA session /dev/null scenarios --yes > /dev/null
      grep -c '^permissions granted=POST_NOTIFICATIONS failed=CAMERA$' "$(find "$work/sessions" -maxdepth 1 -name "TS-*" | sort | tail -n 1)/scenarios.txt")"
+session /dev/null stop > /dev/null
+# A staging build with a second LAUNCHER activity (the ad preview of T-014) still starts MainActivity (FB-20261024-01).
+: > "$FAKE_ADB_CALLS"
+expect "device-session: two launchers start MainActivity, not the chooser" 0 \
+  "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null
+     FAKE_ADB_LAUNCHERS="com.example.app/com.example.app.ads.AdPreviewActivity com.example.app/com.example.app.MainActivity" \
+       session /dev/null scenarios --yes)"
+expect "device-session: every scenario launch opens MainActivity" 4 \
+  "$(grep -c '^shell am start -W -n com.example.app/com.example.app.MainActivity$' "$FAKE_ADB_CALLS")"
+session /dev/null stop > /dev/null
+expect "device-session: two launchers without MainActivity are refused" 1 \
+  "$(session "$fixtures/logcat-clean.txt" start ci > /dev/null
+     FAKE_ADB_LAUNCHERS="com.example.app/.A com.example.app/.B" session /dev/null scenarios --yes)"
 session /dev/null stop > /dev/null
 unset DEVICE_SESSION_SLEEP FAKE_ADB_CALLS FAKE_ADB_RUNTIME_PERMISSIONS
 

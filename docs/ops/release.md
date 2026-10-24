@@ -36,6 +36,7 @@ Làm một lần cho mỗi nhà phát triển. File `app-ads.txt` đặt ở g�
 
 - Dòng của AdMob: lấy từ AdMob, mục **Apps > app-ads.txt**.
 - Dòng của AppLovin: lấy từ tài khoản AppLovin, theo hướng dẫn của AppLovin (mediation, [ads-guide.md](ads-guide.md) mục 7).
+- Dòng của tám mạng còn lại trong nhóm mediation (Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads): lấy từ bảng điều khiển của từng mạng ([ads-guide.md](ads-guide.md) mục 7).
 
 Thiếu dòng của một mạng thì doanh thu của mạng đó giảm đáng kể.
 

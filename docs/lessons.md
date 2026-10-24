@@ -351,3 +351,30 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `docs/STATUS.md` ra khỏi git (`.gitignore`). Workflow `status-page.yml` chạy `scripts/status.py` sau mỗi lần đẩy lên nhánh chính có đổi `docs/**` hay `scripts/status.py`, rồi đẩy đè nhánh `status` (nhánh chính cộng một commit chứa trang); không bao giờ đẩy lên nhánh chính. `merge-if-green.sh` báo chú ý khi PR nào có trang, kể cả PR báo cáo, và thôi nhắc mở PR trang. Liên kết tới trang là liên kết tương đối, không ghi tên repo. Có test. Ở app: lần chạy `status-page` 39936153612 xanh, các PR sau không còn xung đột vì trang.
 - **Trạng thái:** proposed
 - **Áp dụng:** nhánh `claude/from-camera-pose-status-branch`
+
+### L-067. Kho Maven mới chạy thử trên máy dev, môi trường cloud của phiên lại chặn
+
+- **Ngày, nguồn:** 2026-10-24, RUN-20261024-02 (T-034)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** plan T-034 thêm hai kho Maven (`artifact.bytedance.com` của Pangle, `dl-maven-android.mintegral.com` của Mintegral). Lần chạy thử ở mục 4.1 làm trên máy dev nên tải được. Trong phiên, proxy của môi trường cloud trả 403 (`connect_rejected`) cho đúng hai máy chủ đó, `dl.google.com` vẫn tới được; Gradle báo "Could not GET ... Received status code 403 from server: Forbidden". Task dừng ở bước 4 theo mục 3.4 của plan, sau khi test đã viết xong (cùng loại với R2 ở L-050).
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan thêm kho Maven hay máy chủ tải mới thì chạy thử phần tải trong chính môi trường cloud của phiên (`claude --cloud`, hoặc một lệnh `curl` trong môi trường đó), ghi kết quả vào mục 4.1; bị chặn thì người thêm máy chủ vào chính sách mạng của môi trường trước khi duyệt plan. `scripts/run-check.py` có thể báo chú ý khi plan sửa `settings.gradle.kts` mà mục 4.1 không nhắc môi trường cloud.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan; nhánh `claude/duyet-run-20261024-03`. Phần `run-check.py` chưa làm.
+
+### L-068. Plan không xét nhiều yêu cầu cùng lúc của một vị trí, rà soát và người viết hiểu khác nhau
+
+- **Ngày, nguồn:** 2026-10-24, RUN-20261024-02 (T-023)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-023 và mục 8.2 của `ads-business-rules.md` chỉ quy định `load_attempt`, `latency_ms` cho khe một quảng cáo và cho pool. Native trong danh sách hiện có (`InListAds`) nạp nhiều yêu cầu song song cho cùng một vị trí. Phiên viết code coi vị trí là một khe có bộ đếm, khóa theo mã vị trí, nên các hàng đè thời điểm gửi của nhau; phiên rà soát coi hàng trong danh sách như pool. Task dừng ở bước 6, T-021 bị bỏ qua theo phụ thuộc.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan ghi số liệu hay trạng thái theo vị trí thì liệt kê mọi cách nạp hiện có của vị trí đó (một quảng cáo, nhiều hàng song song, pool) và nói rõ cách tính cho từng cách; mục kiểm thử có một test cho hai yêu cầu chồng nhau.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan; nhánh `claude/duyet-run-20261024-03`.
+
+### L-069. Phần chưa commit của task dừng chỉ nằm trong container
+
+- **Ngày, nguồn:** 2026-10-24, RUN-20261024-02 (T-034)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** T-034 dừng ở bước 4 khi phần khai báo thư viện (ba file) đã viết nhưng chưa build được. Phiên con hoàn tác và lưu thành tệp patch trong thư mục tạm của container, sẽ mất khi container bị thu hồi. Phiên chính commit lại phần đó lên nhánh task (`1a105a9`) để người tiếp tục trên máy dev.
+- **Đề xuất sửa:** `auto-run.md`, mục Chuẩn bị cho người khi task dừng: phần code đã viết mà chưa qua kiểm tra thì vẫn commit lên nhánh task (thông điệp ghi rõ chưa build được, nhánh không có PR), không để trong container. Mô tả cách làm này trong nội dung giao việc cho phiên con.
+- **Trạng thái:** applied
+- **Áp dụng:** `auto-run.md`, mục Chuẩn bị cho người khi task dừng; nhánh `claude/duyet-run-20261024-03`.

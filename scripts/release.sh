@@ -21,7 +21,8 @@
 # the code below them). The build runs in a temporary worktree, so local changes never reach a release.
 #
 # Written during the template phase only. AI never changes this file afterwards (ADR-0009), except when the
-# release owner allows it for one session (2026-10-23: native formats and staging-only placements).
+# release owner allows it for one session (2026-10-23: native formats and staging-only placements; 2026-10-24:
+# placements with attributes).
 # Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
@@ -36,10 +37,17 @@ BUNDLE="app/build/outputs/bundle/productionRelease/app-production-release.aab"
 MAPPING="app/build/outputs/mapping/productionRelease/mapping.txt"
 
 # Placement keys that need a production ad unit, from AdPlacement.kt on stdin: one per enum line
-# NAME("key", AdFormat.FORMAT). Formats may contain underscores (NATIVE_SMALL). Keys starting with gallery_ belong
-# to the staging-only ad gallery (ads guide, section 5) and never ship, so they need no production unit.
+# NAME("key", AdFormat.FORMAT) or NAME("key", AdFormat.FORMAT, <attributes>) (interval group, nativeEvery...).
+# Formats may contain underscores (NATIVE_SMALL). Keys starting with gallery_ belong to the staging-only ad gallery
+# (ads guide, section 5) and never ship, so they need no production unit. A placement wrapped over several lines
+# (a line ending with `NAME(`) cannot be read and is refused, so it never ships without an ad unit.
 placement_keys() {
-  sed -nE 's/^[[:space:]]*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z_]+\),?$/\1/p' | { grep -v '^gallery_' || true; }
+  local source wrapped
+  source="$(cat)"
+  wrapped="$(grep -nE '^[[:space:]]*[A-Z][A-Z0-9_]*\($' <<< "$source" | head -n 1 || true)"
+  [ -z "$wrapped" ] || die "AdPlacement.kt khai báo vị trí trên nhiều dòng (dòng ${wrapped%%:*}); viết mỗi vị trí trên một dòng."
+  sed -nE 's/^[[:space:]]*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z_]+(, .*)?\),?$/\1/p' <<< "$source" \
+    | { grep -v '^gallery_' || true; }
 }
 if [ "${1:-}" = "--list-placements" ]; then
   [ "$#" -eq 2 ] || die "cách dùng: scripts/release.sh --list-placements <AdPlacement.kt>"

@@ -8,11 +8,11 @@ import org.junit.Test
 /**
  * scripts/release.sh asks for a production ad unit for every placement it reads from AdPlacement.kt (plan T-019,
  * question 1). A placement line it cannot read would ship without an ad unit and silently show no ad. This guard
- * fails instead, until someone changes the expression of the script.
+ * fails instead. The script reads one-line declarations, with or without attributes after the format.
  */
 class AdPlacementSourceTest {
-    // Copied from scripts/release.sh, line 42 (sed -nE, POSIX class [[:space:]] written as \s).
-    private val releaseScriptLine = Regex("""^\s*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z_]+\),?$""")
+    // Copied from placement_keys() of scripts/release.sh (sed -nE, POSIX class [[:space:]] written as \s).
+    private val releaseScriptLine = Regex("""^\s*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.[A-Z_]+(, .*)?\),?$""")
 
     private fun readByReleaseScript(lines: List<String>): List<String> = lines
         .mapNotNull { releaseScriptLine.matchEntire(it)?.groupValues?.get(1) }
@@ -29,12 +29,13 @@ class AdPlacementSourceTest {
     }
 
     @Test
-    fun releaseScript_skipsLinesWithAttributes() {
-        // The current limit of the script: a placement with an attribute after its format is not read.
+    fun releaseScript_readsLinesWithAttributes() {
         val lines = listOf(
             "    A_B(\"a_b\", AdFormat.NATIVE_SMALL),",
             "    X_Y(\"x_y\", AdFormat.INTERSTITIAL, intervalGroup = AdIntervalGroup.named(\"sounds\", 30)),",
+            "    L_N(\"l_n\", AdFormat.NATIVE_MEDIUM, nativeEvery = 8),",
+            "    GALLERY_X(\"gallery_x\", AdFormat.NATIVE_SMALL, nativeEvery = 8),",
         )
-        assertEquals(listOf("a_b"), readByReleaseScript(lines))
+        assertEquals(listOf("a_b", "x_y", "l_n"), readByReleaseScript(lines))
     }
 }
