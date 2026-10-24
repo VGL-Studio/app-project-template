@@ -1,7 +1,7 @@
 ---
 id: ADR-0028
 title: Phiên tự chạy được nối chỗ gọi mà task khác cùng danh sách đổi, và phải tự sửa điểm nên sửa trong phạm vi plan, đều có test viết trước
-status: accepted             # proposed | accepted | superseded
+status: proposed             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-24
 deciders: [Nhật, Tuấn]
