@@ -942,6 +942,18 @@ expect "secret-scan: a real-looking ad unit in a report fails" 1 \
   "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: the finding is masked" 0 \
   "$(SECRET_SCAN_ROOT="$scan" python3 -I scripts/secret-scan.py | grep -c '2222222222' || true)"
+# An AppLovin SDK key is 86 characters; built from pieces so this file holds no key-like string (plan T-034).
+applovin_piece="Ab3dEf6hIj"
+applovin_key="$(printf "$applovin_piece%.0s" 1 2 3 4 5 6 7 8)Kl3nOp"
+mkdir -p "$work/scan-applovin" "$work/scan-applovin-fake"
+printf 'applovin.sdk.key=%s\n' "$applovin_key" > "$work/scan-applovin/strings.md"
+expect "secret-scan: an AppLovin SDK key fails" "1 0" \
+  "$(SECRET_SCAN_ROOT="$work/scan-applovin" python3 -I scripts/secret-scan.py > /dev/null; echo $?) $(
+    SECRET_SCAN_ROOT="$work/scan-applovin" python3 -I scripts/secret-scan.py | grep -c "$applovin_key" || true)"
+printf 'applovin_sdk_key: FAKE%sKl\n' "$(printf "$applovin_piece%.0s" 1 2 3 4 5 6 7 8)" \
+  > "$work/scan-applovin-fake/strings.md"
+expect "secret-scan: a fake AppLovin key passes" 0 \
+  "$(SECRET_SCAN_ROOT="$work/scan-applovin-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: this repository has no real ad IDs or keys" 0 \
   "$(python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 
