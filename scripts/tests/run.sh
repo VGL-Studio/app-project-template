@@ -469,9 +469,14 @@ release_fails_with "malformed ad unit entry" "mục adUnits"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/"
 release_fails_with "assets address without https" "assetsBaseUrl phải"
 release_fails_with "unknown argument" "tham số không hợp lệ" --upload
-expect "release.sh: native placements need a production ad unit, gallery ones do not" \
-  "sample_bottom_banner sample_native_small home_full_screen" \
+expect "release.sh: native placements and placements with attributes need a production ad unit, gallery ones do not" \
+  "sample_bottom_banner sample_native_small home_full_screen inter_sounds list_native" \
   "$(scripts/release.sh --list-placements scripts/tests/fixtures/release/AdPlacement.kt | tr '\n' ' ' | sed 's/ $//')"
+printf '%s\n' 'enum class AdPlacement(val key: String) {' '    WRAPPED(' '        "wrapped",' '        AdFormat.BANNER,' '    ),' '}' \
+  > "$work/WrappedAdPlacement.kt"
+expect "release.sh refuses a placement wrapped over several lines" "1 1" \
+  "$(code=0; out="$(scripts/release.sh --list-placements "$work/WrappedAdPlacement.kt" 2>&1)" || code=$?
+     echo "$code $(grep -c 'nhiều dòng (dòng 2)' <<< "$out")")"
 
 # new-app.sh renames the template into a new repository and leaves out the template's own files.
 # It exists only in the template repository: an app made from it has no new-app.sh, so the app skips these tests.
