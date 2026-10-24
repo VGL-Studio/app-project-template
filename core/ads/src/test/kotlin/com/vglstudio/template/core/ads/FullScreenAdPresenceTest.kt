@@ -57,4 +57,33 @@ class FullScreenAdPresenceTest {
             expectNoEvents()
         }
     }
+
+    @Test
+    fun secondShowWhileShowing_isDropped() {
+        val presence = FullScreenAdPresence()
+        assertTrue(presence.tryBegin(AdPlacement.GALLERY_INTERSTITIAL, hostActivityId = 1, now = 0))
+        assertFalse(presence.tryBegin(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, hostActivityId = 1, now = 1_000))
+        presence.onClosed()
+        assertTrue(presence.tryBegin(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, hostActivityId = 1, now = 2_000))
+    }
+
+    @Test
+    fun showingFlag_expiresAfterTenMinutes() {
+        val presence = FullScreenAdPresence()
+        assertTrue(presence.tryBegin(AdPlacement.GALLERY_INTERSTITIAL, hostActivityId = 1, now = 0))
+        assertFalse(presence.tryBegin(AdPlacement.GALLERY_INTERSTITIAL, hostActivityId = 1, now = 599_999))
+        assertTrue(presence.tryBegin(AdPlacement.GALLERY_INTERSTITIAL, hostActivityId = 2, now = 600_000))
+        assertEquals(FullScreenAdPresence.Shown(AdPlacement.GALLERY_INTERSTITIAL, 2), presence.current)
+    }
+
+    @Test
+    fun current_followsTheAdOnScreen() {
+        val presence = FullScreenAdPresence()
+        presence.tryBegin(AdPlacement.GALLERY_INTERSTITIAL, hostActivityId = 7, now = 0)
+        assertEquals(FullScreenAdPresence.Shown(AdPlacement.GALLERY_INTERSTITIAL, 7), presence.current)
+        assertTrue(presence.showing.value)
+        presence.onClosed()
+        assertEquals(null, presence.current)
+        assertFalse(presence.showing.value)
+    }
 }

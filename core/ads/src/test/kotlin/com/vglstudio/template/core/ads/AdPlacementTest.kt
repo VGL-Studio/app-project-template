@@ -101,4 +101,24 @@ class AdPlacementTest {
         assertFalse(AdIntervalGroup.named("sounds", 30) == AdIntervalGroup.DEFAULT)
         AdPlacement.entries.forEach { assertEquals(it.key, AdIntervalGroup.DEFAULT, it.intervalGroup) }
     }
+
+    @Test
+    fun intervalAttributes_defaultAndValidated() {
+        AdPlacement.entries.forEach {
+            assertFalse(it.key, it.ignoreInterval)
+            assertTrue(it.key, it.recordInterval)
+            assertFalse(it.key, it.declaration.ignoreInterval)
+            assertTrue(it.key, it.declaration.recordInterval)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AdPlacementDeclaration("x", AdFormat.NATIVE_SMALL, ignoreInterval = true)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AdPlacementDeclaration("x", AdFormat.APP_OPEN, recordInterval = false)
+        }
+        // Control: the full-screen formats accept both attributes.
+        AdPlacementDeclaration("x", AdFormat.INTERSTITIAL, recordInterval = false)
+        AdPlacementDeclaration("x", AdFormat.NATIVE_FULL_SCREEN, ignoreInterval = true)
+    }
 }
+
