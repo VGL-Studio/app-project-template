@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-11, KB-12]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: L
 depends_on: [T-019]
 sprint:
-plan:
+plan: features/ads/plans/T-020-dong-y-va-khoi-dong-partner.md
 created: 2026-10-23
 ---
 

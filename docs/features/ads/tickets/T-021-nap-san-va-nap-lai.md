@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-24]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
-depends_on: [T-020, T-016]
+depends_on: [T-020, T-016, T-022, T-023]
 sprint:
-plan:
+plan: features/ads/plans/T-021-nap-san-va-nap-lai.md
 created: 2026-10-23
 ---
 

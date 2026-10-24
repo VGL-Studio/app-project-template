@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-6, KB-15, KB-23]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
-depends_on: [T-019, T-009]
+depends_on: [T-019, T-009, T-020]
 sprint:
-plan:
+plan: features/ads/plans/T-022-cong-toan-man-hinh-va-chan-tu-hien.md
 created: 2026-10-23
 ---
 
