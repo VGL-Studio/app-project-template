@@ -185,6 +185,8 @@ Sửa test có sẵn (người duyệt đồng ý, câu hỏi 4): `PreloadDecisi
 5. **Duyệt chéo khi nhóm chỉ có một dev:** theo `risk-scoring.md` mục 3, anh Nhật vừa duyệt vừa duyệt chéo, ghi lý do ở mục 9.
    - Đề xuất của AI: như các plan quảng cáo trước (T-021).
 
+**Trả lời của anh Nhật (2026-10-25):** câu 1: có, giữ chữ spec, không sửa S-23; câu 2: không giữ lượt nạp bù native; câu 3: lượt giữ chạy cả kế hoạch; câu 4: duyệt sửa hai test nêu trên; câu 5: anh Nhật vừa duyệt vừa duyệt chéo. Plan chờ rà soát độc lập trước khi duyệt.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
