@@ -121,13 +121,13 @@ Luật đầy đủ ở `ads-business-rules.md`, mục 3 và 4. Tóm tắt cho n
 
 Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-rules.md`, mục 10; bảng sinh từ code ở `docs/remote-config-keys.md`.
 
-## 7. Mediation: AdMob và chín mạng (đợt 3)
+## 7. Mediation: AdMob và chín mạng
 
-- AdMob điều phối. Mạng con qua adapter chính thức của AdMob: AppLovin, Meta Audience Network, DT Exchange (Fyber), InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads (ADR-0026). Đợt 2 có AppLovin (T-015); tám mạng còn lại ở T-034.
-- Thêm adapter là thay đổi thư viện: plan rủi ro cao, so quyền trong manifest gộp trước và sau.
-- Khóa SDK AppLovin là cấu hình của từng app, đưa vào lúc build, không vào repo (ADR-0026). Đợt 2 (T-015, mục dưới) không đưa khóa vào app vì với bidding khóa nhập trên AdMob; phản hồi FB-20261023-01 cho thấy adapter báo `NOT_READY` trên staging khi app không có khóa. T-034 chốt cách đưa khóa vào lúc build.
+- AdMob điều phối. Mạng con qua adapter chính thức của AdMob: AppLovin, Meta Audience Network, DT Exchange (Fyber), InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads (ADR-0026). AppLovin có từ T-015, tám mạng còn lại từ T-034 (mục dưới).
+- Thêm hay nâng adapter là thay đổi thư viện: plan rủi ro cao, so quyền và thành phần trong manifest gộp trước và sau, kiểm lại tên provider, receiver trong manifest của AAR, chạy `MergedManifestTest` của `:app`.
+- **Khóa SDK AppLovin không nằm trong app** (plan T-034, câu hỏi 2, phương án A): khóa chỉ nhập trong hộp thoại ánh xạ nguồn quảng cáo "AppLovin (Bidding)" trên AdMob của từng app; không vào repo, không vào APK. Lý do: đọc bytecode adapter `13.6.4.2`, adapter chỉ lấy khóa từ cấu hình mediation mà AdMob gửi xuống (`MediationConfiguration.getServerParameters().getString("sdkKey")`), không đọc meta-data `applovin.sdk.key` hay resource nào của app (Changelog adapter 12.1.0.0: "Adapter no longer checks for the AppLovin SDK key from the AndroidManifest.xml file"). Đưa khóa vào app lúc build không làm adapter `READY`, chỉ làm lộ khóa trong APK. `scripts/secret-scan.py` chặn khóa AppLovin trong repo; `MergedManifestTest` kiểm manifest gộp không có `applovin.sdk.key`.
+- **Trên staging cả chín adapter báo `NOT_READY`:** mọi adapter lấy mã của mạng (khóa SDK AppLovin, app key ironSource, game ID Unity, app ID Pangle...) từ cấu hình mediation trên AdMob; mã app thử của Google không có cấu hình đó (FB-20261023-01). Trên staging chỉ kiểm được log trạng thái liệt kê đủ chín adapter (thẻ `Ads`, một dòng `Adapter ...` mỗi adapter khi `MobileAds.initialize` báo xong). Kiểm `READY` trên app có mã AdMob thật và nhóm mediation đủ chín mạng: log có dòng `READY` cho từng adapter; Ad Inspector, "single ad source testing" với từng mạng tải được quảng cáo thử, sau khi đăng ký máy thử.
 - Khai báo mạng trong nhóm mediation của từng đơn vị quảng cáo trên AdMob (việc của người).
-- Kiểm bằng Ad Inspector của AdMob trên bản staging (mã thử): mỗi adapter phải báo đã khởi tạo.
 - Hướng dẫn chính thức: https://developers.google.com/admob/android/mediation (mỗi mạng một trang con).
 
 ### AppLovin (đợt 2, T-015)
@@ -146,7 +146,37 @@ Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-ru
 - **Kiểm tra trên staging:** sau khi đồng ý, logcat (`adb logcat -v threadtime | grep ' VGL\.'`, thẻ `Ads`) có dòng `Adapter com.google.ads.mediation.applovin.AppLovinMediationAdapter: READY`, ghi khi `MobileAds.initialize` báo xong. Trước khi đồng ý không có dòng `Adapter ...` nào và không có log khởi tạo của thẻ `AppLovinSdk`. Trên app có đơn vị quảng cáo thật: Ad Inspector, chế độ "single ad source testing" với "AppLovin (Bidding)", sau khi đăng ký máy thử trên AdMob và bật chế độ thử trên AppLovin.
 - **Nâng cấp adapter** là thay đổi thư viện: plan rủi ro cao. Nâng `play-services-ads` thì nâng adapter trong cùng plan, chọn bản adapter có ghi chú "Built and tested with" khớp bản Google Mobile Ads mới; kiểm lại tên provider và quyền trong manifest của AAR.
 - Hướng dẫn chính thức: https://developers.google.com/admob/android/mediation/applovin
-- **Với ADR-0026:** khóa SDK đưa vào lúc build (mục trên), thay dòng "Khóa SDK AppLovin không vào app". Bộ PARTNER khởi tạo SDK sớm, trước khi có đồng ý. Việc bỏ `AppLovinInitProvider` ở trên dựa trên ADR-0004 (không chạy mã mạng con trước đồng ý); T-034 xem lại quyết định này cùng tám mạng còn lại.
+- **Với ADR-0026 (xem lại ở T-034):** khóa SDK vẫn không vào app (mục trên). Việc bỏ `AppLovinInitProvider` **giữ nguyên**: ADR-0026 cho khởi tạo SDK sớm chỉ khi UMP còn giữ đồng ý dùng được của phiên trước (`CACHED_EARLY`, S-03) hay khi UMP lỗi mạng ở foreground (`ERROR_ALLOWED`), và nhánh rút gọn mặc định tắt (S-12). Provider thì chạy ở mọi lần mở tiến trình, kể cả lần đầu sau khi cài khi chưa có đồng ý nào, và đọc Advertising ID cùng App Set ID. Cùng lý do áp cho provider của Meta (mục dưới).
+
+### Tám mạng còn lại (T-034)
+
+- **Thư viện** (chỉ `:core:ads` phụ thuộc, khóa trong `gradle/libs.versions.toml`, bản mới nhất ổn định ngày 2026-10-24):
+
+  | Mạng | Adapter | Khóa catalog | SDK của mạng (kéo theo) |
+  | --- | --- | --- | --- |
+  | Meta Audience Network | `com.google.ads.mediation:facebook:6.22.0.1` | `admob-mediation-meta` | `com.facebook.android:audience-network-sdk:6.22.0` |
+  | DT Exchange | `com.google.ads.mediation:fyber:8.5.0.0` | `admob-mediation-dtexchange` | `com.fyber:marketplace-sdk:8.5.0` |
+  | InMobi | `com.google.ads.mediation:inmobi:11.5.0.0` | `admob-mediation-inmobi` | `com.inmobi.monetization:inmobi-ads-kotlin:11.5.0`, kèm Picasso 2.8 |
+  | ironSource | `com.google.ads.mediation:ironsource:9.6.1.0` | `admob-mediation-ironsource` | `com.unity3d.ads-mediation:mediation-sdk:9.6.1` |
+  | Mintegral | `com.google.ads.mediation:mintegral:17.1.81.1` | `admob-mediation-mintegral` | `com.mbridge.msdk.oversea:mbridge_android_sdk:17.1.81` |
+  | Moloco | `com.google.ads.mediation:moloco:4.13.0.0` | `admob-mediation-moloco` | `com.moloco.sdk:moloco-sdk:4.13.0` |
+  | Pangle | `com.google.ads.mediation:pangle:8.3.0.4.0` | `admob-mediation-pangle` | `com.pangle.global:pag-sdk:8.3.0.4` |
+  | Unity Ads | `com.google.ads.mediation:unity:4.21.0.0` | `admob-mediation-unity` | `com.unity3d.ads:unity-ads:4.21.0`, **khai báo riêng** (khóa `unity-ads`): POM của adapter không kéo SDK |
+
+- **Hai kho Maven ngoài** trong `settings.gradle.kts`: `https://artifact.bytedance.com/repository/pangle/` (chỉ nhóm `com.pangle.global`) và `https://dl-maven-android.mintegral.com/repository/mbridge_android_sdk_oversea` (chỉ nhóm `com.mbridge.*`). Đây là nơi duy nhất có SDK của Pangle và Mintegral. Khối `content` giữ cho mọi thư viện khác chỉ tải từ `google()` và `mavenCentral()`, để kho ngoài không trả thay được một thư viện cùng tên. Không cần kho ironSource (`android-sdk.is.com`): SDK ironSource có trên Maven Central. Môi trường cloud phải cho phép hai tên miền này (RUN-20261024-02 dừng vì proxy chặn).
+- **Không có code khởi tạo:** `MobileAds.initialize` khởi tạo cả chín adapter; đồng ý GDPR từ UMP được chuyển tự động (TCF hay Additional Consent). Không làm bước tùy chọn của từng mạng cho luật các bang Mỹ hay trẻ em.
+- **Manifest gộp** (đo ở plan T-034):
+  - **Không thêm quyền nào:** các quyền tám SDK khai báo (`INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS`) đã có từ Google Mobile Ads. Không thêm các quyền tùy chọn InMobi gợi ý (vị trí chính xác, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`). `MergedManifestTest.mergedManifest_permissionsAreExactlyTheAllowedSet` giữ danh sách 11 quyền; quyền mới khi nâng SDK làm test đỏ, plan phải quyết.
+  - **Bỏ** trong `core/ads/src/main/AndroidManifest.xml` bằng `tools:node="remove"`: provider `com.facebook.ads.AudienceNetworkContentProvider` (khởi động SDK Meta lúc mở app, trước khi có đồng ý; bỏ để Meta chỉ khởi động qua `MobileAds.initialize`, ADR-0004, ADR-0026 mục 3); receiver `com.mbridge.msdk.foundation.same.broadcast.NetWorkChangeReceiver` của Mintegral (xuất ra ngoài, lọc `CONNECTIVITY_CHANGE` mà hệ thống không gửi tới receiver trong manifest từ API 24, nên chỉ app khác gọi được nó).
+  - **Giữ:** provider `IronsourceLifecycleProvider`, `LevelPlayActivityLifecycleProvider` (ironSource) và `MBComponentLifecycleProvider` (Mintegral) chỉ theo dõi vòng đời activity, SDK cần để hiện quảng cáo; `PicassoProvider` chỉ giữ `Context`; bộ khởi tạo App Startup `com.unity3d.services.core.configuration.AdsSdkInitializer` (Unity) theo dõi activity và hướng màn hình, không khởi động Unity Ads. Cùng 39 activity, 2 service không xuất ra ngoài, meta-data phiên bản của Pangle.
+  - **`<queries>`:** thêm 19 mục: Custom Tabs, `VIEW`, `MAIN`, `market://`, các kho ứng dụng, `com.facebook.katana`, dịch vụ của Digital Turbine và năm gói của công cụ root máy (`com.topjohnwu.magisk`, `eu.chainfire.supersu`, `com.koushikdutta.superuser`, `com.noshufou.android.su`, `com.thirdparty.superuser`). Không phải `QUERY_ALL_PACKAGES`, không phải quyền; người khai Data safety cần biết (mục 9).
+- **Lint:** Picasso (phụ thuộc bắt buộc của InMobi) có mã gửi thông báo, lint báo `NotificationPermission`. `app/lint.xml` bỏ qua quy tắc này chỉ cho phát hiện có `com.squareup.picasso.` (plan T-034, câu hỏi 7); không thêm `POST_NOTIFICATIONS`. Nâng InMobi hay Picasso thì xem lại dòng này.
+- **R8:** bản release của staging thu gọn được, không cần quy tắc giữ lớp. Cảnh báo "Missing class" (không phải lỗi) cho `com.android.billingclient.api.*` từ SDK TikTok Business đi kèm Pangle; dự án không có Play Billing nên phần đó không chạy.
+- **Unity và ironSource cần `Activity` khi nạp** banner, interstitial, rewarded (trang hướng dẫn của Google). `:core:ads` hiện nạp interstitial bằng `ApplicationContext`, nên hai mạng này có thể không thắng đấu giá cho interstitial. Plan T-021, T-026 (viết lại cách nạp quảng cáo toàn màn hình) nạp bằng `Activity` đang mở khi có.
+- **Mintegral:** năm 2020 Snyk báo cáo SDK của Mintegral (khi đó là SourMint) theo dõi lượt bấm và URL trong app; Mintegral bác bỏ và đưa kết quả kiểm toán. Dự án mẫu giữ Mintegral theo ADR-0026 (plan T-034, câu hỏi 3); từng app cân nhắc khi khai Data safety.
+- **Kích thước:** APK `stagingDebug` chưa thu gọn tăng khoảng 24 MB (23,4 MB lên 47,4 MB). App muốn bỏ bớt mạng thì đề xuất ADR của app.
+- **Việc của người trên AdMob** (trang của từng mạng): thêm từng mạng vào danh sách đối tác quảng cáo của thông điệp GDPR và các bang Mỹ; ánh xạ mã của từng mạng trong nhóm mediation; bật chế độ thử của mạng khi thử và tắt trước khi phát hành; `app-ads.txt` có dòng của từng mạng ([release.md](release.md), mục 1.4).
+- **Nâng adapter** là plan rủi ro cao: chọn bản có "Built and tested with" khớp bản Google Mobile Ads; kiểm lại tên provider, receiver trong manifest của AAR (`MergedManifestTest` bắt khi tên đổi mà phần tử quay lại).
 
 ## 8. Thử trên staging
 
@@ -160,12 +190,27 @@ Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-ru
 ## 9. Trước khi phát hành
 
 - [ ] Mỗi vị trí trong `AdPlacement` có mã production trong `release.properties` (`release.sh` kiểm).
-- [ ] Khóa SDK AppLovin và khóa dev AppsFlyer có trong trình quản lý mật khẩu, đưa vào lúc build (ADR-0027).
+- [ ] Khóa dev AppsFlyer có trong trình quản lý mật khẩu, đưa vào lúc build (ADR-0027). Khóa SDK AppLovin nhập trong ánh xạ nguồn quảng cáo "AppLovin (Bidding)" trên AdMob, không đưa vào app (mục 7).
 - [ ] `app-ads.txt` trên website của nhà phát triển có dòng của AdMob và của cả chín mạng con; lấy dòng từ bảng điều khiển của từng mạng. Thiếu dòng thì mạng đó có thể không trả quảng cáo.
 - [ ] Hộp thoại đồng ý đã cấu hình trên AdMob (Privacy & messaging) cho các vùng cần, có danh sách đối tác quảng cáo gồm chín mạng.
 - [ ] Liên kết AdMob với Firebase (để có `ad_impression` tự động); AppsFlyer đã nhận sự kiện từ bản phát hành thử.
 - [ ] Bản đầu tiên gửi `ad_placement` sang AppsFlyer hay gửi sự kiện đếm inter: đã báo nhóm thu hút người dùng (UA) và ghi ngày đổi lên dashboard (`ads-business-rules.md`, HD-07). App chuyển từ `ad_impression` sang `ad_impression_placement` cũng ghi ngày đổi và báo nhóm.
-- [ ] **Data safety** trên Play Console khai đủ SDK đang dùng: Google Mobile Ads, chín mạng con, AppsFlyer, Firebase. Các mạng quảng cáo thường thu thập: mã quảng cáo và mã thiết bị khác, tương tác với quảng cáo và app, chẩn đoán, vị trí gần đúng suy từ IP. Tra trang công bố dữ liệu của từng mạng lúc làm T-034 và ghi kết quả vào plan của ticket đó; khai đúng mục đích (quảng cáo, phân tích, chống gian lận).
+- [ ] **Data safety** trên Play Console khai đủ SDK đang dùng: Google Mobile Ads, chín mạng con, AppsFlyer, Firebase. Các mạng quảng cáo thường thu thập: mã quảng cáo và mã thiết bị khác, tương tác với quảng cáo và app, chẩn đoán, vị trí gần đúng suy từ IP. Khai đúng mục đích (quảng cáo, phân tích, chống gian lận). Trang công bố dữ liệu của từng mạng (tra ngày 2026-10-24, plan T-034):
+
+  | Mạng | Trang | Ghi chú |
+  | --- | --- | --- |
+  | Google Mobile Ads | https://developers.google.com/admob/android/privacy/play-data-disclosure | IP, tương tác, chẩn đoán, mã thiết bị |
+  | AppLovin | Theo mục 7 (AppLovin) | Định danh quảng cáo, thông tin máy |
+  | Unity Ads | https://docs.unity.com/grow/ads/privacy/google-data-safety | Mã thiết bị, chẩn đoán, thời gian dùng app (khi bật Acquire Optimization) |
+  | ironSource | https://docs.unity.com/grow/levelplay/platform/legal-resources (mục Google Data Safety Questionnaire) | Có báo cáo Google đòi khai "ứng dụng đã cài" |
+  | Pangle | https://pangleglobal.com/integration/app-privacy-details-gp | Vị trí gần đúng suy từ IP, hoạt động trong app |
+  | DT Exchange | https://docs.digitalturbine.com/dt-exchange/publishers/getting-started-with-dt-exchange/privacy/google-data-safety-form | Vị trí gần đúng, mã quảng cáo |
+  | Moloco | Chưa thấy trang Data safety; chính sách riêng tư: https://www.moloco.com/privacy-policy | Mã quảng cáo, thông tin máy, vị trí gần đúng |
+  | Meta Audience Network | Chưa thấy trang Data safety của Meta | Khai theo chính sách của Meta |
+  | InMobi | Chưa thấy trang Data safety của InMobi | |
+  | Mintegral | Chưa thấy trang Data safety của Mintegral | Xem ghi chú về Mintegral ở mục 7 |
+
+  Manifest gộp có `<queries>` dò kho ứng dụng và năm gói của công cụ root máy (mục 7); không phải `QUERY_ALL_PACKAGES`.
 - [ ] Tắt chế độ thử trên AdMob và các mạng con (máy thử, single ad source testing) trước khi phát hành.
 - [ ] Rà từng vị trí theo mục 2 trên bản phát hành.
 - [ ] Mọi khóa quảng cáo vẫn tắt trên Remote Config tới khi bản phát hành lên Play; bật dần theo [remote-config.md](remote-config.md).
