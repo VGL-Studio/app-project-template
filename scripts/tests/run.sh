@@ -109,12 +109,24 @@ expect "main-guard-status: pending run asks to wait" 1 "$(grep -c '^2 CHỜ' <<<
 # comes before the check run starts (2026-01-01T00:00:00Z in fake-gh).
 expect "main-guard-status: pending gives the creation time of the workflow run for --since" 1 \
   "$(grep -c -- '--since 2025-12-31T23:59:00Z' <<<"$mgs")"
-mgs="$(main_guard_status '{
+broken_route='"issues?state=open&labels=main-broken&per_page=10"'
+mgs="$(main_guard_status '{"routes":{'"$broken_route"':[{"number":5}]},
   "ddddd04":{"parent":"","states":["failure"]}}')"
-expect "main-guard-status: red run is refused" 1 "$(grep -c '^1 ĐỎ' <<<"$mgs")"
-mgs="$(main_guard_status '{
+expect "main-guard-status: red run with an open main-broken issue is refused" 1 "$(grep -c '^1 ĐỎ' <<<"$mgs")"
+mgs="$(main_guard_status '{"routes":{'"$broken_route"':[{"number":5}]},
   "ddddd04":{"parent":"","states":["failure"]}}' GITHUB_ACTIONS=true)"
 expect "main-guard-status: in GitHub Actions a refusal is an ::error:: line" 1 "$(grep -c '^1 ::error::ĐỎ' <<<"$mgs")"
+# The guard's job also fails on infrastructure (checkout, Java, network), and then opens no main-broken issue:
+# not a red main, so ask to run main-guard again instead of saying ĐỎ with no reason.
+mgs="$(main_guard_status '{"routes":{'"$broken_route"':[]},
+  "ddddd04":{"parent":"","states":["failure"]}}')"
+expect "main-guard-status: a failed run without main-broken is not red (code 3)" 1 \
+  "$(grep -c '^3 CHƯA KIỂM: main-guard thất bại trên ddddd04 nhưng không có issue main-broken' <<<"$mgs")"
+expect "main-guard-status: a failed run without main-broken asks to run main-guard again" 2 \
+  "$(grep -o 'Re-run all jobs\|actions/workflows/main-guard.yml/dispatches' <<<"$mgs" | wc -l | tr -d ' ')"
+mgs="$(main_guard_status '{
+  "ddddd04":{"parent":"","states":["failure"]}}')"
+expect "main-guard-status: unreadable main-broken issues stop with code 4" 1 "$(grep -c '^4 LỖI: không đọc được' <<<"$mgs")"
 mgs="$(main_guard_status '{
   "bbbbbb2":{"parent":"","states":["success"]},
   "ccccc03":{"parent":"bbbbbb2","files":["docs/b.md"]},
@@ -672,6 +684,12 @@ expect "cloud-env-check.sh passes with the compileSdk platform" pass \
 env_check 1 "$work/gradle-home" > /dev/null
 expect "cloud-env-check.sh tells to paste the setup script for a setup problem" 1 \
   "$(grep -c 'dán lại toàn bộ scripts/cloud-setup.sh' "$work/env-check.out" || true)"
+# A version catalog without compileSdk must stop the check, not skip the SDK platform.
+printf '[versions]\nminSdk = "26"\n' > "$work/no-compile-sdk.toml"
+expect "cloud-env-check.sh stops when compileSdk cannot be read" stop \
+  "$(VERSIONS_TOML="$work/no-compile-sdk.toml" env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh names compileSdk when it cannot be read" 1 \
+  "$(grep -c '^LỖI: không đọc được compileSdk' "$work/env-check.out" || true)"
 
 # plan-check.py finds, from the plan alone, what would otherwise stop a task during the night (L-020).
 repo="$work/plan-repo"

@@ -4,7 +4,8 @@
 # the Gradle wrapper starts, and the Android SDK has the compileSdk platform. An environment that fails one of
 # these fails check.sh too, for reasons no amount of waiting fixes (RUN-20261016-01; lesson L-075, from app
 # lessons L-049, L-056 of camera-pose), so the session stops at once instead of after the 15 minutes of check.sh.
-# JAVA_CHECK_CMD, GRADLEW_CMD, GRADLEW_TIMEOUT (seconds) replace the Java check, the wrapper and its time limit in tests.
+# JAVA_CHECK_CMD, GRADLEW_CMD, GRADLEW_TIMEOUT (seconds) and VERSIONS_TOML replace the Java check, the wrapper, its time
+# limit and the version catalog in tests.
 # Exit 0: the environment is ready. Exit 1: it is not; the message says what the person must do.
 # Messages are in Vietnamese for the team; comments are in English.
 set -euo pipefail
@@ -25,7 +26,11 @@ fi
 java_check="${JAVA_CHECK_CMD:-scripts/java-check.sh}"
 gradlew="${GRADLEW_CMD:-./gradlew}"
 gradlew_timeout="${GRADLEW_TIMEOUT:-300}"
-compile_sdk="$(sed -n 's/^compileSdk = "\([0-9][0-9]*\)"$/\1/p' gradle/libs.versions.toml)"
+versions_toml="${VERSIONS_TOML:-gradle/libs.versions.toml}"
+compile_sdk="$(sed -n 's/^compileSdk = "\([0-9][0-9]*\)"$/\1/p' "${versions_toml}" 2>/dev/null || true)"
+# Without it the SDK platform cannot be checked; skipping that check would let a session start that check.sh stops.
+[ -n "${compile_sdk}" ] ||
+  { echo "LỖI: không đọc được compileSdk từ ${versions_toml} (cần dòng compileSdk = \"<số>\"), nên không kiểm được Android SDK." >&2; exit 1; }
 
 # setup_problems need the setup script pasted again; tool_problems need the environment variables looked at.
 setup_problems=()
@@ -34,7 +39,7 @@ tool_problems=()
   setup_problems+=("môi trường dựng từ setup script phiên bản ${actual}, nhánh chính đang ở phiên bản ${expected}")
 [ -f "${init_script}" ] || setup_problems+=("thiếu ${init_script}")
 
-if [ -n "${compile_sdk}" ] && [ ! -d "${ANDROID_HOME:-}/platforms/android-${compile_sdk}" ]; then
+if [ ! -d "${ANDROID_HOME:-}/platforms/android-${compile_sdk}" ]; then
   setup_problems+=("Android SDK thiếu platforms;android-${compile_sdk} (ANDROID_HOME=${ANDROID_HOME:-chưa đặt})")
 fi
 

@@ -30,6 +30,8 @@ permissions:
   contents: read
   issues: read
   checks: read
+  # main-guard-status.sh reads when a pending main-guard run was created (Actions API); without it the time is unknown.
+  actions: read
 
 jobs:
   start:
