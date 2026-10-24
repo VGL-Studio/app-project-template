@@ -1,7 +1,7 @@
 ---
 ticket: T-006
 title: Test cuộn tới nút "Thử lại" trên màn hình rất thấp
-status: approved
+status: done
 version: 1
 risk_score: 1
 risk_level: low
@@ -135,3 +135,15 @@ Hàng `w320dp-h640dp` cho thấy lỗi gốc của FB-20261017-01 (chiều rộn
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-02, phiên bản plan 1
+
+- **Kết quả:** đã merge
+- **Nhánh, PR:** `claude/T-006-cuon-man-hinh-rat-thap`, PR #122, merge lúc 04:12 UTC (commit `31dec7f`)
+- **Đã làm:** hằng số `VERY_SHORT_SCREEN` và hai test `failed_onVeryShortScreen_retryButtonReachableByScrolling`, `failed_onVeryShortScreen_footerBelowRetryAfterScrolling` trong `LoadingScreenTest`; sửa chú thích lớp `LoadingScreenScreenshotTest`. Một commit test, không đổi code chạy.
+- **Test viết trước:** 2 test, qua ngay trên code hiện tại như mục 4 (ngoại lệ đã duyệt). Đối chứng: tạm bỏ `verticalScroll` trong `LoadingScreen.kt` (không commit) thì cả hai thất bại ở `performScrollTo` ("Semantic Node has no parent layout with a Scroll SemanticsAction"); đã hoàn tác. Điều kiện dừng 1 và 2 không gặp.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 2 ghi chú: test 1 chỉ kiểm đáy nút, không kiểm đỉnh nút nằm trong màn hình (đúng plan; nút 52 dp trên màn hình 480 dp); test 2 không kiểm chân trang ở ngoài màn hình trước khi cuộn (plan không yêu cầu).
+- **Kết quả CI:** `scripts/check.sh` cục bộ qua lần đầu (456 test JVM, 0 lỗi, 42 ảnh); `pr-check.yml` xanh lần đầu (40060903627).
+- **Lệch so với plan:** Không có.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** hai ghi chú của rà soát.
