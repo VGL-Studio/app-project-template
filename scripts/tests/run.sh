@@ -560,6 +560,13 @@ expect "plan-check: a script reading a changed file stops" stop "$(plan_check "$
 expect "plan-check: names the reader" 1 "$(grep -c 'scripts/reader.py nhắc tới docs/data/values.json' "$work/plan-check.out")"
 write_plan "$plans/T-904-a.md" medium draft "$(row Sửa docs/data/values.json)" 'scripts/reader.py chỉ đọc khóa a, không đổi.'
 expect "plan-check: a reader the plan explains passes" pass "$(plan_check "$plans/T-904-a.md")"
+# A reader that appears after the plan was approved (a new script naming the file in a comment) is only a warning:
+# nobody may edit an approved plan, and the session runs plan-check again right before the task and skips plans
+# with errors, so every approved plan of the list would be skipped (L-078).
+write_plan "$plans/T-950-a.md" medium approved "$(row Sửa docs/data/values.json)"
+expect "plan-check: a new reader of an approved plan only warns" pass "$(plan_check "$plans/T-950-a.md")"
+expect "plan-check: the warning names the new reader" 1 \
+  "$(grep -c 'CHÚ Ý: scripts/reader.py nhắc tới docs/data/values.json' "$work/plan-check.out")"
 # A file name counts only as a whole word: setup-guide.md is not guide.md, docs/ROOT.md is not ROOT.md.
 echo 'Read docs/ROOT.md, then setup-guide.md.' > "$repo/scripts/other.sh"
 touch "$repo/ROOT.md" "$repo/docs/data/guide.md"
@@ -702,9 +709,11 @@ write_ticket() { # <id> <depends>
   printf -- '---\nid: %s\nstatus: approved\nspec: features/demo/spec.md\nscenarios: [KB-1]\ndepends_on: [%s]\n---\n' \
     "$1" "$2" > "$rr/docs/features/demo/tickets/$1-x.md"
 }
-write_run_plan() { # <id> <file> <test row> [operation]
-  printf -- '---\nticket: %s\nstatus: approved\nrisk_level: medium\nreviewer: A\napproved_at: 2026-10-02\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| %s | `%s` | x |\n\n## 4. Kiểm thử\n\n| Tiêu chí | Loại | Tên |\n| --- | --- | --- |\n%s\n\n## 9. Quyết định duyệt\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A\n' \
-    "$1" "${4:-Sửa}" "$2" "$3" > "$rr/docs/features/demo/plans/$1-x.md"
+write_run_plan() { # <id> <file> <test row> [operation] [text added to section 3] [text added as section 6]
+  local section6=""
+  [ -z "${6:-}" ] || section6="## 6. Ảnh hưởng chéo"$'\n\n'"$6"$'\n\n'
+  printf -- '---\nticket: %s\nstatus: approved\nrisk_level: medium\nreviewer: A\napproved_at: 2026-10-02\n---\n\n## 3. Giải pháp\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| %s | `%s` | x |\n\n%s\n\n## 4. Kiểm thử\n\n| Tiêu chí | Loại | Tên |\n| --- | --- | --- |\n%s\n\n%s## 9. Quyết định duyệt\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A\n' \
+    "$1" "${4:-Sửa}" "$2" "${5:-}" "$3" "$section6" > "$rr/docs/features/demo/plans/$1-x.md"
 }
 write_run() { # <rows>
   printf -- '---\nstatus: draft\n---\n\n## 1. Danh sách chạy\n\n| Thứ tự | Ticket | Feature | Plan | Rủi ro | Phụ thuộc | Ghi chú |\n| --- | --- | --- | --- | --- | --- | --- |\n%b\n\n## 2. Kiểm tra\n' \
@@ -720,7 +729,9 @@ write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 expect "run-check: a ready list passes" pass "$(run_check)"
 expect "run-check: a ready list has no warning" 0 "$(grep -c 'CHÚ Ý' "$work/run-check.out")"
-# The review table under section 1 also names tickets in its second column; it is not part of the list.
+# The pre-run review table also sits in section 1 and names tickets; only the run table lists tasks.
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)\n\n### Kiểm tra trước khi duyệt\n\n| Mức | Ticket | Vấn đề | Xử lý |\n| --- | --- | --- | --- |\n| Chặn | T-002 | x | y |"
+expect "run-check: a review table naming a ticket is not a task" pass "$(run_check)"
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"'\n\n### Kiểm tra trước khi duyệt\n\n| Mức | Ticket | Vấn đề | Xử lý |\n| --- | --- | --- | --- |\n| Nên sửa | T-002 | x | y |'
 expect "run-check: the review table is not read as the list" pass "$(run_check)"
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
@@ -750,6 +761,85 @@ write_run_plan T-002 feature/demo/New.kt '| KB-1 | Unit | `bTest` |' Sửa
 expect "run-check: a later plan that changes the created file does not warn" 0 \
   "$(run_check > /dev/null; grep -c 'cùng ghi Tạo' "$work/run-check.out")"
 write_ticket T-002 ''
+# A ticket without a business spec (a script or process ticket whose requirement is a lesson) has no spec and no
+# scenario; only a ticket that names scenarios needs a spec.
+write_run_plan T-002 feature/demo/B.kt '| L-001 | Test script | `bTest` |'
+printf -- '---\nid: T-002\nstatus: approved\nspec:                        # no business spec\nscenarios: []\ndepends_on: []\n---\n' \
+  > "$rr/docs/features/demo/tickets/T-002-x.md"
+expect "run-check: a ticket without spec and scenarios passes" pass "$(run_check)"
+printf -- '---\nid: T-002\nstatus: approved\nspec:\nscenarios: [KB-1]\ndepends_on: []\n---\n' \
+  > "$rr/docs/features/demo/tickets/T-002-x.md"
+expect "run-check: a ticket with scenarios but no spec stops" stop "$(run_check)"
+write_ticket T-002 ''
+
+# run-check.py reads a plan's order hints and the files of other plans of the list (L-078).
+# write_run_plan's fifth argument goes into section 3 of the plan, the sixth is a section 6 line.
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: T-001 trước T-002.'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)"
+expect "run-check: a plan's order hint broken by the list stops" stop "$(run_check)"
+expect "run-check: the broken order hint names the pair and the lesson" 1 \
+  "$(grep -c 'T-001 trước T-002.*L-078\|L-078.*T-001 trước T-002' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+expect "run-check: a list following the order hint passes" pass "$(run_check)"
+expect "run-check: a list following the order hint has no L-078 message" 0 "$(grep -c 'L-078' "$work/run-check.out" || true)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |' Sửa '' '- Đề xuất thứ tự chạy: sau T-001.'
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)"
+expect "run-check: a 'sau' order hint is read" stop "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: trong nhóm demo: T-001, T-002.'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+expect "run-check: a group order hint is read" stop "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: T-002, T-003 không phụ thuộc T-001.'
+expect "run-check: a list of tickets that is not an order is no hint" pass "$(run_check)"
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: có thể chạy trước hay sau T-002.'
+expect "run-check: 'trước hay sau' is no hint" pass "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: không cần T-001 trước T-002.'
+expect "run-check: a negated order is no hint" pass "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: tự do; T-002 chạy sau T-001 thì gộp `A.kt`.'
+expect "run-check: a condition is no hint" pass "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: tự do (bản trước ghi "T-001 trước T-002", đã bỏ).'
+expect "run-check: a quoted old hint is no hint" pass "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: T-001 trước T-002.'
+expect "run-check: the control hint in the same list still stops" stop "$(run_check)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' '- Đề xuất thứ tự chạy: T-001 trước T-002.'
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)\n\nBỏ đề xuất thứ tự: T-001 trước T-002 (hai plan chỉ chung vài dòng)."
+expect "run-check: a dropped order hint with a reason passes" pass "$(run_check)"
+expect "run-check: a dropped order hint with a reason warns once" 1 "$(grep -c 'CHÚ Ý.*T-001 trước T-002' "$work/run-check.out" || true)"
+
+# Files of other plans: a plan using a file that a later plan creates (and not in its own section 3.2).
+git init -q "$rr"
+mkdir -p "$rr/feature/other"
+touch "$rr/feature/other/strings.xml"
+git -C "$rr" add -A
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa 'Nối `Unfolded.kt` vào màn hình.'
+write_run_plan T-002 feature/demo/Unfolded.kt '| KB-1 | Unit | `bTest` |' Tạo
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+expect "run-check: a plan using a file a later plan creates stops" stop "$(run_check)"
+expect "run-check: names the file and the creating plan" 1 "$(grep -c 'nhắc `Unfolded.kt` mà T-002 (đứng sau) tạo' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)"
+expect "run-check: a later plan using a created file only warns" pass "$(run_check)"
+expect "run-check: the warning says what is missing if the creating plan stops" 1 \
+  "$(grep -c 'CHÚ Ý.*nếu T-002 dừng thì T-001 thiếu.*Unfolded.kt' "$work/run-check.out" || true)"
+write_ticket T-001 'T-002'
+run_check > /dev/null
+expect "run-check: a plan depending on the creating plan gets no such warning" 0 "$(grep -c 'nếu T-002 dừng' "$work/run-check.out" || true)"
+write_ticket T-001 ''
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa 'Dùng `strings.xml`.'
+write_run_plan T-002 feature/demo/strings.xml '| KB-1 | Unit | `bTest` |' Tạo
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+run_check > /dev/null
+expect "run-check: a common file name is no use" 0 "$(grep -c 'L-078' "$work/run-check.out" || true)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa '' 'Plan kia có thể thêm `Unfolded.kt`, không ảnh hưởng.'
+write_run_plan T-002 feature/demo/Unfolded.kt '| KB-1 | Unit | `bTest` |' Tạo
+run_check > /dev/null
+expect "run-check: a file named only in section 6 is no use" 0 "$(grep -c 'L-078' "$work/run-check.out" || true)"
+rm -rf "$rr/.git"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 
 # token-usage.py counts tokens per task from transcripts, one usage per request, never failing the session.
 tokens="$work/token-repo"
