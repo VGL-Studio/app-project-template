@@ -378,3 +378,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `auto-run.md`, mục Chuẩn bị cho người khi task dừng: phần code đã viết mà chưa qua kiểm tra thì vẫn commit lên nhánh task (thông điệp ghi rõ chưa build được, nhánh không có PR), không để trong container. Mô tả cách làm này trong nội dung giao việc cho phiên con.
 - **Trạng thái:** applied
 - **Áp dụng:** `auto-run.md`, mục Chuẩn bị cho người khi task dừng; nhánh `claude/duyet-run-20261024-03`.
+
+### L-070. Phiên con không đẩy được nhánh task vì hệ thống phân quyền của môi trường chặn
+
+- **Ngày, nguồn:** 2026-10-24, RUN-20261024-03 (T-021)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phiên con làm bước 3 đến 5 của T-021 trong worktree riêng; lần `git push` đầu, ngay sau commit test, bị bộ phân loại của auto mode chặn ("Unrequested Commit in a Connected App"). Hai phiên con trước trong cùng phiên (T-034, T-023) đẩy được, nên chặn không đều. Phiên con làm tiếp tới `scripts/check.sh` qua rồi báo; phiên chính không đẩy thay, vì đẩy thay phần bị từ chối là vượt quyền. Task dừng ở bước 7 với hai commit chỉ trong container, sẽ mất khi container bị thu hồi.
+- **Đề xuất sửa:** người xem lại cấu hình quyền của routine (cho phép `git push` tới nhánh `claude/T-*` cho cả phiên con), hoặc `auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: phiên chính đẩy nhánh task, phiên con chỉ commit; phiên con gặp lệnh bị từ chối thì dừng ngay và báo, không làm tiếp phần chưa đẩy được.
+- **Trạng thái:** proposed
+

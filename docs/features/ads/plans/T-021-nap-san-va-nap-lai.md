@@ -461,3 +461,15 @@ Phiên bản 2: **Duyệt**. Người duyệt: Nhật, duyệt chéo: Nhật. AI
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261024-03, phiên bản plan 2
+
+- **Kết quả:** chưa xong, bị chặn ở bước 7: lệnh `git push` của phiên con bị hệ thống phân quyền của môi trường từ chối ("Unrequested Commit in a Connected App"). Không phải plan sai, nên plan và ticket giữ `approved`.
+- **Nhánh, PR:** `claude/T-021-nap-san-va-nap-lai`, tạo từ nhánh chính `507cac5` (có T-034, T-023). Hai commit chỉ nằm trong container của phiên, chưa lên GitHub: `aa58886` (test cùng 10 khung rỗng), `db3c784` (code). Chưa mở PR. Phiên chính không tự đẩy thay phiên con, và đã báo người.
+- **Test viết trước:** 58 test trong 10 lớp, cả 58 thất bại đúng lý do trên khung rỗng (ví dụ `AdRetryPolicyTest` "n = 1 expected:<2000> but was:<0>"; `FullScreenReloadsTest` "expected:<WaitingRetry(dueAtMillis=2000)> but was:<WaitingRetry(dueAtMillis=0)>"; `FullScreenLoadContextTest` "expected same:<ComponentActivity> was not:<Application>"). 9 test có bước đối chứng (L-055); `settledAtStart_movesOnAtOnce` và `finishingDestroyedOrNull_fallsBackToApplication` qua ngay ở lần đầu, đã thêm đối chứng rồi chạy lại thấy thất bại.
+- **Kiểm tra cục bộ:** `scripts/check.sh` qua: 639 test JVM, 0 lỗi (`:core:ads` 361); 42 ảnh screenshot, không ảnh mới hay đổi. 24 file đổi, đều trong mục 3.2. Không dùng phương án dự phòng 3.4.
+- **Rà soát độc lập:** chưa làm (bị chặn trước khi đẩy).
+- **Kết quả CI:** chưa có.
+- **Lệch so với plan (phiên con báo):** commit test có 10 khung rỗng trong `src/main` để biên dịch được; khung rỗng `defaultPreloadPlan` trả mọi `AdFormat.entries`; `FakePreloadSlot` thêm `now`, `order`, `settleAt` là `var`; `networkReturns` coi giá trị đầu `false` là mất mạng ngay, cài bằng `channelFlow` cộng `collectLatest`; `preloadInterstitial`, `preloadNativeFullScreen` chặn theo `!needsLoad(...)` thay cho "khác `Idle`" để lượt thử lại tới hạn nạp được; `nativeLoadOnce` gọi `events.onFailed(0, null)` khi dựng loader ném lỗi; `nativeAd` phát `Loading` trước `Unavailable`; `sdkReady` đặt trên luồng chính.
+- **Việc còn lại:** đẩy nhánh, bước 6 đến 10.
+- **Cần người xem:** quyết định cho phép phiên (hay phiên con) đẩy nhánh task trong môi trường cloud. Nếu container đã bị thu hồi thì hai commit mất: chạy lại plan phiên bản 2 từ đầu trong danh sách chạy mới.
