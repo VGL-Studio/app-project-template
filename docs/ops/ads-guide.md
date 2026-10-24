@@ -65,7 +65,7 @@ Small và medium trong `:core:ads` (plan T-010, số liệu từ `docs/features/
 | Media | không có | rộng hết, cao 196 dp, `MediaView` giữ tỷ lệ |
 | CTA | cao 36 dp, nền `tertiaryContainer`, bo 8 dp (nút chính của app: 52 dp, `primary`, bo 16 dp) | rộng hết, cao 36 dp |
 
-- Màn hình dùng `NativeAdSlot(placement)`: giữ chỗ bằng khối chờ khi tải, thu chỗ (cao 0) khi không có quảng cáo sau `ads_native_load_timeout_seconds`, hủy quảng cáo khi rời màn hình. Vị trí nằm cạnh nút của app thì truyền `keepSpaceWhenEmpty = true` để giữ khoảng trống đúng chiều cao, nút không dịch.
+- Màn hình dùng `NativeAdSlot(placement)`: giữ chỗ bằng khối chờ khi tải, thu chỗ (cao 0) khi không có quảng cáo sau 10 giây, hủy quảng cáo khi rời màn hình. Vị trí nằm cạnh nút của app thì truyền `keepSpaceWhenEmpty = true` để giữ khoảng trống đúng chiều cao, nút không dịch.
 - AdChoices do SDK vẽ ở góc trên phải; app không tự vẽ.
 
 ## 5. Thêm một vị trí quảng cáo
@@ -82,8 +82,9 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
      - Native trong tập hợp: ẩn hay giữ chỗ khi hết quảng cáo, chèn mỗi N mục.
      - Thanh đáy: màn nào có.
    - Thiết kế đánh dấu vùng quảng cáo trên ảnh màn hình.
-2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`) với mã, định dạng và thuộc tính trên. Dòng giữ dạng một dòng mà `scripts/release.sh` đọc được (`TEN_VI_TRI("ten_vi_tri", AdFormat.X, ...),`): script đòi mã production cho mọi vị trí, trừ vị trí bắt đầu bằng `gallery_` (chỉ dùng cho màn xem thử ở staging, không bao giờ phát hành). `AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó. Mã đơn vị theo vị trí hay theo khe như AdsKit là câu hỏi 14 của spec ads; đổi cách này cần sửa `release.sh` (việc của người).
-3. **Khóa:** không đặt tên tay. Khóa suy ra từ khai báo: `is_show_<mã vị trí>` (mặc định tắt), `ads_interval_<nhóm>` nếu có nhóm riêng, `<tham số>_<mã vị trí>` cho tham số riêng (câu hỏi 28 của spec ads). Muốn giữ đúng chuỗi khóa của AdsKit thì chọn mã vị trí trùng (ví dụ vị trí `rw_get_item` cho `is_show_rw_get_item`). Bảng khóa sinh lại tự động. Tới khi đợt 3 xong (T-019), vị trí của đợt 2 vẫn dùng `ads_<ten_vi_tri>_enabled`.
+2. **Khai báo:** thêm một dòng vào `AdPlacement` (`core/ads`) với mã, định dạng và thuộc tính trên. Dòng giữ dạng một dòng mà `scripts/release.sh` đọc được, `TEN_VI_TRI("ten_vi_tri", AdFormat.X),`: script đòi mã production cho mọi vị trí, trừ vị trí bắt đầu bằng `gallery_` (chỉ dùng cho màn xem thử ở staging, không bao giờ phát hành). `AdPlacement.stagingOnly` suy từ tiền tố này; `ConfiguredAdUnitIds` không đòi và không trả mã production cho các vị trí đó. Mã đơn vị theo vị trí hay theo khe như AdsKit là câu hỏi 14 của spec ads; đổi cách này cần sửa `release.sh` (việc của người).
+   - **Giới hạn hiện tại:** dòng của vị trí không bắt đầu bằng `gallery_` phải là một dòng và không có thuộc tính nào sau định dạng (nhóm giãn cách riêng, `nativeEvery`, `ignoreInterval`...), cho tới khi người sửa biểu thức ở dòng 42 của `release.sh`. Script bỏ qua dòng có thuộc tính, nên bản phát hành sẽ không đòi mã cho vị trí đó và vị trí im lặng không có quảng cáo; `AdPlacementSourceTest` của `:core:ads` báo lỗi với dòng như vậy. Vị trí cần thuộc tính thì hỏi người sửa script trước khi khai báo.
+3. **Khóa:** không đặt tên tay. Khóa suy ra từ khai báo: `is_show_<mã vị trí>` (mặc định tắt), `ads_interval_<nhóm>` nếu có nhóm riêng, `<tham số>_<mã vị trí>` cho tham số riêng (câu hỏi 28 của spec ads). Muốn giữ đúng chuỗi khóa của AdsKit thì chọn mã vị trí trùng (ví dụ vị trí `rw_get_item` cho `is_show_rw_get_item`). Bảng khóa sinh lại tự động.
 4. **Màn hình:** gọi composable hay hàm của `:core:ads` với vị trí: banner, native, thanh đáy, ô trong tập hợp, `rememberShowInterstitial(placement)` ở hành động của người dùng, hộp thoại rewarded trước hành động có điều kiện. Feature không gọi SDK quảng cáo, không đọc khóa quảng cáo. Màn hình mở màn khác của hệ thống (chọn ảnh, camera, chia sẻ) dùng cách chặn quảng cáo tự hiện của `:core:ads` (`ads-business-rules.md`, mục 6).
    - Hiện có (đợt 2): `AdSlot(placement)` (banner), `NativeAdSlot(placement)` (native small, medium; `keepSpaceWhenEmpty = true` khi vị trí cạnh nút của app), `rememberShowFullScreenAd(placement)` (interstitial và native toàn màn hình; hàm cũ `rememberShowInterstitial` vẫn chạy cho interstitial). Native toàn màn hình hiện trong hộp thoại do `FullScreenAdHost()` của `:app` vẽ, dùng chung giới hạn tần suất với interstitial, và không hiện gì khi chưa tải sẵn xong. Màn hình nhận phần quảng cáo qua một tham số composable, mặc định là `NativeAdSlot`, như `bottomAd` của `SampleScreen`.
    - **Native trong danh sách** (vị trí native small hay medium): gọi `rememberInListAds(placement)` ở mức màn hình, ngoài `LazyColumn` hay `LazyVerticalGrid`, rồi thay `items(...)` bằng `itemsWithInListAds(...)`:
@@ -93,7 +94,7 @@ Vị trí là quyết định kinh doanh: chỉ thêm khi spec đã duyệt có 
      LazyColumn { itemsWithInListAds(photos, ads, key = { it.id }) { PhotoRow(it) } }
      ```
 
-     Quảng cáo thứ k nằm ngay sau mục thứ k x N (N là `ads_inlist_every_count`), chỉ nằm giữa hai mục: không ở đầu, không ở cuối, danh sách có N mục trở xuống thì không có quảng cáo. Chưa đồng ý, vị trí hay công tắc tổng tắt thì không chèn hàng nào. Mỗi ô một quảng cáo riêng, tải khi ô hiện lần đầu, giữ khi cuộn qua lại (không tải lại), hủy hết khi rời màn hình; ô không có quảng cáo sau thời gian chờ thì cao 0. Hàng quảng cáo có khóa và `contentType` riêng, không trùng khóa của mục.
+     Quảng cáo thứ k nằm ngay sau mục thứ k x N (N là `native_every_<mã vị trí>`, mặc định là `nativeEvery` của vị trí; vị trí không khai báo `nativeEvery` thì không chèn hàng nào), chỉ nằm giữa hai mục: không ở đầu, không ở cuối, danh sách có N mục trở xuống thì không có quảng cáo. Chưa đồng ý, vị trí hay công tắc tổng tắt thì không chèn hàng nào. Mỗi ô một quảng cáo riêng, tải khi ô hiện lần đầu, giữ khi cuộn qua lại (không tải lại), hủy hết khi rời màn hình; ô không có quảng cáo sau thời gian chờ thì cao 0. Hàng quảng cáo có khóa và `contentType` riêng, không trùng khóa của mục.
    - **Lưới:** truyền số cột, `itemsWithInListAds(items, ads, columns = 2) { ... }`. N được làm tròn lên bội số cột (N = 3, 2 cột thành 4) để hàng trên quảng cáo luôn đủ ô; hàng quảng cáo rộng hết lưới. Khi chọn N cho màn hình lưới, nên chọn sẵn bội số cột.
    - N trên Remote Config nên từ 5 trở lên; N = 1 nghĩa là quảng cáo xen giữa mọi mục. Code không chặn, giá trị là quyết định của người vận hành (ADR-0023).
    - **Native thu gọn** (vị trí định dạng `NATIVE_COLLAPSIBLE`): đặt `CollapsibleNativeAdSlot(placement)`. Màn hình gọi tự đặt nó ở đáy; slot chỉ chiếm chiều rộng được cho, không tự ghim. Quảng cáo mở dạng medium có nút thu gọn 48 dp ở góc trên trái, chạm thì thành dạng small và không mở lại trong lần vào màn hình đó, kể cả khi xoay máy, quay lại từ ngăn xếp hay tải quảng cáo mới. Screenshot test truyền `CollapsibleNativeAdCard(assets, collapsed, onCollapse = {})` giả.
@@ -112,17 +113,7 @@ Luật đầy đủ ở `ads-business-rules.md`, mục 3 và 4. Tóm tắt cho n
 - Quảng cáo khi quay lại app không có khoảng chờ thời gian; bị bỏ khi người dùng vừa bấm quảng cáo, vừa mở màn của hệ thống hay rời app có chủ đích.
 - Banner làm mới theo cài đặt tự làm mới của đơn vị banner trên AdMob; native ở đáy và native thu gọn thay nội dung mỗi 60 giây khi app ở foreground.
 
-Hiện có (đợt 2), tới khi T-019 đổi sang luật trên:
-
-| Quy tắc | Khóa | Đề xuất |
-| --- | --- | --- |
-| Khoảng cách tối thiểu giữa hai quảng cáo toàn màn hình | `ads_interstitial_min_interval_seconds` (đã có) | 45 giây, nâng lên nếu giữ chân giảm |
-| Ân hạn phiên đầu: không quảng cáo toàn màn hình trong khoảng này sau lần mở đầu tiên | `ads_first_session_grace_seconds` | 180 giây |
-| Tối đa quảng cáo toàn màn hình mỗi phiên | `ads_interstitial_max_per_session_count` | 4 |
-| Native in-list cách nhau | `ads_inlist_every_count` | 8 mục |
-| Công tắc tổng | `ads_enabled` | bật |
-
-Khoảng cách và ân hạn lưu trên máy, tính qua các phiên (ADR-0022). Một phiên bắt đầu khi app khởi động, và bắt đầu lại khi app trở lại tiền cảnh sau ít nhất 30 phút ở nền (giống phiên của Firebase Analytics); số quảng cáo toàn màn hình của phiên chỉ đếm trong bộ nhớ. Banner làm mới theo cài đặt của đơn vị quảng cáo trên AdMob, không đặt dưới 60 giây; native không tự làm mới, chỉ tải mới khi người dùng vào lại màn hình.
+Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-rules.md`, mục 10; bảng sinh từ code ở `docs/remote-config-keys.md`.
 
 ## 7. Mediation: AdMob và chín mạng (đợt 3)
 
