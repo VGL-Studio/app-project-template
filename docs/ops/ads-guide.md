@@ -176,7 +176,7 @@ Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-ru
 - **Mintegral:** năm 2020 Snyk báo cáo SDK của Mintegral (khi đó là SourMint) theo dõi lượt bấm và URL trong app; Mintegral bác bỏ và đưa kết quả kiểm toán. Dự án mẫu giữ Mintegral theo ADR-0026 (plan T-034, câu hỏi 3); từng app cân nhắc khi khai Data safety.
 - **Kích thước:** APK `stagingDebug` chưa thu gọn tăng khoảng 24 MB (23,4 MB lên 47,4 MB). App muốn bỏ bớt mạng thì đề xuất ADR của app.
 - **Việc của người trên AdMob** (trang của từng mạng): thêm từng mạng vào danh sách đối tác quảng cáo của thông điệp GDPR và các bang Mỹ; ánh xạ mã của từng mạng trong nhóm mediation; bật chế độ thử của mạng khi thử và tắt trước khi phát hành; `app-ads.txt` có dòng của từng mạng ([release.md](release.md), mục 1.4).
-- **Nâng adapter** là plan rủi ro cao: chọn bản có "Built and tested with" khớp bản Google Mobile Ads; kiểm lại tên provider, receiver trong manifest của AAR (`MergedManifestTest` bắt khi tên đổi mà phần tử quay lại).
+- **Nâng adapter** là plan rủi ro cao: chọn bản có "Built and tested with" khớp bản Google Mobile Ads; kiểm lại tên provider, receiver trong manifest của AAR. `MergedManifestTest` chỉ kiểm theo tên cũ: SDK đổi tên phần tử thì dòng `tools:node="remove"` không còn khớp, phần tử tên mới vào app mà test vẫn qua, nên phải đọc manifest của AAR bằng tay.
 
 ## 8. Thử trên staging
 
