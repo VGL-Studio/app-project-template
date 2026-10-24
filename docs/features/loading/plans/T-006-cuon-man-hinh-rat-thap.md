@@ -5,6 +5,7 @@ status: approved
 version: 1
 risk_score: 1
 risk_level: low
+token_estimate: 5M          # cỡ S (scripts/token-usage.py estimate, 2026-10-24)
 blocking_points: []
 run_order:
 reviewer: Nhật
@@ -67,6 +68,8 @@ Dùng `getUnclippedBoundsInRoot()`, không dùng `getBoundsInRoot()`: phần t�
 - Quảng cáo: Không chạm.
 - Sự kiện phân tích: Không chạm.
 - File R2: Không chạm.
+- Quyền truy cập: Không thêm.
+- Thư viện và SDK: Không thêm.
 
 ## 4. Kiểm thử
 
@@ -84,7 +87,7 @@ Hàng `w320dp-h640dp` cho thấy lỗi gốc của FB-20261017-01 (chiều rộn
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| KB-2: cuộn được tới nút "Thử lại", thấy trọn và bấm được | Compose UI test (Robolectric), khung `w320dp-h480dp-xxhdpi` | `LoadingScreenTest.failed_onVeryShortScreen_retryButtonReachableByScrolling`. Theo số đo: trước khi cuộn nút không hiện; sau khi cuộn đáy nút 480 ≤ 480; bấm gọi `onRetry` một lần. Qua ngay trên code hiện tại |
+| KB-2, KB-3 (KB-3 báo lỗi như KB-2): cuộn được tới nút "Thử lại", thấy trọn và bấm được | Compose UI test (Robolectric), khung `w320dp-h480dp-xxhdpi` | `LoadingScreenTest.failed_onVeryShortScreen_retryButtonReachableByScrolling`. Theo số đo: trước khi cuộn nút không hiện; sau khi cuộn đáy nút 480 ≤ 480; bấm gọi `onRetry` một lần. Qua ngay trên code hiện tại |
 | Chân trang không đè nút khi cuộn tới cuối | Compose UI test, khung `w320dp-h480dp-xxhdpi` | `LoadingScreenTest.failed_onVeryShortScreen_footerBelowRetryAfterScrolling`. Theo số đo: đỉnh chân trang 464 ≥ đáy nút 440. Qua ngay trên code hiện tại |
 | Không đổi gì khác | Screenshot test, test hiện có | Sáu ảnh chuẩn hiện có so khớp, không ghi lại; test hiện có của `LoadingScreenTest` qua, không sửa |
 
@@ -127,7 +130,7 @@ Hàng `w320dp-h640dp` cho thấy lỗi gốc của FB-20261017-01 (chiều rộn
 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (vì là app mẫu)
-- **Ghi chú:** 
+- **Ghi chú:** 2026-10-24, khi đưa vào RUN-20261024-02 theo lời anh Nhật: AI thêm `token_estimate`, hai dòng Quyền truy cập, Thư viện và SDK ở mục 3.3 (Không thêm) và ghi KB-3 vào dòng test cuộn ở mục 4, theo `plan-check.py` và `run-check.py`. Không đổi cách làm, danh sách file hay test; giữ phiên bản 1. Báo người duyệt trong PR của danh sách chạy.
 
 ## 10. Nhật ký thực hiện
 
