@@ -14,6 +14,7 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MediaAspectRatio
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.VideoOptions
+import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.nativead.NativeAd
@@ -28,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +75,10 @@ import kotlinx.coroutines.withContext
  * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads every 30 s.
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
+ *
+ * The ad of the loading screen (plan T-024, KB-13) is [StartupAds]: [awaitStartupAd] waits within the limits of A-03
+ * ([awaitStartupAd] of StartupAdWait.kt), and [showStartupAd] shows the app open ad of the app open slot (A-07 to
+ * A-09) or the interstitial of `open_app_inter`. App-wide placements are switched by [placementSwitch].
  */
 @Singleton
 class AdsController @Inject internal constructor(
@@ -84,7 +90,8 @@ class AdsController @Inject internal constructor(
     private val shortcutConfig: ConsentShortcutConfig,
     metrics: AdMetrics,
     internal val logger: AppLogger,
-) {
+    private val firstOpenMark: FirstOpenMark,
+) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Touched on the main thread only.
@@ -101,6 +108,26 @@ class AdsController @Inject internal constructor(
         },
     )
 
+    /** The app open slot (A-07): a load replaces the ad kept before it, an ad an hour old is dropped when read. */
+    private val loadedAppOpens = FreshAdCache<AppOpenAd>(APP_OPEN_MAX_AGE_MILLIS, onDiscard = { appOpenCells -= it })
+
+    /** When the last app open ad closed, for the lock of A-08; null before the first one. */
+    private var lastAppOpenClosedAt: Long? = null
+
+    /** When [start] ran: the origin of the three limits of A-03 (question 4 of plan T-024); null before it. */
+    private var startedAtMillis: Long? = null
+
+    /**
+     * Whether this process is the first open since install (A-01): the mark is read and written once, the first time
+     * a switch of an app-wide placement is read, which is in [start] (question 6 of plan T-024).
+     */
+    private val firstOpenResult by lazy { scope.async { firstOpenMark.consume() } }
+    private val firstOpen: Flow<Boolean> = flow { emit(firstOpenResult.await()) }
+
+    /** The placement of the startup ad the keys choose now, collected from [start]; [startupChoiceKnown] once read. */
+    private val startupChoice = MutableStateFlow<AdPlacement?>(null)
+    private val startupChoiceKnown = MutableStateFlow(false)
+
     /** Loading and waiting for a retry, per full-screen placement; ready and idle are read from the loaded ads. */
     private val loadStates = mutableMapOf<AdPlacement, FullScreenLoadState>()
 
@@ -110,6 +137,7 @@ class AdsController @Inject internal constructor(
     /** The placement a loaded full-screen ad is shown for, set at each show and read by its paid event (PL-03). */
     private val interstitialCells = mutableMapOf<InterstitialAd, PlacementCell>()
     private val nativeFullScreenCells = mutableMapOf<LoadedNativeAd, PlacementCell>()
+    private val appOpenCells = mutableMapOf<AppOpenAd, PlacementCell>()
 
     /** The completion of the full-screen turn on screen, and of the native full-screen ad on screen. */
     private var currentTurn: FullScreenCompletion? = null
@@ -263,6 +291,7 @@ class AdsController @Inject internal constructor(
             return
         }
         logger.info(TAG, "Ads started")
+        startedAtMillis = clock.nowMillis()
         val activityTracker = AdsActivityTracker(
             appActivities,
             object : AdsActivityTracker.Listener {
@@ -298,6 +327,12 @@ class AdsController @Inject internal constructor(
             }
         }
         scope.launch { flags.global.collect { latestGlobalFlags.value = it } }
+        scope.launch {
+            combine(flags.global, firstOpen) { global, first -> startupAdPlacement(global, first) }.collect {
+                startupChoice.value = it
+                startupChoiceKnown.value = true
+            }
+        }
         collectPreloadTriggers()
     }
 
@@ -321,6 +356,73 @@ class AdsController @Inject internal constructor(
         }
         // The value read in start, so Internet is watched once (S-24, T-016).
         scope.launch { networkReturns(online).collect { preloader.onNetworkReturned() } }
+    }
+
+    /**
+     * The startup ad of the loading screen (KB-13): waits within the limits of A-03, counted from [start], probing
+     * without recording (A-04), and returns the turn to show, or null; null at once when the key of this open is off.
+     * Null before [start] (tests, previews).
+     */
+    override suspend fun awaitStartupAd(): StartupAdTurn? = withContext(Dispatchers.Main.immediate) {
+        val startedAt = startedAtMillis
+        if (startedAt == null) {
+            logger.info(TAG, "startup ad: ads not started")
+            return@withContext null
+        }
+        startupChoiceKnown.first { it }
+        val probe = object : StartupAdProbe {
+            override fun nowMillis(): Long = clock.nowMillis()
+
+            override val consentFinished: Boolean get() = consentFlowFinished.value
+
+            override val consentOpen: Boolean get() = gate.state.value.allowed
+
+            override val sdkReady: Boolean get() = _sdkReady.value
+
+            override fun chosen(): AdPlacement? = startupChoice.value
+
+            override fun isReady(placement: AdPlacement): Boolean = isFullScreenAdReady(placement)
+
+            override fun ensureLoading(placement: AdPlacement) = loadFullScreenAdIfNeeded(placement)
+
+            override fun recordNotReady(placement: AdPlacement) = telemetry.opportunity(
+                placement.format,
+                placement,
+                FullScreenShowDecision.NOT_READY.opportunityResult(),
+                opportunityLoadState(placement),
+            )
+        }
+        awaitStartupAd(probe, startedAt, logger = logger)?.let { StartupAdTurn(it) }
+    }
+
+    /**
+     * Shows [turn] ([rememberShowStartupAd]) in the scope of this controller, so a recreated activity does not cancel
+     * it: `open_app` through the app open slot, `open_app_inter` as an interstitial that skips the `ads_interval` gate
+     * and moves its mark when it closes (A-02). [onFinished] runs once on the main thread, with true only when the
+     * interstitial was shown.
+     */
+    internal fun showStartupAd(activity: Activity, turn: StartupAdTurn, onFinished: (interShown: Boolean) -> Unit) {
+        scope.launch {
+            var interShown = false
+            val completion = FullScreenCompletion(logger).apply { set { onFinished(interShown) } }
+            if (activity.isFinishing || activity.isDestroyed) {
+                logger.info(TAG, "Startup ad ${turn.placement.key} skipped: activity gone")
+                completion.complete("activity_gone")
+                return@launch
+            }
+            val finish = { completion.complete("startup_ad") }
+            when (turn.placement.format) {
+                AdFormat.APP_OPEN -> showAppOpen(activity, turn.placement, finish)
+                AdFormat.INTERSTITIAL -> {
+                    val shown = showInterstitial(activity, turn.placement, finish)
+                    interShown = shown
+                }
+                else -> {
+                    logger.warn(TAG, "Startup ad ${turn.placement.key}: format not shown")
+                    completion.complete("format")
+                }
+            }
+        }
     }
 
     /** Sets the preload plan (HD-02); call it in `Application.onCreate`, before consent has a result. */
@@ -428,7 +530,7 @@ class AdsController @Inject internal constructor(
         _sdkReady.value = true
     }
 
-    private fun fullScreenPlacements() = AdPlacement.entries.filter { it.format.isFullScreen }
+    private fun fullScreenPlacements() = AdPlacement.entries.filter { it.format.hasFullScreenSlot }
 
     /**
      * Opens AdMob's Ad Inspector ([rememberOpenAdInspector], staging ad gallery only). Google opens it only on an
@@ -507,6 +609,61 @@ class AdsController @Inject internal constructor(
                 override fun onAdClicked() = telemetry.clicked(AdFormat.INTERSTITIAL, placement)
             }
             logger.info(TAG, "Interstitial shown: ${placement.key}")
+            ad.show(activity)
+            true
+        }
+
+    /**
+     * Shows the app open ad of [placement] (A-05): the full-screen gate of [decideFullScreenShow], with the lock of
+     * one second after the previous app open ad closed (A-08) in place of the `ads_interval` mark, which app open
+     * never reads or moves (I-02). The ad leaves the slot when it shows, so an ad loaded while it is on screen is kept
+     * (A-09); closing it or failing to show loads again at once (F-06). [onFinished] runs once, as for
+     * [showInterstitial].
+     */
+    private suspend fun showAppOpen(activity: Activity, placement: AdPlacement, onFinished: () -> Unit): Boolean =
+        withContext(Dispatchers.Main.immediate) {
+            val enabled = isEnabled(placement).first()
+            val now = clock.nowMillis()
+            val decision = decideFullScreenShow(
+                consentOpen = canRequestAds.value && gate.state.value.allowed,
+                enabled = enabled,
+                busy = presence.isBusy(now),
+                ready = isFullScreenAdReady(placement),
+                intervalPassed = appOpenLockPassed(lastAppOpenClosedAt, now),
+            )
+            val loadState = opportunityLoadState(placement)
+            if (decision != FullScreenShowDecision.SHOW) {
+                return@withContext skipTurn(placement, decision, loadState, onFinished)
+            }
+            if (!presence.tryBegin(placement, System.identityHashCode(activity), now)) {
+                return@withContext skipTurn(placement, FullScreenShowDecision.BUSY, loadState, onFinished)
+            }
+            val ad = loadedAppOpens.take(placement, now)
+            if (ad == null) {
+                presence.onClosed()
+                return@withContext skipTurn(placement, FullScreenShowDecision.NOT_READY, loadState, onFinished)
+            }
+            appOpenCells.remove(ad)?.value = placement
+            recordShownOpportunity(placement)
+            val turn = beginTurn(onFinished)
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    // First line, as for interstitials; no `ads_interval` mark (I-02).
+                    lastAppOpenClosedAt = clock.nowMillis()
+                    endTurn(turn, "closed")
+                    fullScreenReloads.onClosedOrShowFailed(placement)
+                }
+
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    logger.warn(TAG, "App open ${placement.key} failed to show: ${error.code}")
+                    telemetry.showFailed(AdFormat.APP_OPEN, placement, error.code)
+                    endTurn(turn, "show_failed")
+                    fullScreenReloads.onClosedOrShowFailed(placement)
+                }
+
+                override fun onAdClicked() = telemetry.clicked(AdFormat.APP_OPEN, placement)
+            }
+            logger.info(TAG, "App open shown: ${placement.key}")
             ad.show(activity)
             true
         }
@@ -607,6 +764,8 @@ class AdsController @Inject internal constructor(
         placement.format == AdFormat.INTERSTITIAL && placement in loadedInterstitials -> FullScreenLoadState.Ready
         placement.format == AdFormat.NATIVE_FULL_SCREEN &&
             preloadedNativeFullScreen.hasFresh(placement, clock.nowMillis()) -> FullScreenLoadState.Ready
+        placement.format == AdFormat.APP_OPEN &&
+            loadedAppOpens.hasFresh(placement, clock.nowMillis()) -> FullScreenLoadState.Ready
         else -> loadStates[placement] ?: FullScreenLoadState.Idle
     }
 
@@ -668,10 +827,11 @@ class AdsController @Inject internal constructor(
 
     /**
      * Whether [placement] may load and show ads: the master switch `is_show_ads` and the placement's own switch
-     * `is_show_<code>` (KB-7, ADR-0014). Every ad format, including native ones added later, must check this before
+     * `is_show_<code>` (KB-7, ADR-0014); for an app-wide placement, whether the keys of this open choose it
+     * ([placementSwitch], A-01, A-02). Every ad format, including native ones added later, must check this before
      * loading or showing an ad.
      */
-    internal fun isEnabled(placement: AdPlacement): Flow<Boolean> = flags.placementEnabled(placement)
+    internal fun isEnabled(placement: AdPlacement): Flow<Boolean> = placementSwitch(placement, flags, firstOpen)
 
     /**
      * N of the in-list ads of [placement] ([rememberInListAds]): `native_every_<code>`, or null while no ad row may
@@ -843,6 +1003,7 @@ class AdsController @Inject internal constructor(
     private fun preloadNow(placement: AdPlacement) {
         when (placement.format) {
             AdFormat.NATIVE_FULL_SCREEN -> preloadNativeFullScreen(placement)
+            AdFormat.APP_OPEN -> preloadAppOpen(placement)
             else -> preloadInterstitial(placement)
         }
     }
@@ -1000,8 +1161,80 @@ class AdsController @Inject internal constructor(
         }
     }
 
+    /**
+     * Loads one app open ad of [placement] for the app open slot, unless one is kept, one is loading or a retry is
+     * not due (F-04), or the placement is off; like [preloadInterstitial]. Its paid events carry the placement it is
+     * shown for (PL-03). A failure retries by F-05 ([FullScreenReloads]).
+     */
+    private fun preloadAppOpen(placement: AdPlacement) {
+        // The gate is asked right before sending, below.
+        if (!needsLoad(fullScreenLoadState(placement), clock.nowMillis(), gateOpen = true)) return
+        val unitId = unitId(placement) ?: return
+        loadStates[placement] = FullScreenLoadState.Loading
+        scope.launch {
+            if (!isEnabled(placement).first()) {
+                loadStates -= placement
+                return@launch
+            }
+            // Asked right before sending (S-15): a closed gate ends the round, no request, no retry.
+            if (!mayRequestNow()) {
+                loadStates[placement] = fullScreenReloads.onSendBlocked(placement)
+                logger.info(TAG, "App open ${placement.key} not requested: consent gate closed")
+                return@launch
+            }
+            val slot = preloadCounterKey(placement.key)
+            val loadPlacement = loadPlacementOf(AdFormat.APP_OPEN, placement)
+            val callback = object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    loadStates -= placement
+                    lastLoadErrors -= placement
+                    telemetry.loadSucceeded(AdFormat.APP_OPEN, slot, loadPlacement, clock.nowMillis())
+                    val cell = PlacementCell()
+                    val adapter = ad.responseInfo.loadedAdapterResponseInfo
+                    ad.setOnPaidEventListener { value ->
+                        telemetry.revenue(
+                            AdFormat.APP_OPEN,
+                            unitId,
+                            { cell.value },
+                            value.valueMicros,
+                            value.currencyCode,
+                            adapter?.adSourceName,
+                            adapter?.adapterClassName,
+                        )
+                    }
+                    appOpenCells[ad] = cell
+                    loadedAppOpens.put(placement, ad, clock.nowMillis())
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    logger.warn(TAG, "App open ${placement.key} failed to load: ${error.code}")
+                    onFullScreenLoadFailed(AdFormat.APP_OPEN, placement, slot, loadPlacement, error.code, error.message)
+                }
+            }
+            try {
+                val request = adRequest()
+                telemetry.requestSent(slot, clock.nowMillis())
+                AppOpenAd.load(fullScreenLoadContext(tracker?.resumedActivity, context), unitId, request, callback)
+            } catch (e: Exception) {
+                // O-09: the request could not be built or sent; never the message of the error.
+                logger.warn(TAG, "App open ${placement.key} failed to load: 0 (request not built)")
+                onFullScreenLoadFailed(AdFormat.APP_OPEN, placement, slot, loadPlacement, 0, null)
+            }
+        }
+    }
+
     /** A load of the interstitial of [placement] failed: counted first (T-023), then a retry (F-05). */
     private fun onInterstitialLoadFailed(
+        placement: AdPlacement,
+        slot: String,
+        loadPlacement: String?,
+        code: Int,
+        message: String?,
+    ) = onFullScreenLoadFailed(AdFormat.INTERSTITIAL, placement, slot, loadPlacement, code, message)
+
+    /** A load of the interstitial or app open ad of [placement] failed: counted first (T-023), then a retry (F-05). */
+    private fun onFullScreenLoadFailed(
+        format: AdFormat,
         placement: AdPlacement,
         slot: String,
         loadPlacement: String?,
@@ -1010,7 +1243,7 @@ class AdsController @Inject internal constructor(
     ) {
         loadStates -= placement
         lastLoadErrors[placement] = telemetry.loadFailed(
-            AdFormat.INTERSTITIAL,
+            format,
             slot,
             loadPlacement,
             code,
@@ -1076,8 +1309,8 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
     // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
     AdFormat.NATIVE_FULL_SCREEN -> null
-    // Not shown by any function yet: app open and rewarded are not native; the pool of T-027, T-028 loads the
-    // native step and in-collection cards.
+    // App open (its own slot, T-024) and rewarded are not native; the pool of T-027, T-028 loads the native step
+    // and in-collection cards.
     AdFormat.APP_OPEN -> null
     AdFormat.REWARDED -> null
     AdFormat.BANNER_COLLAPSIBLE -> null

@@ -18,12 +18,17 @@ import dagger.multibindings.ElementsIntoSet
 @Module
 @InstallIn(SingletonComponent::class)
 object StagingRemoteValuesModule {
-    /** Every placement shows Google test ads on staging (ADR-0013); placements added later are included. */
+    /**
+     * Every placement shows Google test ads on staging (ADR-0013); placements added later are included. App-wide
+     * placements have no switch of their own: [globalAdSwitchesOn] turns them on (plan T-024).
+     */
     @Provides
     @ElementsIntoSet
     @LocalRemoteValues
-    fun everyAdPlacementEnabled(): Set<LocalRemoteValue> =
-        AdPlacement.entries.map { LocalRemoteValue.of(AdsSettings.placementEnabled(it), true) }.toSet()
+    fun everyAdPlacementEnabled(): Set<LocalRemoteValue> = AdPlacement.entries
+        .filterNot { it.appWide }
+        .map { LocalRemoteValue.of(AdsSettings.placementEnabled(it), true) }
+        .toSet()
 
     /**
      * App open, resume, combo, native bottom slot and the ad lifecycle logs are on for testers (plan T-019,

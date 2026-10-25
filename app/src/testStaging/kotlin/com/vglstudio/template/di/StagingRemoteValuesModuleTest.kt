@@ -17,12 +17,24 @@ class StagingRemoteValuesModuleTest {
 
     @Test
     fun everyAdPlacement_isShown() {
-        AdPlacement.entries.forEach { placement ->
+        // App-wide placements have no is_show_<code>: show_open_ads* switch them (plan T-024, question 3).
+        val switched = AdPlacement.entries.filterNot { it.appWide }
+        // Control: some placements are app-wide, and the others are still checked.
+        assertTrue(AdPlacement.entries.any { it.appWide })
+        assertTrue(switched.isNotEmpty())
+        switched.forEach { placement ->
             val name = AdsSettings.placementEnabled(placement).name
             // Control: the switch is the key of plan T-019, not the wave 2 one.
             assertEquals("is_show_${placement.key}", name)
             assertTrue("$name is not on", name in shownNames)
         }
+    }
+
+    @Test
+    fun appWidePlacements_haveNoLocalValue() {
+        // Control: placement switches are set, so an is_show_ value would be found if one were there.
+        assertTrue(names.toString(), "is_show_sample_native_small" in names)
+        assertFalse(names.toString(), names.any { it.startsWith("is_show_open_app") })
     }
 
     @Test
