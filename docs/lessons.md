@@ -493,3 +493,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `scripts/wait-run.sh --pr` đọc lại commit đầu của PR mỗi vòng và đi theo commit mới; lần chạy bị hủy thì đọc lại commit đầu vài vòng trước khi gọi là đỏ; thêm `--sha <commit>` để chờ đúng commit vừa đẩy. `auto-run.md`, bước 8: chờ bằng `--sha "$(git rev-parse HEAD)"` sau khi chính phiên đẩy. Có test.
 - **Trạng thái:** applied
 - **Áp dụng:** `scripts/wait-run.sh` (`--pr` đọc lại commit đầu mỗi vòng, `--sha`), `docs/auto-run.md` bước 8 và mục Khi nhánh chính đỏ, `CLAUDE.md`; PR #148. Số bài học đổi từ L-083 (trùng bài học R8 của #142).
+
+### L-088. `$TMPDIR` trống trên cloud và `sed -i` kiểu GNU dừng bộ test trên macOS
+
+- **Ngày, nguồn:** 2026-10-25, app camera-pose (L-071, L-072 của app; RUN-20261024-02, T-044, T-047, PR #124 của app), issue #150
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** ở app camera-pose, plan T-044 ghi `git show origin/main:scripts/wait-run.sh > "$TMPDIR/wait-run.sh"`. Phiên `claude --cloud` không đặt `TMPDIR`, nên tệp bị ghi vào `/wait-run.sh` ở gốc ổ đĩa. Cùng phiên, một lệnh mở đầu bằng `sleep` bị công cụ chặn. Ở phiên khác, test `status` của `scripts/tests/run.sh` gọi `sed -i 's/.../'`. `sed` của macOS (bản BSD) cần đuôi sao lưu, báo `invalid command code`, nên bộ test dừng giữa chừng, không in dòng tổng kết, và `check.sh` đỏ trên máy dev. CI chạy Linux nên vẫn xanh. Cùng loại với L-069 (bash 3.2).
+- **Đề xuất sửa:** `scripts/plan-check.py` quy tắc 12: plan `draft` ghi `$TMPDIR` hay `${TMPDIR}` không có giá trị mặc định thì báo lỗi, plan `approved` thì chỉ chú ý; `${TMPDIR:-/tmp}` qua. `docs/auto-run.md` bước 9 và `docs/CLAUDE.md` mục Khi viết plan: dùng `${TMPDIR:-/tmp}`, lệnh không mở đầu bằng `sleep`. Script dùng `sed -i.bak ... && rm -f <tệp>.bak`, hoặc perl, python. `scripts/tests/run.sh` có test dò `sed -i` không có đuôi trong `scripts/`.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/plan-check.py` quy tắc 12, `scripts/tests/run.sh` (test quy tắc 12, test dò `sed -i`), `docs/auto-run.md` bước 9, `docs/CLAUDE.md`; PR #157. Mẫu chưa có dòng `sed -i` nào thiếu đuôi.

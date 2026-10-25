@@ -38,6 +38,9 @@ Finds, from the plan alone, the mistakes that otherwise stop a task in the middl
      or in the repository, and a file in the repository passes `scripts/device-scenario.py check`. Only a warning, for
      draft and approved plans alike, until an app has run its first scenario files green in a device-session; then
      an app may make it an error for a draft plan (a warning stays for an approved one, like rule 7).
+ 12. A command of the plan does not use $TMPDIR or ${TMPDIR} without a default (L-088): a cloud session does not set
+     TMPDIR, so "$TMPDIR/x" writes /x at the root of the disk. ${TMPDIR:-/tmp} passes. An error for a draft plan,
+     a warning for an approved one, like rule 7.
 PLAN_CHECK_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
@@ -318,6 +321,9 @@ def scenario_runner():
     return module
 
 
+# Rule 12: $TMPDIR or ${TMPDIR} with no default; ${TMPDIR:-/tmp} and $TMPDIR_X do not match.
+BARE_TMPDIR = re.compile(r"\$(?:TMPDIR(?!\w)|\{TMPDIR\})")
+
 MANUAL_PLACE = re.compile(r"\((emulator|máy thật|người):([^)]*)\)", re.I)
 
 
@@ -476,6 +482,10 @@ def check(plan_path):
     if status in ("draft", "approved"):
         for message in permission_and_library_problems(text, fields, listed) + check_sh_problems(text, listed):
             (errors if status == "draft" else warnings).append(message)
+    if status in ("draft", "approved") and BARE_TMPDIR.search(text):
+        (errors if status == "draft" else warnings).append(
+            "quy tắc 12: plan ghi $TMPDIR không có giá trị mặc định. Trên cloud TMPDIR không được đặt, tệp sẽ "
+            "ghi vào gốc ổ đĩa. Ghi ${TMPDIR:-/tmp} (L-088).")
     warnings += ticket_status_problems(fields)
     warnings += manual_test_problems(text, listed)
     if "## 4. Kiểm thử" not in text:
