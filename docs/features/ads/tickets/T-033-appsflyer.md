@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-22]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
 depends_on: [T-023, T-026]
 sprint:
-plan:
+plan: features/ads/plans/T-033-appsflyer.md
 created: 2026-10-23
 ---
 
