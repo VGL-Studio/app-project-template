@@ -44,6 +44,29 @@ class FreshAdCacheTest {
     }
 
     @Test
+    fun nativeFullScreenCache_keepsAt54m59s_dropsAt55m() {
+        val gone = mutableListOf<String>()
+        val native = nativeFullScreenCache<String>(onDiscard = { gone += it })
+        native.put(key, "kept", nowMillis = 0)
+        assertTrue(native.hasFresh(key, nowMillis = 55 * 60_000L - 1))
+        assertEquals("kept", native.take(key, nowMillis = 55 * 60_000L - 1))
+
+        native.put(key, "old", nowMillis = 0)
+        assertFalse(native.hasFresh(key, nowMillis = 55 * 60_000L))
+        assertNull(native.take(key, nowMillis = 55 * 60_000L))
+        assertEquals(listOf("old"), gone)
+    }
+
+    @Test
+    fun defaultCache_stillKeepsAt59m() {
+        // Control of nativeFullScreenCache_keepsAt54m59s_dropsAt55m: the constructor default keeps an hour.
+        cache.put(key, "ad", nowMillis = 0)
+        assertTrue(cache.hasFresh(key, nowMillis = 59 * 60_000L))
+        assertEquals("ad", cache.take(key, nowMillis = 59 * 60_000L))
+        assertTrue(discarded.isEmpty())
+    }
+
+    @Test
     fun put_replacesAndDiscardsOlderAd() {
         cache.put(key, "first", nowMillis = 0)
         cache.put(key, "second", nowMillis = 10)

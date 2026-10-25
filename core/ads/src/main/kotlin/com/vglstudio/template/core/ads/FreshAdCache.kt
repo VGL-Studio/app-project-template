@@ -34,3 +34,7 @@ internal class FreshAdCache<T>(private val maxAgeMillis: Long = MAX_AGE_MILLIS, 
         const val MAX_AGE_MILLIS = 60 * 60 * 1_000L
     }
 }
+
+/** The cache of preloaded native full-screen ads: 55 minutes, like every native ad (O-04, plan T-040). */
+internal fun <T> nativeFullScreenCache(onDiscard: (T) -> Unit): FreshAdCache<T> =
+    FreshAdCache(NativeAdPolicy.MAX_AGE_MILLIS, onDiscard)
