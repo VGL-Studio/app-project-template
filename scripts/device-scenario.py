@@ -23,7 +23,9 @@ Selectors (one keyword, optional filters; several selectors separated by " | " m
 Commands:
   fresh                         clear data, grant runtime permissions, open the app
   consent decline [seconds]     tap "Do not consent" when the ad consent form shows, or see the app root
-                                (DEVICE_SCENARIO_FIRST_SCREENS) without a form
+                                (DEVICE_SCENARIO_FIRST_SCREENS) without a form; consent is gathered asynchronously,
+                                so after the root it keeps looking for a late form for DEVICE_SCENARIO_CONSENT_GRACE
+                                seconds (default 8)
   wait <selector> [seconds]     wait until it shows (default 20)
   need <selector> [seconds]     like wait; when it never shows the file ends as "bỏ qua (môi trường)"
   tap <selector> | tap_if <selector>   tap the centre of the element; tap_if does nothing when it is absent
@@ -37,7 +39,9 @@ ok|FAIL <reason>|SKIP <reason>` per step, and `plan <file> result=<result> secon
 leaves fail.png and fail.xml in <session>/scenarios/<file without .txt>/.
 
 Deadlines: the whole run has DEVICE_SCENARIOS_BUDGET seconds (default 600); a file has min(its timeout, what is left);
-every adb call has DEVICE_SCENARIO_ADB_TIMEOUT seconds (default 30, at most what is left of the file).
+every adb call has DEVICE_SCENARIO_ADB_TIMEOUT seconds (default 30, at most what is left of the file). Giving the
+device back takes at most DEVICE_SCENARIO_RESET_LIMIT seconds (default 60); a file ends that much before the budget
+so its reset fits in it. SIGTERM ends the current file as failed and resets within 25 seconds.
 Settings: DEVICE_SCENARIOS_GLOB (files to run; default feature/*/src/deviceScenarios/*.txt
 app/src/deviceScenarios/*.txt), DEVICE_SCENARIO_POLL (seconds between two dumps, default 1),
 DEVICE_SCENARIO_FIRST_SCREENS (selector that means "the app is on screen" for `consent decline`; default
@@ -48,6 +52,7 @@ Messages are in Vietnamese for the team; comments are in English.
 import glob
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -63,6 +68,15 @@ MARKER_TAG = "VGL.Session"
 DEFAULT_TIMEOUT, MAX_TIMEOUT = 180, 300
 CONSENT_DECLINE = "text=Do not consent | text=Không đồng ý"
 FIRST_SCREENS = os.environ.get("DEVICE_SCENARIO_FIRST_SCREENS", "id=app_root")
+# MainActivity calls ads.gatherConsent() asynchronously, so the form may show a few seconds after the app root.
+CONSENT_GRACE = float(os.environ.get("DEVICE_SCENARIO_CONSENT_GRACE", "8"))
+# Time budget of one reset_device call. Per-file resets are counted inside DEVICE_SCENARIOS_BUDGET (a file ends this
+# much before the budget), so only the final reset of the run runs past the budget, and the outer
+# `timeout -k 30 <budget + 120>` of device-session.sh has room for it. After SIGTERM the reset must fit in the 30
+# seconds before SIGKILL, hence the shorter limit.
+RESET_LIMIT = float(os.environ.get("DEVICE_SCENARIO_RESET_LIMIT", "60"))
+TERMINATED_RESET_LIMIT = 25.0
+NIGHT_MODES = ("yes", "no", "auto")
 UNFOLDED_SIZE, UNFOLDED_DENSITY = "1766x2208", "420"  # 673 x 841 dp, the frame of the _unfolded screenshots
 IDLE_ERROR = "could not get idle state"
 RESULT_PASSED, RESULT_FAILED, RESULT_ENV = "đạt", "lỗi", "bỏ qua (môi trường)"
@@ -84,6 +98,16 @@ class Fail(Exception):
 
 class Skip(Exception):
     """The environment lacks what the scenario needs; the file ends as skipped."""
+
+
+class Terminated(BaseException):
+    """SIGTERM arrived (the outer timeout of device-session.sh); raised so the finally blocks reset the device."""
+
+
+def on_sigterm(signum, frame):
+    # Raise only once: a second SIGTERM must not interrupt the reset that the first one started.
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    raise Terminated()
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -355,6 +379,13 @@ def run_process(command, timeout, binary=False, env=None):
             pass
         process.communicate()
         raise AdbTimeout(" ".join(command[:4])) from None
+    except BaseException:
+        # SIGTERM (Terminated) or another error while waiting: do not leave the child running in its own session.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        raise
     return process.returncode, (output if binary else output.decode("utf-8", errors="replace"))
 
 
@@ -373,7 +404,10 @@ class Runner:
         self.activity = None
         self.strings = string_values(ROOT)
         self.original_size = self.original_density = None
+        self.original_settings = {"accelerometer_rotation": "1", "user_rotation": "0"}
+        self.original_night = "no"
         self.network_touched = False
+        self.terminated = False
 
     def log(self, line):
         with open(self.log_path, "a", encoding="utf-8") as handle:
@@ -467,6 +501,7 @@ class Runner:
     def step_consent(self, arguments):
         decline, first = parse_selector(CONSENT_DECLINE), parse_selector(FIRST_SCREENS)
         end = min(time.monotonic() + arguments["seconds"], self.file_deadline)
+        app_seen = False
         while True:
             screen, _ = self.dump()
             if screen is not None:
@@ -474,9 +509,13 @@ class Runner:
                 if node is not None:
                     self.tap_node(node)
                     return
-                if screen.find(first) is not None:
-                    return  # no consent form on this start
+                if not app_seen and screen.find(first) is not None:
+                    # The app is on screen, but the form may still come: keep looking for a short, bounded while.
+                    app_seen = True
+                    end = min(time.monotonic() + CONSENT_GRACE, self.file_deadline)
             if time.monotonic() >= end:
+                if app_seen:
+                    return  # no consent form on this start
                 raise Fail("không thấy hộp thoại đồng ý hay màn hình đầu của app")
             time.sleep(min(self.poll, max(0.0, end - time.monotonic())))
 
@@ -526,7 +565,8 @@ class Runner:
     def step_network(self, arguments):
         self.network_touched = True
         if arguments["state"] == "on":
-            self.helper("network-on")
+            if self.helper("network-on") != 0:
+                raise Skip("bật lại mạng nhưng máy chưa có mạng mặc định")
         elif self.helper("network-off") != 0:
             raise Skip("không tắt được mạng (máy vẫn có mạng mặc định)")
 
@@ -571,24 +611,50 @@ class Runner:
             if override:
                 setattr(self, f"original_{what}", override.group(1))
 
+    def read_settings(self):
+        """Remembers the rotation settings and the night mode of the device, so the reset gives them back. A value
+        that cannot be read keeps the usual default."""
+        for name in self.original_settings:
+            try:
+                code, output = run_process(["adb", "shell", "settings", "get", "system", name], 10)
+            except AdbTimeout:
+                continue
+            value = output.strip()
+            if code == 0 and value.isdigit():
+                self.original_settings[name] = value
+        try:
+            code, output = run_process(["adb", "shell", "cmd", "uimode", "night"], 10)
+        except AdbTimeout:
+            return
+        night = re.search(r"Night mode: *(\w+)", output)
+        if code == 0 and night and night.group(1) in NIGHT_MODES:
+            self.original_night = night.group(1)
+
     def reset_device(self, network=False):
-        """Gives the device back as the scenario found it. Each call has its own short limit and may fail alone."""
+        """Gives the device back as the run found it. Each call has its own short limit and may fail alone; the
+        whole reset stays within RESET_LIMIT (TERMINATED_RESET_LIMIT after SIGTERM)."""
+        end = time.monotonic() + (TERMINATED_RESET_LIMIT if self.terminated else RESET_LIMIT)
         commands = [
             ["shell", "wm", "size", self.original_size or "reset"],
             ["shell", "wm", "density", self.original_density or "reset"],
-            ["shell", "settings", "put", "system", "accelerometer_rotation", "1"],
-            ["shell", "settings", "put", "system", "user_rotation", "0"],
-            ["shell", "cmd", "uimode", "night", "no"],
+            ["shell", "settings", "put", "system", "accelerometer_rotation", self.original_settings["accelerometer_rotation"]],
+            ["shell", "settings", "put", "system", "user_rotation", self.original_settings["user_rotation"]],
+            ["shell", "cmd", "uimode", "night", self.original_night],
             ["shell", "cmd", "locale", "set-app-locales", self.package],  # without --locales: back to the system language
         ]
         for command in commands:
+            limit = min(10.0, end - time.monotonic())
+            if limit <= 0:
+                return
             try:
-                run_process(["adb", *command], 10)
+                run_process(["adb", *command], limit)
             except AdbTimeout:
                 pass
-        if network:
+        limit = min(45.0, end - time.monotonic())
+        if network and limit > 0:
+            # network-on waits (bounded) until the device has a default network again.
             try:
-                run_process([str(SESSION_SCRIPT), "helper", "network-on"], 45, env=dict(os.environ, APP_PACKAGE=self.package))
+                run_process([str(SESSION_SCRIPT), "helper", "network-on"], limit, env=dict(os.environ, APP_PACKAGE=self.package))
             except AdbTimeout:
                 pass
 
@@ -608,34 +674,51 @@ class Runner:
             self.log(f"plan {name} step=0 check FAIL dòng {number}: {reason}")
             self.log(f"plan {name} result={RESULT_SYNTAX} seconds=0")
             return
-        if self.budget_left() <= 0:
+        # The reset after the file is part of the budget (see RESET_LIMIT).
+        available = self.budget_left() - RESET_LIMIT
+        if available <= 0:
             self.log(f"plan {name} result={RESULT_TIME} seconds=0")
             return
         began = time.monotonic()
-        self.file_deadline = began + min(int(header.get("timeout", DEFAULT_TIMEOUT)), self.budget_left())
+        self.file_deadline = began + min(int(header.get("timeout", DEFAULT_TIMEOUT)), available)
         self.last_xml = None
         self.network_touched = False
-        result = RESULT_PASSED
+        result = RESULT_FAILED
+        text = f"plan {name} step=0 start"
         try:
-            self.adb("shell", "log", "-t", MARKER_TAG, f"'scenario=plan file={name}'", timeout=10)
-        except AdbTimeout:
-            pass
-        for index, (_, command, rest, arguments) in enumerate(steps, start=1):
-            text = f"plan {name} step={index} {command}{' ' + rest if rest else ''}"
             try:
-                getattr(self, "step_" + command)(arguments)
-                self.log(f"{text} ok")
-            except Skip as skipped:
-                self.log(f"{text} SKIP {skipped}")
-                result = RESULT_ENV
-                break
-            except (AdbTimeout, Fail) as failed:
-                self.log(f"{text} FAIL {'adb_timeout' if isinstance(failed, AdbTimeout) else failed}")
-                self.keep_evidence()
-                result = RESULT_FAILED
-                break
-        self.log(f"plan {name} result={result} seconds={int(round(time.monotonic() - began))}")
-        self.reset_device(network=self.network_touched)
+                marker = shlex.quote(f"scenario=plan file={name}")
+                self.adb("shell", "log", "-t", MARKER_TAG, marker, timeout=10)
+            except AdbTimeout:
+                pass
+            result = RESULT_PASSED
+            for index, (_, command, rest, arguments) in enumerate(steps, start=1):
+                text = f"plan {name} step={index} {command}{' ' + rest if rest else ''}"
+                try:
+                    getattr(self, "step_" + command)(arguments)
+                    self.log(f"{text} ok")
+                except Skip as skipped:
+                    self.log(f"{text} SKIP {skipped}")
+                    result = RESULT_ENV
+                    break
+                except (AdbTimeout, Fail) as failed:
+                    self.log(f"{text} FAIL {'adb_timeout' if isinstance(failed, AdbTimeout) else failed}")
+                    self.keep_evidence()
+                    result = RESULT_FAILED
+                    break
+        except Terminated:
+            self.terminated = True  # the reset below then uses the shorter limit
+            self.log(f"{text} FAIL trình chạy bị dừng (SIGTERM, hết thời gian của cả lượt)")
+            result = RESULT_FAILED
+            raise
+        except Exception as error:
+            # An internal error of the runner: the file fails, the device is still given back, the run stops.
+            self.log(f"{text} FAIL lỗi của trình chạy ({type(error).__name__}: {error})")
+            result = RESULT_FAILED
+            raise
+        finally:
+            self.log(f"plan {name} result={result} seconds={int(round(time.monotonic() - began))}")
+            self.reset_device(network=self.network_touched or self.terminated)
 
     def keep_evidence(self):
         """fail.xml (the last dump) and fail.png of the first failing step."""
@@ -649,10 +732,19 @@ class Runner:
 
     def run(self, files):
         self.session.mkdir(parents=True, exist_ok=True)
+        # Read once before the first file, so a reset that failed in one file cannot become the "original" state.
         self.read_display()
-        for path in files:
-            self.run_file(path)
-        self.reset_device(network=True)
+        self.read_settings()
+        try:
+            for path in files:
+                self.run_file(path)
+        except Terminated:
+            self.terminated = True  # also when SIGTERM came between two files
+            raise
+        finally:
+            # After SIGTERM the file's own finally has already reset the device; the time left is for SIGKILL.
+            if not self.terminated:
+                self.reset_device(network=True)
         print(f"Kịch bản theo plan: {len(files)} tệp, kết quả trong {self.log_path}")
 
 
@@ -672,7 +764,12 @@ def main(argv):
     if len(argv) == 6 and argv[1] == "run" and argv[2] == "--session" and argv[4] == "--package":
         files = scenario_files()
         if files:
-            Runner(argv[3], argv[5]).run(files)
+            signal.signal(signal.SIGTERM, on_sigterm)
+            try:
+                Runner(argv[3], argv[5]).run(files)
+            except Terminated:
+                print("Trình chạy kịch bản bị dừng (SIGTERM); máy đã được trả về gốc.", file=sys.stderr)
+                return 143
         return 0
     print("Cách dùng: scripts/device-scenario.py check <tệp.txt>... | run --session <thư mục> --package <gói>",
           file=sys.stderr)

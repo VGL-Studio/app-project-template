@@ -81,10 +81,18 @@ network_off() {
   return 1
 }
 
+# Turns every radio back on, then waits (bounded) until the device has a default network again, so the next step
+# does not start offline. Returns 1 when no default network shows within the wait.
 network_on() {
+  local i
   adb shell cmd connectivity airplane-mode disable > /dev/null 2>&1 || true
   adb shell svc wifi enable > /dev/null 2>&1 || true
   adb shell svc data enable > /dev/null 2>&1 || true
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    [[ "$(default_network)" != "none" ]] && return 0
+    pause 1
+  done
+  return 1
 }
 
 # Writes a line into the device log, so the analysis can split the log by step.
@@ -248,7 +256,7 @@ cmd_scenarios() {
     echo "offline_first_launch network=still_on skipped" >> "${dir}/scenarios.txt"
     echo "CHÚ Ý: tắt mạng không được (máy vẫn có mạng mặc định $(default_network)); bỏ qua kịch bản mất mạng." >&2
   fi
-  network_on
+  network_on || echo "CHÚ Ý: bật lại mạng nhưng máy chưa có mạng mặc định; các bước sau có thể chạy khi mất mạng." >&2
   pause 10
 
   # 3. Random taps and swipes inside the app, with a fixed seed so a crash can be reproduced.
@@ -262,7 +270,9 @@ cmd_scenarios() {
   local runner_status=0 runner="${DEVICE_SCENARIO_CMD:-python3 scripts/device-scenario.py}"
   # shellcheck disable=SC2086
   if command -v timeout > /dev/null; then
-    # -k: a runner that ignores SIGTERM (an adb child stuck in the kernel) is killed 30 seconds later.
+    # The runner keeps its per-file resets inside DEVICE_SCENARIOS_BUDGET; the 120 seconds cover its last reset
+    # (DEVICE_SCENARIO_RESET_LIMIT, default 60). On SIGTERM it resets within 25 seconds, inside the -k 30 window;
+    # a runner that ignores SIGTERM (an adb child stuck in the kernel) is killed 30 seconds later.
     timeout -k 30 "$((${DEVICE_SCENARIOS_BUDGET:-600} + 120))" ${runner} run --session "${dir}" --package "${pkg}" || runner_status=$?
   else
     ${runner} run --session "${dir}" --package "${pkg}" || runner_status=$?

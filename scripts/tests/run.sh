@@ -1234,7 +1234,7 @@ ds_run() { # <dump files of the fixtures, in order> <scenario glob> [VAR=value .
   : > "$ds_calls"
   env PATH="$work/bin:$PATH" FAKE_ADB_UI_SEQ="${seq% }" FAKE_ADB_STATE_DIR="$work/adb-state" FAKE_ADB_CALLS="$ds_calls" \
     DEVICE_SCENARIOS_GLOB="$2" DEVICE_SCENARIO_POLL=0.05 DEVICE_SESSION_SLEEP=0 APP_PACKAGE=com.example.app.staging \
-    FAKE_ADB_RUNTIME_PERMISSIONS="android.permission.CAMERA" "${@:3}" \
+    DEVICE_SCENARIO_CONSENT_GRACE=0.3 FAKE_ADB_RUNTIME_PERMISSIONS="android.permission.CAMERA" "${@:3}" \
     python3 -I scripts/device-scenario.py run --session "$work/ds-session" --package com.example.app.staging \
     > "$work/ds.out" 2>&1 || code=$?
   echo "$code"
@@ -1267,6 +1267,9 @@ expect "device-scenario: consent decline waits for a late consent form" "0 1 1" 
   "$(ds_run "blank.xml blank.xml consent.xml welcome.xml" "$ds_files/late.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls") $(ds_count 'result=đạt')"
 expect "device-scenario: consent decline taps nothing when there is no form" "0 1 0" \
   "$(ds_run "blank.xml welcome.xml" "$ds_files/consent.txt") $(ds_count 'result=đạt') $(ds_count 'input tap' "$ds_calls")"
+# MainActivity asks for consent asynchronously: the form may show a few seconds after the app root.
+expect "device-scenario: consent decline still declines a form that shows after the app root" "0 1 1" \
+  "$(ds_run "welcome.xml consent.xml welcome.xml" "$ds_files/consent.txt" DEVICE_SCENARIO_CONSENT_GRACE=3) $(ds_count '^shell input tap 540 1970$' "$ds_calls") $(ds_count 'result=đạt')"
 ds_script none.txt 'consent decline 1'
 expect "device-scenario: consent decline fails when nothing shows" "0 1 1" \
   "$(ds_run "blank.xml" "$ds_files/none.txt") $(ds_count 'step=1 consent decline 1 FAIL') $(ds_count 'result=lỗi')"
@@ -1340,6 +1343,60 @@ expect "device-scenario: network off turns every radio off" "0 1 1" \
 expect "device-scenario: network off that keeps a network skips the file" "0 1 0" \
   "$(ds_run "home.xml" "$ds_files/offline.txt" FAKE_ADB_NETWORK=100) $(ds_count 'result=bỏ qua (môi trường)') $(ds_count 'result=đạt')"
 
+# The device is given back as it was before the run, not with fixed values.
+ds_script night.txt 'device night on'
+ds_run "home.xml" "$ds_files/night.txt" FAKE_ADB_ACCELEROMETER_ROTATION=0 FAKE_ADB_NIGHT=yes > /dev/null
+expect "device-scenario: the reset restores the rotation and night mode read before the file" "2 1 0 0" \
+  "$(ds_count 'settings put system accelerometer_rotation 0$' "$ds_calls") $(ds_count '^shell cmd uimode night yes$' "$ds_calls" | awk '{print ($1 >= 2)}') $(ds_count 'accelerometer_rotation 1$' "$ds_calls") $(ds_count '^shell cmd uimode night no$' "$ds_calls")"
+
+# network on waits until the device has a default network again; without one the file is skipped.
+ds_script offon.txt 'network off' 'network on' 'back'
+expect "device-scenario: network on that brings no network back skips the file" "0 1 0" \
+  "$(ds_run "home.xml" "$ds_files/offon.txt") $(ds_count 'step=2 network on SKIP') $(ds_count 'result=đạt')"
+expect "device-scenario: network on waits for a default network" "0 1 yes" \
+  "$(ds_run "home.xml" "$ds_files/offon.txt" FAKE_ADB_NETWORK_ON=100) $(ds_count 'result=đạt') $([[ "$(sed -n '/^shell svc wifi enable$/,$p' "$ds_calls" | grep -c 'dumpsys connectivity')" -ge 1 ]] && echo yes || echo no)"
+
+# The reset runs on every way out of a file: an internal error of the runner and SIGTERM from the outer timeout.
+ds_script broken.txt 'shot broken' 'back'
+rm -rf "$work/ds-session" "$work/adb-state"
+mkdir -p "$work/ds-session"
+: > "$work/ds-session/scenarios" # a file where the runner needs a folder: shot raises an OSError
+: > "$ds_calls"
+ds_code=0
+env PATH="$work/bin:$PATH" FAKE_ADB_UI_SEQ="$ds_fixtures/home.xml" FAKE_ADB_STATE_DIR="$work/adb-state" FAKE_ADB_CALLS="$ds_calls" \
+  DEVICE_SCENARIOS_GLOB="$ds_files/broken.txt" DEVICE_SCENARIO_POLL=0.05 DEVICE_SESSION_SLEEP=0 APP_PACKAGE=com.example.app.staging \
+  python3 -I scripts/device-scenario.py run --session "$work/ds-session" --package com.example.app.staging \
+  > "$work/ds.out" 2>&1 || ds_code=$?
+expect "device-scenario: an internal error still resets the device" "1 yes 1" \
+  "$ds_code $([[ "$(ds_reset_calls)" -ge 6 ]] && echo yes || echo no) $(ds_count '^plan broken.txt result=lỗi')"
+
+ds_script slow.txt 'wait id=never_shown 25'
+rm -rf "$work/ds-session" "$work/adb-state"
+mkdir -p "$work/ds-session"
+: > "$ds_calls"
+env PATH="$work/bin:$PATH" FAKE_ADB_UI_SEQ="$ds_fixtures/home.xml" FAKE_ADB_STATE_DIR="$work/adb-state" FAKE_ADB_CALLS="$ds_calls" \
+  DEVICE_SCENARIOS_GLOB="$ds_files/slow.txt" DEVICE_SCENARIO_POLL=0.05 DEVICE_SESSION_SLEEP=0 APP_PACKAGE=com.example.app.staging \
+  python3 -I scripts/device-scenario.py run --session "$work/ds-session" --package com.example.app.staging \
+  > "$work/ds.out" 2>&1 &
+ds_pid=$!
+for _ in $(seq 1 50); do grep -q 'uiautomator dump' "$ds_calls" 2> /dev/null && break; sleep 0.1; done
+kill -TERM "$ds_pid"
+ds_code=0
+wait "$ds_pid" || ds_code=$?
+expect "device-scenario: SIGTERM still resets the device and ends the file" "yes yes 1" \
+  "$([[ "$ds_code" -ne 0 ]] && echo yes || echo no) $([[ "$(ds_reset_calls)" -ge 6 ]] && echo yes || echo no) $(ds_count '^plan slow.txt result=lỗi')"
+
+# The reset is part of the budget: a file ends early enough for the reset to finish within DEVICE_SCENARIOS_BUDGET.
+ds_script slow-budget.txt 'wait id=never_shown 25'
+ds_run "home.xml" "$ds_files/slow-budget.txt" DEVICE_SCENARIOS_BUDGET=6 DEVICE_SCENARIO_RESET_LIMIT=4 > /dev/null
+expect "device-scenario: the file deadline leaves room for the reset" 1 "$(ds_count '^plan slow-budget.txt result=lỗi seconds=2$')"
+
+# The file name goes to the device shell quoted.
+printf "ticket: T-999\ncriterion: Quote\ntimeout: 30\nback\n" > "$ds_files/q'x.txt"
+ds_run "home.xml" "$ds_files/q'x.txt" > /dev/null
+expect "device-scenario: the log marker quotes the file name for the device shell" 1 \
+  "$(grep -cF "shell log -t VGL.Session 'scenario=plan file=q'\"'\"'x.txt'" "$ds_calls" || true)"
+
 expect "device-scenario: check reports an unknown command with its line" "1 1" \
   "$(code=0; python3 -I scripts/device-scenario.py check "$ds_fixtures/bad.txt" > "$work/ds-check.out" 2>&1 || code=$?; echo "$code") $(grep -c 'bad.txt dòng 5' "$work/ds-check.out" || true)"
 expect "device-scenario: a file with a syntax error is a file error that sends no input" "0 1 0" \
@@ -1401,10 +1458,11 @@ expect "device-session: the summary shows the plan scenario that ran" 1 \
 
 expect "device-session: helper network-off reuses the scenario function" "0 1" \
   "$(joined "$(session /dev/null helper network-off)" "$(FAKE_ADB_NETWORK=100 session /dev/null helper network-off)")"
-helper_on="$(session /dev/null helper network-on)"
+helper_on="$(FAKE_ADB_NETWORK=100 session /dev/null helper network-on)"
+helper_on_none="$(DEVICE_SESSION_SLEEP=0 session /dev/null helper network-on)"
 helper_grant="$(session /dev/null helper grant-permissions)"
-expect "device-session: helper network-on and grant-permissions" "0 0 1" \
-  "$(joined "$helper_on" "$helper_grant" "$(grep -c '^granted=CAMERA$' "$work/session.out" || true)")"
+expect "device-session: helper network-on (waits for a default network) and grant-permissions" "0 1 0 1" \
+  "$(joined "$helper_on" "$helper_on_none" "$helper_grant" "$(grep -c '^granted=CAMERA$' "$work/session.out" || true)")"
 usage_code="$(session /dev/null)"
 expect "device-session: Usage lists helper" "2 yes" \
   "$(joined "$usage_code" "$(grep -q 'helper' "$work/session.out" && echo yes || echo no)")"

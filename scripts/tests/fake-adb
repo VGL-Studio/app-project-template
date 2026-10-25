@@ -10,7 +10,10 @@
 # paths; the count is kept in $FAKE_ADB_STATE_DIR/ui-seq.n, default $TMPDIR; the last file repeats) and `exec-out cat`
 # prints it. A file named *.idle-error makes the dump print "ERROR: could not get idle state." and print nothing.
 # $FAKE_ADB_HANG names a shell subcommand (for example uiautomator) that never returns. `wm size` and `wm density`
-# report a 1080x2400 screen at 420 dpi.
+# report a 1080x2400 screen at 420 dpi. `settings get system accelerometer_rotation|user_rotation` print
+# $FAKE_ADB_ACCELEROMETER_ROTATION (default 1) and $FAKE_ADB_USER_ROTATION (default 0); `cmd uimode night` prints
+# $FAKE_ADB_NIGHT (default no). With $FAKE_ADB_NETWORK_ON set, `svc wifi enable` makes `dumpsys connectivity` report
+# that network and `svc wifi disable` takes it away again (state in $FAKE_ADB_STATE_DIR).
 [[ -n "${FAKE_ADB_CALLS:-}" ]] && echo "$*" >> "${FAKE_ADB_CALLS}"
 case "$1" in
   get-state) [[ -n "${FAKE_ADB_NO_DEVICE:-}" ]] && exit 1; echo device ;;
@@ -49,7 +52,21 @@ case "$1" in
       "dumpsys gfxinfo"*) printf 'Total frames rendered: 400\nJanky frames: 3 (0.75%%)\n' ;;
       "dumpsys meminfo"*) echo "        TOTAL PSS:    51234" ;;
       "find /sdcard"*) cat "${FAKE_ADB_FILES:-/dev/null}" ;;
-      "dumpsys connectivity"*) echo "Active default network: ${FAKE_ADB_NETWORK:-none}" ;;
+      "dumpsys connectivity"*)
+        network="${FAKE_ADB_NETWORK:-none}"
+        if [[ -n "${FAKE_ADB_NETWORK_ON:-}" && -f "${FAKE_ADB_STATE_DIR:-${TMPDIR:-/tmp}}/network-on" ]]; then
+          network="${FAKE_ADB_NETWORK_ON}"
+        fi
+        echo "Active default network: ${network}" ;;
+      "svc wifi enable")
+        if [[ -n "${FAKE_ADB_NETWORK_ON:-}" ]]; then
+          mkdir -p "${FAKE_ADB_STATE_DIR:-${TMPDIR:-/tmp}}"
+          : > "${FAKE_ADB_STATE_DIR:-${TMPDIR:-/tmp}}/network-on"
+        fi ;;
+      "svc wifi disable") rm -f "${FAKE_ADB_STATE_DIR:-${TMPDIR:-/tmp}}/network-on" ;;
+      "settings get system accelerometer_rotation") echo "${FAKE_ADB_ACCELEROMETER_ROTATION:-1}" ;;
+      "settings get system user_rotation") echo "${FAKE_ADB_USER_ROTATION:-0}" ;;
+      "cmd uimode night") echo "Night mode: ${FAKE_ADB_NIGHT:-no}" ;;
       "cmd package query-activities"*)
         for a in ${FAKE_ADB_LAUNCHERS:-com.example.app/.MainActivity}; do
           printf '  Activity #0:\r\n    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false\r\n    %s\r\n' "$a"

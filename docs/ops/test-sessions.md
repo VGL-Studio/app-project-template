@@ -113,13 +113,13 @@ Bộ lọc thêm: `in=<testTag>` (trong cây con của phần tử có tag đó)
 | Lệnh | Việc |
 | --- | --- |
 | `fresh` | Xóa dữ liệu, cấp quyền runtime, mở app |
-| `consent decline [giây]` | Chạm nút từ chối của hộp thoại đồng ý quảng cáo khi nó hiện, hoặc thấy luôn app mà không có hộp thoại. "Thấy app" là bộ chọn `DEVICE_SCENARIO_FIRST_SCREENS`, mặc định `id=app_root` (tag của `Surface` gốc trong `MainActivity`); app có màn đầu riêng thì đặt bộ chọn theo màn đó |
+| `consent decline [giây]` | Chạm nút từ chối của hộp thoại đồng ý quảng cáo khi nó hiện, hoặc thấy luôn app mà không có hộp thoại. "Thấy app" là bộ chọn `DEVICE_SCENARIO_FIRST_SCREENS`, mặc định `id=app_root` (tag của `Surface` gốc trong `MainActivity`); app có màn đầu riêng thì đặt bộ chọn theo màn đó. App hỏi đồng ý không đồng bộ nên hộp thoại có thể hiện sau màn đầu vài giây: thấy app rồi, lệnh vẫn tìm hộp thoại thêm `DEVICE_SCENARIO_CONSENT_GRACE` giây (mặc định 8) và từ chối nếu nó hiện |
 | `wait <bộ chọn> [giây]` | Chờ tới khi khớp (mặc định 20 giây) |
 | `need <bộ chọn> [giây]` | Như `wait`, nhưng hết giờ thì tệp kết thúc `bỏ qua (môi trường)`. Dùng cho điều kiện mà emulator CI có thể không có (camera) |
 | `tap <bộ chọn>`, `tap_if <bộ chọn>` | Chạm vào tâm của phần tử; `tap_if` bỏ qua khi không thấy |
 | `scroll <bộ chọn> [lần]` | Vuốt lên trong vùng của phần tử (mặc định 3 lần) |
 | `expect`, `expect_no`, `count <bộ chọn> <n>` | Kiểm có, không có, hay đúng n phần tử, sau một lần dump |
-| `network off\|on` | Tắt hay bật cả Wi-Fi và dữ liệu; không tắt được thì `bỏ qua (môi trường)` |
+| `network off\|on` | Tắt hay bật cả Wi-Fi và dữ liệu, rồi chờ (có giới hạn) tới khi máy hết hay có lại mạng mặc định; không được thì `bỏ qua (môi trường)` |
 | `device rotate landscape\|portrait`, `device night on\|off` | Xoay màn hình, chế độ tối |
 | `device unfold`, `device fold` | Giả lập gập mở bằng đổi kích thước (673 × 841 dp, khung `_unfolded`) rồi trả về như cũ |
 | `device locale <thẻ>` | Ngôn ngữ riêng của app (Android 13 trở lên) |
@@ -141,7 +141,7 @@ expect text=1 in=sample_screen
 shot landscape
 ```
 
-**Hạn chót.** Cả lượt có `DEVICE_SCENARIOS_BUDGET` giây (mặc định 600); mỗi tệp có `min(timeout của tệp, thời gian còn lại)`; mỗi lệnh `adb` có `DEVICE_SCENARIO_ADB_TIMEOUT` giây (mặc định 30). Một lệnh `adb` treo làm bước đó `FAIL adb_timeout` và bỏ phần còn lại của tệp. Sau mỗi tệp, trình chạy trả máy về gốc: kích thước và mật độ, xoay màn hình, chế độ tối, mạng, ngôn ngữ riêng của app. Trình chạy hỏng thì `scenarios` ghi dòng `plan runner_error` và vẫn kết thúc bình thường.
+**Hạn chót.** Cả lượt có `DEVICE_SCENARIOS_BUDGET` giây (mặc định 600); mỗi tệp có `min(timeout của tệp, thời gian còn lại trừ thời gian trả máy về gốc)`; trả máy về gốc tối đa `DEVICE_SCENARIO_RESET_LIMIT` giây (mặc định 60), tính trong ngân sách của lượt; mỗi lệnh `adb` có `DEVICE_SCENARIO_ADB_TIMEOUT` giây (mặc định 30). Một lệnh `adb` treo làm bước đó `FAIL adb_timeout` và bỏ phần còn lại của tệp. Sau mỗi tệp, kể cả khi trình chạy lỗi hay bị dừng bằng SIGTERM, trình chạy trả máy về như trước lượt chạy: kích thước và mật độ, xoay màn hình và chế độ tối (giá trị đọc trước tệp đầu), mạng (chờ có lại mạng mặc định), ngôn ngữ riêng của app. Bị dừng bằng SIGTERM thì tệp đang chạy ghi `lỗi` và việc trả máy về gốc xong trong 25 giây. Trình chạy hỏng thì `scenarios` ghi dòng `plan runner_error` và vẫn kết thúc bình thường.
 
 **Cửa sổ riêng.** `testTag` chỉ thành `resource-id` trong cửa sổ có `testTagsAsResourceId`: vỏ app đặt nó ở gốc giao diện (`MainActivity`) và ở hộp thoại mạng (`NetworkDialogHost`). Hộp thoại hay popup khác (mỗi cái một cửa sổ) mà kịch bản cần tìm theo `id=` thì gắn `Modifier.exposeTestTagsForUiAutomator()` (`app/src/main/kotlin/<gói>/ui/UiAutomatorTags.kt`) ở gốc nội dung của nó, nơi mở chúng.
 
