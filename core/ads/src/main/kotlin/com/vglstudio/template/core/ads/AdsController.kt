@@ -68,6 +68,10 @@ import kotlinx.coroutines.withContext
  * and native refill goes through the plan ([AdPreloadPlan], [AdPreloader]) once the SDK is ready. Failed loads retry
  * by F-05 and O-05 ([FullScreenReloads], [retryingNativeAdStates]).
  *
+ * A native small slot (plan T-040) takes its ad from the single-ad source of its placement ([NativeAdSources],
+ * O-01 to O-04) and replaces it in place every 60 s in foreground ([refreshingNativeAdStates], CL-02); every send of
+ * it goes through one gate ([awaitSendAllowed], L-072). Native ads are not shown 55 minutes after loading (O-04).
+ *
  * Banners follow B-01 to B-06 (plan T-029): [AdSlot] keeps every send in one loop ([runBannerLoads]) that waits for
  * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads every 30 s.
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
@@ -98,7 +102,7 @@ class AdsController @Inject internal constructor(
     private val loadedInterstitials = mutableMapOf<AdPlacement, InterstitialAd>()
     private val presence = FullScreenAdPresence()
     private val stuck = StuckFullScreenRecovery()
-    private val preloadedNativeFullScreen = FreshAdCache<LoadedNativeAd>(
+    private val preloadedNativeFullScreen = nativeFullScreenCache<LoadedNativeAd>(
         onDiscard = {
             nativeFullScreenCells -= it
             it.destroy()
@@ -853,24 +857,62 @@ class AdsController @Inject internal constructor(
     }
 
     /**
-     * The states of one native ad of [placement] for a slot on screen ([retryingNativeAdStates]): loading, then loaded,
-     * or unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back
-     * cuts the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
-     * (T-023). The ad is destroyed when the collection is cancelled. The caller checks consent and [isEnabled] first,
-     * like [NativeAdSlot].
+     * The single-ad sources of native small slots (plan T-040), one per (placement, format), shut down when the
+     * placement is switched off ([isEnabled]) or consent withdrawn ([canRequestAds]). Each load gets fresh metrics
+     * events with the use the source gives it.
      */
-    internal fun nativeAd(placement: AdPlacement): Flow<NativeAdState> {
-        val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
+    private val nativeSources by lazy {
+        NativeAdSources(
+            enabled = ::isEnabled,
+            canRequestAds = canRequestAds,
+            newLoad = { placement, format, use -> nativeLoadOf(placement, format, use) },
+            sendGate = { awaitSendAllowed(foregroundState, ::mayRequestNow) },
+            clock = clock,
+            scope = scope,
+            logger = logger,
+        )
+    }
+
+    /**
+     * The states of one native ad of [placement], drawn as [format], for a slot on screen: loading, then loaded, or
+     * unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back cuts
+     * the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
+     * (T-023). A native small slot ([usesSingleAdSource]) claims its ad from the source of its placement and replaces
+     * it in place every 60 s in foreground, the first time [firstRefreshDelayMillis] after the first ad (plan T-040);
+     * other formats keep their ad. The ad is destroyed when the collection is cancelled. The caller checks consent
+     * and [isEnabled] first, like [NativeAdSlot].
+     */
+    internal fun nativeAd(
+        placement: AdPlacement,
+        format: AdFormat = placement.format,
+        firstRefreshDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+    ): Flow<NativeAdState> {
+        val size = requireNotNull(format.nativeLoadSize()) { "${placement.key} is not a native placement" }
         return flow {
             val unitId = unitId(placement)
             if (unitId == null) {
                 emit(NativeAdState.Unavailable)
                 return@flow
             }
+            if (format.usesSingleAdSource()) {
+                emitAll(
+                    singleAdSlotStates(
+                        source = nativeSources.source(placement, format),
+                        foreground = foregroundState,
+                        mayRequestNow = ::mayRequestNow,
+                        retryResets = preloader.nativeRetryResets,
+                        clock = clock,
+                        logger = logger,
+                        placementKey = nativeSlotKey(placement, format),
+                        firstTickDelayMillis = firstRefreshDelayMillis,
+                    ),
+                )
+                return@flow
+            }
             emitAll(
                 retryingNativeAdStates(
                     load = nativeLoadOnce(
-                        newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD) },
+                        newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD, format) },
                         newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
                         unitId = unitId,
                         size = size,
@@ -886,6 +928,25 @@ class AdsController @Inject internal constructor(
                 ),
             )
         }
+    }
+
+    /** One load of a single-ad source: [nativeLoadOnce] with fresh metrics events of [use] (L-A07). */
+    private fun nativeLoadOf(
+        placement: AdPlacement,
+        format: AdFormat,
+        use: NativeLoadUse,
+    ): suspend () -> NativeAdState {
+        val unitId = unitId(placement) ?: return { NativeAdState.Unavailable }
+        val size = format.nativeLoadSize() ?: return { NativeAdState.Unavailable }
+        return nativeLoadOnce(
+            newEvents = { nativeAdMetrics(placement, unitId, use, format) },
+            newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
+            unitId = unitId,
+            size = size,
+            timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
+            logger = logger,
+            placementKey = nativeSlotKey(placement, format),
+        )
     }
 
     /**
@@ -920,15 +981,20 @@ class AdsController @Inject internal constructor(
 
     /**
      * The metrics of one native load of [placement] used as [use]: the load report comes from [nativeLoadReport]
-     * (a list row gets its own report on each call, so rows loading at once do not mix: question 6 of plan T-023).
+     * (a list row gets its own report on each call, so rows loading at once do not mix: question 6 of plan T-023),
+     * drawn as [format].
      */
-    private fun nativeAdMetrics(placement: AdPlacement, unitId: String, use: NativeLoadUse): NativeAdEvents =
-        NativeAdMetrics(
-            format = placement.format,
-            unitId = unitId,
-            load = telemetry.nativeLoadReport(placement, use),
-            placement = { placement },
-        )
+    private fun nativeAdMetrics(
+        placement: AdPlacement,
+        unitId: String,
+        use: NativeLoadUse,
+        format: AdFormat = placement.format,
+    ): NativeAdEvents = NativeAdMetrics(
+        format = format,
+        unitId = unitId,
+        load = telemetry.nativeLoadReport(placement, use, format),
+        placement = { placement },
+    )
 
     /**
      * Hands the SDK callbacks of one native ad to [telemetry]: load result, paid event, impression with the

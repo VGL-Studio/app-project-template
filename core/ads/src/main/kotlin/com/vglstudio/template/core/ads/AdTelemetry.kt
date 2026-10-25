@@ -212,19 +212,27 @@ internal interface LoadReport {
     fun failed(code: Int, sdkMessage: String?, now: Long): String
 }
 
-/** How a native placement is loaded: one ad in its slot, or one row of a list (plan T-023, question 6). */
+/**
+ * How a native placement is loaded: one ad in its slot, one row of a list (plan T-023, question 6), or a refresh of a
+ * single-ad slot, which also covers the next load after a claim (plan T-040, section 8.2).
+ */
 internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH }
 
-/** The load report of a native [placement] used as [use]; the choice of [AdsController], testable without the SDK. */
+/**
+ * The load report of a native [placement] drawn as [format] and used as [use]; the choice of [AdsController],
+ * testable without the SDK. A single ad counts `load_attempt` per placement and format ([nativeSlotKey]), so two
+ * formats of one placement never share a counter (L-068). A list row and a refresh get a new report per request:
+ * no `load_attempt`, latency from the send of that request, and the counter is not touched.
+ */
 internal fun AdTelemetry.nativeLoadReport(
     placement: AdPlacement,
     use: NativeLoadUse,
-    @Suppress("UNUSED_PARAMETER") format: AdFormat = placement.format,
+    format: AdFormat = placement.format,
 ): LoadReport {
     // A list row keeps the placement key of its screen (question 7); only a real pool (T-028) logs `pool`.
-    val loadPlacement = loadPlacementOf(placement.format, placement)
+    val loadPlacement = loadPlacementOf(format, placement)
     return when (use) {
-        NativeLoadUse.SINGLE_AD, NativeLoadUse.REFRESH -> countedLoad(placement.format, placement.key, loadPlacement)
-        NativeLoadUse.LIST_ROW -> perRequestLoad(placement.format, loadPlacement)
+        NativeLoadUse.SINGLE_AD -> countedLoad(format, nativeSlotKey(placement, format), loadPlacement)
+        NativeLoadUse.LIST_ROW, NativeLoadUse.REFRESH -> perRequestLoad(format, loadPlacement)
     }
 }

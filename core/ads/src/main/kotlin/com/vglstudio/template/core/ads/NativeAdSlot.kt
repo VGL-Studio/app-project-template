@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -148,7 +149,9 @@ internal fun NativeAdSlotContent(
     Box(modifier = modifier) {
         when (state) {
             NativeAdState.Loading -> NativeAdPlaceholder(size)
-            is NativeAdState.Loaded -> adContent(state.ad)
+            // A new NativeAdView for each ad: the binder registers a view once, so a swapped ad is bound only
+            // in a fresh frame (refresh in place, plan T-040).
+            is NativeAdState.Loaded -> key(state.ad) { adContent(state.ad) }
             NativeAdState.Unavailable ->
                 if (keepSpaceWhenEmpty) Spacer(Modifier.fillMaxWidth().height(NativeAdDimens.heightOf(size)))
         }
