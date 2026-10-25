@@ -35,6 +35,17 @@ docs/design-system/tokens.json.
 
 Ảnh `SampleScreen_disabled_light` (đã có) không đổi: trạng thái tắt không có quảng cáo.
 
+**Vẽ lại theo kích thước AdsKit (T-035, 2026-10-25, anh Nhật duyệt).** Component trên trang "Components / Native ads" theo `docs/ops/ads-business-rules.md`, mục 5.7:
+
+- `Native/Small` (khe đáy): cao 80 dp, icon 36 dp, CTA cao 34 dp chữ 13 sp, nhãn "Ad" 10 sp.
+- `Native/Collapsible`: lớp mở cao 250 dp, media lấp phần còn lại, icon 32 dp, tiêu đề 13 sp, CTA 36 dp, nút thu gọn 32 dp (biểu tượng 20 dp) cách góc trên phải 4 dp, nền đen 40%. Thu gọn thì khe đáy còn native nhỏ 80 dp. AdChoices đặt ở góc trên trái vì nút thu gọn giữ góc trên phải.
+- `Native/Medium`: icon 40 dp, nền mờ sau media, hàng sao, CTA 44 dp; biến thể `CTA=Large` (thuộc tính `cta_large`): CTA 56 dp, chữ 17 sp, không viết hoa toàn bộ.
+- `Native/FullScreen`: CTA 52 dp; hai biến thể `After interstitial` (nút đóng 36 dp) và `Flow step` (không có nút điều khiển, app tự đặt nút Tiếp).
+- Mới: `Native/Step` (thẻ ở bước của luồng, 250 dp, icon 32 dp, CTA 36 dp) và `Native/Card` (thẻ dọc trong tập hợp; 180 x 300 dp là ví dụ, ô do lưới quyết định), mỗi component có trạng thái chờ.
+- Cỡ chữ 13, 10 và 17 sp không có trong bảng kiểu chữ: ghi đè trên component, code đặt cỡ chữ riêng trong composable quảng cáo của `:core:ads`.
+
+Ảnh đã đổi theo đợt này, thay ảnh của đợt 2: mọi ảnh trong bảng trên (khe đáy 80 dp đặt cách đáy 16 dp, lớp thu gọn sát đáy, medium và toàn màn hình theo số mới), và `NetworkLostScreen_default_light`, `NetworkLostScreen_default_dark` của feature network (khe đáy). Ticket code ghi lại ảnh chuẩn screenshot theo các ảnh này: T-027 (khe đáy và lớp thu gọn), T-030 (thanh đáy), T-032 (native trong tập hợp và bước của luồng). `Native/Step` và `Native/Card` chưa có màn hình riêng; ticket dùng chúng thêm ảnh màn hình khi cần.
+
 ## 2. Bảng chữ
 
 Chữ của quảng cáo (tiêu đề, nhà quảng cáo, mô tả, CTA, ảnh) do SDK trả về; trên thiết kế là chữ minh họa, không vào `strings.xml`. Chữ của app:
