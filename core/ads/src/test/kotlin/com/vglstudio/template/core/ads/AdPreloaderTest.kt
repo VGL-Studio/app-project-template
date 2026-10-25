@@ -483,8 +483,8 @@ class AdPreloaderTest {
             runCurrent()
             interstitial.settleAt = null
 
-            val heldReason =
-                if (reason == PreloadReason.NETWORK_BACK) PreloadReason.PLACEMENT_ENABLED else PreloadReason.NETWORK_BACK
+            val retriesNetwork = reason == PreloadReason.NETWORK_BACK
+            val heldReason = if (retriesNetwork) PreloadReason.PLACEMENT_ENABLED else PreloadReason.NETWORK_BACK
             at(start + 1_000)
             gate = OPEN.copy(mayRequest = false)
             preloader.request(heldReason)
@@ -492,7 +492,7 @@ class AdPreloaderTest {
 
             at(start + 2_000)
             gate = OPEN
-            if (reason == PreloadReason.NETWORK_BACK) preloader.onNetworkReturned() else preloader.request(reason)
+            if (retriesNetwork) preloader.onNetworkReturned() else preloader.request(reason)
             preloader.onGateChanged()
             runCurrent()
 
