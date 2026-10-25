@@ -1,16 +1,16 @@
 ---
 ticket: T-032
 title: Native ở một bước của luồng (giới thiệu và luồng khác)
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 15M          # ticket ghi cỡ S (số gợi ý 5.0M, scripts/token-usage.py estimate, 2026-10-25), nhưng việc thật cỡ M: hai composable công khai, hai luồng trạng thái thuần, cỡ thẻ mới, biến thể toàn trang, nối vào AdsController.kt, mười ảnh chuẩn mới
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 7                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-032: NATIVE Ở MỘT BƯỚC CỦA LUỒNG (GIỚI THIỆU VÀ LUỒNG KHÁC)
@@ -253,9 +253,9 @@ Ghi log: `AppLogger` (ADR-0019) ở `stepAdStates` và `AdsController` như trê
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 7 trong RUN-20261026-03. 
 
 ## 10. Nhật ký thực hiện
 

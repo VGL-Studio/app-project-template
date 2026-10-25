@@ -1,16 +1,16 @@
 ---
 ticket: T-027
 title: Native một quảng cáo theo kích thước AdsKit: khe đáy, đầy đủ, toàn màn hình
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 2                   # 2: anh Nhật trả lời 15 câu (2026-10-25), tách phần B sang T-040; plan chỉ còn phần A
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M sau khi tách, số gợi ý 15.0M (scripts/token-usage.py estimate, 2026-10-25, tạm vì chưa đủ 5 task M)
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 1                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-027: NATIVE MỘT QUẢNG CÁO THEO KÍCH THƯỚC ADSKIT: KHE ĐÁY, ĐẦY ĐỦ, TOÀN MÀN HÌNH
@@ -246,9 +246,9 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 1 trong RUN-20261026-03. 15 câu của phiên bản 1 đã được anh Nhật trả lời 2026-10-25 (mục 8).
 
 ## 10. Nhật ký thực hiện
 

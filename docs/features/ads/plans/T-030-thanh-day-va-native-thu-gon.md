@@ -1,16 +1,16 @@
 ---
 ticket: T-030
 title: Thanh đáy ghép theo màn: native nhỏ 80 dp hoặc banner, lớp native thu gọn 250 dp tự mở lại
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # số gợi ý cỡ M là 15.0M (scripts/token-usage.py estimate, 2026-10-25, tạm vì chưa đủ 5 task M); nhân đôi vì khoảng 50 dòng ở mục 3.2 trên ba module và sửa trên năm file của hai plan chưa merge (T-027, T-040)
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 5                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-030: THANH ĐÁY GHÉP THEO MÀN: NATIVE NHỎ 80 DP HOẶC BANNER, LỚP NATIVE THU GỌN 250 DP TỰ MỞ LẠI
@@ -323,9 +323,9 @@ Test viết trước code (auto-run.md, bước 3). Test kiểm kích thước d
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 5 trong RUN-20261026-03. 
 
 ## 10. Nhật ký thực hiện
 

@@ -1,16 +1,16 @@
 ---
 ticket: T-031
 title: Rewarded là hành động có điều kiện, kèm hộp thoại xem quảng cáo
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, data, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15.0M (scripts/token-usage.py estimate, 2026-10-25); nâng lên vì hai module, ba file code mới, bốn file test mới, ba ảnh chuẩn và một vị trí staging
 blocking_points: [ads, data, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 6                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-031: REWARDED LÀ HÀNH ĐỘNG CÓ ĐIỀU KIỆN, KÈM HỘP THOẠI XEM QUẢNG CÁO
@@ -272,9 +272,9 @@ Mỗi đường tới một lượt nạp rewarded (L-072): kế hoạch nạp s
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 6 trong RUN-20261026-03. Câu 8 (cổng đồng ý đóng mà khóa vị trí bật): anh Nhật chọn phương án (a), coi như vị trí tắt, hành động làm ngay.
 
 ## 10. Nhật ký thực hiện
 

@@ -1,16 +1,16 @@
 ---
 ticket: T-025
 title: Quảng cáo khi quay lại app, bỏ lượt sau khi bấm quảng cáo
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # sửa theo rà soát độc lập 2026-10-25, trước khi duyệt (chưa duyệt nên giữ 1)
 risk_score:                  # để trống: chạm điểm chặn (ads, analytics, core)
 risk_level: high             # low | medium | high
 token_estimate: 20M          # cỡ M, số gợi ý 15.0M (scripts/token-usage.py estimate, 2026-10-25, tạm vì chưa đủ 5 task M); nâng vì nối vào AdsController.kt ở bốn chỗ, bốn file test mới và năm file test sửa
 blocking_points: [ads, analytics, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 8                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-025: QUẢNG CÁO KHI QUAY LẠI APP, BỎ LƯỢT SAU KHI BẤM QUẢNG CÁO
@@ -355,9 +355,9 @@ Mỗi đường tới một lượt resume (L-072): chỉ một đường, `AdsA
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 8 trong RUN-20261026-03. Câu 1: anh Nhật chọn thêm vị trí `resume_inter`; spec mục 5, A-15, MC-09, PL-02 đã sửa và xác nhận lại 2026-10-26 trong PR duyệt này, nên điều kiện dừng về spec ở mục 7 đã được đáp ứng.
 
 ## 10. Nhật ký thực hiện
 

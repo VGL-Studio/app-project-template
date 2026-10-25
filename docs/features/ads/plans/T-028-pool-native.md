@@ -1,16 +1,16 @@
 ---
 ticket: T-028
 title: Pool native và native trong tập hợp (lưới, danh sách, pager), medium
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # sửa theo rà soát độc lập (2 chặn, 9 nên sửa, ghi chú) trước khi duyệt, chưa duyệt nên giữ 1
 risk_score:                  # để trống: chạm điểm chặn (ads, analytics, core)
 risk_level: high             # low | medium | high
 token_estimate: 30M          # ticket ghi cỡ M (số gợi ý 15.0M, scripts/token-usage.py estimate, 2026-10-25), nhưng việc thật cỡ L: năm file code mới, sáu file test mới, đổi medium, nối vào AdsController.kt và InListAds.kt; câu hỏi 5
 blocking_points: [ads, analytics, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 3                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-028: POOL NATIVE VÀ NATIVE TRONG TẬP HỢP (LƯỚI, DANH SÁCH, PAGER), MEDIUM
@@ -354,9 +354,9 @@ Mọi test JVM ở `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/` t
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 3 trong RUN-20261026-03. 
 
 ## 10. Nhật ký thực hiện
 

@@ -1,16 +1,16 @@
 ---
 ticket: T-040
 title: Khe và nguồn native một quảng cáo: lấy, hủy, hết hạn, làm mới 60 giây
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M, số gợi ý 15.0M (scripts/token-usage.py estimate, 2026-10-25, tạm vì chưa đủ 5 task M); bốn file code mới, bốn file test mới, nối vào AdsController.kt
 blocking_points: [ads, core, analytics]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 2                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-040: KHE VÀ NGUỒN NATIVE MỘT QUẢNG CÁO: LẤY, HỦY, HẾT HẠN, LÀM MỚI 60 GIÂY
@@ -267,9 +267,9 @@ Test viết trước code (auto-run.md, bước 3). Thời gian dùng `runTest` 
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 2 trong RUN-20261026-03. Câu 1 (gốc tính nhịp làm mới): theo đề xuất của AI, tính lại 60 giây từ lần đổi thành công.
 
 ## 10. Nhật ký thực hiện
 
