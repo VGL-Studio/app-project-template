@@ -1,16 +1,16 @@
 ---
 ticket: T-024
 title: Quảng cáo mở app ở màn loading (lần đầu sau khi cài và lần thường)
-status: draft                # draft | approved | stopped | done
+status: approved   # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-25); nâng vì khoảng 35 file ở ba module và hai API công khai mới
 blocking_points: [ads, core, analytics]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 3                    # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                  # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-25
 ---
 
 # PLAN T-024: QUẢNG CÁO MỞ APP Ở MÀN LOADING (LẦN ĐẦU SAU KHI CÀI VÀ LẦN THƯỜNG)
@@ -326,13 +326,15 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
    - Đề xuất của AI: `:core:ads` giữ dấu (DataStore của `:core:data`, khóa `ads_first_open_done`), đọc và ghi một lần mỗi process khi `:core:ads` cần công tắc của vị trí toàn app lần đầu, tức ngay lúc mở app. Màn loading không cần DataStore hay khóa quảng cáo. Hệ quả: lần mở đầu mà app bị tắt trước khi quảng cáo hiện thì lần sau tính là lần thường; ghi dấu lỗi thì lần sau có thể lại là lần đầu.
    - Trả lời:
 
+**Trả lời của anh Nhật (2026-10-25):** câu 1 đến 6: theo đề xuất của AI. Câu 1: theo spec ads; spec loading mục 5 và KB-1 sửa trong PR duyệt danh sách RUN-20261026-01 (lịch sử của spec ghi lại), anh Nhật xác nhận.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 3 trong RUN-20261026-01.
 
 ## 10. Nhật ký thực hiện
 

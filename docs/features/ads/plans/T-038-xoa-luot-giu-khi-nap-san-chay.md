@@ -1,16 +1,16 @@
 ---
 ticket: T-038
 title: Xóa lượt giữ khi lượt xin nạp sẵn mới được chạy
-status: draft                # draft | approved | stopped | done
+status: approved   # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 5M           # cỡ S, số gợi ý 5.0M (scripts/token-usage.py estimate, 2026-10-25); một file code, một file test, một đoạn tài liệu
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 1                    # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                  # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-25
 ---
 
 # PLAN T-038: XÓA LƯỢT GIỮ KHI LƯỢT XIN NẠP SẴN MỚI ĐƯỢC CHẠY
@@ -113,13 +113,13 @@ Test viết trước chạy trên **code hiện tại của nhánh chính** (ch�
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| S-23 "chạy đúng một lần", giữ vì cổng đóng | Unit test, thời gian ảo | `AdPreloaderTest.requestRun_whileHeldForClosedGate_clearsHeld`: các bước của số đo thứ nhất ở trên; kỳ vọng `loadCalls == [0, 2000]` ở 30 000, log `Held preload NETWORK_BACK: covered by GATE_REOPENED run`, không có log `Held preload NETWORK_BACK: run`. Code hiện tại thất bại: `[0, 2000, 8000]` |
-| S-23, giữ vì đang chạy rồi cổng đóng lúc xong (T-037) | Unit test, thời gian ảo | `AdPreloaderTest.requestRun_whileHeldFromRunAndGateClosed_clearsHeld`: các bước của số đo thứ hai; kỳ vọng `loadCalls == [0, 8000]` ở 30 000, log `Held preload PLACEMENT_ENABLED: covered by GATE_REOPENED run`. Code hiện tại thất bại: `[0, 8000, 14000]` |
-| Mọi lý do có thể ra `RUN` khi đang giữ (L-072) | Unit test, thời gian ảo | `AdPreloaderTest.everyRunReason_whileHeld_clearsHeld`: lặp `GATE_REOPENED`, `NETWORK_BACK` (gọi `onNetworkReturned()`), `PLACEMENT_ENABLED`; mỗi trường hợp một `AdPreloader` và khe mới, `gate = OPEN` đầu mỗi vòng; lượt giữ là `NETWORK_BACK` (hay `PLACEMENT_ENABLED` khi lý do thử là `NETWORK_BACK`) tạo khi cổng đóng; mở cổng, gọi lý do thử trước `onGateChanged()`: khe có đúng một lần gọi thêm, ở thời điểm xin, không lần nào tới 20 giây sau; thông báo lỗi ghi tên lý do. Code hiện tại thất bại ở cả ba |
+| KB-24 (S-23) "chạy đúng một lần", giữ vì cổng đóng | Unit test, thời gian ảo | `AdPreloaderTest.requestRun_whileHeldForClosedGate_clearsHeld`: các bước của số đo thứ nhất ở trên; kỳ vọng `loadCalls == [0, 2000]` ở 30 000, log `Held preload NETWORK_BACK: covered by GATE_REOPENED run`, không có log `Held preload NETWORK_BACK: run`. Code hiện tại thất bại: `[0, 2000, 8000]` |
+| KB-24 (S-23), giữ vì đang chạy rồi cổng đóng lúc xong (T-037) | Unit test, thời gian ảo | `AdPreloaderTest.requestRun_whileHeldFromRunAndGateClosed_clearsHeld`: các bước của số đo thứ hai; kỳ vọng `loadCalls == [0, 8000]` ở 30 000, log `Held preload PLACEMENT_ENABLED: covered by GATE_REOPENED run`. Code hiện tại thất bại: `[0, 8000, 14000]` |
+| KB-24 tiêu chí 3 (mạng về thì tải lại), mọi lý do có thể ra `RUN` khi đang giữ (L-072) | Unit test, thời gian ảo | `AdPreloaderTest.everyRunReason_whileHeld_clearsHeld`: lặp `GATE_REOPENED`, `NETWORK_BACK` (gọi `onNetworkReturned()`), `PLACEMENT_ENABLED`; mỗi trường hợp một `AdPreloader` và khe mới, `gate = OPEN` đầu mỗi vòng; lượt giữ là `NETWORK_BACK` (hay `PLACEMENT_ENABLED` khi lý do thử là `NETWORK_BACK`) tạo khi cổng đóng; mở cổng, gọi lý do thử trước `onGateChanged()`: khe có đúng một lần gọi thêm, ở thời điểm xin, không lần nào tới 20 giây sau; thông báo lỗi ghi tên lý do. Code hiện tại thất bại ở cả ba |
 | Lượt giữ không bị xóa khi chỉ cổng mở (đối chứng, L-055) | Unit test, thời gian ảo | `AdPreloaderTest.gateOpens_withoutRequest_heldRunsOnce`: như test thứ nhất nhưng ở 2 000 chỉ `gate = OPEN`, `onGateChanged()` (không `request`): `loadCalls == [0, 2000]`, log `Held preload NETWORK_BACK: run`, không có log `covered by`. Qua ngay trên code hiện tại; là đối chứng cho test thứ nhất: cùng số lần gọi cuối, khác đường, cho thấy test thứ nhất phân biệt được lượt giữ chạy qua `onGateChanged` với lượt giữ bị xóa |
 | Sau khi xóa, lượt xin tới khi đang chạy vẫn được giữ (T-037 không lùi) | Unit test, thời gian ảo | `AdPreloaderTest.requestRun_clearsHeld_thenRequestDuringRunIsHeld`: như test thứ nhất tới 2 000; `request(PLACEMENT_ENABLED)` ở 3 000 (`HOLD`, log `Preload PLACEMENT_ENABLED: HOLD`); ở 8 000 `loadCalls == [0, 2000, 8000]`, log `Held preload PLACEMENT_ENABLED: run`; ở 30 000 vẫn ba lần. Phần đếm lần gọi qua ngay trên code hiện tại (lượt thừa trùng thời điểm); dòng log `covered by` ở 2 000 thất bại trên code hiện tại. Xác nhận `held = null` ở nhánh `RUN` không chặn lượt giữ mới sau đó |
 | `RUN` không xảy ra khi đang chạy (nên lượt giữ vì đang chạy chỉ bị xóa qua hàng trên) | Unit test có sẵn | `PreloadDecisionTest.running_holdsEveryWholePlanReason_ignoresNativeRefill`, `AdPreloaderTest.wholePlanRequests_duringAnyRun_areHeldAndRunOnceAfter`, `twoRequestsDuringRun_runOnceAfterIt` không sửa và vẫn qua |
-| Hành vi T-021, T-037 không lùi | Unit test có sẵn | Toàn bộ `AdPreloaderTest` (23 test), `PreloadDecisionTest`, `PreloadPlanRunnerTest` không sửa và vẫn qua; `scripts/check.sh` |
+| KB-24, hành vi T-021, T-037 không lùi | Unit test có sẵn | Toàn bộ `AdPreloaderTest` (23 test), `PreloadDecisionTest`, `PreloadPlanRunnerTest` không sửa và vẫn qua; `scripts/check.sh` |
 | Trên máy (staging) | Kiểm tra thủ công (máy thật: khác, cần đổi quyền đồng ý UMP qua form quyền riêng tư trong lúc lượt giữ đang chờ; thời điểm không lặp lại được trên emulator), không bắt buộc | Mở form quyền riêng tư, từ chối rồi đồng ý lại khi mạng vừa về: log `VGL.Ads` nếu có `Held preload <lý do>: covered by GATE_REOPENED run` thì sau `Preload plan finished` kế tiếp không có `Held preload <lý do>: run`. Lệnh: `adb logcat -v threadtime \| grep ' VGL\.Ads'` |
 
 **Ngoại lệ viết test trước:** đoạn tài liệu `docs/ops/ads-guide.md` và KDoc (chỉ chữ). Không có phần code nào ngoài test.
@@ -170,13 +170,15 @@ Test viết trước chạy trên **code hiện tại của nhánh chính** (ch�
 4. **Duyệt chéo khi nhóm chỉ có một dev:** theo `risk-scoring.md` mục 3, anh Nhật vừa duyệt vừa duyệt chéo, ghi lý do ở mục 9.
    - Đề xuất của AI: như T-021, T-037.
 
+**Trả lời của anh Nhật (2026-10-25):** câu 1 đến 4: theo đề xuất của AI.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 1 trong RUN-20261026-01.
 
 ## 10. Nhật ký thực hiện
 

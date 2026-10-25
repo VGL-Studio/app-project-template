@@ -1,16 +1,16 @@
 ---
 ticket: T-039
 title: PR chỉ có tài liệu vẫn chạy test của script
-status: draft                # draft | approved | stopped | done
+status: approved   # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ci)
 risk_level: high             # low | medium | high
 token_estimate: 5M           # cỡ S, số gợi ý 5.0M (scripts/token-usage.py estimate, 2026-10-25); một workflow, một file test, một đoạn tài liệu
 blocking_points: [ci]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 4                    # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                  # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-25
 ---
 
 # PLAN T-039: PR CHỈ CÓ TÀI LIỆU VẪN CHẠY TEST CỦA SCRIPT
@@ -215,13 +215,15 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code, commit riê
 5. **Dòng Áp dụng của L-040:** Đề xuất: PR của task (hay PR báo cáo của phiên) ghi "commit chỉ có tài liệu: nhánh nhẹ của `build-and-test`, PR #<số>" và đổi trạng thái sang `applied` sau khi PR thử ở mục 4 đỏ và xanh đúng như mong đợi. Nếu muốn giữ `docs/lessons.md` cho buổi duyệt bài học, bỏ dòng đó khỏi mục 3.2.
 6. **Duyệt chéo:** nhóm hiện có một dev; theo `risk-scoring.md`, mục 3, dev vừa duyệt vừa duyệt chéo và ghi lý do ở mục 9.
 
+**Trả lời của anh Nhật (2026-10-25):** câu 1 đến 6: theo đề xuất của AI.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 4 trong RUN-20261026-01.
 
 ## 10. Nhật ký thực hiện
 

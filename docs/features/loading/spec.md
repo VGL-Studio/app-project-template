@@ -49,7 +49,7 @@ Tiêu chí chấp nhận:
 
 - [ ] Khi mở app thì màn hình loading hiện đầu tiên, có logo, tên app, khẩu hiệu, nhãn "Đang tải dữ liệu", thanh tiến trình ngang, phần trăm, dòng chữ cho biết app đang chuẩn bị, và dòng chân trang, đúng thiết kế.
 - [ ] Khi một phần việc xong thì thanh tiến trình tăng thêm 25%, không bao giờ lùi.
-- [ ] Khi cả bốn phần việc xong và màn hình đã hiện đủ 2 giây thì app tự chuyển sang màn hình chính, không cần bấm gì.
+- [ ] Khi cả bốn phần việc xong và màn hình đã hiện đủ 2 giây thì app tự chuyển sang màn hình chính, không cần bấm gì. Khi quảng cáo mở app được bật (spec ads, KB-13) thì màn hình đứng ở 100% chờ quảng cáo có giới hạn, quảng cáo đóng rồi mới chuyển.
 - [ ] Khi cả bốn phần việc xong trước 2 giây thì thanh tiến trình đứng ở 100% cho tới đủ 2 giây rồi mới chuyển.
 - [ ] Khi chuyển sang màn hình chính thì app ghi sự kiện `loading_completed` một lần.
 - [ ] Khi đã vào màn hình chính và người dùng bấm nút quay lại thì app đóng, không quay lại màn hình loading.
@@ -98,7 +98,7 @@ Tiêu chí chấp nhận:
 
 ## 5. Quảng cáo
 
-Không có. Màn hình loading không hiện quảng cáo.
+Màn hình loading không có vị trí quảng cáo riêng. Sau khi chuẩn bị xong và đủ 2 giây, màn hình có thể hiện quảng cáo mở app theo spec ads (KB-13, T-024): chờ có giới hạn, quảng cáo đóng rồi mới vào màn hình chính. Khóa của quảng cáo tắt thì màn hình chuyển ngay như trước.
 
 ## 6. Dữ liệu và phân tích
 
@@ -157,3 +157,4 @@ Không có. Màn hình loading không hiện quảng cáo.
 | 2026-10-15 | AI | Cập nhật theo câu trả lời của anh Nhật: đo Remote Config và ba file R2, thanh ngang có phần trăm, báo lỗi và thử lại khi mất mạng lần đầu, hiện mỗi lần mở app, tối thiểu 2 giây, sự kiện `loading_completed`, tên feature `loading` |
 | 2026-10-15 | AI | Cập nhật theo câu trả lời mục 9: mở lại khi không có mạng cũng báo lỗi, tham số của `loading_completed`, thời gian chờ, cấu hình giả trên máy dev và CI, ba file đã có trên R2 |
 | 2026-10-16 | AI | Nhận thiết kế Figma theo quyết định của anh Nhật: thêm logo, tên app, khẩu hiệu, chân trang, tiêu đề lỗi, nhãn tiến trình (phạm vi, KB-1, KB-2, mục 4); thêm câu hỏi 6, 7. Chuyển sang `changed`, chờ xác nhận lại |
+| 2026-10-25 | AI | Theo quyết định của anh Nhật khi duyệt plan T-024 (câu 1): quảng cáo mở app ở màn loading theo spec ads KB-13; sửa KB-1 (tiêu chí chuyển màn) và mục 5. Anh Nhật xác nhận, spec giữ `confirmed` |

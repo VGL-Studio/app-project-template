@@ -1,16 +1,16 @@
 ---
 ticket: T-029
 title: Banner cố định và banner thu gọn theo PARTNER
-status: draft                # draft | approved | stopped | done
+status: approved   # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 15M          # cỡ M, số gợi ý 15.0M (scripts/token-usage.py estimate, 2026-10-25); ba file code mới, bốn file test mới, nối vào AdSlot.kt
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 2                    # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                  # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-25
 ---
 
 # PLAN T-029: BANNER CỐ ĐỊNH VÀ BANNER THU GỌN THEO PARTNER
@@ -217,13 +217,15 @@ Mỗi lượt gửi ở mọi đường (L-072): lượt đầu, thử lại, n�
 6. **Lượt nạp đầu lỗi (chưa từng có quảng cáo): khung giữ chiều cao hay co về 0?** Hôm nay khung giữ chiều cao từ lúc dựng tới khi rời màn. B-04 chỉ nói mã rỗng thì không chiếm chỗ; D-02 nói banner trong thanh đáy "cao theo nội dung" (T-030).
    - Đề xuất của AI: giữ như hôm nay ở task này (không nhảy giao diện khi thử lại có quảng cáo); T-030 quyết cho thanh đáy theo D-02, D-04.
 
+**Trả lời của anh Nhật (2026-10-25):** câu 1 đến 6: theo đề xuất của AI.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 2 trong RUN-20261026-01.
 
 ## 10. Nhật ký thực hiện
 
