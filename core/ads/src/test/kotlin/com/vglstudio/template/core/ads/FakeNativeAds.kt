@@ -8,6 +8,15 @@ internal val sampleNativeAdAssets = NativeAdAssets(
     callToAction = "Install",
     icon = null,
     hasMedia = true,
+    starRating = 4.0,
+)
+
+/** Texts longer than any layout holds: the full native ad keeps its height with them (plan T-027). */
+internal val longFullNativeAdAssets = sampleNativeAdAssets.copy(
+    headline = "Headline of the ad that is far too long to fit on a single line of the card",
+    advertiser = "Advertiser with a name that is also much too long for its line",
+    body = "Body text of the ad that goes on and on. ".repeat(8),
+    callToAction = "Install now and get the full version",
 )
 
 /** A loaded ad that counts how many times it was destroyed. */

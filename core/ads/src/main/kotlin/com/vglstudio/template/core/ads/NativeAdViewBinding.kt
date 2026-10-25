@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -82,6 +83,7 @@ internal fun BoundNativeAd(ad: LoadedNativeAd, size: NativeAdSize, modifier: Mod
 internal fun NativeAdViewHost(
     bind: (NativeAdView) -> Unit,
     modifier: Modifier = Modifier,
+    newMediaView: (Context) -> MediaView = ::MediaView,
     content: @Composable (NativeAdBinder) -> Unit,
 ) {
     val context = LocalContext.current

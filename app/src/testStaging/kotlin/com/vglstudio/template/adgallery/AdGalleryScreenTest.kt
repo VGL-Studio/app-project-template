@@ -124,8 +124,8 @@ class AdGalleryScreenTest {
         assertTrue("ad first in the list", textBounds("List item 1").top < firstAd.top)
         assertTrue(firstAd.top >= textBounds("List item 3").bottom)
         assertTrue(firstAd.bottom <= textBounds("List item 4").top)
-        // Small: 72 dp and 16 dp above and below.
-        assertDp("first ad row height", 104.dp, firstAd.height)
+        // Small: 80 dp and 16 dp above and below.
+        assertDp("first ad row height", 112.dp, firstAd.height)
 
         composeRule.onNodeWithTag(AdGalleryTestTags.IN_LIST)
             .performScrollToNode(hasText("List item 7"))

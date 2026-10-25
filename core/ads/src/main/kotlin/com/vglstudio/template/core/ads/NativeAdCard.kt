@@ -44,7 +44,7 @@ import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 
 /** Size of a native ad drawn inside a screen (ads-guide.md, section 4). */
-enum class NativeAdSize { SMALL, MEDIUM }
+enum class NativeAdSize { SMALL, MEDIUM, FULL }
 
 /** What a native ad shows; the SDK fills it in the app, tests and previews use fixed values. */
 data class NativeAdAssets(
@@ -54,6 +54,7 @@ data class NativeAdAssets(
     val callToAction: String?,
     val icon: ImageBitmap?,
     val hasMedia: Boolean,
+    val starRating: Double? = null,
 )
 
 /**
@@ -77,7 +78,7 @@ fun NativeAdPlaceholder(size: NativeAdSize, modifier: Modifier = Modifier, anima
 
 /** Sizes of the native ad components, from docs/features/ads/design/context/ (design README, section 3). */
 internal object NativeAdDimens {
-    val SmallHeight = 72.dp
+    val BottomSlotHeight = 72.dp
     val MediumHeight = 386.dp
     val BorderWidth = 1.dp
 
@@ -110,8 +111,8 @@ internal object NativeAdDimens {
     val CallToActionPlaceholderWidth = CallToActionMinWidth
 
     fun heightOf(size: NativeAdSize): Dp = when (size) {
-        NativeAdSize.SMALL -> SmallHeight
-        NativeAdSize.MEDIUM -> MediumHeight
+        NativeAdSize.SMALL -> BottomSlotHeight
+        NativeAdSize.MEDIUM, NativeAdSize.FULL -> MediumHeight
     }
 }
 
@@ -124,7 +125,12 @@ internal object NativeAdTestTags {
     const val MEDIA = "native_ad_media"
     const val CTA = "native_ad_cta"
     const val AD_CHOICES_AREA = "native_ad_choices_area"
+    const val STAR_ROW = "native_ad_star_row"
+    const val STAR = "native_ad_star"
 }
+
+/** Filled stars of [rating] (O-08). Skeleton (plan T-027, step 3). */
+internal fun nativeStarCount(rating: Double?): Int = 0
 
 /**
  * Side margins are measured from the outer edge, as the plan's table reads them (media 355 dp wide in a 379 dp card);
@@ -161,7 +167,7 @@ internal fun NativeAdLayout(
     ) {
         when (size) {
             NativeAdSize.SMALL -> SmallLayout(assets, binder)
-            NativeAdSize.MEDIUM -> MediumLayout(assets, binder)
+            NativeAdSize.MEDIUM, NativeAdSize.FULL -> MediumLayout(assets, binder)
         }
         if (showAdChoicesMarker) AdChoicesMarker(Modifier.align(Alignment.TopEnd))
     }
@@ -413,7 +419,7 @@ internal fun NativeAdPlaceholderLayout(
                     Modifier.size(NativeAdDimens.CallToActionPlaceholderWidth, NativeAdDimens.CallToActionHeight),
                 )
             }
-            NativeAdSize.MEDIUM -> Column(
+            NativeAdSize.MEDIUM, NativeAdSize.FULL -> Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom)

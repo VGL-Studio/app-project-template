@@ -55,7 +55,7 @@ internal class SdkNativeAdLoader(
             .apply {
                 when (size) {
                     NativeAdSize.SMALL -> setRequestMultipleImages(false)
-                    NativeAdSize.MEDIUM -> setMediaAspectRatio(MediaAspectRatio.ANY)
+                    NativeAdSize.MEDIUM, NativeAdSize.FULL -> setMediaAspectRatio(MediaAspectRatio.ANY)
                 }
             }
             .build()

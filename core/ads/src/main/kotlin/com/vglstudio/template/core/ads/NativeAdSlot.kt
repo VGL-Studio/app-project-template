@@ -44,6 +44,27 @@ fun NativeAdSlot(placement: AdPlacement, modifier: Modifier = Modifier, keepSpac
     )
 }
 
+/** Skeleton (plan T-027, step 3). */
+internal fun nativeSlotAllowed(canRequestAds: Boolean, enabled: Boolean, unitId: String?): Boolean = false
+
+/** Skeleton (plan T-027, step 3). */
+@Composable
+internal fun NativeAdSlotGate(
+    allowed: Boolean,
+    states: Flow<NativeAdState>,
+    size: NativeAdSize,
+    keepSpaceWhenEmpty: Boolean,
+    onAdAvailabilityChange: (Boolean) -> Unit,
+    modifier: Modifier,
+    adContent: @Composable (LoadedNativeAd) -> Unit,
+) {
+    if (!allowed) {
+        Box(modifier = modifier)
+        return
+    }
+    NativeAdSlotHost(states, size, keepSpaceWhenEmpty, modifier, adContent = adContent)
+}
+
 /** The size a native placement is drawn at; other formats are not drawn by [NativeAdSlot]. */
 internal fun requireNativeFormat(format: AdFormat): NativeAdSize = when (format) {
     AdFormat.NATIVE_SMALL -> NativeAdSize.SMALL
@@ -62,6 +83,7 @@ internal fun NativeAdSlotHost(
     size: NativeAdSize,
     keepSpaceWhenEmpty: Boolean,
     modifier: Modifier,
+    onStateChange: (NativeAdState) -> Unit = {},
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     val state by states.collectAsState(initial = NativeAdState.Loading)
