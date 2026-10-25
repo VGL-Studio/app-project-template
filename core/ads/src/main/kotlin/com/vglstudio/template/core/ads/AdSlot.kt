@@ -127,7 +127,8 @@ internal fun BannerSlotHost(
         return
     }
     Box(modifier = modifier) {
-        key(unitId) {
+        // One ad view per placement, refresh kind and ad unit: two placements may share a unit (staging test ids).
+        key(placementKey, refresh, unitId) {
             BannerFrameContent(
                 frame = frame,
                 heightDp = heightDp,
