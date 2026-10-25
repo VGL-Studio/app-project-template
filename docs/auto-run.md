@@ -310,23 +310,27 @@ Sau đó AI:
    Ghi giờ bắt đầu. Với từng ticket của hàng chờ, theo thứ tự:
    1. Tạo nhánh `claude/plan-T-NNN-<từ khóa>` từ nhánh chính mới nhất.
    2. Viết plan theo `docs/CLAUDE.md`, mục Khi viết plan. Chuyển ticket sang `planned`, điền `plan:`.
-   3. Commit, đẩy ngay. Mở PR nháp `Plan T-NNN (draft): <tên>` ngay sau commit đầu, để hết hạn mức giữa chừng người vẫn thấy phần đã soạn.
-   4. Làm mọi bước chạy thử của mục Khi viết plan, mỗi bước trong một worktree riêng. Bước không chạy được thì ghi `Chạy thử: chưa chạy (<lý do>)` ở mục 4.1 và mục 8.
+   3. Commit, rồi đẩy ngay bằng `scripts/save-branch.sh claude/plan-T-NNN-<từ khóa>`. Script trả mã 3, hay lệnh đẩy bị từ chối, thì làm theo "Khi không đẩy được" (mục 3, sau bước 7; L-081): không đẩy lại dưới dạng khác, giữ bundle, chép đoạn "Nhánh chưa đẩy" vào mục "Plan soạn sẵn và câu hỏi cho người", rồi dừng bước 5. Đẩy được thì mở PR nháp `Plan T-NNN (draft): <tên>` ngay sau commit đầu và gắn nhãn `needs-human` (lệnh `gh api` như PR nháp sửa nguyên nhân, mục 3, bước 7), để hết hạn mức giữa chừng người vẫn thấy phần đã soạn.
+   4. Làm mọi bước chạy thử của mục Khi viết plan, mỗi bước trong một worktree riêng. Bước không chạy được, hay chưa chạy xong khi hết giờ, thì ghi `Chạy thử: chưa chạy xong (<lý do>)` ở mục 4.1 và đặt câu hỏi cho người ở mục 8. Không ghi kết quả mà phiên chưa thấy.
    5. Chạy `scripts/plan-check.py`, sửa tới khi không lỗi. Lỗi chỉ người gỡ được thì giữ lại và ghi vào mục 8.
    6. Ngay sau đó, giao một phiên rà soát độc lập (ngữ cảnh mới, chỉ đọc) cho plan này, như rà soát trước khi duyệt (`docs/ops/pre-run-review.md`). Sửa plan theo điểm chặn và điểm nên sửa một lần; điểm còn lại chép vào mục 8.
-   7. Đẩy, cập nhật mô tả PR (kết quả `plan-check.py`, rà soát, chạy thử), rồi chuyển PR khỏi trạng thái nháp.
+   7. Commit, đẩy bằng `scripts/save-branch.sh`, cập nhật mô tả PR (kết quả `plan-check.py`, rà soát, chạy thử). PR vẫn là nháp và giữ nhãn `needs-human`, như PR sửa nguyên nhân ở mục Chuẩn bị cho người khi task dừng. Người duyệt plan, gỡ nhãn, chuyển PR sang sẵn sàng rồi merge.
 
-   Giới hạn thời gian:
-   - Quá 45 phút từ giờ bắt đầu thì không bắt đầu plan mới.
-   - Quá 60 phút thì dừng plan đang soạn: đẩy phần đã có, ghi "chưa xong".
-   - Plan chưa kịp rà soát ghi "chưa rà soát" ở mục mới và trong mô tả PR.
+   Giao việc cho phiên con (chạy thử, rà soát độc lập) theo mục Giao bước 3 đến 5 cho phiên con: lời giao có một dòng riêng `Task: T-NNN` (L-071); phiên con chỉ commit trong worktree, phiên chính đẩy nhánh (L-070).
+
+   Giới hạn thời gian, tính riêng cho từng plan:
+   - Mỗi plan có 45 phút, kể cả chạy thử (`scripts/check.sh`, và `./gradlew :app:assembleStagingRelease` khi plan thêm thư viện) và rà soát. Cả bước 5 có tối đa `plan_queue` × 45 phút, cộng 15 phút cho PR tóm tắt.
+   - Plan dùng hết 45 phút thì dừng: đẩy phần đã có. Chạy thử chưa xong thì ghi như ý 4 ở trên; plan chưa kịp rà soát ghi "chưa rà soát" ở mục 8 và trong mô tả PR. PR vẫn là nháp.
+   - Phần thời gian còn lại của cả bước không đủ 45 phút thì không bắt đầu plan mới.
+
+   Giới hạn token: trước mỗi plan, xem tổng token của phiên bằng `scripts/token-usage.py report --since <started_at>`. Token đã dùng cộng số token của plan trước trong bước này (plan đầu thì lấy task nhỏ nhất của phiên) vượt phần hạn mức còn lại thì dừng bước 5 và ghi lý do. Không đo được thì chỉ soạn một plan.
 
    Kết thúc bước 5:
    - Mở một PR tóm tắt nhỏ `RUN-YYYYMMDD-NN: plan soạn sẵn` (nhánh `claude/RUN-YYYYMMDD-NN-plans`). PR chỉ sửa mục "Plan soạn sẵn và câu hỏi cho người" của danh sách chạy: bảng các PR plan và câu hỏi cho người.
-   - Merge PR tóm tắt bằng `scripts/merge-if-green.sh` như PR báo cáo. Các PR plan để người duyệt và merge.
+   - Merge PR tóm tắt bằng `scripts/merge-if-green.sh` như PR báo cáo. Các PR plan là nháp có nhãn `needs-human`, để người duyệt và merge.
 
    Việc phiên không làm ở bước này:
-   - không merge PR plan, không ghi `approved` hay mục 9;
+   - không chuyển PR plan sang sẵn sàng, không gỡ nhãn `needs-human`, không duyệt, không merge PR plan, không ghi `approved` hay mục 9;
    - không lập danh sách chạy mới, ngoài danh sách nháp của mục Chuẩn bị cho người khi task dừng;
    - không sửa plan đã `approved`, spec, hay ticket ngoài trạng thái và trường `plan:` của ticket được chọn.
 

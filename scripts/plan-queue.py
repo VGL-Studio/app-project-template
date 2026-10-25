@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Picks the tickets whose plan the session drafts at the end of a run (L-084).
 
-Usage: scripts/plan-queue.py [--max N]      (N defaults to 3)
+Usage: scripts/plan-queue.py [--max N]      (N defaults to 2)
 
-A ticket is picked when it is `ready`, has no `plan:`, and
+A ticket is picked when it is `backlog` or `ready`, has no `plan:`, and
   - its spec (when it has one) exists, is confirmed and has no unanswered question; a ticket with scenarios needs a spec;
-  - every `depends_on` ticket is merged, has a plan, or was picked earlier in the same pass;
+  - every `depends_on` ticket exists, is not stopped or cancelled, and is merged, has a plan,
+    or was picked earlier in the same pass;
   - no remote branch `origin/claude/plan-T-NNN[-...]` and no open pull request already holds a plan for it.
 Order: `sprint` (a number before a word before empty), then the ticket number.
 
@@ -27,6 +28,8 @@ ROOT = Path(os.environ.get("PLAN_QUEUE_ROOT", Path(__file__).resolve().parent.pa
 DOCS = ROOT / "docs"
 MERGED = {"on-staging", "accepted", "released"}
 DEAD = {"stopped", "cancelled"}
+# `backlog` is the status a new ticket gets; `ready` is optional, set by a dev who wants to mark it.
+OPEN = {"backlog", "ready"}
 
 
 def load_run_check():
@@ -108,10 +111,11 @@ def dependency_problem(ticket, tickets, chosen):
         other = tickets.get(dep)
         if other is None:
             return f"phụ thuộc {dep} không có ticket"
-        if other["status"] in MERGED or other.get("plan"):
-            continue
+        # A dead ticket blocks even when it has a plan: that plan will not be carried out.
         if other["status"] in DEAD:
             return f"phụ thuộc {dep} đang {other['status']}"
+        if other["status"] in MERGED or other.get("plan"):
+            continue
         return f"chờ {dep} ({other['status']}, chưa có plan)"
     return ""
 
@@ -128,7 +132,7 @@ def spec_problem(ticket):
 
 
 def main(argv):
-    limit = 3
+    limit = 2
     if argv:
         if len(argv) != 2 or argv[0] != "--max" or not argv[1].isdigit():
             print("Cách dùng: scripts/plan-queue.py [--max N]", file=sys.stderr)
@@ -137,7 +141,7 @@ def main(argv):
     tickets = read_tickets(run_check)
     branches = plan_branches()
     pr_files = open_pr_files()
-    candidates = [t for t in tickets.values() if t["status"] == "ready" and not t.get("plan")]
+    candidates = [t for t in tickets.values() if t["status"] in OPEN and not t.get("plan")]
     candidates.sort(key=lambda t: (sprint_key(t.get("sprint", "")), int(t["id"].split("-")[1])))
     chosen = []
     for ticket in candidates:

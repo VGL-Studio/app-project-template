@@ -1238,6 +1238,11 @@ write_pq_ticket T-917 ready '' KB-1 '' '' ''
 write_pq_ticket T-918 ready features/demo/missing.md KB-1 '' '' ''
 write_pq_ticket T-919 ready '' '' '' '' ''
 write_pq_ticket T-920 ready '' '' '' '' ''
+write_pq_ticket T-921 stopped '' '' '' '' features/demo/plans/T-921-x.md
+write_pq_ticket T-922 ready '' '' T-921 '' ''
+write_pq_ticket T-923 backlog "$S" KB-1 '' '' ''
+write_pq_ticket T-924 cancelled '' '' '' '' features/demo/plans/T-924-x.md
+write_pq_ticket T-925 backlog '' '' T-924 '' ''
 touch "$pq/README"
 pq_git init -q -b main
 pq_git add -A
@@ -1253,7 +1258,7 @@ pq_codes() { PLAN_QUEUE_ROOT="${PQ_ROOT:-$pq}" PATH="$work/bin:$PATH" FIXTURE="$
   python3 -I scripts/plan-queue.py "$@" > /dev/null 2>&1 && echo 0 || echo $?; }
 pq_ids() { pq_run "$@" | cut -f1 | tr '\n' ' ' | sed 's/ $//'; }
 all_ids="$(pq_ids --max 20)"
-expect "plan-queue: order is sprint, then ticket number" "T-901 T-910 T-902 T-911 T-912 T-903 T-908 T-913" "$all_ids"
+expect "plan-queue: order is sprint, then ticket number" "T-901 T-910 T-902 T-911 T-912 T-903 T-908 T-913 T-923" "$all_ids"
 expect "plan-queue: an approved ticket is not queued" 0 "$(grep -c 'T-909' <<< "$all_ids" || true)"
 expect "plan-queue: a ticket with a plan is not queued" 0 "$(grep -c 'T-904' <<< "$all_ids" || true)"
 expect "plan-queue: a stopped ticket is not queued" 0 "$(grep -c 'T-914' <<< "$all_ids" || true)"
@@ -1268,11 +1273,14 @@ expect "plan-queue: a missing spec file is skipped" 1 "$(pq_err 'T-918: bỏ qua
 expect "plan-queue: scenarios without spec are skipped" 1 "$(pq_err 'T-917: bỏ qua.*có kịch bản mà không có spec')"
 expect "plan-queue: a dependency without plan skips the ticket" 1 "$(pq_err 'T-907: bỏ qua, chờ T-905')"
 expect "plan-queue: a stopped dependency is skipped" 1 "$(pq_err 'T-915: bỏ qua.*T-914 đang stopped')"
+expect "plan-queue: a stopped dependency with a plan is skipped" 1 "$(pq_err 'T-922: bỏ qua.*T-921 đang stopped')"
+expect "plan-queue: a cancelled dependency with a plan is skipped" 1 "$(pq_err 'T-925: bỏ qua.*T-924 đang cancelled')"
+expect "plan-queue: a backlog ticket is queued" 1 "$(grep -c 'T-923' <<< "$all_ids" || true)"
 expect "plan-queue: a missing dependency is skipped" 1 "$(pq_err 'T-916: bỏ qua.*T-999 không có ticket')"
 expect "plan-queue: a ticket with a plan branch is skipped" 1 "$(pq_err 'T-919: bỏ qua.*đang có plan trên nhánh origin/claude/plan-T-919-x')"
 expect "plan-queue: a ticket in an open PR is skipped" 1 "$(pq_err 'T-920: bỏ qua.*đang có PR mở #77')"
 expect "plan-queue: --max limits the list" "T-901 T-910" "$(pq_ids --max 2)"
-expect "plan-queue: default is 3" "T-901 T-910 T-902" "$(pq_ids)"
+expect "plan-queue: default is 2" "T-901 T-910" "$(pq_ids)"
 expect "plan-queue: the line has the ticket path" "T-901 docs/features/demo/tickets/T-901-x.md" \
   "$(pq_run --max 1 | tr '\t' ' ')"
 expect "plan-queue: skipped tickets do not change the exit code" 0 "$(pq_codes --max 20)"
