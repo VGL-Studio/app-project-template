@@ -165,6 +165,26 @@ class NativeAdPoolTest {
     }
 
     @Test
+    fun impressionAfterRelease_notClaimedAgain_destroyedAndRefilled() = runTest {
+        val pool = newPool()
+        val (a) = fill(pool, 3)
+        assertSame(a, pool.claim(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        pool.release(a)
+        runCurrent()
+        assertEquals(0, a.destroyCount)
+        assertEquals(3, loads.times.size)
+
+        // The SDK reports the impression after the cell gave the ad back (P-01a, O-01).
+        a.impressionRecorded = true
+        val claimed = List(3) { pool.claim(AdPlacement.GALLERY_INLIST_MEDIUM) }
+        runCurrent()
+
+        assertTrue("the impressed ad was claimed again", claimed.none { it === a })
+        assertEquals(1, a.destroyCount)
+        assertEquals(4, loads.times.size)
+    }
+
+    @Test
     fun releaseWithoutImpression_backToRotation() = runTest {
         val pool = newPool()
         val (a) = fill(pool, 3)
