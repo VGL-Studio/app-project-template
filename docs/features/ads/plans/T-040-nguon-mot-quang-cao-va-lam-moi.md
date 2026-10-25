@@ -1,7 +1,7 @@
 ---
 ticket: T-040
 title: Khe và nguồn native một quảng cáo: lấy, hủy, hết hạn, làm mới 60 giây
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
@@ -274,3 +274,21 @@ Test viết trước code (auto-run.md, bước 3). Thời gian dùng `runTest` 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-03, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #184, commit squash `934695d`, 2026-10-25 18:51 UTC).
+- **Nhánh, PR:** `claude/T-040-nguon-mot-quang-cao` (từ nhánh chính `feb516e`, đã có T-027), PR #184. Commit test `ddbeb81`, commit code `a4e05ff`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-040` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: cổng gửi chung `NativeSendGate.kt`; nguồn một quảng cáo `NativeAdSource.kt`, `NativeAdSources.kt` (O-01 tới O-04, L-061, L-068); làm mới 60 giây `NativeAdRefresh.kt` (CL-02, O-05, O-09); `NativeAdRetry.kt`, `NativeAdLoading.kt`; `key(state.ad)` trong `NativeAdSlot.kt`; `FreshAdCache` 55 phút cho native toàn màn hình; `NativeLoadUse.REFRESH`; `ads-guide.md`.
+- **Test viết trước:** 64 test mới (`NativeSendGateTest` 3, `NativeAdSourceTest` 22, `NativeAdSourcesTest` 10, `NativeAdRefreshTest` 19, `NativeAdRetryTest` +4, `FreshAdCacheTest` +2, `AdTelemetryTest` +3, `NativeAdSlotTest` +1). Trên khung rỗng 61 đỏ đúng lý do. Test viết chặt bằng bước đối chứng: 3 (`defaultCache_stillKeepsAt59m`, `singleAdUse_keepsLoadAttempt`, `refreshNull_neverRequestsAgainAfterLoaded`; đối chứng của test cuối chạy sau bước 4 vì trên khung rỗng tham số `refresh` chưa có tác dụng). Chạy test JVM mọi module trên khung rỗng: không có test đỏ ngoài mục 3.2.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú: `shutDown` trả `NoAd` trước khi tăng bộ đếm đóng (thừa một log `refresh: failed` và một lần đếm lỗi); mốc `since` của làm mới lấy sau `claim` lượt đầu (cửa sổ hẹp quảng cáo còn hiện khi vị trí vừa tắt, T-027 che); `sendAndLoad`, `giveBack` chỉ hỏi `sendGate`, không hỏi `allowed()` (cửa sổ hẹp gửi một lượt `REFRESH` sau khi vị trí tắt; đề xuất thêm `allowed() &&`); nhịp làm mới theo foreground của process, không theo quảng cáo toàn màn hình đang hiện (ghi cho T-030); bộ đếm lỗi về 0 sau nhịp `Blocked`; đường (e), (f) của cổng gửi có test riêng ở `NativeAdRefreshTest`.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40222381585). Trên máy: `scripts/check.sh` 832 test JVM, 0 lỗi, 45 ảnh screenshot (không ảnh mới hay đổi), Cổng chất lượng: QUA.
+- **Lệch so với plan:**
+  - Phần nối B6 dời vào `singleAdSlotStates(...)` và `nativeSlotKey(placement, format)` trong `NativeAdSources.kt` để test được; `AdsController.nativeAd` gọi hàm đó.
+  - API thêm cho test: `NativeAdSource.isLoading`, `pending`, `shutDown()`.
+  - AI tự chọn ba chỗ plan không nói rõ: trước giá trị đầu của `enabled(placement)` coi vị trí là bật; lượt thử lại sau làm mới bị cổng chặn thì nhịp sau tính 60 giây từ lúc bị chặn; lỗi của chỗ thua khi chờ lượt riêng trả `NoAd` cho chỗ đầu hàng và chỗ chưa thua.
+  - `loadThrows_waiterGetsNoAd_noUncaught` tách thành ba test theo đường.
+  - `ads-guide.md` sửa theo nội dung vì số dòng đã lệch sau T-027.
+  - Ngoài mục 3.2: không có. Phương án dự phòng 3.4: không dùng.
+- **Việc còn lại:** T-028 (pool) và T-030 (thanh đáy, thu gọn) dùng nguồn và điểm nối của task này.
+- **Cần người xem:** kiểm thủ công làm mới 60 giây trên máy thật (mục 4); ba lựa chọn của AI ở dòng Lệch so với plan; ghi chú `allowed()` của rà soát.
