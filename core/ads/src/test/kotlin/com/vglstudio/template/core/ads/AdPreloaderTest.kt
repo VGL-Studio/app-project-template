@@ -420,6 +420,144 @@ class AdPreloaderTest {
     }
 
     @Test
+    fun requestRun_whileHeldForClosedGate_clearsHeld() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        interstitial.settleAt = null
+
+        at(1_000)
+        gate = OPEN.copy(mayRequest = false)
+        preloader.request(PreloadReason.NETWORK_BACK)
+        runCurrent()
+
+        // The real order of GATE_REOPENED: the request comes before the gate collector.
+        at(2_000)
+        gate = OPEN
+        preloader.request(PreloadReason.GATE_REOPENED)
+        preloader.onGateChanged()
+        runCurrent()
+
+        at(30_000)
+        assertEquals(listOf(0L, 2_000L), interstitial.loadCalls)
+        assertTrue(logged("Held preload NETWORK_BACK: covered by GATE_REOPENED run"))
+        assertTrue(!logged("Held preload NETWORK_BACK: run"))
+    }
+
+    @Test
+    fun requestRun_whileHeldFromRunAndGateClosed_clearsHeld() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+
+        at(1_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(3_000)
+        gate = OPEN.copy(mayRequest = false)
+        at(6_000)
+        assertEquals(listOf(0L), interstitial.loadCalls)
+
+        at(8_000)
+        gate = OPEN
+        preloader.request(PreloadReason.GATE_REOPENED)
+        preloader.onGateChanged()
+        runCurrent()
+
+        at(30_000)
+        assertEquals(listOf(0L, 8_000L), interstitial.loadCalls)
+        assertTrue(logged("Held preload PLACEMENT_ENABLED: covered by GATE_REOPENED run"))
+    }
+
+    @Test
+    fun everyRunReason_whileHeld_clearsHeld() = runTest {
+        val reasons = listOf(PreloadReason.GATE_REOPENED, PreloadReason.NETWORK_BACK, PreloadReason.PLACEMENT_ENABLED)
+        for (reason in reasons) {
+            gate = OPEN
+            val interstitial = slot(AdFormat.INTERSTITIAL)
+            val preloader = preloader(listOf(interstitial))
+            val start = now()
+            preloader.request(PreloadReason.SDK_READY)
+            runCurrent()
+            interstitial.settleAt = null
+
+            val heldReason =
+                if (reason == PreloadReason.NETWORK_BACK) PreloadReason.PLACEMENT_ENABLED else PreloadReason.NETWORK_BACK
+            at(start + 1_000)
+            gate = OPEN.copy(mayRequest = false)
+            preloader.request(heldReason)
+            runCurrent()
+
+            at(start + 2_000)
+            gate = OPEN
+            if (reason == PreloadReason.NETWORK_BACK) preloader.onNetworkReturned() else preloader.request(reason)
+            preloader.onGateChanged()
+            runCurrent()
+
+            at(start + 22_000)
+            assertEquals("$reason", listOf(start, start + 2_000), interstitial.loadCalls)
+        }
+    }
+
+    @Test
+    fun gateOpens_withoutRequest_heldRunsOnce() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        interstitial.settleAt = null
+
+        at(1_000)
+        gate = OPEN.copy(mayRequest = false)
+        preloader.request(PreloadReason.NETWORK_BACK)
+        runCurrent()
+
+        at(2_000)
+        gate = OPEN
+        preloader.onGateChanged()
+        runCurrent()
+
+        at(30_000)
+        assertEquals(listOf(0L, 2_000L), interstitial.loadCalls)
+        assertTrue(logged("Held preload NETWORK_BACK: run"))
+        assertTrue(logger.entries.none { it.tag == "Ads" && it.message.contains("covered by") })
+    }
+
+    @Test
+    fun requestRun_clearsHeld_thenRequestDuringRunIsHeld() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        interstitial.settleAt = null
+
+        at(1_000)
+        gate = OPEN.copy(mayRequest = false)
+        preloader.request(PreloadReason.NETWORK_BACK)
+        runCurrent()
+
+        at(2_000)
+        gate = OPEN
+        preloader.request(PreloadReason.GATE_REOPENED)
+        preloader.onGateChanged()
+        runCurrent()
+        assertTrue(logged("Held preload NETWORK_BACK: covered by GATE_REOPENED run"))
+
+        at(3_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        assertTrue(logged("Preload PLACEMENT_ENABLED: HOLD"))
+
+        at(8_000)
+        assertEquals(listOf(0L, 2_000L, 8_000L), interstitial.loadCalls)
+        assertTrue(logged("Held preload PLACEMENT_ENABLED: run"))
+        at(30_000)
+        assertEquals(listOf(0L, 2_000L, 8_000L), interstitial.loadCalls)
+    }
+
+    @Test
     fun heldDuringRun_consentDeniedMidRun_dropsAtOnce() = runTest {
         val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
         val preloader = preloader(listOf(interstitial))
