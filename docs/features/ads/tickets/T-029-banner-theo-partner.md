@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: [T-021, T-023]
 sprint:
-plan:
+plan: features/ads/plans/T-029-banner-theo-partner.md
 created: 2026-10-23
 ---
 
