@@ -68,6 +68,9 @@ import kotlinx.coroutines.withContext
  * Preloads follow S-20 to S-25 (plan T-021): no slot loads by itself; every preload, reload when Internet comes back
  * and native refill goes through the plan ([AdPreloadPlan], [AdPreloader]) once the SDK is ready. Failed loads retry
  * by F-05 and O-05 ([FullScreenReloads], [retryingNativeAdStates]).
+ *
+ * Banners follow B-01 to B-06 (plan T-029): [AdSlot] keeps every send in one loop ([runBannerLoads]) that waits for
+ * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads every 30 s.
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
  */
@@ -327,6 +330,11 @@ class AdsController @Inject internal constructor(
 
     /** Milliseconds of the monotonic clock, for the load latency of the ad metrics. */
     internal fun metricsNowMillis(): Long = clock.nowMillis()
+
+    /**
+     * Moves when usable Internet comes back (S-24): a banner waiting for its retry sends at once, like a native slot.
+     */
+    internal val retryResets: StateFlow<Int> get() = preloader.nativeRetryResets
 
     /**
      * Updates the consent status and shows the consent form when required (S-02). Call it in the activity's
