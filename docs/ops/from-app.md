@@ -39,6 +39,7 @@ Người phụ trách dự án mẫu (hiện là anh Nhật):
    - Tổng quát hóa: bỏ tên app, tên gói, giá trị cấu hình riêng; giữ đúng quy tắc của dự án mẫu.
    - Cải tiến chạm vào file bị cấm sửa (`CLAUDE.md`, mục Không được làm) thì ghi rõ trong mô tả PR như mọi thay đổi khác.
    - Kiểm chứng trong dự án mẫu (`scripts/check.sh`, test của script, chạy thử nếu cần).
+   - Plan cần đọc code của app thì ghi lệnh `gh api` (PR dạng diff, hay file theo commit), không ghi `gh pr diff`: phiên tự chạy ở cloud không chạy được `gh pr` (`auto-run.md`, bước 7, L-063).
 4. PR merge thì bài học chuyển `applied`, đóng issue kèm số PR.
 
 ## 4. Các app đã tạo trước đó
