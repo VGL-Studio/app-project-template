@@ -1,5 +1,7 @@
 package com.vglstudio.template.feature.loading
 
+import com.vglstudio.template.core.ads.StartupAdTurn
+import com.vglstudio.template.core.ads.StartupAds
 import com.vglstudio.template.core.analytics.Analytics
 import com.vglstudio.template.core.analytics.AnalyticsEvent
 import com.vglstudio.template.core.config.FeatureFlag
@@ -35,6 +37,7 @@ class LoadingViewModelTest {
     private val repository = FakePreparationRepository()
     private val analytics = FakeAnalytics()
     private val logger = RecordingAppLogger()
+    private val startupAds = FakeStartupAds()
 
     private fun TestScope.viewModel(flagOn: Boolean = true) = LoadingViewModel(
         repository = repository,
@@ -42,6 +45,7 @@ class LoadingViewModelTest {
         logger = logger,
         featureFlags = FakeFeatureFlags(flagOn),
         clock = { testScheduler.currentTime },
+        startupAds = startupAds,
     )
 
     private fun completedEvent(durationMs: Long, retryCount: Int) = AnalyticsEvent(
@@ -257,6 +261,19 @@ private class FakeAnalytics : Analytics {
 
     override fun log(event: AnalyticsEvent) {
         events += event
+    }
+}
+
+/** Returns [result] when it completes (null at once by default) and counts the calls; throws [error] if set. */
+private class FakeStartupAds : StartupAds {
+    var calls = 0
+    var result: CompletableDeferred<StartupAdTurn?> = CompletableDeferred(null)
+    var error: Throwable? = null
+
+    override suspend fun awaitStartupAd(): StartupAdTurn? {
+        calls++
+        error?.let { throw it }
+        return result.await()
     }
 }
 

@@ -2,6 +2,8 @@ package com.vglstudio.template.feature.loading
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vglstudio.template.core.ads.StartupAdTurn
+import com.vglstudio.template.core.ads.StartupAds
 import com.vglstudio.template.core.analytics.Analytics
 import com.vglstudio.template.core.analytics.AnalyticsEvent
 import com.vglstudio.template.core.config.FeatureFlag
@@ -40,9 +42,22 @@ class LoadingViewModel @Inject constructor(
     private val logger: AppLogger,
     private val featureFlags: FeatureFlags,
     private val clock: LoadingClock,
+    private val startupAds: StartupAds,
 ) : ViewModel() {
     private val state = MutableStateFlow<LoadingUiState>(LoadingUiState.InProgress(0f))
     val uiState: StateFlow<LoadingUiState> = state.asStateFlow()
+
+    private val pending = MutableStateFlow<StartupAdTurn?>(null)
+
+    /** The app open ad waiting to be shown by [LoadingRoute]; null when none. */
+    val pendingAd: StateFlow<StartupAdTurn?> = pending.asStateFlow()
+
+    /** Returns the waiting turn once, then null. */
+    fun takePendingAd(): StartupAdTurn? = null
+
+    /** The startup ad has closed, or nothing showed. */
+    @Suppress("UNUSED_PARAMETER")
+    fun onAdFinished(interShown: Boolean) = Unit
 
     private val doneTasks = mutableSetOf<PreparationTask>()
     private var startedAt = 0L

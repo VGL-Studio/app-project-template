@@ -84,7 +84,8 @@ class AdsController @Inject internal constructor(
     private val shortcutConfig: ConsentShortcutConfig,
     metrics: AdMetrics,
     internal val logger: AppLogger,
-) {
+    private val firstOpenMark: FirstOpenMark,
+) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Touched on the main thread only.
@@ -322,6 +323,8 @@ class AdsController @Inject internal constructor(
         // The value read in start, so Internet is watched once (S-24, T-016).
         scope.launch { networkReturns(online).collect { preloader.onNetworkReturned() } }
     }
+
+    override suspend fun awaitStartupAd(): StartupAdTurn? = null
 
     /** Sets the preload plan (HD-02); call it in `Application.onCreate`, before consent has a result. */
     fun setPreloadPlan(plan: AdPreloadPlan) {

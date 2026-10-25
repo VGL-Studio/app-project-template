@@ -53,6 +53,10 @@ enum class AdFormat(val code: String) {
 internal val AdFormat.isFullScreen: Boolean
     get() = this == AdFormat.INTERSTITIAL || this == AdFormat.NATIVE_FULL_SCREEN
 
+/** Formats with a preloaded full-screen slot in [AdsController]. */
+internal val AdFormat.hasFullScreenSlot: Boolean
+    get() = isFullScreen
+
 /**
  * The interval group of an interstitial (MC-04). [DEFAULT] uses the key `ads_interval`; a group made with [named]
  * uses `ads_interval_<name>`, with the default seconds of the app's spec. Two groups are equal when they have the
@@ -108,8 +112,12 @@ enum class AdPlacement(
     val ignoreInterval: Boolean = false,
     /** False when closing this placement moves no `ads_interval` mark (MC-04, I-04); full screen only. */
     val recordInterval: Boolean = true,
+    /** Switched on by the shared keys of section 10.1, with no `is_show_<code>` of its own (MC-09). */
+    val appWide: Boolean = false,
 ) {
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
+    OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
+    OPEN_APP_INTER("open_app_inter", AdFormat.INTERSTITIAL, ignoreInterval = true, appWide = true),
 
     // Staging ad gallery only (plan T-014): one placement per format, see [stagingOnly].
     GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),
@@ -129,7 +137,16 @@ enum class AdPlacement(
 
     /** The declaration of this placement, checked when the class is loaded. */
     internal val declaration: AdPlacementDeclaration =
-        AdPlacementDeclaration(key, format, intervalGroup, nativeEvery, stagingOnly, ignoreInterval, recordInterval)
+        AdPlacementDeclaration(
+            key,
+            format,
+            intervalGroup,
+            nativeEvery,
+            stagingOnly,
+            ignoreInterval,
+            recordInterval,
+            appWide,
+        )
 }
 
 /**
@@ -147,6 +164,8 @@ internal data class AdPlacementDeclaration(
     val ignoreInterval: Boolean = false,
     /** Closing it moves the mark of its group (MC-04, I-04). */
     val recordInterval: Boolean = true,
+    /** Switched on by the shared keys of section 10.1, no `is_show_<code>` (MC-09). */
+    val appWide: Boolean = false,
 ) {
     init {
         require(CODE_PATTERN.matches(code)) { "Placement code '$code' must be lower snake case" }
