@@ -7,7 +7,7 @@ risk_score:                  # để trống: chạm điểm chặn (ci)
 risk_level: high             # low | medium | high
 token_estimate: 5M           # cỡ S, số gợi ý 5.0M (scripts/token-usage.py estimate, 2026-10-25); một workflow, một file test, một đoạn tài liệu
 blocking_points: [ci]
-run_order: 4                    # AI điền sau họp đánh giá rủi ro
+run_order:                   # làm trong phiên có người theo dõi, không qua phiên tự chạy
 reviewer: Nhật                  # người duyệt
 cross_reviewer: Nhật            # bắt buộc khi risk_level là high
 approved_at: 2026-10-25
@@ -223,7 +223,7 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code, commit riê
 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
-- **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 4 trong RUN-20261026-01.
+- **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Không chạy trong RUN-20261026-01: chưa có bằng chứng phiên cloud đẩy được file workflow (rà soát trước phiên), nên AI làm trong phiên có người theo dõi, anh Nhật đồng ý.
 
 ## 10. Nhật ký thực hiện
 

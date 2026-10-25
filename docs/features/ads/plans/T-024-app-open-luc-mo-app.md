@@ -2,7 +2,7 @@
 ticket: T-024
 title: Quảng cáo mở app ở màn loading (lần đầu sau khi cài và lần thường)
 status: approved   # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # 2: rà soát trước phiên RUN-20261026-01, thêm AdsFlagsTest.kt (mục 3.2, 7, câu hỏi 3)
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-25); nâng vì khoảng 35 file ở ba module và hai API công khai mới
@@ -186,6 +186,7 @@ fun rememberShowStartupAd(): (StartupAdTurn, (interShown: Boolean) -> Unit) -> U
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/StartupAdWaitTest.kt` | A-03, A-04, A-06, KB-13 tiêu chí 4, 5 (thời gian ảo) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPlacementTest.kt` | Test mới của hai vị trí và `appWide`; `intervalAttributes_defaultAndValidated` loại `OPEN_APP_INTER` khỏi vòng lặp, thêm khẳng định riêng cho nó (câu hỏi 3) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` | `placementsAreOffByDefault` lọc `!appWide`, test mới: vị trí toàn app không có khóa (câu hỏi 3) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsFlagsTest.kt` | `readsOnlyDeclaredKeys` và `masterSwitchOff_turnsEveryPlacementOff` lọc `!appWide` (vị trí toàn app không có khóa `is_show_<mã>` trong `AdsSettings.all()`), mỗi test có đối chứng: một vị trí không phải toàn app vẫn được đọc và vẫn tắt theo công tắc tổng (câu hỏi 3; phiên bản 2) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPreloadPlanTest.kt` | Test mới: kế hoạch mặc định của dự án mẫu có `APP_OPEN` ở nhóm đầu |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdsTest.kt` | Tham số `firstOpenMark` khi dựng `AdsController`; test `rememberShowStartupAd` không có controller; `rememberShowFullScreenAd` từ chối vị trí toàn app |
 | Sửa | `feature/loading/src/main/kotlin/com/vglstudio/template/feature/loading/LoadingViewModel.kt` | `StartupAds`, `pendingAd`, `takePendingAd`, `onAdFinished`, `finish` |
@@ -296,7 +297,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - Tên đã dùng ở mục 2 không còn trên nhánh chính (`consentFlowFinished`, `sdkReady`, `isFullScreenAdReady`, `loadFullScreenAdIfNeeded`, `decideFullScreenTurn`, `FreshAdCache`, `FullScreenReloads`, `AdTelemetry.opportunity`, `AdsGlobalFlags.showOpenAdsFirstOpen`): dừng.
 - `AdPlacementSourceTest` đỏ sau khi thêm hai dòng: dừng, không đổi dạng dòng, không sửa `scripts/release.sh`.
 - `RemoteConfigKeysTest` báo bảng khóa sinh tự động đổi (`docs/remote-config-keys.md`, `docs/remote-config-template.json`): dừng, vì plan nói hai vị trí mới không thêm khóa.
-- Cần sửa ảnh chuẩn nào, `LoadingScreenTest`, `AdsFlagsTest`, `AdUnitIdsTest`, `AppLaunchTest` hay test nào khác ngoài sáu file test ở mục 3.2 để qua.
+- Cần sửa ảnh chuẩn nào, `LoadingScreenTest`, `AdUnitIdsTest`, `AppLaunchTest` hay test nào khác ngoài các file test có sẵn đã ghi Sửa ở mục 3.2 để qua.
 - `AppLaunchTest` (emulator, `ui-test` của CI) đỏ vì màn loading chờ quảng cáo: dừng, không nới thời gian chờ của test.
 - Cần thêm `:core:data` hay thư viện vào `:feature:loading`, hay đổi `AppNavHost`, `MainActivity`.
 
@@ -311,7 +312,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
    - Trả lời:
 
 3. **Mã vị trí và thuộc tính "toàn app".** Spec ads mục 5 có dòng quảng cáo mở app nhưng chưa có mã; MC-09 nói app open là cấu hình toàn app, không có khóa `is_show_<mã>`. Mã đơn vị hôm nay theo vị trí (câu hỏi 14 của spec chưa làm), nên inter lúc mở app cần vị trí interstitial riêng.
-   - Đề xuất của AI: hai vị trí `open_app` (app open) và `open_app_inter` (interstitial, bỏ cổng `ads_interval`, vẫn đẩy mốc), thuộc tính mới `appWide = true`: không sinh `is_show_<mã>`, bật theo `show_open_ads_first_open`, `show_open_ads`, `open_ad_type`, feature không gọi được. Bản production cần hai mã đơn vị mới. Vì vậy bốn test có sẵn giả định "mọi vị trí có `is_show_<mã>`" hay "mọi vị trí không bỏ cổng" phải lọc `!appWide` (`AdPlacementTest.intervalAttributes_defaultAndValidated`, `AdsSettingsTest.placementsAreOffByDefault`, `RemoteConfigKeysTest` hai test, `StagingRemoteValuesModuleTest.everyAdPlacement_isShown`), mỗi chỗ có đối chứng; đây là đổi luật theo MC-09, không phải nới test để code qua (như câu hỏi 4 của plan T-022). Xin anh xác nhận tên mã và việc sửa các test này.
+   - Đề xuất của AI: hai vị trí `open_app` (app open) và `open_app_inter` (interstitial, bỏ cổng `ads_interval`, vẫn đẩy mốc), thuộc tính mới `appWide = true`: không sinh `is_show_<mã>`, bật theo `show_open_ads_first_open`, `show_open_ads`, `open_ad_type`, feature không gọi được. Bản production cần hai mã đơn vị mới. Vì vậy bốn test có sẵn giả định "mọi vị trí có `is_show_<mã>`" hay "mọi vị trí không bỏ cổng" phải lọc `!appWide` (`AdPlacementTest.intervalAttributes_defaultAndValidated`, `AdsSettingsTest.placementsAreOffByDefault`, `RemoteConfigKeysTest` hai test, `StagingRemoteValuesModuleTest.everyAdPlacement_isShown`, và từ phiên bản 2 `AdsFlagsTest.readsOnlyDeclaredKeys`, `AdsFlagsTest.masterSwitchOff_turnsEveryPlacementOff`), mỗi chỗ có đối chứng; đây là đổi luật theo MC-09, không phải nới test để code qua (như câu hỏi 4 của plan T-022). Xin anh xác nhận tên mã và việc sửa các test này.
    - Trả lời:
 
 4. **Ba hạn chờ (đồng ý 10 giây, SDK 35 giây, quảng cáo 40 giây) tính từ đâu?** A-03 không nói rõ là cùng tính từ lúc mở app hay mỗi pha tính từ lúc pha trước xong (khi đó tối đa 85 giây).
@@ -335,6 +336,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 3 trong RUN-20261026-01.
+- **Phiên bản 2:** rà soát độc lập trước phiên (2026-10-25) thấy `AdsFlagsTest.readsOnlyDeclaredKeys` đỏ khi `keysFor` bỏ khóa của vị trí toàn app (đã chạy thử). Thêm `AdsFlagsTest.kt` vào mục 3.2, bỏ khỏi điều kiện dừng ở mục 7, ghi vào câu hỏi 3. Anh Nhật duyệt lại phiên bản 2, 2026-10-25.
 
 ## 10. Nhật ký thực hiện
 

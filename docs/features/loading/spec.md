@@ -7,7 +7,7 @@ requests:
   - requests/2026-10-15-man-hinh-loading.md
 design: features/loading/design/README.md
 created: 2026-10-15
-confirmed: 2026-10-15
+confirmed: 2026-10-25
 ---
 
 # SPEC: MÀN HÌNH LOADING
@@ -158,3 +158,4 @@ Màn hình loading không có vị trí quảng cáo riêng. Sau khi chuẩn b�
 | 2026-10-15 | AI | Cập nhật theo câu trả lời mục 9: mở lại khi không có mạng cũng báo lỗi, tham số của `loading_completed`, thời gian chờ, cấu hình giả trên máy dev và CI, ba file đã có trên R2 |
 | 2026-10-16 | AI | Nhận thiết kế Figma theo quyết định của anh Nhật: thêm logo, tên app, khẩu hiệu, chân trang, tiêu đề lỗi, nhãn tiến trình (phạm vi, KB-1, KB-2, mục 4); thêm câu hỏi 6, 7. Chuyển sang `changed`, chờ xác nhận lại |
 | 2026-10-25 | AI | Theo quyết định của anh Nhật khi duyệt plan T-024 (câu 1): quảng cáo mở app ở màn loading theo spec ads KB-13; sửa KB-1 (tiêu chí chuyển màn) và mục 5. Anh Nhật xác nhận, spec giữ `confirmed` |
+| 2026-10-25 | Nhật | Xác nhận lại spec với KB-1 và mục 5 mới (quảng cáo mở app theo spec ads) |
