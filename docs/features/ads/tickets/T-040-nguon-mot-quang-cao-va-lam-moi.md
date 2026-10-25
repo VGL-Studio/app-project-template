@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
 depends_on: [T-027]
 sprint:
-plan:
+plan: features/ads/plans/T-040-nguon-mot-quang-cao-va-lam-moi.md
 created: 2026-10-25
 ---
 
