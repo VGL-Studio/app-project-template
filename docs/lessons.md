@@ -510,7 +510,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** plan T-024 thêm hai vị trí `OPEN_APP`, `OPEN_APP_INTER` vào `AdPlacement`. Phần L-020 của mục 3.2 liệt kê các test lặp `AdPlacement.entries` và ghi `AdUnitIdsTest` "qua mà không sửa", nhưng không chạy thử. Trong phiên, `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey` đỏ (chỉ cấu hình `sample_native_small` rồi khẳng định `missing` rỗng), file ngoài mục 3.2, task dừng ở bước 3. Trước phiên, rà soát độc lập đã bắt `AdsFlagsTest` theo cùng cách (plan phiên bản 2).
 - **Bằng chứng:** nhật ký plan T-024 (RUN-20261026-01), commit `891ecec`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdUnitIdsTest.kt` dòng 10 đến 14.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan thêm dòng vào một enum dùng chung (`AdPlacement`, `FeatureFlag`, `AdFormat`) chạy thử toàn bộ test JVM của mọi module dùng enum đó với dòng mới, trên nhánh tạm không commit; test đỏ đưa vào mục 3.2, lệnh và kết quả ghi vào mục 4.1. `docs/ops/pre-run-review.md`: rà soát chạy lại bước này. Có thể thêm một quy tắc chú ý của `scripts/plan-check.py` khi plan thêm dòng vị trí vào `AdPlacement.kt` mà mục 4.1 không có lệnh Gradle.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied (cách khác: người quyết không chạy thử lúc soạn plan; ADR-0029 cho phiên sửa tiếp test và file ngoài mục 3.2 cần cho task, merge rồi báo sau, và chạy test JVM của mọi module ở bước 3)
 
 ### L-090. Phiên con chạy nền chỉ báo khi xong, nên commit của nó không được đẩy ngay
 
