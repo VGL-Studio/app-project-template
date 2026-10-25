@@ -13,6 +13,8 @@ failures=0
 # merge-if-green.sh, wait-run.sh and env-canary.sh read owner/repo from the origin remote. A new app has no remote
 # until someone pushes it, so give every git command of the tests a fake one (git reads GIT_CONFIG_* as -c options).
 export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.url GIT_CONFIG_VALUE_0=https://github.com/o/r.git
+# A block that pushes to a real local bare repo must unset these three variables first and restore them at its end
+# (see the save-branch block), or every push goes to the fake URL and fails (L-082).
 expect() {
   local name="$1" expected="$2" actual="$3"
   if [[ "$actual" == "$expected" ]]; then
@@ -272,6 +274,109 @@ expect "merge-if-green --update: merges the new commit" 1 "$(grep -c '^ĐÃ MERG
 expect "merge-if-green: without --update a branch behind main exits 3" 3 \
   "$(python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["routes"]["pulls/12"]=fx["routes"]["pulls/12"]["__sequence__"][0]; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"; merge_run 12)"
 
+# merge-if-green.sh notices a PR that is already on main, and a merge that GitHub answered with an error although the
+# squash commit reached main (L-080). Every earlier check still comes first (L-058).
+# The fixture is built from MIG_* variables; MIG_MAIN is the answer of "commits?sha=main", a JSON value or a
+# {"__sequence__": [...]} (one answer per read).
+mig_title_line='t (#12)'
+mig_on_main='[{"sha": "c49a682c49a682", "commit": {"message": "t (#12)\n\nbody", "tree": {"sha": "tree1"}}}]'
+mig_other_tree='[{"sha": "d111111d111111", "commit": {"message": "t (#12)", "tree": {"sha": "tree2"}}}]'
+mig_other_title='[{"sha": "e222222e222222", "commit": {"message": "other (#99)", "tree": {"sha": "tree1"}}}]'
+mig_run() { # <extra arg or empty>; reads MIG_*; prints the exit code, output in $work/mig.out
+  local checks='{"check_runs": [
+    {"name": "changes", "status": "completed", "conclusion": "'"${MIG_CHANGES:-success}"'", "started_at": "2026-10-23T08:00:00Z", "check_suite": {"id": 77}},
+    {"name": "build-and-test", "status": "completed", "conclusion": "success", "started_at": "2026-10-23T08:00:10Z", "check_suite": {"id": 77}},
+    {"name": "ui-test", "status": "completed", "conclusion": "skipped", "started_at": "2026-10-23T08:00:10Z", "check_suite": {"id": 77}}]}'
+  local main_route=""
+  [ -z "${MIG_MAIN:-}" ] || main_route='"commits?sha=main&per_page=30": '"$MIG_MAIN"','
+  rm -f "$work/mig.json.writes" "$work/mig.json.seen"
+  cat > "$work/mig.json" << JSON
+{"fail_writes": ${MIG_FAIL:-[]},
+ "routes": {
+  "pulls/12": {"state": "${MIG_STATE:-open}", "draft": ${MIG_DRAFT:-false}, "base": {"ref": "${MIG_BASE:-main}"}, "head": {"sha": "abc1234", "ref": "claude/template-x"}, "title": "t", "labels": ${MIG_LABELS:-[]}},
+  "issues?state=open&labels=main-broken&per_page=10": ${MIG_ISSUES:-[]},
+  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
+  "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: ${MIG_RUN:-finished}\n---\n",
+  "compare/main...abc1234": {"behind_by": ${MIG_BEHIND:-0}},
+  "git/commits/abc1234": {"tree": {"sha": "tree1"}},
+  $main_route
+  "commits/abc1234/check-runs?per_page=100": $checks,
+  "commits/abc1234": {"sha": "abc1234", "commit": {"committer": {"date": "${MIG_DATE:-2026-10-23T07:30:00Z}"}, "message": "t"}}
+}}
+JSON
+  local code=0
+  PATH="$work/bin:$PATH" FIXTURE="$work/mig.json" MERGE_NOW_EPOCH=1792742400 MERGE_RECHECK_SECONDS=0 MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS=5 \
+    scripts/merge-if-green.sh 12 ${1:+"$1"} > "$work/mig.out" 2>&1 || code=$?
+  echo "$code"
+}
+mig_writes() { cat "$work/mig.json.writes" 2> /dev/null | grep -c -- "$1" || true; }
+mig_reads() { jq -r '."commits?sha=main&per_page=30" // 0' "$work/mig.json.seen" 2>/dev/null || echo 0; }
+mig_reset() { unset MIG_MAIN MIG_STATE MIG_DRAFT MIG_BASE MIG_LABELS MIG_ISSUES MIG_RUN MIG_BEHIND MIG_FAIL MIG_CHANGES MIG_DATE; }
+mig_reset
+
+# A PR that is already on main: reported, never merged twice, no other write.
+export MIG_MAIN="$mig_on_main"
+expect "merge-if-green reports a PR already on main without merging" 0 "$(mig_run)"
+expect "merge-if-green says ĐÃ MERGE TRƯỚC ĐÓ" 1 "$(grep -c '^ĐÃ MERGE TRƯỚC ĐÓ: PR #12' "$work/mig.out" || true)"
+expect "merge-if-green writes nothing for a PR already on main" 0 "$(mig_writes .)"
+expect "merge-if-green --dry-run reports a PR already on main" 0 "$(mig_run --dry-run)"
+expect "merge-if-green --dry-run never calls the merge" 0 "$(mig_writes PUT)"
+expect "merge-if-green still refuses a closed PR that is on main" 1 "$(MIG_STATE=closed mig_run)"
+expect "merge-if-green reports a draft PR already on main without merging" 0 "$(MIG_DRAFT=true mig_run)"
+expect "merge-if-green does not merge a draft PR already on main" 0 "$(mig_writes PUT)"
+expect "merge-if-green reports a needs-human PR already on main without merging" 0 "$(MIG_LABELS='[{"name": "needs-human"}]' mig_run)"
+expect "merge-if-green does not merge a needs-human PR already on main" 0 "$(mig_writes PUT)"
+expect "merge-if-green does not reach the merge of a needs-human PR" 1 \
+  "$(MIG_MAIN='[]' MIG_LABELS='[{"name": "needs-human"}]' mig_run)"
+expect "merge-if-green still refuses a PR into another branch" 1 "$(MIG_MAIN='[]' MIG_BASE=other mig_run)"
+expect "merge-if-green reports a PR already on main while main is broken" 0 \
+  "$(MIG_ISSUES='[{"number": 7, "body": "Nhánh chính đỏ."}]' mig_run)"
+expect "merge-if-green does not merge while main is broken" 0 "$(mig_writes PUT)"
+expect "merge-if-green reports a person's PR already on main while a run is running" 0 "$(MIG_RUN=running mig_run)"
+expect "merge-if-green does not merge a person's PR while a run is running" 0 "$(mig_writes PUT)"
+expect "merge-if-green still refuses a person's PR not on main while a run is running" 1 \
+  "$(MIG_MAIN='[]' MIG_RUN=running mig_run)"
+expect "merge-if-green does not update a PR already on main" 0 "$(MIG_BEHIND=2 mig_run --update)"
+expect "merge-if-green does not call update-branch for a PR already on main" 0 "$(mig_writes update-branch)"
+expect "merge-if-green does not merge a red PR when the API fails" 1 \
+  "$(MIG_MAIN='[]' MIG_CHANGES=failure MIG_FAIL='["PUT pulls/12/merge"]' mig_run)"
+expect "merge-if-green does not reach the merge of a red PR" 0 "$(mig_writes PUT)"
+
+# The merge itself: GitHub answers with an error although the squash commit reached main.
+export MIG_FAIL='["PUT pulls/12/merge"]' MIG_MAIN='{"__sequence__": [[], '"$mig_on_main"']}'
+expect "merge-if-green reports a merge that GitHub answered with an error" 0 "$(mig_run)"
+expect "merge-if-green says ĐÃ MERGE (GitHub báo lỗi)" 1 "$(grep -c '^ĐÃ MERGE (GitHub báo lỗi): PR #12' "$work/mig.out" || true)"
+expect "merge-if-green asks for main-guard after such a merge" 1 "$(mig_writes '^POST actions/workflows/main-guard.yml/dispatches$')"
+expect "merge-if-green deletes the branch after such a merge" 1 "$(mig_writes '^DELETE git/refs/heads/claude/template-x$')"
+expect "merge-if-green tells how to wait for main-guard" 1 "$(grep -c 'scripts/wait-run.sh --workflow main-guard.yml --since' "$work/mig.out" || true)"
+export MIG_FAIL='["PUT pulls/12/merge", "POST actions/workflows/main-guard.yml/dispatches"]'
+expect "merge-if-green still reports the merge when main-guard cannot be started" 0 "$(mig_run)"
+expect "merge-if-green warns when main-guard cannot be started" 1 "$(grep -c '^CHÚ Ý: không yêu cầu được main-guard' "$work/mig.out" || true)"
+export MIG_FAIL='["PUT pulls/12/merge"]'
+for lacking in '[]' "$mig_other_tree" "$mig_other_title"; do
+  MIG_MAIN="$lacking"
+  expect "merge-if-green refuses when the API fails and main lacks the commit" 1 "$(mig_run)"
+  expect "merge-if-green says GitHub refused the merge" 1 "$(grep -c '^TỪ CHỐI: GitHub từ chối merge PR #12' "$work/mig.out" || true)"
+  expect "merge-if-green does not ask for main-guard when the merge failed" 0 "$(mig_writes dispatches)"
+done
+export MIG_MAIN='{"__sequence__": [[], [], [], '"$mig_on_main"']}'
+expect "merge-if-green finds the commit on a later read" 0 "$(mig_run)"
+expect "merge-if-green read main four times before finding it" 4 "$(mig_reads)"
+unset MIG_FAIL MIG_MAIN
+expect "merge-if-green keeps the old path when the commit list cannot be read" 0 "$(mig_run)"
+expect "merge-if-green still says ĐÃ MERGE after a plain merge" 1 "$(grep -c '^ĐÃ MERGE: PR #12' "$work/mig.out" || true)"
+export MIG_MAIN='{"__sequence__": [[]]}'
+expect "merge-if-green merges a green PR" 0 "$(mig_run)"
+expect "merge-if-green merges with a PUT" 1 "$(mig_writes '^PUT pulls/12/merge$')"
+expect "merge-if-green does not ask for main-guard after a plain merge" 0 "$(mig_writes dispatches)"
+expect "merge-if-green reads main once before a plain merge, not after" 1 "$(mig_reads)"
+MIG_DATE=2026-10-23T07:59:00Z mig_run > /dev/null
+expect "merge-if-green still warns about a fresh commit before the merge" 1 "$(grep -c '^CHÚ Ý: commit cuối của nhánh' "$work/mig.out" || true)"
+mig_reset
+FIXTURE="$work/mig.json" PATH="$work/bin:$PATH" gh api repos/o/r/git/commits/zzz > "$work/fake404.out" 2> "$work/fake404.err" || fake404=$?
+expect "fake-gh answers an unknown path with 404" "1 1 0" \
+  "${fake404:-0} $(grep -c 'HTTP 404' "$work/fake404.err" || true) $(grep -c Traceback "$work/fake404.err" || true)"
+
 # failure-kind.sh (ADR-0025, point 1): "tests" only when every failed Gradle task is a test task with failing tests.
 failure_kind() { printf '%b' "$1" > "$work/fk.log"; scripts/failure-kind.sh "$work/fk.log"; }
 gradle_failure() { printf '* What went wrong:\\nExecution failed for task '"'"'%s'"'"'.\\n> %s\\n' "$1" "$2"; }
@@ -290,6 +395,58 @@ expect "failure-kind: a test task that failed for another reason -> other" other
 expect "failure-kind: no Gradle failure line -> other" other \
   "$(failure_kind "FAIL - merge-if-green rejects '12 -n'\\n1 script test(s) failed\\n")"
 expect "failure-kind: missing log -> other" other "$(scripts/failure-kind.sh "$work/no-such.log")"
+
+# failure-kind.sh --playbook looks a failure up in docs/ops/failure-playbook.md (L-079).
+pb_dir=scripts/tests/playbook
+playbook() { scripts/failure-kind.sh --playbook "$@" 2> "$work/pb.err"; }
+pb_head() { playbook "$1" ${2:+"$2"} | cut -d: -f1; }
+expect "playbook: PB-01 R2 download timeout in ui-test -> chay-lai" "PB-01 chay-lai" "$(pb_head $pb_dir/PB-01.log)"
+expect "playbook: PB-01 also matches the first attempt (Task failed, no Assets line)" "PB-01 chay-lai" \
+  "$(pb_head $pb_dir/PB-01-attempt1.log)"
+expect "playbook: PB-02 GitHub did not start the job -> cho" "PB-02 cho" "$(pb_head $pb_dir/PB-02.log)"
+expect "playbook: PB-03 conflicting PR -> gop-nhanh" "PB-03 gop-nhanh" "$(pb_head $pb_dir/PB-03.log)"
+expect "playbook: PB-04 merge API error -> kiem-da-merge" "PB-04 kiem-da-merge" "$(pb_head $pb_dir/PB-04.log)"
+expect "playbook: PB-05 Java unreadable -> moi-truong" "PB-05 moi-truong" "$(pb_head $pb_dir/PB-05.log)"
+expect "playbook: PB-05 also matches Java out of range" "PB-05 moi-truong" "$(pb_head $pb_dir/PB-05-range.log)"
+expect "playbook: PB-06 proxy 403 -> moi-truong" "PB-06 moi-truong" "$(pb_head $pb_dir/PB-06.log)"
+expect "playbook: PB-07 fake Firebase file -> nguoi" "PB-07 nguoi" "$(pb_head $pb_dir/PB-07.log)"
+expect "playbook: PB-08 missing R8 classes -> that" "PB-08 that" "$(pb_head $pb_dir/PB-08.log)"
+expect "playbook: PB-09 library download 429 -> lich-thu-lai" "PB-09 lich-thu-lai" "$(pb_head $pb_dir/PB-09.log)"
+expect "playbook: PB-10 a UI timeout without R2 lines is a real failure" "PB-10 that" "$(pb_head $pb_dir/PB-10.log)"
+expect "playbook: an unknown failure says khong-co" "khong-co" "$(pb_head $pb_dir/none.log)"
+expect "playbook: a missing log says khong-co" "khong-co" "$(pb_head "$work/no-such.log")"
+expect "playbook: a missing log exits 0" 0 "$(scripts/failure-kind.sh --playbook "$work/no-such.log" > /dev/null 2>&1; echo $?)"
+expect "playbook: the line carries the action and the source" "PB-02 cho: GitHub không cấp máy. Làm theo \`auto-run.md\` mục 4, dòng \"GitHub không chạy job\" (L-064)" \
+  "$(playbook $pb_dir/PB-02.log)"
+# Test tables for the parser: an escaped pipe is an alternative; a broken pattern is skipped and reported.
+cat > "$work/pb-table.md" <<'MD'
+intro
+<!-- playbook:start -->
+| Mã | Mẫu | Thấy ở | Loại | Việc phải làm | Nguồn |
+| --- | --- | --- | --- | --- | --- |
+| PB-01 | `aaa\|bbb` | x | `that` | làm A | nguồn A |
+<!-- playbook:end -->
+MD
+echo "only bbb here" > "$work/pb-bbb.log"
+expect "playbook: an escaped pipe is an alternative" "PB-01 that" "$(pb_head "$work/pb-bbb.log" "$work/pb-table.md")"
+cat > "$work/pb-broken.md" <<'MD'
+<!-- playbook:start -->
+| Mã | Mẫu | Thấy ở | Loại | Việc phải làm | Nguồn |
+| --- | --- | --- | --- | --- | --- |
+| PB-01 | `(` | x | `that` | làm A | nguồn A |
+| PB-02 | `bbb` | x | `cho` | làm B | nguồn B |
+<!-- playbook:end -->
+MD
+expect "playbook: a broken pattern is skipped" "PB-02 cho" "$(pb_head "$work/pb-bbb.log" "$work/pb-broken.md")"
+expect "playbook: a broken pattern is reported" 1 "$(grep -c 'LỖI BẢNG' "$work/pb.err" || true)"
+: > "$work/pb-empty.log"
+playbook "$work/pb-empty.log" > /dev/null
+expect "playbook: every pattern of the real table is valid" 0 "$(grep -c 'LỖI BẢNG' "$work/pb.err" || true)"
+pb_rows="$(sed -n '/playbook:start/,/playbook:end/p' docs/ops/failure-playbook.md | grep -oE '^\| PB-[0-9]+' | tr -d '| ' | sort)"
+pb_files="$(ls $pb_dir | grep -oE '^PB-[0-9]+' | sort -u)"
+expect "playbook: every row has a log file and every log file a row" "$pb_rows" "$pb_files"
+expect "playbook: the table has at least 10 rows" yes "$([ "$(printf '%s\n' "$pb_rows" | wc -l)" -ge 10 ] && echo yes || echo no)"
+expect "failure-kind: a playbook-only log still says other" other "$(scripts/failure-kind.sh $pb_dir/PB-01.log)"
 
 # is-exact-revert.sh (ADR-0025, point 3), on a throwaway repo: A, B (the culprit), C (main).
 root="$PWD"
@@ -1389,6 +1546,108 @@ expect "app-explore: newfiles lists only files added since the first check" "/sd
   "$(grep '^/sdcard' "$work/ax.out")"
 expect "app-explore: the tree shows sizes in dp" 1 \
   "$(AX_DENSITY=440 python3 -I scripts/app-explore/tree.py "$ax_fixtures/ads.xml" | grep -c 'btn_capture' )"
+
+# save-branch.sh pushes a task branch, retries network errors, and bundles the branch when the push fails (L-081).
+# A bare repository stands in for GitHub; its pre-receive hook makes the push fail in the way a test needs.
+# The header of this file points every origin at a fake GitHub URL; this block needs the real bare repository (L-082).
+sb_git_config=("$GIT_CONFIG_COUNT" "$GIT_CONFIG_KEY_0" "$GIT_CONFIG_VALUE_0")
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+sb_root="$PWD"
+sb_origin="$work/sb-origin.git"
+sb_clone="$work/sb-clone"
+git init -q --bare "$sb_origin"
+git init -q -b main "$sb_clone"
+git -C "$sb_clone" config user.email t@example.com
+git -C "$sb_clone" config user.name t
+git -C "$sb_clone" commit -q --allow-empty -m base
+git -C "$sb_clone" remote add origin "$sb_origin"
+git -C "$sb_clone" push -q origin main
+git -C "$sb_clone" fetch -q origin
+git -C "$sb_clone" checkout -q -b claude/T-999-thu
+git -C "$sb_clone" commit -q --allow-empty -m one
+git -C "$sb_clone" commit -q --allow-empty -m two
+sb_head="$(git -C "$sb_clone" rev-parse HEAD)"
+sb_hook="$sb_origin/hooks/pre-receive"
+sb_calls="$work/sb-hook.calls"
+sb_hook_mode() { # reject | network | none | flaky
+  rm -f "$sb_calls" "$sb_calls.count"
+  case "$1" in
+    none) rm -f "$sb_hook" ;;
+    reject) printf '#!/bin/sh\necho x >> "%s"\necho "remote: denied" >&2\nexit 1\n' "$sb_calls" > "$sb_hook" ;;
+    network) printf '#!/bin/sh\necho x >> "%s"\necho "fatal: The remote end hung up unexpectedly" >&2\nexit 1\n' "$sb_calls" > "$sb_hook" ;;
+    flaky) printf '#!/bin/sh\necho x >> "%s"\nif [ -f "%s.count" ]; then exit 0; fi\ntouch "%s.count"\necho "fatal: The remote end hung up unexpectedly" >&2\nexit 1\n' \
+      "$sb_calls" "$sb_calls" "$sb_calls" > "$sb_hook" ;;
+  esac
+  [ "$1" = none ] || chmod +x "$sb_hook"
+}
+sb_run() { # <args>; runs save-branch.sh in the clone; output in $work/sb.out, prints the exit code
+  local code=0
+  (cd "$sb_clone" && SAVE_BRANCH_DIR="$work/rescue" SAVE_BRANCH_RETRY_SECONDS="${SB_RETRY:-0}" \
+    "$sb_root/scripts/save-branch.sh" "$@") > "$work/sb.out" 2>&1 || code=$?
+  echo "$code"
+}
+sb_calls_count() { if [ -f "$sb_calls" ]; then wc -l < "$sb_calls" | tr -d ' '; else echo 0; fi; }
+sb_remote_head() { git -C "$sb_origin" rev-parse --verify -q refs/heads/claude/T-999-thu || echo none; }
+sb_bundle="$work/rescue/claude__T-999-thu.bundle"
+
+sb_hook_mode none
+expect "save-branch: pushes the branch and says so" 0 "$(sb_run claude/T-999-thu)"
+expect "save-branch: the pushed branch is on the remote" "$sb_head" "$(sb_remote_head)"
+expect "save-branch: says ĐÃ ĐẨY" 1 "$(grep -c 'ĐÃ ĐẨY' "$work/sb.out" || true)"
+git -C "$sb_origin" update-ref -d refs/heads/claude/T-999-thu
+sb_hook_mode reject
+expect "save-branch: a refused push is not reported as pushed" 3 "$(sb_run claude/T-999-thu)"
+expect "save-branch: a refused push prints no ĐÃ ĐẨY" 0 "$(grep -c 'ĐÃ ĐẨY' "$work/sb.out" || true)"
+expect "save-branch: a refused push leaves the remote without the branch" none "$(sb_remote_head)"
+expect "save-branch: a refused push leaves a verified bundle" ok \
+  "$(git -C "$sb_clone" bundle verify "$sb_bundle" > /dev/null 2>&1 && echo ok || echo bad)"
+expect "save-branch: the bundle holds the branch head" "$sb_head refs/heads/claude/T-999-thu" \
+  "$(git bundle list-heads "$sb_bundle" | head -n 1)"
+expect "save-branch: the bundle needs main as its base" bad \
+  "$(git init -q "$work/sb-empty" && cd "$work/sb-empty" && git bundle verify "$sb_bundle" > /dev/null 2>&1 && echo ok || echo bad)"
+sb_restore="$work/sb-restore"
+git clone -q "$sb_origin" "$sb_restore" 2> /dev/null
+restore_cmd="$(grep -m1 '^git fetch ' "$work/sb.out" || true)"
+(cd "$sb_restore" && eval "$restore_cmd") > /dev/null 2>&1 || true
+expect "save-branch: the printed commands restore the branch" "$sb_head 2" \
+  "$(git -C "$sb_restore" rev-parse -q --verify refs/heads/claude/T-999-thu || echo none) $(git -C "$sb_restore" rev-list --count origin/main..claude/T-999-thu 2> /dev/null || echo 0)"
+for needle in "Nhánh chưa đẩy" "${sb_head:0:7}" "2 commit" "$sb_bundle"; do
+  expect "save-branch: the rescue section has '$needle'" yes \
+    "$(grep -qF -- "$needle" "$work/sb.out" && echo yes || echo no)"
+done
+rm -rf "$sb_bundle" "$sb_restore"
+sb_hook_mode reject
+expect "save-branch: --bundle-only exits 3" 3 "$(sb_run --bundle-only claude/T-999-thu)"
+expect "save-branch: --bundle-only never pushes" 0 "$(sb_calls_count)"
+expect "save-branch: --bundle-only leaves a bundle" ok "$(git -C "$sb_clone" bundle verify "$sb_bundle" > /dev/null 2>&1 && echo ok || echo bad)"
+rm -f "$sb_bundle"
+sb_hook_mode network
+expect "save-branch: a network error is retried, then bundled" 3 "$(SB_RETRY="0 0" sb_run claude/T-999-thu)"
+expect "save-branch: a network error calls the hook 3 times" 3 "$(sb_calls_count)"
+expect "save-branch: a network error leaves a bundle" ok "$(git -C "$sb_clone" bundle verify "$sb_bundle" > /dev/null 2>&1 && echo ok || echo bad)"
+rm -f "$sb_bundle"
+sb_hook_mode flaky
+expect "save-branch: a network error that clears is pushed" 0 "$(SB_RETRY="0 0" sb_run claude/T-999-thu)"
+expect "save-branch: a cleared network error says ĐÃ ĐẨY" 1 "$(grep -c 'ĐÃ ĐẨY' "$work/sb.out" || true)"
+git -C "$sb_origin" update-ref -d refs/heads/claude/T-999-thu
+sb_hook_mode reject
+expect "save-branch: a refusal by GitHub exits 3" 3 "$(SB_RETRY="0 0" sb_run claude/T-999-thu)"
+expect "save-branch: a refusal by GitHub is not retried" 1 "$(sb_calls_count)"
+rm -f "$sb_bundle"
+git -C "$sb_clone" branch -q claude/T-998-nothing main
+sb_hook_mode reject
+expect "save-branch: a refused push with nothing beyond main exits 3" 3 "$(sb_run claude/T-998-nothing)"
+expect "save-branch: nothing beyond main says CHƯA ĐẨY and không cần bundle" 1 "$(grep -c 'CHƯA ĐẨY.*không cần bundle' "$work/sb.out" || true)"
+expect "save-branch: nothing beyond main prints no ĐÃ ĐẨY" 0 "$(grep -c 'ĐÃ ĐẨY' "$work/sb.out" || true)"
+expect "save-branch: nothing beyond main leaves no bundle" none "$(ls "$work/rescue/claude__T-998-nothing.bundle" 2> /dev/null || echo none)"
+sb_hook_mode none
+expect "save-branch: the same branch pushes when nothing refuses" 0 "$(sb_run claude/T-998-nothing)"
+expect "save-branch: that push says ĐÃ ĐẨY" 1 "$(grep -c 'ĐÃ ĐẨY' "$work/sb.out" || true)"
+sb_hook_mode reject
+expect "save-branch: refuses a branch outside claude/" 2 "$(sb_run main)"
+expect "save-branch: a branch outside claude/is never pushed" 0 "$(sb_calls_count)"
+expect "save-branch: refuses a branch that does not exist" 2 "$(sb_run claude/T-000-none)"
+export GIT_CONFIG_COUNT="${sb_git_config[0]}" GIT_CONFIG_KEY_0="${sb_git_config[1]}" GIT_CONFIG_VALUE_0="${sb_git_config[2]}"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
