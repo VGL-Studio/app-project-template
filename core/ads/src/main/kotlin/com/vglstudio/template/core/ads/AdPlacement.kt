@@ -6,7 +6,10 @@ package com.vglstudio.template.core.ads
  * it to the template project.
  */
 enum class AdFormat(val code: String) {
-    /** Shown inside a screen with [AdSlot]. */
+    /**
+     * Fixed banner shown inside a screen with [AdSlot]. The SDK refreshes it at the rate set on its ad unit in AdMob
+     * (auto refresh on); the app only retries after a failure (B-02).
+     */
     BANNER("banner"),
 
     /** Covers the whole screen, shown at a natural break with [rememberShowFullScreenAd]. */
@@ -30,7 +33,10 @@ enum class AdFormat(val code: String) {
     /** Rewarded ad before an action the user chose. No function shows it yet (T-031). */
     REWARDED("rewarded"),
 
-    /** Banner that the user collapses. No function shows it yet. */
+    /**
+     * Banner that the user collapses, shown at the bottom of a screen with [AdSlot]. :core:ads loads it again 30 s after
+     * each load, each time as a new expanded banner (B-03); its ad unit has auto refresh off.
+     */
     BANNER_COLLAPSIBLE("banner_collapsible"),
 
     /** 250 dp native card at one step of a flow (onboarding, result). No function shows it yet (T-028). */

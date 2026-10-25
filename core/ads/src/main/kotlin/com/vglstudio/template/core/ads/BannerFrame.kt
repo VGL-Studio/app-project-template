@@ -2,7 +2,8 @@ package com.vglstudio.template.core.ads
 
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /** What the slot of a banner draws (B-01, B-04, B-06). */
 internal enum class BannerFrame {
@@ -16,11 +17,21 @@ internal enum class BannerFrame {
     KEPT_EMPTY,
 }
 
-@Suppress("UNUSED_PARAMETER")
-internal fun bannerFrame(gateOpen: Boolean, enabled: Boolean, unitId: String?, hadAd: Boolean): BannerFrame =
-    BannerFrame.NONE
+/**
+ * The frame of a banner slot: none when the placement is off (KB-7) or has no usable unit id (B-04, blank counts as
+ * none); active while the consent gate is open (B-01); with the gate closed, kept empty if the slot [hadAd] (B-06),
+ * none otherwise.
+ */
+internal fun bannerFrame(gateOpen: Boolean, enabled: Boolean, unitId: String?, hadAd: Boolean): BannerFrame = when {
+    !enabled || unitId.isNullOrBlank() -> BannerFrame.NONE
+    gateOpen -> BannerFrame.ACTIVE
+    hadAd -> BannerFrame.KEPT_EMPTY
+    else -> BannerFrame.NONE
+}
 
-@Suppress("UNUSED_PARAMETER")
-internal fun bannerShouldRun(visible: Boolean, frame: BannerFrame): Boolean = false
+/** The ad view runs (resumed) only on a visible screen with an active frame; it is paused otherwise. */
+internal fun bannerShouldRun(visible: Boolean, frame: BannerFrame): Boolean = visible && frame == BannerFrame.ACTIVE
 
-internal fun Lifecycle.resumedFlow(): Flow<Boolean> = flowOf(false)
+/** True while this lifecycle is at least resumed: the screen holding the banner shows (KB-18, AR-03). */
+internal fun Lifecycle.resumedFlow(): Flow<Boolean> =
+    currentStateFlow.map { it.isAtLeast(Lifecycle.State.RESUMED) }.distinctUntilChanged()

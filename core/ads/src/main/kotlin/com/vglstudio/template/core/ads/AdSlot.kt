@@ -11,26 +11,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
-import com.google.android.gms.ads.LoadAdError
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -41,11 +43,21 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
 
 /**
  * Shows the banner of [placement] in a screen. Features call this, never an ads SDK directly.
- * It takes no space until ads are allowed (consent given, SDK started, placement switched on remotely).
+ *
+ * - [AdFormat.BANNER]: a fixed banner, refreshed by the SDK at the rate of its ad unit in AdMob; the app only retries
+ *   after a failure (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a collapsible banner, loaded again by :core:ads 30 s after
+ *   each load, each time as a new expanded banner (B-03); place it at the bottom of the screen. Any other format
+ *   throws [IllegalArgumentException].
+ * - It takes no space until ads are allowed (consent given, placement switched on remotely, a unit id; B-01, B-04).
+ *   The height is reserved before the ad loads, so the screen does not jump when it appears.
+ * - Requests are sent only while the screen shows (resumed) and the consent gate allows them right then; a retry or
+ *   reload due meanwhile waits for the screen to show again (B-05, AR-03). The banner is paused while hidden.
+ * - Consent withdrawn after the banner had an ad: the frame keeps its height, the ad is hidden and paused; consent
+ *   given again loads a new ad in the same frame (B-06).
  */
 @Composable
 fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
-    require(placement.format == AdFormat.BANNER) { "${placement.key} is not a banner placement" }
+    val refresh = bannerRefreshOf(placement.format)
     val ads = LocalAdsController.current
     if (ads == null) {
         Box(modifier = modifier)
@@ -54,60 +66,43 @@ fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
     val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
     val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
     val unitId = remember(placement) { ads.unitId(placement) }
-    if (!canRequestAds || !enabled || unitId == null) {
-        Box(modifier = modifier)
-        return
-    }
-    BannerAd(ads = ads, placement = placement, unitId = unitId, modifier = modifier)
-}
-
-/**
- * The banner of [placement]. Its paid events, load results and clicks go to the ad metrics (plan T-023): no
- * zero-value fallback for banners (T-02); only the first result after [AdView.loadAd] has a latency, the refreshes
- * of the SDK have none (A 06:157).
- */
-@Composable
-private fun BannerAd(ads: AdsController, placement: AdPlacement, unitId: String, modifier: Modifier) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val visible = remember(lifecycle) { lifecycle.resumedFlow() }
     BoxWithConstraints(modifier = modifier) {
+        // The activity of the screen: Unity and ironSource need an Activity to load a banner.
         val context = LocalContext.current
         val screenWidthDp = LocalConfiguration.current.screenWidthDp
         val widthDp = if (constraints.hasBoundedWidth) maxWidth.value.toInt() else screenWidthDp
         val adSize = remember(widthDp) { AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp) }
-        val adView = remember(unitId, adSize) {
-            AdView(context).apply {
-                adUnitId = unitId
-                setAdSize(adSize)
-                attachBannerMetrics(ads, placement, unitId)
-            }
+        key(adSize) {
+            BannerSlotHost(
+                gateOpen = canRequestAds,
+                enabled = enabled,
+                unitId = unitId,
+                heightDp = adSize.height,
+                refresh = refresh,
+                visible = visible,
+                mayRequestNow = ads::mayRequestNow,
+                retryResets = ads.retryResets,
+                logger = ads.logger,
+                placementKey = placement.key,
+                newView = {
+                    val id = checkNotNull(unitId) { "${placement.key} has no ad unit" }
+                    val adView = AdView(context).apply {
+                        adUnitId = id
+                        setAdSize(adSize)
+                    }
+                    SdkBannerAdView(adView, refresh, placement, id, ads.telemetry, ads::metricsNowMillis)
+                },
+            )
         }
-        LaunchedEffect(adView) {
-            ads.telemetry.requestSent(placement.key, ads.metricsNowMillis())
-            adView.loadAd(ads.adRequest())
-        }
-
-        val lifecycleOwner = LocalLifecycleOwner.current
-        DisposableEffect(adView, lifecycleOwner) {
-            val observer = LifecycleEventObserver { _, event ->
-                when (event) {
-                    Lifecycle.Event.ON_PAUSE -> adView.pause()
-                    Lifecycle.Event.ON_RESUME -> adView.resume()
-                    else -> Unit
-                }
-            }
-            lifecycleOwner.lifecycle.addObserver(observer)
-            onDispose {
-                lifecycleOwner.lifecycle.removeObserver(observer)
-                adView.destroy()
-            }
-        }
-
-        // The height is reserved before the ad loads, so the screen does not jump when it appears.
-        AndroidView(factory = { adView }, modifier = Modifier.fillMaxWidth().height(adSize.height.dp))
     }
 }
 
-/** The banner slot: frame, ad view, pauses and sends (B-01 to B-06). */
-@Suppress("UNUSED_PARAMETER")
+/**
+ * The banner slot: its frame ([bannerFrame]), one ad view per frame ([newView], destroyed when the frame goes),
+ * pause and resume ([bannerShouldRun]) and the sends ([runBannerLoads]) while the frame is active.
+ */
 @Composable
 internal fun BannerSlotHost(
     gateOpen: Boolean,
@@ -123,38 +118,81 @@ internal fun BannerSlotHost(
     newView: () -> BannerAdView,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier)
+    var hadAd by remember { mutableStateOf(false) }
+    val frame = bannerFrame(gateOpen, enabled, unitId, hadAd)
+    if (frame == BannerFrame.NONE) {
+        // The space is given back and the ad view destroyed: a later frame starts with no ad.
+        LaunchedEffect(Unit) { hadAd = false }
+        Box(modifier = modifier)
+        return
+    }
+    Box(modifier = modifier) {
+        key(unitId) {
+            BannerFrameContent(
+                frame = frame,
+                heightDp = heightDp,
+                refresh = refresh,
+                visible = visible,
+                mayRequestNow = mayRequestNow,
+                retryResets = retryResets,
+                logger = logger,
+                placementKey = placementKey,
+                newView = newView,
+                onLoaded = { hadAd = true },
+            )
+        }
+    }
 }
 
-private fun AdView.attachBannerMetrics(ads: AdsController, placement: AdPlacement, unitId: String) {
-    val telemetry = ads.telemetry
-    val format = placement.format
-    val loadPlacement = loadPlacementOf(format, placement)
-    setOnPaidEventListener { value ->
-        val adapter = responseInfo?.loadedAdapterResponseInfo
-        telemetry.revenue(
-            format,
-            unitId,
-            { placement },
-            value.valueMicros,
-            value.currencyCode,
-            adapter?.adSourceName,
-            adapter?.adapterClassName,
-        )
+@Composable
+private fun BannerFrameContent(
+    frame: BannerFrame,
+    heightDp: Int,
+    refresh: BannerRefresh,
+    visible: Flow<Boolean>,
+    mayRequestNow: () -> Boolean,
+    retryResets: StateFlow<Int>,
+    logger: AppLogger,
+    placementKey: String,
+    newView: () -> BannerAdView,
+    onLoaded: () -> Unit,
+) {
+    val view = remember { newView() }
+    DisposableEffect(view) {
+        onDispose { view.destroy() }
     }
-    val slot = placement.key
-    adListener = object : AdListener() {
-        override fun onAdLoaded() {
-            telemetry.loadSucceeded(format, slot, loadPlacement, ads.metricsNowMillis())
-        }
-
-        override fun onAdFailedToLoad(error: LoadAdError) {
-            val now = ads.metricsNowMillis()
-            telemetry.loadFailed(format, slot, loadPlacement, error.code, error.message, now)
-        }
-
-        override fun onAdClicked() = telemetry.clicked(format, placement)
+    val currentFrame by rememberUpdatedState(frame)
+    LaunchedEffect(view, visible) {
+        // Paused when it should not run; resumed only after a pause, so a view built running gets neither call.
+        var running: Boolean? = null
+        combine(visible, snapshotFlow { currentFrame }) { shows, current -> bannerShouldRun(shows, current) }
+            .distinctUntilChanged()
+            .collect { run ->
+                when {
+                    !run -> view.pause()
+                    running != null -> view.resume()
+                }
+                running = run
+            }
     }
+    val active = frame == BannerFrame.ACTIVE
+    val currentMayRequestNow by rememberUpdatedState(mayRequestNow)
+    val currentOnLoaded by rememberUpdatedState(onLoaded)
+    LaunchedEffect(view, active) {
+        if (active) {
+            runBannerLoads(
+                refresh = refresh,
+                view = view,
+                visible = visible,
+                mayRequestNow = { currentMayRequestNow() },
+                retryResets = retryResets,
+                onLoaded = { currentOnLoaded() },
+                logger = logger,
+                placementKey = placementKey,
+            )
+        }
+    }
+    view.Content(showAd = active, modifier = Modifier.fillMaxWidth().height(heightDp.dp))
 }
 
 /**
