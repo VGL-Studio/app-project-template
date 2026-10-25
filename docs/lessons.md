@@ -497,6 +497,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** accepted
 - **Áp dụng:** nhánh `claude/from-camera-pose-pr-check-release`
 
+### L-086. Không có danh sách sẵn sàng phát hành, nên không biết còn bao xa tới bản production
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-064, ticket T-047, PR #122 của app), issue #133
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** việc cần làm trước bản production nằm rải rác trong báo cáo các phiên: mã quảng cáo thật cho từng vị trí, mục kiểm thủ công chưa đánh dấu, ticket chưa lên staging, phản hồi và issue đang mở. Không ai thấy được còn bao nhiêu việc, nên bản phát hành không có điểm dừng rõ ràng. App đã làm mục "Sẵn sàng phát hành" trên trang tiến độ.
+- **Đề xuất sửa:** `scripts/status.py` sinh mục 6 "Sẵn sàng phát hành" từ tài liệu trong repo, không đọc cấu hình production, `scripts/release.sh` hay thư mục phát hành, không dùng mạng. Ở mẫu, khóa quảng cáo đọc theo đúng luật một dòng của `release.sh` (định dạng có dấu gạch dưới, thuộc tính sau định dạng, bỏ khóa `gallery_`), và báo khi một vị trí viết trên nhiều dòng. Sửa thêm các điểm rà soát ở app: `<->` hay `a < b, c > d` không bị coi là dòng mẫu; đường dẫn `origin` phải bắt đầu bằng `github.com` (https, ssh); có test cho `shorten()`, `spec:` rỗng; test "chỉ mở `docs/` và `AdPlacement.kt`" không còn đếm chữ `release` trong `docs/`.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/status.py` mục 6 "Sẵn sàng phát hành", `scripts/new-app.sh` (app mới không mang báo cáo phiên của mẫu), `docs/CLAUDE.md`; PR #149.
+
 ### L-087. `wait-run.sh --pr` gọi ngay sau khi đẩy đọc lần chạy cũ bị hủy và báo đỏ
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (phiên có người theo dõi, PR #98, #100 của app; sửa ở T-044, PR #119 của app), issue #129
