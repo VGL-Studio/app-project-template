@@ -9,7 +9,7 @@ Phiên tự chạy dừng hay merge sai thường vì những lỗi đã nằm s
 | Kiểm tra | Mức |
 | --- | --- |
 | Plan có thật, qua `plan-check.py`; plan và ticket đều `approved` (L-045) | Lỗi |
-| Spec của ticket `confirmed`, mọi câu hỏi ở mục 9 đã có trả lời | Lỗi |
+| Spec của ticket `confirmed`, mọi câu hỏi ở mục 9 đã có trả lời (ticket quy trình không có `spec` và không có kịch bản thì bỏ qua; có kịch bản mà không có `spec` là lỗi) | Lỗi |
 | Ticket phụ thuộc đã merge, hoặc đứng trước trong danh sách | Lỗi |
 | Mọi kịch bản của ticket có ít nhất một dòng ở mục 4 của plan | Lỗi |
 | Dòng lịch sử của spec còn ghi "Chờ xác nhận lại" khi spec đã `confirmed` | Chú ý |
@@ -19,8 +19,10 @@ Phiên tự chạy dừng hay merge sai thường vì những lỗi đã nằm s
 | Hai plan cùng sửa một file mà không phụ thuộc nhau (L-045) | Chú ý |
 | Danh sách chỉ có một chuỗi phụ thuộc (L-045) | Chú ý |
 | Hai plan cùng ghi Tạo một file, kể cả khi phụ thuộc nhau (L-054) | Chú ý |
+| Danh sách xếp ngược dòng "Đề xuất thứ tự chạy" ở mục 6 của một plan ("A trước B", "sau A", "nhóm ...: A, B, C", "A, rồi B"; không tính chữ trong ngoặc kép, "trước hay sau", câu "... thì ...", câu "không cần") (L-078) | Lỗi |
+| Plan nhắc một file mà plan khác trong danh sách tạo, không có file đó ở mục 3.2 của mình và không phụ thuộc plan kia: lỗi khi đứng trước, chú ý (kèm file sẽ thiếu nếu plan kia dừng) khi đứng sau (L-078) | Lỗi hoặc chú ý |
 
-Lỗi phải sửa trước khi đưa danh sách cho dev. Mỗi dòng chú ý được xem ở lớp thứ hai và ghi kết luận.
+Muốn giữ thứ tự ngược với một đề xuất của plan (ví dụ hai task chỉ chung vài dòng), ghi vào danh sách chạy một dòng `Bỏ đề xuất thứ tự: A trước B` kèm lý do, trong mục Lý do của thứ tự chạy; lỗi khi đó thành chú ý. Lỗi phải sửa trước khi đưa danh sách cho dev. Mỗi dòng chú ý được xem ở lớp thứ hai và ghi kết luận.
 
 ## 2. Rà soát độc lập
 

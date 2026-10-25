@@ -425,6 +425,24 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** accepted
 - **Áp dụng:** nhánh `claude/from-camera-pose-kiem-tra-dau-phien`
 
+### L-077. Phiên dừng task vì vài dòng nối chỗ gọi, và để lại cho người điểm nên sửa có lỗi thật
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-058, L-059 của app; ADR-1003 của app; issue #132)
+- **Loại, phạm vi:** rủi ro, chung
+- **Chuyện gì:** hai task cùng danh sách merge lệch thứ tự; task sau phải nối chỗ gọi trong file mà task trước vừa tạo, không có trong mục 3.2, nên điều kiện dừng 1 dừng task dù phần sửa chỉ vài dòng và đúng ý cả hai plan. Một báo cáo phiên còn 13 điểm nên sửa chưa sửa vì dòng "Nên sửa" của bước 6 không bắt buộc; một điểm là lỗi người dùng gặp được (màn hình đứng yên khi chờ quảng cáo).
+- **Cải tiến:** ADR-0028: được nối chỗ gọi mà task khác cùng danh sách đổi (test viết trước, tối đa 3 file và 40 dòng code đếm bằng `git diff --numstat`, không chạm điểm chặn của mục 1); phải sửa điểm nên sửa trong file được phép, có test viết trước, giới hạn 3 lần sửa cho từng điểm; ghi vào nhật ký plan và mô tả PR. Áp dụng vào `risk-scoring.md` mục 4 và `auto-run.md` bước 4, 5, 6, 10.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-pham-vi-run-check`
+
+### L-078. `run-check.py` không thấy đề xuất thứ tự và phụ thuộc file giữa các plan; file đọc mới làm hỏng mọi plan đã duyệt
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-060, L-065 của app; issue #132)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** `run-check.py` báo hai plan cùng sửa một file, nhưng không báo khi danh sách xếp ngược dòng "Đề xuất thứ tự chạy" của một plan, hay khi plan này dùng file mà plan kia tạo; thứ tự sai chỉ rà soát độc lập thấy. Ticket quy trình (không spec, không kịch bản) bị chặn như thiếu spec. Ở app, một script mới có chú thích nhắc tới file chung làm quy tắc 2 của `plan-check.py` báo lỗi cho cả 5 plan đã duyệt của danh sách; phiên chạy lại `plan-check` trước task và bỏ qua plan có lỗi, nên sẽ không chạy task nào.
+- **Cải tiến:** `run-check.py` đọc dòng thứ tự ở mục 6 ("A trước B", "sau A", "nhóm ...: A, B", "A, rồi B"; bỏ qua chữ trong ngoặc kép, "trước hay sau", câu điều kiện "... thì ...", câu phủ định "không cần"), lỗi khi danh sách xếp ngược trừ khi có dòng "Bỏ đề xuất thứ tự: A trước B"; báo plan nhắc file mà plan khác tạo (lỗi khi đứng trước, chú ý khi đứng sau); chấp nhận ticket không spec và không kịch bản; chỉ đọc bảng của danh sách chạy, không đọc bảng rà soát. `plan-check.py` quy tắc 2: lỗi với plan chưa duyệt, chú ý với plan `approved`. Có test.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-pham-vi-run-check`
+
 ### L-079. Lỗi hạ tầng đã biết vẫn làm phiên dừng hay tốn vòng sửa, vì không có bảng tra lỗi
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-057, L-050 của app, issue #129)
