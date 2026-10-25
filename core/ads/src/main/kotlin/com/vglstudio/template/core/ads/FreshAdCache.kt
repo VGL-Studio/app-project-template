@@ -34,3 +34,6 @@ internal class FreshAdCache<T>(private val maxAgeMillis: Long = MAX_AGE_MILLIS, 
         const val MAX_AGE_MILLIS = 60 * 60 * 1_000L
     }
 }
+
+/** Skeleton (plan T-040, step 3). */
+internal fun <T> nativeFullScreenCache(onDiscard: (T) -> Unit): FreshAdCache<T> = FreshAdCache(onDiscard = onDiscard)

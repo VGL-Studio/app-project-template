@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.android.gms.ads.nativead.NativeAdView
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -196,6 +198,46 @@ class NativeAdSlotTest {
         composeRule.waitForIdle()
 
         assertEquals(1, ad.destroyCount)
+    }
+
+    @Test
+    fun swappedAd_recreatesBoundView() {
+        val ad1 = FakeLoadedNativeAd()
+        val ad2 = FakeLoadedNativeAd(sampleNativeAdAssets.copy(headline = "Second ad"))
+        var state by mutableStateOf<NativeAdState>(NativeAdState.Loaded(ad1))
+        val binds = mutableListOf<Pair<LoadedNativeAd, NativeAdView>>()
+        var frames = 0
+        composeRule.setContent {
+            AppTheme {
+                NativeAdSlotContent(
+                    state = state,
+                    size = NativeAdSize.SMALL,
+                    keepSpaceWhenEmpty = false,
+                    modifier = Modifier.width(CARD_WIDTH),
+                ) { ad ->
+                    remember { frames++ }
+                    NativeAdViewHost(bind = { binds += ad to it }) { binder ->
+                        NativeAdLayout(ad.assets, NativeAdSize.SMALL, binder, showAdChoicesMarker = false)
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        assertEquals(1, frames)
+        assertEquals(listOf<LoadedNativeAd>(ad1), binds.map { it.first }.distinct())
+
+        // Control (L-055): the same ad emitted again builds no new frame.
+        state = NativeAdState.Loaded(ad1)
+        composeRule.waitForIdle()
+        assertEquals(1, frames)
+
+        state = NativeAdState.Loaded(ad2)
+        composeRule.waitForIdle()
+
+        assertEquals("no new NativeAdView for the new ad", 2, frames)
+        assertEquals(1, binds.count { it.first === ad2 })
+        assertEquals(2, binds.map { it.second }.distinct().size)
+        composeRule.onNodeWithText("Second ad", useUnmergedTree = true).assertExists()
     }
 
     @Test

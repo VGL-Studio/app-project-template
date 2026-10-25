@@ -213,14 +213,18 @@ internal interface LoadReport {
 }
 
 /** How a native placement is loaded: one ad in its slot, or one row of a list (plan T-023, question 6). */
-internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW }
+internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH }
 
 /** The load report of a native [placement] used as [use]; the choice of [AdsController], testable without the SDK. */
-internal fun AdTelemetry.nativeLoadReport(placement: AdPlacement, use: NativeLoadUse): LoadReport {
+internal fun AdTelemetry.nativeLoadReport(
+    placement: AdPlacement,
+    use: NativeLoadUse,
+    @Suppress("UNUSED_PARAMETER") format: AdFormat = placement.format,
+): LoadReport {
     // A list row keeps the placement key of its screen (question 7); only a real pool (T-028) logs `pool`.
     val loadPlacement = loadPlacementOf(placement.format, placement)
     return when (use) {
-        NativeLoadUse.SINGLE_AD -> countedLoad(placement.format, placement.key, loadPlacement)
+        NativeLoadUse.SINGLE_AD, NativeLoadUse.REFRESH -> countedLoad(placement.format, placement.key, loadPlacement)
         NativeLoadUse.LIST_ROW -> perRequestLoad(placement.format, loadPlacement)
     }
 }

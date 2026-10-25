@@ -22,12 +22,13 @@ private const val TAG = "Ads"
  * - O-09: [load] throwing (not a cancellation) is a failure with code 0.
  */
 internal fun retryingNativeAdStates(
-    load: suspend () -> NativeAdState,
+    load: suspend () -> NativeAdState?,
     foreground: StateFlow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
     logger: AppLogger,
     placementKey: String,
+    @Suppress("UNUSED_PARAMETER") refresh: ((NativeAdState.Loaded) -> Flow<NativeAdState>)? = null,
 ): Flow<NativeAdState> = flow {
     emit(NativeAdState.Loading)
     var unavailableShown = false
@@ -40,7 +41,7 @@ internal fun retryingNativeAdStates(
             return@flow
         }
         val state = try {
-            load()
+            load() ?: NativeAdState.Unavailable
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
