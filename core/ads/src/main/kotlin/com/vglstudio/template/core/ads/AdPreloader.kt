@@ -9,7 +9,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Runs every preload, reload when Internet comes back and native refill through the plan (S-22 to S-25). A preload
- * blocked by a closed gate is held, one at most, and runs once when the gate opens (S-23). Records no opportunity
+ * blocked by a closed gate, or asked while a run goes on, is held, one at most, and runs the whole plan once when the
+ * gate opens or the run ends (S-23). A second preload asked while one is held adds nothing. Records no opportunity
  * (A-04, HD-06). Main thread only.
  */
 internal class AdPreloader(
@@ -43,7 +44,10 @@ internal class AdPreloader(
         this.plan = plan
     }
 
-    /** S-09, S-23: asks consent again, then runs, holds or ignores the preload. */
+    /**
+     * S-09, S-23: asks consent again, then runs, holds or ignores the preload. A HOLD while one is already held still
+     * logs HOLD and keeps the first reason.
+     */
     fun request(reason: PreloadReason) {
         askConsentAgain()
         val decision = decidePreload(reason, gate(), everRequested, running)
@@ -56,20 +60,23 @@ internal class AdPreloader(
         }
     }
 
-    /** The gate changed: the held preload runs once when it may, and is dropped when consent is denied (S-23). */
+    /**
+     * The gate changed, or a run ended: the held preload decides again. It runs the whole plan once when it may,
+     * stays held while the gate is closed or a run goes on, and is dropped on any IGNORE_* (S-23).
+     */
     fun onGateChanged() {
         val reason = held ?: return
-        when (decidePreload(reason, gate(), everRequested, running)) {
+        when (val decision = decidePreload(reason, gate(), everRequested, running)) {
             PreloadDecision.RUN -> {
                 held = null
                 logger.info(TAG, "Held preload $reason: run")
                 launch(plan, wholePlan = true)
             }
-            PreloadDecision.IGNORE_CONSENT_DENIED -> {
+            PreloadDecision.HOLD -> Unit
+            else -> {
                 held = null
-                logger.info(TAG, "Held preload $reason: dropped, consent denied")
+                logger.info(TAG, "Held preload $reason: dropped, $decision")
             }
-            else -> Unit
         }
     }
 
@@ -80,7 +87,10 @@ internal class AdPreloader(
         request(PreloadReason.NETWORK_BACK)
     }
 
-    /** S-25: an app activity is resumed: refills the native slots in plan order. Never held. */
+    /**
+     * S-25: an app activity is resumed: refills the native slots in plan order. Never held: while a run goes on it is
+     * skipped here, before [decidePreload].
+     */
     fun onActivityResumed(fullScreenShowing: Boolean) {
         val skipped = when {
             !finishedOnce -> "plan never finished"
