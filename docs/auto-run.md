@@ -61,7 +61,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 | 1. Tạo nhánh | Tạo nhánh `claude/T-NNN-<tu-khoa>` từ nhánh chính mới nhất. Không dùng nhánh mặc định mà routine tạo cho phiên. Đẩy ngay bằng `scripts/save-branch.sh <nhánh>`, trước khi viết dòng test nào, để lệnh đẩy bị từ chối lộ ra trước khi tốn công viết code | Nhánh riêng của task, đã có trên GitHub |
 | 2. Đọc tài liệu | Đọc theo thứ tự trong [CLAUDE.md](CLAUDE.md) | Đủ ngữ cảnh |
 | 3. Viết test trước | Viết test theo mục Kiểm thử của plan, chạy và xác nhận test thất bại đúng lý do | Commit chứa test |
-| 4. Viết code | Viết code cho đến khi test qua, chỉ trong danh sách file của plan (trừ phần nối chỗ gọi theo ADR-0028, `risk-scoring.md` mục 4) | Code chạy được |
+| 4. Viết code | Viết code cho đến khi test qua, theo danh sách file của plan; phần ngoài danh sách cần cho task thì sửa tiếp và ghi lại (ADR-0029, `risk-scoring.md` mục 4) | Code chạy được |
 | 5. Kiểm tra cục bộ | Build, lint, unit test, screenshot test, quy tắc phụ thuộc module, đối chiếu danh sách file | Sẵn sàng rà soát |
 | 6. Rà soát độc lập | Phiên AI khác rà soát thay đổi | Danh sách điểm phát hiện đã xử lý |
 | 7. Commit và đẩy | Commit theo quy ước, đẩy nhánh bằng `scripts/save-branch.sh`, mở PR. PR của task chỉ có code, test, ảnh chuẩn và ảnh so sánh thiết kế | PR liên kết tới plan |
@@ -74,6 +74,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 - Viết toàn bộ test được nêu trong mục Kiểm thử của plan, trước khi viết bất kỳ dòng code nào của chức năng.
 - Chạy test và xác nhận test **thất bại đúng lý do**: vì chức năng chưa có, không phải vì test viết sai cú pháp hay lỗi môi trường. Với màn hình hay lớp chưa tồn tại, AI tạo khung rỗng (hàm trả về giá trị mặc định) để test biên dịch được và thất bại ở phần kiểm tra.
 - Test nào qua ngay khi chưa có code là test không kiểm tra gì, phải viết lại, trừ test chặn mà plan nêu là qua ngay. Cách mặc định: thêm một bước đối chứng trước khi khẳng định (ghi rồi đọc lại, đặt dữ liệu đúng cạnh dữ liệu sai), rồi chạy lại để thấy test thất bại đúng lý do. Ghi số test được viết chặt như vậy vào nhật ký (L-055).
+- Khi test viết trước đã biên dịch được (khung rỗng), chạy test JVM của mọi module, không chỉ module của plan: `./gradlew testDebugUnitTest testStagingDebugUnitTest --continue` (ADR-0029, quyết định 4). Test đỏ ngoài mục 3.2 được xếp ngay theo `risk-scoring.md` mục 4, đoạn "Không phải dừng: phần ngoài mục 3.2": test chỉ đỏ vì dữ liệu chưa có phần plan thêm thì cập nhật dữ liệu đó trong commit test; test đỏ vì hành vi cũ bị hỏng thì ghi lại, bước 4 sửa code cho nó qua.
 - Commit test riêng, trước commit code, để lịch sử cho thấy test có trước.
 - Đẩy nhánh của task lên ngay sau mỗi commit, ở bước này và bước 4, không đợi tới bước 7, bằng `scripts/save-branch.sh <nhánh>` (thử lại khi lỗi mạng; không đẩy được thì giữ nhánh thành bundle và trả mã 3, xem "Khi không đẩy được" sau bước 7). Hết hạn mức thì phiên dừng ngay, không kịp làm gì thêm; phần chưa đẩy lên là phần mất. Commit trên nhánh cũng là dấu hiệu phiên còn sống cho `resume-run.yml`.
 - Chỉ được bỏ qua bước này với phần thay đổi nằm trong mục ngoại lệ đã được người duyệt đồng ý trong plan.
@@ -84,16 +85,17 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 Task lớn (nhiều file, cỡ L) thì phiên chính giao bước 3 đến 5 cho một phiên AI con, để giữ ngữ cảnh của phiên chính cho các task sau (L-052).
 
 - Phiên con làm trong worktree riêng của nhánh task: `git worktree add ../task-T-NNN claude/T-NNN-<tu-khoa>`. Thư mục chính giữ sạch, để phiên chính làm việc khác song song: chạy `check.sh` nền, chờ `main-guard`, chuẩn bị task sau, viết báo cáo. Bộ nhớ đệm Gradle ở `~/.gradle` dùng chung nên không tải lại.
-- Nội dung giao việc tối thiểu: một dòng riêng `Task: T-NNN` (để `scripts/token-usage.py` tính token của phiên con vào task, L-071; lời giao rà soát độc lập ở bước 6 cũng có dòng này); đường dẫn plan và worktree; danh sách file của mục 3.2 là ranh giới (trừ phần nối chỗ gọi theo ADR-0028, `risk-scoring.md` mục 4), phiên con báo mọi file nối chỗ gọi; thứ tự commit (test trước, rồi code); phiên con chỉ commit, không đẩy nhánh; lệnh nào bị hệ thống phân quyền từ chối thì dừng ngay và báo, không làm tiếp; điều kiện dừng (`risk-scoring.md` mục 4 và mục 7 của plan); báo cáo theo các dòng của nhật ký plan (Test viết trước, Lệch so với plan). Phần giao việc chung, dùng lại cho mọi task, không thêm việc về một file cụ thể: mọi việc về file lấy từ plan của task (L-060).
+- Nội dung giao việc tối thiểu: một dòng riêng `Task: T-NNN` (để `scripts/token-usage.py` tính token của phiên con vào task, L-071; lời giao rà soát độc lập ở bước 6 cũng có dòng này); đường dẫn plan và worktree; danh sách file của mục 3.2 là phạm vi chính; phần ngoài danh sách cần cho task thì sửa tiếp theo ADR-0029 (`risk-scoring.md` mục 4), phiên con báo mọi file ngoài mục 3.2 kèm lý do; chạy test JVM của mọi module khi test viết trước đã biên dịch được (bước 3); thứ tự commit (test trước, rồi code); phiên con chỉ commit, không đẩy nhánh; lệnh nào bị hệ thống phân quyền từ chối thì dừng ngay và báo, không làm tiếp; điều kiện dừng (`risk-scoring.md` mục 4 và mục 7 của plan); báo cáo theo các dòng của nhật ký plan (Test viết trước, Lệch so với plan). Phần giao việc chung, dùng lại cho mọi task, không thêm việc về một file cụ thể: mọi việc về file lấy từ plan của task (L-060).
 - Phiên chính đẩy nhánh task (`scripts/save-branch.sh claude/T-NNN-<tu-khoa>`, worktree dùng chung kho git nên commit của phiên con có sẵn) ngay khi phiên con báo xong mỗi commit hoặc báo dừng, để commit không chỉ nằm trong container. Lệnh đẩy của phiên con có lúc bị bộ phân loại quyền chặn ("Unrequested Commit in a Connected App"), lệnh của phiên chính thì không, vì việc chạy danh sách là yêu cầu của người (L-070). Phiên chính cũng bị chặn, hay script trả mã 3, thì làm theo "Khi không đẩy được" sau bước 7.
-- Phiên con xong: phiên chính kiểm `git diff --name-only origin/main...` khớp mục 3.2 cộng phần nối chỗ gọi mà phiên con đã báo, đọc báo cáo, rồi giao rà soát độc lập (bước 6) cho một phiên khác. Xóa worktree sau khi merge (`git worktree remove`); không xóa worktree của nhánh chưa đẩy được.
+- Phiên con xong: phiên chính kiểm `git diff --name-only origin/main...` khớp mục 3.2 cộng phần ngoài mục 3.2 mà phiên con đã báo, đọc báo cáo, rồi giao rà soát độc lập (bước 6) cho một phiên khác. Xóa worktree sau khi merge (`git worktree remove`); không xóa worktree của nhánh chưa đẩy được.
 - Không sửa file trong thư mục đang chạy `check.sh` nền: lần chạy đó kiểm một trạng thái lẫn lộn và phải chạy lại.
 
 ### Bước 4. Viết code
 
-- Chỉ tạo và sửa các file trong danh sách file của plan (trừ phần nối chỗ gọi theo ADR-0028, `risk-scoring.md` mục 4).
+- Tạo và sửa các file trong danh sách file của plan. Phần ngoài danh sách cần để thay đổi của plan chạy đúng thì sửa tiếp, không dừng task (ADR-0029, `risk-scoring.md` mục 4); vẫn dừng với file trong mục "Không được làm" của `CLAUDE.md` và với điều kiện dừng 2 tới 9.
 - Phương án chính không chạy và plan có phương án dự phòng đã duyệt (mục 3.4 của plan): chuyển sang phương án đó theo `risk-scoring.md`, mục 4, thay vì dừng task. Ghi vào nhật ký lúc chuyển, điều kiện chuyển đã gặp và lỗi của phương án chính; báo cáo phiên liệt kê ở mục Cần người kiểm tra.
 - Không sửa test đã viết ở bước 3 để làm cho test qua. Nếu test sai ở chi tiết không làm thay đổi điều nó kiểm tra (ví dụ sai tên một hàm), được sửa và ghi lý do vào nhật ký. Nếu cần thay đổi điều test kiểm tra thì dừng task.
+- Test cũ ngoài mục 3.2: chỉ cập nhật dữ liệu mà phần plan thêm làm thay đổi, và test vẫn kiểm phần mới như phần cũ; không xóa test hay câu khẳng định, không nới phép so sánh, không thêm `@Ignore` (ADR-0029, quyết định 2).
 
 ### Bước 5. Kiểm tra cục bộ
 
@@ -112,7 +114,7 @@ Task lớn (nhiều file, cỡ L) thì phiên chính giao bước 3 đến 5 cho
   | Android Lint báo lỗi (`:app:lintStagingDebug`) | Sửa code, không tắt quy tắc |
   | Bản staging không build được (`:app:assembleStagingDebug`) | |
   | Test của script thất bại (`scripts/tests/run.sh`); trên CI thiếu `python3` hay `jq` | |
-- So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Có file ngoài danh sách mà không phải phần nối chỗ gọi theo ADR-0028 (`risk-scoring.md`, mục 4) thì dừng task.
+- So sánh danh sách file thay đổi thực tế với danh sách file trong plan. Mỗi file ngoài danh sách có lý do trong nhật ký và mô tả PR (ADR-0029); file trong mục "Không được làm" của `CLAUDE.md` thì dừng task.
 - Feature có thiết kế (`docs/features/<feature>/design/screens/`): chạy `scripts/design-compare.sh <feature>` sau `scripts/check.sh`. Kết quả trong `design/review/` để rà soát, không phải cổng chặn (ADR-0020). Ảnh thiết kế nào báo thiếu ảnh chuẩn screenshot là thiếu test, phải thêm theo plan.
 - Lỗi tải thư viện hay công cụ (mã 429, 5xx, hết thời gian chờ, mất kết nối; bảng tra lỗi, PB-09) là lỗi hạ tầng, không phải lỗi của code, và không tính vào giới hạn 3 lần sửa. Phiên chạy qua đêm có thời gian, nên chờ lâu thay vì bỏ cuộc sớm: chạy lại sau 1, 2, 4, 8 rồi 15 phút (tổng khoảng 30 phút). Vẫn lỗi thì kết thúc phiên theo mục 4.
 - Mỗi lần chạy lại sau lỗi tải, dùng `GRADLE_REFRESH_DEPENDENCIES=true scripts/check.sh`. Gradle ghi nhớ lần tải lỗi và các lần sau báo "Could not find" mà không gọi lại mạng; biến này (đọc trong init script của `scripts/cloud-setup.sh`) buộc Gradle hỏi lại (RUN-20261016-01).
@@ -120,14 +122,14 @@ Task lớn (nhiều file, cỡ L) thì phiên chính giao bước 3 đến 5 cho
 
 ### Bước 6. Rà soát độc lập
 
-Một phiên AI riêng được khởi tạo để rà soát. Phiên này chỉ nhận plan, spec, thiết kế, ADR và phần thay đổi; không nhận quá trình làm việc của phiên viết code, để đánh giá với con mắt mới. Có phần nối chỗ gọi (ADR-0028) thì phiên rà soát nhận thêm danh sách file đó, số file và số dòng code, task đã đổi chỗ gọi và commit merge của task đó.
+Một phiên AI riêng được khởi tạo để rà soát. Phiên này chỉ nhận plan, spec, thiết kế, ADR và phần thay đổi; không nhận quá trình làm việc của phiên viết code, để đánh giá với con mắt mới. Có phần ngoài mục 3.2 (ADR-0029) thì phiên rà soát nhận thêm danh sách file đó, lý do của từng file và `git diff --stat origin/main...HEAD -- <các file đó>`.
 
 Nội dung rà soát:
 
 - Thay đổi có đáp ứng đủ tiêu chí chấp nhận trong spec không.
 - Test có thực sự kiểm tra tiêu chí chấp nhận không, hay chỉ kiểm tra những gì code đang làm.
 - Có tuân thủ mục "Việc AI phải tuân thủ" của các ADR không.
-- Có chạm vào phần ngoài phạm vi plan không. Phần ngoài mục 3.2 chỉ được giữ khi đúng là nối chỗ gọi mà task khác cùng danh sách đổi, trong giới hạn của ADR-0028 (`risk-scoring.md`, mục 4); nếu không, mức chặn.
+- Phần ngoài mục 3.2 (ADR-0029, `risk-scoring.md` mục 4): có thật cần cho thay đổi của plan không; có file trong mục "Không được làm" của `CLAUDE.md`, thư viện, quyền hay điểm chặn 1 tới 6, 8, 9 mà plan chưa nêu không; test cũ có bị xóa, nới phép so sánh hay đổi điều nó kiểm về hành vi đã có không. Vi phạm là mức chặn.
 - Có cấu hình production, khóa bí mật, mã quảng cáo thật trong thay đổi không.
 - Code có theo đúng mẫu đã có trong dự án không.
 - Feature có thiết kế: giao diện có đúng thiết kế không. Xem từng ảnh ghép trong `design/review/` theo mục 7 của mẫu thiết kế; chữ sai, thiếu trạng thái, sai thứ tự hay vai trò màu là mức chặn; lệch nhỏ về khoảng cách là mức ghi chú. Tỷ lệ điểm ảnh khác chỉ để tham khảo.
@@ -137,10 +139,10 @@ Kết quả rà soát chia ba mức:
 | Mức | Xử lý |
 | --- | --- |
 | Chặn | Quay lại bước 4. Tính vào giới hạn 3 lần sửa cho cùng một lỗi. |
-| Nên sửa | Phải sửa (ADR-0028) khi đủ ba điều: phần sửa chỉ chạm file của mục 3.2 hay file nối chỗ gọi được phép; có test viết trước thất bại đúng lý do; không đổi điều mà test của mục 4 của plan kiểm. Điểm nằm ngoài file được phép, hay không viết được test: không sửa, ghi vào báo cáo. Điểm mâu thuẫn với plan, spec hay một test của plan: không sửa, ghi vào báo cáo kèm phương án để người quyết. Sửa xong thì chạy lại bước 5 và giao rà soát độc lập lần nữa cho phần vừa sửa. Giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa (như cho cùng một lỗi), không cộng dồn giữa các điểm; một điểm hết 3 lần thì hoàn tác phần sửa của điểm đó, ghi vào báo cáo, làm tiếp các điểm khác. Mỗi task tối đa 2 vòng rà soát lại vì điểm nên sửa; sau vòng thứ 2, điểm nên sửa còn lại (kể cả điểm mới vòng đó tìm ra) không sửa nữa, ghi vào báo cáo để người quyết. |
+| Nên sửa | Phải sửa (ADR-0029, quyết định 3) khi đủ ba điều: phần sửa chỉ chạm file của mục 3.2 hay phần ngoài mục 3.2 được phép theo ADR-0029; có test viết trước thất bại đúng lý do; không đổi điều mà test của mục 4 của plan kiểm. Điểm nằm ngoài file được phép, hay không viết được test: không sửa, ghi vào báo cáo. Điểm mâu thuẫn với plan, spec hay một test của plan: không sửa, ghi vào báo cáo kèm phương án để người quyết. Sửa xong thì chạy lại bước 5 và giao rà soát độc lập lần nữa cho phần vừa sửa. Giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa (như cho cùng một lỗi), không cộng dồn giữa các điểm; một điểm hết 3 lần thì hoàn tác phần sửa của điểm đó, ghi vào báo cáo, làm tiếp các điểm khác. Mỗi task tối đa 2 vòng rà soát lại vì điểm nên sửa; sau vòng thứ 2, điểm nên sửa còn lại (kể cả điểm mới vòng đó tìm ra) không sửa nữa, ghi vào báo cáo để người quyết. |
 | Ghi chú | Ghi vào báo cáo để người xem. |
 
-Phần nối chỗ gọi ngoài mục 3.2 và từng điểm đã sửa theo rà soát được ghi trong mô tả PR, mục "Ngoài mục 3.2" và "Đã sửa theo rà soát" (ADR-0028).
+Phần ngoài mục 3.2 và từng điểm đã sửa theo rà soát được ghi trong mô tả PR, mục "Ngoài mục 3.2" (kèm `git diff --stat`) và "Đã sửa theo rà soát" (ADR-0029).
 
 Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không tự chọn bên nào mà dừng task, vì đây là dấu hiệu spec hoặc plan chưa rõ.
 
@@ -221,7 +223,7 @@ Theo ADR-0025, mục 4 (L-049). Phiên chỉ revert commit merge của chính ph
 - Chỉ ghi khi task đã có kết quả cuối: đã merge, hoặc đã dừng. Không ghi trước khi biết kết quả CI.
 - Ghi giờ các khâu của task vào bảng Dòng thời gian của báo cáo (mẫu phiên, mục Số liệu): tạo nhánh, test viết trước xong, đẩy PR, CI xong, merge hoặc dừng. Giờ lấy từ commit, PR và kết quả `wait-run.sh`, ghi tới phút theo UTC.
 - Ghi trên nhánh báo cáo, không ghi trên nhánh của task. Ghi vào mục Nhật ký thực hiện ở cuối plan theo mẫu, cập nhật dòng của task trong báo cáo phiên, rồi đẩy nhánh báo cáo lên. Nhờ vậy nếu phiên dừng đột ngột (hết hạn mức), người vẫn đọc được kết quả các task đã xong trên nhánh báo cáo.
-- Nhật ký ghi cả phần nối chỗ gọi ngoài mục 3.2 (file, lý do, task đã đổi chỗ gọi, test) và từng điểm đã sửa theo rà soát, với test của nó (ADR-0028).
+- Nhật ký ghi cả phần ngoài mục 3.2 (file, vì sao cần, loại: nối chỗ gọi, dữ liệu test, code, tài liệu) và từng điểm đã sửa theo rà soát, với test của nó (ADR-0029). Task đã merge có phần ngoài mục 3.2 thì báo cáo phiên có một dòng `- [ ]` ở mục Cần người kiểm tra, để người xem sau.
 - Plan chuyển sang `done`, ticket chuyển sang `on-staging`.
 - Task bị dừng: plan và ticket chuyển sang `stopped`, nhánh và PR của task được giữ nguyên, không merge.
 - Task bị dừng: chuẩn bị sẵn cho người, để sáng hôm sau người chỉ cần xem và duyệt (mục Chuẩn bị cho người khi task dừng).

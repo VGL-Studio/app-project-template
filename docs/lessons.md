@@ -502,3 +502,22 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `scripts/plan-check.py` quy tắc 12: plan `draft` ghi `$TMPDIR` hay `${TMPDIR}` không có giá trị mặc định thì báo lỗi, plan `approved` thì chỉ chú ý; `${TMPDIR:-/tmp}` qua. `docs/auto-run.md` bước 9 và `docs/CLAUDE.md` mục Khi viết plan: dùng `${TMPDIR:-/tmp}`, lệnh không mở đầu bằng `sleep`. Script dùng `sed -i.bak ... && rm -f <tệp>.bak`, hoặc perl, python. `scripts/tests/run.sh` có test dò `sed -i` không có đuôi trong `scripts/`.
 - **Trạng thái:** applied
 - **Áp dụng:** `scripts/plan-check.py` quy tắc 12, `scripts/tests/run.sh` (test quy tắc 12, test dò `sed -i`), `docs/auto-run.md` bước 9, `docs/CLAUDE.md`; PR #157. Mẫu chưa có dòng `sed -i` nào thiếu đuôi.
+
+### L-089. Plan thêm dòng vào enum dùng chung chỉ đọc các test lặp enum đó, không chạy, nên task dừng giữa phiên
+
+- **Ngày, nguồn:** 2026-10-25, RUN-20261026-01 (T-024)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** plan T-024 thêm hai vị trí `OPEN_APP`, `OPEN_APP_INTER` vào `AdPlacement`. Phần L-020 của mục 3.2 liệt kê các test lặp `AdPlacement.entries` và ghi `AdUnitIdsTest` "qua mà không sửa", nhưng không chạy thử. Trong phiên, `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey` đỏ (chỉ cấu hình `sample_native_small` rồi khẳng định `missing` rỗng), file ngoài mục 3.2, task dừng ở bước 3. Trước phiên, rà soát độc lập đã bắt `AdsFlagsTest` theo cùng cách (plan phiên bản 2).
+- **Bằng chứng:** nhật ký plan T-024 (RUN-20261026-01), commit `891ecec`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdUnitIdsTest.kt` dòng 10 đến 14.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan thêm dòng vào một enum dùng chung (`AdPlacement`, `FeatureFlag`, `AdFormat`) chạy thử toàn bộ test JVM của mọi module dùng enum đó với dòng mới, trên nhánh tạm không commit; test đỏ đưa vào mục 3.2, lệnh và kết quả ghi vào mục 4.1. `docs/ops/pre-run-review.md`: rà soát chạy lại bước này. Có thể thêm một quy tắc chú ý của `scripts/plan-check.py` khi plan thêm dòng vị trí vào `AdPlacement.kt` mà mục 4.1 không có lệnh Gradle.
+- **Trạng thái:** applied (cách khác: người quyết không chạy thử lúc soạn plan; ADR-0029 cho phiên sửa tiếp test và file ngoài mục 3.2 cần cho task, merge rồi báo sau, và chạy test JVM của mọi module ở bước 3)
+
+### L-090. Phiên con chạy nền chỉ báo khi xong, nên commit của nó không được đẩy ngay
+
+- **Ngày, nguồn:** 2026-10-25, RUN-20261026-01 (T-029, T-024)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `auto-run.md` (Giao bước 3 đến 5 cho phiên con) bảo phiên chính đẩy nhánh task ngay khi phiên con báo xong mỗi commit. Phiên con chạy nền chỉ báo một lần khi xong. Phiên này chạy một vòng nền có giới hạn theo dõi ref của nhánh task và gọi `scripts/save-branch.sh` khi ref đổi: commit test T-029 (11:58) được đẩy lúc 12:01 cùng commit code. Với T-024, vòng không chạy vì lần đẩy đầu phải chờ `main-guard` của task trước, nên commit test chỉ được đẩy sau khi phiên con dừng.
+- **Bằng chứng:** dòng thời gian của `docs/runs/RUN-20261026-01.md`.
+- **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5: ghi cách đẩy khi phiên con không báo giữa chừng (vòng nền có giới hạn theo dõi ref, gọi `save-branch.sh`, bắt đầu sau khi có kết quả `main-guard` của task trước), hoặc thêm script `scripts/push-on-commit.sh <nhánh> --minutes N` có test.
+- **Trạng thái:** proposed
+

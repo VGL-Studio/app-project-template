@@ -2,12 +2,12 @@
 ticket: T-024
 title: Quảng cáo mở app ở màn loading (lần đầu sau khi cài và lần thường)
 status: approved   # draft | approved | stopped | done
-version: 2                   # 2: rà soát trước phiên RUN-20261026-01, thêm AdsFlagsTest.kt (mục 3.2, 7, câu hỏi 3)
+version: 3                   # 2: rà soát trước phiên RUN-20261026-01, thêm AdsFlagsTest.kt; 3: RUN-20261026-01 dừng ở bước 3, thêm AdUnitIdsTest.kt (mục 3.2, 4, 7, câu hỏi 3, 7)
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-25); nâng vì khoảng 35 file ở ba module và hai API công khai mới
 blocking_points: [ads, core, analytics]
-run_order: 3                    # AI điền sau họp đánh giá rủi ro
+run_order: 1                    # AI điền sau họp đánh giá rủi ro
 reviewer: Nhật                  # người duyệt
 cross_reviewer: Nhật            # bắt buộc khi risk_level là high
 approved_at: 2026-10-25
@@ -16,6 +16,8 @@ approved_at: 2026-10-25
 # PLAN T-024: QUẢNG CÁO MỞ APP Ở MÀN LOADING (LẦN ĐẦU SAU KHI CÀI VÀ LẦN THƯỜNG)
 
 ## 1. Tóm tắt
+
+**Phiên bản 3 (2026-10-25, phiên RUN-20261026-01 soạn, chờ duyệt).** Bản 2 dừng ở bước 3 (mục 7, gạch 5; `risk-scoring.md` mục 4): thêm hai dòng `OPEN_APP`, `OPEN_APP_INTER` vào `AdPlacement.kt` làm `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey` đỏ. Test này chỉ cấu hình mã đơn vị cho `sample_native_small` rồi khẳng định `missing.isEmpty()`; nay `missing` có thêm `open_app`, `open_app_inter`. `AdUnitIdsTest.kt` không có trong mục 3.2. Vì sao plan chưa đủ tốt: phần L-020 của mục 3.2 ghi `AdUnitIdsTest` "qua mà không sửa" mà không chạy thử test đó với hai dòng mới; cùng loại thiếu sót với `AdsFlagsTest` mà rà soát trước phiên đã bắt ở phiên bản 2 (mọi test lặp `AdPlacement.entries` cần được chạy thử, không chỉ đọc). Không có cách sửa code nào vừa đúng ý vừa làm test qua: bỏ vị trí toàn app khỏi `missing` thì bản production không bị đòi mã đơn vị cho hai vị trí mới, trái mục 3.3. Thay đổi so với phiên bản 2: mục 3.1 thêm cách tiếp tục trên nhánh cũ; mục 3.2 thêm `AdUnitIdsTest.kt`; mục 4 thêm cách sửa test đó; mục 7 bỏ `AdUnitIdsTest` khỏi điều kiện dừng; mục 8 thêm câu 7 (ba điểm phiên đã tự quyết); mục 9 thêm chỗ cho phiên bản 3. Cách làm, các file khác, chấm rủi ro không đổi.
 
 Thêm khe app open vào `:core:ads` (hạn 1 giờ, khóa 1 giây sau khi đóng, nạp lại ngay, chỉ bỏ đúng quảng cáo vừa chiếu) và hai vị trí "toàn app" cho lúc mở app: `open_app` (app open) và `open_app_inter` (interstitial bỏ cổng `ads_interval`, vẫn đẩy mốc), bật bằng `show_open_ads_first_open` hay `show_open_ads` theo dấu "đã mở lần đầu" lưu trong DataStore, loại theo `open_ad_type`. Màn loading, sau khi chuẩn bị xong và đủ 2 giây, gọi API công khai mới `StartupAds.awaitStartupAd()`: chờ có giới hạn (đồng ý 10 giây, SDK 35 giây, quảng cáo 40 giây, nhịp 250 ms), chỉ dò không đo, tự bỏ thì ghi một cơ hội `not_ready`; có quảng cáo thì hiện qua `rememberShowStartupAd()` có đủ cổng của `:core:ads`, đóng rồi mới vào màn chính. Kiểm chứng bằng unit test thời gian ảo cho từng luật thuần, test ViewModel, test Robolectric dựng lại activity và kết thúc từ luồng nền, một kịch bản emulator và kiểm thủ công trên máy thật.
 
@@ -46,6 +48,8 @@ Dựa trên code đã merge (nhánh chính, commit `bf7a671`), dùng đúng tên
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
+
+**Tiếp tục (phiên bản 3):** trên nhánh cũ `claude/T-024-app-open-luc-mo-app` (chưa có PR). Nhánh có commit test `891ecec` (bước 3 làm dở): khung rỗng của `:core:ads` và `:feature:loading`, test mới và test sửa của `:core:ads` (34 test mới, 4 test sửa lọc `!appWide`; 29 thất bại đúng lý do, `templatePlan_hasAppOpenFirst` qua ngay đúng như plan), `FakeStartupAds` trong hàm dựng `viewModel()` của `LoadingViewModelTest`. Chưa viết: test mới của `LoadingViewModelTest`, `LoadingRouteTest`, phần sửa `StagingRemoteValuesModuleTest`, `RemoteConfigKeysTest`, sửa `AdUnitIdsTest` (mục 4, phiên bản 3), tệp kịch bản emulator. Phiên cập nhật nhánh theo nhánh chính, làm nốt bước 3 cho các test chưa viết (thất bại đúng lý do trên khung rỗng; test của `:core:ads` đã thấy thất bại không cần làm lại, chỉ chạy lại để chắc vẫn thất bại đúng lý do sau khi gộp nhánh chính), rồi đi tiếp từ bước 4.
 
 Mọi luật mới là hàm hay lớp thuần, nhận thời gian và trạng thái từ ngoài, có unit test JVM với thời gian ảo (như T-021, T-022). `AdsController` nối chúng với SDK. Màn loading chỉ gọi API công khai của `:core:ads`, không gọi SDK, không đọc khóa Remote Config của quảng cáo.
 
@@ -186,6 +190,7 @@ fun rememberShowStartupAd(): (StartupAdTurn, (interShown: Boolean) -> Unit) -> U
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/StartupAdWaitTest.kt` | A-03, A-04, A-06, KB-13 tiêu chí 4, 5 (thời gian ảo) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPlacementTest.kt` | Test mới của hai vị trí và `appWide`; `intervalAttributes_defaultAndValidated` loại `OPEN_APP_INTER` khỏi vòng lặp, thêm khẳng định riêng cho nó (câu hỏi 3) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` | `placementsAreOffByDefault` lọc `!appWide`, test mới: vị trí toàn app không có khóa (câu hỏi 3) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdUnitIdsTest.kt` | `configuredUnits_areParsedPerPlacementKey`: chuỗi cấu hình thêm `open_app=unit/3;open_app_inter=unit/4`, khẳng định `missing.isEmpty()` giữ nguyên, có đối chứng: cùng chuỗi không có hai khóa đó thì `missing == listOf(OPEN_APP, OPEN_APP_INTER)` (vị trí toàn app vẫn cần mã đơn vị ở bản production, mục 3.3; phiên bản 3) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsFlagsTest.kt` | `readsOnlyDeclaredKeys` và `masterSwitchOff_turnsEveryPlacementOff` lọc `!appWide` (vị trí toàn app không có khóa `is_show_<mã>` trong `AdsSettings.all()`), mỗi test có đối chứng: một vị trí không phải toàn app vẫn được đọc và vẫn tắt theo công tắc tổng (câu hỏi 3; phiên bản 2) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPreloadPlanTest.kt` | Test mới: kế hoạch mặc định của dự án mẫu có `APP_OPEN` ở nhóm đầu |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdsTest.kt` | Tham số `firstOpenMark` khi dựng `AdsController`; test `rememberShowStartupAd` không có controller; `rememberShowFullScreenAd` từ chối vị trí toàn app |
@@ -204,7 +209,7 @@ fun rememberShowStartupAd(): (StartupAdTurn, (interShown: Boolean) -> Unit) -> U
 
 Nơi đọc các file bị sửa (L-020; đã `git grep` trong `scripts/`, `.github/`, `build-logic/`, mọi `build.gradle.kts`, `src/test`, `src/testStaging`, `src/androidTest` trên commit `bf7a671`):
 
-- `AdPlacement.kt`: `scripts/release.sh` đọc dòng vị trí một dòng (`--list-placements`): hai dòng mới viết một dòng, nên lần phát hành sau đòi mã đơn vị `open_app`, `open_app_inter` (đúng ý, mục 3.3); AI không sửa `release.sh`. `scripts/status.py` đọc cùng dạng dòng cho mục "Sẵn sàng phát hành": hai khóa mới hiện ở đó, đúng ý. `scripts/tests/run.sh` dùng file mẫu `scripts/tests/fixtures/release/AdPlacement.kt` và một `AdPlacement.kt` tạm trong thư mục làm việc của test, không đọc file thật. `AdPlacementSourceTest` so dòng đọc được với `AdPlacement.entries` không phải staging: tự gồm hai vị trí mới. Test lặp `AdPlacement.entries`: `AdPlacementTest`, `AdsSettingsTest`, `RemoteConfigKeysTest`, `StagingRemoteValuesModuleTest` (có trong bảng); `AdUnitIdsTest` (`missing` tính từ `entries`, mã thử theo định dạng có cho `APP_OPEN`, `INTERSTITIAL`; số vị trí `gallery_` vẫn 7), `AdPreloadPlanTest.fromPlacements_coversEveryTemplateFormat` (tính từ `entries`), `AdsFlagsTest.masterSwitchOff_turnsEveryPlacementOff` (gọi `AdsFlags.placementEnabled`, hàm không đổi, vẫn đọc `is_show_<mã>` do test đặt) qua mà không sửa.
+- `AdPlacement.kt`: `scripts/release.sh` đọc dòng vị trí một dòng (`--list-placements`): hai dòng mới viết một dòng, nên lần phát hành sau đòi mã đơn vị `open_app`, `open_app_inter` (đúng ý, mục 3.3); AI không sửa `release.sh`. `scripts/status.py` đọc cùng dạng dòng cho mục "Sẵn sàng phát hành": hai khóa mới hiện ở đó, đúng ý. `scripts/tests/run.sh` dùng file mẫu `scripts/tests/fixtures/release/AdPlacement.kt` và một `AdPlacement.kt` tạm trong thư mục làm việc của test, không đọc file thật. `AdPlacementSourceTest` so dòng đọc được với `AdPlacement.entries` không phải staging: tự gồm hai vị trí mới. Test lặp `AdPlacement.entries`: `AdPlacementTest`, `AdsSettingsTest`, `RemoteConfigKeysTest`, `StagingRemoteValuesModuleTest` (có trong bảng); `AdUnitIdsTest` (`missing` tính từ `entries`, mã thử theo định dạng có cho `APP_OPEN`, `INTERSTITIAL`; số vị trí `gallery_` vẫn 7; phiên bản 3: sai với `configuredUnits_areParsedPerPlacementKey`, nay có trong bảng), `AdPreloadPlanTest.fromPlacements_coversEveryTemplateFormat` (tính từ `entries`), `AdsFlagsTest.masterSwitchOff_turnsEveryPlacementOff` (gọi `AdsFlags.placementEnabled`, hàm không đổi, vẫn đọc `is_show_<mã>` do test đặt) qua mà không sửa.
 - `AdsSettings.kt`: `RemoteConfigKeysTest` sinh lại và so `docs/remote-config-keys.md`, `docs/remote-config-template.json`: không khóa nào thêm hay bớt nên hai file không đổi; `AdsSettingsTest` (có trong bảng).
 - `AdsController.kt`: `FullScreenAdsTest` dựng tay (có trong bảng); không script nào đọc.
 - `FullScreenAds.kt`: `FullScreenAdsTest` (có trong bảng); `AdGalleryScreen.kt`, `feature/sample` gọi `rememberShowFullScreenAd` với vị trí không phải toàn app, không đổi.
@@ -261,6 +266,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 | Từ chối đồng ý thì không chờ, vào màn chính | Kiểm tra thủ công (emulator: `app/src/deviceScenarios/T-024-mo-app-tu-choi-dong-y.txt`) | `fresh`, `consent decline 30`, `wait id=sample_screen 60`, `expect_no id=loading_screen`, `shot main`. Staging bật khóa mở app, nên tệp chứng minh màn loading không treo khi cổng đóng. Đã chạy `scripts/device-scenario.py check` (mục 4.1) |
 | KB-13, tiêu chí 1 đến 4 trên máy | Kiểm tra thủ công (máy thật: quảng cáo thật) | Bản staging (mã thử của Google), đồng ý quảng cáo: 1) Xóa dữ liệu, mở app: màn loading đứng 100% rồi hiện app open thử, đóng thì vào màn chính; log `VGL.Ads` có `startup ad: ready`, `ad_placement=open_app`. 2) Mở lại: lần thường, có app open. 3) Firebase staging đặt `open_ad_type = inter`: interstitial thử; bấm mở inter ở màn xem thử ngay sau đó: log `THROTTLED` (mốc đã đẩy). 4) Firebase staging tắt `show_open_ads`: mở lại, vào màn chính sau khoảng 2 giây, log `startup ad: key off`. 5) Chế độ máy bay khi mở app, bật lại sau 50 giây rồi "Thử lại": không có quảng cáo nếu chưa nạp được, log `ad timeout` hay `sdk timeout`. Lệnh: `adb logcat -v threadtime \| grep ' VGL\.'` |
 | Ghi chú ADR-0018, hướng dẫn | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt đọc mục ghi chú mới của ADR-0018 và các mục 3, 6, 8, 9 của `ads-guide.md`; `scripts/foundation.py --check` không báo lệch |
+| Vị trí toàn app vẫn cần mã đơn vị ở bản production (mục 3.3; phiên bản 3) | Unit test có sẵn, sửa | `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey`: chuỗi cấu hình có thêm `open_app`, `open_app_inter` thì `missing` rỗng; đối chứng: không có hai khóa đó thì `missing == listOf(OPEN_APP, OPEN_APP_INTER)`. `placementWithoutUnit_isReportedMissingAndShowsNoAd` không sửa, tự gồm hai vị trí mới. Thất bại trên khung rỗng của bước 3 nếu `missing` bỏ vị trí toàn app; qua với khung rỗng hiện có (`missing` tính từ `entries`): là test chặn hành vi, ghi vào nhật ký |
 
 **Ngoại lệ viết test trước:** phần nối trong `AdsController.kt` (trường `loadedAppOpens`, `lastAppOpenClosedAt`, `startedAtMillis`, `firstOpen`, `preloadAppOpen` với callback của SDK, `showAppOpen`, `showStartupAd`, probe của `awaitStartupAd`, nhánh `APP_OPEN` của `preloadNow`, `fullScreenLoadState`, `fullScreenPlacements`, `isEnabled` một dòng); `di/StartupAdsModule.kt` (một `@Binds`); phần SDK của `rememberShowStartupAd` (gọi `showStartupAd` khi có controller và activity); KDoc; `docs/adr/0018-...md`, `docs/ops/ads-guide.md`; tệp kịch bản emulator (chạy ở `device-session` cuối phiên, không "thất bại trước" được). `AdsController` gắn với SDK và không có unit test riêng (như T-019 tới T-023); mọi quyết định nằm trong các hàm thuần ở trên. Điều kiện áp cho mọi đường nạp (L-072) nằm ở `placementSwitch` và `needsLoad`, mọi đường đi qua `loadFullScreenAdIfNeeded` (bảng trên). Vỏ app không để trần (L-051): `LoadingRoute` có test Robolectric dựng lại activity và kết thúc từ luồng nền; `AppNavHost`, `MainActivity` không đổi. Người duyệt cần đồng ý với các ngoại lệ này.
 
@@ -297,7 +303,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - Tên đã dùng ở mục 2 không còn trên nhánh chính (`consentFlowFinished`, `sdkReady`, `isFullScreenAdReady`, `loadFullScreenAdIfNeeded`, `decideFullScreenTurn`, `FreshAdCache`, `FullScreenReloads`, `AdTelemetry.opportunity`, `AdsGlobalFlags.showOpenAdsFirstOpen`): dừng.
 - `AdPlacementSourceTest` đỏ sau khi thêm hai dòng: dừng, không đổi dạng dòng, không sửa `scripts/release.sh`.
 - `RemoteConfigKeysTest` báo bảng khóa sinh tự động đổi (`docs/remote-config-keys.md`, `docs/remote-config-template.json`): dừng, vì plan nói hai vị trí mới không thêm khóa.
-- Cần sửa ảnh chuẩn nào, `LoadingScreenTest`, `AdUnitIdsTest`, `AppLaunchTest` hay test nào khác ngoài các file test có sẵn đã ghi Sửa ở mục 3.2 để qua.
+- Cần sửa ảnh chuẩn nào, `LoadingScreenTest` hay `AppLaunchTest` để qua: dừng. Test có sẵn khác đỏ: xử lý theo ADR-0029 (`risk-scoring.md` mục 4), không dừng. (Phiên bản 3, sửa lúc duyệt 2026-10-25 theo ADR-0029.)
 - `AppLaunchTest` (emulator, `ui-test` của CI) đỏ vì màn loading chờ quảng cáo: dừng, không nới thời gian chờ của test.
 - Cần thêm `:core:data` hay thư viện vào `:feature:loading`, hay đổi `AppNavHost`, `MainActivity`.
 
@@ -329,6 +335,13 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 
 **Trả lời của anh Nhật (2026-10-25):** câu 1 đến 6: theo đề xuất của AI. Câu 1: theo spec ads; spec loading mục 5 và KB-1 sửa trong PR duyệt danh sách RUN-20261026-01 (lịch sử của spec ghi lại), anh Nhật xác nhận.
 
+7. **(Phiên bản 3) Ba điểm phiên RUN-20261026-01 đã tự quyết ở bước 3, có trên nhánh cũ:**
+   - `awaitStartupAd` thêm tham số cuối không bắt buộc `logger: AppLogger? = null`, vì chữ ký ở mục 3.1 không có chỗ ghi log lý do kết thúc mà bước 6 đòi.
+   - `di/StartupAdsModule.kt` có ngay trong khung rỗng của commit test, vì thiếu nó thì `:app` không dựng được đồ thị Hilt (file đã có trong mục 3.2).
+   - Thêm một test ngoài bảng mục 4: `StartupAdWaitTest.interPlacement_isProbedAndRecorded`.
+   - Đề xuất của AI: giữ cả ba. Phương án khác: bỏ tham số `logger` và ghi log ở `AdsController` (phần nối, không có test).
+   - Trả lời: theo đề xuất của AI, giữ cả ba (anh Nhật, 2026-10-25).
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
@@ -336,8 +349,21 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 3 trong RUN-20261026-01.
+- **Phiên bản 3:** Duyệt. Người duyệt: Nhật, duyệt chéo: Nhật, 2026-10-25. AI ghi theo lời anh Nhật ("Duyệt v3 ngay, chạy liền"). Câu hỏi 7: theo đề xuất của AI. Lúc duyệt, mục 7 gạch 5 sửa theo ADR-0029 (cùng PR): test có sẵn khác đỏ thì sửa tiếp, không dừng; ảnh chuẩn, `LoadingScreenTest`, `AppLaunchTest` vẫn dừng. Không rà soát độc lập lại trước phiên, theo quyết định chạy liền. Chạy thứ 1 trong RUN-20261026-02.
 - **Phiên bản 2:** rà soát độc lập trước phiên (2026-10-25) thấy `AdsFlagsTest.readsOnlyDeclaredKeys` đỏ khi `keysFor` bỏ khóa của vị trí toàn app (đã chạy thử). Thêm `AdsFlagsTest.kt` vào mục 3.2, bỏ khỏi điều kiện dừng ở mục 7, ghi vào câu hỏi 3. Anh Nhật duyệt lại phiên bản 2, 2026-10-25.
 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-01, phiên bản plan 2
+
+- **Kết quả:** dừng ở bước 3 (mục 7, gạch 5; `risk-scoring.md` mục 4, điều kiện 1 và 5).
+- **Nhánh, PR:** `claude/T-024-app-open-luc-mo-app`, chưa có PR. Commit test `891ecec` (bước 3 làm dở, ghi rõ trong thông điệp). Bước 3 do phiên con làm trong worktree `../task-T-024` (L-052).
+- **Đã làm:** khung rỗng của `:core:ads` (8 file main, gồm `di/StartupAdsModule.kt`) và `:feature:loading` (`LoadingViewModel.kt`, `LoadingScreen.kt`); test của `:core:ads`.
+- **Test viết trước:** 34 test mới (`StartupAdChoiceTest` 8, `FirstOpenMarkTest` 4, `AppOpenRulesTest` 3, `StartupAdWaitTest` 11, `AdPlacementTest` 5, `AdsSettingsTest` 1, `AdPreloadPlanTest` 1, `FullScreenAdsTest` 2) và 4 test sửa lọc `!appWide` có đối chứng (vẫn qua). 29 thất bại đúng lý do (khẳng định so với khung rỗng); `templatePlan_hasAppOpenFirst` qua ngay đúng như plan. Test viết chặt bằng bước đối chứng: 4. Lỗi thứ 30 là `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey` (file ngoài mục 3.2): lý do dừng. Chưa viết: test mới của `LoadingViewModelTest`, `LoadingRouteTest`, phần sửa `StagingRemoteValuesModuleTest`, `RemoteConfigKeysTest`, tệp kịch bản emulator. Phiên chính đã đọc `AdUnitIdsTest.kt` và `AdUnitIds.missing` để xác nhận lý do dừng.
+- **Rà soát độc lập:** chưa tới bước 6.
+- **Kết quả CI:** chưa tới bước 8. Trên máy: `:core:ads:testDebugUnitTest` 444 test, 30 thất bại như trên; `ktlintCheck` của `:core:ads`, `:feature:loading` qua; `:app:assembleStagingDebug` qua.
+- **Lệch so với plan:** `awaitStartupAd` thêm tham số `logger: AppLogger? = null`; `di/StartupAdsModule.kt` vào khung rỗng; thêm `StartupAdWaitTest.interPlacement_isProbedAndRecorded` (câu hỏi 7 của phiên bản 3). Ngoài mục 3.2: không có. Phương án dự phòng 3.4: chưa tới.
+- **Việc còn lại:** duyệt plan phiên bản 3 (mục 1, 3.1), đưa vào danh sách chạy `RUN-20261026-02` (nháp) để tiếp tục trên nhánh cũ.
+- **Cần người xem:** câu hỏi 7 của phiên bản 3; cách sửa `AdUnitIdsTest` ở mục 3.2 và mục 4.
