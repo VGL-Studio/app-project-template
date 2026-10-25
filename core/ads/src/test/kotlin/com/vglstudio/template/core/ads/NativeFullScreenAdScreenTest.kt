@@ -1,20 +1,26 @@
 package com.vglstudio.template.core.ads
 
 import android.content.Context
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.designsystem.theme.AppTheme
@@ -27,7 +33,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * The native full-screen ad screen (KB-5): a 48 dp close button visible from the first frame, in the top left corner,
+ * The native full-screen ad screen (KB-5): a 36 dp close button visible from the first frame, in the top left corner,
  * away from AdChoices and the call to action; sizes from design/context/NativeFullScreenAdScreen_default_light.md.
  */
 @RunWith(AndroidJUnit4::class)
@@ -66,11 +72,38 @@ class NativeFullScreenAdScreenTest {
     }
 
     @Test
-    fun closeButton_isAtLeast48dp() {
+    fun closeButton_drawn36dp_touchAtLeast48dp() {
         setScreen()
         composeRule.onNodeWithTag(CLOSE)
-            .assertWidthIsAtLeast(48.dp)
-            .assertHeightIsAtLeast(48.dp)
+            .assertWidthIsEqualTo(36.dp)
+            .assertHeightIsEqualTo(36.dp)
+        val close = composeRule.onNodeWithTag(CLOSE).getUnclippedBoundsInRoot()
+        val centerX = (close.left + close.right) / 2
+        val centerY = (close.top + close.bottom) / 2
+
+        // Compose widens the touch area of a small button to 48 dp (6 dp on each side) without changing the layout.
+        tapAt(close.right + 5.dp, centerY)
+        assertEquals("tap 5 dp right of the button", 1, closes)
+        tapAt(centerX, close.bottom + 5.dp)
+        assertEquals("tap 5 dp below the button", 2, closes)
+
+        // Control: 8 dp away is outside the 48 dp area, so the taps above hit the widened area, not anything.
+        tapAt(close.right + 8.dp, centerY)
+        assertEquals("tap 8 dp right of the button", 2, closes)
+    }
+
+    private fun tapAt(x: Dp, y: Dp) {
+        val point = with(composeRule.density) { Offset(x.toPx(), y.toPx()) }
+        composeRule.onRoot().performTouchInput { click(point) }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun media_startsAt76dp() {
+        setScreen()
+        // Design: top margin 24, close button bar 36, gap 16.
+        val media = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
+        assertEquals(76f, media.top.value, TOLERANCE)
     }
 
     @Test
@@ -102,7 +135,14 @@ class NativeFullScreenAdScreenTest {
         composeRule.onNodeWithText(design.body!!).assertIsDisplayed()
         composeRule.onNodeWithText(design.callToAction!!).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.ads_native_badge)).assertIsDisplayed()
-        composeRule.onNodeWithTag(CTA).assertHeightIsEqualTo(48.dp)
+        composeRule.onNodeWithTag(CTA).assertHeightIsEqualTo(52.dp)
+        composeRule.onNodeWithTag(ICON, useUnmergedTree = true)
+            .assertWidthIsEqualTo(48.dp)
+            .assertHeightIsEqualTo(48.dp)
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeRule.onNodeWithText(design.headline).fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult].action!!(layouts)
+        assertEquals(16.sp, layouts.single().layoutInput.style.fontSize)
         composeRule.onNodeWithTag(MEDIA).assertHeightIsAtLeast(120.dp)
     }
 
@@ -132,6 +172,7 @@ class NativeFullScreenAdScreenTest {
         const val CLOSE = "nativeFullScreenClose"
         const val CTA = "nativeFullScreenCta"
         const val MEDIA = "nativeFullScreenMedia"
+        const val ICON = "nativeFullScreenIcon"
         const val TOLERANCE = 0.5f
     }
 }

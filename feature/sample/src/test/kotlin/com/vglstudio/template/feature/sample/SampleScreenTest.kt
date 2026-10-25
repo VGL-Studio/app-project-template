@@ -80,9 +80,9 @@ class SampleScreenTest {
         composeRule.onNodeWithText(string(R.string.sample_disabled)).assertIsDisplayed()
     }
 
-    /** Stands in for the native ad: a 72 dp box, the height of native small (tests have no ads controller). */
+    /** Stands in for the native ad: an 80 dp box, the height of native small (tests have no ads controller). */
     private val fakeAd: @Composable (Modifier) -> Unit = { modifier ->
-        Box(modifier = modifier.height(72.dp).testTag(AD))
+        Box(modifier = modifier.height(80.dp).testTag(AD))
     }
 
     @Test
@@ -96,7 +96,7 @@ class SampleScreenTest {
         val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
         assertEquals(16f, (screen.bottom - ad.bottom).value, 0.5f)
         assertEquals(379f, (ad.right - ad.left).value, 0.5f)
-        assertEquals(72f, (ad.bottom - ad.top).value, 0.5f)
+        assertEquals(80f, (ad.bottom - ad.top).value, 0.5f)
     }
 
     @Test

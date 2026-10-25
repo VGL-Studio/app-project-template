@@ -188,7 +188,7 @@ class InListAdsTest {
     fun loadingSlot_showsPlaceholderOfSmallHeight() {
         setPublicListContent(InListAdLoader { awaitCancellation() })
 
-        assertDpEquals("ad row height", 72.dp + 16.dp * 2, bounds("inlist_ad_0").height)
+        assertDpEquals("ad row height", 80.dp + 16.dp * 2, bounds("inlist_ad_0").height)
         composeRule
             .onNode(hasTestTag(NativeAdTestTags.PLACEHOLDER) and hasAnyAncestor(hasTestTag("inlist_ad_0")))
             .assertExists()

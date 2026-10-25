@@ -186,7 +186,7 @@ internal sealed interface CollapsibleAdContent {
 
 /**
  * Draws [content] in the form [state] says. While loading, the placeholder has the height of the current form (342 dp
- * expanded, 72 dp collapsed), so nothing moves when the ad arrives. [onCollapsed] runs once, on the first tap.
+ * expanded, 80 dp collapsed), so nothing moves when the ad arrives. [onCollapsed] runs once, on the first tap.
  */
 @Composable
 internal fun CollapsibleNativeAdContent(

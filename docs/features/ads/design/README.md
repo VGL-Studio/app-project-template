@@ -67,16 +67,16 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 | Phần tử trên thiết kế | Thành phần trong code | Màu (vai trò) | Kiểu chữ | Khoảng cách |
 | --- | --- | --- | --- | --- |
 | Khung native small, medium, thu gọn | composable native của `:core:ads` (T-010) | nền `surfaceContainerLow`, viền 1 dp `outlineVariant` | | bo `MaterialTheme.shapes.medium` (12 dp); lề 12 dp |
-| Nhãn "Ad" | trong composable native | nền `tertiary`, chữ `onTertiary` | `labelSmall` | bo 4 dp, lề ngang 4 dp |
-| Tiêu đề quảng cáo | asset headline | `onSurface` | `titleSmall` (small, medium), `titleMedium` (toàn màn hình) | |
+| Nhãn "Ad" | trong composable native, đầu dòng mô tả dưới tiêu đề | nền `tertiary`, chữ `onTertiary` | `labelSmall` (small: cỡ 10 sp) | bo 4 dp, lề ngang 4 dp |
+| Tiêu đề quảng cáo | asset headline | `onSurface` | `titleSmall` (small, medium, đầy đủ), `titleMedium` (toàn màn hình) | |
 | Nhà quảng cáo, mô tả | asset advertiser, body | `onSurfaceVariant` | `bodySmall`, `bodyMedium` | |
-| CTA quảng cáo | asset call to action | nền `tertiaryContainer`, chữ `onTertiaryContainer` | `labelLarge` | cao 36 dp (48 dp ở toàn màn hình), bo 8 dp |
-| Icon quảng cáo | asset icon | | | 40 dp (48 dp ở toàn màn hình), bo 8 dp |
-| Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium cao 196 dp, thu gọn mở 160 dp |
+| CTA quảng cáo | asset call to action | nền `tertiaryContainer`, chữ `onTertiaryContainer` | `labelLarge` (small: cỡ 13 sp) | cao 34 dp ở small, 36 dp ở medium và đầy đủ, 52 dp ở toàn màn hình; bo 8 dp |
+| Icon quảng cáo | asset icon | | | 36 dp ở small, 40 dp ở medium và đầy đủ, 48 dp ở toàn màn hình; bo 8 dp |
+| Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium cao 196 dp, đầy đủ 200 dp, thu gọn mở 160 dp |
 | AdChoices | do SDK vẽ, góc trên phải | | | không đè, không vẽ lại |
 | Nút thu gọn | trong composable thu gọn | icon `onSurface` | | 48 dp, góc trên trái |
-| Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | 48 dp tròn, góc trên trái |
-| Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 72 dp, medium 386 dp) |
+| Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 36 dp tròn tại (16, 24), vùng chạm 48 dp do Compose tự nới, góc trên trái |
+| Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 80 dp, medium 386 dp, đầy đủ 418 dp) |
 | Nút của app | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` đậm 600 | |
 
 - **Giá trị "ngoài hệ thống" trong `context/`:** khoảng cách 2, 6 và 12 dp bên trong quảng cáo (giữa tiêu đề và dòng nhà quảng cáo, giữa nhãn "Ad" và chữ, lề trong khung). Plan T-010 quyết: giữ làm hằng số riêng của composable native trong `:core:ads` (kích thước của một component, như `MinHeight` của `PrimaryButton`), không thêm token.
@@ -127,3 +127,18 @@ Màn hình xem thử (T-014, 2026-10-23). Ảnh chuẩn ở `app/src/test/screen
 | `AdGalleryScreen_collapsible-collapsed_light` | 0.7% | Trùng thiết kế, khác ở chữ "i" của ô AdChoices giả |
 
 Nhận xét của rà soát độc lập (RUN-20261024-01): chữ, thứ tự và vai trò màu (nút toàn màn hình `primary`, nút chuyển trang viền, bản tối) trùng thiết kế; chỉ khác ở hàng nút chuyển trang đã duyệt và quảng cáo giả; vị trí lệch nhiều nhất khoảng 1 px. Không có điểm chặn.
+
+Native theo kích thước AdsKit (T-027, 2026-10-26), so với thiết kế vẽ lại (T-035). Chạy thẳng `scripts/design-compare/DesignCompare.java` cho từng module (`core/ads`, `feature/sample`, `app`), chép ảnh so sánh vào `review/`; `review/summary.md` không đổi.
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `SampleScreen_ready_light` | 1.3% | Khe đáy 80 dp, icon 36, CTA 34 dp, nhãn "Ad" đầu dòng mô tả trùng thiết kế. Khác: nút "Tap" thấp hơn khoảng 2 dp (không thuộc task này), ô AdChoices giả không có chữ "i" |
+| `SampleScreen_ready_dark` | 1.3% | Như bản sáng |
+| `SampleScreen_ad-loading_light` | 0.9% | Khung chờ 80 dp, khối CTA 80 x 34 dp trùng thiết kế |
+| `NativeFullScreenAdScreen_default_light` | 0.5% | Nút đóng 36 dp tại (16, 24), media từ y = 76, icon 48, CTA 52 dp trùng thiết kế; khác ở chữ "i" của AdChoices giả |
+| `NativeFullScreenAdScreen_default_dark` | 0.5% | Như bản sáng |
+| `AdGalleryScreen_default_light` | 14.7% | Native small trùng thiết kế. Lệch dự kiến: thiết kế vẽ medium mới (cao 410 dp, hàng sao, nền mờ sau media, CTA 44 dp), code giữ medium 386 dp (plan T-027, Q3; T-028 đổi), nên mọi thứ dưới thẻ medium lệch khoảng 24 dp. Hàng nút "In-list ads", "Collapsible ad" ngoài thiết kế như T-014 |
+| `AdGalleryScreen_default_dark` | 14.5% | Như bản sáng |
+| `AdGalleryScreen_inlist_light` | 3.1% | Dòng native small 80 dp (cả dòng 112 dp) trùng thiết kế; phần lệch ở thẻ medium phía dưới như trên |
+
+`AdGalleryScreen_collapsible-collapsed_light` cũng đổi (dạng thu gọn 80 dp) nhưng là ảnh thiết kế của T-030: ảnh so sánh và dòng ở bảng trên chưa ghi lại ở task này.
