@@ -6,7 +6,7 @@ Sinh bởi `scripts/figma-export.py`. Không sửa tay; thiết kế đổi thì
 
 - Link: https://www.figma.com/design/jDs7KImtrNL3ABPYnDhDgJ/?node-id=5-43
 - Frame: `5:43`, giao diện sáng
-- Ngày lấy: 2026-10-21
+- Ngày lấy: 2026-10-25
 
 ## 2. Giá trị dùng
 
@@ -41,12 +41,12 @@ Toạ độ và cỡ tính theo dp, gốc là góc trên trái của khung. Th�
     - Text "Count", vị trí 191,108, cỡ 29 x 52, chữ "3", kiểu displayMedium (45/52, đậm 400), màu #17352F (onBackground, onSurface)
     - Instance "Button/Primary", vị trí 16,176, cỡ 379 x 52, nền #147D68 (primary, surfaceTint), bo góc 16, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/24 (lg)/0/24 (lg), căn CENTER/CENTER
       - Text "Label", vị trí 193,192, cỡ 25 x 20, chữ "Tap", kiểu ngoài hệ thống (14/20, đậm 600), màu #FFFFFF (onPrimary, onSecondary, onTertiary, onError, surfaceContainerLowest)
-  - Instance "Native small (sample_native_small)", vị trí 16,803, cỡ 379 x 72, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/24 (lg)/0/12 (ngoài hệ thống), căn MIN/CENTER
-    - Rectangle "Icon placeholder", vị trí 29,819, cỡ 40 x 40, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
-    - Frame "Lines", vị trí 81,825, cỡ 197 x 28, xếp dọc, cách nhau 8 (sm), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
-      - Rectangle "Line", vị trí 81,825, cỡ 180 x 10, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
-      - Rectangle "Line", vị trí 81,843, cỡ 120 x 10, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
-    - Rectangle "CTA placeholder", vị trí 290,821, cỡ 80 x 36, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
+  - Instance "Native small (sample_native_small)", vị trí 16,795, cỡ 379 x 80, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/24 (lg)/0/12 (ngoài hệ thống), căn MIN/CENTER
+    - Rectangle "Icon placeholder", vị trí 29,817, cỡ 36 x 36, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
+    - Frame "Lines", vị trí 77,821, cỡ 201 x 28, xếp dọc, cách nhau 8 (sm), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
+      - Rectangle "Line", vị trí 77,821, cỡ 180 x 10, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
+      - Rectangle "Line", vị trí 77,839, cỡ 120 x 10, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
+    - Rectangle "CTA placeholder", vị trí 290,818, cỡ 80 x 34, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
 
 ## 4. Code tham khảo
 
