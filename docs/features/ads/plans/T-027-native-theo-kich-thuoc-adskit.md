@@ -1,7 +1,7 @@
 ---
 ticket: T-027
 title: Native một quảng cáo theo kích thước AdsKit: khe đáy, đầy đủ, toàn màn hình
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 2                   # 2: anh Nhật trả lời 15 câu (2026-10-25), tách phần B sang T-040; plan chỉ còn phần A
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -256,3 +256,22 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-03, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #183, commit squash `feb516e`, 2026-10-25 18:06 UTC).
+- **Nhánh, PR:** `claude/T-027-native-adskit`, PR #183. Commit test `961633c`, commit code `e1e7fc1`, ảnh chuẩn `0ea1b06`, tài liệu `9343b73`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-027` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: khe đáy 80 dp một hằng số `BottomSlotHeight`, số đo native nhỏ theo 5.7; `NativeAdSize.FULL` với `FullLayout` cao cố định 418 dp, hàng sao `nativeStarCount`; `nativeSlotAllowed`, `NativeAdSlotGate`, `onAdAvailabilityChange`; native toàn màn hình theo thiết kế vẽ lại (nút đóng 36 dp, vùng chạm 48 dp); `NativeRequestOptions.kt` dùng chung cho `SdkNativeAdLoader` và nạp sẵn toàn màn hình; `newMediaView` (O-07); `ads-guide.md` mục 3, 4; README thiết kế mục 3, 8; 8 ảnh so sánh.
+- **Test viết trước:** 33 test mới hoặc thay, 14 test cũ cập nhật số đo theo mục 3.2. Trên khung rỗng 45 test đỏ đúng lý do (72 thay 80, 48 thay 36 hay 52, chưa có `FULL`, chưa báo `onAdAvailabilityChange`, hai file còn tự dựng `NativeAdOptions`). Test viết chặt bằng bước đối chứng: 6 (`small_headlineAndCtaColors_lightAndDark`, `full_headlineAndCtaColors_lightAndDark`, `small_hasNoMedia`, `full_showsHeadlineAdBadgeCta_leavesAdChoicesCornerFree`, `full_iconIs40dp_headline14sp`, `mediaScaleType_setBeforeSetNativeAd`), cả 6 đỏ khi phá chỗ được kiểm. Chạy test JVM mọi module trên khung rỗng: không có test đỏ ngoài mục 3.2. Commit test có kèm khung rỗng trong `src/main`.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 8 ghi chú; không sửa điểm nào.
+  - Nên sửa, không sửa (không viết được test đỏ trước, bước 6): `full_placeholderHeight_equalsCardHeight_shortAndLongTexts` không đỏ được vì thẻ bị ép `height(heightOf(size))`; đề xuất thêm kiểm đáy CTA và hàng sao nằm trong thẻ với cả hai bộ chữ.
+  - Ghi chú: cỡ chữ hệ thống lớn (1.3) đẩy hàng sao, CTA ra khỏi thẻ `FULL` 418 dp, cần quyết khi có vị trí dùng `FULL`; vị trí hàng sao (dưới CTA) đối chiếu lại khi có thiết kế `FULL`; native thu gọn nạp bằng cỡ `MEDIUM` nên đổi từ media `ANY` sang `LANDSCAPE` (đúng O-06, ghi cho T-028, T-030); `AvailabilityReport` không gắn theo `placement` và không báo `false` khi khe rời màn (ghi cho T-030); KDoc `NativeFullScreenAdScreen.kt:42` dài 149 ký tự; `ads-guide.md` dòng 45, 57 còn chữ cũ (đợt 3, T-035); `SampleScreenTest.kt:99` đổi 72 thành 80 (dữ liệu của cùng ô giả); `badgeText_isAd` đổi cỡ mong đợi.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40218743935). Trên máy: `scripts/check.sh` 768 test JVM, 0 lỗi, 45 ảnh screenshot, Cổng chất lượng: QUA.
+- **Lệch so với plan:**
+  - `NativeAdCardTest.badgeText_isAd` (plan ghi "đã có, giữ"): cỡ chữ mong đợi từ `labelSmall` (11 sp) thành 10 sp, theo 5.7 và A1 của chính plan; vẫn kiểm độ đậm, chiều cao dòng.
+  - Chiều cao thẻ `FULL` 418 dp tự tính từ bố cục (plan không ghi số); hàng sao luôn chiếm 16 dp để thẻ cao cố định, sao vẽ bằng `Canvas`, màu `tertiary`.
+  - Bước 4 sửa lỗi `NativeAdSlotHost` báo `true` hai lần (hiệu ứng của trạng thái tải chạy trễ); test không phải sửa.
+  - Ngoài mục 3.2: không có. Phương án dự phòng 3.4: không có.
+- **Ảnh chuẩn:** 17 ghi lại, 3 mới (`NativeAdCard_full_light`, `NativeAdCard_full_dark`, `NativeAdPlaceholder_small_light`), đúng mục 3.2; ảnh medium không đổi. Ảnh so sánh `AdGalleryScreen_collapsible-collapsed_light_compare.png` chưa ghi lại (của T-030).
+- **Việc còn lại:** T-040 (nguồn một quảng cáo, làm mới), T-028 (số đo medium 410 dp), T-030 (chừa chỗ theo `onAdAvailabilityChange`).
+- **Cần người xem:** 20 ảnh chuẩn; kiểm thủ công trên máy thật (mục 4, dòng cuối); điểm nên sửa và ghi chú của rà soát.
