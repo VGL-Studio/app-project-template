@@ -5,11 +5,11 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-24]
 owner: Nhật
-status: approved
+status: on-staging
 risk: high
 size: S
 depends_on: [T-021]
-sprint:
+sprint: RUN-20261025-02
 plan: features/ads/plans/T-037-giu-luot-khi-ke-hoach-dang-chay.md
 created: 2026-10-25
 ---

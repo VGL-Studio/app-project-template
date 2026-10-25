@@ -1,7 +1,7 @@
 ---
 ticket: T-037
 title: Giữ lượt nạp sẵn tới khi kế hoạch đang chạy xong
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -201,3 +201,15 @@ KB-24 tiêu chí 1, 2 và 4 (thử lại toàn màn hình, thử lại native, k
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261025-02, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #153, commit merge `3430c44`, 2026-10-25 04:46 UTC).
+- **Nhánh, PR:** `claude/T-037-giu-luot-khi-ke-hoach-dang-chay`, [#153](https://github.com/VGL-Studio/app-project-template/pull/153). Commit test `9db2771`, commit code `89ba664`.
+- **Đã làm:** dòng `running` của `decidePreload` ra `HOLD` cho mọi lý do trừ `NATIVE_REFILL`; `onGateChanged` giữ tiếp khi `HOLD`, bỏ lượt giữ ở mọi `IGNORE_*` với log `Held preload <lý do>: dropped, <quyết định>`; KDoc cho lớp, `request` (lượt `HOLD` thứ hai giữ lý do đầu), `onGateChanged`, `onActivityResumed` (thoát sớm trước `decidePreload` khi đang chạy), `IGNORE_RUNNING`; câu và hai dòng log ở `docs/ops/ads-guide.md` mục 6.
+- **Test viết trước:** 13 test mới hoặc sửa thất bại đúng lý do trên code cũ (lượt tới khi đang chạy ra `IGNORE_RUNNING` và bị bỏ): `PreloadDecisionTest` 3 (`order` dòng `running`, `running_holdsEveryWholePlanReason_ignoresNativeRefill`, `running_losesToSdkConsentAndNeverRequested` qua dòng đối chứng), `AdPreloaderTest` 10 (gồm `wholePlanRequests_duringAnyRun_areHeldAndRunOnceAfter` 12 trường hợp, mỗi trường hợp đặt lại `gate = OPEN`). `nativeRefill_duringRun_isNotHeld` qua ngay đúng như plan, có đối chứng ở 21 000. Test viết chặt bằng bước đối chứng (L-055): 4 (`running_losesToSdkConsentAndNeverRequested`, `heldDuringRun_consentDeniedMidRun_dropsAtOnce`, hai test dùng hàm phụ `assertHeldDroppedByGateAtEnd`). Hai test `heldDuringRun_*AtEnd_isDropped` dùng chung một hàm phụ trong file test.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: (1) `request` ra `RUN` khi đang có lượt giữ vì cổng đóng không xóa `held`, nên có thể chạy thêm một lượt sau (có từ T-021; đề xuất plan sau thêm `held = null` ở nhánh `RUN`); (2) `runner.run` ném lỗi thì `onGateChanged` cuối `launch` không chạy (có từ trước); (3) gọi lại `onGateChanged` từ cuối `launch` an toàn, không có vòng chạy liên tiếp; (4) `IGNORE_RUNNING` cho `NATIVE_REFILL` không ra từ `AdPreloader` vì `onActivityResumed` thoát sớm (KDoc đã ghi).
+- **Kết quả CI:** `scripts/check.sh` trên máy qua (653 test JVM, 0 lỗi; 42 ảnh screenshot không đổi). `pr-check` xanh vòng đầu (lần chạy 40162536293).
+- **Lệch so với plan:** Không có. Ngoài mục 3.2: không có.
+- **Việc còn lại:** ghi chú 1 của rà soát có thể thành một ticket nhỏ.
+- **Cần người xem:** kiểm tra thủ công không bắt buộc trên bản staging (mục 4, dòng cuối): log `Preload PLACEMENT_ENABLED: HOLD` rồi `Held preload PLACEMENT_ENABLED: run` sau `Preload plan finished`.
