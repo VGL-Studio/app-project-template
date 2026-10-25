@@ -11,7 +11,10 @@ Usage: scripts/status.py [--check | --sync]
                The person who approves or stops the plan runs it; the script only follows that decision.
 
 Every status comes from the front matter of requests, specs, tickets, plans, feedback, ADRs and run lists, and from
-the "Trạng thái" lines of docs/lessons.md. Nobody edits STATUS.md by hand: change the document, then run the script.
+the "Trạng thái" lines of docs/lessons.md. Section 6 (release readiness, L-086) also reads the placement keys of
+core/ads AdPlacement.kt, the unchecked "Cần người kiểm tra" items of finished run reports and the owner/repo of the
+origin remote. It never opens production config, scripts/release.sh or the release folder, and never uses the network.
+Nobody edits STATUS.md by hand: change the document, then run the script.
 The page has no date or time, so running it twice on the same documents gives the same file.
 The page is not in git on main (.gitignore): .github/workflows/status-page.yml runs this script after each push to
 main and pushes the page to the `status` branch (L-066). Run it locally to preview the page.
@@ -20,6 +23,7 @@ STATUS_ROOT overrides the repository root (tests). The page is in Vietnamese for
 
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -91,7 +95,8 @@ def features():
             plans = list(folder.glob(f"plans/{ticket_id}-*.md"))
             plan = front_matter(plans[0]) if plans else {}
             tickets.append({"id": ticket_id, "path": path, "title": fields.get("title", ""),
-                            "status": fields.get("status", ""), "plan": plans[0] if plans else None,
+                            "status": fields.get("status", ""), "spec": fields.get("spec"),
+                            "plan": plans[0] if plans else None,
                             "plan_status": plan.get("status", ""), "plan_version": plan.get("version", ""),
                             "estimate": plan.get("token_estimate", "")})
         feedback = []
@@ -150,6 +155,92 @@ def adrs():
         found.append({"id": fields.get("id", path.stem), "path": path, "title": fields.get("title", ""),
                       "status": fields.get("status", "")})
     return found
+
+
+def ad_placements():
+    """(placements, problem): the key and format of each AdPlacement entry; problem is a sentence when none is read."""
+    paths = sorted(ROOT.glob("core/ads/src/main/**/AdPlacement.kt"))
+    if not paths:
+        return [], "Không tìm thấy `AdPlacement.kt`."
+    try:
+        # Bytes, not read_text(): universal newlines would turn a CRLF line into one that release.sh skips.
+        text = paths[0].read_bytes().decode()
+    except (OSError, UnicodeDecodeError):
+        return [], "Không đọc được `AdPlacement.kt`."
+    # Same one-line rule as scripts/release.sh (which this script never opens): NAME("key", AdFormat.X[, attributes]),
+    # formats with underscores; gallery_ keys belong to the staging-only ad gallery and need no production ad unit.
+    found = [{"key": m.group(1), "format": m.group(2).lower()} for m in
+             re.finditer(r'^\s*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.([A-Z_]+)(?:, .*)?\),?$', text, re.M)
+             if not m.group(1).startswith("gallery_")]
+    if re.search(r"^\s*[A-Z][A-Z0-9_]*\($", text, re.M):
+        return found, "`AdPlacement.kt` khai báo vị trí trên nhiều dòng; `scripts/release.sh` sẽ từ chối, viết mỗi vị trí trên một dòng."
+    return found, "" if found else "Không đọc được khóa nào trong `AdPlacement.kt`."
+
+
+def shorten(text, limit=160):
+    """Cuts a long line at the last space before `limit` that is outside backticks, so a code span is never split."""
+    if len(text) <= limit:
+        return text
+    in_code, space, code_start = False, 0, None
+    for i, char in enumerate(text[:limit]):
+        if char == "`":
+            in_code = not in_code
+            code_start = i if in_code else None
+        elif char == " " and not in_code:
+            space = i
+    cut = space or (code_start if in_code and code_start else limit)
+    return text[:cut].rstrip() + "..."
+
+
+def is_not_a_task(text):
+    """True for a line that is no task: the text after the first colon starts with 'không có', or it is a template.
+
+    A template placeholder is <word...> outside backticks; `<->` or `a < b, c > d` are not placeholders."""
+    after = text.split(":", 1)[-1].strip().lower()
+    return after.startswith("không có") or bool(re.search(r"<\w[^<>]*>", re.sub(r"`[^`]*`", "", text)))
+
+
+def manual_checks():
+    """The '- [ ]' items of the "Cần người kiểm tra" part of each finished run report.
+
+    A report that is not UTF-8 already stops runs() before this section, like every other document."""
+    found = []
+    for path in sorted(DOCS.glob("runs/RUN-*.md"), reverse=True):
+        if front_matter(path).get("status") != "finished":
+            continue
+        lines = path.read_text().splitlines()
+        start = next((i for i, line in enumerate(lines) if line.strip() == "### Cần người kiểm tra"), None)
+        if start is None:
+            continue
+        item = None
+        for line in lines[start + 1:]:
+            if re.match(r"^#{2,3} ", line):
+                break
+            task = re.match(r"^- \[ \] (.*\S)\s*$", line)
+            if task:
+                item = {"run": path.stem, "path": path, "text": task.group(1).strip(), "children": 0}
+                if not is_not_a_task(item["text"]):
+                    found.append(item)
+            elif re.match(r"^\s+- ", line) and item:
+                item["children"] += 1
+            else:
+                item = None
+    return found
+
+
+def issue_links():
+    """Links to the open issues of the origin repo, or None. Only owner/repo is kept, so credentials never show."""
+    try:
+        result = subprocess.run(["git", "-C", str(ROOT), "config", "--get", "remote.origin.url"],
+                                capture_output=True, text=True, check=False, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = re.search(r"^(?:https?://(?:[^@/\s]+@)?|ssh://git@|git@)github\.com[:/]([\w.-]+)/([\w.-]+?)(?:\.git)?/?$",
+                      result.stdout.strip())
+    if result.returncode != 0 or not match:
+        return None
+    base = f"https://github.com/{match.group(1)}/{match.group(2)}/issues?q=is%3Aissue+is%3Aopen"
+    return {"open": base, "broken": base + "+label%3Amain-broken"}
 
 
 def counts(items, key="status"):
@@ -254,7 +345,55 @@ def render():
     out += ["## 5. Bài học và ADR", "",
             f"- Bài học ([lessons.md](lessons.md)): {len(all_lessons)} bài; {counts(all_lessons) or 'chưa có'}.",
             f"- ADR: {len(all_adrs)}; {counts(all_adrs) or 'chưa có'}.", ""]
+    out += release_readiness(all_features)
     return "\n".join(out)
+
+
+def release_readiness(all_features):
+    """Section 6: what is still open before the production build, from documents in the repo only (L-086)."""
+    out = ["## 6. Sẵn sàng phát hành", "",
+           "<!-- Chỉ từ tài liệu trong repo. Mã quảng cáo thật, cấu hình production và tình trạng trên Google Play",
+           "không nằm trong repo: người phát hành kiểm theo docs/ops/release.md. -->", "", "### Quảng cáo", ""]
+    placements, problem = ad_placements()
+    if placements:
+        keys = ", ".join(f"`{p['key']}` ({p['format']})" for p in placements)
+        out.append("- Bản production cần một mã quảng cáo thật cho mỗi khóa dưới đây (docs/ops/release.md, mục 1.2): "
+                   f"{keys}.")
+    if problem:
+        out.append(problem)
+    out += ["", "### Kiểm thủ công chưa đánh dấu", ""]
+    checks = manual_checks()
+    if checks:
+        phases = len({c["run"] for c in checks})
+        out += [f"{len(checks)} mục trong {phases} phiên. Người kiểm xong thì đánh dấu [x] trong báo cáo phiên."]
+        for c in checks:
+            extra = f" ({c['children']} dòng con)" if c["children"] else ""
+            out.append(f"- [{c['run']}](runs/{c['path'].name}): {shorten(c['text'])}{extra}")
+    else:
+        out.append("Không có.")
+    out += ["", "### Ticket chưa lên staging", ""]
+    lines, total, process = [], 0, False
+    for f in all_features:
+        open_tickets = [t for t in f["tickets"] if t["status"] not in TICKET_DONE | {"cancelled"}]
+        if open_tickets:
+            total += len(open_tickets)
+            process = process or f["spec"] is None or any(t["spec"] == "" for t in open_tickets)
+            lines.append(f"- {f['name']}: " + ", ".join(f"{t['id']} `{t['status']}`" for t in open_tickets))
+    if lines:
+        out += [f"{total} ticket{' (gồm ticket quy trình)' if process else ''}."] + lines
+    else:
+        out.append("Không có.")
+    out += ["", "### Phản hồi đang mở", ""]
+    feedback = [fb for f in all_features for fb in f["feedback"] if fb["status"] in FEEDBACK_OPEN]
+    out += [f"- {fb['id']} `{fb['status']}`, mức `{fb['severity']}`: {cell(fb['title'])}" for fb in feedback] or ["Không có."]
+    out += ["", "### Issue đang mở", ""]
+    links = issue_links()
+    if links:
+        out.append(f"- [Mọi issue đang mở]({links['open']}), [issue main-broken]({links['broken']})")
+    else:
+        out.append("Không đọc được repo GitHub từ `remote.origin.url`; xem issue trên trang của repo.")
+    out.append("")
+    return out
 
 
 def sync_target(ticket_status, plan_status):
