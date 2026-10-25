@@ -67,6 +67,104 @@ expect "start of history: blame the oldest red" bbbbbb2 "$(find_breaking '{
   "bbbbbb2":{"parent":"","states":["failure"]},
   "ddddd04":{"parent":"bbbbbb2","states":["failure"]}}')"
 
+# main-guard-status.sh: start-run.yml and the session start only when main-guard passed on the newest commit of main
+# with code (L-076). Same fixture as find-breaking-commit.sh; D=ddddd04 is the head of main.
+main_guard_status() { # <fixture> [env...]: prints "<exit code> <output on one line>"
+  rm -f "$work/mgs.json.calls"
+  echo "$1" > "$work/mgs.json"
+  shift
+  local out code=0
+  # Without GITHUB_ACTIONS, so that the tests read the same lines on a dev machine and on CI (which sets it).
+  out="$(env -u GITHUB_ACTIONS PATH="$work/bin:$PATH" FIXTURE="$work/mgs.json" GITHUB_REPOSITORY=o/r "$@" \
+    scripts/main-guard-status.sh ddddd04 2>&1)" || code=$?
+  echo "$code $(tr '\n' ' ' <<<"$out")"
+}
+mgs="$(main_guard_status '{
+  "ccccc03":{"parent":"","states":["success"]},
+  "ddddd04":{"parent":"ccccc03","states":["success"]}}')"
+expect "main-guard-status: green run on the head passes" 1 "$(grep -c '^0 XANH' <<<"$mgs")"
+# App camera-pose, RUN-20261023-03: a docs-only commit (no run) on top of a code commit with no run (GitHub sent no push).
+mgs="$(main_guard_status '{
+  "bbbbbb2":{"parent":"","states":["success"]},
+  "ccccc03":{"parent":"bbbbbb2","files":["scripts/run-check.py"]},
+  "ddddd04":{"parent":"ccccc03","files":["docs/runs/RUN-1.md"]}}')"
+expect "main-guard-status: code commit without a run is refused" 1 "$(grep -c '^3 CHƯA KIỂM: ccccc03' <<<"$mgs")"
+expect "main-guard-status: the refusal says how to run main-guard" 1 \
+  "$(grep -c 'actions/workflows/main-guard.yml/dispatches' <<<"$mgs")"
+mgs="$(main_guard_status '{
+  "ccccc03":{"parent":"","states":["success"]},
+  "ddddd04":{"parent":"ccccc03","files":["docs/a.md"]}}')"
+expect "main-guard-status: docs-only head after a green code commit passes" 1 "$(grep -c '^0 XANH' <<<"$mgs")"
+expect "main-guard-status: names the green code commit" 1 "$(grep -c 'ccccc03' <<<"$mgs")"
+mgs="$(main_guard_status '{
+  "ccccc03":{"parent":""},
+  "ddddd04":{"parent":"ccccc03","files":["docs/a.md"],"states":["success"]}}')"
+expect "main-guard-status: a run on a docs-only head counts" 1 "$(grep -c '^0 XANH: main-guard qua trên ddddd04' <<<"$mgs")"
+mgs="$(main_guard_status '{
+  "routes":{"actions/workflows/main-guard.yml/runs?head_sha=ddddd04&per_page=1":
+    {"workflow_runs":[{"created_at":"2025-12-31T23:59:00Z"}]}},
+  "ddddd04":{"parent":"","states":["pending"]}}')"
+expect "main-guard-status: pending run asks to wait" 1 "$(grep -c '^2 CHỜ' <<<"$mgs")"
+# wait-run.sh --since keeps runs created after the time given, so the time is the workflow run's creation, which
+# comes before the check run starts (2026-01-01T00:00:00Z in fake-gh).
+expect "main-guard-status: pending gives the creation time of the workflow run for --since" 1 \
+  "$(grep -c -- '--since 2025-12-31T23:59:00Z' <<<"$mgs")"
+broken_route='"issues?state=open&labels=main-broken&per_page=10"'
+mgs="$(main_guard_status '{"routes":{'"$broken_route"':[{"number":5}]},
+  "ddddd04":{"parent":"","states":["failure"]}}')"
+expect "main-guard-status: red run with an open main-broken issue is refused" 1 "$(grep -c '^1 ĐỎ' <<<"$mgs")"
+mgs="$(main_guard_status '{"routes":{'"$broken_route"':[{"number":5}]},
+  "ddddd04":{"parent":"","states":["failure"]}}' GITHUB_ACTIONS=true)"
+expect "main-guard-status: in GitHub Actions a refusal is an ::error:: line" 1 "$(grep -c '^1 ::error::ĐỎ' <<<"$mgs")"
+# The guard's job also fails on infrastructure (checkout, Java, network), and then opens no main-broken issue:
+# not a red main, so ask to run main-guard again instead of saying ĐỎ with no reason.
+mgs="$(main_guard_status '{"routes":{'"$broken_route"':[]},
+  "ddddd04":{"parent":"","states":["failure"]}}')"
+expect "main-guard-status: a failed run without main-broken is not red (code 3)" 1 \
+  "$(grep -c '^3 CHƯA KIỂM: main-guard thất bại trên ddddd04 nhưng không có issue main-broken' <<<"$mgs")"
+expect "main-guard-status: a failed run without main-broken asks to run main-guard again" 2 \
+  "$(grep -o 'Re-run all jobs\|actions/workflows/main-guard.yml/dispatches' <<<"$mgs" | wc -l | tr -d ' ')"
+mgs="$(main_guard_status '{
+  "ddddd04":{"parent":"","states":["failure"]}}')"
+expect "main-guard-status: unreadable main-broken issues stop with code 4" 1 "$(grep -c '^4 LỖI: không đọc được' <<<"$mgs")"
+mgs="$(main_guard_status '{
+  "bbbbbb2":{"parent":"","states":["success"]},
+  "ccccc03":{"parent":"bbbbbb2","files":["docs/b.md"]},
+  "ddddd04":{"parent":"ccccc03","files":["docs/a.md"]}}' MAX_DEPTH=2)"
+expect "main-guard-status: stops after MAX_DEPTH" 3 "${mgs%% *}"
+# A run that ended without a verdict (cancelled, timed out, ...) proves nothing and will not change: run it again.
+mgs="$(main_guard_status '{
+  "ddddd04":{"parent":"","states":["cancelled"]}}')"
+expect "main-guard-status: a cancelled run asks to run main-guard again" 1 "$(grep -c '^3 CHƯA KIỂM: ddddd04.*cancelled' <<<"$mgs")"
+# A commit is skipped only when it surely changes docs alone: no file list (GitHub cuts very large commits) or a
+# merge commit (its files are against the first parent only) counts as code.
+mgs="$(main_guard_status '{
+  "ccccc03":{"parent":"","states":["success"]},
+  "ddddd04":{"parent":"ccccc03","files":[]}}')"
+expect "main-guard-status: a commit without a file list counts as code" 1 "$(grep -c '^3 CHƯA KIỂM: ddddd04' <<<"$mgs")"
+mgs="$(main_guard_status '{
+  "bbbbbb2":{"parent":"","states":["success"]},
+  "ccccc03":{"parent":"","states":["success"]},
+  "ddddd04":{"parents":["ccccc03","bbbbbb2"],"files":["docs/a.md"]}}')"
+expect "main-guard-status: a merge commit counts as code" 1 "$(grep -c '^3 CHƯA KIỂM: ddddd04' <<<"$mgs")"
+expect "main-guard-status: a wrong argument is an error (code 4)" 4 \
+  "$(PATH="$work/bin:$PATH" scripts/main-guard-status.sh not-a-sha > /dev/null 2>&1; echo $?)"
+# GitHub not answering (unknown commit, network) is not "code without a run": stop with its own code.
+mgs="$(main_guard_status '{
+  "ddddd04":{"parent":"ccccc03","files":["docs/a.md"]}}')"
+expect "main-guard-status: an unreadable commit stops with code 4" 1 "$(grep -c '^4 LỖI: không đọc được' <<<"$mgs")"
+# start-run.yml checks main-guard after the run-file checks and before firing the routine; main-guard.yml can be
+# run by hand for a commit that got no push event (L-076), keeping its push trigger as it was.
+start_wf=.github/workflows/start-run.yml
+expect "start-run: main-guard step runs after the run-file checks and before the routine" "yes yes 0" \
+  "$(awk '/main-broken/ && !b { b = NR } /scripts\/main-guard-status.sh/ && !s { s = NR }
+     /name: Kiểm tra thiết lập staging, file R2 và DNS/ { e = NR } /name: Kích hoạt routine/ { r = NR }
+     END { print ((b && s > b && s < e && e < r) ? "yes" : "no") }' "$start_wf") $(grep -qE '^  checks: read$' "$start_wf" && echo yes || echo no) $(grep -c 'continue-on-error' "$start_wf")"
+guard_wf=.github/workflows/main-guard.yml
+# Run by hand on another branch, the guard would open main-broken, push a revert or close an issue for that branch.
+expect "main-guard: has workflow_dispatch and keeps the push trigger with the same paths-ignore" "1 1 1 1 1" \
+  "$(grep -cE '^  workflow_dispatch:' "$guard_wf") $(grep -cE '^  push:$' "$guard_wf") $(grep -cE "^      - 'docs/\*\*'$" "$guard_wf") $(grep -cE "^      - '\*\*/\*\.md'$" "$guard_wf") $(awk '/^  guard:$/ { g = 1; next } g && /^    if: github.ref == .refs\/heads\/main.$/ { n++ } g && /^    steps:$/ { g = 0 } END { print n + 0 }' "$guard_wf")"
+
 # merge-if-green.sh must reject any argument other than exactly "<PR> [--dry-run]" before doing anything.
 for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; do
   # shellcheck disable=SC2086
@@ -520,20 +618,78 @@ for args in "--package com.vglstudio.template.notes" "--package Notes" "--stagin
   fi
 done
 
-# cloud-env-check.sh passes only when the environment was built from the current cloud-setup.sh.
+# cloud-env-check.sh passes only when the environment was built from the current cloud-setup.sh and can run
+# the project's Gradle (L-075, from app lesson L-056 of camera-pose).
+fake_java() { # <Java major version> [line printed before it]; writes $work/fake-jdk/bin/java, which answers
+  # `java -XshowSettings:properties -version` like a real JDK (java-check.sh runs $JAVA_HOME/bin/java).
+  mkdir -p "$work/fake-jdk/bin"
+  { printf '#!/bin/sh\n'
+    [ -n "${2:-}" ] && printf 'echo '"'"'%s'"'"' >&2\n' "$2"
+    printf 'echo "Property settings:" >&2\necho "    java.specification.version = %s" >&2\n' "$1"
+    printf 'echo '"'"'openjdk version "%s"'"'"' >&2\n' "$1"; } > "$work/fake-jdk/bin/java"
+  chmod +x "$work/fake-jdk/bin/java"
+}
 setup_version="$(sed -n 's/^SETUP_VERSION=\([0-9][0-9]*\)$/\1/p' scripts/cloud-setup.sh)"
-mkdir -p "$work/gradle-home/init.d"
+compile_sdk="$(sed -n 's/^compileSdk = "\([0-9][0-9]*\)"$/\1/p' gradle/libs.versions.toml)"
+mkdir -p "$work/gradle-home/init.d" "$work/sdk-ok/platforms/android-$compile_sdk" "$work/sdk-empty"
 touch "$work/gradle-home/init.d/maven-central-mirror.gradle"
+printf '#!/bin/sh\nexit 0\n' > "$work/gradlew-ok"
+printf '#!/bin/sh\necho "Could not install Gradle distribution"\nexit 1\n' > "$work/gradlew-fail"
+printf '#!/bin/sh\nsleep 5\n' > "$work/gradlew-hang"
+printf '#!/bin/sh\nexit 0\n' > "$work/java-check-ok"
+chmod +x "$work/gradlew-ok" "$work/gradlew-fail" "$work/gradlew-hang" "$work/java-check-ok"
+# env_check <setup version> <gradle home>: prints pass or stop. Java, Gradle and the SDK are fakes that pass,
+# unless the caller sets ENV_JAVA_CHECK, ENV_GRADLEW, ENV_SDK, ENV_GRADLEW_TIMEOUT. The output goes to $work/env-check.out.
 env_check() {
   echo "$1" > "$work/cloud-setup-version"
   if CLOUD_SETUP_VERSION_FILE="$work/cloud-setup-version" GRADLE_USER_HOME="$2" \
-    scripts/cloud-env-check.sh > /dev/null 2>&1; then echo pass; else echo stop; fi
+    JAVA_CHECK_CMD="${ENV_JAVA_CHECK:-$work/java-check-ok}" GRADLEW_CMD="${ENV_GRADLEW:-$work/gradlew-ok}" \
+    ANDROID_HOME="${ENV_SDK:-$work/sdk-ok}" GRADLEW_TIMEOUT="${ENV_GRADLEW_TIMEOUT:-300}" \
+    scripts/cloud-env-check.sh > "$work/env-check.out" 2>&1; then echo pass; else echo stop; fi
 }
 expect "cloud-setup.sh has a version" yes "$([[ -n "$setup_version" ]] && echo yes || echo no)"
 expect "cloud-env-check.sh passes on the current version" pass "$(env_check "$setup_version" "$work/gradle-home")"
 expect "cloud-env-check.sh stops on an older version" stop "$(env_check 1 "$work/gradle-home")"
 expect "cloud-env-check.sh stops without the mirror init script" stop \
   "$(env_check "$setup_version" "$work/no-gradle-home")"
+fake_java 21 'Picked up JAVA_TOOL_OPTIONS: -Dx=1'
+expect "cloud-env-check.sh passes with Java 21 after a Picked up line" pass \
+  "$(ENV_JAVA_CHECK=scripts/java-check.sh JAVA_HOME="$work/fake-jdk" env_check "$setup_version" "$work/gradle-home")"
+fake_java 26
+expect "cloud-env-check.sh stops on Java 26 and names Java" stop \
+  "$(ENV_JAVA_CHECK=scripts/java-check.sh JAVA_HOME="$work/fake-jdk" env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh names Java 26 in the message" 1 "$(grep -c 'Java 26' "$work/env-check.out" || true)"
+expect "cloud-env-check.sh does not ask to paste the setup script for a Java problem" 0 \
+  "$(grep -c 'dán lại toàn bộ scripts/cloud-setup.sh' "$work/env-check.out" || true)"
+expect "cloud-env-check.sh points a Java problem at JAVA_TOOL_OPTIONS" 1 "$(grep -c 'JAVA_TOOL_OPTIONS' "$work/env-check.out" || true)"
+expect "cloud-env-check.sh stops when the Gradle wrapper fails" stop \
+  "$(ENV_GRADLEW="$work/gradlew-fail" env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh names the Gradle wrapper and its output" 2 \
+  "$(grep -o 'Gradle wrapper\|Could not install Gradle distribution' "$work/env-check.out" | wc -l | tr -d ' ')"
+if command -v timeout > /dev/null; then
+  hang_start=$SECONDS
+  hang_result="$(ENV_GRADLEW="$work/gradlew-hang" ENV_GRADLEW_TIMEOUT=1 env_check "$setup_version" "$work/gradle-home")"
+  expect "cloud-env-check.sh stops when the Gradle wrapper hangs" stop "$hang_result"
+  expect "cloud-env-check.sh gives up on a hanging Gradle wrapper within 4 seconds" yes \
+    "$([ $((SECONDS - hang_start)) -lt 4 ] && echo yes || echo no)"
+else
+  echo "skip - cloud-env-check.sh Gradle wrapper timeout: máy test không có timeout"
+fi
+expect "cloud-env-check.sh stops without the compileSdk platform" stop \
+  "$(ENV_SDK="$work/sdk-empty" env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh names the missing platform" 1 \
+  "$(grep -c "platforms;android-$compile_sdk" "$work/env-check.out" || true)"
+expect "cloud-env-check.sh passes with the compileSdk platform" pass \
+  "$(ENV_SDK="$work/sdk-ok" env_check "$setup_version" "$work/gradle-home")"
+env_check 1 "$work/gradle-home" > /dev/null
+expect "cloud-env-check.sh tells to paste the setup script for a setup problem" 1 \
+  "$(grep -c 'dán lại toàn bộ scripts/cloud-setup.sh' "$work/env-check.out" || true)"
+# A version catalog without compileSdk must stop the check, not skip the SDK platform.
+printf '[versions]\nminSdk = "26"\n' > "$work/no-compile-sdk.toml"
+expect "cloud-env-check.sh stops when compileSdk cannot be read" stop \
+  "$(VERSIONS_TOML="$work/no-compile-sdk.toml" env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh names compileSdk when it cannot be read" 1 \
+  "$(grep -c '^LỖI: không đọc được compileSdk' "$work/env-check.out" || true)"
 
 # plan-check.py finds, from the plan alone, what would otherwise stop a task during the night (L-020).
 repo="$work/plan-repo"
