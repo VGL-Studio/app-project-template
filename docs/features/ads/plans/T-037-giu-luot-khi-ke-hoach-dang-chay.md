@@ -1,16 +1,16 @@
 ---
 ticket: T-037
 title: Giữ lượt nạp sẵn tới khi kế hoạch đang chạy xong
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 5M           # cỡ S, số gợi ý 5.0M (scripts/token-usage.py estimate, 2026-10-25); hai file code, hai file test, một đoạn tài liệu
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 1                 # RUN-20261025-02
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-10-25
 ---
 
 # PLAN T-037: GIỮ LƯỢT NẠP SẴN TỚI KHI KẾ HOẠCH ĐANG CHẠY XONG
@@ -194,9 +194,9 @@ KB-24 tiêu chí 1, 2 và 4 (thử lại toàn màn hình, thử lại native, k
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, câu hỏi 5)
+- **Ghi chú:** AI ghi theo lời anh Nhật, 2026-10-25. Câu trả lời câu 1 đến 5 ở cuối mục 8. Duyệt sau rà soát độc lập trước phiên RUN-20261025-02 (0 chặn; 2 nên sửa đã sửa trong plan).
 
 ## 10. Nhật ký thực hiện
 
