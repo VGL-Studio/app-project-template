@@ -102,6 +102,8 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 - Các plan trong danh sách đều qua `scripts/plan-check.py`.
 - Lập xong thì kiểm tra cả danh sách theo [ops/pre-run-review.md](ops/pre-run-review.md): chạy `scripts/run-check.py <danh sách chạy>` và sửa hết lỗi, rồi giao một phiên AI riêng (ngữ cảnh mới, chỉ đọc) rà soát mâu thuẫn, test chưa đủ tốt và khả năng chạy được trong phiên. Ghi kết quả vào mục Kiểm tra trước khi duyệt của danh sách. Điểm chặn thì soạn plan phiên bản mới hay đề xuất sửa spec, hoặc đề xuất bỏ task; không tự sửa plan `approved` hay spec `confirmed`.
 - Ghi tổng `token_estimate` của danh sách trong mục Lý do của thứ tự chạy, so với tổng token thật của vài phiên gần nhất (`docs/metrics/token-usage.csv`), để người duyệt thấy danh sách có vừa một phiên không. Chỉ để tham khảo, không bỏ task vì vượt.
+- `plan_queue` mặc định 2 (số plan soạn sẵn cuối phiên); dev đổi hay đặt `0`.
+- Hàng chờ plan cuối phiên (`scripts/plan-queue.py`) nhận ticket `backlog` hay `ready`, miễn là ticket chưa có plan, spec đã chốt và không còn câu hỏi mở, phụ thuộc đã có plan và không dừng hay hủy. Dev không cần chuyển ticket sang `ready` để nó vào hàng chờ; `ready` chỉ là dấu tùy chọn. Muốn giữ một ticket ra khỏi hàng chờ thì để câu hỏi mở trong spec, hay đặt `plan_queue: 0`.
 - Danh sách chạy có trạng thái `draft`. Chỉ dev mới chuyển sang `approved` và kích hoạt phiên.
 
 ## Trong phiên tự chạy
@@ -109,10 +111,10 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 - Làm đúng các bước trong [auto-run.md](auto-run.md), lần lượt từng task, không chạy song song.
 - Chỉ thực hiện plan có trạng thái `approved` có trong danh sách chạy đã duyệt.
 - Tuân thủ điều kiện dừng ở mục 4 của [risk-scoring.md](risk-scoring.md).
-- Đặt tên nhánh theo dạng `claude/T-NNN-<tu-khoa>`.
+- Đặt tên nhánh theo dạng `claude/T-NNN-<tu-khoa>`, trừ nhánh plan soạn sẵn cuối phiên: `claude/plan-T-NNN-<tu-khoa>`.
 - Chỉ merge bằng `scripts/merge-if-green.sh`. Không dùng nút merge, `gh pr merge` hay gọi thẳng API để merge. Không đóng hay sửa issue mang nhãn `main-broken`; việc đó thuộc về người. Nhánh chính đỏ vì commit merge của chính phiên thì revert theo `auto-run.md`, mục 3, Khi nhánh chính đỏ vì task của phiên (ADR-0025).
 - Sau mỗi task, ghi nhật ký vào cuối plan và cập nhật trạng thái ticket: `on-staging` khi đã merge, `stopped` khi dừng.
-- Cuối phiên, viết báo cáo vào file phiên chạy.
+- Cuối phiên, viết báo cáo vào file phiên chạy, rồi soạn plan `draft` cho hàng chờ theo `auto-run.md`, mục 4, bước 5. PR plan là nháp có nhãn `needs-human`; phiên không chuyển nó sang sẵn sàng, không duyệt, không merge.
 
 ## Khi phân tích một phiên thử
 
@@ -151,6 +153,7 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
   - Lần chạy `status-page` đỏ (ví dụ `status.py` báo số bài học dùng hai lần) thì trang trên nhánh `status` giữ bản cũ: sửa tài liệu gốc trong một PR thường.
   - Trước đây trang đi vào PR báo cáo và một PR trang riêng (`claude/status-YYYYMMDD`): trang trên nhánh chính chậm tới khi có người mở PR trang, và mỗi lần xem trang mới tốn một PR. Không dùng `.gitattributes` với `merge=ours`: merge trên GitHub không chạy driver tùy chỉnh, nên PR vẫn báo xung đột.
 - Trạng thái ticket đi theo plan (L-050). Người duyệt hay dừng plan chạy `scripts/status.py --sync`: plan `approved` thì ticket đang `backlog`, `ready`, `planned` hay `stopped` chuyển sang `approved`; plan `stopped` thì ticket chuyển sang `stopped` (trừ ticket đã `cancelled` hay đã qua phiên). Script chỉ làm theo quyết định của người về plan, rồi sinh lại trang trên máy; commit các ticket nó đổi, trang không có trong git. Không chuyển ticket sang `approved` khi plan còn `draft`. `scripts/plan-check.py` báo chú ý khi hai trạng thái lệch nhau.
+- Mục 6 của trang, "Sẵn sàng phát hành", liệt kê việc còn lại trước bản production, chỉ từ tài liệu trong repo (L-086): khóa vị trí quảng cáo cần mã thật (đọc `AdPlacement.kt` theo đúng luật một dòng của `scripts/release.sh`, bỏ khóa `gallery_` chỉ có ở staging), mục `- [ ]` của "Cần người kiểm tra" trong báo cáo phiên `finished`, ticket chưa lên staging, phản hồi đang mở và đường dẫn tới issue đang mở của repo `origin`. Người kiểm xong một mục thì đánh dấu `[x]` trong báo cáo phiên; lần sinh sau trang bỏ mục đó, AI không đánh dấu thay người. Script không mở cấu hình production, `scripts/release.sh` hay thư mục phát hành, và không dùng mạng. Đổi riêng `AdPlacement.kt` thì trang chỉ sinh lại ở lần đẩy kế tiếp có đổi `docs/` hay `scripts/status.py`.
 - Trang thiếu thông tin hay sai thì sửa tài liệu gốc hoặc script, không sửa trang.
 
 ## Những điều không được làm

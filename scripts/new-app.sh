@@ -108,6 +108,10 @@ grep -qxF '<!-- Các bài học ghi dưới dòng này. -->' docs/lessons.md ||
 LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của repo dự án mẫu (commit $template_commit)." \
   perl -0pi -e 's/(<!-- Các bài học ghi dưới dòng này\. -->\n).*\z/$1\n$ENV{LESSONS_NOTE}\n/s' docs/lessons.md
 
+# The new app starts its own run history: the template's reports would list the template's unchecked manual checks
+# as the app's release blockers (status.py, section 6). They stay in the template repo.
+find docs/runs -name 'RUN-*.md' -delete
+
 # Pages generated from the documents must describe the new app, not the template (its lessons, for one).
 python3 -I scripts/status.py > /dev/null
 python3 -I scripts/foundation.py > /dev/null

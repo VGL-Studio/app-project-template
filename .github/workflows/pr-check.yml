@@ -48,10 +48,8 @@ jobs:
               - 'gradle.properties'
               - 'gradlew'
               - '.editorconfig'
-              - 'scripts/check.sh'
-              - 'scripts/test-summary.sh'
-              - 'scripts/tests/**'
-              - 'scripts/find-breaking-commit.sh'
+              # Every script: scripts/check.sh runs scripts/tests/run.sh, which tests them (L-073).
+              - 'scripts/**'
               - '.github/workflows/pr-check.yml'
             ui:
               - 'app/**'

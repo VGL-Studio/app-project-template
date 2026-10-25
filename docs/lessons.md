@@ -407,6 +407,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
 
+### L-073. PR chỉ sửa một script mà không sửa `scripts/tests/` thì `pr-check` không chạy test của script
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-070 của app, issue #138)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** trong `scripts/`, bộ lọc `code` của `pr-check.yml` chỉ có `scripts/check.sh`, `scripts/test-summary.sh`, `scripts/tests/**` và `scripts/find-breaking-commit.sh`. Một PR chỉ sửa `scripts/merge-if-green.sh`, `wait-run.sh`, `run-check.py`, `plan-check.py`, `device-session.sh` hay script khác mà không đụng `scripts/tests/` thì `build-and-test` bị bỏ qua: `scripts/tests/run.sh` (do `check.sh` gọi) không chạy, PR vẫn xanh, lỗi chỉ lộ ở `main-guard` sau khi merge. Ở app, các PR sửa script trước nay qua được chỉ vì luôn thêm test vào `run.sh`.
+- **Đề xuất sửa:** thêm `scripts/**` vào bộ lọc `code` của `pr-check.yml`; không thêm vào bộ lọc `ui`, vì test của script không cần emulator.
+- **Trạng thái:** applied
+- **Áp dụng:** `.github/workflows/pr-check.yml`, bộ lọc `code` có `scripts/**`; PR #139.
+
 ### L-075. Lỗi Java, Gradle wrapper hay SDK của môi trường cloud chỉ lộ sau 15 phút `check.sh`, hoặc không lộ ở kiểm tra trước phiên
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-049, L-056, L-069 của app, issue #130)
@@ -488,6 +497,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** accepted
 - **Áp dụng:** nhánh `claude/from-camera-pose-pr-check-release`
 
+### L-084. Hàng chờ plan cạn sau mỗi phiên, phiên kế tiếp phải chờ người và AI viết plan
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-061, ticket T-045, PR #120 của app), issue #133
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** sau một phiên chạy hết danh sách, không còn plan `approved` nào. Phải có một phiên có người theo dõi viết plan rồi mới lập được danh sách kế tiếp; ở app, khoảng cách giữa hai phiên (03:35 tới 16:53 UTC) chủ yếu là chờ plan.
+- **Đề xuất sửa:** cuối phiên, sau khi PR báo cáo đã merge, phiên soạn plan `draft` cho các ticket `backlog` hay `ready` kế tiếp (`plan_queue` của danh sách chạy, mặc định 2): `scripts/plan-queue.py` chọn ticket (spec đã chốt, không câu hỏi mở, phụ thuộc đã có plan và không dừng hay hủy, chưa có nhánh hay PR plan), mỗi plan một PR nháp có nhãn `needs-human`, có chạy thử, `plan-check.py` và rà soát độc lập, giới hạn 45 phút cho mỗi plan; câu hỏi cho người gom vào mục "Plan soạn sẵn và câu hỏi cho người" của báo cáo. Phiên không đánh dấu sẵn sàng, không duyệt, không merge PR plan. Ở mẫu, sửa thêm điểm rà soát của app: đọc mọi PR mở bằng `gh api --paginate` (app dừng ở 100), và URL `origin` không phải GitHub thì thoát 2 mà không in URL (có thể chứa token).
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/plan-queue.py`, `docs/auto-run.md` (bước cuối phiên soạn plan), `docs/templates/run.md`, `docs/CLAUDE.md`; PR #151.
+
 ### L-085. Mục kiểm thủ công dồn lại sau mỗi phiên, phần lớn chạy được trên emulator
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-062, ticket T-046, PR #121 của app), issue #133
@@ -496,3 +514,21 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** plan ghi mỗi dòng "Kiểm tra thủ công" là `(emulator: <tệp>)`, `(máy thật: <lý do>)` hay `(người: <lý do>)` (`plan-check.py`, quy tắc 11, chỉ nhắc). Phần emulator thành tệp kịch bản `<module>/src/deviceScenarios/<T-NNN>-<tên>.txt`, chạy bằng `scripts/device-scenario.py` sau kịch bản chuẩn của `device-session`, có hạn chót, trả máy về gốc, bảng "Kịch bản theo plan" trong `summary.md`. Vỏ app đặt `testTagsAsResourceId` ở gốc giao diện và ở hộp thoại mạng. Ở mẫu: `consent decline` chờ tag gốc `app_root` của `MainActivity` (app đặt `DEVICE_SCENARIO_FIRST_SCREENS` theo màn đầu của mình); `fresh` mở `MainActivity` như kịch bản chuẩn khi bản staging có hai activity LAUNCHER; `check` không tính tag chỉ còn trong test; `timeout -k 30`. Lần chạy thật đầu ở app (RUN-20261024-02): trình chạy không treo, 33 tới 128 giây mỗi tệp, nhưng cả ba kịch bản đều có bước lỗi hay bị bỏ qua, chưa rõ do app hay do kịch bản.
 - **Trạng thái:** applied
 - **Áp dụng:** `scripts/device-scenario.py`, `scripts/device-session.sh` (bước 4 của `scenarios`), `scripts/plan-check.py` quy tắc 11, `UiAutomatorTags.kt` ở vỏ app, `docs/ops/test-sessions.md` mục 5, mẫu plan và danh sách chạy; PR #152.
+
+### L-086. Không có danh sách sẵn sàng phát hành, nên không biết còn bao xa tới bản production
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-064, ticket T-047, PR #122 của app), issue #133
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** việc cần làm trước bản production nằm rải rác trong báo cáo các phiên: mã quảng cáo thật cho từng vị trí, mục kiểm thủ công chưa đánh dấu, ticket chưa lên staging, phản hồi và issue đang mở. Không ai thấy được còn bao nhiêu việc, nên bản phát hành không có điểm dừng rõ ràng. App đã làm mục "Sẵn sàng phát hành" trên trang tiến độ.
+- **Đề xuất sửa:** `scripts/status.py` sinh mục 6 "Sẵn sàng phát hành" từ tài liệu trong repo, không đọc cấu hình production, `scripts/release.sh` hay thư mục phát hành, không dùng mạng. Ở mẫu, khóa quảng cáo đọc theo đúng luật một dòng của `release.sh` (định dạng có dấu gạch dưới, thuộc tính sau định dạng, bỏ khóa `gallery_`), và báo khi một vị trí viết trên nhiều dòng. Sửa thêm các điểm rà soát ở app: `<->` hay `a < b, c > d` không bị coi là dòng mẫu; đường dẫn `origin` phải bắt đầu bằng `github.com` (https, ssh); có test cho `shorten()`, `spec:` rỗng; test "chỉ mở `docs/` và `AdPlacement.kt`" không còn đếm chữ `release` trong `docs/`.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/status.py` mục 6 "Sẵn sàng phát hành", `scripts/new-app.sh` (app mới không mang báo cáo phiên của mẫu), `docs/CLAUDE.md`; PR #149.
+
+### L-087. `wait-run.sh --pr` gọi ngay sau khi đẩy đọc lần chạy cũ bị hủy và báo đỏ
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (phiên có người theo dõi, PR #98, #100 của app; sửa ở T-044, PR #119 của app), issue #129
+- **Loại, phạm vi:** công cụ, chung
+- **Chuyện gì:** ở app camera-pose, phiên đẩy commit mới lên nhánh PR rồi gọi ngay `wait-run.sh --pr`. Script đọc commit đầu của PR đúng một lần lúc bắt đầu; GitHub chưa kịp cập nhật PR nên script chờ lần chạy của commit trước, lần chạy đó bị GitHub hủy khi commit mới có lần chạy, và script báo `ĐỎ (cancelled)`. Ba lần trong một buổi (PR #100 của app: commit `e35ae86` rồi `eba5f98`); phiên tự chạy gặp mã 1 sẽ đọc log, không thấy lỗi, và có thể tính nhầm vào 3 lần sửa hay chạy lại vô ích.
+- **Đề xuất sửa:** `scripts/wait-run.sh --pr` đọc lại commit đầu của PR mỗi vòng và đi theo commit mới; lần chạy bị hủy thì đọc lại commit đầu vài vòng trước khi gọi là đỏ; thêm `--sha <commit>` để chờ đúng commit vừa đẩy. `auto-run.md`, bước 8: chờ bằng `--sha "$(git rev-parse HEAD)"` sau khi chính phiên đẩy. Có test.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/wait-run.sh` (`--pr` đọc lại commit đầu mỗi vòng, `--sha`), `docs/auto-run.md` bước 8 và mục Khi nhánh chính đỏ, `CLAUDE.md`; PR #148. Số bài học đổi từ L-083 (trùng bài học R8 của #142).
