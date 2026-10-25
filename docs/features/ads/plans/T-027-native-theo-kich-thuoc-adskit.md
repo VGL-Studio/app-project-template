@@ -298,6 +298,8 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
 15. **KB-2 tiêu chí 3 (hai ô medium khác nhau) đẩy sang T-028**, nhưng ticket T-028 chỉ ghi `scenarios: [KB-3, KB-21]`.
     - Đề xuất của AI: người thêm KB-2 vào ticket T-028 (AI không sửa ticket khác).
 
+**Trả lời của anh Nhật (2026-10-25):** câu 1 đến 15: theo đề xuất của AI. Câu 1: tách; T-027 giữ phần A, phần B thành ticket T-040 (AI tạo theo lời anh Nhật). Câu 15: KB-2 đã thêm vào ticket T-028. Plan phiên bản 2 viết lại cho phần A.
+
 **Ghi chú của rà soát độc lập**
 
 - (16) Chạy thử chỉ đổi 72 thành 80; test cũ đỏ vì CTA 34, icon 36 và số đo toàn màn hình (`cta_is36dpHigh`, `texts_followDesign`, `closeButton_isAtLeast48dp`) chưa chạy, đã ghi tên ở mục 3.2 và mục 4.1.
