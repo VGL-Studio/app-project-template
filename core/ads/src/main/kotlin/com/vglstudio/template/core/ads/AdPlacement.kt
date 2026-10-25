@@ -27,7 +27,7 @@ enum class AdFormat(val code: String) {
     /** Covers the whole screen at a natural break, shown with [rememberShowFullScreenAd]. */
     NATIVE_FULL_SCREEN("native_fullscreen"),
 
-    /** App open ad when the app opens or comes back. No function shows it yet (T-024, T-025). */
+    /** App open ad. Shown by the loading screen through [StartupAds] (T-024); resume ads come with T-025. */
     APP_OPEN("app_open"),
 
     /** Rewarded ad before an action the user chose. No function shows it yet (T-031). */
@@ -53,9 +53,12 @@ enum class AdFormat(val code: String) {
 internal val AdFormat.isFullScreen: Boolean
     get() = this == AdFormat.INTERSTITIAL || this == AdFormat.NATIVE_FULL_SCREEN
 
-/** Formats with a preloaded full-screen slot in [AdsController]. */
+/**
+ * Formats with a preloaded full-screen slot in [AdsController]: the formats of [isFullScreen] and app open. App open
+ * is not [isFullScreen] (features never show it), so it moves no `ads_interval` mark (I-02).
+ */
 internal val AdFormat.hasFullScreenSlot: Boolean
-    get() = isFullScreen
+    get() = isFullScreen || this == AdFormat.APP_OPEN
 
 /**
  * The interval group of an interstitial (MC-04). [DEFAULT] uses the key `ads_interval`; a group made with [named]
@@ -93,8 +96,9 @@ class AdIntervalGroup private constructor(
  * A placement is a business decision: it must come from an approved spec.
  * Adding, removing or moving a placement is a high-risk change (risk-scoring.md, blocking point 1).
  * [key] is the placement code: it names the Remote Config keys of the placement and is the value of `ad_placement`.
- * Each placement shows ads only once the Remote Config key `is_show_<key>` is switched on (off by default);
- * [AdsSettings] derives every key of a placement from this declaration.
+ * Each placement shows ads only once the Remote Config key `is_show_<key>` is switched on (off by default), except an
+ * [appWide] placement, which the shared keys of section 10.1 switch on; [AdsSettings] derives every key of a placement
+ * from this declaration.
  * Production builds need a real ad unit for every placement except the staging-only ones (see [ConfiguredAdUnitIds]).
  *
  * A placement that is not staging only stays on one line, `NAME("code", AdFormat.X),` or with its attributes after
@@ -174,6 +178,9 @@ internal data class AdPlacementDeclaration(
         }
         require((!ignoreInterval && recordInterval) || format.isFullScreen) {
             "Placement $code: ignoreInterval and recordInterval are for full-screen formats only"
+        }
+        require(!appWide || format == AdFormat.APP_OPEN || format == AdFormat.INTERSTITIAL) {
+            "Placement $code: appWide is for app open and interstitial placements only"
         }
         if (nativeEvery != null) {
             require(format in NATIVE_EVERY_FORMATS) { "Placement $code: nativeEvery is for list formats only" }

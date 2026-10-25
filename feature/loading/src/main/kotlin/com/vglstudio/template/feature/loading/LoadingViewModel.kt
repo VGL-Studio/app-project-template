@@ -12,6 +12,7 @@ import com.vglstudio.template.core.logging.AppLogger
 import com.vglstudio.template.feature.loading.data.PreparationRepository
 import com.vglstudio.template.feature.loading.data.PreparationTask
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.async
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.launch
 
 /** Returns a monotonic time in milliseconds. A fun interface so tests can use virtual time. */
@@ -34,6 +36,8 @@ fun interface LoadingClock {
  * The screen stays at least [MIN_DURATION_MILLIS] and, if a task fails, waits for the user to retry.
  * The flag is read once when the screen opens: it only decides whether the app shows loading at start-up,
  * so watching it afterwards would mean nothing (plan T-001, question 3).
+ * Once the tasks are done and the minimum time is over, the screen asks :core:ads for the startup ad (KB-13 of the
+ * ads spec, plan T-024): with none it finishes, with one it stays at 100% until [LoadingRoute] has shown it.
  */
 @HiltViewModel
 class LoadingViewModel @Inject constructor(
@@ -52,12 +56,21 @@ class LoadingViewModel @Inject constructor(
     /** The app open ad waiting to be shown by [LoadingRoute]; null when none. */
     val pendingAd: StateFlow<StartupAdTurn?> = pending.asStateFlow()
 
-    /** Returns the waiting turn once, then null. */
-    fun takePendingAd(): StartupAdTurn? = null
+    /** Returns the waiting turn once, then null, so a recreated activity does not show it again. */
+    fun takePendingAd(): StartupAdTurn? = pending.getAndUpdate { null }
 
-    /** The startup ad has closed, or nothing showed. */
-    @Suppress("UNUSED_PARAMETER")
-    fun onAdFinished(interShown: Boolean) = Unit
+    /**
+     * The startup ad has closed, or nothing showed: the screen finishes. Any thread; a second call does nothing.
+     * [interShown] is kept for the combo of T-026 and only logged today.
+     */
+    fun onAdFinished(interShown: Boolean) {
+        if (adFinished.getAndSet(true)) return
+        logger.info(LOG_TAG, "Startup ad finished, inter shown: $interShown")
+        finish()
+    }
+
+    private val adFinished = AtomicBoolean(false)
+    private val finished = AtomicBoolean(false)
 
     private val doneTasks = mutableSetOf<PreparationTask>()
     private var startedAt = 0L
@@ -103,6 +116,28 @@ class LoadingViewModel @Inject constructor(
         }
         val remaining = MIN_DURATION_MILLIS - (clock.elapsedRealtimeMillis() - startedAt)
         if (remaining > 0) delay(remaining)
+        val turn = startupAd()
+        if (turn == null) {
+            finish()
+        } else {
+            // The screen stays at 100% while LoadingRoute shows the ad; onAdFinished then finishes it.
+            pending.value = turn
+        }
+    }
+
+    /** The startup ad of :core:ads, or null; an unexpected error is no ad, not a crash. */
+    private suspend fun startupAd(): StartupAdTurn? = try {
+        startupAds.awaitStartupAd()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        logger.warn(LOG_TAG, "Startup ad failed, going on without it", e)
+        null
+    }
+
+    /** Logs `loading_completed` once, at the move to the start screen (question 5 of plan T-024), then finishes. */
+    private fun finish() {
+        if (finished.getAndSet(true)) return
         val durationMillis = clock.elapsedRealtimeMillis() - startedAt
         analytics.log(
             AnalyticsEvent(

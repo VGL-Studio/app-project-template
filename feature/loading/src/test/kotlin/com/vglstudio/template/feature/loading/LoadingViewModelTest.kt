@@ -405,7 +405,9 @@ private class FakeAnalytics : Analytics {
 /** Returns [result] when it completes (null at once by default) and counts the calls; throws [error] if set. */
 private class FakeStartupAds : StartupAds {
     var calls = 0
-    var result: CompletableDeferred<StartupAdTurn?> = CompletableDeferred(null)
+
+    // Named argument: CompletableDeferred(null) is the overload with a null parent job, which never completes.
+    var result: CompletableDeferred<StartupAdTurn?> = CompletableDeferred(value = null)
     var error: Throwable? = null
 
     override suspend fun awaitStartupAd(): StartupAdTurn? {

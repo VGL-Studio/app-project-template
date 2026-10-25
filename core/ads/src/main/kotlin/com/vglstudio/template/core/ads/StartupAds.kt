@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 
@@ -10,7 +11,11 @@ interface StartupAds {
 }
 
 /** One ad to show when the app opens. Only app-wide placements are accepted. */
-class StartupAdTurn(val placement: AdPlacement)
+class StartupAdTurn(val placement: AdPlacement) {
+    init {
+        require(placement.appWide) { "${placement.key} is not an app-wide placement" }
+    }
+}
 
 /**
  * Returns an action that shows a [StartupAdTurn] through the full-screen gate of :core:ads (A-02, A-05).
@@ -19,4 +24,16 @@ class StartupAdTurn(val placement: AdPlacement)
  * once with false.
  */
 @Composable
-fun rememberShowStartupAd(): (StartupAdTurn, (interShown: Boolean) -> Unit) -> Unit = remember { { _, _ -> } }
+fun rememberShowStartupAd(): (StartupAdTurn, (interShown: Boolean) -> Unit) -> Unit {
+    val ads = LocalAdsController.current
+    val activity = LocalActivity.current
+    return remember(ads, activity) {
+        { turn, onFinished ->
+            if (ads != null && activity != null) {
+                ads.showStartupAd(activity, turn, onFinished)
+            } else {
+                onFinished(false)
+            }
+        }
+    }
+}
