@@ -158,11 +158,22 @@ class AdsSettingsTest {
     @Test
     fun placementsAreOffByDefault() {
         val all = AdsSettings.all()
-        AdPlacement.entries.forEach { placement ->
+        // App-wide placements have no switch of their own (MC-09, question 3 of plan T-024).
+        assertTrue(AdPlacement.entries.any { it.appWide })
+        AdPlacement.entries.filterNot { it.appWide }.forEach { placement ->
             val key = AdsSettings.placementEnabled(placement)
             assertKey(key, "is_show_${placement.key}", RemoteKey.Type.BOOLEAN, false)
             assertTrue("$placement is missing", key in all)
         }
+    }
+
+    @Test
+    fun appWidePlacements_haveNoSwitchKey() {
+        val names = AdsSettings.all().map { it.name }
+        // Control: the switch of a placement that is not app-wide is listed.
+        assertTrue(names.toString(), "is_show_sample_native_small" in names)
+        assertFalse(names.toString(), "is_show_open_app" in names)
+        assertFalse(names.toString(), "is_show_open_app_inter" in names)
     }
 
     @Test

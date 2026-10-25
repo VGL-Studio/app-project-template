@@ -104,7 +104,10 @@ class AdPlacementTest {
 
     @Test
     fun intervalAttributes_defaultAndValidated() {
-        AdPlacement.entries.forEach {
+        // OPEN_APP_INTER ignores the interval gate on purpose (question 3 of plan T-024); checked on its own.
+        assertTrue(AdPlacement.OPEN_APP_INTER.ignoreInterval)
+        assertTrue(AdPlacement.OPEN_APP_INTER.recordInterval)
+        AdPlacement.entries.filterNot { it == AdPlacement.OPEN_APP_INTER }.forEach {
             assertFalse(it.key, it.ignoreInterval)
             assertTrue(it.key, it.recordInterval)
             assertFalse(it.key, it.declaration.ignoreInterval)
@@ -119,5 +122,50 @@ class AdPlacementTest {
         // Control: the full-screen formats accept both attributes.
         AdPlacementDeclaration("x", AdFormat.INTERSTITIAL, recordInterval = false)
         AdPlacementDeclaration("x", AdFormat.NATIVE_FULL_SCREEN, ignoreInterval = true)
+    }
+
+    @Test
+    fun openAppInter_ignoresIntervalAndPushesMark() {
+        val declaration = AdPlacement.OPEN_APP_INTER.declaration
+        assertFalse(declaration.readsInterval())
+        assertTrue(declaration.pushesIntervalMark())
+        assertEquals(AdFormat.INTERSTITIAL, AdPlacement.OPEN_APP_INTER.format)
+        assertTrue(AdPlacement.OPEN_APP_INTER.appWide)
+        assertTrue(declaration.appWide)
+    }
+
+    @Test
+    fun openApp_neverPushesMark() {
+        // I-02: closing an app open ad moves no `ads_interval` mark.
+        assertFalse(AdPlacement.OPEN_APP.declaration.pushesIntervalMark())
+        assertEquals(AdFormat.APP_OPEN, AdPlacement.OPEN_APP.format)
+        assertTrue(AdPlacement.OPEN_APP.appWide)
+        assertTrue(AdPlacement.OPEN_APP.declaration.appWide)
+    }
+
+    @Test
+    fun appWide_onlyForAppOpenAndInterstitial() {
+        // Control: app open and interstitial accept it.
+        AdPlacementDeclaration("x", AdFormat.APP_OPEN, appWide = true)
+        AdPlacementDeclaration("x", AdFormat.INTERSTITIAL, appWide = true)
+        listOf(AdFormat.NATIVE_SMALL, AdFormat.BANNER, AdFormat.NATIVE_FULL_SCREEN, AdFormat.REWARDED).forEach {
+            assertThrows("$it", IllegalArgumentException::class.java) {
+                AdPlacementDeclaration("x", it, appWide = true)
+            }
+        }
+    }
+
+    @Test
+    fun appWidePlacements_areExactlyOpenApp() {
+        val appWide = AdPlacement.entries.filter { it.appWide }
+        assertEquals(listOf(AdPlacement.OPEN_APP, AdPlacement.OPEN_APP_INTER), appWide)
+        appWide.forEach { assertFalse(it.key, it.stagingOnly) }
+    }
+
+    @Test
+    fun startupTurn_acceptsAppWideOnly() {
+        assertThrows(IllegalArgumentException::class.java) { StartupAdTurn(AdPlacement.SAMPLE_NATIVE_SMALL) }
+        // Control: an app-wide placement is accepted.
+        assertEquals(AdPlacement.OPEN_APP, StartupAdTurn(AdPlacement.OPEN_APP).placement)
     }
 }

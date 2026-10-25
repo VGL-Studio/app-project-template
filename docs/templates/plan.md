@@ -140,7 +140,7 @@ Ghi "Không cần (E dưới 2)" nếu không áp dụng. scripts/plan-check.py 
 
 ## 7. Điều kiện dừng riêng
 
-<Ngoài các điều kiện dừng chung trong risk-scoring.md, những tình huống riêng của task này khiến AI phải dừng. Ghi "Không có" nếu không có.>
+<Ngoài các điều kiện dừng chung trong risk-scoring.md, những tình huống riêng của task này khiến AI phải dừng. Ghi "Không có" nếu không có. Không ghi điều kiện dừng chỉ vì một file hay test nằm ngoài mục 3.2: phiên sửa tiếp phần đó theo ADR-0029. Ghi hành vi hay phạm vi cần giữ, ví dụ "bảng khóa sinh tự động đổi thì dừng".>
 
 ## 8. Câu hỏi cho người duyệt
 

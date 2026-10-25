@@ -136,7 +136,12 @@ class RemoteConfigKeysTest {
     fun everyFeatureFlagAndPlacement_isListed() {
         val keys = AppRemoteKeys.byModule.values.flatten()
         FeatureFlag.entries.forEach { flag -> assertTrue("$flag is missing", flag.remoteKey in keys) }
-        AdPlacement.entries.forEach { placement ->
+        // App-wide placements are switched by the global keys and have no is_show_<code> (plan T-024, question 3).
+        val switched = AdPlacement.entries.filterNot { it.appWide }
+        // Control: the filter leaves out the app-wide placements only.
+        assertTrue(AdPlacement.entries.any { it.appWide })
+        assertTrue(switched.isNotEmpty())
+        switched.forEach { placement ->
             assertTrue("$placement is missing", AdsSettings.placementEnabled(placement) in keys)
         }
     }
@@ -163,7 +168,12 @@ class RemoteConfigKeysTest {
     @Test
     fun everyPlacementShowKey_isInTableOff() {
         val lines = keysMarkdown(AppRemoteKeys.byModule).lines()
-        AdPlacement.entries.forEach { placement ->
+        // Control: app-wide placements exist and are left out, as they have no is_show_<code> (plan T-024).
+        assertTrue(AdPlacement.entries.any { it.appWide })
+        AdPlacement.entries.filter { it.appWide }.forEach { placement ->
+            assertEquals(placement.key, 0, lines.count { it.startsWith("| `is_show_${placement.key}` |") })
+        }
+        AdPlacement.entries.filterNot { it.appWide }.forEach { placement ->
             val row = "| `is_show_${placement.key}` | boolean | `false` | `:core:ads` | "
             assertEquals(placement.key, 1, lines.count { it.startsWith(row) })
         }
