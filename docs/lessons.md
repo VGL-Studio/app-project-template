@@ -497,6 +497,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** accepted
 - **Áp dụng:** nhánh `claude/from-camera-pose-pr-check-release`
 
+### L-084. Hàng chờ plan cạn sau mỗi phiên, phiên kế tiếp phải chờ người và AI viết plan
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-061, ticket T-045, PR #120 của app), issue #133
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** sau một phiên chạy hết danh sách, không còn plan `approved` nào. Phải có một phiên có người theo dõi viết plan rồi mới lập được danh sách kế tiếp; ở app, khoảng cách giữa hai phiên (03:35 tới 16:53 UTC) chủ yếu là chờ plan.
+- **Đề xuất sửa:** cuối phiên, sau khi PR báo cáo đã merge, phiên soạn plan `draft` cho các ticket `backlog` hay `ready` kế tiếp (`plan_queue` của danh sách chạy, mặc định 2): `scripts/plan-queue.py` chọn ticket (spec đã chốt, không câu hỏi mở, phụ thuộc đã có plan và không dừng hay hủy, chưa có nhánh hay PR plan), mỗi plan một PR nháp có nhãn `needs-human`, có chạy thử, `plan-check.py` và rà soát độc lập, giới hạn 45 phút cho mỗi plan; câu hỏi cho người gom vào mục "Plan soạn sẵn và câu hỏi cho người" của báo cáo. Phiên không đánh dấu sẵn sàng, không duyệt, không merge PR plan. Ở mẫu, sửa thêm điểm rà soát của app: đọc mọi PR mở bằng `gh api --paginate` (app dừng ở 100), và URL `origin` không phải GitHub thì thoát 2 mà không in URL (có thể chứa token).
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/plan-queue.py`, `docs/auto-run.md` (bước cuối phiên soạn plan), `docs/templates/run.md`, `docs/CLAUDE.md`; PR #151.
+
 ### L-086. Không có danh sách sẵn sàng phát hành, nên không biết còn bao xa tới bản production
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-064, ticket T-047, PR #122 của app), issue #133
