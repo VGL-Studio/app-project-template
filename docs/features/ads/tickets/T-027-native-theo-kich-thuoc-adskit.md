@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1, KB-2]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: L
 depends_on: [T-010, T-013, T-021, T-023, T-035]
 sprint:
-plan:
+plan: features/ads/plans/T-027-native-theo-kich-thuoc-adskit.md
 created: 2026-10-23
 ---
 
