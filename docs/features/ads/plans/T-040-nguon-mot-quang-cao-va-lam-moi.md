@@ -102,6 +102,7 @@ Làm theo mẫu có sẵn của `:core:ads`: hàm và lớp thuần cho mọi lu
    - Dựng `NativeAdSources(enabled = ::isEnabled, canRequestAds, newLoad = { placement, use -> nativeLoadOnce(newEvents = { nativeAdMetrics(placement, unitId, use) }, ...) }, sendGate = { awaitSendAllowed(foregroundState, ::mayRequestNow) }, clock, scope, logger)`.
    - `nativeAd(placement)`: `placement.format.usesSingleAdSource()` thì `flow { source.attach(); try { emitAll(retryingNativeAdStates(load = { source.claim(SINGLE_AD).toStateOrNull() }, ..., refresh = { refreshingNativeAdStates(it, source, ...) })) } finally { source.detach() } }`; định dạng khác giữ nguyên đường hiện tại.
    - `preloadedNativeFullScreen` dựng bằng `nativeFullScreenCache(onDiscard)` (B7) thay vì hàm tạo.
+   - Không đụng khối `NativeAdOptions` của nạp sẵn native toàn màn hình (T-027 đổi sang `fullScreenNativeRequestOptions().toNativeAdOptions()`). Task này không dựng `NativeAdOptions` ở đâu: mọi lượt nạp native nhỏ đi qua `SdkNativeAdLoader`, vốn lấy tùy chọn từ `NativeRequestOptions.kt` của T-027; `NativeRequestOptionsTest.onlyNativeRequestOptions_buildsNativeAdOptions` (T-027, quét `src/main`) phải vẫn qua.
    - `loadNativeAd` của danh sách giữ nguyên tới T-028.
    - Tên hàm và trường của T-024 trong cùng file (`loadedAppOpens`, `awaitStartupAd`, `showStartupAd`, `preloadAppOpen`, `placementSwitch` trong `isEnabled`) không đụng; `isEnabled` của T-024 là thứ truyền vào `NativeAdSources`.
 7. **`FreshAdCache.kt`:** thêm `internal fun <T> nativeFullScreenCache(onDiscard: (T) -> Unit) = FreshAdCache(NativeAdPolicy.MAX_AGE_MILLIS, onDiscard)` (O-04), để test kiểm đúng giá trị mà `AdsController` dùng. Mặc định 60 phút giữ cho nơi khác (`loadedAppOpens` của T-024 truyền hằng riêng).
@@ -118,7 +119,7 @@ Làm theo mẫu có sẵn của `:core:ads`: hàm và lớp thuần cho mọi lu
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRefresh.kt` | B3: `refreshingNativeAdStates` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRetry.kt` | B4: `awaitSendAllowed`, `load` trả `null` khi bị chặn, tham số `refresh` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdTelemetry.kt` | B5: `NativeLoadUse.REFRESH` dùng `perRequestLoad` |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | B6: dựng `NativeAdSources`, `nativeAd` qua nguồn cho `NATIVE_SMALL`, `nativeFullScreenCache`; KDoc của lớp (dòng 69, 70) và của `nativeAd` |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | B6: dựng `NativeAdSources`, `nativeAd` qua nguồn cho `NATIVE_SMALL`, `preloadedNativeFullScreen` dựng bằng `nativeFullScreenCache`; KDoc của lớp (dòng 69, 70) và của `nativeAd`. Không đụng khối `NativeAdOptions` (T-027) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FreshAdCache.kt` | B7: `nativeFullScreenCache` (55 phút) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeSendGateTest.kt` | Test cổng gửi chung |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSourceTest.kt` | Test O-01 tới O-04, đường (b), (c) |
@@ -127,12 +128,13 @@ Làm theo mẫu có sẵn của `:core:ads`: hàm và lớp thuần cho mọi lu
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdRetryTest.kt` | Nối sang làm mới; `load` trả `null`; các test cổng của (a), (d) giữ |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FreshAdCacheTest.kt` | `nativeFullScreenCache` 55 phút |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdTelemetryTest.kt` | `NativeLoadUse.REFRESH`: không `load_attempt`, không đụng bộ đếm |
-| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeNativeAds.kt` | Hàm nạp giả theo `NativeLoadUse` (ghi `use` và giờ gửi của mỗi lượt), dùng chung cho bốn file test mới; `FakeLoadedNativeAd.destroyCount` đã có |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeNativeAds.kt` | Thêm hàm nạp giả theo `NativeLoadUse` (ghi `use` và giờ gửi của mỗi lượt), dùng chung cho bốn file test mới; `FakeLoadedNativeAd.destroyCount` đã có. Phần `starRating` và bộ chữ dài của T-027 giữ nguyên |
 | Sửa | `docs/ops/ads-guide.md` | B9 |
 
 Không sửa, kèm lý do:
 
-- `NativeAdLoading.kt`: `loadOneNativeAd` đã hủy quảng cáo về muộn khi coroutine bị hủy và khi quá thời gian chờ (`NativeAdLoadingTest.loadOne_cancelledWhileLoading_destroysLateAd`, `adAfterTimeout_isDestroyedAndNotShown`); nguồn dựa vào đó.
+- `NativeAdLoading.kt` (plan T-027 phiên bản 2 ghi file này cho T-040 "nếu cần"; không cần): `loadOneNativeAd` đã hủy quảng cáo về muộn khi coroutine bị hủy và khi quá thời gian chờ (`NativeAdLoadingTest.loadOne_cancelledWhileLoading_destroysLateAd`, `adAfterTimeout_isDestroyedAndNotShown`); nguồn dựa vào đó.
+- `NativeRequestOptions.kt`, `SdkNativeAdLoader.kt` (T-027 tạo và sửa): dùng lại qua `SdkNativeAdLoader`, không thêm cách dựng tùy chọn.
 - `NativeAdSlot.kt`, `CollapsibleNativeAd.kt`, `InListAds.kt`: gọi `ads.nativeAd(placement)` hay `loadNativeAd` như cũ; chữ ký không đổi. `NativeAdSlot.kt` là file của T-027.
 - `AdPreloader.kt`: chỉ đọc `nativeRetryResets`.
 - Người đọc các ký hiệu bị đổi (L-020), `grep -rn "NativeLoadUse\|retryingNativeAdStates\|FreshAdCache\|\.nativeAd(\|nativeRetryResets"` trên mọi file `.kt`, `scripts/`, `.github/`, `docs/ops/` (2026-10-25): chỉ trong `:core:ads` (`AdPreloader.kt`, `AdTelemetry.kt`, `AdsController.kt`, `CollapsibleNativeAd.kt`, `FreshAdCache.kt`, `NativeAdRetry.kt`, `NativeAdSlot.kt` và bốn file test `AdPreloaderTest`, `AdTelemetryTest`, `FreshAdCacheTest`, `NativeAdRetryTest`); không script, workflow hay tài liệu ops nào. `AdTelemetryTest` dùng `NativeLoadUse.SINGLE_AD`, `LIST_ROW` theo tên, không lặp `entries`, nên thêm `REFRESH` không làm đỏ (chạy thử ở mục 4.1).
@@ -191,7 +193,7 @@ Test viết trước code (auto-run.md, bước 3). Thời gian dùng `runTest` 
 
 ### 4.1. Chạy thử
 
-- **Đã chạy thử:** Không bắt buộc (E dưới 2). Vẫn chạy thử theo bản giao việc: thêm dòng `REFRESH` vào enum dùng chung `NativeLoadUse` (L-089) và khung API: `NativeSendGate.kt` (`awaitSendAllowed`), `NativeAdPolicy`, `nativeFullScreenCache` trong `FreshAdCache.kt` và `AdsController` gọi nó, `retryingNativeAdStates` gọi `awaitSendAllowed` và nhận tham số `refresh` (mặc định `null`). Trên worktree `wt-T-040` ở commit `aa975c7` (gốc `a1cec25`, chưa có T-024 và T-027 phần A), 2026-10-25, không commit, đã hoàn tác.
+- **Đã chạy thử:** Không bắt buộc (E dưới 2). Vẫn chạy thử theo bản giao việc: thêm dòng `REFRESH` vào enum dùng chung `NativeLoadUse` (L-089) và khung API: `NativeSendGate.kt` (`awaitSendAllowed`), `NativeAdPolicy`, `nativeFullScreenCache` trong `FreshAdCache.kt` và `AdsController` gọi nó, `retryingNativeAdStates` gọi `awaitSendAllowed` và nhận tham số `refresh` (mặc định `null`). Trên worktree `wt-T-040` ở commit `aa975c7` (gốc `a1cec25`, chưa có code của T-024 và T-027 phần A; nhánh plan nay dựng trên `d89a196`, chỉ thêm tài liệu), 2026-10-25, không commit, đã hoàn tác.
 - **Lệnh:** `./gradlew --console=plain testDebugUnitTest testStagingDebugUnitTest --continue` (cần `ANDROID_HOME`, `JAVA_HOME` của Android Studio). Chưa chạy `scripts/check.sh` (E dưới 2, không bắt buộc).
 - **Kết quả:** `BUILD SUCCESSFUL`, không lỗi biên dịch, 0 test đỏ: `:core:ads` 411 test, `:app` (staging) 84, `:feature:sample` 24, `:feature:loading` 29, `:core:network` 40, `:core:config` 39, `:core:assets` 30, `:core:designsystem` 22, `:core:analytics` 9, `:core:logging` 4. Kết luận: thêm `REFRESH` (một `when` có nhánh mới trong `nativeLoadReport`) và 55 phút cho native toàn màn hình không làm đỏ test nào hôm nay; không có test cũ ngoài mục 3.2 phải sửa. Chưa chạy trên nhánh có T-024 và T-027 phần A: phiên chạy lại toàn bộ test JVM ở bước 3 (ADR-0029, quyết định 4).
 
@@ -213,10 +215,15 @@ Test viết trước code (auto-run.md, bước 3). Thời gian dùng `runTest` 
 - File hoặc thành phần dùng chung bị chạm: `AdsController.nativeAd`, `retryingNativeAdStates` (khe medium và thu gọn cũng dùng, hành vi giữ), `NativeLoadUse` và `nativeLoadReport`, `FreshAdCache`.
 - Task khác có thể xung đột:
   - T-024 (app open, đang chạy, merge trước): sửa `AdsController.kt` (`loadedAppOpens`, `awaitStartupAd`, `showStartupAd`, `preloadAppOpen`, `isEnabled` qua `placementSwitch`) và `docs/ops/ads-guide.md`. Khác hàm; task này dựng trên bản đã có T-024, dùng `isEnabled` của T-024.
-  - T-027 phần A (phụ thuộc, merge trước): sửa `NativeAdSlot.kt`, `NativeAdCard.kt`, `SdkNativeAdLoader.kt`, `NativeAdViewBinding.kt`, `NativeFullScreenAdScreen.kt`, `docs/ops/ads-guide.md`, ảnh chuẩn. Ranh giới (L-054): T-040 tạo `NativeSendGate.kt`, `NativeAdSource.kt`, `NativeAdSources.kt`, `NativeAdRefresh.kt` và là task duy nhất sửa `NativeAdRetry.kt`, `AdTelemetry.kt` (`NativeLoadUse`), `FreshAdCache.kt` (`nativeFullScreenCache`), hàm `nativeAd` và `preloadedNativeFullScreen` của `AdsController.kt`. T-027 phần A không sửa các phần đó (mục 8, câu 2).
+  - T-027 phiên bản 2 (phần A, phụ thuộc, merge trước; nhánh `claude/plan-T-027-native-adskit`, commit `d89a196`, mục 6 của plan đó đã đối chiếu). T-027 tạo `NativeRequestOptions.kt` (nơi duy nhất trong `src/main` dựng `NativeAdOptions`, có test quét mã nguồn), sửa `NativeAdSlot.kt`, `NativeAdCard.kt`, `SdkNativeAdLoader.kt`, `NativeAdViewBinding.kt`, `NativeFullScreenAdScreen.kt`, ảnh chuẩn. File cả hai cùng sửa (L-054):
+    - `AdsController.kt`: T-027 chỉ khối `NativeAdOptions` của nạp sẵn native toàn màn hình; T-040 hàm `nativeAd`, trường `preloadedNativeFullScreen` (`nativeFullScreenCache`) và phần dựng `NativeAdSources`.
+    - `FakeNativeAds.kt`: T-027 `starRating`, bộ chữ dài; T-040 hàm nạp giả theo `NativeLoadUse`.
+    - `docs/ops/ads-guide.md`: T-027 kích thước, `onAdAvailabilityChange`, `NativeRequestOptions`; T-040 làm mới 60 giây, thử lại khi giữ quảng cáo, mỗi khe một quảng cáo.
+    - T-040 tạo `NativeSendGate.kt`, `NativeAdSource.kt`, `NativeAdSources.kt`, `NativeAdRefresh.kt` và là task duy nhất sửa `NativeAdRetry.kt`, `AdTelemetry.kt` (`NativeLoadUse`), `FreshAdCache.kt`; T-027 phiên bản 2 không chạm các file đó.
   - T-031 (rewarded, plan song song): có thể sửa `AdsController.kt` và `AdTelemetry.kt` (rewarded dùng `countedLoad`, không đụng `NativeLoadUse`). Khác hàm; ai merge sau gộp.
   - T-028 (pool native): dùng `NativeLoadUse.LIST_ROW`, `perRequestLoad`, có thể dùng lại `NativeAdPolicy.MAX_AGE_MILLIS` và `awaitSendAllowed`; chạy sau task này.
   - T-030 (thanh đáy, thu gọn): làm mới của khe thu gọn và trễ 500 ms dựng trên `refreshingNativeAdStates` của task này; chạy sau.
+- Danh sách chạy: nếu task khác cùng danh sách thêm `NativeAdOptions.Builder(` ngoài `NativeRequestOptions.kt`, test quét của T-027 đỏ (L-062); task này không thêm.
 - Đề xuất thứ tự chạy: sau T-024 và T-027 (cùng sửa `AdsController.kt`, `docs/ops/ads-guide.md`); trước T-028, T-030.
 
 ## 7. Điều kiện dừng riêng
@@ -227,13 +234,13 @@ Test viết trước code (auto-run.md, bước 3). Thời gian dùng `runTest` 
 
 ## 8. Câu hỏi cho người duyệt
 
+**Đã chốt, không còn hỏi:** hết hạn 55 phút của native toàn màn hình (O-04, `nativeFullScreenCache`) thuộc T-040. Plan T-027 phiên bản 2 (`d89a196`, mục 6) ghi `FreshAdCache.kt` cho T-040 và không chạm file đó.
+
 1. **Mốc của nhịp làm mới.** CL-02 nói "làm mới mỗi 60 giây", không nói tính từ đâu sau một lần đổi hay một chuỗi lỗi.
    - Đề xuất của AI: nhịp đầu 60 giây sau khi khe hiện quảng cáo đầu; sau mỗi lần đổi thành công, tính lại 60 giây từ lúc đổi; trong chuỗi thử lại sau lỗi thì không có nhịp 60 giây chồng lên (lượt thử lại thay cho nhịp). Phương án khác: nhịp cố định 60, 120, 180 giây kể từ lúc hiện, bất kể lần đổi.
-2. **Hết hạn 55 phút của native toàn màn hình (O-04) thuộc task nào?** Bản plan T-027 trước khi tách để `nativeFullScreenCache` ở phần B.
-   - Đề xuất của AI: giữ ở T-040 (cùng hằng `NativeAdPolicy.MAX_AGE_MILLIS`); T-027 phiên bản 2 không sửa `FreshAdCache.kt`. Lúc viết plan này T-027 phiên bản 2 chưa commit ở `wt-T-027`, nên ranh giới ở mục 6 chưa được đối chiếu với nó; người duyệt kiểm khi duyệt hai plan cùng lúc.
-3. **Hai khe cùng vị trí trên một màn.** Dự án mẫu chưa có màn nào như vậy; O-02 vẫn được làm và test trên nguồn.
+2. **Hai khe cùng vị trí trên một màn.** Dự án mẫu chưa có màn nào như vậy; O-02 vẫn được làm và test trên nguồn.
    - Đề xuất của AI: làm như mục 3.1 (rẻ, luật có sẵn). Phương án khác: bỏ O-02, mỗi khe một nguồn riêng; đơn giản hơn nhưng lệch AdsKit.
-4. **Chạy thử:** đã chạy toàn bộ test JVM với khung API (mục 4.1), không test nào đỏ; chưa chạy `scripts/check.sh` và chưa chạy trên nhánh có T-024, T-027 phần A (chưa merge).
+3. **Chạy thử:** đã chạy toàn bộ test JVM với khung API (mục 4.1), không test nào đỏ; chưa chạy `scripts/check.sh` và chưa chạy trên nhánh có T-024, T-027 phần A (chưa merge).
    - Đề xuất của AI: không chạy thêm trước khi duyệt (E là 1); phiên chạy toàn bộ test JVM ở bước 3 (ADR-0029). Người duyệt muốn chạy thêm thì ghi ở mục 9.
 
 ## 9. Quyết định duyệt
