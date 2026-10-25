@@ -49,6 +49,9 @@ DEFAULT_ESTIMATES = {"S": 5_000_000, "M": 15_000_000, "L": 30_000_000}
 MIN_SAMPLES = 5
 SIZE_ORDER = {"S": 0, "M": 1, "L": 2}
 TASK_BRANCH = re.compile(r"^claude/(?:fix-)?(T-\d+)(?:-|$)")
+# A subagent brief names its task on a line of its own (auto-run.md, L-071): the subagent runs in the task worktree by
+# path, so its transcript still carries the report branch of the main session.
+BRIEF_TASK = re.compile(r"^Task: (T-\d+)\s*$", re.M)
 
 
 def parse_amount(text):
@@ -149,6 +152,15 @@ def repo_matcher():
     return in_repo
 
 
+def message_text(message):
+    content = message.get("content") if isinstance(message, dict) else message
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(part.get("text", "") for part in content if isinstance(part, dict))
+    return ""
+
+
 def requests(files, since, until):
     """One usage per API request: the last line of a request carries its final counts."""
     found = {}
@@ -158,8 +170,18 @@ def requests(files, since, until):
             lines = path.open(encoding="utf-8", errors="replace")
         except OSError:
             continue
+        brief_task, first_user = None, "subagents" in path.parts
         with lines:
             for line in lines:
+                if first_user and '"user"' in line:
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        entry = {}
+                    if entry.get("type") == "user":
+                        first_user = False
+                        match = BRIEF_TASK.search(message_text(entry.get("message")))
+                        brief_task = f"claude/{match.group(1)}" if match else None
                 if '"usage"' not in line:
                     continue
                 try:
@@ -175,7 +197,7 @@ def requests(files, since, until):
                     continue
                 key = entry.get("requestId") or entry.get("uuid")
                 found[key] = {
-                    "branch": entry.get("gitBranch") or "",
+                    "branch": brief_task or entry.get("gitBranch") or "",
                     "input": usage.get("input_tokens") or 0,
                     "cache_write": usage.get("cache_creation_input_tokens") or 0,
                     "cache_read": usage.get("cache_read_input_tokens") or 0,
