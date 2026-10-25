@@ -1,5 +1,8 @@
 package com.vglstudio.template.feature.loading
 
+import com.vglstudio.template.core.ads.AdPlacement
+import com.vglstudio.template.core.ads.StartupAdTurn
+import com.vglstudio.template.core.ads.StartupAds
 import com.vglstudio.template.core.analytics.Analytics
 import com.vglstudio.template.core.analytics.AnalyticsEvent
 import com.vglstudio.template.core.config.FeatureFlag
@@ -35,6 +38,7 @@ class LoadingViewModelTest {
     private val repository = FakePreparationRepository()
     private val analytics = FakeAnalytics()
     private val logger = RecordingAppLogger()
+    private val startupAds = FakeStartupAds()
 
     private fun TestScope.viewModel(flagOn: Boolean = true) = LoadingViewModel(
         repository = repository,
@@ -42,6 +46,7 @@ class LoadingViewModelTest {
         logger = logger,
         featureFlags = FakeFeatureFlags(flagOn),
         clock = { testScheduler.currentTime },
+        startupAds = startupAds,
     )
 
     private fun completedEvent(durationMs: Long, retryCount: Int) = AnalyticsEvent(
@@ -227,6 +232,143 @@ class LoadingViewModelTest {
         assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
         assertEquals(listOf(LogLevel.INFO), logger.entries.map { it.level })
     }
+
+    @Test
+    fun noStartupAd_finishesAtTwoSecondsAsBefore() = runTest {
+        val viewModel = viewModel()
+        advanceTimeBy(500)
+        runCurrent()
+        repository.completeAll(true)
+        advanceTimeBy(1_500)
+        runCurrent()
+        // Control: the screen did ask for a startup ad, and got none.
+        assertEquals(1, startupAds.calls)
+        assertEquals(Finished, viewModel.uiState.value)
+        assertEquals(null, viewModel.pendingAd.value)
+        assertEquals(listOf(completedEvent(durationMs = 2_000, retryCount = 0)), analytics.events)
+    }
+
+    @Test
+    fun startupAd_isAskedOnlyAfterPreparationAndMinDuration() = runTest {
+        startupAds.result = CompletableDeferred()
+        viewModel()
+        advanceTimeBy(500)
+        runCurrent()
+        repository.completeAll(true)
+        assertEquals(0, startupAds.calls)
+        advanceTimeBy(1_499)
+        runCurrent()
+        assertEquals(0, startupAds.calls)
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(1, startupAds.calls)
+        advanceTimeBy(30_000)
+        runCurrent()
+        assertEquals(1, startupAds.calls)
+    }
+
+    @Test
+    fun startupAdTurn_keepsScreenAt100_untilAdFinished() = runTest {
+        startupAds.result = CompletableDeferred()
+        val viewModel = viewModel()
+        advanceTimeBy(500)
+        runCurrent()
+        repository.completeAll(true)
+        advanceTimeBy(2_500)
+        runCurrent()
+        startupAds.result.complete(StartupAdTurn(AdPlacement.OPEN_APP))
+        runCurrent()
+
+        assertEquals(InProgress(1f), viewModel.uiState.value)
+        assertEquals(AdPlacement.OPEN_APP, viewModel.pendingAd.value?.placement)
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+
+        advanceTimeBy(6_000)
+        runCurrent()
+        assertEquals(InProgress(1f), viewModel.uiState.value)
+        viewModel.onAdFinished(false)
+        assertEquals(Finished, viewModel.uiState.value)
+        assertEquals(listOf(completedEvent(durationMs = 9_000, retryCount = 0)), analytics.events)
+    }
+
+    @Test
+    fun takePendingAd_returnsTurnOnce() = runTest {
+        val turn = StartupAdTurn(AdPlacement.OPEN_APP)
+        startupAds.result = CompletableDeferred(turn)
+        val viewModel = viewModel()
+        repository.completeAll(true)
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        assertEquals(turn, viewModel.pendingAd.value)
+        assertEquals(turn, viewModel.takePendingAd())
+        assertEquals(null, viewModel.takePendingAd())
+        assertEquals(null, viewModel.pendingAd.value)
+    }
+
+    @Test
+    fun onAdFinished_twice_logsOnce() = runTest {
+        startupAds.result = CompletableDeferred(StartupAdTurn(AdPlacement.OPEN_APP_INTER))
+        val viewModel = viewModel()
+        repository.completeAll(true)
+        advanceTimeBy(2_000)
+        runCurrent()
+        // Control: a turn was waiting, so the screen had not finished before the ad.
+        assertEquals(InProgress(1f), viewModel.uiState.value)
+        viewModel.takePendingAd()
+
+        viewModel.onAdFinished(true)
+        viewModel.onAdFinished(true)
+
+        assertEquals(Finished, viewModel.uiState.value)
+        assertEquals(1, logger.entries.count { it.message == "Startup ad finished, inter shown: true" })
+        assertEquals(1, analytics.events.size)
+    }
+
+    @Test
+    fun preparationFailed_noStartupAdUntilRetrySucceeds() = runTest {
+        val viewModel = viewModel()
+        repository.complete(PreparationTask.REMOTE_CONFIG, false)
+        repository.complete(PreparationTask.HELLO_FILE, true)
+        repository.complete(PreparationTask.CONTENT_FILE, true)
+        repository.complete(PreparationTask.GOODBYE_FILE, true)
+        advanceTimeBy(5_000)
+        runCurrent()
+        assertTrue(viewModel.uiState.value is Failed)
+        assertEquals(0, startupAds.calls)
+
+        viewModel.onRetry()
+        repository.complete(PreparationTask.REMOTE_CONFIG, true)
+        runCurrent()
+        assertEquals(1, startupAds.calls)
+        assertEquals(Finished, viewModel.uiState.value)
+    }
+
+    @Test
+    fun flagOff_neverAsksForStartupAd() = runTest {
+        val viewModel = viewModel(flagOn = false)
+        advanceTimeBy(5_000)
+        runCurrent()
+        assertEquals(Finished, viewModel.uiState.value)
+        assertEquals(0, startupAds.calls)
+    }
+
+    @Test
+    fun awaitThrows_finishesWithoutAd() = runTest {
+        startupAds.error = IllegalStateException("broken")
+        val viewModel = viewModel()
+        repository.completeAll(true)
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        // Control: the screen asked, and the error did not stop the app.
+        assertEquals(1, startupAds.calls)
+        assertEquals(Finished, viewModel.uiState.value)
+        assertEquals(null, viewModel.pendingAd.value)
+        val warning = logger.entries.single { it.level == LogLevel.WARN }
+        assertTrue(warning.error is IllegalStateException)
+        assertEquals(1, analytics.events.size)
+    }
 }
 
 /** Each [run] call waits until the test calls [complete] for that task. */
@@ -257,6 +399,21 @@ private class FakeAnalytics : Analytics {
 
     override fun log(event: AnalyticsEvent) {
         events += event
+    }
+}
+
+/** Returns [result] when it completes (null at once by default) and counts the calls; throws [error] if set. */
+private class FakeStartupAds : StartupAds {
+    var calls = 0
+
+    // Named argument: CompletableDeferred(null) is the overload with a null parent job, which never completes.
+    var result: CompletableDeferred<StartupAdTurn?> = CompletableDeferred(value = null)
+    var error: Throwable? = null
+
+    override suspend fun awaitStartupAd(): StartupAdTurn? {
+        calls++
+        error?.let { throw it }
+        return result.await()
     }
 }
 

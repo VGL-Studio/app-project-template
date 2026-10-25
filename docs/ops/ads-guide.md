@@ -36,7 +36,7 @@ Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Kh�
 
 | Định dạng | Dùng ở đâu | Khóa bật | Có trong `:core:ads` |
 | --- | --- | --- | --- |
-| App open lúc mở app | Màn loading, lần đầu sau khi cài và lần thường | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` | (đợt 3) |
+| App open lúc mở app | Màn loading, lần đầu sau khi cài và lần thường | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` | Có (T-024): vị trí toàn app `open_app` (app open) và `open_app_inter` (inter khi `open_ad_type = inter`), không có `is_show_<mã vị trí>`; màn loading gọi `StartupAds`, feature không gọi |
 | Quảng cáo khi quay lại app | Mọi lần app lên foreground, trừ lần đầu của process | `show_resum_ads`, `resume_ad_type` | (đợt 3) |
 | Interstitial | Hành động của người dùng (sang màn sau, xong một việc) | `is_show_<mã vị trí>`, cách nhau `ads_interval` hay `ads_interval_<nhóm>` | Có (đợt 2, `rememberShowFullScreenAd`), luật mới ở đợt 3 |
 | Native toàn màn hình sau inter (combo) | Ngay sau inter, đếm ngược 3 giây | `is_show_native_after_inter` | Native toàn màn hình đứng riêng có (đợt 2, `rememberShowFullScreenAd`); combo ở đợt 3 |
@@ -126,7 +126,7 @@ Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-ru
 Luật đầy đủ ở `ads-business-rules.md`, S-20 tới S-25, F-04 tới F-06, O-05, O-09.
 
 - **Không khe nào tự nạp khi được tạo.** Mọi lượt nạp sẵn đi qua kế hoạch nạp sẵn (`AdPreloadPlan`): danh sách nhóm định dạng chạy lần lượt; nhóm sau bắt đầu khi mọi khe của nhóm trước xong (có quảng cáo, lỗi hay đang chờ thử lại) hoặc sau tối đa 6 giây. Định dạng không có trong kế hoạch thì không được nạp sẵn.
-- **Kế hoạch mặc định** suy ra từ danh sách vị trí (`AdPreloadPlan.fromPlacements()`): nhóm đầu là app open và native của bước đầu luồng (khe người dùng thấy đầu tiên), nhóm sau là mọi định dạng còn lại. Dự án mẫu hôm nay chỉ có một nhóm.
+- **Kế hoạch mặc định** suy ra từ danh sách vị trí (`AdPreloadPlan.fromPlacements()`): nhóm đầu là app open và native của bước đầu luồng (khe người dùng thấy đầu tiên), nhóm sau là mọi định dạng còn lại. Dự án mẫu có nhóm đầu là `APP_OPEN` (vị trí `open_app`, T-024).
 - **App đặt kế hoạch riêng** bằng `ads.setPreloadPlan(AdPreloadPlan(listOf(setOf(AdFormat.APP_OPEN), setOf(AdFormat.INTERSTITIAL, ...))))` trong `Application.onCreate`, ngay sau `ads.start(...)`, trước khi activity đầu tiên hỏi đồng ý. Một định dạng chỉ ở một nhóm.
 - **Lúc chạy:** lần đầu khi SDK sẵn sàng (callback của `MobileAds.initialize`, hoặc 35 giây sau khi gọi khởi tạo nếu callback không về); khi cổng đồng ý mở lại; khi một vị trí toàn màn hình được bật từ xa; khi mạng về. Lượt bị chặn vì cổng đóng được giữ một lượt và chạy một lần khi cổng mở; khi quyền thật của UMP là "không" thì không giữ. Lượt xin tới khi kế hoạch hay lượt nạp bù native đang chạy cũng được giữ (chung chỗ giữ một lượt) và chạy cả kế hoạch một lần khi lượt đang chạy xong; nạp bù native khi đang chạy thì bỏ. Lượt xin mới được chạy khi đang có lượt giữ thì lượt giữ tính là đã chạy cùng lượt đó, không chạy thêm (T-038). Cách hiểu "không chạy chồng" của S-23 do ta đặt (T-037), chưa đối chiếu AdsKit.
 - **Thử lại sau lỗi nạp:** interstitial chờ 2, 4, 6, 8 rồi 10 giây mỗi lần, không bỏ cuộc; native (khe trong màn và native toàn màn hình) thử lại sau 5 giây khi chưa có quảng cáo. Bộ đếm lỗi về 0 khi nạp được, đếm riêng từng vị trí. Interstitial đóng hay hiện lỗi thì nạp lại sau 2 giây; native toàn màn hình nạp lại ngay.
@@ -194,15 +194,17 @@ Luật đầy đủ ở `ads-business-rules.md`, S-20 tới S-25, F-04 tới F-0
 ## 8. Thử trên staging
 
 - Staging luôn dùng mã thử của Google theo định dạng (inter, banner, rewarded, app open, native; ADR-0013).
-- Bản staging dùng Firebase giả nên Remote Config không trả gì: staging bật mọi vị trí của `AdPlacement` bằng giá trị cục bộ (`StagingRemoteValuesModule`); Firebase staging vẫn tắt được từng vị trí.
+- Bản staging dùng Firebase giả nên Remote Config không trả gì: staging bật mọi vị trí của `AdPlacement` bằng giá trị cục bộ (`StagingRemoteValuesModule`), trừ hai vị trí toàn app `open_app`, `open_app_inter` (bật bằng `show_open_ads`, `show_open_ads_first_open`, cũng bật sẵn trên staging); Firebase staging vẫn tắt được từng vị trí.
 - Hộp thoại đồng ý: staging giả lập vùng EEA để thấy hộp thoại. Thử thêm: tắt mạng khi mở app (quyền tạm `ERROR_ALLOWED`), mở lại app sau khi đã đồng ý (`CACHED_EARLY`), rút đồng ý bằng nút quyền riêng tư.
 - Màn hình xem thử quảng cáo (chỉ staging, plan T-014): mở từ biểu tượng "Ad gallery" thứ hai trên máy. Ba trang: mặc định (native small, medium, nút "Interstitial", "Native full screen", "Open Ad Inspector"), "In-list ads" (xen small và medium sau mỗi N mục, N từ `native_every_<mã vị trí>`, mặc định 8), "Collapsible ad"; nút quay lại của máy về trang mặc định. Dùng 7 vị trí `gallery_*`, khoảng cách quảng cáo toàn màn hình như production (bấm lại trong 45 giây (`ads_interval`) sau khi inter đóng thì không hiện, log `THROTTLED`; khoảng cách tính từ lúc đóng, không từ lúc hiện, và chỉ trong process, mở lại app thì hiện được ngay). Ad Inspector chỉ mở trên emulator hoặc máy đã đăng ký thiết bị thử trên AdMob (https://support.google.com/admob/answer/9691433); máy chưa đăng ký thì màn hình báo lỗi kèm mã. Log ở thẻ `VGL.AdGallery` và `VGL.Ads`. Định dạng mới của đợt 3 thêm vào màn hình này ở T-036.
 - Kiểm trên máy thật theo mục 2: nhãn "Ad", AdChoices, nút đóng và đếm ngược, thu gọn và bung lại, thanh đáy không che điều hướng của app.
 - Xem log `adb logcat -v threadtime | grep ' VGL\.'`: mỗi quyết định cổng có một dòng (ADR-0019).
+- App open lúc mở app (T-024): staging bật sẵn `show_open_ads`, `show_open_ads_first_open`. Đồng ý quảng cáo, rồi thử: lần đầu sau khi xóa dữ liệu app (khóa `show_open_ads_first_open`); mở lại app (lần thường, `show_open_ads`); đặt `open_ad_type = inter` trên Firebase staging để thấy inter thay app open; tắt khóa trên Firebase staging thì màn loading vào màn chính sau khoảng 2 giây. Màn loading đứng ở 100% trong lúc chờ, tối đa 40 giây từ lúc mở app (đồng ý 10 giây, SDK 35 giây, quảng cáo 40 giây). Log thẻ `VGL.Ads` có một dòng `startup ad: <lý do>` (`key off`, `consent timeout`, `consent closed`, `sdk timeout`, `ad timeout`, `ready`) kèm số mili giây từ lúc mở app.
 
 ## 9. Trước khi phát hành
 
-- [ ] Mỗi vị trí trong `AdPlacement` có mã production trong `release.properties` (`release.sh` kiểm).
+- [ ] Mỗi vị trí trong `AdPlacement` có mã production trong `release.properties` (`release.sh` kiểm), kể cả hai vị trí toàn app `open_app` và `open_app_inter` (T-024).
+- [ ] App có quảng cáo mở app: bật cả `feature_loading_enabled` (Remote Config hay mặc định của app) lẫn `show_open_ads`, `show_open_ads_first_open`. Cờ loading tắt thì app vào thẳng màn chính, không có quảng cáo mở app.
 - [ ] Khóa dev AppsFlyer có trong trình quản lý mật khẩu, đưa vào lúc build (ADR-0027). Khóa SDK AppLovin nhập trong ánh xạ nguồn quảng cáo "AppLovin (Bidding)" trên AdMob, không đưa vào app (mục 7).
 - [ ] `app-ads.txt` trên website của nhà phát triển có dòng của AdMob và của cả chín mạng con; lấy dòng từ bảng điều khiển của từng mạng. Thiếu dòng thì mạng đó có thể không trả quảng cáo.
 - [ ] Hộp thoại đồng ý đã cấu hình trên AdMob (Privacy & messaging) cho các vùng cần, có danh sách đối tác quảng cáo gồm chín mạng.

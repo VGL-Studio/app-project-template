@@ -1,0 +1,9 @@
+ticket: T-024
+criterion: Từ chối đồng ý quảng cáo thì màn loading không chờ quảng cáo mở app (cổng đóng), app vào màn chính
+timeout: 180
+# Staging switches the app open keys on; with consent declined the gate is closed, so loading must not hang.
+fresh
+consent decline 30
+wait id=sample_screen 60
+expect_no id=loading_screen
+shot main
