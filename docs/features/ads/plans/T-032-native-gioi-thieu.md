@@ -1,0 +1,254 @@
+---
+ticket: T-032
+title: Native ở một bước của luồng (giới thiệu và luồng khác)
+status: draft                # draft | approved | stopped | done
+version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+risk_score:                  # để trống: chạm điểm chặn (ads, core)
+risk_level: high             # low | medium | high
+token_estimate: 15M          # ticket ghi cỡ S (số gợi ý 5.0M, scripts/token-usage.py estimate, 2026-10-25), nhưng việc thật cỡ M: hai composable công khai, hai luồng trạng thái thuần, cỡ thẻ mới, biến thể toàn trang, nối vào AdsController.kt, mười ảnh chuẩn mới
+blocking_points: [ads, core]
+run_order:                   # AI điền sau họp đánh giá rủi ro
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
+---
+
+# PLAN T-032: NATIVE Ở MỘT BƯỚC CỦA LUỒNG (GIỚI THIỆU VÀ LUỒNG KHÁC)
+
+## 1. Tóm tắt
+
+`:core:ads` có hai cách đặt native ở một bước của luồng nhiều bước (MC-06, OB-01, OB-02): thẻ `NativeStepAd(placement, step)` cao 250 dp, đặt ngoài pager, lấy quảng cáo từ pool `native_step` của T-028 và đổi sang một quảng cáo khác mỗi khi bước đổi (giữ quảng cáo cũ tới khi lấy được cái mới, nên hai bước kề nhau không bao giờ cùng một quảng cáo); và trang `NativeFullScreenStep(placement)` lấp vùng của bước, không có nút điều khiển, lấy quảng cáo đã nạp sẵn của khe `native_fullscreen`, chặn quảng cáo tự hiện khi đang hiện (G-03). Không có composable hay vị trí mang tên "onboarding": app có luồng giới thiệu khai báo vị trí `native_onboarding` trong spec của nó. Kiểm chứng bằng unit test hai luồng trạng thái thuần trên đồng hồ ảo, test Robolectric cho cổng hiện, báo có quảng cáo, chặn tự hiện, nút Tiếp không bị che, và ảnh chuẩn của thẻ bước, trang toàn trang và hai khung ví dụ một bước của luồng.
+
+## 2. Hiểu yêu cầu
+
+Ticket xử lý các kịch bản sau trong `features/ads/spec.md` (spec `confirmed`; luật chi tiết: `docs/ops/ads-business-rules.md`, MC-02, MC-03, MC-06, mục 5.7, 5.11, P-01 tới P-07, G-03, HD-02, S-22):
+
+| Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
+| --- | --- | --- |
+| KB-20 | Khi người vận hành bật vị trí native của luồng thì bước mà spec của app chọn có native cao 250 dp hoặc native toàn trang. | Hai composable công khai, mỗi cái nhận một vị trí: `NativeStepAd` cho định dạng `native_step` (thẻ 250 dp, `NativeAdSize.STEP`) và `NativeFullScreenStep` cho định dạng `native_fullscreen` (cả vùng của bước). App gọi composable ở bước mà spec của app chọn; bước nào có quảng cáo không thành khóa (câu hỏi 32 của spec). Hiện chỉ khi đồng ý cho phép, `is_show_<mã vị trí>` bật và có mã đơn vị (`nativeSlotAllowed` của T-027). |
+| KB-20 | Hai bước kề nhau không hiện cùng một quảng cáo. | Thẻ đặt ngoài pager (P-07) và nhận khóa `step` của bước đang hiện. Bước đổi thì thẻ lấy một quảng cáo mới từ pool **trước** khi trả quảng cáo cũ; pool không bao giờ trả quảng cáo đang dùng (P-01), nên quảng cáo mới luôn khác quảng cáo của bước trước. Chưa lấy được thì thẻ vẽ khung chờ (hay không vẽ gì khi pool cạn) và vẫn giữ quảng cáo cũ, nên lần lấy sau cũng không ra quảng cáo cũ (OB-02, L-A08). Trang toàn trang: mỗi lần vào trang lấy quảng cáo đã nạp sẵn ra khỏi khe (khe chỉ giữ một quảng cáo, lấy rồi thì nạp cái mới), rời trang thì hủy; hai trang toàn trang kề nhau là hai lần lấy, không thể cùng một đối tượng. |
+| KB-20 | Native toàn trang không có nút điều khiển riêng; nút Tiếp của app vẫn ở chỗ quen thuộc và không bị quảng cáo che. | `NativeFullScreenAdLayout` có biến thể bước của luồng (`onClose = null`): không có nút đóng, không đếm ngược, không đệm theo vùng an toàn của cửa sổ; chỉ đo vùng app cho (không `Dialog`, không phủ cửa sổ). App đặt nút Tiếp ngoài vùng đó, cùng chỗ như các bước khác. Test đo nút Tiếp cùng vị trí ở bước có và không có quảng cáo, và không giao với vùng quảng cáo. |
+| KB-20 | Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống. | Thẻ: không được phép hiện thì không vẽ gì (0 dp); pool cạn thì `Unavailable`, không vẽ gì (P-06, không giữ chỗ). Đang chờ quảng cáo thì khung chờ 250 dp (như mọi native khi tải, KB-1). Trang toàn trang: không có quảng cáo thì không vẽ gì (5.7: "lỗi thì không vẽ gì") và báo `onAdAvailabilityChange(false)`; app biết trước khi dựng luồng bằng `rememberNativeFullScreenStepReady(placement)` để chỉ thêm trang quảng cáo khi đã có quảng cáo (câu hỏi 4). |
+| KB-20 | Luồng giới thiệu dùng được khóa `is_show_native_onboarding` như các app AdsKit; luồng khác dùng khóa theo mã vị trí của nó. | Đã có từ T-019: khóa suy ra `is_show_<mã vị trí>` (MC-03), test `AdsSettingsTest` đã khai báo vị trí `native_onboarding` định dạng `NATIVE_STEP` và kiểm khóa trùng chuỗi AdsKit. Task này thêm test: composable đọc đúng công tắc của vị trí nó nhận (không có khóa riêng của luồng). Luồng có cả thẻ và trang toàn trang cần hai vị trí, hai khóa (câu hỏi 3). |
+| KB-23, tiêu chí 2 (liên quan) | Khi một màn hình của app đang chiếm toàn màn (... trang native giới thiệu) thì không có quảng cáo khi quay lại. | `NativeFullScreenStep` gọi `SuppressResumeAds(active = true)` (G-03 cách 2, đã có từ T-022) trong lúc đang vẽ quảng cáo; rời trang thì nhả. Thẻ 250 dp không chặn (không chiếm toàn màn). |
+
+Luật của ticket, ngoài tiêu chí chấp nhận (mỗi luật có test ở mục 4):
+
+- MC-06, OB-01: một vị trí cho cả luồng; `:core:ads` không biết số trang hay tên luồng.
+- P-02: pool `native_step` cỡ 3 (`poolCapacity(NATIVE_STEP)` của T-028; task này không đổi).
+- P-06: thẻ thử lấy mỗi 500 ms, pool cạn thì mỗi 2 giây, vẫn tiếp tục (quảng cáo về muộn vẫn hiện); dùng `PoolCellPolicy` của T-028.
+- P-01a: thẻ trả quảng cáo cũ qua `NativeAdPool.release` của T-028 (đã ghi lượt hiển thị thì pool hủy và nạp bù).
+- P-07: thẻ bước đặt ngoài pager, không ghi `ad_opportunity` (luật ghi rõ native ở bước của luồng không có trạng thái này). Trang toàn trang cũng không ghi (mục 8.2 không có nhánh cho trang của luồng; câu hỏi 4).
+- HD-02, S-22: `NATIVE_STEP` đã ở nhóm nạp sẵn đầu (`defaultPreloadPlan`); pool đăng ký khe kế hoạch ở T-028. Trang toàn trang dùng khe `NATIVE_FULL_SCREEN`, ở nhóm sau của kế hoạch mặc định; app có trang toàn trang ở bước đầu thì đặt kế hoạch riêng (`setPreloadPlan`), ghi vào `ads-guide.md`.
+- G-03: chặn tự hiện theo trang đang hiện (trang toàn trang).
+- L-061: vị trí tắt hay rút đồng ý giữa chừng thì thẻ và trang ẩn, trả hay hủy quảng cáo, báo `false`.
+- O-06: thẻ bước xin media ngang (`nativeRequestOptions(NativeAdSize.STEP)`, như medium).
+- L-072: task không thêm đường gửi yêu cầu nào. Thẻ đi qua `NativeAdPool.sendNext` của T-028; trang toàn trang dùng lượt nạp sẵn có của khe toàn màn hình (`preloadNativeFullScreen`, `loadFullScreenAdIfNeeded`).
+
+Mọi cách một quảng cáo của bước được dùng (L-068), và cách tính:
+
+| Cách dùng | Cách tính |
+| --- | --- |
+| Một thẻ, bước đổi | Thẻ giữ quảng cáo cũ tới khi lấy được cái mới, rồi trả cái cũ; test bước 1 rồi bước 2 khác quảng cáo, kể cả khi pool chỉ còn đúng quảng cáo cũ quay vòng |
+| Bước đổi nhanh hai lần (bước 1, 2, 3 khi bước 2 chưa có quảng cáo) | Lần lấy của bước 3 vẫn loại quảng cáo của bước 1 đang giữ; bước 2 không lấy được gì thì không giữ gì thêm |
+| Hai thẻ cùng lúc (hai luồng hay hai vùng dùng chung pool) | Hai ô của cùng pool (cùng định dạng, cùng mã đơn vị, T-028) luôn khác quảng cáo; test hai thẻ chồng nhau |
+| Bước không có quảng cáo xen giữa (bước 1 có, bước 2 không, bước 3 có) | App bỏ thẻ khỏi composition ở bước 2: thẻ trả quảng cáo; bước 3 là một lần lấy mới. Bước 1 và 3 không kề nhau nên không thuộc OB-02 |
+| Trang toàn trang | Một lần lấy khỏi khe mỗi lần vào trang; rời trang thì hủy và nạp lại khe (`fullScreenReloads`) |
+| Trang toàn trang và `rememberShowFullScreenAd` cùng một vị trí | Dùng chung khe một quảng cáo; ai lấy trước thì có. Không khuyến nghị: `ads-guide.md` ghi mỗi vị trí `native_fullscreen` dùng một cách |
+
+Test nghiệm thu gợi ý `AT-NT-*` thuộc bản đặc tả độc lập của AdsKit, không có trong repo (như T-021, T-027, T-028 đã ghi); plan dùng các luật trên làm danh sách test.
+
+Thiết kế tham chiếu: `features/ads/design/README.md` (vẽ lại T-035, 2026-10-25): component `Native/Step` (thẻ 250 dp, icon 32 dp, CTA 36 dp, có trạng thái chờ) và biến thể `Flow step` của `Native/FullScreen` (không có nút điều khiển, CTA 52 dp) có trên Figma nhưng chưa có ảnh màn hình hay file `context/` (README, mục 1: "ticket dùng chúng thêm ảnh màn hình khi cần"). Số đo lấy từ mục 5.7 của luật và từ `design/context/AdGalleryScreen_collapsible-expanded_light.md` (cùng bố cục 250 dp: lề trong 12 dp, cách nhau 8 dp, media lấp phần còn lại, icon 32 dp, tiêu đề 13 sp, CTA 36 dp), và `design/context/NativeFullScreenAdScreen_default_light.md` cho trang toàn trang (câu hỏi 2). Không ảnh thiết kế nào thuộc task này.
+
+ADR liên quan: ADR-0004, ADR-0008, ADR-0013, ADR-0019, ADR-0020, ADR-0022, ADR-0026, ADR-0029.
+
+## 3. Giải pháp
+
+### 3.1. Cách làm
+
+**Thứ tự và phụ thuộc.** Plan dựng trên API của các plan chưa merge, chạy sau chúng (mục 6):
+
+- T-027 phiên bản 2 (nhánh `claude/plan-T-027-native-adskit`): `nativeSlotAllowed`, `NativeAdSlotGate` (cổng hiện và `onAdAvailabilityChange`), `NativeRequestOptions.kt` (`nativeRequestOptions(size)`), số đo nút đóng và `TopBarHeight` 36 dp của `NativeFullScreenAdScreen.kt`.
+- T-028 (nhánh `claude/plan-T-028-pool-native`): `NativeAdPool` (`claim`, `release`, `exhausted`), `NativeAdPools.pool(placement)`, `poolCapacity(NATIVE_STEP) = 3`, `PoolCellPolicy` (500 ms, 2 giây), khe kế hoạch của pool, `NativeAdSize.CARD`. T-028 ghi rõ để `nativeLoadSize(NATIVE_STEP)` là `null` "tới T-032".
+- T-040 (nhánh `claude/plan-T-040-nguon-mot-quang-cao`): `preloadedNativeFullScreen` dựng bằng `nativeFullScreenCache` (hết hạn 55 phút); task này chỉ gọi `take`.
+- T-026 (nhánh `claude/plan-T-026-inter-native-sau-inter`): sửa `NativeFullScreenAdScreen.kt` (đếm ngược) trên bản của T-027; task này thêm biến thể không có nút điều khiển trên bản đó. Không dùng API của T-026.
+
+Task không tạo lại pool, cổng hiện, tùy chọn yêu cầu hay khe toàn màn hình: dùng đúng ký hiệu của các plan trên. Tên ở đây theo plan của các task đó; code đã merge đặt tên khác thì dùng tên trong code (ADR-0029, không dừng).
+
+Làm theo mẫu có sẵn của `:core:ads`: luồng trạng thái thuần nhận pool, đồng hồ, logger qua tham số (`pooledCellStates` của T-028, `retryingNativeAdStates`); composable công khai mỏng đọc `LocalAdsController` rồi gọi composable internal test được không cần `AdsController` (`NativeAdSlot` và `NativeAdSlotGate`); `AdsController` chỉ nối phụ thuộc thật.
+
+1. **`NativeAdCard.kt`: cỡ `STEP` (thẻ 250 dp).**
+   - `enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD, STEP }` (thêm `STEP` sau `CARD` của T-028). Mọi `when` trên `NativeAdSize` thêm nhánh `STEP`: `NativeAdDimens.heightOf` (250 dp), `NativeAdLayout` (`StepLayout`), `NativeAdPlaceholderLayout` (khung chờ cùng bố cục), `nativeRequestOptions` (`NativeRequestOptions.kt`). Chạy thử L-089 trên nhánh chính: không có `when` nào trên `NativeAdSize` ngoài `:core:ads` (mục 4.1).
+   - `NativeAdDimens`: `StepHeight = 250.dp`, `StepIconSize = 32.dp`, `StepCallToActionHeight = 36.dp`; cỡ chữ tiêu đề 13 sp là hằng riêng của composable quảng cáo, dựng bằng `MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp)` (README thiết kế, đoạn T-035). Nếu T-030 đã thêm hằng cùng số cho lớp thu gọn (`LayerIconSize`, `LayerCallToActionHeight`) thì dùng chung một hằng trong `NativeAdDimens`, không thêm bản thứ hai.
+   - `StepLayout` theo bố cục 250 dp của `AdGalleryScreen_collapsible-expanded_light.md` bỏ nút thu gọn: khung `NativeAdFrame` cao 250 dp, lề trong 12 dp, cột cách nhau 8 dp: media (`NativeAdMediaArea`, `weight(1f)`), đầu (icon 32 dp, tiêu đề một dòng 13 sp, dòng nhãn "Ad"), CTA cao 36 dp lấp chiều rộng. AdChoices góc trên phải, trên media (như mọi native khác, O-08; khác lớp thu gọn của T-030). Media còn lại ở khung 411 dp: 250 − 2 × 12 − 32 − 36 − 2 × 8 = 134 dp cao, rộng 353 dp; ít nhất 120 dp chiều rộng (KB-2), không đạt 120 dp chiều cao nhưng đúng số của 5.7 như lớp thu gọn (câu hỏi 2).
+   - Khung chờ `STEP`: cùng chiều cao 250 dp, khối media, khối đầu, khối CTA 36 dp.
+2. **`NativeAdViewBinding.kt`:** `STEP` gắn `MediaView` như medium và thẻ dọc (nhánh của `CARD` ở T-028).
+3. **`NativeRequestOptions.kt` (của T-027):** nhánh `STEP -> mediaAspect = LANDSCAPE` (O-06, media ngang như medium).
+4. **`NativeFlowStep.kt` (mới): native ở bước của luồng.**
+   - `internal fun stepAdStates(pool: NativeAdPool, holder: AdPlacement, steps: Flow<Any>, logger: AppLogger, placementKey: String): Flow<NativeAdState>`: gom `steps` (đã `distinctUntilChanged`); giữ `current: LoadedNativeAd?`. Mỗi bước mới: nếu đã có `current` thì chuyển nó thành `previous` (vẫn đang dùng, không trả) và phát `Loading`; lặp lấy theo P-06: `pool.claim(holder)` có quảng cáo thì `current = ad`, phát `Loaded(ad)`, rồi `pool.release(previous)` và `previous = null`; không có thì `pool.exhausted` true phát `Unavailable` (một lần mỗi lần chuyển) và chờ `PoolCellPolicy.EXHAUSTED_RETRY_MILLIS`, false thì chờ `PoolCellPolicy.RETRY_MILLIS`. Bước đổi giữa lúc đang chờ thì hủy vòng chờ của bước cũ (không có `current` mới), `previous` giữ nguyên. Hủy collection (thẻ rời composition hay cổng đóng) thì trả cả `current` và `previous` trong `finally`. Log (thẻ `Ads`): `Step <mã vị trí>: step changed`, `got a new ad`, `no ad (pool exhausted)`. Không ghi khóa `step` (có thể là dữ liệu của app).
+   - `internal fun fullScreenStepStates(take: () -> LoadedNativeAd?, ensureLoading: () -> Unit, release: (LoadedNativeAd) -> Unit): Flow<NativeAdState>`: `take()` có quảng cáo thì phát `Loaded` rồi `awaitCancellation()`; không có thì gọi `ensureLoading()`, phát `Unavailable`, thử lại mỗi `PoolCellPolicy.RETRY_MILLIS` (quảng cáo về khi người dùng đang ở trang vẫn hiện). Hủy thì `release(ad)` trong `finally`.
+   - `@Composable fun NativeStepAd(placement: AdPlacement, step: Any, modifier: Modifier = Modifier, onAdAvailabilityChange: (Boolean) -> Unit = {})` (công khai): `require(placement.format == AdFormat.NATIVE_STEP)` (`requireStepFormat`, `IllegalArgumentException` như `requireNativeFormat`). Không có `AdsController` (test, preview) thì `Box(modifier)`. `step` đưa vào một `MutableStateFlow` giữ trong `remember`, cập nhật bằng `SideEffect`; trạng thái từ `ads.stepAd(placement, steps)`; vẽ bằng `NativeAdSlotGate(allowed = nativeSlotAllowed(...), states, NativeAdSize.STEP, keepSpaceWhenEmpty = false, onAdAvailabilityChange) { BoundNativeAd(it, NativeAdSize.STEP) }` của T-027. KDoc: đặt ngoài pager, truyền khóa của bước đang hiện (ví dụ `pagerState.settledPage`), chỉ gọi ở bước mà spec của app chọn.
+   - `@Composable fun NativeFullScreenStep(placement: AdPlacement, modifier: Modifier = Modifier, onAdAvailabilityChange: (Boolean) -> Unit = {})` (công khai): `require(placement.format == AdFormat.NATIVE_FULL_SCREEN)`. Không có `AdsController` thì `Box(modifier)`. Cổng `nativeSlotAllowed` như thẻ; trạng thái từ `ads.fullScreenStep(placement)` (bọc `fullScreenStepStates`); composable internal `NativeFullScreenStepGate(allowed, states, modifier, onAdAvailabilityChange, adContent)` (test được không cần `AdsController`): `Loaded` thì vẽ `adContent(ad)` và `SuppressResumeAds(active = true)`; còn lại không vẽ gì (`Box(modifier)` rỗng). Báo `onAdAvailabilityChange` cùng luật của `NativeAdSlotGate`: `true` khi chuyển sang `Loaded`, `false` khi chuyển sang `Unavailable`, `false` khi `allowed` thành false sau một lần đã báo `true` (L-061). `adContent` thật: `BoundNativeAd(ad, Modifier.fillMaxSize()) { binder -> NativeFullScreenAdLayout(ad.assets, onClose = null, binder, media = { binder.Media(Modifier.fillMaxSize()) }) }`, như `FullScreenAdHost`.
+   - `@Composable fun rememberNativeFullScreenStepReady(placement: AdPlacement): Boolean` (công khai): `false` khi không có `AdsController`, khi `nativeSlotAllowed` false; còn lại đọc `ads.stepFullScreenReady(placement)` mỗi `PoolCellPolicy.RETRY_MILLIS` (`produceState`). App đọc một lần khi dựng danh sách bước để chỉ thêm trang quảng cáo khi đã có quảng cáo, không đổi số trang khi luồng đang chạy (KDoc ghi cách dùng; câu hỏi 4).
+   - `@Composable fun NativeFullScreenStepContent(assets: NativeAdAssets, modifier: Modifier = Modifier, media: @Composable BoxScope.() -> Unit = {}, adChoices: @Composable () -> Unit = {})` (công khai, không trạng thái): như `NativeFullScreenAdScreen`, cho preview, test, màn xem thử (T-036).
+5. **`NativeFullScreenAdScreen.kt`:** `NativeFullScreenAdLayout(assets, onClose: (() -> Unit)?, binder, ...)`: `onClose == null` là biến thể bước của luồng (`Flow step` của thiết kế): không có nút đóng (và không có huy hiệu đếm ngược của T-026), hàng trên vẫn cao `TopBarHeight` 36 dp và chỉ chừa góc phải cho AdChoices, nên media bắt đầu cùng độ cao như bản sau inter; không `windowInsetsPadding(WindowInsets.safeDrawing)` (trang nằm trong khung của app, app lo vùng an toàn). Lề và các phần khác giữ như T-027. `NativeFullScreenAdScreen` công khai giữ `onClose: () -> Unit` không null (bản sau inter không đổi).
+6. **`AdsController.kt`:**
+   - `nativeLoadSize`: `NATIVE_STEP -> NativeAdSize.STEP` (bỏ chú thích "the pool ... loads the native step"), nên lượt nạp của pool `native_step` (`poolLoad` của T-028) xin đúng cỡ.
+   - `internal fun stepAd(placement: AdPlacement, steps: Flow<Any>): Flow<NativeAdState> = pools.pool(placement)?.let { stepAdStates(it, placement, steps, logger, placement.key) } ?: flowOf(NativeAdState.Unavailable)`.
+   - `internal fun fullScreenStep(placement): Flow<NativeAdState>`: `fullScreenStepStates(take = { takeStepFullScreenAd(placement) }, ensureLoading = { loadFullScreenAdIfNeeded(placement) }, release = { releaseStepFullScreenAd(placement, it) })`.
+   - `private fun takeStepFullScreenAd(placement): LoadedNativeAd?`: `canRequestAds.value` false thì `null` (S-11); `preloadedNativeFullScreen.take(placement, clock.nowMillis())`; có thì `nativeFullScreenCells.remove(ad)?.value = placement` (P-04: lượt hiển thị, doanh thu tính cho vị trí này) và log `Flow step full page shown: <mã vị trí>`. Không đi qua cổng toàn màn hình (`decideFullScreenTurn`), không đọc hay đẩy mốc `ads_interval`, không chiếm `presence` (trang là một phần của luồng, không phải một lượt hiện quảng cáo toàn màn hình; câu hỏi 4).
+   - `private fun releaseStepFullScreenAd(placement, ad)`: `ad.destroy()`, `fullScreenReloads.onClosedOrShowFailed(placement)` (nạp lại khe như sau khi đóng), log `Flow step full page left`.
+   - `internal fun stepFullScreenReady(placement): Boolean = isFullScreenAdReady(placement)`.
+7. **`AdPlacement.kt`:** chỉ KDoc. `NATIVE_STEP`: "No function shows it yet (T-028)" thành "shown with [NativeStepAd] outside the pager, one pooled ad per step (MC-06, T-032)". `NATIVE_FULL_SCREEN`: thêm "or as the page of a flow step with [NativeFullScreenStep], no controls (MC-06)". Không thêm, bớt hay đổi vị trí nào (câu hỏi 1).
+8. **Tài liệu.** `docs/ops/ads-guide.md`: mục 3 dòng "Native ở một bước của luồng" (cột cuối: `NativeStepAd`, `NativeFullScreenStep`, bỏ "(đợt 3)"); mục 4 thêm thẻ bước 250 dp và trang toàn trang không nút; mục 5 cách khai báo vị trí của luồng (`native_onboarding`, `NATIVE_STEP`; luồng có trang toàn trang khai báo thêm một vị trí `NATIVE_FULL_SCREEN`; trang toàn trang ở bước đầu thì đặt kế hoạch nạp sẵn có `NATIVE_FULL_SCREEN` ở nhóm đầu, HD-02; một vị trí `native_fullscreen` chỉ dùng một cách). `docs/features/ads/design/README.md`: mục 3 thêm dòng thẻ bước 250 dp và trang bước của luồng; mục 8 ghi kết quả xem ảnh chuẩn mới so với component trên Figma (câu hỏi 2).
+
+Ghi log: `AppLogger` (ADR-0019) ở `stepAdStates` và `AdsController` như trên; không ghi mã đơn vị, nội dung quảng cáo hay khóa bước của app.
+
+### 3.2. Danh sách file
+
+| Thao tác | Đường dẫn | Nội dung thay đổi |
+| --- | --- | --- |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFlowStep.kt` | 3.1 bước 4: `stepAdStates`, `fullScreenStepStates`, `NativeStepAd`, `NativeFullScreenStep`, `NativeFullScreenStepGate`, `rememberNativeFullScreenStepReady`, `NativeFullScreenStepContent`, `requireStepFormat` |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdCard.kt` | Bước 1: `NativeAdSize.STEP`, hằng số, `StepLayout`, khung chờ `STEP` (file của T-027, T-028 sửa trước) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdViewBinding.kt` | Bước 2: `STEP` gắn `MediaView` (file của T-027, T-028 sửa trước) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeRequestOptions.kt` | Bước 3: nhánh `STEP` media ngang (T-027 tạo, T-028 sửa) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreen.kt` | Bước 5: `onClose` nhận `null` (biến thể bước của luồng: không nút, không đệm vùng an toàn) (file của T-027, T-026 sửa trước) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | Bước 6: `nativeLoadSize(NATIVE_STEP)`, `stepAd`, `fullScreenStep`, `takeStepFullScreenAd`, `releaseStepFullScreenAd`, `stepFullScreenReady` (file của T-027, T-040, T-028, T-026 sửa trước) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt` | Bước 7: KDoc của `NATIVE_STEP`, `NATIVE_FULL_SCREEN` |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeStepAdStatesTest.kt` | `stepAdStates` trên đồng hồ ảo với `NativeAdPool` thật và bộ nạp giả của T-028: OB-02, P-06, P-01a, hai thẻ, hủy (mục 4) |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenStepStatesTest.kt` | `fullScreenStepStates`: lấy, chưa có rồi về muộn, nạp khi thiếu, hủy thì trả (mục 4) |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFlowStepTest.kt` | Robolectric: cổng hiện, 0 dp khi tắt hay cạn, báo có quảng cáo, chặn tự hiện, nút Tiếp không bị che, định dạng sai, L-061 (mục 4) |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFlowStepScreenshotTest.kt` | Ảnh khung ví dụ một bước của luồng (thẻ, trang toàn trang), khung chuẩn và khung thấp |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt` | Bước 3: `placeholder_matchesCardHeight_forEachSize` có chiều cao riêng cho `STEP` (đỏ ở chạy thử, mục 4.1); test số đo thẻ `STEP` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardScreenshotTest.kt` | Thêm ảnh `NativeAdCard_step_light`, `NativeAdCard_step_dark`, `NativeAdPlaceholder_step_light` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSlotTest.kt` | `nativeLoadSize_mapsFormats` thêm `NATIVE_STEP -> STEP` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeRequestOptionsTest.kt` | `step_landscapeMedia` (T-027 tạo) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreenTest.kt` | Biến thể bước của luồng: không có nút đóng, media bắt đầu cùng độ cao, chỉ đo vùng được cho |
+| Tạo | `core/ads/src/test/screenshots/NativeAdCard_step_light.png` | Thẻ bước 250 dp |
+| Tạo | `core/ads/src/test/screenshots/NativeAdCard_step_dark.png` | Như trên, chế độ tối |
+| Tạo | `core/ads/src/test/screenshots/NativeAdPlaceholder_step_light.png` | Khung chờ 250 dp, `animated = false` |
+| Tạo | `core/ads/src/test/screenshots/NativeFlowStep_card_light.png` | Khung ví dụ: nội dung của bước, thẻ 250 dp ngoài pager, nút Tiếp; `w411dp-h891dp-xxhdpi` |
+| Tạo | `core/ads/src/test/screenshots/NativeFlowStep_card_dark.png` | Như trên, chế độ tối |
+| Tạo | `core/ads/src/test/screenshots/NativeFlowStep_card_small.png` | Như trên ở `w360dp-h640dp-xxhdpi`, chữ dài nhất (L-028) |
+| Tạo | `core/ads/src/test/screenshots/NativeFlowStep_full-page_light.png` | Khung ví dụ: trang toàn trang không nút, nút Tiếp dưới vùng của trang |
+| Tạo | `core/ads/src/test/screenshots/NativeFlowStep_full-page_dark.png` | Như trên, chế độ tối |
+| Tạo | `core/ads/src/test/screenshots/NativeFlowStep_full-page_small.png` | Như trên ở `w360dp-h640dp-xxhdpi`, chữ dài nhất (L-028) |
+| Sửa | `docs/ops/ads-guide.md` | Bước 8: mục 3 (dòng 47), mục 4, mục 5 |
+| Sửa | `docs/features/ads/design/README.md` | Bước 8: mục 3 (hai dòng mới), mục 8 (kết quả xem ảnh chuẩn so với component) |
+| Sửa | `docs/features/ads/tickets/T-032-native-gioi-thieu.md` | Trạng thái ticket theo phiên tự chạy |
+| Sửa | `docs/features/ads/plans/T-032-native-gioi-thieu.md` | Nhật ký thực hiện |
+
+Ảnh chuẩn hiện có không đổi: không vẽ lại cỡ nào đã có; biến thể toàn trang chỉ đổi khi `onClose == null`, ảnh `NativeFullScreenAdScreen_*` vẽ bản có nút. Nơi đọc file dùng chung (L-020): `NativeAdSize` chỉ có `when` trong `:core:ads` (mục 4.1); `NativeFullScreenAdLayout` được gọi ở `NativeFullScreenAdScreen`, `FullScreenAdHost` và lớp phủ của T-026, cả ba truyền `onClose` khác null nên không đổi; ảnh mới không ai khác đọc.
+
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
+
+- Cờ tính năng: Không có. Công tắc là khóa `is_show_<mã vị trí>` của vị trí app khai báo (MC-03).
+- Quảng cáo: không thêm, bớt hay di chuyển vị trí nào (câu hỏi 1). Thêm cách hiển thị cho hai định dạng đã có trong danh sách đóng MC-02: `native_step` (thẻ 250 dp, từ pool) và `native_fullscreen` ở một bước của luồng (không nút, không qua cổng `ads_interval`): điểm chặn 1. Quảng cáo trên luồng giới thiệu là rủi ro chính sách đã ghi ở ADR-0026; dự án mẫu không có luồng giới thiệu (câu hỏi 11 của spec).
+- Sự kiện phân tích: Không chạm. Không ghi `ad_opportunity` cho thẻ và trang của bước (P-07, câu hỏi 4); lượt nạp của pool ghi `ad_placement = pool` theo T-028; lượt hiển thị, doanh thu, bấm của trang toàn trang tính cho vị trí của trang qua ô vị trí có sẵn (`nativeFullScreenCells`).
+- File R2: Không chạm.
+- **Quyền truy cập:** Không thêm.
+- **Thư viện và SDK:** Không thêm. Dùng `play-services-ads` (`libs.play.services.ads`, đã là phụ thuộc của `:core:ads`) và Compose foundation đã có; không thêm phụ thuộc module nào.
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** `stepAdStates` dùng `NativeAdPool` thật của T-028 trong unit test; nếu `NativeAdPool` sau khi merge không dựng được ngoài `AdsController` (hàm tạo cần phụ thuộc không giả được) thì test OB-02 không chạy trên JVM.
+- **Điều kiện chuyển:** test của `NativeStepAdStatesTest` không dựng được pool sau 2 lần sửa phần dựng test, hay pool cần `AdsController`.
+- **Cách làm thay:** `stepAdStates` nhận một interface hẹp `internal interface StepAdSource { fun claim(holder: AdPlacement): LoadedNativeAd?; fun release(ad: LoadedNativeAd); val exhausted: Boolean }` khai trong `NativeFlowStep.kt` (dự phòng), `AdsController` bọc `NativeAdPool` vào đó; test dùng bản giả theo đúng hợp đồng P-01 (không trả quảng cáo đang dùng). Tiêu chí và test ở mục 4 giữ nguyên.
+
+## 4. Kiểm thử
+
+| Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
+| --- | --- | --- |
+| KB-20, tiêu chí 1 (thẻ 250 dp) | Compose UI test | `NativeAdCardTest.step_is250dpHigh_icon32_cta36_headline13sp` (khung 411 dp: thẻ 250 dp, icon 32 x 32, CTA cao 36 dp, chữ tiêu đề 13 sp, media rộng ít nhất 120 dp); `placeholder_matchesCardHeight_forEachSize` có `STEP` 250 dp (đỏ ở chạy thử với nhánh tạm, mục 4.1); `step_longTexts_keepHeight` (chữ dài nhất vẫn 250 dp) |
+| KB-20, tiêu chí 1 (đúng cổng hiện) | Compose UI test | `NativeFlowStepTest.stepAd_drawsOnlyWhenAllowed` (dựng `NativeAdSlotGate` qua `NativeStepAd` không có `AdsController` thì `Box` rỗng 0 dp; với `allowed = false` thì 0 dp và không gom trạng thái; `true` thì thẻ 250 dp); `fullScreenStep_drawsOnlyWhenAllowed` (cùng cách với `NativeFullScreenStepGate`) |
+| KB-20, tiêu chí 1 (định dạng đúng) | Unit test | `NativeFlowStepTest.requireStepFormat_rejectsOtherFormats` (mọi `AdFormat.entries` khác `NATIVE_STEP` ném `IllegalArgumentException`; trang toàn trang chỉ nhận `NATIVE_FULL_SCREEN`); `NativeAdSlotTest.nativeLoadSize_mapsFormats` (`NATIVE_STEP -> STEP`) |
+| KB-20, tiêu chí 2 (hai bước kề nhau khác quảng cáo) | Unit test | `NativeStepAdStatesTest.stepChange_neverShowsSameAd`: pool cỡ 3 với bộ nạp giả, bước 1 nhận A; bước 2 nhận B ≠ A; A được trả **sau** khi B phát (thứ tự lời gọi `release`); `stepChange_onlyOldAdInRotation_waitsInsteadOfReusing`: pool chỉ có A (bộ nạp giả chưa trả quảng cáo nào khác), bước 1 nhận A chưa ghi lượt hiển thị; đổi sang bước 2 thì phát `Loading`, không bao giờ phát `Loaded(A)` trong 5 giây ảo; bộ nạp trả B thì phát `Loaded(B)` rồi mới trả A (đối chứng: cùng kịch bản mà hàm trả A trước khi lấy thì pool trả lại A; test viết trên hàm thật nên thất bại khi code trả trước); `rapidSteps_keepsFirstAdOutOfRotation` (bước 1, 2, 3 khi bước 2 chưa có quảng cáo: bước 3 không nhận A) |
+| KB-20, tiêu chí 2 (hai thẻ cùng lúc, L-068) | Unit test | `NativeStepAdStatesTest.twoCells_samePool_differentAds` (hai luồng `stepAdStates` chồng nhau trên cùng pool: hai quảng cáo khác nhau; một luồng đổi bước không lấy quảng cáo của luồng kia) |
+| KB-20, tiêu chí 2 (trang toàn trang) | Unit test | `FullScreenStepStatesTest.eachEntry_takesItsOwnAd` (hai lần gom liên tiếp gọi `take` hai lần, trả hai đối tượng khác nhau; lần thứ nhất đã `release` trước lần thứ hai) |
+| KB-20, tiêu chí 3 (không nút điều khiển) | Compose UI test | `NativeFullScreenAdScreenTest.flowStep_hasNoCloseButton_noCountdown` (`onClose = null`: không có node `CLOSE`, không có node đếm ngược của T-026; đối chứng: bản có `onClose` vẫn có `CLOSE`); `flowStep_mediaStartsLikeAfterInter` (media cùng `top` như bản có nút, khung 411 dp); `flowStep_noWindowInsetPadding` (trong `Box` 360 x 556 dp, cột bắt đầu ở lề 16 dp, không cộng vùng an toàn) |
+| KB-20, tiêu chí 3 (nút Tiếp không bị che) | Compose UI test | `NativeFlowStepTest.nextButton_samePlace_notCovered_withFullPage` và `..._withCard`: khung ví dụ trong test (cột: vùng của bước `weight(1f)`, nút Tiếp cao 52 dp lề 16 dp) ở `w360dp-h640dp-xxhdpi`; đo nút Tiếp ở bước có quảng cáo (quảng cáo giả) và ở bước không có quảng cáo: cùng `boundsInRoot`; vùng quảng cáo (`NativeAdTestTags.CARD` hay `NativeFullScreenAdTestTags.CTA`) không giao với nút (chạy thử: CTA đáy 524 dp, nút từ 572 dp, mục 4.1); chạm giữa nút Tiếp gọi callback của app, không gọi CTA |
+| KB-20, tiêu chí 4 (tắt hay không có quảng cáo thì không khoảng trống) | Compose UI test | `NativeFlowStepTest.stepAd_unavailable_takesNoSpace` (trạng thái `Unavailable` thì chiều cao 0 dp, nút Tiếp ngay dưới nội dung của bước); `stepAd_loading_keeps250dp` (đối chứng: `Loading` thì khung chờ 250 dp); `fullScreenStep_unavailable_drawsNothing` (không node nào của quảng cáo, `onAdAvailabilityChange(false)`) |
+| KB-20, tiêu chí 4 (pool cạn, quảng cáo về muộn) | Unit test | `NativeStepAdStatesTest.exhausted_emitsUnavailable_retriesEvery2s_lateAdShows` (P-06: cạn thì `Unavailable` một lần, thử lại mỗi 2 000 ms ảo; không cạn mỗi 500 ms; bộ nạp trả quảng cáo thì `Loaded`); `FullScreenStepStatesTest.notReady_ensuresLoading_thenLateAdShows` (`take` null thì gọi `ensureLoading` một lần, phát `Unavailable`; 500 ms sau `take` có quảng cáo thì `Loaded`) |
+| KB-20, tiêu chí 5 (khóa theo vị trí) | Unit test | Đã có: `AdsSettingsTest` (vị trí `native_onboarding` định dạng `NATIVE_STEP` suy ra `is_show_native_onboarding`); thêm `NativeFlowStepTest.stepAd_readsOnlyItsPlacementSwitch` (cổng của composable dùng `ads.isEnabled(placement)` của chính vị trí: dựng với `nativeSlotAllowed(canRequestAds = true, enabled = false, unitId = "u")` thì không vẽ; đối chứng `enabled = true` thì vẽ) |
+| G-03, KB-23 tiêu chí 2 (chặn tự hiện khi trang hiện) | Compose UI test | `NativeFlowStepTest.fullPage_suppressesResumeAds_whileShown`: `AdsHostContent(suppression, suppressor)` bọc `NativeFullScreenStepGate` với `Loaded` thì `suppressor.suppressed` true; rời composition thì false; `Unavailable` thì false (đối chứng); thẻ 250 dp không chặn (`stepCard_doesNotSuppress`) |
+| P-01a, rời màn trả quảng cáo | Unit test | `NativeStepAdStatesTest.cancel_releasesCurrentAndPrevious` (hủy khi đang chờ quảng cáo của bước 2: trả cả A; hủy khi có B: trả B); `FullScreenStepStatesTest.cancel_releasesAd` (hủy thì `release` đúng quảng cáo đã lấy, một lần) |
+| L-061 (vị trí tắt hay rút đồng ý giữa chừng) | Compose UI test | `NativeFlowStepTest.stepAd_allowedTurnsFalse_hidesAndReportsFalse` (`allowed` là `mutableStateOf`: đã `Loaded` rồi thành false thì không vẽ, `onAdAvailabilityChange(false)`, luồng trạng thái bị hủy nên quảng cáo được trả); `fullScreenStep_allowedTurnsFalse_releasesAndUnsuppresses` (cùng cách, thêm `suppressed` thành false) |
+| S-11 (cổng đồng ý đóng thì không lấy) | Unit test | Phần lấy của trang là hàm thuần nhận `canRequestAds`: `FullScreenStepStatesTest.takeGate_closed_returnsNull` cho hàm `stepFullScreenTake(canRequestAds, take)` mà `takeStepFullScreenAd` gọi (cổng đóng thì không gọi `take`; đối chứng: mở thì gọi). Thẻ: `NativeAdPool.claim` trả `null` khi cổng đóng (test của T-028) |
+| O-06 (thẻ bước media ngang) | Unit test | `NativeRequestOptionsTest.step_landscapeMedia` |
+| Giao diện thẻ bước | Screenshot test | `NativeAdCard_step_light.png`, `NativeAdCard_step_dark.png`, `NativeAdPlaceholder_step_light.png` (`w411dp-h891dp-xxhdpi`, quảng cáo giả `FakeNativeAdAssets.Design`; khung chờ `animated = false`) |
+| Giao diện một bước của luồng | Screenshot test | `NativeFlowStep_card_light.png`, `NativeFlowStep_card_dark.png`, `NativeFlowStep_full-page_light.png`, `NativeFlowStep_full-page_dark.png` (khung ví dụ trong test: chữ của bước minh họa đặt trong test, không phải chữ của app) |
+| Màn hình thấp (L-028) | Screenshot test khung `w360dp-h640dp-xxhdpi`, trạng thái nhiều nội dung nhất | `NativeFlowStep_card_small.png`, `NativeFlowStep_full-page_small.png` (quảng cáo giả chữ dài nhất `FakeNativeAdAssets.Longest`; nút Tiếp thấy đủ) |
+| Đúng thiết kế (khi có `design/screens/`) | Ảnh thiết kế của ticket khác (T-027, T-028, T-030): `SampleScreen_ready_light`, `SampleScreen_ready_dark`, `SampleScreen_ad-loading_light`, `AdGalleryScreen_default_light`, `AdGalleryScreen_default_dark`, `AdGalleryScreen_inlist_light`, `AdGalleryScreen_collapsible-expanded_light`, `AdGalleryScreen_collapsible-collapsed_light`, `NativeFullScreenAdScreen_default_light`, `NativeFullScreenAdScreen_default_dark`. Task này không có ảnh thiết kế (câu hỏi 2) | Không chạy so sánh thiết kế (không có ảnh của task này) |
+| Ảnh mới giống component `Native/Step` và biến thể `Flow step` trên Figma | Kiểm tra thủ công (người: xem ảnh chuẩn mới bên cạnh component trên Figma, không có ảnh thiết kế để so tự động) | Người duyệt PR mở mười ảnh chuẩn mới và component trên trang "Components / Native ads"; lệch quá một bước lưới 4 dp thì ghi vào mục 8 của README thiết kế |
+| Quảng cáo thật ở bước của luồng: thẻ đổi quảng cáo khi sang bước, trang toàn trang không có nút, quay lại app khi đang ở trang không có app open | Kiểm tra thủ công (máy thật: quảng cáo thật; dự án mẫu chưa có vị trí của luồng, kiểm ở phiên của T-036 khi màn xem thử có vị trí `gallery_*`, câu hỏi 1) | Bản staging, trang luồng của màn xem thử (T-036), log `adb logcat -v threadtime \| grep ' VGL\.'`: (1) bật vị trí thẻ: bước có thẻ hiện 250 dp, sang bước sau log `got a new ad`, quảng cáo khác; (2) bật vị trí trang: trang không có nút, nút Tiếp cùng chỗ; (3) ở trang, về màn hình chính rồi quay lại: không có app open; (4) tắt khóa: bước không có khoảng trống |
+
+**Ngoại lệ viết test trước:** phần nối trong `AdsController.kt` (`stepAd`, `fullScreenStep`, `takeStepFullScreenAd`, `releaseStepFullScreenAd`, `stepFullScreenReady`, `nativeLoadSize`): lớp này dựng SDK thật, không có test JVM. Mọi điều kiện nằm ở hàm thuần có test ở trên (`stepAdStates`, `fullScreenStepStates`, `stepFullScreenTake`); `nativeLoadSize` có test. Phần composable công khai chỉ đọc `LocalAdsController` rồi gọi composable internal có test. KDoc của `AdPlacement.kt` và tài liệu `docs/ops/ads-guide.md`, `docs/features/ads/design/README.md`.
+
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** 2026-10-25, worktree `wt-T-032`, nhánh chính `3d4f165` (đã có T-024, T-029; **chưa** có T-027, T-040, T-028, T-026). Thay đổi tạm, không commit, đã hoàn tác bằng `git checkout -- core/` và xóa test tạm; `git status --short` sạch: (1) dòng enum `NativeAdSize.STEP` với nhánh tạm ở ba `when` của `NativeAdCard.kt` (`heightOf` 250 dp, bố cục và khung chờ tạm dùng của medium) và ở `SdkNativeAdLoader.load` (media ngang); (2) `AdFormat.NATIVE_STEP.nativeLoadSize()` thành `STEP`; (3) test tạm `TmpFlowStepDryRunTest` (3 test): đo `NativeFullScreenAdScreen` hiện nay trong vùng của bước (`weight(1f)`) với nút Tiếp 52 dp lề 16 dp ở `w360dp-h640dp-xxhdpi`; đo thẻ `STEP`; `SuppressResumeAds` trong một trang của `HorizontalPager` (`AdsHostContent` thật, `scrollToPage`).
+- **Lệnh:** `./gradlew :core:ads:testDebugUnitTest --tests '*TmpFlowStepDryRunTest*'` (JDK của Android Studio, `ANDROID_HOME=$HOME/Library/Android/sdk`), rồi `./gradlew testDebugUnitTest testStagingDebugUnitTest --continue` với nhánh tạm (1), (2) và test tạm trong cây. Không chạy `scripts/check.sh`: tiêu chí E là 1 (mục 5), không có kỹ thuật hay thư viện mới.
+- **Kết quả:** test tạm 3/3 qua. Vùng của bước 360 x 556 dp: media 232 dp cao (y 88 tới 320), CTA y 476 tới 524, nút Tiếp y 572 tới 624, không giao nhau (bố cục của T-027 với hàng trên 36 dp còn rộng hơn 12 dp). Thẻ `STEP` đo 250 dp. `SuppressResumeAds` ở trang 2 của pager: chặn khi cuộn tới trang 2, nhả khi về trang 0 (trang rời composition). Bộ test JVM đầy đủ với nhánh tạm: `:core:ads` 447 test, **1 đỏ**: `NativeAdCardTest.placeholder_matchesCardHeight_forEachSize` (lặp `NativeAdSize.entries`, so 72 hay 386 dp; đã có trong mục 3.2, T-027 và T-028 cũng sửa test này cho `FULL`, `CARD`); mọi module khác qua (`:app` staging, `:feature:sample`, `:feature:loading`, các `:core:*`). L-089: không có `when` trên `NativeAdSize` ngoài `:core:ads` (`grep` trên `core`, `app`, `feature`; `feature/sample` chỉ dùng giá trị `SMALL`). Phần cần code chưa merge **chưa chạy** (cần T-027 `NativeAdSlotGate`, `nativeSlotAllowed`; T-028 `NativeAdPool`): `stepAdStates` với pool thật và `NativeFullScreenAdLayout(onClose = null)` (câu hỏi 6). Phương án dự phòng 3.4 chưa thử.
+
+## 5. Chấm rủi ro
+
+**Điểm chặn bị chạm:** quảng cáo (cách hiển thị mới của `native_step` và `native_fullscreen` ở một bước của luồng, trang toàn trang không qua cổng `ads_interval`; điểm 1), module core dùng chung `:core:ads` (điểm 7). Không thêm vị trí, quyền, SDK, sự kiện hay dữ liệu lưu. Mức Cao, cần duyệt chéo; người phụ trách sản phẩm biết trước vì quảng cáo ở luồng giới thiệu là rủi ro chính sách (ADR-0026).
+
+| Tiêu chí | Điểm (0 đến 3) | Lý do |
+| --- | --- | --- |
+| A. Phạm vi thay đổi | 2 | Một file code mới, sáu file sửa, bốn file test mới trong một module; thêm ba composable công khai và một giá trị `NativeAdSize` |
+| B. Độ rõ của yêu cầu | 2 | KB-20, MC-06, OB-01, OB-02 rõ; còn câu hỏi ảnh hưởng tới cách làm: số đo chưa có `context/` (câu hỏi 2), trang toàn trang có qua cổng `ads_interval` không và app biết trước có quảng cáo bằng cách nào (câu hỏi 4), luồng có cả thẻ và trang dùng mấy khóa (câu hỏi 3) |
+| C. Khả năng kiểm chứng tự động | 2 | Mọi tiêu chí có test JVM với pool thật và quảng cáo giả; quảng cáo thật và chặn app open trên máy chỉ kiểm được khi có vị trí ở màn xem thử (T-036, câu hỏi 1) |
+| D. Ảnh hưởng chéo | 2 | `NativeAdCard.kt`, `NativeAdViewBinding.kt`, `NativeRequestOptions.kt`, `NativeFullScreenAdScreen.kt`, `AdsController.kt`, `NativeAdCardTest.kt` cũng do T-027, T-028, T-040, T-026 sửa; không đổi hành vi của định dạng đã có |
+| E. Độ mới của kỹ thuật | 1 | Biến thể của ô pool (T-028) và khe toàn màn hình; `SuppressResumeAds` đã có; đã chạy thử trong pager (mục 4.1) |
+| **Tổng** | 9 | **Mức: Cao** (chạm điểm chặn) |
+
+## 6. Ảnh hưởng chéo
+
+- File hoặc thành phần dùng chung bị chạm: `NativeAdCard.kt`, `NativeAdViewBinding.kt`, `NativeRequestOptions.kt`, `NativeFullScreenAdScreen.kt`, `AdsController.kt`, `AdPlacement.kt` (KDoc) của `:core:ads`; `docs/ops/ads-guide.md` mục 3, 4, 5; `docs/features/ads/design/README.md` mục 3, 8. Ảnh chuẩn hiện có, `tokens.json`, bảng khóa `docs/remote-config-keys.md` không bị ảnh hưởng (không vẽ lại cỡ đã có, không thêm khóa hay vị trí). `docs/STATUS.md`: không đưa vào PR (`docs/CLAUDE.md`, mục Trang tiến độ).
+- File task này **tạo** mà không plan nào khác tạo (L-054): `NativeFlowStep.kt`, `NativeStepAdStatesTest.kt`, `FullScreenStepStatesTest.kt`, `NativeFlowStepTest.kt`, `NativeFlowStepScreenshotTest.kt`, các ảnh `NativeAdCard_step_*`, `NativeAdPlaceholder_step_light`, `NativeFlowStep_*`. File của plan khác mà task này **sửa** (plan kia tạo): `NativeRequestOptions.kt`, `NativeRequestOptionsTest.kt` (T-027 tạo). Dùng lại, không sửa: `NativeAdPool.kt`, `NativeAdPools.kt`, `NativePoolCell.kt` (`PoolCellPolicy`), `NativeAdCell.kt` của T-028; `NativeSendGate.kt`, `NativeAdSource.kt` của T-040; `NativeFullScreenOverlay.kt`, `NativeFullScreenTurns.kt` của T-026.
+- Chỗ sửa chung, theo task:
+  - **T-027** (nhánh `claude/plan-T-027-native-adskit`, phiên bản 2): tạo `NativeRequestOptions.kt`, `NativeAdSlotGate`, `nativeSlotAllowed`; đổi số đo `NativeFullScreenAdScreen.kt` (nút đóng 36 dp, `TopBarHeight` 36 dp). T-032 thêm nhánh `STEP` và biến thể `onClose = null` trên bản đó.
+  - **T-040** (nhánh `claude/plan-T-040-nguon-mot-quang-cao`): `preloadedNativeFullScreen` qua `nativeFullScreenCache`; T-032 chỉ gọi `take`.
+  - **T-028** (nhánh `claude/plan-T-028-pool-native`): thêm `NativeAdSize.CARD`, pool, `nativeLoadSize` của `NATIVE_IN_COLLECTION`; để `NATIVE_STEP` cho task này (ghi ở mục 3.1 bước 11 và mục 6 của plan T-028). T-032 thêm `STEP` sau `CARD` và nhánh `NATIVE_STEP` của `nativeLoadSize`; hai task cùng sửa `placeholder_matchesCardHeight_forEachSize` và `NativeAdCardScreenshotTest.kt` (mỗi task thêm dòng của cỡ mình).
+  - **T-026** (nhánh `claude/plan-T-026-inter-native-sau-inter`): thêm đếm ngược vào `NativeFullScreenAdScreen.kt` và `AdsController.kt` (bộ điều phối combo). Plan T-026 ghi trang toàn trang không nút là của T-032 và không dùng lớp phủ. T-032 bỏ huy hiệu đếm ngược trong biến thể `onClose = null`.
+  - **T-030** (nhánh `claude/plan-T-030-thanh-day-thu-gon`): lớp thu gọn 250 dp cùng số icon 32 dp, CTA 36 dp; nếu T-030 đã đặt các hằng này vào `NativeAdDimens` thì T-032 dùng lại (mục 3.1 bước 1). Không sửa `CollapsibleNativeAd.kt`.
+  - **T-036** (màn xem thử, phụ thuộc T-032): thêm vị trí `gallery_*` và trang luồng dùng `NativeStepAd`, `NativeFullScreenStep`, `NativeFullScreenStepContent` (câu hỏi 1).
+- Test quét mã nguồn: không thêm.
+- Đề xuất thứ tự chạy: T-024 (đã merge), T-027, T-040, T-028, T-026, rồi T-032 (sau T-030 nếu cùng phiên, để dùng chung hằng 250 dp), rồi T-036. T-032 cần T-027 và T-028 đã merge (phụ thuộc của ticket); T-026 không phải phụ thuộc API, chỉ là thứ tự sửa `NativeFullScreenAdScreen.kt` và `AdsController.kt`: T-026 chưa merge thì T-032 vẫn chạy được, task chạy sau gộp nhánh chính rồi sửa xung đột theo chữ của task chạy trước.
+
+## 7. Điều kiện dừng riêng
+
+- Cần thêm một vị trí vào `AdPlacement` (kể cả `gallery_*`) để test qua hay để kiểm trên máy: điểm chặn 1, ngoài phạm vi; dừng, chờ câu hỏi 1.
+- Cần ghi `ad_opportunity` hay sự kiện mới cho thẻ hay trang của bước: điểm chặn 4; dừng.
+- Pool của T-028 sau khi merge trả được quảng cáo đang dùng (vi phạm P-01) khiến OB-02 không giữ được bằng cách "lấy mới trước, trả cũ sau": không sửa luật của pool trong task này; dừng.
+- Trang toàn trang phải qua cổng toàn màn hình (`ads_interval`, `presence`) hay đẩy mốc mới đúng ý người duyệt (trả lời câu hỏi 4 khác đề xuất): làm theo câu trả lời; nếu câu trả lời chưa có lúc chạy thì dừng.
+- Số đo trên component `Native/Step` hay biến thể `Flow step` (khi người duyệt cung cấp ở câu hỏi 2) khác số của mục 5.7 quá một bước lưới 4 dp: mâu thuẫn thiết kế và luật, dừng.
+
+## 8. Câu hỏi cho người duyệt
+
+1. **Thấy native ở bước của luồng trên máy ở đâu?** Ticket ghi "ví dụ trên màn xem thử", nhưng dự án mẫu không có vị trí `native_step` nào, và T-036 có phạm vi "vị trí `gallery_*` cho định dạng mới", "native giới thiệu". Câu hỏi 1 của plan T-029 đã chọn để T-036 thêm vị trí xem thử.
+   - Đề xuất của AI: theo tiền lệ T-029: T-032 không thêm vị trí; kiểm chứng bằng test Robolectric và mười ảnh chuẩn của `:core:ads` (có khung ví dụ một bước của luồng). T-036 thêm `gallery_native_step` (`NATIVE_STEP`), `gallery_native_step_full` (`NATIVE_FULL_SCREEN`) và một trang "Flow steps" (pager ba bước, thẻ ngoài pager, trang toàn trang, nút Tiếp) dùng `NativeStepAd`, `NativeFullScreenStep`; kiểm thủ công của mục 4 làm ở phiên T-036. Phương án khác: thêm hai vị trí và trang đó ngay trong task này (thêm khoảng 6 file của `app/src/staging`, `app/src/testStaging`, ba ảnh chuẩn `AdGalleryScreen_flow-*`, không có ảnh thiết kế), đổi lại kiểm được trên máy ngay sau phiên.
+2. **Số đo của `Native/Step` và biến thể `Flow step`.** Hai component có trên Figma (T-035) nhưng chưa có ảnh màn hình hay file `context/`; plan lấy số của mục 5.7 (250 dp, icon 32 dp, CTA 36 dp, tiêu đề 13 sp) và bố cục 250 dp của `AdGalleryScreen_collapsible-expanded_light.md` (lề 12 dp, cách nhau 8 dp; media còn 134 dp cao ở khung 411 dp), và hàng trên 36 dp chỉ có AdChoices cho biến thể `Flow step`.
+   - Đề xuất của AI: chấp nhận số này cho phiên; không chạy `design-compare` (không có ảnh thiết kế). Người duyệt PR xem ảnh chuẩn mới bên cạnh component (dòng kiểm thủ công ở mục 4). Muốn so tự động thì trước phiên dev dựng hai khung `NativeFlowStepScreen_card_light`, `NativeFlowStepScreen_full-page_light` trên Figma và chạy `scripts/figma-export.py` (chỉ trong phiên có người), plan đổi tên ảnh chuẩn cho trùng.
+3. **Luồng có cả thẻ 250 dp và trang toàn trang dùng mấy khóa?** AdsKit bật cả hai bằng một khóa `is_show_native_onboarding`. Ở dự án mẫu mỗi vị trí có một định dạng (MC-01, MC-02) nên một luồng có cả hai cần hai vị trí, hai khóa.
+   - Đề xuất của AI: giữ một vị trí một định dạng một khóa. Luồng giới thiệu theo AdsKit dùng `native_onboarding` cho định dạng spec của app chọn (thường là thẻ); cần thêm trang toàn trang thì spec của app khai báo vị trí thứ hai (ví dụ `native_onboarding_full`, khóa `is_show_native_onboarding_full`, không trùng AdsKit). Phương án khác: thêm thuộc tính "bật theo khóa của vị trí khác" vào khai báo vị trí (đổi MC-03, task riêng).
+4. **Trang toàn trang của luồng: cổng, số liệu, biết trước có quảng cáo.** Luật chỉ nói "không có nút điều khiển, lỗi thì không vẽ gì" và "giữ chặn tự hiện".
+   - Đề xuất của AI: trang là một phần của luồng, không phải một lượt hiện quảng cáo toàn màn hình: không qua cổng `ads_interval`, không đẩy mốc, không chiếm `presence` (không chặn inter sau đó), không ghi `ad_opportunity` (mục 8.2 không có nhánh này, như thẻ bước theo P-07). App gọi `rememberNativeFullScreenStepReady(placement)` một lần khi dựng danh sách bước và chỉ thêm trang quảng cáo khi đã có quảng cáo; vào trang mà quảng cáo đã hết hạn thì trang không vẽ gì, báo `false`, nút Tiếp vẫn ở chỗ cũ; quảng cáo về khi đang ở trang thì hiện ngay.
+5. **Thẻ khi đổi bước mà pool chưa có quảng cáo khác.** OB-02 cấm hiện lại quảng cáo của bước trước.
+   - Đề xuất của AI: hiện khung chờ 250 dp (như mọi native khi tải) và tiếp tục thử theo P-06; pool cạn thì ẩn (0 dp). Không giữ quảng cáo cũ trên màn. Phương án khác: ẩn ngay khi đổi bước, chỉ hiện khi có quảng cáo mới (nút Tiếp không nhảy khi quảng cáo về nếu thẻ đặt dưới nút).
+6. **Chạy thử phần cần code chưa merge.** Phần dùng `NativeAdPool`, `NativeAdSlotGate` (T-028, T-027) và bản `NativeFullScreenAdScreen.kt` sau T-027, T-026 chưa chạy thử được (mục 4.1, "chưa chạy (cần T-027, T-028 merge)").
+   - Đề xuất của AI: duyệt plan với mục 4.1 như hiện tại (tiêu chí E là 1, không bắt buộc chạy thử); phương án dự phòng 3.4 che điểm chưa chắc về pool. Nếu muốn chắc hơn, sau khi T-028 merge AI chạy lại bộ test JVM với nhánh tạm `STEP` và một test tạm của `stepAdStates`, ghi vào mục 4.1 trước phiên.
+   - Ghi chú: `scripts/plan-check.py` hôm nay báo hai lỗi "file chưa có trên nhánh chính" cho `NativeRequestOptions.kt` và `NativeRequestOptionsTest.kt` vì plan T-027 (nơi tạo hai file, phụ thuộc của ticket) chưa vào nhánh chính; đặt tạm plan T-027 vào cây thì script báo "qua". Hết lỗi khi PR plan T-027 merge.
+
+## 9. Quyết định duyệt
+
+<!-- Người duyệt điền. AI không điền mục này. -->
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+
+## 10. Nhật ký thực hiện
+
+<!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
