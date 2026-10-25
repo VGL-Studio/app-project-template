@@ -39,9 +39,10 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Kiểm thiết lập của app (file R2 bắt buộc, DNS của tên miền file tĩnh): `scripts/setup-check.sh`; danh sách file ở `docs/ops/required-assets.txt`.
 - Merge khi nhánh chậm hơn nhánh chính: `scripts/merge-if-green.sh <số PR> --update` tự cập nhật nhánh, chờ CI rồi merge.
 - Kiểm tra cả danh sách chạy trước khi duyệt (spec đã chốt, phụ thuộc, kịch bản có test, plan cùng sửa một file): `scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md` (`docs/ops/pre-run-review.md`).
-- Chờ một workflow GitHub Actions xong trong một lệnh: `scripts/wait-run.sh --pr <số>` hoặc `--workflow <file.yml> --since <giờ UTC>` (`docs/auto-run.md`, bước 8).
+- Chờ một workflow GitHub Actions xong trong một lệnh: `scripts/wait-run.sh --pr <số> [--sha <commit>]` hoặc `--workflow <file.yml> --since <giờ UTC>` (`docs/auto-run.md`, bước 8).
 - Tra một lỗi của CI hay script trong bảng tra lỗi đã biết: `scripts/failure-kind.sh --playbook <log>` (`docs/ops/failure-playbook.md`, `docs/auto-run.md` bước 8).
 - Đẩy nhánh task, thử lại khi lỗi mạng, giữ thành bundle khi không đẩy được: `scripts/save-branch.sh <nhánh>` (`docs/auto-run.md`, bước 3 và 7).
+- Chọn ticket cho hàng chờ plan cuối phiên: `scripts/plan-queue.py [--max N]` (`docs/auto-run.md`, mục 4).
 - Đếm token AI theo task của một phiên: `scripts/token-usage.py report --since <giờ bắt đầu>`; số gợi ý cho `token_estimate` của plan: `scripts/token-usage.py estimate` (`docs/ops/token-usage.md`).
 - Môi trường cloud chưa có `ANDROID_HOME` thì đặt `export ANDROID_HOME=$HOME/android-sdk` (SDK do `scripts/cloud-setup.sh` cài).
 - `app/src/staging/google-services.json` là file cấu hình Firebase giả, chỉ để build qua được; bản build từ file này không gửi số liệu nào (ADR-0012). Không sửa, không thay bằng file thật.

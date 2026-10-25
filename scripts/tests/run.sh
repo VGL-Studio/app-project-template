@@ -586,6 +586,67 @@ expect "wait-run: an unknown mergeable state keeps waiting" "2 CHƯA" \
 expect "wait-run: a run that exists is waited for even if the PR became dirty" "0 XANH" \
   "$(conflict_run "$(conflict_routes dirty "$green")")"
 
+# wait-run.sh --pr follows the newest commit of the PR and --sha waits for the commit just pushed (template L-087, from camera-pose T-044).
+# Fixture from camera-pose PR #100: e35ae86 was pushed first, eba5f98 after it; GitHub cancelled the run of e35ae86 once eba5f98
+# had a run. pulls/7 is a sequence of heads; the read at the start of the script takes the first element.
+head_at() { printf '{"head": {"sha": "%s"}, "mergeable_state": "%s"}' "$1" "${2:-clean}"; }
+cancelled='{"workflow_runs": [{"id": 90, "status": "completed", "conclusion": "cancelled", "html_url": "u"}]}'
+no_runs='{"workflow_runs": []}'
+ui_red_jobs='{"jobs": [{"id": 130, "name": "ui-test", "conclusion": "failure", "steps": [{"name": "Set up job"}]}]}'
+head_routes() { # <pulls/7 answers, comma separated> <runs of e35ae86> <runs of eba5f98> [<runs of c0ffee1> [<jobs answer>]]
+  printf '{"routes": {"pulls/7": {"__sequence__": [%s]}, "actions/workflows/pr-check.yml/runs?head_sha=e35ae86&per_page=10": %s, "actions/workflows/pr-check.yml/runs?head_sha=eba5f98&per_page=10": %s, "actions/workflows/pr-check.yml/runs?head_sha=c0ffee1&per_page=10": %s, "actions/runs/91/jobs?per_page=50": %s}}' \
+    "$1" "$2" "$3" "${4:-$no_runs}" "${5:-$no_jobs}"
+}
+wait_line() { # <fixture> <timeout seconds> <args...>; prints "<exit code> <result line>"
+  echo "$1" > "$work/wait.json"; local seconds="$2"; shift 2
+  rm -f "$work/wait.json.seen"
+  local out code=0
+  out="$(PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 WAIT_RUN_TIMEOUT_SECONDS="$seconds" \
+    scripts/wait-run.sh "$@" 2>&1)" || code=$?
+  echo "$code $out"
+}
+wait_code() { # same arguments as wait_line; prints "<exit code> <first word of the line>"
+  local line; line="$(wait_line "$@")"
+  local rest="${line#* }"
+  echo "${line%% *} ${rest%%[: ]*}"
+}
+old_new="$(head_at e35ae86), $(head_at e35ae86), $(head_at eba5f98)"
+new_run_sequence='{"__sequence__": [{"workflow_runs": [{"id": 91, "status": "in_progress", "conclusion": null, "html_url": "u"}]}, '"$green"']}'
+old_cancelled_fixture="$(head_routes "$old_new" "$cancelled" "$new_run_sequence")"
+expect "wait-run: follows the PR head when the old commit's run is cancelled" "0 XANH" \
+  "$(WAIT_RUN_CANCEL_RECHECKS=3 wait_code "$old_cancelled_fixture" 10 --pr 7)"
+line="$(WAIT_RUN_CANCEL_RECHECKS=3 wait_line "$old_cancelled_fixture" 10 --pr 7)"
+expect "wait-run: the green line names the new head" "1 0" \
+  "$(echo "$(grep -c 'eba5f98' <<< "$line") $(grep -c 'e35ae86' <<< "$line" || true)")"
+expect "wait-run: a new head while the old run is going waits for the new commit" "0 XANH" \
+  "$(wait_code "$(head_routes "$old_new" "$pending" "$green")" 10 --pr 7)"
+expect "wait-run: a cancelled run of a head that stays is red after the re-reads" "1 ĐỎ" \
+  "$(WAIT_RUN_CANCEL_RECHECKS=2 wait_code "$(head_routes "$(head_at e35ae86)" "$cancelled" "$no_runs")" 10 --pr 7)"
+line="$(WAIT_RUN_CANCEL_RECHECKS=99 wait_line "$(head_routes "$(head_at e35ae86)" "$cancelled" "$no_runs")" 2 --pr 7)"
+expect "wait-run: re-reading after a cancel stops at the deadline" "1 1" \
+  "$(echo "$(grep -c '^2 CHƯA' <<< "$line") $(grep -c 'bị hủy' <<< "$line" || true)")"
+# The second read is empty and the empty answer stays: a script that took it would ask GitHub for head_sha= forever.
+expect "wait-run: an unreadable head keeps the last one" "0 XANH" \
+  "$(wait_code "$(head_routes "$(head_at e35ae86), $(head_at '')" "$green" "$no_runs")" 10 --pr 7)"
+sha_fixture="$(head_routes "$old_new" "$green" '{"workflow_runs": [{"id": 91, "status": "completed", "conclusion": "failure", "html_url": "u"}]}' "$no_runs" "$ui_red_jobs")"
+expect "wait-run: --sha ignores a finished run of the previous head" "1 ĐỎ" \
+  "$(wait_code "$sha_fixture" 10 --pr 7 --sha eba5f98)"
+expect "wait-run: without --sha the same fixture is green" "0 XANH" "$(wait_code "$sha_fixture" 10 --pr 7)"
+expect "wait-run: --sha does not report a conflict of the previous head" "0 XANH" \
+  "$(wait_code "$(head_routes "$(head_at e35ae86 dirty), $(head_at e35ae86 dirty), $(head_at eba5f98 clean)" "$no_runs" "$green")" 10 --pr 7 --sha eba5f98)"
+line="$(WAIT_RUN_CANCEL_RECHECKS=3 wait_line "$(head_routes "$(head_at eba5f98), $(head_at eba5f98), $(head_at c0ffee1)" "$no_runs" "$cancelled" "$green")" 10 --pr 7 --sha eba5f98)"
+expect "wait-run: a head that moves past --sha is followed" "1 1" \
+  "$(echo "$(grep -c '^0 XANH' <<< "$line") $(grep -c 'c0ffee1' <<< "$line" || true)")"
+line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green")" 1 --pr 7 --sha eba5f98)"
+expect "wait-run: --sha the PR never reaches asks to call again" "1 1" \
+  "$(echo "$(grep -c '^2 CHƯA' <<< "$line") $(grep -c 'chưa nhận commit eba5f98' <<< "$line" || true)")"
+line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green")" 10 --pr 7 --sha main)"
+expect "wait-run: rejects a --sha that is not a commit" "1 1" \
+  "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'mã commit' <<< "$line" || true)")"
+line="$(wait_line '{"routes": {}}' 10 --workflow staging.yml --since 2026-10-18T02:20:00Z --sha eba5f98)"
+expect "wait-run: refuses --sha with --workflow" "1 1" \
+  "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'cùng --pr' <<< "$line" || true)")"
+
 dispatch_routes='{"routes": {"actions/workflows/staging.yml/runs?branch=main&per_page=20": {"workflow_runs": [
   {"id": 93, "created_at": "2026-10-18T02:25:00Z", "status": "completed", "conclusion": "failure", "html_url": "u"},
   {"id": 92, "created_at": "2026-10-18T02:21:00Z", "status": "completed", "conclusion": "success", "html_url": "u"},
@@ -756,6 +817,7 @@ elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=t
   expect "new-app.sh leaves out the from-app issue form" absent \
     "$([ -e "$new_app/.github/ISSUE_TEMPLATE/from-app.yml" ] && echo present || echo absent)"
   expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"
+  expect "new-app.sh leaves out the template's run reports" 0 "$(ls "$new_app/docs/runs" | grep -c '^RUN-' || true)"
   expect "new-app.sh regenerates the progress page without the template's lessons" 0 \
     "$(grep -c 'L-0[0-9][0-9]' "$new_app/docs/STATUS.md" || true)"
   expect "new-app.sh leaves pages that match the documents" 0 \
@@ -1202,6 +1264,110 @@ write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
 write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 
+# plan-queue.py picks the tickets whose plan the session drafts at the end of a run (L-084).
+pq="$work/pq"
+mkdir -p "$pq/docs/features/demo/tickets" "$pq/docs/features/demo/plans"
+pq_git() { GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t git -C "$pq" "$@"; }
+write_pq_spec() { # <file> <status> <answer>
+  printf -- '---\nstatus: %s\n---\n\n## 3. Kịch bản\n\n### KB-1. Một\n\n- [ ] Khi a thì b.\n\n## 9. Câu hỏi còn mở\n\n1. **Câu?**\n   - Trả lời: %s\n\n## 10. Lịch sử\n\n| 2026-10-01 | AI | Tạo |\n' \
+    "$2" "$3" > "$pq/docs/features/demo/$1"
+}
+write_pq_ticket() { # <id> <status> <spec> <scenarios> <depends> <sprint> <plan>
+  printf -- '---\nid: %s\nstatus: %s\nspec: %s\nscenarios: [%s]\ndepends_on: [%s]\nsprint: %s\nplan: %s\n---\n' \
+    "$1" "$2" "$3" "$4" "$5" "$6" "$7" > "$pq/docs/features/demo/tickets/$1-x.md"
+}
+write_pq_spec spec.md confirmed 'Đồng ý.'
+write_pq_spec spec-draft.md draft 'Đồng ý.'
+write_pq_spec spec-open.md confirmed ''
+S=features/demo/spec.md
+write_pq_ticket T-901 ready "$S" KB-1 '' 1 ''
+write_pq_ticket T-902 ready "$S" KB-1 '' 2 ''
+write_pq_ticket T-903 ready '' '' '' '' ''
+write_pq_ticket T-904 ready '' '' '' '' features/demo/plans/T-904-x.md
+write_pq_ticket T-905 ready features/demo/spec-draft.md KB-1 '' '' ''
+write_pq_ticket T-906 ready features/demo/spec-open.md KB-1 '' '' ''
+write_pq_ticket T-907 ready '' '' T-905 '' ''
+write_pq_ticket T-908 ready '' '' T-904 '' ''
+write_pq_ticket T-909 approved '' '' '' '' ''
+write_pq_ticket T-910 ready "$S" KB-1 '' 1 ''
+write_pq_ticket T-911 ready "$S" KB-1 '' 10 ''
+write_pq_ticket T-912 ready "$S" KB-1 '' beta ''
+write_pq_ticket T-913 ready '' '' T-903 '' ''
+write_pq_ticket T-914 stopped '' '' '' '' ''
+write_pq_ticket T-915 ready '' '' T-914 '' ''
+write_pq_ticket T-916 ready '' '' T-999 '' ''
+write_pq_ticket T-917 ready '' KB-1 '' '' ''
+write_pq_ticket T-918 ready features/demo/missing.md KB-1 '' '' ''
+write_pq_ticket T-919 ready '' '' '' '' ''
+write_pq_ticket T-920 ready '' '' '' '' ''
+write_pq_ticket T-921 stopped '' '' '' '' features/demo/plans/T-921-x.md
+write_pq_ticket T-922 ready '' '' T-921 '' ''
+write_pq_ticket T-923 backlog "$S" KB-1 '' '' ''
+write_pq_ticket T-924 cancelled '' '' '' '' features/demo/plans/T-924-x.md
+write_pq_ticket T-925 backlog '' '' T-924 '' ''
+touch "$pq/README"
+pq_git init -q -b main
+pq_git add -A
+pq_git commit -q -m init
+pq_git update-ref refs/remotes/origin/claude/plan-T-919-x HEAD
+pq_fixture='{"routes": {"pulls?state=open&per_page=100": [{"number": 77}], "pulls/77/files?per_page=100": [{"filename": "docs/features/demo/tickets/T-920-x.md"}]}}'
+echo "$pq_fixture" > "$work/pq.json"
+pq_run() { # <args...>; stdout of the script, its stderr goes to $work/pq.err
+  PLAN_QUEUE_ROOT="${PQ_ROOT:-$pq}" PATH="$work/bin:$PATH" FIXTURE="${PQ_FIXTURE:-$work/pq.json}" \
+    python3 -I scripts/plan-queue.py "$@" 2> "$work/pq.err"
+}
+pq_codes() { PLAN_QUEUE_ROOT="${PQ_ROOT:-$pq}" PATH="$work/bin:$PATH" FIXTURE="${PQ_FIXTURE:-$work/pq.json}" \
+  python3 -I scripts/plan-queue.py "$@" > /dev/null 2>&1 && echo 0 || echo $?; }
+pq_ids() { pq_run "$@" | cut -f1 | tr '\n' ' ' | sed 's/ $//'; }
+all_ids="$(pq_ids --max 20)"
+expect "plan-queue: order is sprint, then ticket number" "T-901 T-910 T-902 T-911 T-912 T-903 T-908 T-913 T-923" "$all_ids"
+expect "plan-queue: an approved ticket is not queued" 0 "$(grep -c 'T-909' <<< "$all_ids" || true)"
+expect "plan-queue: a ticket with a plan is not queued" 0 "$(grep -c 'T-904' <<< "$all_ids" || true)"
+expect "plan-queue: a stopped ticket is not queued" 0 "$(grep -c 'T-914' <<< "$all_ids" || true)"
+expect "plan-queue: a ticket without spec is queued" 1 "$(grep -c 'T-903' <<< "$all_ids" || true)"
+expect "plan-queue: a dependency that has a plan is enough" 1 "$(grep -c 'T-908' <<< "$all_ids" || true)"
+expect "plan-queue: a dependency queued earlier is enough" 1 "$(grep -c 'T-903 T-908 T-913' <<< "$all_ids" || true)"
+pq_run --max 20 > /dev/null
+pq_err() { grep -c "$1" "$work/pq.err" || true; }
+expect "plan-queue: a draft spec is skipped with the reason" 1 "$(pq_err 'T-905: bỏ qua.*chưa confirmed')"
+expect "plan-queue: an open spec question is skipped" 1 "$(pq_err 'T-906: bỏ qua.*câu hỏi còn mở')"
+expect "plan-queue: a missing spec file is skipped" 1 "$(pq_err 'T-918: bỏ qua.*không có')"
+expect "plan-queue: scenarios without spec are skipped" 1 "$(pq_err 'T-917: bỏ qua.*có kịch bản mà không có spec')"
+expect "plan-queue: a dependency without plan skips the ticket" 1 "$(pq_err 'T-907: bỏ qua, chờ T-905')"
+expect "plan-queue: a stopped dependency is skipped" 1 "$(pq_err 'T-915: bỏ qua.*T-914 đang stopped')"
+expect "plan-queue: a stopped dependency with a plan is skipped" 1 "$(pq_err 'T-922: bỏ qua.*T-921 đang stopped')"
+expect "plan-queue: a cancelled dependency with a plan is skipped" 1 "$(pq_err 'T-925: bỏ qua.*T-924 đang cancelled')"
+expect "plan-queue: a backlog ticket is queued" 1 "$(grep -c 'T-923' <<< "$all_ids" || true)"
+expect "plan-queue: a missing dependency is skipped" 1 "$(pq_err 'T-916: bỏ qua.*T-999 không có ticket')"
+expect "plan-queue: a ticket with a plan branch is skipped" 1 "$(pq_err 'T-919: bỏ qua.*đang có plan trên nhánh origin/claude/plan-T-919-x')"
+expect "plan-queue: a ticket in an open PR is skipped" 1 "$(pq_err 'T-920: bỏ qua.*đang có PR mở #77')"
+expect "plan-queue: --max limits the list" "T-901 T-910" "$(pq_ids --max 2)"
+expect "plan-queue: default is 2" "T-901 T-910" "$(pq_ids)"
+expect "plan-queue: the line has the ticket path" "T-901 docs/features/demo/tickets/T-901-x.md" \
+  "$(pq_run --max 1 | tr '\t' ' ')"
+expect "plan-queue: skipped tickets do not change the exit code" 0 "$(pq_codes --max 20)"
+touch "$work/pq.mark"; sleep 1
+pq_run --max 20 > /dev/null
+expect "plan-queue: writes nothing" "" "$(find "$pq" -newer "$work/pq.mark" -not -path '*/.git/*' -type f)"
+mkdir -p "$work/pq2/docs/features/demo/tickets"
+printf 'no front matter here\n' > "$work/pq2/docs/features/demo/tickets/T-930-x.md"
+git -C "$work/pq2" init -q -b main
+expect "plan-queue: a ticket without front matter exits 2" 2 "$(PQ_ROOT="$work/pq2" pq_codes)"
+echo '{"routes": {}}' > "$work/pq-nogh.json"
+printf -- '---\nid: X-1\nstatus: ready\n---\n' > "$work/pq2/docs/features/demo/tickets/T-931-x.md"
+printf -- '---\nid: T-930\nstatus: ready\n---\n' > "$work/pq2/docs/features/demo/tickets/T-930-x.md"
+expect "plan-queue: a ticket id that is not T-NNN exits 2" 2 "$(PQ_ROOT="$work/pq2" pq_codes)"
+expect "plan-queue: a gh error exits 2" 2 "$(PQ_FIXTURE="$work/pq-nogh.json" pq_codes)"
+echo '{"routes": {"pulls?state=open&per_page=100": []}}' > "$work/pq-empty.json"
+expect "plan-queue: runs on the repository" 1 \
+  "$([ "$(PQ_ROOT="$PWD" PQ_FIXTURE="$work/pq-empty.json" pq_codes --max 1)" != 2 ] && echo 1 || echo 0)"
+expect "plan-queue: an ssh remote names the same repo" 0 \
+  "$(GIT_CONFIG_VALUE_0=git@github.com:o/r.git pq_codes --max 1)"
+expect "plan-queue: a remote that is not GitHub exits 2 without printing it" "2 0" \
+  "$(GIT_CONFIG_VALUE_0=https://user:tok@mirror.example/o/r.git pq_codes) $(GIT_CONFIG_VALUE_0=https://user:tok@mirror.example/o/r.git pq_run > /dev/null; grep -c 'tok' "$work/pq.err" || true)"
+expect "plan-queue: open pull requests and their files are read with paging" 2 \
+  "$(grep -c '"--paginate"' scripts/plan-queue.py || true)"
+
 # token-usage.py counts tokens per task from transcripts, one usage per request, never failing the session.
 tokens="$work/token-repo"
 mkdir -p "$tokens/docs/features/demo/plans" "$tokens/docs/features/demo/tickets" "$work/projects/p/s/subagents"
@@ -1357,6 +1523,124 @@ expect "status-page.yml runs on pushes to main that change docs" 2 \
   "$(grep -cE "^    branches: \[main\]$|^    paths: \['docs/\*\*'" "$status_wf" 2>/dev/null || true)"
 expect "status page: README links the page on the status branch, not a repository name" 1 \
   "$(grep -c '](\.\./\.\./blob/status/docs/STATUS\.md)' README.md || true)"
+
+# Section 6 of the page, "Sẵn sàng phát hành", is built from sources already in the repo (L-086):
+# AdPlacement.kt, the "Cần người kiểm tra" part of finished run reports, tickets, feedback and the origin URL.
+ad_dir="$work/status-repo/core/ads/src/main/kotlin/x"
+mkdir -p "$ad_dir" "$work/status-repo/app/src/production"
+write_ad_placement() {
+  printf -- 'enum class AdPlacement(\n    val key: String,\n) {\n    HOME_BANNER("home_banner", AdFormat.BANNER),\n    LIST_NATIVE("list_native", AdFormat.NATIVE_SMALL, nativeEvery = 8),\n    GALLERY_INTERSTITIAL("gallery_interstitial", AdFormat.INTERSTITIAL),\n    DONE_INTERSTITIAL("done_interstitial", AdFormat.INTERSTITIAL),\n    ;\n}\n' > "$ad_dir/AdPlacement.kt"
+}
+write_ad_placement
+printf -- 'val adUnit = "PROD-MARKER-T047"\n' > "$work/status-repo/app/src/production/ProdAds.kt"
+printf -- 'admob.app.id=PROD-MARKER-T047\n' > "$work/status-repo/release.properties"
+printf -- '\n### Cần người kiểm tra\n\n- [x] Đã xem ảnh\n  - a\n  - b\n- [ ] Kiểm FPS trên máy thật\n- [ ] Ảnh chuẩn mới: `feature/<tên>/src/test/screenshots/A.png`\n- [ ] Ảnh chuẩn screenshot mới: <màn hình, đường dẫn ảnh>\n- [ ] Test chập chờn: Không có (issue flaky không mở).\n- [ ] Ảnh chuẩn screenshot mới: không có (dừng trước bước ghi ảnh).\n- [ ] Tiêu chí kiểm tra thủ công (máy thật, người): không có\n- [ ] Kịch bản emulator lỗi hay bỏ qua: Không có\n- [ ] T-040: ghi chú, không có test cho trường hợp revert\n- [ ] Mũi tên <-> và so sánh a < b, c > d\n- [ ] Dòng rất dài chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ chữ `lệnh rất dài không được cắt giữa chừng` đuôi\n- [ ] Điểm rà soát mức ghi chú:\n  - x\n  - y\n\n### Task bị dừng\n\n- [ ] Không phải việc của mục kiểm\n' >> "$st/runs/RUN-20261004-01.md"
+printf -- '---\nid: RUN-20261005-01\nstatus: running\n---\n\n### Cần người kiểm tra\n\n- [ ] Kiểm A\n' > "$st/runs/RUN-20261005-01.md"
+printf -- '---\nid: RUN-20261006-01\nstatus: finished\n---\n\n## 3. Báo cáo\n\n### Cần người kiểm tra\n\n- [ ] Kiểm B\n' > "$st/runs/RUN-20261006-01.md"
+printf -- '---\nid: RUN-20261006-02\nstatus: finished\n---\n\n### Cần người kiểm tra\n\n### Task bị dừng\n\n- [ ] Không phải việc của mục kiểm\n' > "$st/runs/RUN-20261006-02.md"
+status_page > /dev/null
+expect "status: page ends with the release readiness section" "1 5" \
+  "$(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true) $(grep -c '^## [1-5]\. ' "$page" || true)"
+expect "status: release readiness lists every ad placement key that ships, with attributes and NATIVE_SMALL" "1 1 0" \
+  "$(grep -c '^- .*release.md.*.home_banner. (banner), .list_native. (native_small), .done_interstitial. (interstitial)\.$' "$page" || true) $(grep -c '^- Bản production cần một mã quảng cáo thật' "$page" || true) $(grep -c 'gallery_interstitial' "$page" || true)"
+cp "$ad_dir/AdPlacement.kt" "$work/AdPlacement.kt.bak"
+printf -- '    LATE_BANNER(\n        "late_banner",\n        AdFormat.BANNER,\n    ),\n' >> "$ad_dir/AdPlacement.kt"
+status_page > /dev/null
+expect "status: a placement wrapped over several lines is named, as release.sh refuses it" 1 \
+  "$(grep -c 'khai báo vị trí trên nhiều dòng' "$page" || true)"
+cp "$work/AdPlacement.kt.bak" "$ad_dir/AdPlacement.kt"
+printf -- '    SPACE_BANNER("space_banner", AdFormat.BANNER), \n    CRLF_BANNER("crlf_banner", AdFormat.BANNER),\r\n' >> "$ad_dir/AdPlacement.kt"
+status_page > /dev/null
+expect "status: a placement line release.sh skips (trailing space, CRLF) is not listed either" "0 0" \
+  "$(grep -c 'space_banner' "$page" || true) $(grep -c 'crlf_banner' "$page" || true)"
+cp "$work/AdPlacement.kt.bak" "$ad_dir/AdPlacement.kt"
+rm "$ad_dir/AdPlacement.kt"
+status_page > /dev/null
+expect "status: release readiness says when AdPlacement.kt is missing" 1 "$(grep -c 'Không tìm thấy' "$page" || true)"
+write_ad_placement
+status_page > /dev/null
+expect "status: unchecked manual checks of finished runs are listed" 6 \
+  "$(grep -c '^- \[RUN-20261004-01\](runs/RUN-20261004-01.md): ' "$page" || true)"
+expect "status: <-> and a < b, c > d are not template placeholders" 1 "$(grep -c 'Mũi tên <-> và so sánh' "$page" || true)"
+expect "status: a long item is cut before a code span, not inside it" "1 0" \
+  "$(grep -c 'Dòng rất dài .*chữ\.\.\.$' "$page" || true) $(grep -c 'lệnh rất dài' "$page" || true)"
+expect "status: manual checks are Kiểm FPS, the screenshot path, T-040 and the note point" "1 1 1 1" \
+  "$(grep -c 'RUN-20261004-01.md): Kiểm FPS trên máy thật' "$page" || true) $(grep -c 'RUN-20261004-01.md): Ảnh chuẩn mới' "$page" || true) $(grep -c 'RUN-20261004-01.md): T-040: ' "$page" || true) $(grep -c 'RUN-20261004-01.md): Điểm rà soát' "$page" || true)"
+expect "status: a path with <...> inside backticks is kept" 1 \
+  "$(grep -c 'feature/<tên>/src/test/screenshots/A.png' "$page" || true)"
+expect "status: a template line is skipped" "0 1" \
+  "$(grep -c '<màn hình, đường dẫn ảnh>' "$page" || true) $(grep -c 'RUN-20261004-01.md): Kiểm FPS' "$page" || true)"
+expect "status: children of a checked item are not counted" "0 1" \
+  "$(grep 'Kiểm FPS' "$page" | grep -c 'dòng con' || true) $(grep -c 'Điểm rà soát mức ghi chú: (2 dòng con)$' "$page" || true)"
+expect "status: only the text after the first colon decides \"không có\"" 1 \
+  "$(grep -c 'T-040: ghi chú, không có test cho trường hợp revert$' "$page" || true)"
+expect "status: items after the next heading and the done items are not listed" "0 0 0 6" \
+  "$(grep -c 'Không phải việc' "$page" || true) $(grep -c 'Đã xem ảnh' "$page" || true) $(grep -c 'issue flaky' "$page" || true) $(grep -c '^- \[RUN-20261004-01\]' "$page" || true)"
+expect "status: the run template still has the manual check section" yes \
+  "$(awk '/^### Cần người kiểm tra$/ { s = 1; next } s && /^- \[ \] / { found = 1 } END { print (found ? "yes" : "no") }' docs/templates/run.md)"
+expect "status: manual checks skip runs not finished" "0 1" \
+  "$(grep -c 'Kiểm A' "$page" || true) $(grep -c 'RUN-20261006-01.md): Kiểm B' "$page" || true)"
+expect "status: an empty or unterminated manual check section does not break the page" "0 1 0" \
+  "$(status_page > /dev/null 2>&1; echo $?) $(grep -c 'RUN-20261006-01.md): Kiểm B' "$page" || true) $(status_page --check > /dev/null; echo $?)"
+expect "status: tickets not on staging are listed by feature" "1 0 0" \
+  "$(grep -c '^- demo: T-002 .approved.$' "$page" || true) $(grep '^- demo: ' "$page" | grep -c 'T-001' || true) $(grep -c 'gồm ticket quy trình' "$page" || true)"
+mkdir -p "$st/features/proc/tickets"
+printf -- '---\ntitle: Quy trình\nstatus: ready\n---\n' > "$st/features/proc/tickets/T-003-quy-trinh.md"
+status_page > /dev/null
+expect "status: a ticket of a feature without a spec marks process tickets" "1 1" \
+  "$(grep -c 'gồm ticket quy trình' "$page" || true) $(grep -c '^- proc: T-003 .ready.$' "$page" || true)"
+expect "status: open feedback is listed in release readiness" 1 \
+  "$(grep -c '^- FB-20261003-01 .new., mức .nhe.: Nút sai màu$' "$page" || true)"
+# Remote URL: the tests export a fake origin (https://github.com/o/r.git, L-068); outside a repository git still reads it.
+expect "status: release readiness links open issues of the origin repo" "1 1" \
+  "$(grep -cF 'https://github.com/o/r/issues?q=is%3Aissue+is%3Aopen)' "$page" || true) $(grep -cF 'label%3Amain-broken' "$page" || true)"
+GIT_CONFIG_COUNT=0 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 status_page > /dev/null
+expect "status: without a readable remote there is a sentence and no link" "1 0" \
+  "$(grep -c 'Không đọc được repo GitHub' "$page" || true) $(grep -c 'github.com/o/r' "$page" || true)"
+GIT_CONFIG_VALUE_0=https://user:tok@github.com/o/r.git status_page > /dev/null
+expect "status: a remote URL with credentials does not leak them" "1 0" \
+  "$(grep -c 'https://github.com/o/r/issues' "$page" || true) $(grep -cw 'tok' "$page" || true)"
+GIT_CONFIG_VALUE_0=git@github.com:o/r.git status_page > /dev/null
+expect "status: an ssh remote gives the same link" 1 "$(grep -cF 'https://github.com/o/r/issues?q=' "$page" || true)"
+GIT_CONFIG_VALUE_0=https://mirror.example/github.com/o/r.git status_page > /dev/null
+expect "status: a remote that only has github.com in its path gives no link" "1 0" \
+  "$(grep -c 'Không đọc được repo GitHub' "$page" || true) $(grep -c 'github.com/o/r/issues' "$page" || true)"
+printf -- '---\nid: RUN-20261007-01\nstatus: finished\n---\n\n### Cần người kiểm tra\n\n- [ ] Kiểm C \xff\n' > "$st/runs/RUN-20261007-01.md"
+expect "status: a report that is not UTF-8 stops the script, as any other document does" 1 \
+  "$(status_page > /dev/null 2>&1; echo $?)"
+rm "$st/runs/RUN-20261007-01.md"
+printf -- '---\ntitle: Không spec\nspec:\nstatus: ready\n---\n' > "$st/features/demo/tickets/T-004-khong-spec.md"
+status_page > /dev/null
+expect "status: a ticket with an empty spec marks process tickets" 1 "$(grep -c 'gồm ticket quy trình' "$page" || true)"
+rm "$st/features/demo/tickets/T-004-khong-spec.md"
+status_page > /dev/null
+status_page > /dev/null
+# Nothing under app/src/production or release* is read: record every file the script opens (audit hook).
+opened="$work/status-opened.txt"
+STATUS_ROOT="$work/status-repo" OPENED="$opened" python3 -I -c '
+import atexit, os, runpy, sys
+seen = []
+sys.addaudithook(lambda event, args: seen.append(args[0]) if event == "open" and isinstance(args[0], str) else None)
+atexit.register(lambda: open(os.environ["OPENED"], "w").write("\n".join(seen) + "\n"))
+sys.argv = ["scripts/status.py"]
+runpy.run_path("scripts/status.py", run_name="__main__")
+' > /dev/null
+under_root="$(grep "^$work/status-repo/" "$opened" | sed "s|^$work/status-repo/||" || true)"
+under_root="$(sort -u <<<"$under_root")"
+expect "status: release readiness opens only docs and AdPlacement.kt" "0 0 1 1" \
+  "$(grep -v -e '^docs/' -e '/AdPlacement.kt$' <<<"$under_root" | grep -c . || true) $(grep -v '^docs/' <<<"$under_root" | grep -c -e 'production' -e 'release' || true) $(grep -c '^docs/lessons.md$' <<<"$under_root" || true) $(grep -c '/AdPlacement.kt$' <<<"$under_root" || true)"
+no_marker="$(grep -c PROD-MARKER-T047 "$page" || true)"
+printf -- '- [ ] Dấu PROD-MARKER-T047 trong mục kiểm\n' >> "$st/runs/RUN-20261006-01.md"
+status_page > /dev/null
+expect "status: release readiness never reads production config" "0 1" \
+  "$no_marker $(grep -c PROD-MARKER-T047 "$page" || true)"
+perl -pi -e 's/^- \[ \] Kiểm FPS/- [x] Kiểm FPS/' "$st/runs/RUN-20261004-01.md"
+status_page > /dev/null
+expect "status: a checked item leaves the page" "0 1" \
+  "$(grep -c 'Kiểm FPS' "$page" || true) $(grep -c 'RUN-20261004-01.md): T-040' "$page" || true)"
+expect "status: check passes after the release readiness section" "0 1" \
+  "$(status_page --check > /dev/null; echo $?) $(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true)"
+
 
 # status.py --sync moves each ticket's status after its plan's (L-050).
 sy="$work/sync-repo/docs/features/demo"

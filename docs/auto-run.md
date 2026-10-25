@@ -172,11 +172,12 @@ Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân lo
 ### Bước 8. CI đầy đủ
 
 - `pr-check.yml` chạy toàn bộ kiểm tra ở bước 5. Test trên emulator chỉ chạy khi PR chạm vào code giao diện hoặc test giao diện (ADR-0010).
-- AI chờ CI bằng `scripts/wait-run.sh --pr <số PR>` cho đến khi `pr-check` kết thúc (mục Chờ workflow bên dưới), rồi gọi `merge-if-green.sh`.
+- AI chờ CI bằng `scripts/wait-run.sh --pr <số> --sha "$(git rev-parse HEAD)"` sau khi chính phiên đẩy commit lên nhánh của PR, cho đến khi `pr-check` kết thúc (mục Chờ workflow bên dưới), rồi gọi `merge-if-green.sh`.
 
 **Chờ workflow.** Mỗi lần hỏi GitHub trạng thái là một lượt gọi model đọc lại toàn bộ ngữ cảnh của phiên, nên không hỏi lặp lại bằng tay. `scripts/wait-run.sh` tự chờ trong một lệnh và in một dòng kết quả: mã 0 xanh, 1 đỏ (kèm tên job đỏ), 2 hết thời gian chờ thì gọi lại, 4 GitHub không chạy job (`HẠ TẦNG`), 5 PR xung đột với nhánh chính (`XUNG ĐỘT`). Chạy lệnh ở chế độ nền và làm việc khác trong lúc chờ nếu có (mục 4); không có việc khác thì chạy thường. Môi trường giới hạn một lệnh 10 phút thì dùng `--timeout 9` và gọi lại khi nhận mã 2.
 - Mã 4 (`HẠ TẦNG`): GitHub không cấp máy cho job, thường vì hết hạn mức Actions; job không chạy bước nào nên không có log. Không sửa code, không chạy lại, không tính vào 3 lần sửa của cùng một lỗi: làm theo mục 4, dòng "GitHub không chạy job" (L-064).
 - Mã 5 (`XUNG ĐỘT`): GitHub không chạy `pr-check` cho PR xung đột với nhánh chính, nên chờ thêm cũng không có lần chạy nào. Gộp nhánh chính vào nhánh (`git merge origin/main`), sửa xung đột trong phạm vi file của plan, đẩy, rồi chờ lại; không tính vào 3 lần sửa (L-064).
+- `--pr` chờ commit đầu hiện tại của PR, đọc lại mỗi vòng. Lần chạy của commit cũ bị hủy vì có commit mới thì không phải đỏ (L-087). `--sha` để không nhận nhầm kết quả của commit trước khi GitHub chưa cập nhật PR (vài giây sau lệnh đẩy). Sau `merge-if-green.sh --update` (commit do GitHub tạo, phiên không có mã) thì gọi không kèm `--sha`. `ĐỎ (cancelled)` chỉ còn khi chính commit đầu bị hủy: tra bảng tra lỗi như mọi lần đỏ.
 - CI đỏ (`wait-run.sh` mã 1) thì tra [bảng tra lỗi](ops/failure-playbook.md) trước khi sửa code (L-079):
   1. Lấy log của job đỏ rồi tra bảng:
      ```bash
@@ -210,7 +211,7 @@ Theo ADR-0025, mục 4 (L-049). Phiên chỉ revert commit merge của chính ph
 
 1. Đọc issue bằng REST (bước 7) và lấy commit gây lỗi. So với các commit merge mà phiên ghi ở dòng thời gian của báo cáo; không khớp thì kết thúc phiên.
 2. Mở PR từ nhánh `revert/<7 ký tự đầu>` mà `main-guard` đã đẩy: `gh api -X POST "repos/{owner}/{repo}/pulls" -f head=revert/<sha> -f base=main -f title="Revert T-NNN (main-broken #<số issue>)" -f body="..."`. Không sửa nhánh đó và không gọi `merge-if-green.sh --update` cho PR này: `merge-if-green.sh` chỉ cho qua đúng một commit `git revert` nằm ngay trên nhánh chính mới nhất (`scripts/is-exact-revert.sh`). Không có nhánh `revert/` (issue ghi "Không tự revert được"), hoặc nhánh chính đã có commit mới sau commit gây lỗi khiến bản revert không còn nằm ngay trên nhánh chính: kết thúc phiên.
-3. Chờ CI bằng `scripts/wait-run.sh --pr <số>`, rồi merge bằng `scripts/merge-if-green.sh <số>`. Script từ chối thì kết thúc phiên, không tìm cách khác.
+3. Chờ CI bằng `scripts/wait-run.sh --pr <số> --sha "$(git rev-parse HEAD)"`, rồi merge bằng `scripts/merge-if-green.sh <số>`. Script từ chối thì kết thúc phiên, không tìm cách khác.
 4. Chờ `main-guard` của commit revert (`scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge>`). Xanh thì issue tự đóng; kiểm lại không còn issue `main-broken` đang mở rồi mới làm task sau. Còn đỏ thì kết thúc phiên.
 5. Task bị revert: ticket chuyển `stopped`, nhật ký plan ghi "đã merge rồi revert" kèm issue và PR revert, chuẩn bị cho người như task dừng (mục Chuẩn bị cho người khi task dừng). Task phụ thuộc task đó bị bỏ qua.
 
@@ -292,6 +293,7 @@ Sau đó AI:
 2. Viết báo cáo phiên vào file danh sách chạy, **trong lúc chờ các workflow ở bước 1** chứ không chờ xong mới viết. Không có task nào merge thì viết ngay. Thứ tự:
    - Cập nhật nhánh báo cáo theo nhánh chính.
    - Viết các mục không phụ thuộc emulator và staging: tóm tắt, kết quả từng task, cần người kiểm tra, task bị dừng, thời gian, số liệu và dòng thời gian, token, bài học, kiểm chứng bài học cũ, đề xuất.
+   - Hàng chờ plan (L-084): `plan_queue` của danh sách chạy khác `0` thì chạy `git fetch origin` và `scripts/plan-queue.py --max <plan_queue>`. Ghi hàng chờ và danh sách ticket bị bỏ qua vào mục "Plan soạn sẵn và câu hỏi cho người". Bước 5 sẽ không chạy thì ghi "Không soạn" kèm lý do: `plan_queue: 0`, hàng chờ rỗng, phiên kết thúc vì lý do khác hết danh sách, phiên quá 24 giờ, `staging_needed_by`. Mã 2 của script cũng ghi vào đây, kèm thông báo.
    - Khi workflow xong: điền mục Kiểm thử trên máy ảo, Bản staging và các dòng còn lại của Dòng thời gian, sửa phần tóm tắt nếu kết quả làm nó đổi.
    - Chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
    - Commit và đẩy nhánh báo cáo sau mỗi phần viết xong, không đợi cuối: hết hạn mức giữa chừng thì phần đã viết còn lại, và commit cho `resume-run.yml` biết phiên còn sống.
@@ -299,6 +301,40 @@ Sau đó AI:
    Đo token khi viết mục Token: `scripts/token-usage.py report --since <started_at> --run RUN-YYYYMMDD-NN --csv docs/metrics/token-usage.csv`, dán bảng vào mục Token (`docs/ops/token-usage.md`). Không đo được thì ghi lý do và đi tiếp; việc đo không bao giờ chặn phiên.
 3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, `docs/metrics/token-usage.csv`, bài học mới trong `docs/lessons.md` (mục 6), plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).
 4. Merge PR báo cáo bằng `scripts/merge-if-green.sh`. Script từ chối (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
+5. **Soạn plan cho hàng chờ (L-084).** Chỉ sau khi PR báo cáo đã merge, nên báo cáo không bị chậm và hết hạn mức giữa chừng không làm mất báo cáo. Danh sách chạy đã `finished`, bước này không giữ nhánh chính.
+
+   Điều kiện chạy:
+   - PR báo cáo đã merge, và hàng chờ ở bước 2 không rỗng;
+   - phiên kết thúc vì hết danh sách hay đạt số task tối đa. Không chạy khi phiên kết thúc vì nhánh chính đỏ, lỗi hạ tầng, `env-broken` hay lệnh đẩy bị từ chối;
+   - phiên bắt đầu chưa quá 24 giờ, như giới hạn của `resume-run.yml`;
+   - không gần `staging_needed_by`: có `staging_needed_by` mà bản staging của phiên chưa phát xong thì không bắt đầu.
+
+   Ghi giờ bắt đầu. Với từng ticket của hàng chờ, theo thứ tự:
+   1. Tạo nhánh `claude/plan-T-NNN-<từ khóa>` từ nhánh chính mới nhất.
+   2. Viết plan theo `docs/CLAUDE.md`, mục Khi viết plan. Chuyển ticket sang `planned`, điền `plan:`.
+   3. Commit, rồi đẩy ngay bằng `scripts/save-branch.sh claude/plan-T-NNN-<từ khóa>`. Script trả mã 3, hay lệnh đẩy bị từ chối, thì làm theo "Khi không đẩy được" (mục 3, sau bước 7; L-081): không đẩy lại dưới dạng khác, giữ bundle, chép đoạn "Nhánh chưa đẩy" vào mục "Plan soạn sẵn và câu hỏi cho người", rồi dừng bước 5. Đẩy được thì mở PR nháp `Plan T-NNN (draft): <tên>` ngay sau commit đầu và gắn nhãn `needs-human` (lệnh `gh api` như PR nháp sửa nguyên nhân, mục 3, bước 7), để hết hạn mức giữa chừng người vẫn thấy phần đã soạn.
+   4. Làm mọi bước chạy thử của mục Khi viết plan, mỗi bước trong một worktree riêng. Bước không chạy được, hay chưa chạy xong khi hết giờ, thì ghi `Chạy thử: chưa chạy xong (<lý do>)` ở mục 4.1 và đặt câu hỏi cho người ở mục 8. Không ghi kết quả mà phiên chưa thấy.
+   5. Chạy `scripts/plan-check.py`, sửa tới khi không lỗi. Lỗi chỉ người gỡ được thì giữ lại và ghi vào mục 8.
+   6. Ngay sau đó, giao một phiên rà soát độc lập (ngữ cảnh mới, chỉ đọc) cho plan này, như rà soát trước khi duyệt (`docs/ops/pre-run-review.md`). Sửa plan theo điểm chặn và điểm nên sửa một lần; điểm còn lại chép vào mục 8.
+   7. Commit, đẩy bằng `scripts/save-branch.sh`, cập nhật mô tả PR (kết quả `plan-check.py`, rà soát, chạy thử). PR vẫn là nháp và giữ nhãn `needs-human`, như PR sửa nguyên nhân ở mục Chuẩn bị cho người khi task dừng. Người duyệt plan, gỡ nhãn, chuyển PR sang sẵn sàng rồi merge.
+
+   Giao việc cho phiên con (chạy thử, rà soát độc lập) theo mục Giao bước 3 đến 5 cho phiên con: lời giao có một dòng riêng `Task: T-NNN` (L-071); phiên con chỉ commit trong worktree, phiên chính đẩy nhánh (L-070).
+
+   Giới hạn thời gian, tính riêng cho từng plan:
+   - Mỗi plan có 45 phút, kể cả chạy thử (`scripts/check.sh`, và `./gradlew :app:assembleStagingRelease` khi plan thêm thư viện) và rà soát. Cả bước 5 có tối đa `plan_queue` × 45 phút, cộng 15 phút cho PR tóm tắt.
+   - Plan dùng hết 45 phút thì dừng: đẩy phần đã có. Chạy thử chưa xong thì ghi như ý 4 ở trên; plan chưa kịp rà soát ghi "chưa rà soát" ở mục 8 và trong mô tả PR. PR vẫn là nháp.
+   - Phần thời gian còn lại của cả bước không đủ 45 phút thì không bắt đầu plan mới.
+
+   Giới hạn token: trước mỗi plan, xem tổng token của phiên bằng `scripts/token-usage.py report --since <started_at>`. Token đã dùng cộng số token của plan trước trong bước này (plan đầu thì lấy task nhỏ nhất của phiên) vượt phần hạn mức còn lại thì dừng bước 5 và ghi lý do. Không đo được thì chỉ soạn một plan.
+
+   Kết thúc bước 5:
+   - Mở một PR tóm tắt nhỏ `RUN-YYYYMMDD-NN: plan soạn sẵn` (nhánh `claude/RUN-YYYYMMDD-NN-plans`). PR chỉ sửa mục "Plan soạn sẵn và câu hỏi cho người" của danh sách chạy: bảng các PR plan và câu hỏi cho người.
+   - Merge PR tóm tắt bằng `scripts/merge-if-green.sh` như PR báo cáo. Các PR plan là nháp có nhãn `needs-human`, để người duyệt và merge.
+
+   Việc phiên không làm ở bước này:
+   - không chuyển PR plan sang sẵn sàng, không gỡ nhãn `needs-human`, không duyệt, không merge PR plan, không ghi `approved` hay mục 9;
+   - không lập danh sách chạy mới, ngoài danh sách nháp của mục Chuẩn bị cho người khi task dừng;
+   - không sửa plan đã `approved`, spec, hay ticket ngoài trạng thái và trường `plan:` của ticket được chọn.
 
 ## 5. Báo cáo phiên
 
@@ -313,6 +349,7 @@ Báo cáo phiên là thứ dev đọc đầu tiên khi bắt đầu làm việc 
 - Số liệu của phiên (mẫu danh sách chạy, mục Số liệu).
 - Bài học của phiên, và kết quả kiểm chứng các bài học `applied` liên quan tới phiên này (mục 6).
 - Issue mang nhãn `flaky` đang mở (số, tên test) và task bị revert trong phiên, nếu có (ADR-0025).
+- Plan soạn sẵn và câu hỏi cho người: hàng chờ và ticket bị bỏ qua (mục 4, bước 2), các PR plan và câu hỏi (bước 5).
 
 ## 6. Bài học và cải tiến quy trình
 
@@ -334,7 +371,7 @@ Mỗi bài học ghi: chuyện gì đã xảy ra, bằng chứng (log, PR, thờ
 
 **Phiên kiểm chứng bài học cũ:** đọc các bài học `applied` trong sổ; bài học nào liên quan tới việc phiên vừa làm thì ghi vào báo cáo cải tiến đó có hiệu quả hay không, kèm bằng chứng, và cập nhật dòng **Kiểm chứng** trong sổ.
 
-**Phiên không tự sửa quy trình.** Trong phiên tự chạy, AI không sửa `CLAUDE.md`, `docs/CLAUDE.md`, `docs/auto-run.md`, `docs/risk-scoring.md`, `docs/templates/`, `scripts/` hay `.github/`, dù thấy chỗ cần sửa, trừ khi plan đã duyệt nêu rõ. AI chỉ đề xuất qua bài học. Như vậy các hàng rào an toàn không bị nới lỏng khi không có người theo dõi.
+**Phiên không tự sửa quy trình.** Trong phiên tự chạy, AI không sửa `CLAUDE.md`, `docs/CLAUDE.md`, `docs/auto-run.md`, `docs/risk-scoring.md`, `docs/templates/`, `scripts/` hay `.github/`, dù thấy chỗ cần sửa, trừ khi plan đã duyệt nêu rõ. AI chỉ đề xuất qua bài học. Như vậy các hàng rào an toàn không bị nới lỏng khi không có người theo dõi. Plan `draft` soạn ở mục 4, bước 5 không phải tài liệu quy trình.
 
 **Retro sau mỗi phiên**, khoảng 15 phút, khi dev đọc báo cáo phiên:
 
