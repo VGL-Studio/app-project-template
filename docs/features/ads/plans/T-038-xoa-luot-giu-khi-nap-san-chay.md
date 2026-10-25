@@ -1,7 +1,7 @@
 ---
 ticket: T-038
 title: Xóa lượt giữ khi lượt xin nạp sẵn mới được chạy
-status: approved   # draft | approved | stopped | done
+status: done   # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -183,3 +183,15 @@ Test viết trước chạy trên **code hiện tại của nhánh chính** (ch�
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #164, commit merge `6f2e702`, 2026-10-25 11:50 UTC).
+- **Nhánh, PR:** `claude/T-038-xoa-luot-giu`, [#164](https://github.com/VGL-Studio/app-project-template/pull/164). Commit test `b49eeae`, commit ngắt dòng cho ktlint `d40f1ca`, commit code `5948477`.
+- **Đã làm:** nhánh `RUN` của `AdPreloader.request` xóa `held` trước `launch`, log `Held preload <lý do giữ>: covered by <lý do mới> run` khi có lượt giữ; KDoc của `request`; một câu và một dòng log ở `docs/ops/ads-guide.md` mục 6.
+- **Test viết trước:** 5 test mới trong `AdPreloaderTest`. Trên code cũ 4 test thất bại đúng lý do, đúng số đo của plan: `requestRun_whileHeldForClosedGate_clearsHeld` (`[0, 2000, 8000]`), `requestRun_whileHeldFromRunAndGateClosed_clearsHeld` (`[0, 8000, 14000]`), `everyRunReason_whileHeld_clearsHeld` (dừng ở trường hợp đầu `GATE_REOPENED`, `[0, 2000, 8000]`; vòng lặp dừng ở lần thất bại đầu nên hai lý do sau chưa thấy thất bại riêng), `requestRun_clearsHeld_thenRequestDuringRunIsHeld` (dòng log `covered by`). `gateOpens_withoutRequest_heldRunsOnce` qua ngay đúng như plan (đối chứng, L-055). Test viết chặt bằng bước đối chứng: 1.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 3 ghi chú: (1) `runner.run` ném lỗi thì lượt giữ nay mất cùng lượt chạy lỗi (trước đây còn lại); liên quan ghi chú (2) của rà soát T-037, ngoài phạm vi; (2) hai kiểu khẳng định "không có log" trong cùng file test (`assertTrue(!logged(...))`, `entries.none { ... }`); (3) KDoc của lớp chưa nhắc nhánh `RUN`, KDoc của `request` đã nói.
+- **Kết quả CI:** `scripts/check.sh` trên máy qua (661 test JVM, 0 lỗi; 42 ảnh screenshot không đổi). `pr-check` xanh vòng đầu (lần chạy 40189856754).
+- **Lệch so với plan:** commit test thứ hai `d40f1ca` ngắt một dòng quá 120 ký tự (ktlint), không đổi điều test kiểm (auto-run.md, bước 4). Ngoài mục 3.2: không có.
+- **Việc còn lại:** ghi chú 1 của rà soát gộp vào ticket xử lý ghi chú (2) của rà soát T-037, khi có.
+- **Cần người xem:** kiểm tra thủ công không bắt buộc trên bản staging (mục 4, dòng cuối): sau `Held preload <lý do>: covered by GATE_REOPENED run` không có `Held preload <lý do>: run`.
