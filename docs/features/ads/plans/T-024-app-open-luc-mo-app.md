@@ -1,16 +1,16 @@
 ---
 ticket: T-024
 title: Quảng cáo mở app ở màn loading (lần đầu sau khi cài và lần thường)
-status: stopped   # draft | approved | stopped | done
+status: approved   # draft | approved | stopped | done
 version: 3                   # 2: rà soát trước phiên RUN-20261026-01, thêm AdsFlagsTest.kt; 3: RUN-20261026-01 dừng ở bước 3, thêm AdUnitIdsTest.kt (mục 3.2, 4, 7, câu hỏi 3, 7)
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 15M (scripts/token-usage.py estimate, 2026-10-25); nâng vì khoảng 35 file ở ba module và hai API công khai mới
 blocking_points: [ads, core, analytics]
-run_order:                      # AI điền sau họp đánh giá rủi ro
-reviewer:                       # người duyệt
-cross_reviewer:                 # bắt buộc khi risk_level là high
-approved_at:
+run_order: 1                    # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                  # người duyệt
+cross_reviewer: Nhật            # bắt buộc khi risk_level là high
+approved_at: 2026-10-25
 ---
 
 # PLAN T-024: QUẢNG CÁO MỞ APP Ở MÀN LOADING (LẦN ĐẦU SAU KHI CÀI VÀ LẦN THƯỜNG)
@@ -303,7 +303,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - Tên đã dùng ở mục 2 không còn trên nhánh chính (`consentFlowFinished`, `sdkReady`, `isFullScreenAdReady`, `loadFullScreenAdIfNeeded`, `decideFullScreenTurn`, `FreshAdCache`, `FullScreenReloads`, `AdTelemetry.opportunity`, `AdsGlobalFlags.showOpenAdsFirstOpen`): dừng.
 - `AdPlacementSourceTest` đỏ sau khi thêm hai dòng: dừng, không đổi dạng dòng, không sửa `scripts/release.sh`.
 - `RemoteConfigKeysTest` báo bảng khóa sinh tự động đổi (`docs/remote-config-keys.md`, `docs/remote-config-template.json`): dừng, vì plan nói hai vị trí mới không thêm khóa.
-- Cần sửa ảnh chuẩn nào, `LoadingScreenTest`, `AppLaunchTest` hay test nào khác ngoài các file test có sẵn đã ghi Sửa ở mục 3.2 để qua.
+- Cần sửa ảnh chuẩn nào, `LoadingScreenTest` hay `AppLaunchTest` để qua: dừng. Test có sẵn khác đỏ: xử lý theo ADR-0029 (`risk-scoring.md` mục 4), không dừng. (Phiên bản 3, sửa lúc duyệt 2026-10-25 theo ADR-0029.)
 - `AppLaunchTest` (emulator, `ui-test` của CI) đỏ vì màn loading chờ quảng cáo: dừng, không nới thời gian chờ của test.
 - Cần thêm `:core:data` hay thư viện vào `:feature:loading`, hay đổi `AppNavHost`, `MainActivity`.
 
@@ -340,7 +340,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
    - `di/StartupAdsModule.kt` có ngay trong khung rỗng của commit test, vì thiếu nó thì `:app` không dựng được đồ thị Hilt (file đã có trong mục 3.2).
    - Thêm một test ngoài bảng mục 4: `StartupAdWaitTest.interPlacement_isProbedAndRecorded`.
    - Đề xuất của AI: giữ cả ba. Phương án khác: bỏ tham số `logger` và ghi log ở `AdsController` (phần nối, không có test).
-   - Trả lời:
+   - Trả lời: theo đề xuất của AI, giữ cả ba (anh Nhật, 2026-10-25).
 
 ## 9. Quyết định duyệt
 
@@ -349,7 +349,7 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
 - **Ghi chú:** AI ghi theo lời anh Nhật ("Duyệt các plan"), 2026-10-25. Câu trả lời ở cuối mục 8. Chạy thứ 3 trong RUN-20261026-01.
-- **Phiên bản 3:** <người duyệt điền: quyết định, người duyệt, duyệt chéo, ngày>
+- **Phiên bản 3:** Duyệt. Người duyệt: Nhật, duyệt chéo: Nhật, 2026-10-25. AI ghi theo lời anh Nhật ("Duyệt v3 ngay, chạy liền"). Câu hỏi 7: theo đề xuất của AI. Lúc duyệt, mục 7 gạch 5 sửa theo ADR-0029 (cùng PR): test có sẵn khác đỏ thì sửa tiếp, không dừng; ảnh chuẩn, `LoadingScreenTest`, `AppLaunchTest` vẫn dừng. Không rà soát độc lập lại trước phiên, theo quyết định chạy liền. Chạy thứ 1 trong RUN-20261026-02.
 - **Phiên bản 2:** rà soát độc lập trước phiên (2026-10-25) thấy `AdsFlagsTest.readsOnlyDeclaredKeys` đỏ khi `keysFor` bỏ khóa của vị trí toàn app (đã chạy thử). Thêm `AdsFlagsTest.kt` vào mục 3.2, bỏ khỏi điều kiện dừng ở mục 7, ghi vào câu hỏi 3. Anh Nhật duyệt lại phiên bản 2, 2026-10-25.
 
 ## 10. Nhật ký thực hiện
