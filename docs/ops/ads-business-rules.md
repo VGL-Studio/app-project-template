@@ -45,7 +45,7 @@ AdsKit sinh ra cho một app cụ thể (app hình nền `diy-wallpaper-maker-ga
 | MC-06 | **Native ở một bước của luồng** (giới thiệu, sau màn tải xong, màn kết quả, hướng dẫn) là một khái niệm, không phải "trang 3 của giới thiệu". Vị trí định dạng `native_step` (thẻ 250 dp từ pool, đặt ngoài pager) hoặc `native_fullscreen` (cả trang, không có nút của quảng cáo, app tự đặt nút Tiếp). Một vị trí cho cả luồng; bước nào có quảng cáo là thông số của spec app, không thành khóa (câu hỏi 32). Trang native toàn trang giữ chặn quảng cáo tự hiện khi đang hiện (G-03). Khe của bước đầu tiên xếp ở nhóm nạp sẵn đầu (HD-02) | app, ads |
 | MC-07 | **Native trong tập hợp** (lưới, danh sách, pager) thay cho "ô lưới gallery" và "trang xem trước". Vị trí định dạng `native_in_collection` (thẻ dọc) hoặc `native_medium`, lấy từ pool (mục 5.9). Thuộc tính: giữ chỗ khi pool cạn hay ẩn ô (P-06; mặc định ẩn, câu hỏi 33); trong pager thì ô báo "đang được xem" (P-07). Chèn mỗi N mục là tham số `native_every_<mã vị trí>` khi spec cần | feature, ads |
 | MC-08 | **Thanh đáy là một bộ ghép theo màn:** khe đáy (native nhỏ 80 dp hay banner, theo `is_show_native_bottom`) cộng lớp native thu gọn tùy chọn (theo `is_show_native_collap`). Mỗi màn có thanh đáy là một vị trí, bật bằng `is_show_<mã vị trí>` (quyết định "được phép hiện quảng cáo" của app, A 05:46-47). Vị trí đọc lúc có sự kiện (D-05) | feature, ads |
-| MC-09 | **App open, resume, combo là cấu hình toàn app**, không theo vị trí: khóa chung ở mục 10. App nào không dùng combo thì để `is_show_native_after_inter` tắt. Màn native sau inter là lớp phủ do `:core:ads` vẽ, không phải đích điều hướng của `:app` (HD-05, câu hỏi 31) | ads |
+| MC-09 | **App open, resume, combo là cấu hình toàn app**, không theo vị trí: khóa chung ở mục 10. **Đổi 2026-10-26 (spec mục 5):** mã đơn vị đi theo vị trí, nên mỗi loại có một vị trí toàn app không có `is_show_<mã>`: `open_app`, `open_app_inter`, `resume`, `resume_inter`, `native_combo`. App nào không dùng combo thì để `is_show_native_after_inter` tắt. Màn native sau inter là lớp phủ do `:core:ads` vẽ, không phải đích điều hướng của `:app` (HD-05, câu hỏi 31) | ads |
 | MC-10 | **Không có đường code theo tính năng.** Thêm vị trí cho một tính năng mới của app chỉ gồm: dòng trong spec, dòng trong `AdPlacement`, lời gọi composable hay hàm của `:core:ads`. Không thêm cờ, hàm hay composable mang tên tính năng vào `:core:ads` | ads |
 
 ### Từ AdsKit sang mô hình chung
@@ -141,7 +141,7 @@ Bằng chứng ở repo AdsKit, đường dẫn tính từ `M/`.
 | --- | --- | --- | --- |
 | K-01 | Combo chạy khi `is_show_native_after_inter` bật. Giá trị đọc **lúc inter hoàn tất**. Inter đã qua cổng thì khi hoàn tất mở màn native toàn màn hình, **kể cả khi inter không lên được màn** (mất quảng cáo giữa chừng, hiện lỗi) (A 03:113, đã chốt). Inter bị chặn ngay ở cổng (chưa sẵn sàng, giãn cách, bận, đồng ý) thì không có native. Khóa tắt thì đi tiếp như inter thường | ads | `M/AdsKit.kt:1084-1115`, `T/controller/ResumeAdShowPlanTest.kt:154` |
 | K-02 | Đếm ngược **3 giây**, bắt đầu khi inter đã rời màn hẳn; chờ inter rời màn tối đa 2 giây (kiểm mỗi 200 ms) để không kẹt khi cờ inter kẹt. Mốc kết thúc là thời điểm tuyệt đối, giữ qua lúc Activity bị tạo lại | ads | `M/compose/NativeAfterInterScreen.kt:34-48,99-106,142-158` |
-| K-03 | Nút đóng ở góc **trên phải**, cách mép 12 dp, vòng tròn **36 dp**, biểu tượng X 20 dp. Trong lúc đếm, chỗ đó là vòng 36 dp chứa số giây (16 sp, đậm). Nút dùng được khi đếm xong **hoặc** khi nạp lỗi | ads | `M/compose/NativeAfterInterScreen.kt:116-121,183-195` |
+| K-03 | Nút đóng ở góc ~~**trên phải**, cách mép 12 dp~~ **đổi 2026-10-26:** **trên trái**, tại (16, 24) dp theo thiết kế T-035 (góc trên phải dành cho AdChoices; KB-16 của spec), vòng tròn **36 dp**, biểu tượng X 20 dp. Trong lúc đếm, chỗ đó là vòng 36 dp chứa số giây (16 sp, đậm). Nút dùng được khi đếm xong **hoặc** khi nạp lỗi | ads | `M/compose/NativeAfterInterScreen.kt:116-121,183-195` |
 | K-04 | Nạp lỗi thì tự đóng khi hết đếm ngược. Quảng cáo chưa về thì hiện khung chờ toàn màn hình và vẫn đóng được sau 3 giây. Bấm đóng chỉ ăn một lần | ads | `M/compose/NativeAfterInterScreen.kt:115,133-140,168-170`, commit `4362a78` |
 | K-05 | Đóng màn native thì đẩy mốc `ads_interval` về lúc đóng cả cụm. Trong lúc màn native hiện, quảng cáo khi quay lại app bị chặn (mục 6). Màn native không tự bật chặn: bộ điều phối combo của `:core:ads` (bên mở màn) giữ một suất của bộ đếm chặn khi màn đang hiện và nhả khi đóng (A 03:124, A 04:151) | ads | `M/AdsKit.kt:1021-1052`, `M/compose/NativeAfterInterScreen.kt:78-84` |
 | K-06 | Mỗi lần hiện sở hữu một quảng cáo native riêng, hủy khi rời màn, rồi nạp sẵn cho lần sau | ads | `M/compose/NativeAfterInterScreen.kt:92-95,159-167` |
@@ -173,7 +173,7 @@ AdsKit không có splash; app chủ tự làm. Ở dự án mẫu, màn loading 
 | A-12 | `resume_ad_type` đúng bằng `"inter"` thì resume là inter (bỏ cổng `ads_interval`, rồi nối combo nếu `is_show_native_after_inter` bật). Mọi giá trị khác là app open | ads | `M/controller/AppOpenAdPolicy.kt:165-166,203-208` |
 | A-13 | Bị chặn vì chưa có quảng cáo thì kích nạp lặng lẽ; lượt này bỏ, lượt sau có quảng cáo. Bị chặn ở các cổng trước đó thì không kích nạp (A 04:69) | ads | `M/controller/AppOpenAdController.kt:182-235` |
 | A-14 | **Bấm quảng cáo thì bỏ lượt resume kế tiếp:** mọi quảng cáo (toàn màn hình, native, banner) khi được bấm đánh dấu "rời app"; dấu này nhả ở lần Activity chính hiện lại. Bấm nhiều lần chỉ giữ một dấu | ads | `M/manager/AdClickResumeSkip.kt:12-14`, `T/manager/AdClickSkipsResumeTest.kt` |
-| A-15 | Vị trí của resume luôn là `resume`. Resume cũng đi qua hàm hiện có hồi phục kẹt | ads | `M/controller/AppOpenAdController.kt:126-153` |
+| A-15 | Vị trí của resume ~~luôn là `resume`~~ **đổi 2026-10-26:** là `resume` khi loại app open, `resume_inter` khi loại inter (spec mục 5). Resume cũng đi qua hàm hiện có hồi phục kẹt | ads | `M/controller/AppOpenAdController.kt:126-153` |
 
 ### 5.5 Banner
 
@@ -221,7 +221,7 @@ Luật chung của native:
 | O-05 | **Thử lại native:** còn giữ quảng cáo thì chờ 2, 4, 8, 16, 32 rồi 60 giây với mọi mã lỗi; chưa giữ quảng cáo nào thì thử lại cố định sau 5 giây. Bộ đếm về 0 khi thành công. Không gửi yêu cầu khi app ở nền; kiểm lại cổng đồng ý ngay trước khi gửi | ads | `M/manager/NativePolicyDecisions.kt:21-33,100-101`, `M/manager/NativeAdRequester.kt:33-58`, `M/behavior/PartnerAdsConstants.kt:50-56` |
 | O-06 | Tùy chọn yêu cầu: video tắt tiếng, không có điều khiển riêng, một ảnh, media ngang (ô lưới xin media dọc) | ads | `M/manager/NativePolicyDecisions.kt:57-73` |
 | O-07 | Đặt cách co giãn ảnh **trước** khi gắn quảng cáo vào khung, để ảnh không bị cắt | ads | commit `f3947af` |
-| O-08 | Nhãn "Ad" luôn thấy được, đặt ở góc trên trái; biểu tượng AdChoices do SDK ghim ở góc trên phải, không bị đè hay che. Hàng sao chỉ hiện khi quảng cáo có điểm thật lớn hơn 0: sao đặc làm tròn theo điểm, tối đa 5, không vẽ nửa sao | ads | A 05:240-242, `src/main/res/values/strings.xml` (`adskit_native_ad_label`) |
+| O-08 | Nhãn "Ad" luôn thấy được, ~~đặt ở góc trên trái~~ **đổi 2026-10-26:** đặt theo thiết kế T-035, ở đầu dòng mô tả dưới tiêu đề (câu hỏi 6 của plan T-027); biểu tượng AdChoices do SDK ghim ở góc trên phải (**thêm 2026-10-26:** trừ lớp nổi của native thu gọn, nơi nút thu gọn chiếm góc trên phải nên AdChoices ở góc trên trái, theo thiết kế T-035 và plan T-030), không bị đè hay che. Hàng sao chỉ hiện khi quảng cáo có điểm thật lớn hơn 0: sao đặc làm tròn theo điểm, tối đa 5, không vẽ nửa sao | ads | A 05:240-242, `src/main/res/values/strings.xml` (`adskit_native_ad_label`) |
 | O-09 | Chuẩn bị yêu cầu native bị lỗi (kể cả SDK tự hủy giữa chừng) thì tính là một lần nạp lỗi mã 0 và thử lại theo O-05 | ads | A 05:174, `M/manager/NativeAdRequester.kt:100` |
 
 ### 5.8 Native thu gọn
@@ -294,7 +294,7 @@ Hợp đồng với app chủ của AdsKit (A 07) chia cho `:app` của dự án
 | # | Luật | Chủ | AdsKit |
 | --- | --- | --- | --- |
 | PL-01 | Feature luôn truyền vị trí khai báo trong `AdPlacement`; không có vị trí rỗng | feature | `R.md:160` |
-| PL-02 | Vị trí nội bộ của `:core:ads`: `preload` (lượt nạp chưa gắn màn), `pool` (lượt nạp của pool), `resume` | ads | `M/analytics/AdTelemetry.kt:181-190` |
+| PL-02 | Vị trí nội bộ của `:core:ads`: `preload` (lượt nạp chưa gắn màn), `pool` (lượt nạp của pool), `resume`, **thêm 2026-10-26:** `resume_inter`, `native_combo` | ads | `M/analytics/AdTelemetry.kt:181-190` |
 | PL-03 | Vị trí gắn với lượt **hiện**, ghi đè ở mọi lượt hiện. Giữ giá trị cũ thì doanh thu của quảng cáo sau bị tính cho màn trước | ads | `M/manager/InterstitialAdManagerImpl.kt:70-76`, `T/manager/InterstitialTelemetryTest.kt:233` |
 | PL-04 | Cổng và lượt hiện của cùng một thao tác ra cùng một vị trí. Lượt chỉ để dò trạng thái (màn loading hỏi lặp) ra "không đo". Hàm đổi nguồn ra vị trí ném lỗi thì coi như không có vị trí, luồng quảng cáo chạy tiếp | ads | `M/AdsKit.kt:1251-1256`, commit `435c390` |
 

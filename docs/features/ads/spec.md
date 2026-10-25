@@ -7,7 +7,7 @@ requests:
   - requests/2026-10-21-native-va-remote-config.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-10-23
+confirmed: 2026-10-26
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -218,7 +218,7 @@ Người dùng bấm một nút có interstitial (ví dụ sang màn sau).
 Tiêu chí chấp nhận:
 
 - [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình.
-- [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở góc trên phải; hết đếm ngược thì vòng đó thành nút đóng.
+- [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở ~~góc trên phải~~ **đổi 2026-10-26:** góc trên trái, theo thiết kế T-035 (góc trên phải dành cho AdChoices; câu hỏi 10 của plan T-027); hết đếm ngược thì vòng đó thành nút đóng.
 - [ ] Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược.
 - [ ] Khi đóng màn native thì người dùng đi tiếp tới màn đã chọn, và khoảng cách `ads_interval` tính từ lúc này.
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
@@ -347,7 +347,8 @@ Tiêu chí chấp nhận:
 | `sample_bottom_banner` (đã có) | đổi sang native small (câu hỏi 3). **Đổi 2026-10-23:** thanh đáy (native nhỏ và lớp thu gọn, hoặc banner) | Màn hình mẫu | Khi vào màn hình | Không. Thay nội dung mỗi 60 giây | ~~`ads_sample_bottom_banner_enabled`~~ `is_show_sample_bottom_banner`, cùng `is_show_native_bottom`, `time_expand_collap_ad` |
 | Các vị trí của màn hình xem thử | mọi định dạng | Xem thử (chỉ staging) | Theo nút bấm | Như production | Bật sẵn ở staging |
 | **Thêm 2026-10-23:** quảng cáo mở app (màn loading, câu hỏi 11) | app open hoặc interstitial | Màn loading | Lúc khởi động mới | Không bị `ads_interval` chặn | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` |
-| **Thêm 2026-10-23:** `resume` (`:core:ads`, câu hỏi 11) | app open hoặc interstitial (có thể nối native) | Mọi màn | Khi quay lại app | Theo KB-14 | `show_resum_ads`, `resume_ad_type`, `is_show_native_after_inter` |
+| **Thêm 2026-10-23:** `resume` (`:core:ads`, câu hỏi 11). **Đổi 2026-10-26:** hai vị trí toàn app, `resume` (app open) và `resume_inter` (interstitial, không bị `ads_interval` chặn, vẫn đẩy mốc), vì mã đơn vị đi theo vị trí (plan T-025, câu hỏi 1) | app open hoặc interstitial (có thể nối native) | Mọi màn | Khi quay lại app | Theo KB-14 | `show_resum_ads`, `resume_ad_type`, `is_show_native_after_inter` |
+| **Thêm 2026-10-26:** `native_combo` (`:core:ads`, vị trí toàn app, plan T-026, câu hỏi 1) | native toàn màn hình sau interstitial (combo) | Mọi màn | Sau khi interstitial đóng, khi combo bật | Theo KB-16 | `is_show_native_after_inter` (không có `is_show_<mã>`) |
 
 ## 6. Dữ liệu và phân tích
 
@@ -377,6 +378,7 @@ Tiêu chí chấp nhận:
 - Quyền khai báo trong manifest gộp: `INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID` (đã có, của Google Mobile Ads); thêm `VIBRATE` (AppLovin SDK dùng cho quảng cáo có rung, quyền thường, không hỏi người dùng). Bỏ `CHECK_LICENSE` và `ACCESS_WIFI_STATE` mà AppLovin SDK tự thêm (không cần cho quảng cáo).
 - Play Console: cập nhật mục An toàn dữ liệu với mạng quảng cáo AppLovin (mã quảng cáo của máy, dữ liệu tương tác quảng cáo) trước khi phát hành bản có mediation.
 - **Thêm 2026-10-23:** SDK bên ngoài mới: adapter của tám mạng còn lại (Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads, kèm SDK Unity Ads) và SDK AppsFlyer (ADR-0026, ADR-0027). Quyền mà từng SDK kéo vào manifest gộp đo ở plan T-033 và T-034, ghi vào mục này trước khi duyệt plan (câu hỏi 18). ~~Khóa SDK AppLovin và khóa dev AppsFlyer đưa vào lúc build, không vào repo.~~ **Đổi 2026-10-24:** khóa dev AppsFlyer đưa vào lúc build, không vào repo; khóa SDK AppLovin không vào app (KB-9).
+- **Thêm 2026-10-26 (đo ở plan T-033, câu hỏi 18):** SDK AppsFlyer `6.18.1` khai báo `INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID` (đã có) và kéo vào hai quyền đọc mã giới thiệu của kho Samsung, Huawei; bỏ cả hai vì app chỉ phát hành trên Google Play. SDK kéo theo thư viện Play Integrity `com.google.android.play:integrity:1.3.0` (thêm hoạt động `com.google.android.play.core.common.PlayCoreDialogWrapperActivity`, không xuất). Manifest gộp thêm `<queries>` dò gói Instagram, Facebook Lite và intent `com.appsflyer.referrer.INSTALL_PROVIDER` (bỏ gói `com.samsung.android.mapsagent`), quy tắc sao lưu của AppsFlyer; sao lưu của app vẫn tắt. AppsFlyer chỉ khởi động khi có câu trả lời đồng ý (kể cả từ chối), hoặc sau 10 giây mà hộp thoại đồng ý không mở; hộp thoại đang mở thì chờ nó đóng (cách hiểu ADR-0027, quyết định 3; plan T-033, câu hỏi 9).
 - **Thêm 2026-10-24 (đo ở plan T-034, câu hỏi 18):** tám adapter (Meta Audience Network `6.22.0.1`, DT Exchange `8.5.0.0`, InMobi `11.5.0.0`, ironSource `9.6.1.0`, Mintegral `17.1.81.1`, Moloco `4.13.0.0`, Pangle `8.3.0.4.0`, Unity Ads `4.21.0.0` kèm SDK Unity Ads `4.21.0`) không thêm quyền nào vào manifest gộp: các quyền chúng khai báo (`INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS`) đã có từ Google Mobile Ads. Không thêm các quyền tùy chọn InMobi gợi ý (vị trí chính xác, trạng thái và đổi Wi-Fi). Mạng nào khởi động SDK lúc mở app thì bỏ phần đó, để mạng chỉ khởi động qua AdMob sau khi có đồng ý: bỏ thành phần khởi động của Meta (cùng cách với AppLovin). Bỏ thành phần nhận sự kiện đổi mạng của Mintegral (app khác gọi được, hệ thống không còn gửi sự kiện này). Giữ các thành phần chỉ theo dõi màn hình đang mở của ironSource, Mintegral, Unity.
 - **Thêm 2026-10-23:** Play Console: An toàn dữ liệu khai đủ chín mạng và AppsFlyer (mã quảng cáo và mã thiết bị, tương tác với app và quảng cáo, chẩn đoán) trước khi phát hành bản có các SDK đó.
 
@@ -541,3 +543,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-23 | AI | Theo quyết định của anh Nhật (theo bản đặc tả độc lập của AdsKit, kể cả mục "Đã chốt"): khe đáy 80 dp, combo vẫn sang native khi inter không lên màn, rewarded bấm lần hai ghi `busy`, quyền tạm mặc định tắt, giữ khung banner, công tắc lớp thu gọn và từng sự kiện AppsFlyer; ghi câu 21 đến 27 là đã trả lời. Theo yêu cầu tổng quát hóa: KB-19 thành hành động có điều kiện, KB-20 thành native ở bước của luồng, KB-21 thành native trong tập hợp, thêm KB-25; viết lại câu 13, 19; thêm câu 28 đến 34 |
 | 2026-10-23 | Nhật | Trả lời câu 7 đến 20 và 28 đến 34 theo đề xuất của AI; đồng ý các khóa tên do ta đặt (`is_show_native_collap`, `is_log_af_*`, `is_show_rw_export`) và kế hoạch nạp sẵn mặc định suy từ danh sách vị trí; xác nhận (AI ghi theo lời anh Nhật) |
 | 2026-10-24 | Nhật | Theo trả lời câu hỏi 1, 2, 5 của plan T-034: tách tiêu chí 2 của KB-9 thành hai vế (staging chỉ liệt kê adapter; app thật thấy chín adapter khởi tạo), khóa SDK AppLovin không vào app, thêm kết quả đo quyền của tám adapter vào mục 6. Xác nhận lại (AI ghi theo lời anh Nhật) |
+| 2026-10-26 | Nhật | Theo trả lời câu hỏi 1 của plan T-026 và T-025: thêm vị trí toàn app `native_combo` và `resume_inter` (mục 5). Theo câu hỏi 10 của plan T-027: vòng đếm ngược của KB-16 ở góc trên trái. Theo câu hỏi 1 và 9 của plan T-033: quyền và manifest của AppsFlyer, lúc AppsFlyer khởi động (mục 6). Xác nhận lại (AI ghi theo lời anh Nhật) |

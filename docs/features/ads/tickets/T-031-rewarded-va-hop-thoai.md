@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-19]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-022, T-023]
 sprint:
-plan:
+plan: features/ads/plans/T-031-rewarded-va-hop-thoai.md
 created: 2026-10-23
 ---
 

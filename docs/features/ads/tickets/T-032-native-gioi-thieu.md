@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-20]
 owner: Nhật
-status: backlog
+status: approved
 risk: medium
 size: S
-depends_on: [T-027, T-028]
+depends_on: [T-027, T-028, T-030]   # T-030 thêm 2026-10-26: plan T-032 dùng `adChoicesCorner` và hằng số của T-030 (rà soát danh sách RUN-20261026-03)
 sprint:
-plan:
+plan: features/ads/plans/T-032-native-gioi-thieu.md
 created: 2026-10-23
 ---
 

@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-14]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-024, T-026]
 sprint:
-plan:
+plan: features/ads/plans/T-025-quang-cao-khi-quay-lai-app.md
 created: 2026-10-23
 ---
 
