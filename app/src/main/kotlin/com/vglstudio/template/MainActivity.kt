@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.vglstudio.template.core.ads.AdsController
 import com.vglstudio.template.core.ads.AdsHost
 import com.vglstudio.template.core.ads.FullScreenAdHost
@@ -17,6 +18,8 @@ import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.network.NetworkDialogController
 import com.vglstudio.template.navigation.AppNavHost
 import com.vglstudio.template.network.NetworkDialogHost
+import com.vglstudio.template.ui.APP_ROOT_TAG
+import com.vglstudio.template.ui.exposeTestTagsForUiAutomator
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -42,7 +45,8 @@ class MainActivity : ComponentActivity() {
                 AppTheme {
                     // The surface fills the whole window, including the area behind the system bars,
                     // so those areas take the theme background in both light and dark mode.
-                    Surface(modifier = Modifier.fillMaxSize()) {
+                    // testTag shows as resource-id in uiautomator dump, for the scenario files of the plans.
+                    Surface(modifier = Modifier.fillMaxSize().exposeTestTagsForUiAutomator().testTag(APP_ROOT_TAG)) {
                         val networkDialogState by networkDialog.state.collectAsState()
                         // Back while the network dialog shows sends the app to the background (plan T-017).
                         NetworkDialogHost(

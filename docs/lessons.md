@@ -506,6 +506,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** `scripts/plan-queue.py`, `docs/auto-run.md` (bước cuối phiên soạn plan), `docs/templates/run.md`, `docs/CLAUDE.md`; PR #151.
 
+### L-085. Mục kiểm thủ công dồn lại sau mỗi phiên, phần lớn chạy được trên emulator
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-062, ticket T-046, PR #121 của app), issue #133
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** một báo cáo phiên của app có 7 nhóm kiểm thủ công, phần lớn chạy được trên emulator (xoay màn hình, mất mạng rồi thử lại, màn hình gập). Chúng vẫn chờ người, nên mục "Cần người kiểm tra" dài ra sau mỗi phiên.
+- **Đề xuất sửa:** plan ghi mỗi dòng "Kiểm tra thủ công" là `(emulator: <tệp>)`, `(máy thật: <lý do>)` hay `(người: <lý do>)` (`plan-check.py`, quy tắc 11, chỉ nhắc). Phần emulator thành tệp kịch bản `<module>/src/deviceScenarios/<T-NNN>-<tên>.txt`, chạy bằng `scripts/device-scenario.py` sau kịch bản chuẩn của `device-session`, có hạn chót, trả máy về gốc, bảng "Kịch bản theo plan" trong `summary.md`. Vỏ app đặt `testTagsAsResourceId` ở gốc giao diện và ở hộp thoại mạng. Ở mẫu: `consent decline` chờ tag gốc `app_root` của `MainActivity` (app đặt `DEVICE_SCENARIO_FIRST_SCREENS` theo màn đầu của mình); `fresh` mở `MainActivity` như kịch bản chuẩn khi bản staging có hai activity LAUNCHER; `check` không tính tag chỉ còn trong test; `timeout -k 30`. Lần chạy thật đầu ở app (RUN-20261024-02): trình chạy không treo, 33 tới 128 giây mỗi tệp, nhưng cả ba kịch bản đều có bước lỗi hay bị bỏ qua, chưa rõ do app hay do kịch bản.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/device-scenario.py`, `scripts/device-session.sh` (bước 4 của `scenarios`), `scripts/plan-check.py` quy tắc 11, `UiAutomatorTags.kt` ở vỏ app, `docs/ops/test-sessions.md` mục 5, mẫu plan và danh sách chạy; PR #152.
+
 ### L-086. Không có danh sách sẵn sàng phát hành, nên không biết còn bao xa tới bản production
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-064, ticket T-047, PR #122 của app), issue #133

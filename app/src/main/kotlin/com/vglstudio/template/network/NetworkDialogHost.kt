@@ -13,6 +13,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import com.vglstudio.template.R
 import com.vglstudio.template.core.designsystem.component.NetworkDialogScreen
 import com.vglstudio.template.core.network.NetworkDialogState
+import com.vglstudio.template.ui.exposeTestTagsForUiAutomator
 
 /**
  * Draws [content] and, while [state] is shown, the network dialog over it (spec network, KB-2). The dialog is drawn
@@ -45,20 +46,23 @@ fun NetworkDialogHost(
             // The screen draws its own scrim; turn off the system dim so the screen is not darkened twice.
             val window = (LocalView.current.parent as? DialogWindowProvider)?.window
             SideEffect { window?.setDimAmount(0f) }
-            NetworkDialogScreen(
-                title = stringResource(R.string.network_lost_title),
-                message = stringResource(R.string.network_lost_message),
-                retryLabel = stringResource(R.string.network_lost_retry),
-                stillOfflineMessage = if (state.stillOffline) {
-                    stringResource(
-                        R.string.network_lost_still_offline,
-                    )
-                } else {
-                    null
-                },
-                checking = state.checking,
-                onRetry = onRetry,
-            )
+            // The dialog is another window, so it does not take testTagsAsResourceId from the app root.
+            Box(Modifier.exposeTestTagsForUiAutomator()) {
+                NetworkDialogScreen(
+                    title = stringResource(R.string.network_lost_title),
+                    message = stringResource(R.string.network_lost_message),
+                    retryLabel = stringResource(R.string.network_lost_retry),
+                    stillOfflineMessage = if (state.stillOffline) {
+                        stringResource(
+                            R.string.network_lost_still_offline,
+                        )
+                    } else {
+                        null
+                    },
+                    checking = state.checking,
+                    onRetry = onRetry,
+                )
+            }
             BackHandler(onBack = onBack)
         }
     }

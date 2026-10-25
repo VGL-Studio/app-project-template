@@ -9,8 +9,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
@@ -65,6 +69,21 @@ class NetworkDialogHostTest {
         val dialog = ShadowDialog.getLatestDialog()
         assertNotNull("no dialog window was opened", dialog)
         return dialog as ComponentDialog
+    }
+
+    @OptIn(ExperimentalComposeUiApi::class)
+    @Test
+    fun shownDialog_exposesTestTagsAsResourceId() {
+        setContentButton(SHOWN)
+
+        // The dialog is another window, so it does not take testTagsAsResourceId from the app root; without it
+        // `uiautomator dump` shows no resource-id inside the dialog (scripts/device-scenario.py).
+        val exposesTags = SemanticsMatcher("TestTagsAsResourceId is true") {
+            it.config.getOrNull(SemanticsPropertiesAndroid.TestTagsAsResourceId) == true
+        }
+        val dialogRoot = composeRule.onAllNodes(isRoot(), useUnmergedTree = true)[1]
+        dialogRoot.assert(hasAnyDescendant(exposesTags))
+        dialogRoot.assert(hasAnyDescendant(hasTestTag(NetworkDialogTestTags.RETRY)))
     }
 
     @Test
