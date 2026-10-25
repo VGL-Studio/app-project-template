@@ -92,6 +92,7 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 - File dùng chung mà plan khác chưa merge cũng tạo (tài nguyên, thành phần của `:core:designsystem`): thống nhất với plan đó, một plan ghi Tạo, plan kia ghi Sửa hoặc dùng lại; chú thích kiểu "task sau nối" thì ghi tên file cho task sau (L-054).
 - Plan đổi `scripts/merge-if-green.sh` hay `.github/workflows/main-guard.yml`: liệt kê mọi kiểm tra hiện có mà trường hợp mới phải đi qua (nhãn, `main-broken`, phiên đang chạy, nhánh cập nhật, CI) và nói trường hợp mới qua hay bị chặn ở từng kiểm tra, mỗi kiểm tra một test (L-058).
 - Hàm phụ trợ nằm trong file test mà cũng phải đổi (ví dụ danh sách mà test so sánh): ghi rõ phần nào vào commit test của bước 3, phần nào vào commit code của bước 4, để test viết trước thất bại đúng lý do (L-025).
+- Lệnh trong plan ghi tệp tạm vào `${TMPDIR:-/tmp}`, không ghi `$TMPDIR` hay `${TMPDIR}` trống: phiên `claude --cloud` không đặt biến này, nên tệp bị ghi vào gốc ổ đĩa. Lệnh không mở đầu bằng `sleep` (công cụ chặn); chờ bằng `scripts/wait-run.sh` hay một vòng có giới hạn nằm trong lệnh. `scripts/plan-check.py`, quy tắc 12, báo lỗi khi plan `draft` ghi `$TMPDIR` không có giá trị mặc định (L-088).
 - Viết xong thì chạy `scripts/plan-check.py <plan>`, sửa hết lỗi trước khi đưa người duyệt, dán kết quả vào mô tả PR. Phiên tự chạy chạy lại script này ngay trước task và bỏ qua plan có lỗi.
 - Plan mới có trạng thái `draft`. Không bao giờ tự chuyển sang `approved`.
 

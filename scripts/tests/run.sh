@@ -1116,6 +1116,25 @@ manual_rows "$plans/T-945-a.md" \
 expect "plan-check: a correct plan has no line of rule 11 (the rule does run on T-940)" "pass 0 1" \
   "$(plan_check "$plans/T-945-a.md") $(rule11) $(plan_check "$plans/T-940-a.md" > /dev/null; rule11)"
 
+# Rule 12 (L-088): TMPDIR is not set in a cloud session, so "$TMPDIR/x" writes to /x. A plan writes ${TMPDIR:-/tmp}.
+# The dollar signs below are plan text, not shell expansion.
+# shellcheck disable=SC2016
+tmpdir_lines() { grep -c 'quy tắc 12' "$work/plan-check.out" || true; }
+# shellcheck disable=SC2016
+write_plan "$plans/T-946-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Chạy `git show origin/main:x.sh > "$TMPDIR/x.sh"`.'
+expect "plan-check: a draft plan with \$TMPDIR and no default stops" "stop 1" \
+  "$(plan_check "$plans/T-946-a.md") $(grep -c 'LỖI: quy tắc 12' "$work/plan-check.out" || true)"
+# shellcheck disable=SC2016
+write_plan "$plans/T-947-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Ghi vào `${TMPDIR}/out.txt`.'
+expect "plan-check: a draft plan with \${TMPDIR} and no default stops" stop "$(plan_check "$plans/T-947-a.md")"
+# shellcheck disable=SC2016
+write_plan "$plans/T-948-a.md" medium approved "$(row Sửa feature/demo/A.kt)" 'Ghi vào `$TMPDIR/out.txt`.'$'\n\n'"$decision_v1"
+expect "plan-check: an approved plan with \$TMPDIR only warns" "pass 1" \
+  "$(plan_check "$plans/T-948-a.md") $(grep -c 'CHÚ Ý: quy tắc 12' "$work/plan-check.out" || true)"
+# shellcheck disable=SC2016
+write_plan "$plans/T-949-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Ghi vào `${TMPDIR:-/tmp}/out.txt` và `$TMPDIR_OLD`.'
+expect "plan-check: \${TMPDIR:-/tmp} passes" "pass 0" "$(plan_check "$plans/T-949-a.md") $(tmpdir_lines)"
+
 # The latest run list must not get an error from rule 11 (it only warns).
 latest_run="$(ls docs/runs/RUN-*.md | sort | tail -n 1)"
 python3 -I scripts/run-check.py "$latest_run" > "$work/run-check-latest.out" 2>&1 || true
@@ -2442,6 +2461,18 @@ expect "save-branch: refuses a branch outside claude/" 2 "$(sb_run main)"
 expect "save-branch: a branch outside claude/is never pushed" 0 "$(sb_calls_count)"
 expect "save-branch: refuses a branch that does not exist" 2 "$(sb_run claude/T-000-none)"
 export GIT_CONFIG_COUNT="${sb_git_config[0]}" GIT_CONFIG_KEY_0="${sb_git_config[1]}" GIT_CONFIG_VALUE_0="${sb_git_config[2]}"
+
+# In-place sed without a backup suffix is GNU only: BSD sed on macOS stops with "invalid command code" (L-088).
+# Scripts write `sed -i.bak ... && rm -f file.bak`, or use perl or python. The pattern is built from two
+# parts so this file does not match itself.
+gnu_sed_in_place() { # <dir>: prints the lines that edit in place with sed and no suffix
+  grep -rnE "$(printf '%s' 'se')"'d( +-[A-Za-z]+)* +-[A-Za-z]*i([[:space:]]|['"'"'"]|$)' "$1" \
+    --include='*.sh' --include='*.py' --include='*.bash' 2> /dev/null || true
+}
+mkdir -p "$work/sed-guard"
+printf '#!/bin/bash\n%s -i "s/a/b/" f\nsed -i.bak "s/a/b/" f && rm -f f.bak\nsed -n 1p f\n' "se""d" > "$work/sed-guard/bad.sh"
+expect "sed guard: finds in-place sed without a suffix in a sample" 1 "$(gnu_sed_in_place "$work/sed-guard" | grep -c .)"
+expect "sed guard: no script edits in place with sed and no suffix" "" "$(gnu_sed_in_place scripts)"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
