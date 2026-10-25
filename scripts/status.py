@@ -163,13 +163,14 @@ def ad_placements():
     if not paths:
         return [], "Không tìm thấy `AdPlacement.kt`."
     try:
-        text = paths[0].read_text()
+        # Bytes, not read_text(): universal newlines would turn a CRLF line into one that release.sh skips.
+        text = paths[0].read_bytes().decode()
     except (OSError, UnicodeDecodeError):
         return [], "Không đọc được `AdPlacement.kt`."
     # Same one-line rule as scripts/release.sh (which this script never opens): NAME("key", AdFormat.X[, attributes]),
     # formats with underscores; gallery_ keys belong to the staging-only ad gallery and need no production ad unit.
     found = [{"key": m.group(1), "format": m.group(2).lower()} for m in
-             re.finditer(r'^\s*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.([A-Z_]+)(?:, .*)?\),?\s*$', text, re.M)
+             re.finditer(r'^\s*[A-Z0-9_]+\("([a-z0-9_]+)", AdFormat\.([A-Z_]+)(?:, .*)?\),?$', text, re.M)
              if not m.group(1).startswith("gallery_")]
     if re.search(r"^\s*[A-Z][A-Z0-9_]*\($", text, re.M):
         return found, "`AdPlacement.kt` khai báo vị trí trên nhiều dòng; `scripts/release.sh` sẽ từ chối, viết mỗi vị trí trên một dòng."
@@ -367,7 +368,7 @@ def release_readiness(all_features):
         out += [f"{len(checks)} mục trong {phases} phiên. Người kiểm xong thì đánh dấu [x] trong báo cáo phiên."]
         for c in checks:
             extra = f" ({c['children']} dòng con)" if c["children"] else ""
-            out.append(f"- [{c['run']}](runs/{c['path'].name}): {cell(shorten(c['text']))}{extra}")
+            out.append(f"- [{c['run']}](runs/{c['path'].name}): {shorten(c['text'])}{extra}")
     else:
         out.append("Không có.")
     out += ["", "### Ticket chưa lên staging", ""]

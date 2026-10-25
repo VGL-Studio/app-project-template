@@ -501,6 +501,7 @@ elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=t
   expect "new-app.sh leaves out the from-app issue form" absent \
     "$([ -e "$new_app/.github/ISSUE_TEMPLATE/from-app.yml" ] && echo present || echo absent)"
   expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"
+  expect "new-app.sh leaves out the template's run reports" 0 "$(ls "$new_app/docs/runs" | grep -c '^RUN-' || true)"
   expect "new-app.sh regenerates the progress page without the template's lessons" 0 \
     "$(grep -c 'L-0[0-9][0-9]' "$new_app/docs/STATUS.md" || true)"
   expect "new-app.sh leaves pages that match the documents" 0 \
@@ -914,6 +915,11 @@ printf -- '    LATE_BANNER(\n        "late_banner",\n        AdFormat.BANNER,\n 
 status_page > /dev/null
 expect "status: a placement wrapped over several lines is named, as release.sh refuses it" 1 \
   "$(grep -c 'khai báo vị trí trên nhiều dòng' "$page" || true)"
+cp "$work/AdPlacement.kt.bak" "$ad_dir/AdPlacement.kt"
+printf -- '    SPACE_BANNER("space_banner", AdFormat.BANNER), \n    CRLF_BANNER("crlf_banner", AdFormat.BANNER),\r\n' >> "$ad_dir/AdPlacement.kt"
+status_page > /dev/null
+expect "status: a placement line release.sh skips (trailing space, CRLF) is not listed either" "0 0" \
+  "$(grep -c 'space_banner' "$page" || true) $(grep -c 'crlf_banner' "$page" || true)"
 cp "$work/AdPlacement.kt.bak" "$ad_dir/AdPlacement.kt"
 rm "$ad_dir/AdPlacement.kt"
 status_page > /dev/null
