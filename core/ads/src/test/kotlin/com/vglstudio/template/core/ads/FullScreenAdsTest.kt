@@ -14,11 +14,15 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import com.vglstudio.template.core.network.InternetConnectivity
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -74,6 +78,30 @@ class FullScreenAdsTest {
         assertEquals(listOf(AdPlacement.SAMPLE_NATIVE_SMALL), shown)
     }
 
+    @Test
+    fun showStartupAd_withoutController_finishesOnceWithFalse() {
+        val results = mutableListOf<Boolean>()
+        var action: (StartupAdTurn, (Boolean) -> Unit) -> Unit = { _, _ -> }
+        composeRule.setContent { action = rememberShowStartupAd() }
+        composeRule.waitForIdle()
+        action(StartupAdTurn(AdPlacement.OPEN_APP)) { results += it }
+        composeRule.waitForIdle()
+        assertEquals(listOf(false), results)
+    }
+
+    @Test
+    fun showFullScreenAd_rejectsAppWidePlacement() {
+        var placement by mutableStateOf(AdPlacement.GALLERY_INTERSTITIAL)
+        composeRule.setContent { rememberShowFullScreenAd(placement) }
+        // Control: a full-screen placement that is not app-wide is accepted.
+        composeRule.waitForIdle()
+        val error = runCatching {
+            placement = AdPlacement.OPEN_APP_INTER
+            composeRule.waitForIdle()
+        }.exceptionOrNull()
+        assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+    }
+
     private val controller by lazy {
         AdsController(
             context = ApplicationProvider.getApplicationContext(),
@@ -86,10 +114,19 @@ class FullScreenAdsTest {
             shortcutConfig = ConsentShortcutConfig.OFF,
             metrics = RecordingAdMetrics(),
             logger = RecordingAppLogger(),
+            firstOpenMark = FirstOpenMark(EmptyDataStore(), RecordingAppLogger()),
         )
     }
 
     private companion object {
         const val CONTROL = "control"
     }
+}
+
+/** A preferences store that is always empty and drops every write. */
+private class EmptyDataStore : DataStore<Preferences> {
+    override val data: Flow<Preferences> = flowOf(emptyPreferences())
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+        transform(emptyPreferences())
 }

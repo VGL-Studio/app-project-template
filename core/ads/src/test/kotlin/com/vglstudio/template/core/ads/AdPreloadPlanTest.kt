@@ -37,6 +37,12 @@ class AdPreloadPlanTest {
     }
 
     @Test
+    fun templatePlan_hasAppOpenFirst() {
+        // HD-02: the app open ad of the loading screen (T-024) is preloaded first.
+        assertEquals(setOf(AdFormat.APP_OPEN), AdPreloadPlan.fromPlacements().groups.first())
+    }
+
+    @Test
     fun formatInTwoGroups_isRejected() {
         val error = runCatching {
             AdPreloadPlan(listOf(setOf(AdFormat.INTERSTITIAL), setOf(AdFormat.NATIVE_SMALL, AdFormat.INTERSTITIAL)))

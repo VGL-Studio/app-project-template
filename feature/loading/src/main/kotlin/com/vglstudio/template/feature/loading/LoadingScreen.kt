@@ -34,6 +34,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vglstudio.template.core.ads.StartupAdTurn
+import com.vglstudio.template.core.ads.rememberShowStartupAd
 import com.vglstudio.template.core.designsystem.R as DesignSystemR
 import com.vglstudio.template.core.designsystem.component.BrandLogo
 import com.vglstudio.template.core.designsystem.component.PrimaryButton
@@ -42,11 +44,24 @@ import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import kotlin.math.roundToInt
 
-/** Stateful entry point used by navigation. Calls [onFinished] once when the state becomes Finished. */
+/**
+ * Stateful entry point used by navigation. Calls [onFinished] once when the state becomes Finished. A startup ad
+ * waiting in the ViewModel is taken once and shown with [showAd] (the ViewModel keeps it across a recreated activity,
+ * so it never shows twice); its end finishes the screen. [showAd] is a parameter so tests pass a fake.
+ */
 @Composable
-internal fun LoadingRoute(onFinished: () -> Unit, viewModel: LoadingViewModel = hiltViewModel()) {
+internal fun LoadingRoute(
+    onFinished: () -> Unit,
+    viewModel: LoadingViewModel = hiltViewModel(),
+    showAd: (StartupAdTurn, (Boolean) -> Unit) -> Unit = rememberShowStartupAd(),
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val pendingAd by viewModel.pendingAd.collectAsStateWithLifecycle()
     val currentOnFinished by rememberUpdatedState(onFinished)
+    val currentShowAd by rememberUpdatedState(showAd)
+    if (pendingAd != null) {
+        LaunchedEffect(pendingAd) { viewModel.takePendingAd()?.let { currentShowAd(it, viewModel::onAdFinished) } }
+    }
     if (uiState == LoadingUiState.Finished) {
         // Draw nothing: with the flag off, the app opens straight on the start screen (spec loading, KB-4).
         LaunchedEffect(Unit) { currentOnFinished() }

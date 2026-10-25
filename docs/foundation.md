@@ -163,15 +163,19 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - mỗi sự kiện AppsFlyer đi qua công tắc từ xa của nó
 - không gửi dữ liệu cá nhân hay chữ người dùng nhập sang AppsFlyer
 
-### [ADR-0028](adr/0028-mo-rong-pham-vi-co-kiem-soat.md): Phiên tự chạy được nối chỗ gọi mà task khác cùng danh sách đổi, và phải tự sửa điểm nên sửa trong phạm vi plan, đều có test viết trước
+### [ADR-0029](adr/0029-lech-pham-vi-lam-tiep-va-merge.md): Phiên tự chạy sửa tiếp phần ngoài plan cần cho task, merge rồi báo sau, thay vì dừng task
 
-- chỉ sửa file ngoài mục 3.2 để nối chỗ gọi mà task khác của cùng danh sách đã tạo hay đổi sau khi plan được duyệt (tính cả task đã merge ở danh sách trước khi task được chuyển sang)
-- phần nối có test viết trước, tối đa 3 file và 40 dòng code mỗi task đếm bằng `git diff --numstat` không tính test, nằm ngoài mọi điểm chặn ở mục 1 của `risk-scoring.md` (gồm mọi module `:core:*`, đường dẫn R2, khóa DataStore, xét từng dòng sửa)
-- ở bước 6, phải sửa điểm nên sửa nằm trong file được phép, có test viết trước thất bại đúng lý do, không đổi điều test của plan kiểm
-- giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa, và mỗi task tối đa 2 vòng rà soát lại vì điểm nên sửa, sau đó điểm còn lại ghi vào báo cáo
-- điểm nên sửa mâu thuẫn với plan, spec hay test của plan thì ghi vào báo cáo kèm phương án, không tự sửa
-- mỗi phần ngoài mục 3.2 và mỗi lần sửa theo rà soát được ghi vào nhật ký plan và mô tả PR, và được rà soát độc lập xét riêng
-- mọi điều kiện dừng khác của `risk-scoring.md` vẫn áp dụng
+- phần ngoài mục 3.2 cần để thay đổi của plan chạy đúng thì sửa tiếp và merge, không dừng task, không giới hạn số file hay module
+- vẫn dừng khi phải sửa file trong mục "Không được làm" của `CLAUDE.md`, khi phần ngoài plan thêm thư viện, quyền hay chạm điểm chặn 1 tới 6, 8, 9 của `risk-scoring.md` mà plan chưa nêu, hay khi gặp điều kiện dừng 3, 4, 6, 7, 8, 9
+- test cũ đỏ chỉ vì dữ liệu chưa có phần plan thêm thì cập nhật dữ liệu đó và vẫn kiểm dữ liệu mới
+- test cũ đỏ vì hành vi cũ bị hỏng thì sửa code, không sửa test
+- không xóa test hay câu khẳng định, không nới phép so sánh, không thêm `@Ignore`
+- ảnh chuẩn screenshot ngoài mục 3.2 lệch thì dừng
+- điều kiện dừng riêng ở mục 7 của plan vẫn áp dụng
+- ở bước 3 chạy test JVM của mọi module với `--continue` khi test viết trước đã biên dịch được
+- mỗi phần ngoài mục 3.2 ghi vào nhật ký plan, mô tả PR (mục "Ngoài mục 3.2" kèm `git diff --stat`) và một dòng `- [ ]` ở mục Cần người kiểm tra của báo cáo phiên
+- rà soát độc lập xét riêng phần đó, vi phạm là mức chặn
+- ở bước 6 phải sửa điểm nên sửa có test viết trước, giới hạn 3 lần sửa mỗi điểm và 2 vòng rà soát lại mỗi task
 
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 

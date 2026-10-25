@@ -39,7 +39,12 @@ class AdsFlagsTest {
 
     @Test
     fun masterSwitchOff_turnsEveryPlacementOff() = runTest {
-        AdPlacement.entries.forEach { placement ->
+        // App-wide placements have no is_show_<code> (MC-09, question 3 of plan T-024); their switch is checked by
+        // StartupAdChoiceTest. Control: a placement that is not app-wide is still in the loop.
+        val placements = AdPlacement.entries.filterNot { it.appWide }
+        assertTrue(AdPlacement.entries.any { it.appWide })
+        assertTrue(AdPlacement.SAMPLE_NATIVE_SMALL in placements)
+        placements.forEach { placement ->
             settings.set("is_show_ads", true)
             settings.set("is_show_${placement.key}", true)
             flags.placementEnabled(placement).test {
@@ -241,13 +246,16 @@ class AdsFlagsTest {
     @Test
     fun readsOnlyDeclaredKeys() = runTest {
         flags.global.first()
-        AdPlacement.entries.forEach { flags.placementEnabled(it).first() }
+        // App-wide placements have no is_show_<code> (MC-09, question 3 of plan T-024).
+        AdPlacement.entries.filterNot { it.appWide }.forEach { flags.placementEnabled(it).first() }
         flags.intervalSeconds(AdIntervalGroup.DEFAULT).first()
         AdPlacement.entries.forEach { flags.nativeEvery(it).first() }
 
         val read = settings.readNames
-        // Control: the flags read something, so the checks below look at real names.
+        // Control: the flags read something, so the checks below look at real names; the switch of a placement that
+        // is not app-wide is still read.
         assertTrue("Nothing read", read.isNotEmpty())
+        assertTrue(read.toString(), "is_show_sample_native_small" in read)
         val declared = AdsSettings.all().map { it.name }.toSet()
         assertTrue("Read undeclared keys: ${read - declared}", declared.containsAll(read))
         val wave2 = setOf(

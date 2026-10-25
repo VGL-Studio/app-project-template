@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberShowFullScreenAd(placement: AdPlacement, onFinished: () -> Unit = {}): () -> Unit {
     require(placement.format.isFullScreen) { "${placement.key} is not a full-screen placement" }
+    // App-wide placements are shown by :core:ads itself, never by a feature (plan T-024, question 3).
+    require(!placement.appWide) { "${placement.key} is app-wide: the loading screen shows it with StartupAds" }
     val currentOnFinished = rememberUpdatedState(onFinished)
     return rememberFullScreenAdAction(
         placement = placement,
