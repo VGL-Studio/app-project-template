@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-5, KB-16]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
 depends_on: [T-022, T-023, T-027]
 sprint:
-plan:
+plan: features/ads/plans/T-026-inter-va-native-sau-inter.md
 created: 2026-10-23
 ---
 
