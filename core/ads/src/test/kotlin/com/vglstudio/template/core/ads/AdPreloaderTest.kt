@@ -211,7 +211,320 @@ class AdPreloaderTest {
         runCurrent()
 
         assertEquals(listOf(0L), interstitial.loadCalls)
-        assertTrue(logged("Preload NETWORK_BACK: IGNORE_RUNNING"))
+        assertTrue(logged("Preload NETWORK_BACK: HOLD"))
+
+        // T-037: the held preload runs once the running one ends, never on top of it.
+        at(5_999)
+        assertEquals(listOf(0L), interstitial.loadCalls)
+        at(6_000)
+        assertEquals(listOf(0L, 6_000L), interstitial.loadCalls)
+    }
+
+    @Test
+    fun placementEnabled_duringFirstRun_runsOnceAfterIt() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+
+        at(2_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        assertEquals(listOf(0L), interstitial.loadCalls)
+        assertTrue(logged("Preload PLACEMENT_ENABLED: HOLD"))
+
+        at(6_000)
+        assertEquals(listOf(0L, 6_000L), interstitial.loadCalls)
+        assertTrue(logged("Held preload PLACEMENT_ENABLED: run"))
+
+        at(20_000)
+        assertEquals(listOf(0L, 6_000L), interstitial.loadCalls)
+    }
+
+    @Test
+    fun gateReopened_duringLaterRun_runsOnceAfterIt() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        interstitial.settleAt = null
+
+        at(1_000)
+        preloader.request(PreloadReason.NETWORK_BACK)
+        runCurrent()
+        at(3_000)
+        preloader.request(PreloadReason.GATE_REOPENED)
+        runCurrent()
+        assertTrue(logged("Preload GATE_REOPENED: HOLD"))
+
+        at(7_000)
+        assertEquals(listOf(0L, 1_000L, 7_000L), interstitial.loadCalls)
+        at(20_000)
+        assertEquals(listOf(0L, 1_000L, 7_000L), interstitial.loadCalls)
+    }
+
+    @Test
+    fun networkReturned_duringHeldRun_runsOnceAfterIt() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        interstitial.settleAt = null
+
+        at(500)
+        gate = OPEN.copy(mayRequest = false)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(1_000)
+        gate = OPEN
+        preloader.onGateChanged()
+        runCurrent()
+
+        at(2_000)
+        val resets = preloader.nativeRetryResets.value
+        preloader.onNetworkReturned()
+        assertEquals(resets + 1, preloader.nativeRetryResets.value)
+        runCurrent()
+        assertTrue(logged("Preload NETWORK_BACK: HOLD"))
+
+        at(7_000)
+        assertEquals(listOf(0L, 1_000L, 7_000L), interstitial.loadCalls)
+    }
+
+    @Test
+    fun requestDuringNativeRefill_runsWholePlanAfterIt() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL)
+        val small = slot(AdFormat.NATIVE_SMALL)
+        val preloader = preloader(listOf(interstitial, small))
+        preloader.setPlan(AdPreloadPlan(listOf(setOf(AdFormat.INTERSTITIAL, AdFormat.NATIVE_SMALL))))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        small.settleAt = null
+
+        at(100)
+        preloader.onActivityResumed(fullScreenShowing = false)
+        runCurrent()
+        at(1_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        assertTrue(logged("Preload PLACEMENT_ENABLED: HOLD"))
+
+        at(6_100)
+        assertEquals(listOf(0L, 6_100L), interstitial.loadCalls)
+        assertEquals(listOf(0L, 100L, 6_100L), small.loadCalls)
+    }
+
+    private enum class RunKind { FIRST, LATER, HELD, NATIVE_REFILL }
+
+    @Test
+    fun wholePlanRequests_duringAnyRun_areHeldAndRunOnceAfter() = runTest {
+        val reasons = listOf(PreloadReason.GATE_REOPENED, PreloadReason.NETWORK_BACK, PreloadReason.PLACEMENT_ENABLED)
+        reasons.forEach { reason ->
+            RunKind.entries.forEach { kind ->
+                val name = "$reason during $kind"
+                gate = OPEN
+                val interstitial = slot(AdFormat.INTERSTITIAL)
+                val small = slot(AdFormat.NATIVE_SMALL)
+                val preloader = preloader(listOf(interstitial, small))
+                preloader.setPlan(AdPreloadPlan(listOf(setOf(AdFormat.INTERSTITIAL, AdFormat.NATIVE_SMALL))))
+                if (kind == RunKind.FIRST) {
+                    interstitial.settleAt = null
+                    small.settleAt = null
+                }
+                preloader.request(PreloadReason.SDK_READY)
+                runCurrent()
+                when (kind) {
+                    RunKind.FIRST -> Unit
+                    RunKind.LATER -> {
+                        interstitial.settleAt = null
+                        small.settleAt = null
+                        preloader.request(PreloadReason.NETWORK_BACK)
+                        runCurrent()
+                    }
+                    RunKind.HELD -> {
+                        interstitial.settleAt = null
+                        small.settleAt = null
+                        gate = OPEN.copy(mayRequest = false)
+                        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+                        runCurrent()
+                        gate = OPEN
+                        preloader.onGateChanged()
+                        runCurrent()
+                    }
+                    RunKind.NATIVE_REFILL -> {
+                        small.settleAt = null
+                        preloader.onActivityResumed(fullScreenShowing = false)
+                        runCurrent()
+                    }
+                }
+                assertTrue(name, preloader.running)
+                val start = now()
+                val before = interstitial.loadCalls.size
+
+                at(start + 1_000)
+                if (reason == PreloadReason.NETWORK_BACK) preloader.onNetworkReturned() else preloader.request(reason)
+                runCurrent()
+                at(start + 5_999)
+                assertEquals(name, emptyList<Long>(), interstitial.loadCalls.drop(before))
+                at(start + 6_000)
+                assertEquals(name, listOf(start + 6_000), interstitial.loadCalls.drop(before))
+                at(start + 20_000)
+                assertEquals(name, listOf(start + 6_000), interstitial.loadCalls.drop(before))
+            }
+        }
+    }
+
+    @Test
+    fun twoRequestsDuringRun_runOnceAfterIt() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+
+        at(1_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(2_000)
+        preloader.onNetworkReturned()
+        runCurrent()
+        at(3_000)
+        preloader.request(PreloadReason.GATE_REOPENED)
+        runCurrent()
+
+        at(6_000)
+        assertEquals(listOf(0L, 6_000L), interstitial.loadCalls)
+        at(30_000)
+        assertEquals(listOf(0L, 6_000L), interstitial.loadCalls)
+    }
+
+    @Test
+    fun heldDuringRun_gateClosedAtEnd_runsWhenGateOpens() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+
+        at(1_000)
+        preloader.request(PreloadReason.NETWORK_BACK)
+        runCurrent()
+        at(3_000)
+        gate = OPEN.copy(mayRequest = false)
+        at(6_000)
+        assertEquals(listOf(0L), interstitial.loadCalls)
+
+        at(8_000)
+        gate = OPEN
+        preloader.onGateChanged()
+        runCurrent()
+        assertEquals(listOf(0L, 8_000L), interstitial.loadCalls)
+    }
+
+    @Test
+    fun heldDuringRun_consentDeniedMidRun_dropsAtOnce() = runTest {
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+
+        at(1_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(3_000)
+        gate = OPEN.copy(consentDenied = true)
+        preloader.onGateChanged()
+        assertTrue(logged("Held preload PLACEMENT_ENABLED: dropped, IGNORE_CONSENT_DENIED"))
+        at(6_000)
+        assertEquals(listOf(0L), interstitial.loadCalls)
+        at(8_000)
+        gate = OPEN
+        preloader.onGateChanged()
+        runCurrent()
+        assertEquals(listOf(0L), interstitial.loadCalls)
+
+        // Control (L-055): the gate changing with consent still given keeps the held preload.
+        val other = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val otherPreloader = preloader(listOf(other))
+        val start = now()
+        otherPreloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        at(start + 1_000)
+        otherPreloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(start + 3_000)
+        otherPreloader.onGateChanged()
+        runCurrent()
+        at(start + 6_000)
+        assertEquals(listOf(start, start + 6_000), other.loadCalls)
+    }
+
+    @Test
+    fun heldDuringRun_consentDeniedAtEnd_isDropped() = runTest {
+        assertHeldDroppedByGateAtEnd(OPEN.copy(consentDenied = true), "IGNORE_CONSENT_DENIED")
+    }
+
+    @Test
+    fun heldDuringRun_sdkNotStartedAtEnd_isDropped() = runTest {
+        assertHeldDroppedByGateAtEnd(OPEN.copy(sdkStarted = false), "IGNORE_SDK_NOT_STARTED")
+    }
+
+    /** The held preload decides again when the running one ends: [atEnd] drops it, then an open gate never runs it. */
+    private fun TestScope.assertHeldDroppedByGateAtEnd(atEnd: PreloadGate, decision: String) {
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val preloader = preloader(listOf(interstitial))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+
+        at(1_000)
+        preloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(3_000)
+        gate = atEnd
+        at(6_000)
+        assertEquals(listOf(0L), interstitial.loadCalls)
+        assertTrue(logged("Held preload PLACEMENT_ENABLED: dropped, $decision"))
+
+        at(8_000)
+        gate = OPEN
+        preloader.onGateChanged()
+        runCurrent()
+        assertEquals(listOf(0L), interstitial.loadCalls)
+
+        // Control (L-055): the same steps with the gate unchanged run the held preload at the end.
+        val other = slot(AdFormat.INTERSTITIAL, settleAt = null)
+        val otherPreloader = preloader(listOf(other))
+        val start = now()
+        otherPreloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        at(start + 1_000)
+        otherPreloader.request(PreloadReason.PLACEMENT_ENABLED)
+        runCurrent()
+        at(start + 6_000)
+        assertEquals(listOf(start, start + 6_000), other.loadCalls)
+    }
+
+    @Test
+    fun nativeRefill_duringRun_isNotHeld() = runTest {
+        val small = slot(AdFormat.NATIVE_SMALL)
+        val preloader = preloader(listOf(small))
+        preloader.setPlan(AdPreloadPlan(listOf(setOf(AdFormat.NATIVE_SMALL))))
+        preloader.request(PreloadReason.SDK_READY)
+        runCurrent()
+        small.settleAt = null
+
+        at(1_000)
+        preloader.request(PreloadReason.NETWORK_BACK)
+        runCurrent()
+        at(2_000)
+        preloader.onActivityResumed(fullScreenShowing = false)
+        runCurrent()
+        at(20_000)
+        assertEquals(listOf(0L, 1_000L), small.loadCalls)
+
+        // Control (L-055): a resume with no plan running refills, so the test sees a refill.
+        at(21_000)
+        preloader.onActivityResumed(fullScreenShowing = false)
+        runCurrent()
+        assertEquals(listOf(0L, 1_000L, 21_000L), small.loadCalls)
     }
 
     @Test

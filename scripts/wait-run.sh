@@ -92,7 +92,7 @@ seen_want=0 cancelled_sha="" rechecks=0 max_rechecks="${WAIT_RUN_CANCEL_RECHECKS
 while :; do
   rechecking=0 waiting_for_push=0
   if [ -n "$pr" ]; then
-    # The head can move while we wait (a push, merge-if-green.sh --update): follow it (L-083).
+    # The head can move while we wait (a push, merge-if-green.sh --update): follow it (L-087).
     read_head
     if [ -n "$want" ]; then
       if [[ "$sha" == "$want"* ]]; then

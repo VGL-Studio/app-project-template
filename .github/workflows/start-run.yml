@@ -29,6 +29,9 @@ defaults:
 permissions:
   contents: read
   issues: read
+  checks: read
+  # main-guard-status.sh reads when a pending main-guard run was created (Actions API); without it the time is unknown.
+  actions: read
 
 jobs:
   start:
@@ -70,6 +73,14 @@ jobs:
             echo "::error::Môi trường cloud đang lỗi (có issue env-broken đang mở). Sửa môi trường, chạy lại workflow env-canary, rồi bắt đầu phiên."
             exit 1
           fi
+
+      # main-guard passed on the newest commit of main with code. No issue is opened when GitHub sends no push
+      # event for a merge (app lesson L-054 of camera-pose), so the main-broken check above lets such a commit
+      # through (L-076).
+      - name: Kiểm tra main-guard trên nhánh chính
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/main-guard-status.sh "${GITHUB_SHA}"
 
       # What otherwise fails only at the end of the session (device-session.yml, staging.yml) or in the first
       # emulator test: fake or wrong Firebase staging secret, missing tester group, missing R2 files, DNS of the
