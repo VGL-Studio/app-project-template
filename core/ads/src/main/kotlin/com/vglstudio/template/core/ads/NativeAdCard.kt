@@ -58,7 +58,8 @@ import kotlin.math.sin
 
 /**
  * Size of a native ad drawn inside a screen (ads-guide.md, section 4). [FULL] is the full native ad of
- * ads-business-rules.md 5.7; no ad format draws it yet (plan T-027, Q2).
+ * ads-business-rules.md 5.7; no ad format draws it yet (plan T-027, Q2). [CARD] is the portrait card of a grid, a list
+ * or a pager page (`native_in_collection`, 5.7; plan T-028).
  */
 enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD }
 
@@ -88,12 +89,12 @@ fun NativeAdCard(
     modifier: Modifier = Modifier,
     ctaLarge: Boolean = false,
 ) {
-    NativeAdLayout(assets, size, PreviewNativeAdBinder, showAdChoicesMarker = true, modifier = modifier)
+    NativeAdLayout(assets, size, PreviewNativeAdBinder, showAdChoicesMarker = true, modifier = modifier, ctaLarge)
 }
 
 /**
  * The loading state of a native ad: same frame and height as the ad, so nothing moves when the ad arrives (KB-1).
- * [animated] off keeps screenshots independent of time.
+ * [animated] off keeps screenshots independent of time. [ctaLarge] is the medium ad with the large call to action.
  */
 @Composable
 fun NativeAdPlaceholder(
@@ -102,7 +103,13 @@ fun NativeAdPlaceholder(
     animated: Boolean = true,
     ctaLarge: Boolean = false,
 ) {
-    NativeAdPlaceholderLayout(size, NativeAdDimens.heightOf(size), modifier, animated)
+    NativeAdPlaceholderLayout(
+        size = size,
+        height = NativeAdDimens.heightOf(size, ctaLarge),
+        modifier = modifier,
+        animated = animated,
+        mediumCallToActionHeight = NativeAdDimens.mediumCallToActionHeight(ctaLarge),
+    )
 }
 
 /**
@@ -112,7 +119,15 @@ fun NativeAdPlaceholder(
 internal object NativeAdDimens {
     /** Small native: the drawn card, its placeholder and the space kept for the bottom slot (D-02, D-04). */
     val BottomSlotHeight = 80.dp
-    val MediumHeight = 386.dp
+
+    /**
+     * Medium, from the redrawn design (design/context/AdGalleryScreen_default_light.md): 1 + 24 top, head 56 (headline,
+     * "Ad" line, star row), media 196, body 40, call to action 44, three 12 dp gaps, 12 + 1 bottom.
+     */
+    val MediumHeight = 410.dp
+
+    /** Medium with the large call to action (`cta_large`, 5.7): 12 dp more. */
+    val MediumLargeHeight = 422.dp
     val BorderWidth = 1.dp
 
     /** Inner margin of the frame; outside the design system scale (design README, section 3). */
@@ -133,6 +148,9 @@ internal object NativeAdDimens {
     val AssetCorner = 8.dp
     val CallToActionHeight = 36.dp
     val SmallCallToActionHeight = 34.dp
+    val MediumCallToActionHeight = 44.dp
+    val LargeCallToActionHeight = 56.dp
+    val LargeCallToActionTextSize = 17.sp
 
     /** Short labels ("Install") still get the design's 80 dp, the width of the loading block. */
     val CallToActionMinWidth = 80.dp
@@ -141,6 +159,14 @@ internal object NativeAdDimens {
     val BodyHeight = 40.dp
     val AdChoicesSize = 16.dp
     val StarRowHeight = 16.dp
+    val StarSize = StarRowHeight
+    val StarGap = 2.dp
+
+    /** Card (5.7): default height of the README example (180 x 300 dp); the cell of a grid may set another. */
+    val CardHeight = 300.dp
+    val CardPadding = 8.dp
+    val CardIconSize = 32.dp
+    val CardHeadlineTextSize = 13.sp
 
     /**
      * Full native: fixed, so its placeholder matches it: 1 + 24 top, head 40, media 200, body 40 (two lines), call to
@@ -157,9 +183,14 @@ internal object NativeAdDimens {
 
     fun heightOf(size: NativeAdSize, ctaLarge: Boolean = false): Dp = when (size) {
         NativeAdSize.SMALL -> BottomSlotHeight
-        NativeAdSize.MEDIUM, NativeAdSize.CARD -> MediumHeight
+        NativeAdSize.MEDIUM -> if (ctaLarge) MediumLargeHeight else MediumHeight
         NativeAdSize.FULL -> FullPlaceholderHeight
+        NativeAdSize.CARD -> CardHeight
     }
+
+    /** The call to action of medium: 44 dp, 56 dp when large. */
+    fun mediumCallToActionHeight(ctaLarge: Boolean): Dp =
+        if (ctaLarge) LargeCallToActionHeight else MediumCallToActionHeight
 }
 
 /** Text sizes of the small native outside the type scale (ads-business-rules.md 5.7, design README, T-035). */
@@ -198,7 +229,7 @@ private val InnerStart = NativeAdDimens.InnerPadding
 /** End margin of small; it keeps the AdChoices corner free. */
 private val SmallInnerEnd = Spacing.lg
 
-/** Bottom margin of medium inside the border, so the parts add up to the 386 dp of the design. */
+/** Bottom margin of medium inside the border, so the parts add up to the 410 dp of the design. */
 private val MediumInnerBottom = NativeAdDimens.BorderWidth + NativeAdDimens.InnerPadding
 
 /** Top margin of medium inside the border; it keeps the AdChoices corner free. */
@@ -208,8 +239,8 @@ private const val PULSE_MIN_ALPHA = 0.5f
 private const val PULSE_MILLIS = 800
 
 /**
- * The layout of a small or medium native ad. Each ad part goes through [binder], so a fake ad and a real ad bound to
- * the SDK share this layout.
+ * The layout of a native ad of [size]. Each ad part goes through [binder], so a fake ad and a real ad bound to the SDK
+ * share this layout. A card takes the height a cell gives it; its own height is the default.
  */
 @Composable
 internal fun NativeAdLayout(
@@ -218,14 +249,19 @@ internal fun NativeAdLayout(
     binder: NativeAdBinder,
     showAdChoicesMarker: Boolean,
     modifier: Modifier = Modifier,
+    ctaLarge: Boolean = false,
 ) {
     NativeAdFrame(
-        modifier = modifier.fillMaxWidth().height(NativeAdDimens.heightOf(size)).testTag(NativeAdTestTags.CARD),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(NativeAdDimens.heightOf(size, ctaLarge))
+            .testTag(NativeAdTestTags.CARD),
     ) {
         when (size) {
             NativeAdSize.SMALL -> SmallLayout(assets, binder)
-            NativeAdSize.MEDIUM, NativeAdSize.CARD -> MediumLayout(assets, binder)
+            NativeAdSize.MEDIUM -> MediumLayout(assets, binder, ctaLarge)
             NativeAdSize.FULL -> FullLayout(assets, binder)
+            NativeAdSize.CARD -> CardLayout(assets, binder)
         }
         if (showAdChoicesMarker) AdChoicesMarker(Modifier.align(Alignment.TopEnd))
     }
@@ -257,20 +293,62 @@ private fun SmallLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
     }
 }
 
+/**
+ * Medium (redrawn design, T-035): head with the star row, 196 dp media over a token backdrop, body, call to action of
+ * 44 dp (56 dp and 17 sp with [ctaLarge]; the text of the SDK is kept as it is).
+ */
 @Composable
-private fun MediumLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
+private fun MediumLayout(assets: NativeAdAssets, binder: NativeAdBinder, ctaLarge: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom),
         verticalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
     ) {
-        NativeAdHeader(assets, binder)
-        NativeAdMediaArea(binder, Modifier.fillMaxWidth().height(NativeAdDimens.MediaHeight))
+        NativeAdHeader(assets, binder, starRow = true)
+        NativeAdMediaArea(binder, Modifier.fillMaxWidth().height(NativeAdDimens.MediaHeight), backdrop = true)
         val bodyModifier = Modifier.fillMaxWidth().height(NativeAdDimens.BodyHeight)
         val body = assets.body
         if (body != null) NativeAdBody(body, binder, maxLines = 2, modifier = bodyModifier) else Spacer(bodyModifier)
-        assets.callToAction?.let { NativeAdCallToAction(it, binder, Modifier.fillMaxWidth()) }
+        assets.callToAction?.let {
+            NativeAdCallToAction(
+                text = it,
+                binder = binder,
+                modifier = Modifier.fillMaxWidth(),
+                height = NativeAdDimens.mediumCallToActionHeight(ctaLarge),
+                fontSize = if (ctaLarge) NativeAdDimens.LargeCallToActionTextSize else TextUnit.Unspecified,
+            )
+        }
+    }
+}
+
+/**
+ * The card of a collection (5.7, portrait): media fills the top (AdChoices sits on it, top right), then the 32 dp
+ * icon with a one-line 13 sp headline and the "Ad" line, then a 36 dp call to action as wide as the card.
+ */
+@Composable
+private fun CardLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(NativeAdDimens.CardPadding),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        NativeAdMediaArea(binder, Modifier.fillMaxWidth().weight(1f))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NativeAdIcon(assets.icon, binder, size = NativeAdDimens.CardIconSize)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(NativeAdDimens.HeadlineGap),
+            ) {
+                NativeAdHeadline(assets.headline, binder, fontSize = NativeAdDimens.CardHeadlineTextSize)
+                NativeAdBadgeLine(assets, binder, bodyWhenNoAdvertiser = false)
+            }
+        }
+        val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight)
+        val callToAction = assets.callToAction
+        if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
     }
 }
 
@@ -315,10 +393,10 @@ private fun NativeAdStarRow(rating: Double?, modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .testTag(NativeAdTestTags.STAR_ROW)
                     .semantics { contentDescription = description },
-                horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.HeadlineGap),
+                horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.StarGap),
             ) {
                 val color = MaterialTheme.colorScheme.tertiary
-                repeat(count) { NativeAdStar(color, Modifier.size(NativeAdDimens.StarRowHeight)) }
+                repeat(count) { NativeAdStar(color, Modifier.size(NativeAdDimens.StarSize)) }
             }
         }
     }
@@ -346,13 +424,17 @@ private fun NativeAdStar(color: Color, modifier: Modifier = Modifier) {
 private const val STAR_POINTS = 5
 private const val STAR_INNER_RATIO = 0.45f
 
-/** Icon, headline and the "Ad" line in one row: the head of the medium and full ads. */
+/**
+ * Icon, headline and the "Ad" line in one row: the head of the medium and full ads. With [starRow] (medium), the
+ * 16 dp star row under the "Ad" line, kept empty when the ad has no rating, so the head stays 56 dp high.
+ */
 @Composable
 internal fun NativeAdHeader(
     assets: NativeAdAssets,
     binder: NativeAdBinder,
     modifier: Modifier = Modifier,
     iconSize: Dp = NativeAdDimens.IconSize,
+    starRow: Boolean = false,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -366,6 +448,7 @@ internal fun NativeAdHeader(
         ) {
             NativeAdHeadline(assets.headline, binder)
             NativeAdBadgeLine(assets, binder, bodyWhenNoAdvertiser = false)
+            if (starRow) NativeAdStarRow(assets.starRating, Modifier.height(NativeAdDimens.StarRowHeight))
         }
     }
 }
@@ -411,11 +494,16 @@ internal fun NativeAdIcon(
 }
 
 @Composable
-internal fun NativeAdHeadline(text: String, binder: NativeAdBinder, modifier: Modifier = Modifier) {
+internal fun NativeAdHeadline(
+    text: String,
+    binder: NativeAdBinder,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = TextUnit.Unspecified,
+) {
     binder.Asset(NativeAdAsset.HEADLINE, modifier.fillMaxWidth().testTag(NativeAdTestTags.HEADLINE)) {
         Text(
             text = text,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleSmall.merge(TextStyle(fontSize = fontSize)),
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -504,8 +592,9 @@ internal fun NativeAdBody(
 }
 
 /**
- * The call to action: tertiary container, [height] high (36 dp, 34 dp on small), 8 dp corners, unlike the app's
- * PrimaryButton. It is a plain box, not a Button, so a touch reaches the SDK's call-to-action view.
+ * The call to action: tertiary container, [height] high (36 dp, 34 dp on small, 44 dp or 56 dp on medium), 8 dp
+ * corners, unlike the app's PrimaryButton. It is a plain box, not a Button, so a touch reaches the SDK's
+ * call-to-action view.
  */
 @Composable
 internal fun NativeAdCallToAction(
@@ -536,11 +625,29 @@ internal fun NativeAdCallToAction(
     }
 }
 
-/** The media of the ad (image or video), 8 dp corners. */
+/**
+ * The media of the ad (image or video), 8 dp corners. With [backdrop] (medium), an `outlineVariant` layer at 0.6
+ * under the media fills what the image leaves free (the "Blurred backdrop" of the design, drawn as a token: plan
+ * T-028, question 4).
+ */
 @Composable
-internal fun NativeAdMediaArea(binder: NativeAdBinder, modifier: Modifier = Modifier) {
-    binder.Media(modifier.clip(RoundedCornerShape(NativeAdDimens.AssetCorner)).testTag(NativeAdTestTags.MEDIA))
+internal fun NativeAdMediaArea(binder: NativeAdBinder, modifier: Modifier = Modifier, backdrop: Boolean = false) {
+    val shape = RoundedCornerShape(NativeAdDimens.AssetCorner)
+    if (!backdrop) {
+        binder.Media(modifier.clip(shape).testTag(NativeAdTestTags.MEDIA))
+        return
+    }
+    Box(modifier = modifier.clip(shape)) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = MEDIA_BACKDROP_ALPHA)),
+        )
+        binder.Media(Modifier.matchParentSize().testTag(NativeAdTestTags.MEDIA))
+    }
 }
+
+private const val MEDIA_BACKDROP_ALPHA = 0.6f
 
 /** Where the SDK draws AdChoices; drawn on fake ads only, so screenshots match the design. */
 @Composable
@@ -557,7 +664,8 @@ private fun AdChoicesMarker(modifier: Modifier = Modifier) {
 
 /**
  * The loading blocks of [size] in a frame of [height]. The media block of medium takes the height left, so a layout
- * of another height (collapsible, full screen) reuses it.
+ * of another height (collapsible, full screen) reuses it; [mediumCallToActionHeight] is the call-to-action block of
+ * medium (36 dp by default, the collapsible form; 44 dp or 56 dp for the medium ad).
  */
 @Composable
 internal fun NativeAdPlaceholderLayout(
@@ -565,6 +673,7 @@ internal fun NativeAdPlaceholderLayout(
     height: Dp,
     modifier: Modifier = Modifier,
     animated: Boolean = true,
+    mediumCallToActionHeight: Dp = NativeAdDimens.CallToActionHeight,
 ) {
     val alpha = placeholderAlpha(animated)
     NativeAdFrame(modifier = modifier.fillMaxWidth().height(height).testTag(NativeAdTestTags.PLACEHOLDER)) {
@@ -590,21 +699,27 @@ internal fun NativeAdPlaceholderLayout(
             ) {
                 FullPlaceholderBlocks()
             }
-            NativeAdSize.MEDIUM, NativeAdSize.CARD -> Column(
+            NativeAdSize.MEDIUM -> Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom)
                     .then(pulse),
                 verticalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
             ) {
-                MediumPlaceholderBlocks()
+                MediumPlaceholderBlocks(mediumCallToActionHeight)
+            }
+            NativeAdSize.CARD -> Column(
+                modifier = Modifier.fillMaxSize().padding(NativeAdDimens.CardPadding).then(pulse),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                CardPlaceholderBlocks()
             }
         }
     }
 }
 
 @Composable
-private fun ColumnScope.MediumPlaceholderBlocks() {
+private fun ColumnScope.MediumPlaceholderBlocks(callToActionHeight: Dp) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
         verticalAlignment = Alignment.CenterVertically,
@@ -615,9 +730,28 @@ private fun ColumnScope.MediumPlaceholderBlocks() {
     PlaceholderBlock(Modifier.fillMaxWidth().weight(1f))
     PlaceholderLines(Modifier.fillMaxWidth().height(NativeAdDimens.BodyHeight))
     PlaceholderBlock(
-        Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight).testTag(NativeAdTestTags.PLACEHOLDER_CTA),
+        Modifier.fillMaxWidth().height(callToActionHeight).testTag(NativeAdTestTags.PLACEHOLDER_CTA),
     )
 }
+
+@Composable
+private fun ColumnScope.CardPlaceholderBlocks() {
+    PlaceholderBlock(Modifier.fillMaxWidth().weight(1f))
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PlaceholderBlock(Modifier.size(NativeAdDimens.CardIconSize))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            val bar = RoundedCornerShape(NativeAdDimens.LineHeight / 2)
+            PlaceholderBlock(Modifier.fillMaxWidth().height(NativeAdDimens.LineHeight), bar)
+            PlaceholderBlock(Modifier.fillMaxWidth(fraction = CARD_SHORT_LINE).height(NativeAdDimens.LineHeight), bar)
+        }
+    }
+    PlaceholderBlock(Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight))
+}
+
+private const val CARD_SHORT_LINE = 0.6f
 
 @Composable
 private fun ColumnScope.FullPlaceholderBlocks() {
@@ -677,8 +811,9 @@ private fun NativeAdCardPreview() {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             NativeAdCard(assets, NativeAdSize.SMALL)
             NativeAdPlaceholder(NativeAdSize.SMALL, animated = false)
-            NativeAdCard(assets, NativeAdSize.MEDIUM)
+            NativeAdCard(assets.copy(starRating = 4.0), NativeAdSize.MEDIUM)
             NativeAdCard(assets.copy(starRating = 4.0), NativeAdSize.FULL)
+            NativeAdCard(assets, NativeAdSize.CARD, Modifier.size(180.dp, 300.dp))
         }
     }
 }

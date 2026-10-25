@@ -66,11 +66,19 @@ internal fun BoundNativeAd(
     }
 }
 
-/** Draws a loaded small or medium ad; used by [NativeAdSlot] and by ads inside lists. */
+/**
+ * Draws a loaded ad of [size] (small, medium, or the card of a collection, which binds its media like medium); used
+ * by [NativeAdSlot], [NativeAdCell] and by ads inside lists. [ctaLarge] is the large call to action of medium.
+ */
 @Composable
-internal fun BoundNativeAd(ad: LoadedNativeAd, size: NativeAdSize, modifier: Modifier = Modifier) {
+internal fun BoundNativeAd(
+    ad: LoadedNativeAd,
+    size: NativeAdSize,
+    modifier: Modifier = Modifier,
+    ctaLarge: Boolean = false,
+) {
     BoundNativeAd(ad, modifier) { binder ->
-        NativeAdLayout(ad.assets, size, binder, showAdChoicesMarker = false)
+        NativeAdLayout(ad.assets, size, binder, showAdChoicesMarker = false, ctaLarge = ctaLarge)
     }
 }
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +56,9 @@ class NativeAdCellTest {
     val composeRule = createComposeRule()
 
     private val logger = RecordingAppLogger()
+
+    /** Pages of the pager of [setPager] in the composition now. */
+    private val composedPages = mutableSetOf<Int>()
 
     /** The headline texts drawn inside the cell tagged [cellTag]. */
     private fun headlinesIn(cellTag: String): List<String> = composeRule
@@ -169,7 +173,10 @@ class NativeAdCellTest {
         composeRule.setContent {
             AppTheme {
                 Column {
-                    listOf(Triple("card", card, 180.dp), Triple("medium", medium, CARD_WIDTH)).forEach { (tag, size, w) ->
+                    listOf(
+                        Triple("card", card, 180.dp),
+                        Triple("medium", medium, CARD_WIDTH),
+                    ).forEach { (tag, size, w) ->
                         NativeAdCellHost(
                             states = remember { flowOf(NativeAdState.Loaded(FakeLoadedNativeAd())) },
                             size = size,
@@ -205,6 +212,7 @@ class NativeAdCellTest {
         pages: Int,
         statesOf: (Int) -> Flow<NativeAdState>,
         records: List<MutableList<String>>,
+        shown: () -> Boolean,
         onPager: (PagerState, CoroutineScope) -> Unit,
     ) {
         composeRule.mainClock.autoAdvance = false
@@ -213,17 +221,23 @@ class NativeAdCellTest {
                 val state = rememberPagerState(pageCount = { pages })
                 val scope = rememberCoroutineScope()
                 onPager(state, scope)
-                HorizontalPager(state = state, beyondViewportPageCount = 1, modifier = Modifier.fillMaxSize()) { page ->
-                    Box(Modifier.fillMaxSize()) {
-                        NativeAdCellHost(
-                            states = remember { statesOf(page) },
-                            size = NativeAdSize.MEDIUM,
-                            viewed = state.isPageSettled(page),
-                            keepSpaceWhenEmpty = false,
-                            onOpportunity = { records[page] += it },
-                            modifier = Modifier.width(CARD_WIDTH),
-                            adContent = { NativeAdCard(it.assets, NativeAdSize.MEDIUM) },
-                        )
+                if (shown()) {
+                    HorizontalPager(state, Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
+                        DisposableEffect(page) {
+                            composedPages += page
+                            onDispose { composedPages -= page }
+                        }
+                        Box(Modifier.fillMaxSize()) {
+                            NativeAdCellHost(
+                                states = remember { statesOf(page) },
+                                size = NativeAdSize.MEDIUM,
+                                viewed = state.isPageSettled(page),
+                                keepSpaceWhenEmpty = false,
+                                onOpportunity = { records[page] += it },
+                                modifier = Modifier.width(CARD_WIDTH),
+                                adContent = { NativeAdCard(it.assets, NativeAdSize.MEDIUM) },
+                            )
+                        }
                     }
                 }
             }
@@ -237,15 +251,17 @@ class NativeAdCellTest {
 
     @Test
     fun pager_recordsShownOnlyAfterSettle_notReadyOnDispose() {
-        val records = List(4) { mutableListOf<String>() }
+        val records = List(PAGES) { mutableListOf<String>() }
         lateinit var pager: PagerState
         lateinit var scope: CoroutineScope
+        var shown by mutableStateOf(true)
         setPager(
-            pages = 4,
+            pages = PAGES,
             statesOf = { page ->
                 if (page == 2) flowOf(NativeAdState.Loading) else flowOf(NativeAdState.Loaded(FakeLoadedNativeAd()))
             },
             records = records,
+            shown = { shown },
             onPager = { state, s ->
                 pager = state
                 scope = s
@@ -260,21 +276,21 @@ class NativeAdCellTest {
         assertEquals(1, pager.settledPage)
         assertEquals(listOf("shown"), records[1])
 
-        // Control: page 2 was built next to page 1 but never settled; leaving now records nothing.
-        scrollTo(pager, scope, 0)
-        composeRule.mainClock.advanceTimeBy(SETTLE)
-        assertEquals(0, pager.settledPage)
-        assertEquals(emptyList<String>(), records[2])
-
         scrollTo(pager, scope, 2)
         composeRule.mainClock.advanceTimeBy(SETTLE)
         assertEquals(2, pager.settledPage)
         assertEquals(emptyList<String>(), records[2])
-        scrollTo(pager, scope, 0)
-        composeRule.mainClock.advanceTimeBy(SETTLE)
+        assertTrue("page 3 is built next to page 2", 3 in composedPages)
 
+        // A pager keeps the pages it built (Compose reuses them later), so the cells leave with the pager here.
+        shown = false
+        composeRule.mainClock.advanceTimeBy(FRAME)
+
+        assertTrue(composedPages.isEmpty())
         assertEquals(listOf("not_ready"), records[2])
         assertEquals(listOf("shown"), records[1])
+        // Control: page 3 was built next to page 2 but never settled; it leaves with no record.
+        assertEquals(emptyList<String>(), records[3])
     }
 
     @Test
@@ -353,5 +369,7 @@ class NativeAdCellTest {
         val PLACEMENT = AdPlacement.GALLERY_NATIVE_MEDIUM
         const val FRAME = 100L
         const val SETTLE = 3_000L
+
+        const val PAGES = 4
     }
 }

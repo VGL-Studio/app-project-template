@@ -247,8 +247,10 @@ class NativeAdCardTest {
         listOf(NativeAdTestTags.ICON, NativeAdTestTags.HEADLINE, NativeAdTestTags.BADGE, NativeAdTestTags.CTA)
             .forEach { tag ->
                 val part = bounds(tag)
-                val overlaps = part.left < corner.right && part.right > corner.left &&
-                    part.top < corner.bottom && part.bottom > corner.top
+                val overlaps = part.left < corner.right &&
+                    part.right > corner.left &&
+                    part.top < corner.bottom &&
+                    part.bottom > corner.top
                 assertFalse("$tag $part overlaps the AdChoices corner $corner", overlaps)
             }
     }

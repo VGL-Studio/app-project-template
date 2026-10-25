@@ -21,9 +21,11 @@ import kotlinx.coroutines.flow.Flow
  * It takes no space until ads are allowed (consent given, SDK started, placement switched on remotely). While the ad
  * loads, a placeholder keeps its height; with no ad after `ads_native_load_timeout_seconds`, the space is given back,
  * or kept empty when [keepSpaceWhenEmpty] (a placement next to an app button, so the button does not move). The ad is
- * destroyed when the slot leaves the screen. [onAdAvailabilityChange] tells the app whether the slot has an ad (D-02):
- * true when an ad arrives, false when none could be loaded, or when ads stop being allowed after an ad was shown.
- * Screenshots pass a [NativeAdCard] instead, since tests have no ads controller.
+ * destroyed when the slot leaves the screen. A medium ad comes from the pool of its placement (plan T-028): the slot
+ * takes it when it comes on screen and gives it back when it leaves, and records its opportunity (P-07).
+ * [onAdAvailabilityChange] tells the app whether the slot has an ad (D-02): true when an ad arrives, false when none
+ * could be loaded, or when ads stop being allowed after an ad was shown. Screenshots pass a [NativeAdCard] instead,
+ * since tests have no ads controller.
  */
 @Composable
 fun NativeAdSlot(
@@ -49,7 +51,15 @@ fun NativeAdSlot(
         keepSpaceWhenEmpty = keepSpaceWhenEmpty,
         onAdAvailabilityChange = onAdAvailabilityChange,
         modifier = modifier,
-        adContent = { BoundNativeAd(it, size) },
+        adContent = { BoundNativeAd(it, size, ctaLarge = placement.ctaLarge) },
+        // A pooled slot is one cell of its pool: same opportunity as a cell of a collection (P-07, L-068).
+        onPoolOpportunity = if (placement.format.usesPool) {
+            { result -> ads.recordPoolCellOpportunity(placement, result) }
+        } else {
+            null
+        },
+        ctaLarge = placement.ctaLarge,
+        placeholderWhenEmpty = false,
     )
 }
 
@@ -59,7 +69,9 @@ internal fun nativeSlotAllowed(canRequestAds: Boolean, enabled: Boolean, unitId:
 
 /**
  * Draws the slot while [allowed], nothing otherwise, and reports availability to the app: true on an ad, false on
- * no ad, never while loading; and false when [allowed] turns false after true was reported (L-061).
+ * no ad, never while loading; and false when [allowed] turns false after true was reported (L-061). With
+ * [onPoolOpportunity] the slot is a cell of a pool ([NativeAdCellHost]): it records the opportunity of P-07, seen
+ * while [viewed].
  */
 @Composable
 internal fun NativeAdSlotGate(
@@ -69,9 +81,11 @@ internal fun NativeAdSlotGate(
     keepSpaceWhenEmpty: Boolean,
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier,
-    adContent: @Composable (LoadedNativeAd) -> Unit,
-    /** Skeleton (T-028, step 3). */
     onPoolOpportunity: ((result: String) -> Unit)? = null,
+    viewed: Boolean = true,
+    ctaLarge: Boolean = false,
+    placeholderWhenEmpty: Boolean = true,
+    adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
     val reported = remember { AvailabilityReport() }
@@ -85,22 +99,38 @@ internal fun NativeAdSlotGate(
         Box(modifier = modifier)
         return
     }
+    val onStateChange: (NativeAdState) -> Unit = { state ->
+        val available = when (state) {
+            NativeAdState.Loading -> null
+            is NativeAdState.Loaded -> true
+            NativeAdState.Unavailable -> false
+        }
+        if (available != null) {
+            reported.available = available
+            currentOnChange(available)
+        }
+    }
+    if (onPoolOpportunity != null) {
+        NativeAdCellHost(
+            states = states,
+            size = size,
+            viewed = viewed,
+            keepSpaceWhenEmpty = keepSpaceWhenEmpty,
+            onOpportunity = onPoolOpportunity,
+            modifier = modifier,
+            ctaLarge = ctaLarge,
+            placeholderWhenEmpty = placeholderWhenEmpty,
+            onStateChange = onStateChange,
+            adContent = adContent,
+        )
+        return
+    }
     NativeAdSlotHost(
         states = states,
         size = size,
         keepSpaceWhenEmpty = keepSpaceWhenEmpty,
         modifier = modifier,
-        onStateChange = { state ->
-            val available = when (state) {
-                NativeAdState.Loading -> null
-                is NativeAdState.Loaded -> true
-                NativeAdState.Unavailable -> false
-            }
-            if (available != null) {
-                reported.available = available
-                currentOnChange(available)
-            }
-        },
+        onStateChange = onStateChange,
         adContent = adContent,
     )
 }
@@ -136,26 +166,33 @@ internal fun NativeAdSlotHost(
     // The value of this composition, not the delegate: the effect may run after a newer state arrived.
     val shown = state
     LaunchedEffect(shown) { currentOnStateChange(shown) }
-    NativeAdSlotContent(shown, size, keepSpaceWhenEmpty, modifier, adContent)
+    NativeAdSlotContent(shown, size, keepSpaceWhenEmpty, modifier, adContent = adContent)
 }
 
-/** What the slot draws for [state]. */
+/**
+ * What the slot draws for [state]; [ctaLarge] sizes the placeholder and the kept space of a medium ad with the large
+ * call to action. [contentModifier] wraps the placeholder and the ad, never the empty state.
+ */
 @Composable
 internal fun NativeAdSlotContent(
     state: NativeAdState,
     size: NativeAdSize,
     keepSpaceWhenEmpty: Boolean,
     modifier: Modifier,
+    ctaLarge: Boolean = false,
+    contentModifier: Modifier = Modifier,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (state) {
-            NativeAdState.Loading -> NativeAdPlaceholder(size)
+            NativeAdState.Loading -> Box(contentModifier) { NativeAdPlaceholder(size, ctaLarge = ctaLarge) }
             // A new NativeAdView for each ad: the binder registers a view once, so a swapped ad is bound only
             // in a fresh frame (refresh in place, plan T-040).
-            is NativeAdState.Loaded -> key(state.ad) { adContent(state.ad) }
+            is NativeAdState.Loaded -> Box(contentModifier) { key(state.ad) { adContent(state.ad) } }
             NativeAdState.Unavailable ->
-                if (keepSpaceWhenEmpty) Spacer(Modifier.fillMaxWidth().height(NativeAdDimens.heightOf(size)))
+                if (keepSpaceWhenEmpty) {
+                    Spacer(Modifier.fillMaxWidth().height(NativeAdDimens.heightOf(size, ctaLarge)))
+                }
         }
     }
 }

@@ -81,7 +81,8 @@ class NativeAdPoolsTest {
 
     private fun sentTimes(): List<Long> = loads.flatMap { it.times }.sorted()
 
-    private fun NativeAdPools.slot(format: AdFormat = AdFormat.NATIVE_MEDIUM): PreloadSlot = preloadSlots(format).single()
+    private fun NativeAdPools.slot(format: AdFormat = AdFormat.NATIVE_MEDIUM): PreloadSlot =
+        preloadSlots(format).single()
 
     @Test
     fun sameFormatAndUnit_sharePool_differentUnits_separatePools() = runTest {
@@ -102,7 +103,11 @@ class NativeAdPoolsTest {
     fun noPool_forOtherFormatOrWithoutUnit() = runTest {
         units[AdPlacement.GALLERY_INLIST_MEDIUM] = null
         val pools = newPools(
-            listOf(AdPlacement.GALLERY_NATIVE_MEDIUM, AdPlacement.GALLERY_INLIST_MEDIUM, AdPlacement.SAMPLE_NATIVE_SMALL),
+            listOf(
+                AdPlacement.GALLERY_NATIVE_MEDIUM,
+                AdPlacement.GALLERY_INLIST_MEDIUM,
+                AdPlacement.SAMPLE_NATIVE_SMALL,
+            ),
         )
         assertNull(pools.pool(AdPlacement.SAMPLE_NATIVE_SMALL))
         assertNull(pools.pool(AdPlacement.GALLERY_INLIST_MEDIUM))
@@ -300,4 +305,3 @@ class NativeAdPoolsTest {
         const val MAX_AGE = 55 * 60 * 1_000L
     }
 }
-

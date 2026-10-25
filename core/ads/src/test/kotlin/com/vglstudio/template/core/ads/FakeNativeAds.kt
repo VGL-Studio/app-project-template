@@ -132,7 +132,8 @@ internal class FakePoolLoads(
             throw it
         }
         times += now()
-        val state = loadOneNativeAd(loader, FAKE_POOL_UNIT_ID, NativeAdSize.MEDIUM, timeoutMillis, logger, FAKE_POOL_KEY)
+        val state =
+            loadOneNativeAd(loader, FAKE_POOL_UNIT_ID, NativeAdSize.MEDIUM, timeoutMillis, logger, FAKE_POOL_KEY)
         val ad = (state as? NativeAdState.Loaded)?.ad ?: return null
         return PoolLoad(ad, PlacementCell().also { holders += it })
     }
@@ -147,11 +148,7 @@ internal class FakePoolLoads(
  * A pool for Compose tests: every load answers at once from [ads] (null when none is left), sent through an
  * unconfined scope, so [NativeAdPool.refill] fills it before it returns.
  */
-internal fun immediatePool(
-    ads: List<FakeLoadedNativeAd>,
-    capacity: Int = 3,
-    logger: AppLogger,
-): NativeAdPool {
+internal fun immediatePool(ads: List<FakeLoadedNativeAd>, capacity: Int = 3, logger: AppLogger): NativeAdPool {
     val left = ArrayDeque(ads)
     return NativeAdPool(
         key = NativePoolKey(AdFormat.NATIVE_MEDIUM, FakePoolLoads.FAKE_POOL_UNIT_ID),

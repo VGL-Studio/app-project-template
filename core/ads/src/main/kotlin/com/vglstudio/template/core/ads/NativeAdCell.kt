@@ -3,10 +3,25 @@ package com.vglstudio.template.core.ads
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 
-/** Skeleton (T-028, step 3). */
+/**
+ * The native ad of one cell of a grid, a list or a pager page (MC-07, KB-21): a card ([AdFormat.NATIVE_IN_COLLECTION])
+ * or a medium ad ([AdFormat.NATIVE_MEDIUM]), one ad per cell, taken from the pool of the placement while the cell is
+ * on screen and given back when it leaves (P-01, P-01a). Like [NativeAdSlot], it takes no space until ads are allowed.
+ * While the pool is exhausted the cell takes no space, or shows a static placeholder when the placement declares
+ * [AdPlacement.keepSpaceWhenPoolEmpty]; it keeps asking, so an ad that comes later is shown (P-06). In a pager, pass
+ * [viewed] = `pagerState.isPageSettled(page)`: the cell counts as seen only once its page settled (P-07).
+ * [onAdAvailabilityChange] works as for [NativeAdSlot]. Other formats are an [IllegalArgumentException].
+ */
 @Composable
 fun NativeAdCell(
     placement: AdPlacement,
@@ -14,13 +29,46 @@ fun NativeAdCell(
     viewed: Boolean = true,
     onAdAvailabilityChange: (Boolean) -> Unit = {},
 ) {
-    Box(modifier = modifier)
+    val size = requireCellFormat(placement.format)
+    val ads = LocalAdsController.current
+    if (ads == null) {
+        Box(modifier = modifier)
+        return
+    }
+    val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
+    val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
+    val unitId = remember(placement) { ads.unitId(placement) }
+    NativeAdSlotGate(
+        allowed = nativeSlotAllowed(canRequestAds, enabled, unitId),
+        // A cold flow: nothing is claimed until the gate opens and the host collects it.
+        states = remember(placement) { ads.pooledCell(placement) },
+        size = size,
+        keepSpaceWhenEmpty = placement.keepSpaceWhenPoolEmpty,
+        onAdAvailabilityChange = onAdAvailabilityChange,
+        modifier = modifier,
+        adContent = { BoundNativeAd(it, size, ctaLarge = placement.ctaLarge) },
+        onPoolOpportunity = { ads.recordPoolCellOpportunity(placement, it) },
+        viewed = viewed,
+        ctaLarge = placement.ctaLarge,
+    )
 }
 
-/** Skeleton (T-028, step 3). */
-internal fun requireCellFormat(format: AdFormat): NativeAdSize = NativeAdSize.MEDIUM
+/** The size a cell of [format] is drawn at: card or medium; other formats do not go in a cell. */
+internal fun requireCellFormat(format: AdFormat): NativeAdSize = when (format) {
+    AdFormat.NATIVE_IN_COLLECTION -> NativeAdSize.CARD
+    AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
+    // Not exhaustive on purpose: other formats do not belong in a cell.
+    else -> throw IllegalArgumentException("$format is not drawn by NativeAdCell")
+}
 
-/** Skeleton (T-028, step 3). */
+/**
+ * One cell of a pool, testable without [AdsController] (like [NativeAdSlotHost]): collects [states] while in
+ * composition, draws them with [NativeAdSlotContent], and reports the opportunity of P-07 through one
+ * [PoolCellOpportunity]: each change of the state or of [viewed] is passed to it, leaving the composition ends it.
+ * With [keepSpaceWhenEmpty], no ad keeps the cell's height: a static placeholder when [placeholderWhenEmpty] (a cell
+ * of a collection), an empty space otherwise (a slot next to an app button). [contentModifier] wraps the placeholder
+ * and the ad only, so a cell with no ad takes no space at all.
+ */
 @Composable
 internal fun NativeAdCellHost(
     states: Flow<NativeAdState>,
@@ -35,8 +83,33 @@ internal fun NativeAdCellHost(
     onStateChange: (NativeAdState) -> Unit = {},
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
-    Box(modifier = modifier)
+    val state by states.collectAsState(initial = NativeAdState.Loading)
+    val currentOnOpportunity by rememberUpdatedState(onOpportunity)
+    val currentOnStateChange by rememberUpdatedState(onStateChange)
+    val opportunity = remember { PoolCellOpportunity { currentOnOpportunity(it) } }
+    // The value of this composition, not the delegate: the effect may run after a newer state arrived.
+    val shown = state
+    LaunchedEffect(shown) { currentOnStateChange(shown) }
+    LaunchedEffect(shown, viewed) { opportunity.onState(hasAd = shown is NativeAdState.Loaded, viewed = viewed) }
+    DisposableEffect(opportunity) {
+        onDispose { opportunity.onLeave() }
+    }
+    if (shown == NativeAdState.Unavailable && keepSpaceWhenEmpty && placeholderWhenEmpty) {
+        Box(modifier = modifier) {
+            Box(modifier = contentModifier) { NativeAdPlaceholder(size, animated = false, ctaLarge = ctaLarge) }
+        }
+        return
+    }
+    NativeAdSlotContent(
+        state = shown,
+        size = size,
+        keepSpaceWhenEmpty = keepSpaceWhenEmpty,
+        modifier = modifier,
+        ctaLarge = ctaLarge,
+        contentModifier = contentModifier,
+        adContent = adContent,
+    )
 }
 
-/** Skeleton (T-028, step 3). */
-fun PagerState.isPageSettled(page: Int): Boolean = false
+/** P-07: the page of a pager counts as seen once it settled: no scroll in progress and it is the settled page. */
+fun PagerState.isPageSettled(page: Int): Boolean = !isScrollInProgress && settledPage == page

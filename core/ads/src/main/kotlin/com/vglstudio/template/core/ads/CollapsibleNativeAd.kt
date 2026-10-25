@@ -203,7 +203,11 @@ internal fun CollapsibleNativeAdContent(
                 if (state.collapsed) {
                     NativeAdPlaceholder(NativeAdSize.SMALL)
                 } else {
-                    NativeAdPlaceholderLayout(NativeAdSize.MEDIUM, CollapsibleNativeAdDimens.ExpandedHeight)
+                    NativeAdPlaceholderLayout(
+                        size = NativeAdSize.MEDIUM,
+                        height = CollapsibleNativeAdDimens.ExpandedHeight,
+                        mediumCallToActionHeight = NativeAdDimens.CallToActionHeight,
+                    )
                 }
             }
             is CollapsibleAdContent.Ready -> renderReady(content.assets, state.collapsed) {

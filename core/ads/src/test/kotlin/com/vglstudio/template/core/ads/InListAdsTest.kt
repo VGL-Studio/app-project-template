@@ -443,7 +443,9 @@ class InListAdsTest {
         setPooledList(
             itemCount = 30,
             every = { 3 },
-            cell = { pooledCellStates(pool, AdPlacement.GALLERY_INLIST_MEDIUM, RecordingAppLogger(), "gallery_inlist_medium") },
+            cell = {
+                pooledCellStates(pool, AdPlacement.GALLERY_INLIST_MEDIUM, RecordingAppLogger(), "gallery_inlist_medium")
+            },
         )
         composeRule.mainClock.advanceTimeBy(1_000)
         composeRule.onNode(hasText("Ad 1") and hasAnyAncestor(hasTestTag("inlist_ad_0")), useUnmergedTree = true)
@@ -452,7 +454,8 @@ class InListAdsTest {
 
         composeRule.onNodeWithTag(LIST).performScrollToIndex(LAST_INDEX_OF_30)
         composeRule.mainClock.advanceTimeBy(1_000)
-        composeRule.onNodeWithTag(LIST).performScrollToNode(hasTestTag("inlist_ad_2"))
+        // An instant scroll: an animated one never ends while the clock is stopped (L-048).
+        composeRule.onNodeWithTag(LIST).performScrollToIndex(INDEX_OF_AD_ROW_2)
         composeRule.mainClock.advanceTimeBy(1_000)
 
         composeRule.onAllNodesWithTag("inlist_ad_2").assertCountEquals(1)
@@ -563,5 +566,8 @@ class InListAdsTest {
 
         /** The last index of 30 items with an ad row after every 3: 30 items and 9 ad rows. */
         const val LAST_INDEX_OF_30 = 38
+
+        /** The third ad row of a list with an ad after every 3 items (inListAdPositions). */
+        const val INDEX_OF_AD_ROW_2 = 11
     }
 }

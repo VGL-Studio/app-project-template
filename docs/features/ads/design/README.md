@@ -70,13 +70,13 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 | Nhãn "Ad" | trong composable native, đầu dòng mô tả dưới tiêu đề | nền `tertiary`, chữ `onTertiary` | `labelSmall` (small: cỡ 10 sp) | bo 4 dp, lề ngang 4 dp |
 | Tiêu đề quảng cáo | asset headline | `onSurface` | `titleSmall` (small, medium, đầy đủ), `titleMedium` (toàn màn hình) | |
 | Nhà quảng cáo, mô tả | asset advertiser, body | `onSurfaceVariant` | `bodySmall`, `bodyMedium` | |
-| CTA quảng cáo | asset call to action | nền `tertiaryContainer`, chữ `onTertiaryContainer` | `labelLarge` (small: cỡ 13 sp) | cao 34 dp ở small, 36 dp ở medium và đầy đủ, 52 dp ở toàn màn hình; bo 8 dp |
+| CTA quảng cáo | asset call to action | nền `tertiaryContainer`, chữ `onTertiaryContainer` | `labelLarge` (small: cỡ 13 sp; medium `cta_large`: 17 sp) | cao 34 dp ở small, 44 dp ở medium (56 dp khi `cta_large`), 36 dp ở đầy đủ và thẻ dọc, 52 dp ở toàn màn hình; bo 8 dp |
 | Icon quảng cáo | asset icon | | | 36 dp ở small, 40 dp ở medium và đầy đủ, 48 dp ở toàn màn hình; bo 8 dp |
 | Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium cao 196 dp, đầy đủ 200 dp, thu gọn mở 160 dp |
 | AdChoices | do SDK vẽ, góc trên phải | | | không đè, không vẽ lại |
 | Nút thu gọn | trong composable thu gọn | icon `onSurface` | | 48 dp, góc trên trái |
 | Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 36 dp tròn tại (16, 24), vùng chạm 48 dp do Compose tự nới, góc trên trái |
-| Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 80 dp, medium 386 dp, đầy đủ 418 dp) |
+| Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 80 dp, medium 410 dp, đầy đủ 418 dp, thẻ dọc 300 dp hay cỡ ô) |
 | Nút của app | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` đậm 600 | |
 
 - **Giá trị "ngoài hệ thống" trong `context/`:** khoảng cách 2, 6 và 12 dp bên trong quảng cáo (giữa tiêu đề và dòng nhà quảng cáo, giữa nhãn "Ad" và chữ, lề trong khung). Plan T-010 quyết: giữ làm hằng số riêng của composable native trong `:core:ads` (kích thước của một component, như `MinHeight` của `PrimaryButton`), không thêm token.
@@ -142,3 +142,11 @@ Native theo kích thước AdsKit (T-027, 2026-10-26), so với thiết kế v�
 | `AdGalleryScreen_inlist_light` | 3.1% | Dòng native small 80 dp (cả dòng 112 dp) trùng thiết kế; phần lệch ở thẻ medium phía dưới như trên |
 
 `AdGalleryScreen_collapsible-collapsed_light` cũng đổi (dạng thu gọn 80 dp) nhưng là ảnh thiết kế của T-030: ảnh so sánh và dòng ở bảng trên chưa ghi lại ở task này.
+
+Native medium theo thiết kế vẽ lại (T-028, 2026-10-26): medium cao 410 dp (hàng đầu 56 dp có hàng sao, CTA 44 dp, lớp nền sau media). Chạy thẳng `scripts/design-compare/DesignCompare.java` cho `app`, chép ba ảnh so sánh vào `review/`; `review/summary.md` không đổi. Phần lệch 24 dp của medium mà T-027 ghi ở bảng trên không còn.
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `AdGalleryScreen_default_light` | 2.0% | Thẻ medium 410 dp, vị trí tiêu đề, media, mô tả, CTA và các nút bên dưới trùng thiết kế. Khác: quảng cáo giả của màn xem thử không có điểm sao nên không vẽ sao (hàng sao vẫn giữ 16 dp), media giả che lớp nền sau media và không có nhãn "Media", "Advertiser or short body" thay "Advertiser", ô AdChoices giả không có chữ "i"; hàng nút "In-list ads", "Collapsible ad" ngoài thiết kế như T-014 |
+| `AdGalleryScreen_default_dark` | 2.0% | Như bản sáng |
+| `AdGalleryScreen_inlist_light` | 1.7% | Dòng small 112 dp và dòng medium 442 dp (410 + 16 + 16) đúng vị trí; khác ở chữ quảng cáo giả như trên |
