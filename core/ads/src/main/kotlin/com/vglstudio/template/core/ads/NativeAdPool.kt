@@ -66,7 +66,8 @@ internal interface PooledNativeAds {
  * - P-01: loads one ad per request; [claim] hands out the free ads in turn (round robin), never one in use.
  * - P-02, P-03: refills one request at a time up to [capacity], counting the ads in use.
  * - P-01a: [release] destroys an ad the SDK recorded an impression of, and refills; puts any other one back at the end.
- * - O-04: a free ad is destroyed from 55 minutes after its load, by [claim] and by [refill].
+ * - O-04: a free ad is destroyed from 55 minutes after its load, by [claim] and by [refill]; so is a free ad whose
+ *   impression the SDK reported after it was given back (P-01a).
  * - P-04: the placement of an ad is set in its [PlacementCell] when it is claimed.
  * - P-05: [exhausted] when no free ad, no request in flight, and nothing can be sent now.
  * - P-08 (close of the ticket): [close] destroys the free ads, cancels the load in flight (a late ad is destroyed),
@@ -237,11 +238,23 @@ internal class NativeAdPool(
         refill()
     }
 
+    /**
+     * Drops the free ads that may not be shown any more: 55 minutes old (O-04), or with an impression the SDK reported
+     * after the cell gave the ad back (P-01a). The caller refills.
+     */
     private fun pruneExpired() {
         val now = clock.nowMillis()
-        val expired = free.filter { now - it.loadedAtMillis >= NativeAdPolicy.MAX_AGE_MILLIS }
-        if (expired.isEmpty()) return
-        free.removeAll(expired)
+        val impressed = free.filter { it.ad.impressionRecorded }
+        val expired = free.filter {
+            !it.ad.impressionRecorded &&
+                now - it.loadedAtMillis >= NativeAdPolicy.MAX_AGE_MILLIS
+        }
+        if (impressed.isEmpty() && expired.isEmpty()) return
+        free.removeAll(impressed + expired)
+        impressed.forEach {
+            it.ad.destroy()
+            logger.info(TAG, "Pool $logKey destroyed (impression after release)")
+        }
         expired.forEach {
             it.ad.destroy()
             logger.info(TAG, "Pool $logKey expired")
