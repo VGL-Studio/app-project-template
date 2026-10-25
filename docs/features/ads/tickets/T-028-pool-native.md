@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-3, KB-21]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
-depends_on: [T-011, T-027]
+depends_on: [T-011, T-027, T-040]
 sprint:
-plan:
+plan: features/ads/plans/T-028-pool-native.md
 created: 2026-10-23
 ---
 
