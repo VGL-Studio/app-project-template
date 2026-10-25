@@ -10,7 +10,8 @@ Finds, from the plan alone, the mistakes that otherwise stop a task in the middl
      except files that a plan this ticket depends on creates.
   2. Every script, workflow, build file or test that names a changed file is in the file list too,
      or the plan mentions it (to say why it is not affected). In a git checkout only tracked files are searched,
-     so untracked copies of the repository (.claude/worktrees/) raise no false errors.
+     so untracked copies of the repository (.claude/worktrees/) raise no false errors. An error for a draft plan; only
+     a warning for an approved one, whose readers were checked at review time (L-078).
   3. Protected paths need a high-risk plan (risk-scoring.md, section 1; CLAUDE.md); scripts/release.sh is never allowed.
   4. A plan that runs scripts/design-compare.sh writes a screenshot for every design image of its feature,
      except the images it declares as drawn by another ticket, on a line
@@ -424,12 +425,16 @@ def check(plan_path):
         if Path(name).suffix in NAME_SEARCH_SUFFIXES and name not in GENERIC_NAMES:
             names.append(name)
         needles[path] = [mention_pattern(n, root_file=(n == path and "/" not in path)) for n in names]
+    # A reader is an error while the plan is written; for an approved plan it is a warning, like rule 7: a file that
+    # appeared after the review (a new script naming a shared file in a comment) cannot be added to an approved plan,
+    # and the session skips plans with errors, so it would skip every approved plan of the list (L-078).
+    readers_out = errors if fields.get("status") != "approved" else warnings
     for reader, content in reader_files():
         if reader in listed or reader in text or reader == SELF:
             continue
         for path, names in needles.items():
             if reader != path and any(pattern.search(content) for pattern in names):
-                errors.append(
+                readers_out.append(
                     f"{reader} nhắc tới {path} mà plan sửa, nhưng không có trong mục 3.2. "
                     f"Thêm vào danh sách file, hoặc ghi trong plan vì sao {reader} không bị ảnh hưởng (L-020).")
 
