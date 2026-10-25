@@ -112,10 +112,11 @@ Làm theo mẫu có sẵn của `:core:ads`: composable không trạng thái nh�
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdLoading.kt` | B1: `loadOneNativeAd` trả quảng cáo về muộn cho nguồn hủy (O-03), nếu cần tách khỏi `NativeAdRequest` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAd.kt` | Chỉ khi dạng thu gọn vẽ bằng hằng số riêng thay vì `NativeAdDimens.BottomSlotHeight` (mục 8, câu 4); không đổi hành vi thu gọn (T-030) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InListAds.kt` | Chỉ khi khoảng giữ chỗ của dòng quảng cáo dùng hằng số 72 dp riêng |
-| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt` | Bước 3: 72 dp thành 80 dp (`small_is72dpHigh` đổi tên `small_is80dpHigh`), số đo icon, CTA, cỡ chữ; test `FULL`; màu chữ hai chế độ |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt` | Bước 3: 72 dp thành 80 dp (`small_is72dpHigh` đổi tên `small_is80dpHigh`, `longTexts_keepHeight`), `placeholder_matchesCardHeight_forEachSize` có chiều cao riêng cho `FULL` (test lặp `NativeAdSize.entries`); số đo icon, CTA, cỡ chữ; test `FULL`; màu chữ hai chế độ |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSlotTest.kt` | Bước 3: 72 dp thành 80 dp; `onAdAvailabilityChange`; hằng số chừa chỗ bằng chiều cao vẽ |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdViewBindingTest.kt` | Bước 3: 72 dp thành 80 dp; thứ tự O-07 |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAdTest.kt` | Bước 3: dạng thu gọn 72 thành 80 (sáu chỗ `assertHeight(AD, 72f)`) |
+| Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenTest.kt` | Bước 3: `inList_insertsAdsAfterEveryNItems` đo dòng quảng cáo 72 thành 80 dp (đỏ ở chạy thử, mục 4.1) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InListAdsTest.kt` | Bước 3: `loadingSlot_showsPlaceholderOfSmallHeight` 72 thành 80 |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenAdScreenTest.kt` | Bước 3: CTA 48 thành 52 dp, nút đóng vẽ 36 dp, vùng chạm ít nhất 48 dp, icon 48 dp |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardScreenshotTest.kt` | Thêm ảnh `NativeAdCard_full_light`, `NativeAdCard_full_dark`, `NativeAdPlaceholder_small_light` |
@@ -134,7 +135,7 @@ Làm theo mẫu có sẵn của `:core:ads`: composable không trạng thái nh�
 | Ghi lại | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_default_light.png` | Số đo mới |
 | Ghi lại | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_default_dark.png` | Như trên |
 | Ghi lại | `core/ads/src/test/screenshots/NativeFullScreenAdScreen_max-content_small.png` | Như trên |
-| Ghi lại | `core/ads/src/test/screenshots/CollapsibleNativeAd_collapsed_light.png` | Dạng thu gọn 80 dp (theo mục 4.1) |
+| Ghi lại | `core/ads/src/test/screenshots/CollapsibleNativeAd_collapsed_light.png` | Dạng thu gọn 80 dp (đỏ ở chạy thử, mục 4.1) |
 | Ghi lại | `core/ads/src/test/screenshots/CollapsibleNativeAd_collapsed_dark.png` | Như trên |
 | Ghi lại | `feature/sample/src/test/screenshots/SampleScreen_ready_light.png` | Khe đáy 80 dp |
 | Ghi lại | `feature/sample/src/test/screenshots/SampleScreen_ready_dark.png` | Như trên |
@@ -145,11 +146,19 @@ Làm theo mẫu có sẵn của `:core:ads`: composable không trạng thái nh�
 | Ghi lại | `app/src/test/screenshots/AdGalleryScreen_default_small.png` | Như trên |
 | Ghi lại | `app/src/test/screenshots/AdGalleryScreen_inlist_light.png` | Như trên |
 | Ghi lại | `app/src/test/screenshots/AdGalleryScreen_inlist_small.png` | Như trên |
-| Ghi lại | `app/src/test/screenshots/AdGalleryScreen_collapsible-collapsed_light.png` | Dạng thu gọn 80 dp (theo mục 4.1) |
+| Ghi lại | `app/src/test/screenshots/AdGalleryScreen_collapsible-collapsed_light.png` | Dạng thu gọn 80 dp (đỏ ở chạy thử, mục 4.1) |
 | Sửa | `docs/ops/ads-guide.md` | B7 |
-| Sửa | `docs/features/ads/design/README.md` | Mục 8: kết quả đối chiếu của `SampleScreen_*`, `NativeFullScreenAdScreen_*` |
+| Sửa | `docs/features/ads/design/README.md` | Mục 8: kết quả đối chiếu của `SampleScreen_*`, `NativeFullScreenAdScreen_*`, `AdGalleryScreen_default_*`, `AdGalleryScreen_inlist_light` |
+| Ghi lại | `docs/features/ads/design/review/SampleScreen_ready_light_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/SampleScreen_ready_dark_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/SampleScreen_ad-loading_light_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/NativeFullScreenAdScreen_default_light_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/NativeFullScreenAdScreen_default_dark_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/AdGalleryScreen_default_light_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/AdGalleryScreen_default_dark_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
+| Ghi lại | `docs/features/ads/design/review/AdGalleryScreen_inlist_light_compare.png` | Ảnh so sánh với thiết kế vẽ lại |
 
-Không sửa: `feature/sample/src/main/.../SampleScreen.kt` và `feature/sample/src/test/.../SampleScreenScreenshotTest.kt` dùng `NativeAdSize.SMALL`, `NativeAdPlaceholder(NativeAdSize.SMALL, ...)` qua tên, không `when` trên enum, nên thêm `FULL` không làm hỏng biên dịch (chạy thử ở mục 4.1); `app/src/testStaging/.../PreviewAdGallerySlots.kt` cũng vậy (`if`, không `when`). `scripts/tests/fixtures/release/AdPlacement.kt` là bản sao cho test của `release.sh`, không đọc `NativeAdSize`; plan không thêm dòng vào `AdPlacement` hay `AdFormat`. Người đọc ảnh chuẩn: `scripts/check.sh` đọc mọi ảnh trong `src/test/screenshots/` theo module (không theo tên), `scripts/design-compare.sh ads` đọc ảnh cùng tên ảnh thiết kế; không script nào khác đọc tên các ảnh này (`grep -rn "NativeAdCard_small\|SampleScreen_ready\|AdGalleryScreen_default" scripts/ .github/`, 2026-10-25: không có).
+Không sửa: `feature/sample/src/main/.../SampleScreen.kt` và `feature/sample/src/test/.../SampleScreenScreenshotTest.kt` dùng `NativeAdSize.SMALL`, `NativeAdPlaceholder(NativeAdSize.SMALL, ...)` qua tên, không `when` trên enum, nên thêm `FULL` không làm hỏng biên dịch (chạy thử ở mục 4.1); `app/src/testStaging/.../PreviewAdGallerySlots.kt` cũng vậy (`if`, không `when`). `scripts/tests/fixtures/release/AdPlacement.kt` là bản sao cho test của `release.sh`, không đọc `NativeAdSize`; plan không thêm dòng vào `AdPlacement` hay `AdFormat`. Người đọc ảnh chuẩn: `scripts/check.sh` đọc mọi ảnh trong `src/test/screenshots/` theo module (không theo tên), công cụ so ảnh đọc ảnh cùng tên ảnh thiết kế; `scripts/tests/run.sh` chép `SampleScreen_ready_light.png`, `SampleScreen_ready_dark.png` làm dữ liệu mẫu cho test của công cụ so ảnh (cặp ảnh giống nhau, cặp ảnh khác nhau), không so với nội dung cố định, nên ghi lại hai ảnh này không làm đỏ test của script; không script nào khác đọc tên các ảnh này (`grep -rn "NativeAdCard_small\|SampleScreen_ready\|AdGalleryScreen_default" scripts/ .github/`, 2026-10-25: không có).
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
@@ -187,16 +196,18 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
 | Cờ tắt giữa chừng (L-061) | Unit test | `NativeAdSourceTest.placementSwitchedOff_closesSource_destroysPending` qua `AdsController` với `FakeRemoteSettings` |
 | O-06 (tùy chọn yêu cầu) | Unit test | `NativeRequestOptionsTest.everySize_startMuted_noCustomControls_singleImage`; `mediumAndFull_landscapeMedia`; `small_anyAspect` |
 | O-07 (co giãn ảnh trước khi gắn) | Compose UI test | `NativeAdViewBindingTest.mediaScaleType_setBeforeSetNativeAd` (bộ ghi lời gọi) |
-| O-08 (nhãn, AdChoices, sao) | Unit test + Compose UI test | `NativeStarCountTest`: `null`, 0, -1, NaN thì 0; 0.4 thì 0... cụ thể: 0.4 thì 0 (làm tròn), 0.5 thì 1, 3.6 thì 4, 4.5 thì 5, 7.0 thì 5; `NativeAdCardTest.full_starRow_hiddenWhenZero_shownFilledWhenFour`; `small_adChoicesTopRight_notOverlapped` (bounds AdChoices không giao bounds tiêu đề, CTA) |
+| O-08 (nhãn, AdChoices, sao) | Unit test + Compose UI test | `NativeStarCountTest`: `null`, 0, -1, NaN thì 0; 0.4 thì 0 (làm tròn), 0.5 thì 1, 3.6 thì 4, 4.5 thì 5, 7.0 thì 5; `NativeAdCardTest.full_starRow_hiddenWhenZero_shownFilledWhenFour`; `small_adChoicesTopRight_notOverlapped` (bounds AdChoices không giao bounds tiêu đề, CTA) |
 | KB-2, tiêu chí 1 (media đầy đủ, ít nhất 120 x 120, không cắt) | Compose UI test | `NativeAdCardTest.full_mediaIs200dpHigh_atLeast120dpWide`; `full_iconIs40dp_headline14sp` |
 | KB-2, tiêu chí 2 (giữ chỗ, lỗi, tối) | Compose UI test | `NativeAdCardTest.full_placeholderHeight_equalsCardHeight`; màu như KB-1 tiêu chí 4 cho `FULL` |
 | Toàn màn hình theo thiết kế vẽ lại | Compose UI test | `NativeFullScreenAdScreenTest.closeButton_drawn36dp_touchAtLeast48dp`; `cta_is52dpHigh` (thay 48 dp); `icon_is48dp`; `headline_is16sp` |
 | Giao diện native nhỏ, đầy đủ | Screenshot test | `NativeAdCardScreenshotTest`: `NativeAdCard_small_light.png`, `NativeAdCard_small_dark.png` (ghi lại), `NativeAdCard_full_light.png`, `NativeAdCard_full_dark.png`, `NativeAdPlaceholder_small_light.png` (mới, `animated = false`) |
 | Màn hình thấp (L-028) | Screenshot test khung `w360dp-h640dp-xxhdpi`, trạng thái nhiều nội dung nhất | `NativeFullScreenAdScreen_max-content_small.png`, `SampleScreen_ready_small.png`, `AdGalleryScreen_default_small.png` (ghi lại) |
-| Đúng thiết kế | Screenshot test cùng tên với từng ảnh thiết kế, `scripts/design-compare.sh ads`, rà soát độc lập theo mục 7 của mẫu thiết kế | `SampleScreen_ready_light.png`, `SampleScreen_ready_dark.png`, `SampleScreen_ad-loading_light.png`, `NativeFullScreenAdScreen_default_light.png`, `NativeFullScreenAdScreen_default_dark.png`, `AdGalleryScreen_default_light.png`, `AdGalleryScreen_default_dark.png`, `AdGalleryScreen_inlist_light.png` (ghi lại); `AdGalleryScreen_*` so bằng `scripts/design-compare/DesignCompare.java` như T-014 |
+| Đúng thiết kế | Screenshot test cùng tên với từng ảnh thiết kế, ảnh so sánh bằng công cụ so ảnh chạy thẳng theo từng module (dưới bảng), rà soát độc lập theo mục 7 của mẫu thiết kế | `SampleScreen_ready_light.png`, `SampleScreen_ready_dark.png`, `SampleScreen_ad-loading_light.png` (`:feature:sample`), `NativeFullScreenAdScreen_default_light.png`, `NativeFullScreenAdScreen_default_dark.png` (`:core:ads`), `AdGalleryScreen_default_light.png`, `AdGalleryScreen_default_dark.png`, `AdGalleryScreen_inlist_light.png` (`:app`), đều ghi lại |
 | | | Ảnh thiết kế của ticket khác (T-030): `AdGalleryScreen_collapsible-expanded_light`, `AdGalleryScreen_collapsible-collapsed_light` |
 | Chữ đúng bảng chữ của thiết kế | Compose UI test | `NativeAdCardTest.badgeText_isAd` (đã có, giữ) |
 | Làm mới 60 giây trên máy | Kiểm tra thủ công (máy thật: quảng cáo thật) | Mở màn mẫu trên bản staging, chờ 70 giây ở foreground, `adb logcat -v threadtime \| grep ' VGL\.'` thấy `Native sample_native_small refresh: loaded`; vào nền 2 phút rồi quay lại, không có lượt làm mới trong lúc ở nền |
+
+**Ảnh so sánh với thiết kế (ADR-0020):** ảnh chuẩn của feature ads nằm ở ba module (`core/ads`, `feature/sample`, `app`), không ở `feature/ads/`, nên không dùng script so sánh bọc sẵn; chạy thẳng công cụ so ảnh cho từng thư mục, ra thư mục tạm, như T-013 và T-014: `java -Djava.awt.headless=true scripts/design-compare/DesignCompare.java docs/features/ads/design/screens <module>/src/test/screenshots ${TMPDIR:-/tmp}/t027-compare-<module>`. Công cụ ghi đè `summary.md` của thư mục đích, nên chỉ chép ảnh `_compare.png` của các ảnh trên vào `docs/features/ads/design/review/` và ghi kết quả vào mục 8 của README thiết kế.
 
 **Ngoại lệ viết test trước:**
 
@@ -210,7 +221,7 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
 
 - **Đã chạy thử:** L-089 (thêm dòng vào enum dùng chung `NativeAdSize`) và đổi `SmallHeight` 72 thành 80 dp, trên worktree tạm `${TMPDIR:-/tmp}/t027-try` từ commit `a1cec25`, 2026-10-25, không commit. Thay đổi tạm: `enum class NativeAdSize { SMALL, MEDIUM, FULL }`, nhánh `FULL` gộp với `MEDIUM` ở bốn `when`, `SmallHeight = 80.dp`.
 - **Lệnh:** `./gradlew --no-daemon --console=plain --continue :core:ads:testDebugUnitTest :core:ads:verifyRoborazziDebug :feature:sample:testDebugUnitTest :feature:sample:verifyRoborazziDebug :app:testStagingDebugUnitTest :app:verifyRoborazziStagingDebug`. Chưa chạy `scripts/check.sh` (E dưới 2, không bắt buộc).
-- **Kết quả:** KẾT_QUẢ_CHẠY_THỬ
+- **Kết quả:** Thất bại đúng như dự kiến, không có lỗi biên dịch nào (thêm `FULL` không làm hỏng `:feature:sample` hay `:app`; mọi `when` trên enum nằm ở `:core:ads`). `:core:ads`: 411 test, 19 đỏ: `NativeAdCardTest` (`small_is72dpHigh`, `longTexts_keepHeight`, `placeholder_matchesCardHeight_forEachSize`: test này lặp `NativeAdSize.entries` và giả định mọi cỡ khác `SMALL` cao 386 dp, nên `FULL` cần chiều cao riêng trong test, L-089), `NativeAdSlotTest` (5: `loading_showsPlaceholder`, `unavailable_takesNoSpace`, `unavailable_keepsSpace_whenDeclaredNextToButton`, `buttonDoesNotMove_whenAdBecomesUnavailable_withKeptSpace`, `boundNativeAd_withFakeAd_drawsCard`), `NativeAdViewBindingTest.sdkLayout_keepsCardHeights`, `CollapsibleNativeAdTest` (5 test của dạng thu gọn), `InListAdsTest.loadingSlot_showsPlaceholderOfSmallHeight`, ảnh `NativeAdCard_small_light`, `NativeAdCard_small_dark`, `CollapsibleNativeAd_collapsed_light`, `CollapsibleNativeAd_collapsed_dark`. `:feature:sample`: 24 test, 4 đỏ, đều là ảnh `SampleScreen_ready_light`, `_ready_dark`, `_ready_small`, `_ad-loading_light`; `SampleScreen_disabled_light` qua. `:app` (staging): 84 test, 7 đỏ: ảnh `AdGalleryScreen_default_light`, `_default_dark`, `_default_small`, `_inlist_light`, `_inlist_small`, `_collapsible-collapsed_light` và `AdGalleryScreenTest.inList_insertsAdsAfterEveryNItems` (đo chiều cao dòng quảng cáo, `AdGalleryScreenTest.kt:78`). `NetworkLostScreen_*`, `AdGalleryScreen_collapsible-expanded_*`, ảnh `LoadingScreen_*` qua: không vẽ native nhỏ. Mọi test và ảnh đỏ đã có trong mục 3.2 (thêm `AdGalleryScreenTest.kt` sau lần chạy này). Worktree tạm đã xóa.
 
 ## 5. Chấm rủi ro
 
@@ -253,7 +264,7 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
    - Đề xuất của AI: theo thiết kế đã duyệt (nhãn luôn thấy, không đè, cùng chỗ với AdsKit `adskit_native_small.xml` nếu dev xác nhận); nếu luật đúng thì T-035 vẽ lại trước khi chạy task này.
 7. **Đăng ký khe native vào kế hoạch nạp sẵn (HD-02, S-22, T-021 câu 1).** T-021 ghi "T-027 đăng ký khe native vào kế hoạch"; ticket không nêu.
    - Đề xuất của AI: không làm ở task này (khe nạp khi lên màn như hôm nay, khung chờ lúc chờ lượt đầu); nạp sẵn native đi với pool ở T-028, vì `AdPreloader.kt` vừa đổi ở T-037, T-038.
-8. **Chạy thử:** ghi ở mục 4.1. Chưa chạy `scripts/check.sh` đầy đủ và chưa thử `VideoOptions` trên Robolectric (E là 1); người duyệt muốn chạy thêm thì ghi ở mục 9.
+8. **Chạy thử:** đã chạy thử L-089 (mục 4.1), mọi test đỏ đã vào mục 3.2. Chưa chạy `scripts/check.sh` đầy đủ và chưa thử `VideoOptions` trên Robolectric (E là 1); người duyệt muốn chạy thêm thì ghi ở mục 9.
 9. Plan chưa qua rà soát độc lập (bước 6 của mục 4, `auto-run.md`); phiên chính giao sau.
 
 ## 9. Quyết định duyệt
