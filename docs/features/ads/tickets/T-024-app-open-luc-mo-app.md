@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-13]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-020, T-021, T-022, T-023]
 sprint:
-plan:
+plan: features/ads/plans/T-024-app-open-luc-mo-app.md
 created: 2026-10-23
 ---
 
