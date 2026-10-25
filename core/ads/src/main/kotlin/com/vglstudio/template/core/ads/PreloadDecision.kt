@@ -10,6 +10,8 @@ internal enum class PreloadDecision {
     IGNORE_SDK_NOT_STARTED,
     IGNORE_CONSENT_DENIED,
     IGNORE_NEVER_REQUESTED,
+
+    /** S-25: a native refill while a plan, or a refill, runs. A whole-plan preload is held instead (S-23). */
     IGNORE_RUNNING,
 }
 
@@ -25,7 +27,10 @@ internal data class PreloadGate(
     val consentDenied: Boolean,
 )
 
-/** S-21, S-23, in this order: SDK not started, consent denied, never requested, running, then HOLD or RUN. */
+/**
+ * S-21, S-23, in this order: SDK not started, consent denied, never requested, running, then HOLD or RUN. While a
+ * run goes on, a whole-plan preload is held so it never overlaps (S-23), and a native refill is ignored (S-25).
+ */
 internal fun decidePreload(
     reason: PreloadReason,
     gate: PreloadGate,
@@ -35,7 +40,7 @@ internal fun decidePreload(
     !gate.sdkStarted -> PreloadDecision.IGNORE_SDK_NOT_STARTED
     gate.consentDenied -> PreloadDecision.IGNORE_CONSENT_DENIED
     !everRequested && reason != PreloadReason.SDK_READY -> PreloadDecision.IGNORE_NEVER_REQUESTED
-    running -> PreloadDecision.IGNORE_RUNNING
+    running -> if (reason == PreloadReason.NATIVE_REFILL) PreloadDecision.IGNORE_RUNNING else PreloadDecision.HOLD
     !gate.sdkReady || !gate.mayRequest -> PreloadDecision.HOLD
     else -> PreloadDecision.RUN
 }

@@ -15,12 +15,20 @@ documents behind it, the mistakes that stopped or slowed earlier sessions:
   5. Two plans of the list that change the same file without depending on each other (L-045): a warning.
      Two plans that both create one file, dependent or not (L-054): a warning; one creates it, the other reuses it.
   6. A list that is a single dependency chain (L-045), and exceptions to test-first: warnings for people.
+  7. Order hints and files of other plans (L-078): a plan's "thứ tự" line in section 6 ("A trước B", "sau A",
+     "sau A, B", "nhóm ...: A, B, C", "A, rồi B") that the list contradicts is an error when the plan's own task is
+     one of the pair and the subject is clear; a pair about two other tasks or with an unclear subject is a warning.
+     Negation, options and conditions ("không", "chưa", "có thể", "hoặc", "thì") give no hint. The list may say
+     "Bỏ đề xuất thứ tự: A trước B" (then a warning). A plan that names a file another plan of the list creates,
+     without having it in its own section 3.2 and without depending on that plan: an error when it comes first,
+     a warning (what it misses if the other plan stops) when it comes after.
 RUN_CHECK_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
 import importlib.util
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -52,12 +60,15 @@ def chapter(text, number):
 def run_rows(text):
     """(ticket, plan path relative to docs/) of the table in section 1 of the run list, in order."""
     rows = []
+    in_table = False
     for line in chapter(text, 1).splitlines():
-        # The review table under "### Kiểm tra trước khi duyệt" also has a ticket in its second column.
-        if line.startswith("### "):
-            break
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 4 or not re.fullmatch(r"T-\d+", cells[1]):
+        if not line.lstrip().startswith("|"):
+            if rows:
+                break  # only the run table lists tasks; the pre-run review table below also names tickets
+            continue
+        in_table = in_table or cells[0] == "Thứ tự"
+        if not in_table or len(cells) < 4 or not re.fullmatch(r"T-\d+", cells[1]):
             continue
         path = re.search(r"`([^`]+\.md)`", cells[3])
         rows.append((cells[1], path.group(1) if path else ""))
@@ -120,13 +131,77 @@ def depends_closure(ticket, depends):
     return seen
 
 
+ORDER_ID = r"T-\d+"
+ORDER_LIST = rf"{ORDER_ID}(?:(?:\s*,\s*|\s+và\s+){ORDER_ID})*"
+# Words that may stand between the subject and "trước"/"sau": "T-002 chạy ngay sau T-001".
+ORDER_VERBS = r"(?:(?:chạy|làm|merge|nên|phải|cần|bắt buộc|ngay|đứng|được)\s+)*"
+# A negation, an option or a condition makes a clause no hint: "không nên chạy sau T-001", "chưa cần ...",
+# "có thể sau T-001 hoặc trước T-002", "trước hay sau ... đều được", "T-002 chạy sau T-001 thì ...".
+NOT_BINDING = re.compile(r"\b(?:không|chưa|có thể|hoặc|hay|đều được|tùy|tuỳ|nếu|thì)\b", re.IGNORECASE)
+
+
+def order_hints(ticket, plan_text):
+    """(first, second, binding) from the lines of section 6 that talk about the run order (L-078).
+
+    The reading is conservative. A pair is binding (a broken one is an error) only when the plan's own task is
+    one of the two and the sentence says so plainly; a pair about two other tasks, or a sentence whose subject is
+    unclear, is not binding (a broken one is a warning for people to read).
+    """
+    pairs = []
+    for line in chapter(plan_text, 6).splitlines():
+        if "thứ tự" not in line.lower():
+            continue
+        # Quoted text is history ("bản trước ghi ..."), not a hint.
+        line = re.sub(r'"[^"]*"|“[^”]*”', "", line)
+        for clause in re.split(r";|\.\s|\.$", line):
+            if NOT_BINDING.search(clause):
+                continue
+            found = []  # (first, second, subject is clear)
+            for match in re.finditer(rf"(?:({ORDER_LIST})\s+{ORDER_VERBS})?(?<!\w)(trước|sau)\s+(?:khi\s+)?({ORDER_LIST})",
+                                     clause, re.IGNORECASE):
+                subjects = re.findall(ORDER_ID, match.group(1) or "")
+                clear = bool(subjects)
+                if not subjects:
+                    # No subject next to the word: the plan's own task, unless another task stands before it.
+                    others = [t for t in re.findall(ORDER_ID, clause[:match.start()]) if t != ticket]
+                    subjects, clear = [ticket], not others
+                objects = re.findall(ORDER_ID, match.group(3))
+                for subject in subjects:
+                    for other in objects:
+                        before = match.group(2).lower() == "trước"
+                        found.append((subject, other, clear) if before else (other, subject, clear))
+            listed = []
+            if "nhóm" in clause.lower():
+                paren = re.search(rf"\(({ORDER_ID}(?:,\s*{ORDER_ID})+)\)", clause)
+                listed = re.findall(ORDER_ID, paren.group(1)) if paren else []
+            tail = clause.rsplit(":", 1)[-1].strip() if ":" in clause else ""
+            if re.fullmatch(rf"{ORDER_ID}(?:,\s*{ORDER_ID})+", tail):
+                listed = re.findall(ORDER_ID, tail)
+            found += [(a, b, True) for a, b in zip(listed, listed[1:])]
+            for match in re.finditer(rf"{ORDER_ID}(?:,?\s*rồi\s*{ORDER_ID})+", clause):
+                chain = re.findall(ORDER_ID, match.group(0))
+                found += [(a, b, True) for a, b in zip(chain, chain[1:])]
+            pairs += [(a, b, clear and ticket in (a, b)) for a, b, clear in found if a != b]
+    return pairs
+
+
+def repo_basenames():
+    """Base names of the files tracked by git; empty without a git repository."""
+    try:
+        out = subprocess.run(["git", "-C", str(ROOT), "ls-files"], capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [Path(line).name for line in out.splitlines()]
+
+
 def check(run_path):
     errors, warnings = [], []
     rows = run_rows(run_path.read_text())
     if not rows:
         return ["mục 1 không có dòng nào đúng mẫu (Thứ tự | Ticket | Feature | Plan | ...)."], []
+    run_text = run_path.read_text()
     in_list = [ticket for ticket, _ in rows]
-    depends, files_of, created_by = {}, {}, {}
+    depends, files_of, created_by, plan_texts, hints = {}, {}, {}, {}, {}
 
     for position, (ticket, plan_ref) in enumerate(rows):
         plan = DOCS / plan_ref
@@ -140,6 +215,9 @@ def check(run_path):
         plan_errors, _ = PLAN_CHECK.check(plan)
         for message in plan_errors:
             errors.append(f"{ticket}: plan-check: {message}")
+        plan_texts[ticket] = plan_text
+        for first, second, binding in order_hints(ticket, plan_text):
+            hints.setdefault((first, second), []).append((ticket, binding))
         files_of[ticket] = {path for op, path in PLAN_CHECK.file_list(plan_text) if not path.endswith("/")}
         for op, path in PLAN_CHECK.file_list(plan_text):
             if op == "create" and not path.endswith("/"):
@@ -163,6 +241,10 @@ def check(run_path):
             where = "đứng sau trong danh sách" if dependency in in_list else f"chưa merge ('{status}')"
             errors.append(f"{ticket}: phụ thuộc {dependency} {where}.")
 
+        scenarios = [s for s in ids(fields.get("scenarios")) if s.startswith("KB-")]
+        if not fields.get("spec") and not scenarios:
+            # A script or process ticket: its requirement is a lesson or an ADR, not a business spec.
+            continue
         spec_path = DOCS / fields.get("spec", "")
         if not fields.get("spec") or not spec_path.is_file():
             errors.append(f"{ticket}: không tìm thấy spec '{fields.get('spec')}'.")
@@ -174,7 +256,7 @@ def check(run_path):
 
         counts = criteria_per_scenario(spec_path.read_text())
         tests = test_rows(plan_text)
-        for scenario in [s for s in ids(fields.get("scenarios")) if s.startswith("KB-")]:
+        for scenario in scenarios:
             covering = [row for row in tests if re.search(rf"\b{scenario}\b", row)]
             if not covering:
                 errors.append(f"{ticket}: kịch bản {scenario} của ticket không có dòng nào ở mục 4 của plan.")
@@ -199,6 +281,43 @@ def check(run_path):
         if len(tickets) > 1:
             warnings.append(f"{' và '.join(tickets)} cùng ghi Tạo {path}: chỉ một plan tạo file này, plan sau ghi Sửa "
                             "hoặc dùng lại, và hai plan phải thống nhất nội dung trước khi duyệt (L-054).")
+    position_of = {t: i for i, t in enumerate(in_list)}
+    for (first, second), found in sorted(hints.items()):
+        if first not in position_of or second not in position_of or position_of[first] < position_of[second]:
+            continue
+        proposers = sorted({plan for plan, _ in found})
+        dropped = re.search(rf"Bỏ đề xuất thứ tự:\s*{first} trước {second}", run_text)
+        if dropped:
+            warnings.append(f"danh sách bỏ đề xuất thứ tự {first} trước {second} của plan {', '.join(proposers)} "
+                            "(L-078); xem lý do ghi kèm trong danh sách.")
+        elif not any(binding for _, binding in found):
+            warnings.append(f"{second} đứng trước {first}, mà plan {', '.join(proposers)} (mục 6) có câu đọc ra {first} "
+                            f"trước {second}; câu không nói về chính plan đó hoặc chủ ngữ chưa rõ, nên chỉ chú ý (L-078). "
+                            "Đọc lại câu đó, đổi thứ tự nếu đúng là đề xuất.")
+        else:
+            errors.append(f"{second} đứng trước {first}, nhưng plan {', '.join(proposers)} (mục 6) đề xuất {first} trước "
+                          f"{second} (L-078). Đổi thứ tự, hoặc ghi \"Bỏ đề xuất thứ tự: {first} trước {second}\" kèm lý do "
+                          "vào mục Lý do của thứ tự chạy.")
+    # A plan that names a file another plan creates, without owning or depending on it (L-078).
+    names = repo_basenames()
+    created_names = [Path(path).name for path in created_by]
+    for path, creators in sorted(created_by.items()):
+        base = Path(path).name
+        unique = base not in names and created_names.count(base) == 1
+        for creator in creators:
+            for user in listed:
+                if user == creator or path in files_of[user] or creator in depends_closure(user, depends):
+                    continue
+                named = set(re.findall(r"`([^`]+)`", chapter(plan_texts[user], 3) + chapter(plan_texts[user], 4)))
+                mention = path if path in named else (base if unique and base in named else None)
+                if mention is None:
+                    continue
+                if position_of[user] < position_of[creator]:
+                    errors.append(f"{user} nhắc `{mention}` mà {creator} (đứng sau) tạo (L-078).")
+                else:
+                    warnings.append(f"{user} nhắc `{mention}` mà {creator} tạo; nếu {creator} dừng thì {user} thiếu "
+                                    f"`{mention}`. Cân nhắc thêm {creator} vào depends_on của {user}, hoặc ghi phương án "
+                                    "ở mục 3.4 của plan (L-078).")
     independent = [t for t in in_list if not set(depends.get(t, [])) & set(in_list)]
     if len(in_list) > 1 and len(independent) == 1:
         warnings.append("danh sách chỉ có một chuỗi phụ thuộc: một task dừng thì các task sau bị bỏ qua (L-045).")
