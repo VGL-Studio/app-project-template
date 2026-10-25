@@ -34,6 +34,8 @@ Các quy tắc này vẫn giữ dưới bộ PARTNER (ADR-0026, mục 10). Khôn
 
 Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Khóa bật tắt ở mục 10 của tài liệu đó.
 
+Tùy chọn yêu cầu native (O-06: video tắt tiếng, không điều khiển riêng, một ảnh, media ngang; toàn màn hình nhận mọi tỷ lệ) chỉ dựng ở `NativeRequestOptions.kt`; mọi đường gửi native gọi `nativeRequestOptions(size)` hay `fullScreenNativeRequestOptions()`. `NativeRequestOptionsTest` đỏ khi một file khác dựng `NativeAdOptions`.
+
 | Định dạng | Dùng ở đâu | Khóa bật | Có trong `:core:ads` |
 | --- | --- | --- | --- |
 | App open lúc mở app | Màn loading, lần đầu sau khi cài và lần thường | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` | Có (T-024): vị trí toàn app `open_app` (app open) và `open_app_inter` (inter khi `open_ad_type = inter`), không có `is_show_<mã vị trí>`; màn loading gọi `StartupAds`, feature không gọi |
@@ -42,9 +44,10 @@ Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Kh�
 | Native toàn màn hình sau inter (combo) | Ngay sau inter, đếm ngược 3 giây | `is_show_native_after_inter` | Native toàn màn hình đứng riêng có (đợt 2, `rememberShowFullScreenAd`); combo ở đợt 3 |
 | Thanh đáy: native nhỏ 80 dp và native thu gọn 250 dp, hoặc banner | Đáy màn hình nội dung, mỗi màn một vị trí | `is_show_<mã vị trí>`, `is_show_native_bottom`, `is_show_native_collap`, `time_expand_collap_ad` | Native small (`NativeAdSlot`) và native thu gọn (`CollapsibleNativeAdSlot`) có ở cỡ đợt 2; 80 dp, 250 dp và làm mới ở đợt 3 |
 | Banner cố định, banner thu gọn | Đáy màn hình | `is_show_<mã vị trí>` | Có (T-029, `AdSlot`): banner cố định làm mới theo đơn vị, banner thu gọn nạp lại mỗi 30 giây |
-| Native medium | Trong nội dung | `is_show_<mã vị trí>` | Có (đợt 2), kích thước mới ở đợt 3 |
+| Native medium | Trong nội dung | `is_show_<mã vị trí>` | Có (đợt 2), kích thước mới ở đợt 3 (T-028) |
 | Native trong tập hợp (ô lưới, danh sách, trang của pager) | Mỗi ô một quảng cáo riêng | `is_show_<mã vị trí>` | Danh sách và lưới có (đợt 2, `itemsWithInListAds`); pager ở đợt 3 |
 | Native ở một bước của luồng (giới thiệu, kết quả, hướng dẫn) | Bước do spec của app chọn | `is_show_<mã vị trí>` (luồng giới thiệu: `is_show_native_onboarding`) | (đợt 3) |
+| Native đầy đủ (`NativeAdSize.FULL`) | Chưa có vị trí: MC-02 là danh sách đóng, muốn có thì sửa MC-02 trước | | Có composable `NativeAdCard(assets, NativeAdSize.FULL)` và khung chờ (T-027), chưa có `AdFormat` nào vẽ nó |
 | Rewarded với hộp thoại (hành động có điều kiện) | Trước một hành động người dùng chọn: nhận vật phẩm, xuất file, mở khóa | `is_show_<mã vị trí>` (ví dụ `is_show_rw_get_item`) | (đợt 3) |
 
 ## 4. Native: kích thước và hình thức
@@ -53,19 +56,22 @@ Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Kh�
 - Màu, chữ, bo góc lấy từ token của `:core:designsystem` (ADR-0008), không lấy màu của AdsKit. Màu chữ native theo nền của vùng quảng cáo, không đổi theo chế độ tối của máy khi nền không đổi.
 - Thiết kế native trên Figma đang theo cỡ cũ của đợt 2 (`docs/features/ads/design/`); vẽ lại theo cỡ AdsKit ở T-035. Tới lúc đó, khi thiết kế và `ads-business-rules.md` khác nhau về kích thước, theo `ads-business-rules.md`.
 - Mỗi lượt hiện một quảng cáo riêng; rời màn thì hủy (luật O-01, O-03).
-- Hiện có (đợt 2): cỡ small và medium ở bảng dưới, tới khi T-035 vẽ lại và ticket đợt 3 đổi code.
+- Hiện có: small theo cỡ AdsKit (T-027), medium giữ cỡ đợt 2 tới T-028; native đầy đủ chưa có vị trí.
 
-Small và medium trong `:core:ads` (plan T-010, số liệu từ `docs/features/ads/design/`):
+Small, medium và đầy đủ trong `:core:ads` (plan T-010, T-027, số liệu từ `docs/features/ads/design/` và mục 5.7 của luật):
 
-| Phần | Small | Medium |
-| --- | --- | --- |
-| Khung | cao 72 dp, rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 386 dp, như small |
-| Chỗ cho AdChoices | lề phải 24 dp, chữ và CTA không đè góc trên phải | lề trên 24 dp |
-| Icon | 40 dp, bo 8 dp | 40 dp, trong hàng đầu |
-| Media | không có | rộng hết, cao 196 dp, `MediaView` giữ tỷ lệ |
-| CTA | cao 36 dp, nền `tertiaryContainer`, bo 8 dp (nút chính của app: 52 dp, `primary`, bo 16 dp) | rộng hết, cao 36 dp |
+| Phần | Small | Medium | Đầy đủ (`FULL`) |
+| --- | --- | --- | --- |
+| Khung | cao 80 dp (`NativeAdDimens.BottomSlotHeight`, cùng hằng số cho thẻ, khung chờ và chỗ giữ), rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 386 dp, như small | cao cố định 418 dp (mô tả luôn 2 dòng), như small |
+| Chỗ cho AdChoices | lề phải 24 dp, chữ và CTA không đè góc trên phải | lề trên 24 dp | lề trên 24 dp |
+| Icon | 36 dp, bo 8 dp | 40 dp, trong hàng đầu | 40 dp, trong hàng đầu |
+| Chữ | tiêu đề 14 sp, mô tả 12 sp, nhãn "Ad" 10 sp đầu dòng mô tả | tiêu đề 14 sp | tiêu đề 14 sp |
+| Media | không có | rộng hết, cao 196 dp, `MediaView` giữ tỷ lệ | rộng hết, cao 200 dp |
+| CTA | cao 34 dp, chữ 13 sp, nền `tertiaryContainer`, bo 8 dp (nút chính của app: 52 dp, `primary`, bo 16 dp) | rộng hết, cao 36 dp | rộng hết, cao 36 dp |
+| Hàng sao | không có | không có (T-028) | sao đặc làm tròn theo điểm, tối đa 5; không hiện khi không có điểm lớn hơn 0 (O-08) |
 
 - Màn hình dùng `NativeAdSlot(placement)`: giữ chỗ bằng khối chờ khi tải, thu chỗ (cao 0) khi không có quảng cáo sau 10 giây, hủy quảng cáo khi rời màn hình. Vị trí nằm cạnh nút của app thì truyền `keepSpaceWhenEmpty = true` để giữ khoảng trống đúng chiều cao, nút không dịch.
+- `onAdAvailabilityChange: (Boolean) -> Unit` của `NativeAdSlot` báo app khe có quảng cáo hay không (D-02): `true` khi có quảng cáo, `false` khi nạp lỗi, không gọi khi đang tải; và `false` khi vị trí tắt hay rút đồng ý sau khi đã báo `true`. App dùng nó để chừa chỗ dưới nội dung (D-04, T-030).
 - AdChoices do SDK vẽ ở góc trên phải; app không tự vẽ.
 
 ## 5. Thêm một vị trí quảng cáo
