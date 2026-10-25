@@ -180,12 +180,13 @@ object AdsSettings {
 
     /**
      * Every key for [placements]: the keys of section 10.1 above in their order, then for each placement its switch
-     * and its parameters, then one `ads_interval_<name>` per interval group of its own. Two keys with the same name
-     * (for example one group declared with two defaults) throw [IllegalArgumentException].
+     * and its parameters, then one `ads_interval_<name>` per interval group of its own. An app-wide placement has no
+     * switch of its own: the keys of section 10.1 turn it on (MC-09, plan T-024). Two keys with the same name (for
+     * example one group declared with two defaults) throw [IllegalArgumentException].
      */
     internal fun keysFor(placements: List<AdPlacementDeclaration>): List<RemoteKey<*>> {
         val keys = GLOBAL_KEYS +
-            placements.flatMap { listOfNotNull(placementEnabled(it), nativeEvery(it)) } +
+            placements.flatMap { listOfNotNull(if (it.appWide) null else placementEnabled(it), nativeEvery(it)) } +
             placements.map { it.intervalGroup }.filter { it != AdIntervalGroup.DEFAULT }.distinct().map(::interval)
         val duplicates = keys.groupBy { it.name }.filterValues { it.size > 1 }.keys
         require(duplicates.isEmpty()) { "Remote Config keys declared twice: $duplicates" }
