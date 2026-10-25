@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-20]
 owner: Nhật
-status: backlog
+status: planned
 risk: medium
 size: S
 depends_on: [T-027, T-028]
 sprint:
-plan:
+plan: features/ads/plans/T-032-native-gioi-thieu.md
 created: 2026-10-23
 ---
 
