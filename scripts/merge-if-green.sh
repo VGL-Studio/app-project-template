@@ -7,7 +7,8 @@
 #              --update:  when the branch is behind main, have GitHub update it (merge main into the branch),
 #                         wait for CI on the new commit, then merge; also waits for checks still running.
 #                         Waits at most MERGE_UPDATE_TIMEOUT_SECONDS (default 1800).
-# Exit codes:  0 merged (with --dry-run: ready to merge)
+# Exit codes:  0 merged (with --dry-run: ready to merge); also "GitHub answered the merge with an error but the
+#                commit is on main" and "the PR is already on main" (L-080): both are reported, nothing is left to merge
 #              1 refused (a condition is not met, see the message)
 #              2 checks still running (with --update: still running when the wait ran out), call again later
 #              3 branch is behind main: update it, wait for CI, then call again (or call with --update)
@@ -37,6 +38,19 @@ RECENT_MINUTES="${MERGE_RECENT_MINUTES:-10}"
 die()  { echo "TỪ CHỐI: $*" >&2; exit 1; }
 # A condition not met yet: recorded for the main loop, which waits (--update) or stops with exit 2.
 pending() { RESULT="pending"; MESSAGE="$*"; }
+
+# The squash commit of this very PR on main: first line "<title> (#<PR>)" and the file tree of the PR head (L-080).
+# GitHub once answered a merge with an error although the commit reached main. Both reads are best effort: a read
+# that fails counts as "not seen", and the script goes on as before. Prints the commit sha, or nothing.
+merged_on_main() {
+  local tree
+  tree="$(gh api "repos/$REPO/git/commits/$HEAD_SHA" --jq .tree.sha 2>/dev/null || true)"
+  [[ -n "$tree" ]] || return 0
+  { gh api "repos/$REPO/commits?sha=$BASE_BRANCH&per_page=30" 2>/dev/null || true; } \
+    | jq -r --arg title "$TITLE (#$PR)" --arg tree "$tree" \
+        '[.[]? | select((.commit.message | split("\n")[0]) == $title and .commit.tree.sha == $tree)][0].sha // empty' 2>/dev/null \
+    || true
+}
 
 # Strict argument check: any unknown argument (including a mistyped --dry-run) is refused,
 # so a real merge never happens when the caller only wanted a dry run.
@@ -99,7 +113,7 @@ check_one() {
 evaluate() {
   RESULT="ready"
   MESSAGE=""
-  local pr_json state draft base broken broken_json refuse_broken culprit revert_check run_branches run_branch run_id run_status behind_by failed c
+  local pr_json state draft base already broken broken_json refuse_broken culprit revert_check run_branches run_branch run_id run_status behind_by failed c
 
   pr_json="$(gh api "repos/$REPO/pulls/$PR")"
   state="$(jq -r .state <<<"$pr_json")"
@@ -110,6 +124,13 @@ evaluate() {
   TITLE="$(jq -r .title <<<"$pr_json")"
 
   [[ "$state" == "open" ]] || die "PR #$PR không ở trạng thái mở ($state)."
+  # Already on main (an earlier merge that GitHub answered with an error): report it, never merge twice. This comes
+  # before every other condition, since none of them matters for a PR that has nothing left to merge.
+  already="$(merged_on_main)"
+  if [[ -n "$already" ]]; then
+    echo "ĐÃ MERGE TRƯỚC ĐÓ: PR #$PR đã nằm trên nhánh chính ở commit ${already:0:7} (GitHub chưa đóng PR). Không merge lần hai; đóng PR trên web."
+    exit 0
+  fi
   [[ "$draft" == "false" ]] || die "PR #$PR đang là bản nháp."
   # A PR that an auto-run session prepared for a person (docs/auto-run.md, section 3, "Khi dừng") carries the
   # needs-human label. Only a person removes it, after reviewing the PR; until then nobody merges it.
@@ -261,12 +282,34 @@ fi
 gh api -X PUT "repos/$REPO/pulls/$PR/merge" \
   -f merge_method=squash \
   -f sha="$HEAD_SHA" \
-  -f commit_title="$TITLE (#$PR)" >/dev/null \
-  || die "GitHub từ chối merge PR #$PR."
+  -f commit_title="$TITLE (#$PR)" >/dev/null && merge_failed="no" || merge_failed="yes"
+
+if [[ "$merge_failed" == "yes" ]]; then
+  # The answer was an error: look for the commit on main before refusing (GitHub may write it a few seconds later).
+  found=""
+  for attempt in 1 2 3; do
+    found="$(merged_on_main)"
+    [[ -z "$found" && "$attempt" -lt 3 ]] || break
+    sleep "${MERGE_RECHECK_SECONDS:-10}"
+  done
+  [[ -n "$found" ]] || die "GitHub từ chối merge PR #$PR."
+fi
 
 # Delete the merged branch if it belongs to an auto-run session.
 if [[ "$HEAD_REF" == claude/* ]]; then
   gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null 2>&1 || true
+fi
+
+if [[ "$merge_failed" == "yes" ]]; then
+  # GitHub may not send the push event for such a commit, so main-guard is started by hand (L-080).
+  since="$(date -u +%Y-%m-%dT%H:%M:00Z)"
+  echo "ĐÃ MERGE (GitHub báo lỗi): PR #$PR ($TITLE) tại commit ${found:0:7}; GitHub báo lỗi nhưng commit đã vào nhánh chính (L-080)."
+  if gh api -X POST "repos/$REPO/actions/workflows/main-guard.yml/dispatches" -f ref="$BASE_BRANCH" >/dev/null 2>&1; then
+    echo "Đã yêu cầu chạy main-guard; chờ: scripts/wait-run.sh --workflow main-guard.yml --since $since."
+  else
+    echo "CHÚ Ý: không yêu cầu được main-guard; chạy tay trên tab Actions." >&2
+  fi
+  exit 0
 fi
 
 echo "ĐÃ MERGE: PR #$PR ($TITLE) tại commit ${HEAD_SHA:0:7}."

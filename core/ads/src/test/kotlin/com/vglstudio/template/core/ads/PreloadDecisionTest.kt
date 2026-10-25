@@ -47,7 +47,7 @@ class PreloadDecisionTest {
                 PreloadDecision.IGNORE_NEVER_REQUESTED,
             ),
             Row("first preload", PreloadReason.SDK_READY, open, false, false, PreloadDecision.RUN),
-            Row("running", PreloadReason.NETWORK_BACK, open, true, true, PreloadDecision.IGNORE_RUNNING),
+            Row("running", PreloadReason.NETWORK_BACK, open, true, true, PreloadDecision.HOLD),
             Row(
                 "SDK not ready",
                 PreloadReason.NETWORK_BACK,
@@ -68,6 +68,39 @@ class PreloadDecisionTest {
         rows.forEach { row ->
             assertEquals(row.name, row.expected, decidePreload(row.reason, row.gate, row.everRequested, row.running))
         }
+    }
+
+    @Test
+    fun running_holdsEveryWholePlanReason_ignoresNativeRefill() {
+        PreloadReason.entries.forEach { reason ->
+            val expected = if (reason == PreloadReason.NATIVE_REFILL) {
+                PreloadDecision.IGNORE_RUNNING
+            } else {
+                PreloadDecision.HOLD
+            }
+            assertEquals(reason.name, expected, decidePreload(reason, open, everRequested = true, running = true))
+        }
+    }
+
+    @Test
+    fun running_losesToSdkConsentAndNeverRequested() {
+        assertEquals(
+            PreloadDecision.IGNORE_SDK_NOT_STARTED,
+            decidePreload(PreloadReason.NETWORK_BACK, open.copy(sdkStarted = false), true, running = true),
+        )
+        assertEquals(
+            PreloadDecision.IGNORE_CONSENT_DENIED,
+            decidePreload(PreloadReason.NETWORK_BACK, open.copy(consentDenied = true), true, running = true),
+        )
+        assertEquals(
+            PreloadDecision.IGNORE_NEVER_REQUESTED,
+            decidePreload(PreloadReason.PLACEMENT_ENABLED, open, everRequested = false, running = true),
+        )
+        // Control (L-055): a closed gate while running is held like any other.
+        assertEquals(
+            PreloadDecision.HOLD,
+            decidePreload(PreloadReason.NETWORK_BACK, open.copy(mayRequest = false), true, running = true),
+        )
     }
 
     @Test
