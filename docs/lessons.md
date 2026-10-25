@@ -407,6 +407,24 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (mọi đường gửi có test, hoặc một hàm thuần dùng chung); nhánh `claude/ap-dung-l-071-l-072`.
 
+### L-075. Lỗi Java, Gradle wrapper hay SDK của môi trường cloud chỉ lộ sau 15 phút `check.sh`, hoặc không lộ ở kiểm tra trước phiên
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-049, L-056, L-069 của app, issue #130)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `preflight.yml` và `start-run.yml` chạy trên runner GitHub, không có biến môi trường (`JAVA_TOOL_OPTIONS`, proxy) và công cụ của môi trường cloud. Ở app, một lỗi đọc phiên bản Java chỉ lộ khi phiên cloud đã chạy `check.sh`, và cả phiên kết thúc mà không task nào chạy. `cloud-env-check.sh` chỉ kiểm phiên bản setup script. Thêm nữa: script in hai mảng có thể rỗng bằng `"${a[@]}"`; bash 3.2 của macOS coi mảng rỗng là biến chưa đặt khi có `set -u`, nên script dừng trước khi in thông báo, và test của script đỏ trên máy dev (CI dùng bash 5 nên không thấy).
+- **Cải tiến:** `cloud-env-check.sh` kiểm thêm, trong vài giây đầu phiên: `java-check.sh`, `./gradlew --version` (giới hạn 300 giây), SDK có `platforms;android-<compileSdk>` (không đọc được `compileSdk` thì báo lỗi, không bỏ qua bước SDK). Thông báo tách lỗi setup (dán lại setup script) và lỗi công cụ (xem biến môi trường). Mảng có thể rỗng viết `${a[@]+"${a[@]}"}`. Có test, gồm Java giả có dòng `Picked up JAVA_TOOL_OPTIONS`, Gradle wrapper treo, SDK thiếu nền tảng; bộ test qua trên bash 3.2.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-kiem-tra-dau-phien`
+
+### L-076. `start-run.yml` không biết commit đầu nhánh chính đã qua `main-guard` chưa
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-055 của app, issue #130)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** ở app, API merge trả lỗi dù commit đã vào nhánh chính, và GitHub không phát sự kiện push: không lần chạy `main-guard` nào cho commit có code đó. `start-run.yml` chỉ xem issue `main-broken`, nên vẫn khởi động phiên; phiên mất khoảng 15 phút `check.sh` mới biết nhánh chính có xanh không. Kiểm tra đầu phiên "lần chạy gần nhất của `main-guard.yml` qua" cũng không biết lần chạy đó thuộc commit nào.
+- **Cải tiến:** `scripts/main-guard-status.sh` đi ngược lịch sử first-parent, bỏ commit chỉ đổi tài liệu, và báo `XANH` (0), `ĐỎ` (1, chỉ khi có issue `main-broken` đang mở), `CHỜ` (2, kèm giờ tạo lần chạy cho `wait-run.sh --since`), `CHƯA KIỂM` (3: có code mà chưa có lần chạy, lần chạy bị hủy, lần chạy thất bại mà không có issue `main-broken` (lỗi hạ tầng), commit merge hay không rõ file), `LỖI` (4). `start-run.yml` gọi nó trước khi kích hoạt routine (`checks: read`); `main-guard.yml` chạy được bằng tay (`workflow_dispatch`, chỉ trên `main`); kiểm tra đầu phiên của `auto-run.md` dùng script này. Có test.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-kiem-tra-dau-phien`
+
 ### L-077. Phiên dừng task vì vài dòng nối chỗ gọi, và để lại cho người điểm nên sửa có lỗi thật
 
 - **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-058, L-059 của app; ADR-1003 của app; issue #132)
@@ -424,3 +442,48 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Cải tiến:** `run-check.py` đọc dòng thứ tự ở mục 6 ("A trước B", "sau A", "nhóm ...: A, B", "A, rồi B"; bỏ qua chữ trong ngoặc kép, "trước hay sau", câu điều kiện "... thì ...", câu phủ định "không cần"), lỗi khi danh sách xếp ngược trừ khi có dòng "Bỏ đề xuất thứ tự: A trước B"; báo plan nhắc file mà plan khác tạo (lỗi khi đứng trước, chú ý khi đứng sau); chấp nhận ticket không spec và không kịch bản; chỉ đọc bảng của danh sách chạy, không đọc bảng rà soát. `plan-check.py` quy tắc 2: lỗi với plan chưa duyệt, chú ý với plan `approved`. Có test.
 - **Trạng thái:** accepted
 - **Áp dụng:** nhánh `claude/from-camera-pose-pham-vi-run-check`
+
+### L-079. Lỗi hạ tầng đã biết vẫn làm phiên dừng hay tốn vòng sửa, vì không có bảng tra lỗi
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-057, L-050 của app, issue #129)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** ở app, mỗi lỗi hạ tầng đã gặp (hết hạn mức Actions, PR xung đột không có CI, API merge báo lỗi mà đã merge) được sửa riêng bằng một mã thoát hay một đoạn văn; phiên không có một chỗ để tra "thông báo này nghĩa là gì, làm gì tiếp". Một lỗi mới cùng kiểu: `ui-test` đỏ hai lần liên tiếp vì tải file R2 hết giờ chờ 15 giây trên runner (màn tải dừng ở lỗi, test chờ 60 giây rồi hết giờ), không liên quan code của task; quy tắc "chạy lại một lần" biến nó thành lỗi thật và tốn vòng sửa.
+- **Cải tiến:** `docs/ops/failure-playbook.md`: bảng 10 dòng (mẫu thông báo kiểu `grep -E`, nơi thấy, loại, việc phải làm, nguồn). `scripts/failure-kind.sh --playbook <log>` đọc chính bảng đó và in dòng đầu khớp. `auto-run.md` bước 8: CI đỏ thì tra bảng trước khi sửa code; các loại `chay-lai`, `lich-thu-lai`, `cho`, `gop-nhanh`, `kiem-da-merge` không tính vào 3 lần sửa. Mục 6: bài học môi trường có thông báo dò được thì thêm một dòng cùng tệp log thật trong `scripts/tests/playbook/`. Test cho mọi dòng và cho cách đọc bảng. Ở app: RUN-20261024-01 chạy hết 5 task không dừng.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-tu-xu-ly-loi`
+
+### L-080. GitHub merge xong nhưng trả lỗi, PR vẫn mở và không có sự kiện đẩy
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-054 của app, issue #129)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** ở app, `merge-if-green.sh` nhận `unexpected end of JSON input` từ API merge và báo `TỪ CHỐI`, nhưng commit squash đã nằm trên nhánh chính. PR vẫn `OPEN`, không workflow `push` nào chạy (`main-guard`, `status-page`). Gọi lại script sẽ tạo commit trùng; phiên tự chạy sẽ tưởng merge bị từ chối và dừng task.
+- **Cải tiến:** `merge-if-green.sh` tìm commit squash của PR trên nhánh chính (dòng đầu `<tiêu đề> (#<số>)` và cây file của commit đầu PR): có ngay từ đầu thì in `ĐÃ MERGE TRƯỚC ĐÓ`, không merge lần hai; API merge báo lỗi mà tìm thấy commit (đọc lại tối đa 3 lần) thì in `ĐÃ MERGE (GitHub báo lỗi)`, xóa nhánh và yêu cầu chạy `main-guard`; cả hai thoát 0. Không thấy thì vẫn `TỪ CHỐI`. Kiểm "đã có trên nhánh chính" chạy ngay sau kiểm trạng thái mở, trước các kiểm tra bản nháp, `needs-human` và `main-broken`, vì nó chỉ đọc và báo, không ghi gì lên GitHub; các kiểm tra có sẵn giữ nguyên thứ tự và vẫn chạy hết trước lời gọi merge (L-058). `fake-gh` trả lỗi cho lần ghi trong `fail_writes` và 404 cho đường dẫn không có trong fixture. Dòng PB-04 của bảng tra lỗi. Có test.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-tu-xu-ly-loi`
+
+### L-081. Nhánh task chỉ nằm trên máy cloud khi lệnh đẩy bị từ chối hay mạng lỗi
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-051 của app, issue #129)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** ở app, lệnh `git push` của một phiên con bị bộ phân loại lệnh từ chối sau khi bước 3 đến 5 đã xong (4 commit, `check.sh` qua); công việc chỉ nằm trên máy cloud tạm thời. Phần "phiên con chỉ commit, phiên chính đẩy" đã có ở mẫu qua L-070 (đã áp dụng và kiểm chứng). Bài này giữ phần L-070 chưa có: lần từ chối lộ ra muộn, khi đã tốn công viết code; lỗi mạng khi đẩy không được thử lại; phiên chính cũng bị từ chối thì không có cách giữ lại commit ngoài worktree.
+- **Cải tiến:** chỉ phần thêm vào L-070. `scripts/save-branch.sh <nhánh>`: đẩy nhánh `claude/*`, thử lại lỗi mạng (60, 120, 240 giây), không thử lại lần từ chối; không đẩy được thì giữ các commit ngoài nhánh chính thành bundle ở `$HOME/rescue/`, in đoạn "Nhánh chưa đẩy" kèm lệnh lấy lại, mã 3; `--bundle-only` khi môi trường chặn chính lời gọi lệnh. `auto-run.md`: bước 1 đẩy nhánh ngay khi tạo; các lần đẩy có sẵn (bước 3, phiên chính đẩy thay phiên con theo L-070) dùng script; mục mới "Khi không đẩy được" sau bước 7, cho lúc chính phiên chính bị từ chối; dòng ở mục 4 khi hai task liên tiếp không đẩy được; mục báo cáo "Nhánh chưa đẩy". Test với bare repo và hook `pre-receive`.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-tu-xu-ly-loi`
+
+### L-082. Vòng chờ bằng `pgrep -f` không bao giờ thoát; test đẩy lên bare repo đi tới URL giả
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-067, L-068 của app, issue #129)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** ở app, vòng `while pgrep -f "wait-run.sh --workflow" ...; do sleep; done` không thoát vì `pgrep -f` thấy dòng lệnh của chính vòng đó; `pkill -f "pgrep -f"` để dọn thì giết luôn shell của phiên (thoát 144). Mất khoảng 25 phút. Riêng test: đầu `scripts/tests/run.sh` đặt `GIT_CONFIG_*` trỏ mọi `origin` tới `https://github.com/o/r.git`, nên khối test đẩy lên bare repo cục bộ lại đẩy tới URL giả (403).
+- **Cải tiến:** `auto-run.md` bước 9: chờ `main-guard` chỉ bằng `wait-run.sh` chạy nền, đọc kết quả từ tệp đầu ra, không dùng `pgrep -f`, `pkill -f`. Chú thích đầu `scripts/tests/run.sh`: khối đẩy lên bare repo phải tắt ba biến rồi đặt lại (như khối `save-branch`).
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-tu-xu-ly-loi`
+
+### L-083. Thư viện mới qua `check.sh` và CI nhưng bản release (R8) hỏng, chỉ lộ khi phát staging
+
+- **Ngày, nguồn:** 2026-10-24, app camera-pose (bài học L-053 của app, issue #131)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** ở app, một task thêm `play-review-ktx`. `check.sh`, `pr-check` và `main-guard` chỉ build bản debug, nên R8 (`:app:minifyStagingReleaseWithR8`) hỏng vì `Missing class com.google.android.gms.common.annotation.NoNullnessRewrite` chỉ lộ ở `device-session` cuối phiên, sau khi PR đã merge. Bản staging không phát được cho tới khi có PR sửa luật R8.
+- **Cải tiến:** `pr-check.yml` có bộ lọc `release` (`gradle/libs.versions.toml`, file `*.gradle.kts`, `build-logic/**`, `gradle.properties`, `proguard-rules.pro`, `consumer-rules.pro`, chính workflow); khi bộ lọc khớp, `build-and-test` chạy thêm `./gradlew :app:assembleStagingRelease` (không cần bí mật: file Firebase giả, APK không ký), bình luận lỗi nêu rõ bản release thất bại. `docs/CLAUDE.md`, mục Khi viết plan: plan thêm thư viện hay module chạy thử `:app:assembleStagingRelease` ở mục 4.1 và ghi luật R8 vào mục 3.2. `auto-run.md` bước 8: bước release đỏ là lỗi thật của task. Ở app: PR thử #93 đỏ đúng lỗi R8 đã gặp.
+- **Trạng thái:** accepted
+- **Áp dụng:** nhánh `claude/from-camera-pose-pr-check-release`
