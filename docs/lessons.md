@@ -272,7 +272,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên con của T-007 đẩy commit test lúc 08:11 khi `main-guard` của lần merge T-018 chưa xong (08:11:18), trái auto-run.md bước 9. Từ T-008, phiên chính tạo tệp cổng `gate-T-NNN` khi `main-guard` xanh và không có `main-broken`; phiên con làm cục bộ và chỉ đẩy khi có tệp, 10 task sau không vi phạm lần nào. Ở T-014, nội dung giao việc chung của phiên chính bảo phiên con thêm dòng vào `docs/features/ads/design/review/summary.md`, trái mục 3.1 của plan, làm một file ra ngoài danh sách; phiên chính phát hiện khi đối chiếu danh sách file và bỏ lại.
 - **Cải tiến (đề xuất, chưa làm):** `docs/auto-run.md` mục Giao bước 3 đến 5: thêm tệp cổng vào nội dung giao việc tối thiểu; nội dung giao việc chung không thêm việc về file cụ thể, mọi việc về file lấy từ plan.
 - **Trạng thái:** applied
--- **Áp dụng:** `docs/auto-run.md`, mục Giao bước 3 đến 5 (phần giao việc chung không thêm việc về file). Tệp cổng không cần nữa: phiên con không đẩy (L-070); nhánh `claude/duyet-bai-hoc`.
+-- **Áp dụng:** `docs/auto-run.md`, mục Giao bước 3 đến 5 (phần giao việc chung không thêm việc về file). Tệp cổng không cần nữa: phiên con không đẩy (L-070); PR #155.
 ### L-061. Rà soát độc lập bắt lỗi dựng lại activity và đổi trạng thái giữa chừng mà test viết trước bỏ sót
 
 - **Ngày, nguồn:** 2026-10-23, RUN-20261023-01
@@ -280,7 +280,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** 4 trên 12 task có lỗi thật ở mức nên sửa do rà soát độc lập tìm ra, test viết trước không bắt: T-017 popup mất trạng thái khi activity dựng lại (khung hình đầu báo màn hình `null`; ca KB-3 thì popup biến mất), T-011 quảng cáo đã tải còn giữ khi vị trí bị tắt giữa chừng, T-010 nút CTA lệch thiết kế 8 dp, T-012 test thiếu kiểm đăng ký tài sản sau khi thu gọn. Plan không nêu trường hợp dựng lại activity hay cờ đổi giữa chừng.
 - **Cải tiến (đề xuất, chưa làm):** `docs/CLAUDE.md` mục Khi viết plan: trạng thái giữ ở vỏ app (`MainActivity`, `AppNavHost`) có test dựng lại activity (chuỗi khung hình đầu chưa có back stack, hay `ActivityScenario.recreate()`); tài nguyên giữ theo cờ hay khóa Remote Config có test khi cờ tắt giữa chừng.
 - **Trạng thái:** applied
--- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (test dựng lại activity, test cờ tắt giữa chừng); nhánh `claude/duyet-bai-hoc`.
+-- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (test dựng lại activity, test cờ tắt giữa chừng); PR #155.
 ### L-062. Test quét mã nguồn theo chuỗi con hỏng vì task chạy trước trong cùng phiên
 
 - **Ngày, nguồn:** 2026-10-23, RUN-20261023-01
@@ -288,7 +288,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `AdGallerySourceSetTest` của T-014 kiểm không file `.kt`, `.xml` nào ngoài `src/staging` chứa `AdGallery`. T-017, merge trước trong cùng phiên, thêm một ví dụ KDoc `com.x.AdGalleryDestination/{id}` vào `app/src/main`. Plan T-014 viết khi T-017 chưa merge nên không thấy; phiên con nới test và task dừng ở bước 6. PR #114 sửa chú thích.
 - **Cải tiến (đề xuất, chưa làm):** `docs/CLAUDE.md` mục Khi viết plan: test quét toàn bộ mã nguồn ghi ở mục 6 các plan cùng danh sách chạy có thể thêm chuỗi đó, hoặc quét theo ký hiệu (import, tên lớp đầy đủ, khai báo manifest) thay vì chuỗi con. `scripts/run-check.py` có thể báo chú ý khi một plan có test quét mã nguồn mà plan chạy trước sửa cùng source set.
 - **Trạng thái:** applied
--- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (quét theo ký hiệu, hoặc ghi plan có thể thêm chuỗi). Chưa làm chú ý của `run-check.py`; nhánh `claude/duyet-bai-hoc`.
+-- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (quét theo ký hiệu, hoặc ghi plan có thể thêm chuỗi). Chưa làm chú ý của `run-check.py`; PR #155.
 ### L-063. Plan lấy code từ app bằng `gh pr diff`, môi trường cloud chặn
 
 - **Ngày, nguồn:** 2026-10-23, RUN-20261023-01
@@ -296,7 +296,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** plan T-018, T-016, T-017 ghi đọc code của app camera-pose bằng `gh pr diff <n> -R VGL-Studio/camera-pose`. Trong môi trường cloud, `gh pr` bị chặn và `gh api` tới repo chưa gắn vào phiên trả 403. Cách chạy được: gắn repo chỉ đọc bằng `add_repo`, rồi `gh api repos/<owner>/<repo>/pulls/<n> -H "Accept: application/vnd.github.v3.diff"` hoặc `contents/<path>?ref=<sha>`. Phiên con thử clone repo đó thì bị từ chối; đọc qua API thì được.
 - **Cải tiến (đề xuất, chưa làm):** `docs/auto-run.md` bước 7 (danh sách lệnh REST) thêm cách đọc PR và file của repo khác; `docs/ops/from-app.md` ghi plan lấy code từ app dùng `gh api`, không dùng `gh pr diff`.
 - **Trạng thái:** applied
--- **Áp dụng:** `docs/auto-run.md` bước 7 (đọc PR, file của repo khác bằng `gh api`), `docs/ops/from-app.md` mục 3; nhánh `claude/duyet-bai-hoc`.
+-- **Áp dụng:** `docs/auto-run.md` bước 7 (đọc PR, file của repo khác bằng `gh api`), `docs/ops/from-app.md` mục 3; PR #155.
 ### L-064. GitHub không chạy job (hết hạn mức) hay không chạy CI cho PR xung đột, phiên hiểu thành CI đỏ hoặc chờ 40 phút
 
 - **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-046, L-048 của app, issue #106)
