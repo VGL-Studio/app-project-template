@@ -8,9 +8,7 @@ import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.LoadAdError
-import com.google.android.gms.ads.MediaAspectRatio
 import com.google.android.gms.ads.nativead.NativeAd
-import com.google.android.gms.ads.nativead.NativeAdOptions
 
 /**
  * The SDK callbacks of one native ad that the ad metrics read (plan T-023). Only reads data of the SDK; every
@@ -49,16 +47,7 @@ internal class SdkNativeAdLoader(
         onLoaded: (LoadedNativeAd) -> Unit,
         onFailed: (code: Int) -> Unit,
     ) {
-        val options = NativeAdOptions.Builder()
-            // The layouts keep the top right corner free for AdChoices.
-            .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT)
-            .apply {
-                when (size) {
-                    NativeAdSize.SMALL -> setRequestMultipleImages(false)
-                    NativeAdSize.MEDIUM, NativeAdSize.FULL -> setMediaAspectRatio(MediaAspectRatio.ANY)
-                }
-            }
-            .build()
+        val options = nativeRequestOptions(size).toNativeAdOptions()
         val loader = AdLoader.Builder(context, unitId)
             .forNativeAd { ad ->
                 events?.let { metrics ->
@@ -102,6 +91,7 @@ internal class SdkLoadedNativeAd(val nativeAd: NativeAd, private val events: Nat
         // A drawable without its own size (a plain color) cannot become a bitmap: the icon block is drawn instead.
         icon = nativeAd.icon?.drawable?.let { runCatching { it.toBitmap().asImageBitmap() }.getOrNull() },
         hasMedia = nativeAd.mediaContent != null,
+        starRating = nativeAd.starRating,
     )
 
     override fun destroy() {

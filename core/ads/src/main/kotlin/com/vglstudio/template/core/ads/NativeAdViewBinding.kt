@@ -77,7 +77,8 @@ internal fun BoundNativeAd(ad: LoadedNativeAd, size: NativeAdSize, modifier: Mod
 /**
  * One NativeAdView around [content]. Each asset is a real view inside it, registered with the SDK. [bind] runs after
  * the asset views change, at most once per frame, so `setNativeAd` always sees every view registered (an SDK rule),
- * and runs again when the layout changes (a collapsible ad removes its media).
+ * and runs again when the layout changes (a collapsible ad removes its media). [newMediaView] makes the media view;
+ * tests pass one that records its calls.
  */
 @Composable
 internal fun NativeAdViewHost(
@@ -90,7 +91,7 @@ internal fun NativeAdViewHost(
     val adView = remember { NativeAdView(context) }
     val composeView = remember { ComposeView(context) }
     val currentBind by rememberUpdatedState(bind)
-    val binder = remember(adView) { SdkNativeAdBinder(adView) { currentBind(adView) } }
+    val binder = remember(adView) { SdkNativeAdBinder(adView, newMediaView) { currentBind(adView) } }
     AndroidView(
         factory = {
             if (composeView.parent == null) {
@@ -111,7 +112,11 @@ internal fun NativeAdViewHost(
 }
 
 /** Registers each asset view with the NativeAdView and asks for one bind after the changes of a frame. */
-private class SdkNativeAdBinder(private val adView: NativeAdView, private val bind: () -> Unit) : NativeAdBinder {
+private class SdkNativeAdBinder(
+    private val adView: NativeAdView,
+    private val newMediaView: (Context) -> MediaView,
+    private val bind: () -> Unit,
+) : NativeAdBinder {
     private var bindPending = false
 
     @Composable
@@ -130,7 +135,8 @@ private class SdkNativeAdBinder(private val adView: NativeAdView, private val bi
     @Composable
     override fun Media(modifier: Modifier) {
         AndroidView(
-            factory = { MediaView(it).apply { setImageScaleType(ImageView.ScaleType.FIT_CENTER) } },
+            // O-07: the scale type is set when the view is made, before it is registered and the ad is bound.
+            factory = { newMediaView(it).apply { setImageScaleType(ImageView.ScaleType.FIT_CENTER) } },
             modifier = modifier,
             update = { view ->
                 if (adView.mediaView !== view) {

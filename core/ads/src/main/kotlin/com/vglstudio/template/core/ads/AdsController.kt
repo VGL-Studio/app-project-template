@@ -11,14 +11,11 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
-import com.google.android.gms.ads.MediaAspectRatio
 import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.VideoOptions
 import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.nativead.NativeAd
-import com.google.android.gms.ads.nativead.NativeAdOptions
 import com.vglstudio.template.core.analytics.AdMetrics
 import com.vglstudio.template.core.logging.AppLogger
 import com.vglstudio.template.core.network.InternetConnectivity
@@ -1047,11 +1044,8 @@ class AdsController @Inject internal constructor(
                 return@launch
             }
             try {
-                val options = NativeAdOptions.Builder()
-                    .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT)
-                    .setMediaAspectRatio(MediaAspectRatio.ANY)
-                    .setVideoOptions(VideoOptions.Builder().setStartMuted(true).build())
-                    .build()
+                // O-06, shared with every native request (NativeRequestOptions.kt).
+                val options = fullScreenNativeRequestOptions().toNativeAdOptions()
                 val loader = AdLoader.Builder(context, unitId)
                     .forNativeAd { ad ->
                         loadStates -= placement
