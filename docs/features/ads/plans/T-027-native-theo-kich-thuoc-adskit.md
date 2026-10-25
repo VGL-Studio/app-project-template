@@ -243,7 +243,7 @@ Test viết trước code (auto-run.md, bước 3). Test có kiểm kích thư�
 
 **Câu hỏi của phiên bản 1:** 15 câu, anh Nhật trả lời 2026-10-25, cả 15 câu theo đề xuất của AI; quyết định ghi ở mục 2 (Quyết định đã chốt), câu 12, 13, 14 chuyển sang T-040.
 
-**Rà soát độc lập của phiên bản 1 (2026-10-25), phần còn áp cho phần A:** chặn 1 (tên test thật, hàm thuần `nativeSlotAllowed` và test); nên sửa 7 (vùng chạm không đổi bố cục, test vị trí media; nay đã chạy thử), 10 (ngoại lệ L-055 kèm đối chứng, bỏ test gần trùng), 11 (`newMediaView`), 13 (phần lệch medium, sửa mục 3 README), 14 (thẻ `FULL` số dòng cố định); ghi chú 16 (test đỏ ngoài 72/80 ghi tên), 17 (KDoc `CollapsibleNativeAd.kt:189`, ô giả của `SampleScreenTest.kt`), 21 (`bottomSlotHeightConstant_equalsDrawnCardAndPlaceholderHeight`, phạm vi). Các điểm chặn 2, 3, 4, nên sửa 5, 6, 9, 12, 15, ghi chú 18 thuộc phần B, đi cùng T-040. Phiên bản 2 chưa qua rà soát độc lập.
+**Rà soát độc lập của phiên bản 1 (2026-10-25), phần còn áp cho phần A:** chặn 1 (tên test thật, hàm thuần `nativeSlotAllowed` và test); nên sửa 7 (vùng chạm không đổi bố cục, test vị trí media; nay đã chạy thử), 10 (ngoại lệ L-055 kèm đối chứng, bỏ test gần trùng), 11 (`newMediaView`), 13 (phần lệch medium, sửa mục 3 README), 14 (thẻ `FULL` số dòng cố định); ghi chú 16 (test đỏ ngoài 72/80 ghi tên), 17 (KDoc `CollapsibleNativeAd.kt:189`, ô giả của `SampleScreenTest.kt`), 21 (`bottomSlotHeightConstant_equalsDrawnCardAndPlaceholderHeight`, phạm vi). Các điểm chặn 2, 3, 4, nên sửa 5, 6, 9, 12, 15, ghi chú 18 thuộc phần B, đi cùng T-040. Phiên bản 2 đã qua rà soát độc lập 2026-10-25 (0 chặn, 7 nên sửa, 4 ghi chú; đã sửa ở c6f6b36).
 
 ## 9. Quyết định duyệt
 

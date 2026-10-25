@@ -1,16 +1,16 @@
 ---
 ticket: T-036
 title: Màn hình xem thử quảng cáo thêm các định dạng mới
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 25M          # ticket cỡ M (số gợi ý 9.5M, scripts/token-usage.py estimate, 2026-10-25); nâng vì việc thật cỡ L: sáu dòng vị trí, hai API chỉ cho staging của :core:ads, sáu trang mới của màn xem thử, ảnh chuẩn mới, nối API của tám plan khác
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 10                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-036: MÀN HÌNH XEM THỬ QUẢNG CÁO THÊM CÁC ĐỊNH DẠNG MỚI
@@ -302,9 +302,9 @@ Không bắt buộc (tiêu chí E là 1). Đã chạy toàn bộ test JVM với 
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI duyệt thay anh Nhật theo ủy quyền ngày 2026-10-25 ("thay thế tôi duyệt tất cả các plan và tickets"). Câu hỏi ở mục 8: theo đề xuất của AI, trừ chỗ ghi khác dưới đây. Đã qua rà soát độc lập và sửa theo điểm chặn, điểm nên sửa. Chạy thứ 10 trong RUN-20261026-03. Rà soát độc lập: 1 chặn (hai vị trí rewarded ngoài câu hỏi 13 của spec), đã sửa bằng bộ chọn chính sách cho một vị trí `gallery_rw_action`. Câu 3: bỏ `gallery_native_collapsible`.
 
 ## 10. Nhật ký thực hiện
 
