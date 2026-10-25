@@ -28,6 +28,9 @@ import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
+import com.vglstudio.template.core.logging.AppLogger
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -101,6 +104,26 @@ private fun BannerAd(ads: AdsController, placement: AdPlacement, unitId: String,
         // The height is reserved before the ad loads, so the screen does not jump when it appears.
         AndroidView(factory = { adView }, modifier = Modifier.fillMaxWidth().height(adSize.height.dp))
     }
+}
+
+/** The banner slot: frame, ad view, pauses and sends (B-01 to B-06). */
+@Suppress("UNUSED_PARAMETER")
+@Composable
+internal fun BannerSlotHost(
+    gateOpen: Boolean,
+    enabled: Boolean,
+    unitId: String?,
+    heightDp: Int,
+    refresh: BannerRefresh,
+    visible: Flow<Boolean>,
+    mayRequestNow: () -> Boolean,
+    retryResets: StateFlow<Int>,
+    logger: AppLogger,
+    placementKey: String,
+    newView: () -> BannerAdView,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier)
 }
 
 private fun AdView.attachBannerMetrics(ads: AdsController, placement: AdPlacement, unitId: String) {
