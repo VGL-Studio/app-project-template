@@ -85,6 +85,7 @@ internal fun NativeAdSlotGate(
     viewed: Boolean = true,
     ctaLarge: Boolean = false,
     placeholderWhenEmpty: Boolean = true,
+    onScreen: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
@@ -121,6 +122,7 @@ internal fun NativeAdSlotGate(
             ctaLarge = ctaLarge,
             placeholderWhenEmpty = placeholderWhenEmpty,
             onStateChange = onStateChange,
+            onScreen = onScreen,
             adContent = adContent,
         )
         return

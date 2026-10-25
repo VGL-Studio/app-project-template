@@ -19,7 +19,9 @@ import kotlinx.coroutines.flow.Flow
  * on screen and given back when it leaves (P-01, P-01a). Like [NativeAdSlot], it takes no space until ads are allowed.
  * While the pool is exhausted the cell takes no space, or shows a static placeholder when the placement declares
  * [AdPlacement.keepSpaceWhenPoolEmpty]; it keeps asking, so an ad that comes later is shown (P-06). In a pager, pass
- * [viewed] = `pagerState.isPageSettled(page)`: the cell counts as seen only once its page settled (P-07).
+ * [viewed] = `pagerState.isPageSettled(page)`: the cell counts as seen only once its page settled (P-07), and
+ * [onScreen] = `pagerState.isPageVisible(page)`: a pager keeps the pages it built, so a page that scrolled away gives
+ * its ad back only through it (P-01); coming back, it claims again.
  * [onAdAvailabilityChange] works as for [NativeAdSlot]. Other formats are an [IllegalArgumentException].
  */
 @Composable
@@ -28,6 +30,7 @@ fun NativeAdCell(
     modifier: Modifier = Modifier,
     viewed: Boolean = true,
     onAdAvailabilityChange: (Boolean) -> Unit = {},
+    onScreen: Boolean = true,
 ) {
     val size = requireCellFormat(placement.format)
     val ads = LocalAdsController.current
@@ -50,6 +53,7 @@ fun NativeAdCell(
         onPoolOpportunity = { ads.recordPoolCellOpportunity(placement, it) },
         viewed = viewed,
         ctaLarge = placement.ctaLarge,
+        onScreen = onScreen,
     )
 }
 
@@ -63,8 +67,11 @@ internal fun requireCellFormat(format: AdFormat): NativeAdSize = when (format) {
 
 /**
  * One cell of a pool, testable without [AdsController] (like [NativeAdSlotHost]): collects [states] while in
- * composition, draws them with [NativeAdSlotContent], and reports the opportunity of P-07 through one
- * [PoolCellOpportunity]: each change of the state or of [viewed] is passed to it, leaving the composition ends it.
+ * composition and [onScreen], draws them with [NativeAdSlotContent], and reports the opportunity of P-07 through one
+ * [PoolCellOpportunity]: each change of the state or of [viewed] is passed to it; leaving the composition, or the
+ * screen ([onScreen] turning false), ends it and gives the ad back (P-01, P-01a). Back on screen it is a new cell that
+ * claims again. A pager keeps the pages it built after they scroll away, so its pages pass [onScreen] =
+ * `pagerState.isPageVisible(page)`; a lazy list or grid disposes its rows, and other cells keep the default.
  * With [keepSpaceWhenEmpty], no ad keeps the cell's height: a static placeholder when [placeholderWhenEmpty] (a cell
  * of a collection), an empty space otherwise (a slot next to an app button). [contentModifier] wraps the placeholder
  * and the ad only, so a cell with no ad takes no space at all.
@@ -81,6 +88,42 @@ internal fun NativeAdCellHost(
     placeholderWhenEmpty: Boolean = true,
     contentModifier: Modifier = Modifier,
     onStateChange: (NativeAdState) -> Unit = {},
+    onScreen: Boolean = true,
+    adContent: @Composable (LoadedNativeAd) -> Unit,
+) {
+    if (!onScreen) {
+        // Off screen: the cell below leaves the composition, so its collection ends and its ad goes back to the pool.
+        Box(modifier = modifier)
+        return
+    }
+    NativeAdCellOnScreen(
+        states = states,
+        size = size,
+        viewed = viewed,
+        keepSpaceWhenEmpty = keepSpaceWhenEmpty,
+        onOpportunity = onOpportunity,
+        modifier = modifier,
+        ctaLarge = ctaLarge,
+        placeholderWhenEmpty = placeholderWhenEmpty,
+        contentModifier = contentModifier,
+        onStateChange = onStateChange,
+        adContent = adContent,
+    )
+}
+
+/** The cell of [NativeAdCellHost] while it is on screen. */
+@Composable
+private fun NativeAdCellOnScreen(
+    states: Flow<NativeAdState>,
+    size: NativeAdSize,
+    viewed: Boolean,
+    keepSpaceWhenEmpty: Boolean,
+    onOpportunity: (result: String) -> Unit,
+    modifier: Modifier,
+    ctaLarge: Boolean,
+    placeholderWhenEmpty: Boolean,
+    contentModifier: Modifier,
+    onStateChange: (NativeAdState) -> Unit,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     val state by states.collectAsState(initial = NativeAdState.Loading)
@@ -113,3 +156,9 @@ internal fun NativeAdCellHost(
 
 /** P-07: the page of a pager counts as seen once it settled: no scroll in progress and it is the settled page. */
 fun PagerState.isPageSettled(page: Int): Boolean = !isScrollInProgress && settledPage == page
+
+/**
+ * Whether [page] is on screen now, at least in part. A pager keeps the pages it built after they scroll away, so a
+ * [NativeAdCell] of a page passes it as `onScreen`: a page that leaves the screen gives its ad back (P-01).
+ */
+fun PagerState.isPageVisible(page: Int): Boolean = layoutInfo.visiblePagesInfo.any { it.index == page }
