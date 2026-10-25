@@ -1,7 +1,7 @@
 ---
 ticket: T-029
 title: Banner cố định và banner thu gọn theo PARTNER
-status: approved   # draft | approved | stopped | done
+status: done   # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -230,3 +230,15 @@ Mỗi lượt gửi ở mọi đường (L-072): lượt đầu, thử lại, n�
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #165, commit merge `4dead1d`, 2026-10-25 12:26 UTC).
+- **Nhánh, PR:** `claude/T-029-banner-theo-partner`, [#165](https://github.com/VGL-Studio/app-project-template/pull/165). Commit test `bbc0235`, commit code `fc2d4d4`; sửa theo rà soát: test `3abfde7`, code `19a5253`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-029` (L-052).
+- **Đã làm:** `BannerLoads.kt` (vòng gửi thuần cho mọi lượt gửi, chờ màn hiện và hỏi cổng ngay trước khi gửi), `BannerFrame.kt` (bảng khung, `bannerShouldRun`, `Lifecycle.resumedFlow`), `BannerAdView.kt` (lớp bọc `AdView`, `bannerAdRequest`), `AdSlot` vẽ hai định dạng banner qua `BannerSlotHost` (bỏ `BannerAd`, `attachBannerMetrics`), `AdsController.retryResets`, KDoc hai định dạng trong `AdPlacement.kt`, `docs/ops/ads-guide.md` mục 3, 5, 6, 7.
+- **Test viết trước:** 30 test mới (`BannerLoadsTest` 17, `BannerFrameTest` 2, `SdkBannerAdViewTest` 3, `BannerSlotHostTest` 8), cả 30 thất bại đúng lý do trên khung rỗng; không test nào qua ngay. Hai test lần chạy đầu thất bại vì `NoSuchElementException` (`views.last` khi chưa tạo bản giả), phiên con thêm `assertEquals(1, views.createdCount)` trước commit test. Test viết chặt bằng bước đối chứng: 13. Thêm 1 test theo rà soát (`otherPlacementSameUnit_newView`), thất bại đúng lý do trên code cũ.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 6 ghi chú. Nên sửa: `BannerSlotHost` chỉ tạo lại `AdView` khi mã đơn vị đổi, mà staging dùng chung mã thử cho hai định dạng banner; đã sửa bằng `key(placementKey, refresh, unitId)`, test viết trước. Vòng 2: 0 chặn, 0 nên sửa, 1 ghi chú (`hadAd` không theo khóa mới). Ghi chú còn lại ở mục Cần người kiểm tra của báo cáo phiên.
+- **Kết quả CI:** `scripts/check.sh` trên máy qua (692 test JVM, 0 lỗi; 42 ảnh screenshot không đổi). `pr-check` xanh vòng đầu (lần chạy 40192419942).
+- **Lệch so với plan:** `SdkBannerAdViewTest` dùng `AdPlacement.SAMPLE_NATIVE_SMALL` vì chưa có vị trí banner (không đổi điều test kiểm, chỉ loại sự kiện và `load_attempt`). Phiên con tự quyết hai điểm plan chưa nói rõ: `AdSlot` tạo `AdView` mới khi đổi cỡ banner (`key(adSize)`); kết quả còn trong hàng đợi bị bỏ trước mỗi lượt gửi mới. Một test thêm ngoài bảng mục 4 (theo rà soát). Phương án dự phòng 3.4 không dùng. Ngoài mục 3.2: không có.
+- **Việc còn lại:** kiểm trên máy khi có vị trí banner (câu hỏi 1, T-036).
+- **Cần người xem:** ghi chú của rà soát: test ghim bước bỏ hàng đợi trước mỗi lượt gửi; `bannerAdRequest` không qua `ads.adRequest()`; `hadAd` không theo khóa mới.
