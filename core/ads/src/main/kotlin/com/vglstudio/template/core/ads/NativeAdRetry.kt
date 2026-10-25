@@ -5,6 +5,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeoutOrNull
@@ -17,24 +18,28 @@ private const val TAG = "Ads"
  * so an empty slot stays empty until an ad comes. A Loaded ad is destroyed when the collection ends.
  *
  * - O-05, L-A19: every send, the first one too, waits for [foreground]; a try due in background waits for it.
- * - S-15: [mayRequestNow] false right before a send ends the flow: nothing sent, no failure, no retry. The slot is
- *   built again when the consent gate changes.
+ * - S-15: [mayRequestNow] false right before a send ([awaitSendAllowed]) ends the flow: nothing sent, no failure, no
+ *   retry. The slot is built again when the consent gate changes. [load] returning null (blocked at its source,
+ *   plan T-040) ends the flow the same way.
  * - O-09: [load] throwing (not a cancellation) is a failure with code 0.
+ * - With [refresh] (native small, plan T-040), a Loaded ad is handed to the flow [refresh] makes, which owns and
+ *   destroys it from then on; when that flow ends (source shut down), this one ends too and loads nothing more.
+ *   Without it (medium, collapsible), the ad stays until the collection ends.
  */
 internal fun retryingNativeAdStates(
-    load: suspend () -> NativeAdState,
+    load: suspend () -> NativeAdState?,
     foreground: StateFlow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
     logger: AppLogger,
     placementKey: String,
+    refresh: ((NativeAdState.Loaded) -> Flow<NativeAdState>)? = null,
 ): Flow<NativeAdState> = flow {
     emit(NativeAdState.Loading)
     var unavailableShown = false
     var failures = 0
     while (true) {
-        foreground.first { it }
-        if (!mayRequestNow()) {
+        if (!awaitSendAllowed(foreground, mayRequestNow)) {
             logger.info(TAG, "Native $placementKey request blocked")
             if (!unavailableShown) emit(NativeAdState.Unavailable)
             return@flow
@@ -48,7 +53,16 @@ internal fun retryingNativeAdStates(
             logger.info(TAG, "Native $placementKey failed: 0 (request not built)")
             NativeAdState.Unavailable
         }
+        if (state == null) {
+            logger.info(TAG, "Native $placementKey request blocked")
+            if (!unavailableShown) emit(NativeAdState.Unavailable)
+            return@flow
+        }
         if (state is NativeAdState.Loaded) {
+            if (refresh != null) {
+                emitAll(refresh(state))
+                return@flow
+            }
             try {
                 emit(state)
                 awaitCancellation()

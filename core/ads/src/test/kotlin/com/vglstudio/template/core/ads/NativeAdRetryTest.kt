@@ -5,7 +5,11 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -38,11 +42,13 @@ class NativeAdRetryTest {
     }
 
     private fun TestScope.collectStates(
-        load: suspend () -> NativeAdState = loadOnce(),
+        load: suspend () -> NativeAdState? = loadOnce(),
+        refresh: ((NativeAdState.Loaded) -> Flow<NativeAdState>)? = null,
     ): Pair<MutableList<NativeAdState>, Job> {
         val states = mutableListOf<NativeAdState>()
         val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            retryingNativeAdStates(load, foreground, { mayRequest }, retryResets, logger, KEY).collect { states += it }
+            retryingNativeAdStates(load, foreground, { mayRequest }, retryResets, logger, KEY, refresh)
+                .collect { states += it }
         }
         return states to job
     }
@@ -286,6 +292,85 @@ class NativeAdRetryTest {
         at(5_000)
         assertEquals(listOf(0L, 5_000L), buildTimes)
         assertEquals(1, loader.requests.size)
+    }
+
+    @Test
+    fun firstLoad_blockedAtSource_endsWithoutRetry() = runTest {
+        var calls = 0
+        val (states, job) = collectStates(
+            load = {
+                calls++
+                null
+            },
+        )
+        runCurrent()
+        at(60_000)
+
+        assertEquals(1, calls)
+        assertEquals(listOf(NativeAdState.Loading, NativeAdState.Unavailable), states)
+        assertTrue(job.isCompleted)
+        assertTrue(logger.entries.any { it.message == "Native $KEY request blocked" })
+        assertFalse(logger.entries.any { it.message.contains("retry in") })
+    }
+
+    @Test
+    fun refreshGiven_handsOverToRefresh() = runTest {
+        val ad1 = FakeLoadedNativeAd()
+        val ad2 = FakeLoadedNativeAd()
+        val (states, job) = collectStates(
+            refresh = { first ->
+                flow {
+                    emit(first)
+                    emit(NativeAdState.Loaded(ad2))
+                    awaitCancellation()
+                }
+            },
+        )
+        loader.deliver(ad1)
+        runCurrent()
+
+        assertEquals(
+            listOf(NativeAdState.Loading, NativeAdState.Loaded(ad1), NativeAdState.Loaded(ad2)),
+            states,
+        )
+        job.cancel()
+        runCurrent()
+        // The refresh owns the ads now: the retry flow destroys none of them.
+        assertEquals(0, ad1.destroyCount)
+    }
+
+    @Test
+    fun refreshEnds_noFurtherLoad() = runTest {
+        var refreshCalls = 0
+        val (states, job) = collectStates(
+            refresh = {
+                refreshCalls++
+                flowOf(NativeAdState.Unavailable)
+            },
+        )
+        loader.deliver(FakeLoadedNativeAd())
+        runCurrent()
+        at(60_000)
+
+        assertEquals(1, refreshCalls)
+        assertEquals(1, loader.requests.size)
+        assertEquals(listOf(NativeAdState.Loading, NativeAdState.Unavailable), states)
+        assertTrue(job.isCompleted)
+        assertFalse(logger.entries.any { it.message.contains("retry in 5000 ms") })
+    }
+
+    @Test
+    fun refreshNull_neverRequestsAgainAfterLoaded() = runTest {
+        // Medium and collapsible slots pass no refresh: one ad until the slot leaves the screen.
+        val (states, _) = collectStates(refresh = null)
+        val ad = FakeLoadedNativeAd()
+        loader.deliver(ad)
+        runCurrent()
+        at(180_000)
+
+        assertEquals(1, loader.requests.size)
+        assertEquals(listOf(NativeAdState.Loading, NativeAdState.Loaded(ad)), states)
+        assertEquals(0, ad.destroyCount)
     }
 
     private companion object {

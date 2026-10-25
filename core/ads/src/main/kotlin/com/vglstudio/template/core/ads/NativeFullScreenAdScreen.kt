@@ -2,6 +2,7 @@ package com.vglstudio.template.core.ads
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -18,8 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,7 +39,7 @@ import com.vglstudio.template.core.designsystem.theme.Spacing
 
 /**
  * A native ad that covers the whole screen (KB-5), as in design/screens/NativeFullScreenAdScreen_default_*.png: a
- * 48 dp close button in the top left corner, visible and enabled from the first frame (no countdown), AdChoices in the
+ * 36 dp close button (touch area widened to 48 dp) in the top left corner, visible and enabled from the first frame (no countdown), AdChoices in the
  * top right corner ([adChoices]; the SDK draws it on real ads), a large [media] area, then the head of the ad, the
  * body and a wide call to action. The app shows it with [rememberShowFullScreenAd]; the gallery screen (T-014) and
  * tests draw it with fixed content.
@@ -57,12 +57,12 @@ fun NativeFullScreenAdScreen(
 
 /** Sizes of the native full-screen ad, from design/context/NativeFullScreenAdScreen_default_light.md. */
 internal object NativeFullScreenAdDimens {
-    val CloseButtonSize = 48.dp
+    val CloseButtonSize = 36.dp
     val CloseIconSize = 24.dp
-    val TopBarHeight = 48.dp
+    val TopBarHeight = 36.dp
     val HeaderHeight = 48.dp
     val IconSize = 48.dp
-    val CallToActionHeight = 48.dp
+    val CallToActionHeight = 52.dp
 
     /** The media shrinks first on short screens, never below the SDK's minimum. */
     val MediaMinHeight = 120.dp
@@ -72,6 +72,7 @@ internal object NativeFullScreenAdTestTags {
     const val CLOSE = "nativeFullScreenClose"
     const val MEDIA = "nativeFullScreenMedia"
     const val CTA = "nativeFullScreenCta"
+    const val ICON = "nativeFullScreenIcon"
 }
 
 private const val BODY_MAX_LINES = 3
@@ -123,18 +124,20 @@ internal fun NativeFullScreenAdLayout(
     }
 }
 
+/**
+ * A 36 dp round button, drawn and laid out at 36 dp. Not an IconButton, which would widen the layout to 48 dp;
+ * Compose still widens the touch area of this small clickable to 48 dp without moving anything (plan T-027, Q5).
+ */
 @Composable
 private fun CloseButton(onClose: () -> Unit) {
-    IconButton(
-        onClick = onClose,
+    Box(
         modifier = Modifier
             .size(NativeFullScreenAdDimens.CloseButtonSize)
             .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(role = Role.Button, onClick = onClose)
             .testTag(NativeFullScreenAdTestTags.CLOSE),
-        colors = IconButtonDefaults.iconButtonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_ads_close),
@@ -172,7 +175,10 @@ private fun AdHeader(assets: NativeAdAssets, binder: NativeAdBinder) {
 @Composable
 private fun AdIcon(icon: ImageBitmap?, binder: NativeAdBinder) {
     val iconModifier = Modifier.size(NativeFullScreenAdDimens.IconSize).clip(MaterialTheme.shapes.small)
-    binder.Asset(NativeAdAsset.ICON, Modifier.size(NativeFullScreenAdDimens.IconSize)) {
+    binder.Asset(
+        NativeAdAsset.ICON,
+        Modifier.size(NativeFullScreenAdDimens.IconSize).testTag(NativeFullScreenAdTestTags.ICON),
+    ) {
         if (icon != null) {
             Image(bitmap = icon, contentDescription = null, contentScale = ContentScale.Crop, modifier = iconModifier)
         } else {

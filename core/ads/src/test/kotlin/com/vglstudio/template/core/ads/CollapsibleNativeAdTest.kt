@@ -168,7 +168,7 @@ class CollapsibleNativeAdTest {
         collapse()
         assertAbsent(MEDIA)
         assertAbsent(COLLAPSE)
-        assertHeight(AD, 72f)
+        assertHeight(AD, 80f)
         composeRule.onNodeWithText("Headline of the ad", useUnmergedTree = true).assertExists()
         composeRule.onNodeWithText(badge, useUnmergedTree = true).assertExists()
         composeRule.onNodeWithText("Install", useUnmergedTree = true).assertExists()
@@ -188,7 +188,7 @@ class CollapsibleNativeAdTest {
         composeRule.onAllNodesWithContentDescription(collapseLabel, useUnmergedTree = true).assertCountEquals(0)
         composeRule.onNodeWithText("Headline of the ad", useUnmergedTree = true).performClick()
         composeRule.waitForIdle()
-        assertHeight(AD, 72f)
+        assertHeight(AD, 80f)
         assertAbsent(MEDIA)
     }
 
@@ -199,7 +199,7 @@ class CollapsibleNativeAdTest {
         content = CollapsibleAdContent.Ready(collapsibleTestAd("Second ad"))
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Second ad", useUnmergedTree = true).assertExists()
-        assertHeight(AD, 72f)
+        assertHeight(AD, 80f)
         assertAbsent(MEDIA)
     }
 
@@ -209,11 +209,11 @@ class CollapsibleNativeAdTest {
         collapse()
         content = CollapsibleAdContent.Loading
         composeRule.waitForIdle()
-        assertHeight(AD, 72f)
+        assertHeight(AD, 80f)
 
         content = CollapsibleAdContent.Ready(collapsibleTestAd("Second ad"))
         composeRule.waitForIdle()
-        assertHeight(AD, 72f)
+        assertHeight(AD, 80f)
         assertAbsent(MEDIA)
     }
 
@@ -227,7 +227,7 @@ class CollapsibleNativeAdTest {
         restoration.emulateSavedInstanceStateRestore()
         composeRule.waitForIdle()
 
-        assertHeight(AD, 72f)
+        assertHeight(AD, 80f)
         assertAbsent(MEDIA)
     }
 

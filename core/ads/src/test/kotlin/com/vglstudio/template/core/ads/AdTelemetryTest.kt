@@ -344,6 +344,87 @@ class AdTelemetryTest {
         assertEquals(0, counter.failuresInARow("sample_native_small"))
     }
 
+    @Test
+    fun refreshUse_hasNoLoadAttempt_doesNotTouchCounter() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        // Three refresh loads of a single-ad slot (fail, fail, success), each with a new report (section 8.2).
+        listOf(false, false, true).forEachIndexed { i, success ->
+            val load = telemetry.nativeLoadReport(AdPlacement.SAMPLE_NATIVE_SMALL, NativeLoadUse.REFRESH)
+            load.sent(i * 100L)
+            if (success) load.succeeded(i * 100L + 10) else load.failed(3, null, i * 100L + 30)
+            assertEquals(0, counter.failuresInARow("sample_native_small"))
+        }
+
+        assertEquals(listOf<Int?>(null, null, null), metrics.events.map { it.loadAttemptOrMissing() })
+        assertEquals(
+            listOf(30L, 30L, 10L),
+            metrics.events.map {
+                when (it) {
+                    is AdMetricEvent.LoadSuccess -> it.latencyMs
+                    is AdMetricEvent.LoadFail -> it.latencyMs
+                    else -> null
+                }
+            },
+        )
+        assertTrue(metrics.events.all { it.adFormat == "NATIVE_SMALL" })
+        assertEquals(
+            listOf("sample_native_small", "sample_native_small", "sample_native_small"),
+            metrics.events.map {
+                when (it) {
+                    is AdMetricEvent.LoadSuccess -> it.adPlacement
+                    is AdMetricEvent.LoadFail -> it.adPlacement
+                    else -> null
+                }
+            },
+        )
+    }
+
+    @Test
+    fun singleAdUse_keepsLoadAttempt() {
+        // Control of refreshUse_hasNoLoadAttempt_doesNotTouchCounter: the first load of the slot counts.
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        val load = telemetry.nativeLoadReport(AdPlacement.SAMPLE_NATIVE_SMALL, NativeLoadUse.SINGLE_AD)
+        load.sent(0)
+        load.failed(3, null, 10)
+
+        assertEquals(listOf<Int?>(1), metrics.events.map { it.loadAttemptOrMissing() })
+        assertEquals(1, counter.failuresInARow("sample_native_small"))
+    }
+
+    @Test
+    fun otherFormat_ownCounterAndFormatCode() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        val collapsible = telemetry.nativeLoadReport(
+            AdPlacement.SAMPLE_NATIVE_SMALL,
+            NativeLoadUse.SINGLE_AD,
+            AdFormat.NATIVE_COLLAPSIBLE,
+        )
+        collapsible.sent(0)
+        collapsible.failed(3, null, 10)
+
+        val event = metrics.events.single() as AdMetricEvent.LoadFail
+        assertEquals(AdFormat.NATIVE_COLLAPSIBLE.metricCode(), event.adFormat)
+        assertEquals(1, event.loadAttempt)
+        assertEquals(1, counter.failuresInARow("sample_native_small/native_collap"))
+        assertEquals(0, counter.failuresInARow("sample_native_small"))
+
+        // Control (L-055): the default format keeps the key of the placement.
+        val small = telemetry.nativeLoadReport(AdPlacement.SAMPLE_NATIVE_SMALL, NativeLoadUse.SINGLE_AD)
+        small.sent(20)
+        small.failed(3, null, 30)
+        assertEquals("NATIVE_SMALL", metrics.events.last().adFormat)
+        assertEquals(1, counter.failuresInARow("sample_native_small"))
+    }
+
     /** `load_attempt` of a load event; any other event is a test error. */
     private fun AdMetricEvent.loadAttemptOrMissing(): Int? = when (this) {
         is AdMetricEvent.LoadSuccess -> loadAttempt

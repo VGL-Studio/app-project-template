@@ -34,17 +34,20 @@ Các quy tắc này vẫn giữ dưới bộ PARTNER (ADR-0026, mục 10). Khôn
 
 Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Khóa bật tắt ở mục 10 của tài liệu đó.
 
+Tùy chọn yêu cầu native (O-06: video tắt tiếng, không điều khiển riêng, một ảnh, media ngang; toàn màn hình nhận mọi tỷ lệ) chỉ dựng ở `NativeRequestOptions.kt`; mọi đường gửi native gọi `nativeRequestOptions(size)` hay `fullScreenNativeRequestOptions()`. `NativeRequestOptionsTest` đỏ khi một file khác dựng `NativeAdOptions`.
+
 | Định dạng | Dùng ở đâu | Khóa bật | Có trong `:core:ads` |
 | --- | --- | --- | --- |
 | App open lúc mở app | Màn loading, lần đầu sau khi cài và lần thường | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` | Có (T-024): vị trí toàn app `open_app` (app open) và `open_app_inter` (inter khi `open_ad_type = inter`), không có `is_show_<mã vị trí>`; màn loading gọi `StartupAds`, feature không gọi |
 | Quảng cáo khi quay lại app | Mọi lần app lên foreground, trừ lần đầu của process | `show_resum_ads`, `resume_ad_type` | (đợt 3) |
 | Interstitial | Hành động của người dùng (sang màn sau, xong một việc) | `is_show_<mã vị trí>`, cách nhau `ads_interval` hay `ads_interval_<nhóm>` | Có (đợt 2, `rememberShowFullScreenAd`), luật mới ở đợt 3 |
 | Native toàn màn hình sau inter (combo) | Ngay sau inter, đếm ngược 3 giây | `is_show_native_after_inter` | Native toàn màn hình đứng riêng có (đợt 2, `rememberShowFullScreenAd`); combo ở đợt 3 |
-| Thanh đáy: native nhỏ 80 dp và native thu gọn 250 dp, hoặc banner | Đáy màn hình nội dung, mỗi màn một vị trí | `is_show_<mã vị trí>`, `is_show_native_bottom`, `is_show_native_collap`, `time_expand_collap_ad` | Native small (`NativeAdSlot`) và native thu gọn (`CollapsibleNativeAdSlot`) có ở cỡ đợt 2; 80 dp, 250 dp và làm mới ở đợt 3 |
+| Thanh đáy: native nhỏ 80 dp và native thu gọn 250 dp, hoặc banner | Đáy màn hình nội dung, mỗi màn một vị trí | `is_show_<mã vị trí>`, `is_show_native_bottom`, `is_show_native_collap`, `time_expand_collap_ad` | Native small (`NativeAdSlot`) có ở cỡ 80 dp (T-027), thay nội dung mỗi 60 giây ở foreground (T-040); native thu gọn (`CollapsibleNativeAdSlot`) có ở cỡ đợt 2, 250 dp và làm mới ở T-030 |
 | Banner cố định, banner thu gọn | Đáy màn hình | `is_show_<mã vị trí>` | Có (T-029, `AdSlot`): banner cố định làm mới theo đơn vị, banner thu gọn nạp lại mỗi 30 giây |
-| Native medium | Trong nội dung | `is_show_<mã vị trí>` | Có (đợt 2), kích thước mới ở đợt 3 |
+| Native medium | Trong nội dung | `is_show_<mã vị trí>` | Có (đợt 2), kích thước mới ở đợt 3 (T-028) |
 | Native trong tập hợp (ô lưới, danh sách, trang của pager) | Mỗi ô một quảng cáo riêng | `is_show_<mã vị trí>` | Danh sách và lưới có (đợt 2, `itemsWithInListAds`); pager ở đợt 3 |
 | Native ở một bước của luồng (giới thiệu, kết quả, hướng dẫn) | Bước do spec của app chọn | `is_show_<mã vị trí>` (luồng giới thiệu: `is_show_native_onboarding`) | (đợt 3) |
+| Native đầy đủ (`NativeAdSize.FULL`) | Chưa có vị trí: MC-02 là danh sách đóng, muốn có thì sửa MC-02 trước | | Có composable `NativeAdCard(assets, NativeAdSize.FULL)` và khung chờ (T-027), chưa có `AdFormat` nào vẽ nó |
 | Rewarded với hộp thoại (hành động có điều kiện) | Trước một hành động người dùng chọn: nhận vật phẩm, xuất file, mở khóa | `is_show_<mã vị trí>` (ví dụ `is_show_rw_get_item`) | (đợt 3) |
 
 ## 4. Native: kích thước và hình thức
@@ -52,20 +55,23 @@ Chi tiết hành vi và kích thước ở `ads-business-rules.md`, mục 5. Kh�
 - Kích thước theo layout của AdsKit và bản đặc tả độc lập (`ads-business-rules.md`, mục 5.7): khe đáy cao 80 dp (cả vẽ và chừa chỗ), native thu gọn 250 dp với nút thu gọn 32 dp, thẻ native ở bước của luồng 250 dp, nút đóng native sau inter 36 dp ở góc trên phải.
 - Màu, chữ, bo góc lấy từ token của `:core:designsystem` (ADR-0008), không lấy màu của AdsKit. Màu chữ native theo nền của vùng quảng cáo, không đổi theo chế độ tối của máy khi nền không đổi.
 - Thiết kế native trên Figma đang theo cỡ cũ của đợt 2 (`docs/features/ads/design/`); vẽ lại theo cỡ AdsKit ở T-035. Tới lúc đó, khi thiết kế và `ads-business-rules.md` khác nhau về kích thước, theo `ads-business-rules.md`.
-- Mỗi lượt hiện một quảng cáo riêng; rời màn thì hủy (luật O-01, O-03).
-- Hiện có (đợt 2): cỡ small và medium ở bảng dưới, tới khi T-035 vẽ lại và ticket đợt 3 đổi code.
+- Mỗi lượt hiện một quảng cáo riêng; rời màn thì hủy (luật O-01, O-03). Native small ở khe một quảng cáo (`NativeAdSlot` với vị trí `NATIVE_SMALL`, T-040) lấy quảng cáo qua một nguồn chung của vị trí: hai khe cùng vị trí trên một màn được hai quảng cáo khác nhau; khe nào thua một lượt nạp thì được đúng một lượt nạp nữa. Lấy được quảng cáo thì nguồn nạp sẵn cái tiếp theo cho lần làm mới sau; quảng cáo chờ quá 55 phút bị hủy, không đem ra hiện (O-04, áp cả native toàn màn hình nạp sẵn). Khe cuối của vị trí rời màn, vị trí bị tắt hay người dùng rút đồng ý thì nguồn hủy quảng cáo chờ và lượt đang nạp.
+- Hiện có: small theo cỡ AdsKit (T-027), medium giữ cỡ đợt 2 tới T-028; native đầy đủ chưa có vị trí.
 
-Small và medium trong `:core:ads` (plan T-010, số liệu từ `docs/features/ads/design/`):
+Small, medium và đầy đủ trong `:core:ads` (plan T-010, T-027, số liệu từ `docs/features/ads/design/` và mục 5.7 của luật):
 
-| Phần | Small | Medium |
-| --- | --- | --- |
-| Khung | cao 72 dp, rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 386 dp, như small |
-| Chỗ cho AdChoices | lề phải 24 dp, chữ và CTA không đè góc trên phải | lề trên 24 dp |
-| Icon | 40 dp, bo 8 dp | 40 dp, trong hàng đầu |
-| Media | không có | rộng hết, cao 196 dp, `MediaView` giữ tỷ lệ |
-| CTA | cao 36 dp, nền `tertiaryContainer`, bo 8 dp (nút chính của app: 52 dp, `primary`, bo 16 dp) | rộng hết, cao 36 dp |
+| Phần | Small | Medium | Đầy đủ (`FULL`) |
+| --- | --- | --- | --- |
+| Khung | cao 80 dp (`NativeAdDimens.BottomSlotHeight`, cùng hằng số cho thẻ, khung chờ và chỗ giữ), rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 386 dp, như small | cao cố định 418 dp (mô tả luôn 2 dòng), như small |
+| Chỗ cho AdChoices | lề phải 24 dp, chữ và CTA không đè góc trên phải | lề trên 24 dp | lề trên 24 dp |
+| Icon | 36 dp, bo 8 dp | 40 dp, trong hàng đầu | 40 dp, trong hàng đầu |
+| Chữ | tiêu đề 14 sp, mô tả 12 sp, nhãn "Ad" 10 sp đầu dòng mô tả | tiêu đề 14 sp | tiêu đề 14 sp |
+| Media | không có | rộng hết, cao 196 dp, `MediaView` giữ tỷ lệ | rộng hết, cao 200 dp |
+| CTA | cao 34 dp, chữ 13 sp, nền `tertiaryContainer`, bo 8 dp (nút chính của app: 52 dp, `primary`, bo 16 dp) | rộng hết, cao 36 dp | rộng hết, cao 36 dp |
+| Hàng sao | không có | không có (T-028) | sao đặc làm tròn theo điểm, tối đa 5; không hiện khi không có điểm lớn hơn 0 (O-08) |
 
 - Màn hình dùng `NativeAdSlot(placement)`: giữ chỗ bằng khối chờ khi tải, thu chỗ (cao 0) khi không có quảng cáo sau 10 giây, hủy quảng cáo khi rời màn hình. Vị trí nằm cạnh nút của app thì truyền `keepSpaceWhenEmpty = true` để giữ khoảng trống đúng chiều cao, nút không dịch.
+- `onAdAvailabilityChange: (Boolean) -> Unit` của `NativeAdSlot` báo app khe có quảng cáo hay không (D-02): `true` khi có quảng cáo, `false` khi nạp lỗi, không gọi khi đang tải; và `false` khi vị trí tắt hay rút đồng ý sau khi đã báo `true`. App dùng nó để chừa chỗ dưới nội dung (D-04, T-030).
 - AdChoices do SDK vẽ ở góc trên phải; app không tự vẽ.
 
 ## 5. Thêm một vị trí quảng cáo
@@ -117,7 +123,7 @@ Luật đầy đủ ở `ads-business-rules.md`, mục 3 và 4. Tóm tắt cho n
 - `ads_interval` (mặc định 45 giây): khoảng tối thiểu từ lúc inter gần nhất của nhóm mặc định rời màn (hoặc cả cụm inter và native) tới inter sau. Vị trí có nhóm giãn cách riêng dùng `ads_interval_<nhóm>` và mốc riêng của nhóm. Chỉ tính trong một lần mở app; mở lại app thì bắt đầu lại. App open và rewarded không tính.
 - App open lúc mở app và inter lúc mở app (`open_ad_type = inter`) không bị `ads_interval` chặn; inter lúc mở app vẫn đẩy mốc.
 - Quảng cáo khi quay lại app không có khoảng chờ thời gian; bị bỏ khi người dùng vừa bấm quảng cáo, vừa mở màn của hệ thống hay rời app có chủ đích.
-- Banner cố định làm mới theo cài đặt tự làm mới của đơn vị banner trên AdMob; banner thu gọn do `:core:ads` nạp lại 30 giây sau mỗi lần nạp được, mỗi lần là một banner bung ra mới (T-029). Banner lỗi nạp thì thử lại sau 2, 4, 6, 8 rồi 10 giây, không bỏ cuộc, gửi ngay khi mạng về. Banner chỉ gửi yêu cầu khi màn hình chứa nó đang hiện và cổng đồng ý cho phép ngay lúc gửi; lượt tới hạn khi màn không hiện thì chờ màn hiện lại, và banner tạm dừng khi màn bị che hay app xuống nền. Rút đồng ý khi banner đã có quảng cáo thì khung giữ chiều cao, quảng cáo ẩn; đồng ý lại thì nạp quảng cáo mới trong khung đó. Log thẻ `Ads`: `Banner <mã> retry in 2000 ms (failures 1, code 3)`, `Banner <mã> reload in 30000 ms`, `Banner <mã> request blocked`. Native ở đáy và native thu gọn thay nội dung mỗi 60 giây khi app ở foreground.
+- Banner cố định làm mới theo cài đặt tự làm mới của đơn vị banner trên AdMob; banner thu gọn do `:core:ads` nạp lại 30 giây sau mỗi lần nạp được, mỗi lần là một banner bung ra mới (T-029). Banner lỗi nạp thì thử lại sau 2, 4, 6, 8 rồi 10 giây, không bỏ cuộc, gửi ngay khi mạng về. Banner chỉ gửi yêu cầu khi màn hình chứa nó đang hiện và cổng đồng ý cho phép ngay lúc gửi; lượt tới hạn khi màn không hiện thì chờ màn hiện lại, và banner tạm dừng khi màn bị che hay app xuống nền. Rút đồng ý khi banner đã có quảng cáo thì khung giữ chiều cao, quảng cáo ẩn; đồng ý lại thì nạp quảng cáo mới trong khung đó. Log thẻ `Ads`: `Banner <mã> retry in 2000 ms (failures 1, code 3)`, `Banner <mã> reload in 30000 ms`, `Banner <mã> request blocked`. Native small ở khe một quảng cáo thay nội dung tại chỗ mỗi 60 giây khi app ở foreground (T-040, CL-02): nhịp đầu 60 giây sau khi hiện quảng cáo đầu, sau mỗi lần đổi tính lại 60 giây; nhịp rơi lúc app ở nền thì bỏ, không dồn, về foreground không làm mới ngay. Mỗi lượt chờ quảng cáo tối đa 10 giây; không có thì giữ quảng cáo cũ và thử lại theo nhánh còn giữ quảng cáo (2, 4, 8, 16, 32 rồi 60 giây). Mọi lượt gửi của native small (lượt đầu, nạp tiếp, thử lại, làm mới) chờ foreground và hỏi cổng đồng ý ngay trước khi gửi. Lượt làm mới ghi `ad_load_success`, `ad_load_fail` không có `load_attempt`. Native medium và native trong danh sách không làm mới; native thu gọn làm mới ở T-030. Log thẻ `Ads`: `Native <mã> claimed`, `Native <mã> next load`, `Native <mã> claim lost, retry once`, `Native <mã> expired`, `Native <mã> late ad destroyed`, `Native <mã> source closed`, `Native <mã> refresh: loaded`, `refresh: failed, retry in 2000 ms (failures 1)`, `refresh: blocked`, `refresh: skipped (background)`.
 
 Khóa, kiểu và mặc định của mọi khóa quảng cáo: `ads-business-rules.md`, mục 10; bảng sinh từ code ở `docs/remote-config-keys.md`.
 
@@ -129,7 +135,7 @@ Luật đầy đủ ở `ads-business-rules.md`, S-20 tới S-25, F-04 tới F-0
 - **Kế hoạch mặc định** suy ra từ danh sách vị trí (`AdPreloadPlan.fromPlacements()`): nhóm đầu là app open và native của bước đầu luồng (khe người dùng thấy đầu tiên), nhóm sau là mọi định dạng còn lại. Dự án mẫu có nhóm đầu là `APP_OPEN` (vị trí `open_app`, T-024).
 - **App đặt kế hoạch riêng** bằng `ads.setPreloadPlan(AdPreloadPlan(listOf(setOf(AdFormat.APP_OPEN), setOf(AdFormat.INTERSTITIAL, ...))))` trong `Application.onCreate`, ngay sau `ads.start(...)`, trước khi activity đầu tiên hỏi đồng ý. Một định dạng chỉ ở một nhóm.
 - **Lúc chạy:** lần đầu khi SDK sẵn sàng (callback của `MobileAds.initialize`, hoặc 35 giây sau khi gọi khởi tạo nếu callback không về); khi cổng đồng ý mở lại; khi một vị trí toàn màn hình được bật từ xa; khi mạng về. Lượt bị chặn vì cổng đóng được giữ một lượt và chạy một lần khi cổng mở; khi quyền thật của UMP là "không" thì không giữ. Lượt xin tới khi kế hoạch hay lượt nạp bù native đang chạy cũng được giữ (chung chỗ giữ một lượt) và chạy cả kế hoạch một lần khi lượt đang chạy xong; nạp bù native khi đang chạy thì bỏ. Lượt xin mới được chạy khi đang có lượt giữ thì lượt giữ tính là đã chạy cùng lượt đó, không chạy thêm (T-038). Cách hiểu "không chạy chồng" của S-23 do ta đặt (T-037), chưa đối chiếu AdsKit.
-- **Thử lại sau lỗi nạp:** interstitial chờ 2, 4, 6, 8 rồi 10 giây mỗi lần, không bỏ cuộc; native (khe trong màn và native toàn màn hình) thử lại sau 5 giây khi chưa có quảng cáo. Bộ đếm lỗi về 0 khi nạp được, đếm riêng từng vị trí. Interstitial đóng hay hiện lỗi thì nạp lại sau 2 giây; native toàn màn hình nạp lại ngay.
+- **Thử lại sau lỗi nạp:** interstitial chờ 2, 4, 6, 8 rồi 10 giây mỗi lần, không bỏ cuộc; native (khe trong màn và native toàn màn hình) thử lại sau 5 giây khi chưa có quảng cáo; native small đang giữ quảng cáo mà làm mới lỗi thì thử lại sau 2, 4, 8, 16, 32 rồi 60 giây (T-040). Bộ đếm lỗi về 0 khi nạp được, đếm riêng từng vị trí. Interstitial đóng hay hiện lỗi thì nạp lại sau 2 giây; native toàn màn hình nạp lại ngay.
 - **Mạng về:** Internet dùng được ổn định 3 giây sau khi mất thì kế hoạch nạp lại và khe native đang chờ thử lại gửi ngay. Mở app khi đang ở chế độ máy bay rồi tắt cũng tính là mạng về.
 - **Native không nạp ở nền:** mọi yêu cầu native của khe trong màn và native toàn màn hình (cả lượt đầu, lượt nạp sẵn và lượt thử lại) chờ app lên foreground. Hàng native trong danh sách chưa theo luật này (chờ pool của T-028). Activity của app hiện lại thì các khe native trong kế hoạch được nạp bù theo thứ tự kế hoạch, khi kế hoạch đã chạy xong ít nhất một lần và không có quảng cáo toàn màn hình.
 - Log thẻ `Ads` để kiểm trên máy: `SDK ready: callback` hay `SDK ready: 35 s cap`, `Preload SDK_READY: RUN`, `Preload group 1/1 started: ...`, `Preload PLACEMENT_ENABLED: HOLD`, `Held preload PLACEMENT_ENABLED: run`, `Held preload NETWORK_BACK: covered by GATE_REOPENED run`, `Retry gallery_interstitial in 2000 ms (failures 1, code 2)`, `Native sample_native_small retry in 5000 ms (failures 1)`, `Network back`.

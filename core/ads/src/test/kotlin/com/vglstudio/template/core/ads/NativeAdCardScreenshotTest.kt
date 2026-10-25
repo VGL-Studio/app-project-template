@@ -62,6 +62,27 @@ class NativeAdCardScreenshotTest {
     }
 
     @Test
+    fun full_light() {
+        captureRoboImage("src/test/screenshots/NativeAdCard_full_light.png") {
+            OnScreen(darkTheme = false) { NativeAdCard(sampleNativeAdAssets, NativeAdSize.FULL) }
+        }
+    }
+
+    @Test
+    fun full_dark() {
+        captureRoboImage("src/test/screenshots/NativeAdCard_full_dark.png") {
+            OnScreen(darkTheme = true) { NativeAdCard(sampleNativeAdAssets, NativeAdSize.FULL) }
+        }
+    }
+
+    @Test
+    fun placeholder_small_light() {
+        captureRoboImage("src/test/screenshots/NativeAdPlaceholder_small_light.png") {
+            OnScreen(darkTheme = false) { NativeAdPlaceholder(NativeAdSize.SMALL, animated = false) }
+        }
+    }
+
+    @Test
     fun placeholder_medium_light() {
         captureRoboImage("src/test/screenshots/NativeAdPlaceholder_medium_light.png") {
             OnScreen(darkTheme = false) { NativeAdPlaceholder(NativeAdSize.MEDIUM, animated = false) }

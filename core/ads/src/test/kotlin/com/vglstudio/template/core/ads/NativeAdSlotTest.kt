@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -19,17 +20,24 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.android.gms.ads.nativead.NativeAdView
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.logging.RecordingAppLogger
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The stateful native slot: gate, what each loading state draws, and destroying the ad (plan T-010). */
+/**
+ * The stateful native slot: gate, what each loading state draws, availability reported to the app, and destroying
+ * the ad (plans T-010, T-027).
+ */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
@@ -54,7 +62,7 @@ class NativeAdSlotTest {
     @Test
     fun loading_showsPlaceholder() {
         setSlotContent(NativeAdState.Loading, NativeAdSize.SMALL)
-        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(72.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(80.dp)
     }
 
     @Test
@@ -71,8 +79,8 @@ class NativeAdSlotTest {
                 )
             }
         }
-        // Control: the same slot takes 72 dp while loading, so 0 dp below is the slot giving its space back.
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(72.dp)
+        // Control: the same slot takes 80 dp while loading, so 0 dp below is the slot giving its space back.
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(80.dp)
 
         state = NativeAdState.Unavailable
         composeRule.waitForIdle()
@@ -93,7 +101,7 @@ class NativeAdSlotTest {
                 )
             }
         }
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(72.dp)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(80.dp)
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
 
         size = NativeAdSize.MEDIUM
@@ -120,8 +128,8 @@ class NativeAdSlotTest {
             }
         }
         val before = composeRule.onNodeWithTag(BUTTON).getUnclippedBoundsInRoot()
-        // Control: the button sits below the 72 dp placeholder, so the comparison below is not 0 against 0.
-        assertEquals(72f, before.top.value, 0.5f)
+        // Control: the button sits below the 80 dp placeholder, so the comparison below is not 0 against 0.
+        assertEquals(80f, before.top.value, 0.5f)
 
         state = NativeAdState.Unavailable
         composeRule.waitForIdle()
@@ -193,6 +201,46 @@ class NativeAdSlotTest {
     }
 
     @Test
+    fun swappedAd_recreatesBoundView() {
+        val ad1 = FakeLoadedNativeAd()
+        val ad2 = FakeLoadedNativeAd(sampleNativeAdAssets.copy(headline = "Second ad"))
+        var state by mutableStateOf<NativeAdState>(NativeAdState.Loaded(ad1))
+        val binds = mutableListOf<Pair<LoadedNativeAd, NativeAdView>>()
+        var frames = 0
+        composeRule.setContent {
+            AppTheme {
+                NativeAdSlotContent(
+                    state = state,
+                    size = NativeAdSize.SMALL,
+                    keepSpaceWhenEmpty = false,
+                    modifier = Modifier.width(CARD_WIDTH),
+                ) { ad ->
+                    remember { frames++ }
+                    NativeAdViewHost(bind = { binds += ad to it }) { binder ->
+                        NativeAdLayout(ad.assets, NativeAdSize.SMALL, binder, showAdChoicesMarker = false)
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        assertEquals(1, frames)
+        assertEquals(listOf<LoadedNativeAd>(ad1), binds.map { it.first }.distinct())
+
+        // Control (L-055): the same ad emitted again builds no new frame.
+        state = NativeAdState.Loaded(ad1)
+        composeRule.waitForIdle()
+        assertEquals(1, frames)
+
+        state = NativeAdState.Loaded(ad2)
+        composeRule.waitForIdle()
+
+        assertEquals("no new NativeAdView for the new ad", 2, frames)
+        assertEquals(1, binds.count { it.first === ad2 })
+        assertEquals(2, binds.map { it.second }.distinct().size)
+        composeRule.onNodeWithText("Second ad", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
     fun boundNativeAd_withFakeAd_drawsCard() {
         composeRule.setContent {
             AppTheme {
@@ -200,7 +248,118 @@ class NativeAdSlotTest {
             }
         }
         composeRule.onNodeWithText("Headline of the ad", useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(72.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(80.dp)
+    }
+
+    @Test
+    fun bottomSlotHeightConstant_equalsDrawnCardAndPlaceholderHeight() {
+        // One constant for the drawn bottom slot and the space kept for it (D-02, D-04, AR-02).
+        assertEquals(80f, NativeAdDimens.BottomSlotHeight.value, 0.5f)
+        composeRule.setContent {
+            AppTheme {
+                Column {
+                    NativeAdCard(sampleNativeAdAssets, NativeAdSize.SMALL, Modifier.width(CARD_WIDTH))
+                    NativeAdPlaceholder(NativeAdSize.SMALL, Modifier.width(CARD_WIDTH), animated = false)
+                }
+            }
+        }
+        val card = composeRule.onNodeWithTag(NativeAdTestTags.CARD).getUnclippedBoundsInRoot()
+        val placeholder = composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).getUnclippedBoundsInRoot()
+        assertEquals(NativeAdDimens.BottomSlotHeight.value, (card.bottom - card.top).value, 0.5f)
+        assertEquals(NativeAdDimens.BottomSlotHeight.value, (placeholder.bottom - placeholder.top).value, 0.5f)
+    }
+
+    @Test
+    fun slotAllowed_falseWithoutConsent() {
+        // Control: with every condition given the slot is allowed, so false below is the missing consent.
+        assertTrue(nativeSlotAllowed(canRequestAds = true, enabled = true, unitId = "unit"))
+        assertFalse(nativeSlotAllowed(canRequestAds = false, enabled = true, unitId = "unit"))
+    }
+
+    @Test
+    fun slotAllowed_falseWhenPlacementOff() {
+        assertTrue(nativeSlotAllowed(canRequestAds = true, enabled = true, unitId = "unit"))
+        assertFalse(nativeSlotAllowed(canRequestAds = true, enabled = false, unitId = "unit"))
+    }
+
+    @Test
+    fun slotAllowed_falseWithoutUnitId() {
+        assertTrue(nativeSlotAllowed(canRequestAds = true, enabled = true, unitId = "unit"))
+        assertFalse(nativeSlotAllowed(canRequestAds = true, enabled = true, unitId = null))
+    }
+
+    @Test
+    fun slotAllowed_trueWhenAllGiven() {
+        assertTrue(nativeSlotAllowed(canRequestAds = true, enabled = true, unitId = "unit"))
+        assertFalse(nativeSlotAllowed(canRequestAds = false, enabled = false, unitId = null))
+    }
+
+    private fun setGate(
+        states: MutableStateFlow<NativeAdState>,
+        reports: MutableList<Boolean>,
+        allowed: () -> Boolean = { true },
+    ) {
+        composeRule.setContent {
+            AppTheme {
+                NativeAdSlotGate(
+                    allowed = allowed(),
+                    states = states,
+                    size = NativeAdSize.SMALL,
+                    keepSpaceWhenEmpty = false,
+                    onAdAvailabilityChange = { reports += it },
+                    modifier = Modifier.width(CARD_WIDTH).testTag(SLOT),
+                    adContent = { NativeAdCard(it.assets, NativeAdSize.SMALL) },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun availability_reportsTrueOnLoadedFalseOnUnavailable_notOnLoading() {
+        val states = MutableStateFlow<NativeAdState>(NativeAdState.Loading)
+        val reports = mutableListOf<Boolean>()
+        setGate(states, reports)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertExists()
+        assertEquals(emptyList<Boolean>(), reports)
+
+        states.value = NativeAdState.Loaded(FakeLoadedNativeAd())
+        composeRule.waitForIdle()
+        assertEquals(listOf(true), reports)
+
+        states.value = NativeAdState.Unavailable
+        composeRule.waitForIdle()
+        assertEquals(listOf(true, false), reports)
+    }
+
+    @Test
+    fun availability_falseThenTrue_whenAdComesAfterFailure() {
+        val states = MutableStateFlow<NativeAdState>(NativeAdState.Loading)
+        val reports = mutableListOf<Boolean>()
+        setGate(states, reports)
+
+        states.value = NativeAdState.Unavailable
+        composeRule.waitForIdle()
+        assertEquals(listOf(false), reports)
+
+        states.value = NativeAdState.Loaded(FakeLoadedNativeAd())
+        composeRule.waitForIdle()
+        assertEquals(listOf(false, true), reports)
+    }
+
+    @Test
+    fun availability_reportsFalse_whenPlacementTurnsOffAfterLoaded() {
+        val states = MutableStateFlow<NativeAdState>(NativeAdState.Loaded(FakeLoadedNativeAd()))
+        val reports = mutableListOf<Boolean>()
+        var allowed by mutableStateOf(true)
+        setGate(states, reports) { allowed }
+        // Control: the loaded ad was reported once, before the placement turns off.
+        assertEquals(listOf(true), reports)
+
+        allowed = false
+        composeRule.waitForIdle()
+        assertEquals(listOf(true, false), reports)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(0.dp)
     }
 
     private companion object {
