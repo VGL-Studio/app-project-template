@@ -70,6 +70,8 @@ internal fun NativeAdSlotGate(
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier,
     adContent: @Composable (LoadedNativeAd) -> Unit,
+    /** Skeleton (T-028, step 3). */
+    onPoolOpportunity: ((result: String) -> Unit)? = null,
 ) {
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
     val reported = remember { AvailabilityReport() }

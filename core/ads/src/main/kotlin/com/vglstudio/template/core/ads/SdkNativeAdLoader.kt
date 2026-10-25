@@ -80,6 +80,14 @@ internal class SdkNativeAdLoader(
     }
 }
 
+/** Skeleton (T-028, step 3). */
+internal class NativeAdLoadListener(
+    private val events: NativeAdEvents?,
+    private val onFailed: (Int) -> Unit,
+) : AdListener() {
+    var loaded: SdkLoadedNativeAd? = null
+}
+
 /** A native ad from the SDK; [nativeAd] is bound to the NativeAdView by [BoundNativeAd]. */
 internal class SdkLoadedNativeAd(val nativeAd: NativeAd, private val events: NativeAdEvents? = null) :
     LoadedNativeAd {

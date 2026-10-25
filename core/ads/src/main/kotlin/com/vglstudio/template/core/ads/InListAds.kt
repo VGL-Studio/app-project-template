@@ -27,6 +27,7 @@ import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 private const val TAG = "Ads"
@@ -43,8 +44,15 @@ class InListAds internal constructor(
     private val loader: InListAdLoader?,
     private val scope: CoroutineScope,
     private val logger: AppLogger?,
+    /** Skeleton (T-028, step 3). */
+    internal val pooledCell: (() -> Flow<NativeAdState>)? = null,
+    /** Skeleton (T-028, step 3). */
+    internal val onPoolOpportunity: (result: String) -> Unit = {},
 ) {
     private val everyState = every
+
+    /** Skeleton (T-028, step 3). */
+    fun positions(itemCount: Int): List<Int> = emptyList()
 
     // Touched on the main thread only (composition and the screen's coroutine scope).
     private val slots = mutableMapOf<Int, MutableState<NativeAdState>>()
@@ -275,6 +283,13 @@ fun <T> LazyGridScope.itemsWithInListAds(
     )
 }
 
+/** Skeleton (T-028, step 3). */
+internal fun gridAdSpansOneCell(format: AdFormat): Boolean = false
+
+/** Skeleton (T-028, step 3). */
+internal fun gridInListPositions(format: AdFormat, itemCount: Int, every: Int, columns: Int): List<Int> =
+    inListAdPositions(itemCount, gridAdEvery(every, columns))
+
 /** Grid version of the list function above: each ad row spans the whole grid width. */
 internal fun <T> LazyGridScope.itemsWithInListAds(
     items: List<T>,
@@ -282,6 +297,7 @@ internal fun <T> LazyGridScope.itemsWithInListAds(
     placementKey: String,
     key: ((item: T) -> Any)? = null,
     contentType: (item: T) -> Any? = { null },
+    adSpansOneCell: Boolean = false,
     adContent: @Composable (slot: Int) -> Unit,
     itemContent: @Composable LazyGridItemScope.(item: T) -> Unit,
 ) {

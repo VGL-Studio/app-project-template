@@ -1348,11 +1348,6 @@ class AdsController @Inject internal constructor(
     }
 }
 
-/** The placement a full-screen ad is shown for; empty until its show (PL-03). */
-private class PlacementCell {
-    @Volatile var value: AdPlacement? = null
-}
-
 /** The native full-screen ad on screen and its placement. */
 internal class ShownNativeFullScreenAd(val placement: AdPlacement, val ad: LoadedNativeAd)
 

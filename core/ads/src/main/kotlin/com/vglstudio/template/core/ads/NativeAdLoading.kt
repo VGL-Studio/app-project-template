@@ -11,6 +11,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal interface LoadedNativeAd {
     val assets: NativeAdAssets
 
+    /** True once the SDK recorded an impression of this ad (P-01a); a pool never hands it out again. */
+    val impressionRecorded: Boolean get() = false
+
     fun destroy()
 }
 

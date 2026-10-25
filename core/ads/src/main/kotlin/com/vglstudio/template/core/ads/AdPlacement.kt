@@ -118,6 +118,10 @@ enum class AdPlacement(
     val recordInterval: Boolean = true,
     /** Switched on by the shared keys of section 10.1, with no `is_show_<code>` of its own (MC-09). */
     val appWide: Boolean = false,
+    /** Skeleton (T-028, step 3). */
+    val ctaLarge: Boolean = false,
+    /** Skeleton (T-028, step 3). */
+    val keepSpaceWhenPoolEmpty: Boolean = false,
 ) {
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
     OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
@@ -150,6 +154,8 @@ enum class AdPlacement(
             ignoreInterval,
             recordInterval,
             appWide,
+            ctaLarge,
+            keepSpaceWhenPoolEmpty,
         )
 }
 
@@ -170,6 +176,10 @@ internal data class AdPlacementDeclaration(
     val recordInterval: Boolean = true,
     /** Switched on by the shared keys of section 10.1, no `is_show_<code>` (MC-09). */
     val appWide: Boolean = false,
+    /** Skeleton (T-028, step 3). */
+    val ctaLarge: Boolean = false,
+    /** Skeleton (T-028, step 3). */
+    val keepSpaceWhenPoolEmpty: Boolean = false,
 ) {
     init {
         require(CODE_PATTERN.matches(code)) { "Placement code '$code' must be lower snake case" }

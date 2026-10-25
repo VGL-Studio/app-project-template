@@ -425,6 +425,51 @@ class AdTelemetryTest {
         assertEquals(1, counter.failuresInARow("sample_native_small"))
     }
 
+    @Test
+    fun poolUse_logsPoolPlacement_noLoadAttempt() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        listOf(false, true).forEachIndexed { i, success ->
+            val load = telemetry.nativeLoadReport(AdPlacement.GALLERY_NATIVE_MEDIUM, NativeLoadUse.POOL)
+            load.sent(i * 100L)
+            if (success) load.succeeded(i * 100L + 10) else load.failed(3, null, i * 100L + 20)
+        }
+
+        assertEquals(listOf<Int?>(null, null), metrics.events.map { it.loadAttemptOrMissing() })
+        assertEquals(
+            listOf("pool", "pool"),
+            metrics.events.map {
+                when (it) {
+                    is AdMetricEvent.LoadSuccess -> it.adPlacement
+                    is AdMetricEvent.LoadFail -> it.adPlacement
+                    else -> null
+                }
+            },
+        )
+        assertTrue(metrics.events.all { it.adFormat == "NATIVE_MEDIUM" })
+        assertEquals(0, counter.failuresInARow("gallery_native_medium"))
+    }
+
+    @Test
+    fun poolCellOpportunity_shownReady_notReadyIdle() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        telemetry.poolCellOpportunity(AdPlacement.GALLERY_NATIVE_MEDIUM, "shown")
+        telemetry.poolCellOpportunity(AdPlacement.GALLERY_INLIST_MEDIUM, "not_ready")
+
+        assertEquals(
+            listOf(
+                AdMetricEvent.Opportunity("NATIVE_MEDIUM", "gallery_native_medium", "shown", "ready"),
+                AdMetricEvent.Opportunity("NATIVE_MEDIUM", "gallery_inlist_medium", "not_ready", "idle"),
+            ),
+            metrics.events,
+        )
+    }
+
     /** `load_attempt` of a load event; any other event is a test error. */
     private fun AdMetricEvent.loadAttemptOrMissing(): Int? = when (this) {
         is AdMetricEvent.LoadSuccess -> loadAttempt

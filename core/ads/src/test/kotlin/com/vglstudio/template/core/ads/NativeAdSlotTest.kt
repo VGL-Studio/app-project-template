@@ -106,7 +106,7 @@ class NativeAdSlotTest {
 
         size = NativeAdSize.MEDIUM
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(386.dp)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(410.dp)
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
     }
 
@@ -167,6 +167,13 @@ class NativeAdSlotTest {
         assertEquals(null, AdFormat.BANNER.nativeLoadSize())
         assertEquals(null, AdFormat.INTERSTITIAL.nativeLoadSize())
         assertEquals(NativeAdSize.SMALL, AdFormat.NATIVE_SMALL.nativeLoadSize())
+        assertEquals(NativeAdSize.MEDIUM, AdFormat.NATIVE_MEDIUM.nativeLoadSize())
+    }
+
+    @Test
+    fun inCollection_loadsAsCard() {
+        assertEquals(NativeAdSize.CARD, AdFormat.NATIVE_IN_COLLECTION.nativeLoadSize())
+        // Control: medium keeps its own size, so CARD above is not the size of every pooled format.
         assertEquals(NativeAdSize.MEDIUM, AdFormat.NATIVE_MEDIUM.nativeLoadSize())
     }
 

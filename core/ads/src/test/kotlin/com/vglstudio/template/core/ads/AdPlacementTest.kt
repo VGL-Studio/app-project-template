@@ -74,6 +74,29 @@ class AdPlacementTest {
     }
 
     @Test
+    fun ctaLarge_onlyNativeMedium() {
+        // Control: medium accepts it.
+        AdPlacementDeclaration("medium_x", AdFormat.NATIVE_MEDIUM, ctaLarge = true)
+        AdFormat.entries.filterNot { it == AdFormat.NATIVE_MEDIUM }.forEach {
+            assertThrows("$it", IllegalArgumentException::class.java) {
+                AdPlacementDeclaration("x", it, ctaLarge = true)
+            }
+        }
+    }
+
+    @Test
+    fun keepSpaceWhenPoolEmpty_onlyPooledFormats() {
+        val pooled = listOf(AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_IN_COLLECTION, AdFormat.NATIVE_STEP)
+        // Control: the formats of a pool accept it.
+        pooled.forEach { AdPlacementDeclaration("pool_x", it, keepSpaceWhenPoolEmpty = true) }
+        AdFormat.entries.filterNot { it in pooled }.forEach {
+            assertThrows("$it", IllegalArgumentException::class.java) {
+                AdPlacementDeclaration("x", it, keepSpaceWhenPoolEmpty = true)
+            }
+        }
+    }
+
+    @Test
     fun nativeEveryBelowOne_isRejected() {
         // Control: 1 is accepted.
         AdPlacementDeclaration("list_x", AdFormat.NATIVE_IN_COLLECTION, nativeEvery = 1)

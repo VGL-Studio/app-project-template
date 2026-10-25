@@ -23,7 +23,7 @@ internal fun nativeRequestOptions(size: NativeAdSize): NativeRequestOptions = Na
     multipleImages = false,
     mediaAspect = when (size) {
         NativeAdSize.SMALL -> MediaAspectRatio.ANY
-        NativeAdSize.MEDIUM, NativeAdSize.FULL -> MediaAspectRatio.LANDSCAPE
+        NativeAdSize.MEDIUM, NativeAdSize.FULL, NativeAdSize.CARD -> MediaAspectRatio.LANDSCAPE
     },
 )
 

@@ -60,7 +60,7 @@ import kotlin.math.sin
  * Size of a native ad drawn inside a screen (ads-guide.md, section 4). [FULL] is the full native ad of
  * ads-business-rules.md 5.7; no ad format draws it yet (plan T-027, Q2).
  */
-enum class NativeAdSize { SMALL, MEDIUM, FULL }
+enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD }
 
 /**
  * What a native ad shows; the SDK fills it in the app, tests and previews use fixed values. [starRating] is the
@@ -82,7 +82,12 @@ data class NativeAdAssets(
  * never draw it (ads-guide.md, section 2).
  */
 @Composable
-fun NativeAdCard(assets: NativeAdAssets, size: NativeAdSize, modifier: Modifier = Modifier) {
+fun NativeAdCard(
+    assets: NativeAdAssets,
+    size: NativeAdSize,
+    modifier: Modifier = Modifier,
+    ctaLarge: Boolean = false,
+) {
     NativeAdLayout(assets, size, PreviewNativeAdBinder, showAdChoicesMarker = true, modifier = modifier)
 }
 
@@ -91,7 +96,12 @@ fun NativeAdCard(assets: NativeAdAssets, size: NativeAdSize, modifier: Modifier 
  * [animated] off keeps screenshots independent of time.
  */
 @Composable
-fun NativeAdPlaceholder(size: NativeAdSize, modifier: Modifier = Modifier, animated: Boolean = true) {
+fun NativeAdPlaceholder(
+    size: NativeAdSize,
+    modifier: Modifier = Modifier,
+    animated: Boolean = true,
+    ctaLarge: Boolean = false,
+) {
     NativeAdPlaceholderLayout(size, NativeAdDimens.heightOf(size), modifier, animated)
 }
 
@@ -145,9 +155,9 @@ internal object NativeAdDimens {
     val ShortLineWidth = 120.dp
     val CallToActionPlaceholderWidth = CallToActionMinWidth
 
-    fun heightOf(size: NativeAdSize): Dp = when (size) {
+    fun heightOf(size: NativeAdSize, ctaLarge: Boolean = false): Dp = when (size) {
         NativeAdSize.SMALL -> BottomSlotHeight
-        NativeAdSize.MEDIUM -> MediumHeight
+        NativeAdSize.MEDIUM, NativeAdSize.CARD -> MediumHeight
         NativeAdSize.FULL -> FullPlaceholderHeight
     }
 }
@@ -167,6 +177,7 @@ internal object NativeAdTestTags {
     const val AD_CHOICES_AREA = "native_ad_choices_area"
     const val STAR_ROW = "native_ad_star_row"
     const val STAR = "native_ad_star"
+    const val PLACEHOLDER_CTA = "native_ad_placeholder_cta"
 }
 
 /** Filled stars of [rating] (O-08): none without a real rating above 0, else rounded half up, at most 5. */
@@ -213,7 +224,7 @@ internal fun NativeAdLayout(
     ) {
         when (size) {
             NativeAdSize.SMALL -> SmallLayout(assets, binder)
-            NativeAdSize.MEDIUM -> MediumLayout(assets, binder)
+            NativeAdSize.MEDIUM, NativeAdSize.CARD -> MediumLayout(assets, binder)
             NativeAdSize.FULL -> FullLayout(assets, binder)
         }
         if (showAdChoicesMarker) AdChoicesMarker(Modifier.align(Alignment.TopEnd))
@@ -579,7 +590,7 @@ internal fun NativeAdPlaceholderLayout(
             ) {
                 FullPlaceholderBlocks()
             }
-            NativeAdSize.MEDIUM -> Column(
+            NativeAdSize.MEDIUM, NativeAdSize.CARD -> Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom)
@@ -603,7 +614,9 @@ private fun ColumnScope.MediumPlaceholderBlocks() {
     }
     PlaceholderBlock(Modifier.fillMaxWidth().weight(1f))
     PlaceholderLines(Modifier.fillMaxWidth().height(NativeAdDimens.BodyHeight))
-    PlaceholderBlock(Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight))
+    PlaceholderBlock(
+        Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight).testTag(NativeAdTestTags.PLACEHOLDER_CTA),
+    )
 }
 
 @Composable

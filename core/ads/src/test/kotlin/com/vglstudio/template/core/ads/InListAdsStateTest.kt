@@ -54,6 +54,8 @@ class InListAdsStateTest {
         assertThrows(IllegalArgumentException::class.java) { requireInListFormat(AdFormat.INTERSTITIAL) }
         requireInListFormat(AdFormat.NATIVE_SMALL)
         requireInListFormat(AdFormat.NATIVE_MEDIUM)
+        requireInListFormat(AdFormat.NATIVE_IN_COLLECTION)
+        assertThrows(IllegalArgumentException::class.java) { requireInListFormat(AdFormat.NATIVE_STEP) }
     }
 
     @Test

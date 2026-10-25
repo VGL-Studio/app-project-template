@@ -34,6 +34,14 @@ class NativeRequestOptionsTest {
     }
 
     @Test
+    fun card_portraitMedia() {
+        // O-06: a card of a grid asks for portrait media; the other options are those of every size.
+        val card = nativeRequestOptions(NativeAdSize.CARD)
+        assertEquals(MediaAspectRatio.PORTRAIT, card.mediaAspect)
+        assertEquals(nativeRequestOptions(NativeAdSize.MEDIUM).copy(mediaAspect = MediaAspectRatio.PORTRAIT), card)
+    }
+
+    @Test
     fun small_anyAspect() {
         // Small draws no media, so it does not narrow the ads it can get.
         assertEquals(MediaAspectRatio.ANY, nativeRequestOptions(NativeAdSize.SMALL).mediaAspect)

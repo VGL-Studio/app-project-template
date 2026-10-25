@@ -3,9 +3,11 @@ package com.vglstudio.template.core.ads
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vglstudio.template.core.designsystem.theme.AppTheme
@@ -87,5 +89,45 @@ class NativeAdCardScreenshotTest {
         captureRoboImage("src/test/screenshots/NativeAdPlaceholder_medium_light.png") {
             OnScreen(darkTheme = false) { NativeAdPlaceholder(NativeAdSize.MEDIUM, animated = false) }
         }
+    }
+
+    @Test
+    fun medium_ctaLarge_light() {
+        captureRoboImage("src/test/screenshots/NativeAdCard_medium-cta-large_light.png") {
+            OnScreen(darkTheme = false) { NativeAdCard(sampleNativeAdAssets, NativeAdSize.MEDIUM, ctaLarge = true) }
+        }
+    }
+
+    @Test
+    fun card_light() {
+        captureRoboImage("src/test/screenshots/NativeAdCard_card_light.png") {
+            OnScreen(darkTheme = false) {
+                NativeAdCard(sampleNativeAdAssets, NativeAdSize.CARD, Modifier.size(CARD_WIDTH, CARD_HEIGHT))
+            }
+        }
+    }
+
+    @Test
+    fun card_dark() {
+        captureRoboImage("src/test/screenshots/NativeAdCard_card_dark.png") {
+            OnScreen(darkTheme = true) {
+                NativeAdCard(sampleNativeAdAssets, NativeAdSize.CARD, Modifier.size(CARD_WIDTH, CARD_HEIGHT))
+            }
+        }
+    }
+
+    @Test
+    fun placeholder_card_light() {
+        captureRoboImage("src/test/screenshots/NativeAdPlaceholder_card_light.png") {
+            OnScreen(darkTheme = false) {
+                NativeAdPlaceholder(NativeAdSize.CARD, Modifier.size(CARD_WIDTH, CARD_HEIGHT), animated = false)
+            }
+        }
+    }
+
+    private companion object {
+        /** The card of the README example, 180 x 300 dp (ads-business-rules.md 5.7). */
+        val CARD_WIDTH = 180.dp
+        val CARD_HEIGHT = 300.dp
     }
 }

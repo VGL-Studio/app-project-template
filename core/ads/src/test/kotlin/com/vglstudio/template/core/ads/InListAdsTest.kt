@@ -26,6 +26,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
@@ -37,8 +38,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -361,11 +367,201 @@ class InListAdsTest {
         assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
     }
 
+    /** Cells of a fake pool: each call hands a new ad (or [loadingOnly] calls stay loading) and records releases. */
+    private class FakePooledCells(private val loadingOnly: Set<Int> = emptySet()) {
+        val handed = mutableListOf<FakeLoadedNativeAd>()
+        val released = mutableListOf<FakeLoadedNativeAd>()
+        private var calls = 0
+
+        fun cell(): Flow<NativeAdState> {
+            val call = calls++
+            if (call in loadingOnly) return flowOf(NativeAdState.Loading)
+            return flow {
+                val ad = FakeLoadedNativeAd(sampleNativeAdAssets.copy(headline = "Pool ad ${call + 1}"))
+                handed += ad
+                try {
+                    emit(NativeAdState.Loaded(ad))
+                    awaitCancellation()
+                } finally {
+                    released += ad
+                }
+            }
+        }
+    }
+
+    /** [itemCount] items every [every] with the pooled medium rows of [cell], N in [every]. */
+    private fun setPooledList(
+        itemCount: Int,
+        every: () -> Int?,
+        cell: () -> Flow<NativeAdState>,
+        onOpportunity: (String) -> Unit = {},
+    ) {
+        composeRule.setContent {
+            AppTheme {
+                val scope = rememberCoroutineScope()
+                val ads = remember {
+                    InListAds(
+                        placement = AdPlacement.GALLERY_INLIST_MEDIUM,
+                        every = derivedStateOf(every),
+                        loader = loadedLoader,
+                        scope = scope,
+                        logger = RecordingAppLogger(),
+                        pooledCell = cell,
+                        onPoolOpportunity = onOpportunity,
+                    )
+                }
+                LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
+                    itemsWithInListAds(items = (1..itemCount).toList(), ads = ads) {
+                        Text("List item $it", Modifier.testTag("item_$it"))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun pooledRow_scrolledAway_releasesAd() {
+        val pool = FakePooledCells()
+        setPooledList(itemCount = 30, every = { 3 }, cell = pool::cell)
+        composeRule.waitForIdle()
+        val first = pool.handed.first()
+        assertEquals(emptyList<FakeLoadedNativeAd>(), pool.released)
+
+        composeRule.onNodeWithTag(LIST).performScrollToNode(hasText("List item 30"))
+        composeRule.waitForIdle()
+
+        assertEquals(1, pool.released.count { it === first })
+        // The row gives the ad back to the pool; the pool, not the row, decides whether to destroy it.
+        assertEquals(0, first.destroyCount)
+    }
+
+    @Test
+    fun pooledRow_impressedAd_notShownInAnotherRow() {
+        val ads = numberedAds(30)
+        val pool = immediatePool(ads, capacity = 5, logger = RecordingAppLogger()).also { it.refill() }
+        composeRule.mainClock.autoAdvance = false
+        setPooledList(
+            itemCount = 30,
+            every = { 3 },
+            cell = { pooledCellStates(pool, AdPlacement.GALLERY_INLIST_MEDIUM, RecordingAppLogger(), "gallery_inlist_medium") },
+        )
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.onNode(hasText("Ad 1") and hasAnyAncestor(hasTestTag("inlist_ad_0")), useUnmergedTree = true)
+            .assertExists()
+        ads.first().impressionRecorded = true
+
+        composeRule.onNodeWithTag(LIST).performScrollToIndex(LAST_INDEX_OF_30)
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.onNodeWithTag(LIST).performScrollToNode(hasTestTag("inlist_ad_2"))
+        composeRule.mainClock.advanceTimeBy(1_000)
+
+        composeRule.onAllNodesWithTag("inlist_ad_2").assertCountEquals(1)
+        composeRule.onAllNodes(hasText("Ad 1"), useUnmergedTree = true).assertCountEquals(0)
+        assertEquals(1, ads.first().destroyCount)
+        // Control: the row shows an ad of the pool.
+        composeRule.onAllNodes(
+            hasTestTag(NativeAdTestTags.HEADLINE) and hasAnyAncestor(hasTestTag("inlist_ad_2")),
+            useUnmergedTree = true,
+        ).assertCountEquals(1)
+    }
+
+    @Test
+    fun pooledRow_recordsShownOnce_notReadyOnDispose() {
+        val pool = FakePooledCells(loadingOnly = setOf(1))
+        val results = mutableListOf<String>()
+        var every by mutableStateOf<Int?>(3)
+        setPooledList(itemCount = 7, every = { every }, cell = pool::cell, onOpportunity = { results += it })
+        composeRule.waitForIdle()
+        assertEquals(listOf("shown"), results)
+
+        every = null
+        composeRule.waitForIdle()
+
+        assertEquals(listOf("shown", "not_ready"), results)
+    }
+
+    @Test
+    fun pooledRows_everyBecomesNull_releaseToPool() {
+        val pool = FakePooledCells()
+        var every by mutableStateOf<Int?>(3)
+        setPooledList(itemCount = 7, every = { every }, cell = pool::cell)
+        composeRule.waitForIdle()
+        assertEquals(2, pool.handed.size)
+        assertEquals(emptyList<FakeLoadedNativeAd>(), pool.released)
+
+        every = null
+        composeRule.waitForIdle()
+        composeRule.onAllNodes(adRows()).assertCountEquals(0)
+        assertEquals(pool.handed.toSet(), pool.released.toSet())
+        assertEquals(2, pool.released.size)
+
+        // Control: allowed again, the rows take ads again.
+        every = 3
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithTag("inlist_ad_0").assertCountEquals(1)
+        assertEquals(4, pool.handed.size)
+    }
+
+    @Test
+    fun grid_inCollection_adTakesOneCell_everyNItems() {
+        val positions = gridInListPositions(AdFormat.NATIVE_IN_COLLECTION, itemCount = 7, every = 3, columns = 2)
+        assertEquals(listOf(3, 7), positions)
+        // Control: a medium row is rounded to whole rows and spans the grid.
+        assertEquals(listOf(4), gridInListPositions(AdFormat.NATIVE_MEDIUM, itemCount = 7, every = 3, columns = 2))
+        assertTrue(gridAdSpansOneCell(AdFormat.NATIVE_IN_COLLECTION))
+        assertFalse(gridAdSpansOneCell(AdFormat.NATIVE_MEDIUM))
+        composeRule.setContent {
+            AppTheme {
+                LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().testTag(GRID)) {
+                    itemsWithInListAds(
+                        items = (1..7).toList(),
+                        positions = positions,
+                        placementKey = "cards",
+                        adSpansOneCell = gridAdSpansOneCell(AdFormat.NATIVE_IN_COLLECTION),
+                        adContent = { slot -> Text("Ad cell $slot", Modifier.testTag("inlist_ad_$slot")) },
+                    ) {
+                        Text("List item $it", Modifier.testTag("item_$it"))
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val grid = bounds(GRID)
+        val first = bounds("inlist_ad_0")
+        assertDpEquals("first ad beside item 3", bounds("item_3").top, first.top)
+        assertTrue("first ad in the second column", first.left >= grid.left + grid.width / 2 - TOLERANCE_DP.dp)
+        val second = bounds("inlist_ad_1")
+        assertDpEquals("second ad beside item 6", bounds("item_6").top, second.top)
+        assertTrue("second ad in the second column", second.left >= grid.left + grid.width / 2 - TOLERANCE_DP.dp)
+        assertTrue("item 7 below the second ad", bounds("item_7").top >= second.bottom)
+    }
+
+    @Test
+    fun positions_followEvery() {
+        var every by mutableStateOf<Int?>(3)
+        val ads = InListAds(
+            placement = AdPlacement.GALLERY_INLIST_MEDIUM,
+            every = derivedStateOf { every },
+            loader = loadedLoader,
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            logger = RecordingAppLogger(),
+        )
+        assertEquals(listOf(3, 7), ads.positions(itemCount = 7))
+        assertEquals(emptyList<Int>(), ads.positions(itemCount = 3))
+
+        every = null
+        assertEquals(emptyList<Int>(), ads.positions(itemCount = 7))
+    }
+
     private companion object {
         const val LIST = "list"
         const val CONTROL_LIST = "control_list"
         const val GRID = "grid"
         const val AD_TAG_PREFIX = "inlist_ad_"
         const val TOLERANCE_DP = 0.5f
+
+        /** The last index of 30 items with an ad row after every 3: 30 items and 9 ad rows. */
+        const val LAST_INDEX_OF_30 = 38
     }
 }
