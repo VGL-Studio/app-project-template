@@ -46,7 +46,7 @@ internal class AdPreloader(
 
     /**
      * S-09, S-23: asks consent again, then runs, holds or ignores the preload. A HOLD while one is already held still
-     * logs HOLD and keeps the first reason.
+     * logs HOLD and keeps the first reason. A RUN takes the held preload with it (S-23: it ran once).
      */
     fun request(reason: PreloadReason) {
         askConsentAgain()
@@ -54,7 +54,11 @@ internal class AdPreloader(
         if (reason == PreloadReason.SDK_READY) everRequested = true
         logger.info(TAG, "Preload $reason: $decision")
         when (decision) {
-            PreloadDecision.RUN -> launch(plan, wholePlan = true)
+            PreloadDecision.RUN -> {
+                held?.let { logger.info(TAG, "Held preload $it: covered by $reason run") }
+                held = null
+                launch(plan, wholePlan = true)
+            }
             PreloadDecision.HOLD -> if (held == null) held = reason
             else -> Unit
         }
