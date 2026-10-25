@@ -1,7 +1,7 @@
 ---
 ticket: T-024
 title: Quảng cáo mở app ở màn loading (lần đầu sau khi cài và lần thường)
-status: approved   # draft | approved | stopped | done
+status: done       # draft | approved | stopped | done
 version: 3                   # 2: rà soát trước phiên RUN-20261026-01, thêm AdsFlagsTest.kt; 3: RUN-20261026-01 dừng ở bước 3, thêm AdUnitIdsTest.kt (mục 3.2, 4, 7, câu hỏi 3, 7)
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
@@ -367,3 +367,23 @@ Bước 3 (test viết trước) có khung rỗng để biên dịch: hai dòng 
 - **Lệch so với plan:** `awaitStartupAd` thêm tham số `logger: AppLogger? = null`; `di/StartupAdsModule.kt` vào khung rỗng; thêm `StartupAdWaitTest.interPlacement_isProbedAndRecorded` (câu hỏi 7 của phiên bản 3). Ngoài mục 3.2: không có. Phương án dự phòng 3.4: chưa tới.
 - **Việc còn lại:** duyệt plan phiên bản 3 (mục 1, 3.1), đưa vào danh sách chạy `RUN-20261026-02` (nháp) để tiếp tục trên nhánh cũ.
 - **Cần người xem:** câu hỏi 7 của phiên bản 3; cách sửa `AdUnitIdsTest` ở mục 3.2 và mục 4.
+
+### RUN-20261026-02, phiên bản plan 3
+
+- **Kết quả:** đã merge (PR #170, commit squash `3d4f165`, 2026-10-25 16:01 UTC).
+- **Nhánh, PR:** `claude/T-024-app-open-luc-mo-app` (tiếp trên nhánh cũ, gộp nhánh chính `b2ee8a8`), PR #170. Commit test `891ecec` (RUN-20261026-01) và `d4e2cef`, commit code `7ac997d`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-024` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: khe app open và hai vị trí toàn app `open_app`, `open_app_inter` trong `:core:ads`; `StartupAds`, `rememberShowStartupAd`; màn loading chờ và hiện quảng cáo mở app; staging lọc vị trí toàn app; kịch bản emulator; ghi chú ADR-0018 và `ads-guide.md` mục 3, 6, 8, 9.
+- **Test viết trước:** lần này thêm 12 test mới (`LoadingViewModelTest` 8, `LoadingRouteTest` 3, `StagingRemoteValuesModuleTest` 1) và sửa 4 test (`StagingRemoteValuesModuleTest.everyAdPlacement_isShown`, `RemoteConfigKeysTest` hai test lọc `!appWide` có đối chứng, `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey` như mục 4 phiên bản 3). Cả 12 test mới thất bại đúng lý do trên khung rỗng. Bốn test qua ngay, đều là test chặn hay test lọc: `AdUnitIdsTest` (như plan nói), `flagOff_neverAsksForStartupAd` (đối chứng là các test cờ bật), `everyFeatureFlagAndPlacement_isListed`, `everyAdPlacement_isShown`. Test viết chặt bằng bước đối chứng: 4. 29 test của `:core:ads` từ phiên trước chạy lại vẫn thất bại đúng lý do. Chạy test JVM mọi module trên khung rỗng (ADR-0029): `:core:ads` 29 lỗi, `:feature:loading` 10, `:app` 4 (2 test mới sửa cùng `keysFile_matchesCode`, `templateFile_matchesCode` vì `keysFor` của khung rỗng còn khóa `is_show_open_app*`); không có test cũ nào đỏ vì dữ liệu hay vì hành vi cũ hỏng.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 8 ghi chú; không sửa điểm nào.
+  - Nên sửa, chờ người quyết: người dùng rời app (Home) trong lúc màn loading chờ quảng cáo thì vòng chờ vẫn chạy, và lượt quảng cáo hiện khi người dùng quay lại (dưới 1 giờ). Thực chất đó là một quảng cáo khi quay lại app nhưng không theo `show_resum_ads` (KB-14). Spec KB-13 ("khởi động mới") và plan không nói tới trường hợp này. Code làm đúng plan; sửa nó là đổi hành vi quảng cáo ngoài plan và spec, nên không sửa trong phiên (bước 6, điểm mâu thuẫn hay thiếu ở spec). Phương án: chỉ hiện nếu app chưa rời foreground từ lúc gọi `awaitStartupAd`, nếu không thì `onAdFinished(false)`. Test viết trước được trong `LoadingRouteTest`: `pause().stop()` trước khi lượt về, rồi `resume()`, kỳ vọng `showAd` 0 lần, `onFinished` 1 lần. Đề xuất làm cùng T-025.
+  - Ghi chú: khóa 1 giây (A-08) không ghi khi lượt app open kết thúc bằng đường hồi phục (kẹt, mất activity), nên ghi ở T-025; KDoc `showInterstitial` ("never when the app opens") và `fullScreenAdShowing` còn chữ cũ; trước vòng chờ, `awaitStartupAd` chờ không giới hạn lúc đọc dấu lần đầu (lỗi DataStore đã được bắt); `interShown` là `false` khi SDK báo lỗi hiện ngay trong lúc gọi `show()`; phần nối SDK không có unit test (ngoại lệ đã duyệt); `AppLaunchTest` có thể chờ lâu nếu hộp thoại đồng ý không tải được trên emulator (lần này `ui-test` xanh); lệch `consentOpen` và sửa bản giả, ghi ở dòng dưới.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40208942588): `changes`, `build-and-test`, `ui-test` đều qua. Trên máy: `scripts/check.sh` 737 test JVM, 0 lỗi, 42 ảnh screenshot (không ảnh mới hay đổi), Cổng chất lượng: QUA (lần chạy đầu đỏ vì một lỗi ktlint thiếu dòng trống trong `LoadingViewModelTest`, sửa một lần).
+- **Lệch so với plan:**
+  - Probe đọc `consentOpen` từ `gate.state.value.allowed` thay `canRequestAds.value`, vì `canRequestAds` còn cần SDK đã khởi động. Nếu đọc `canRequestAds` thì vòng chờ sẽ bỏ nhầm ("consent closed") giữa lúc đồng ý xong và lúc SDK sẵn sàng.
+  - Vị trí đang chọn được thu từ `start()` vào một `StateFlow`. `awaitStartupAd` chờ giá trị đầu tiên của nó rồi mới chạy vòng chờ, để không trả "key off" khi dấu lần đầu chưa đọc xong.
+  - Thêm hằng `APP_OPEN_LOCK_MILLIS`, và đổi `onInterstitialLoadFailed` thành `onFullScreenLoadFailed` dùng chung cho app open. Dòng log là `startup ad: ready (open_app) after N ms`.
+  - `ads-guide.md` mục 8 sửa thêm một dòng có sẵn: staging bật mọi vị trí bằng giá trị cục bộ, trừ hai vị trí toàn app.
+  - Test viết trước sửa sau commit test: `FakeStartupAds` trong `LoadingViewModelTest` (có từ `891ecec`) đổi `CompletableDeferred(null)` thành `CompletableDeferred(value = null)`. Bản cũ gọi nhầm hàm dựng nhận job cha nên không bao giờ hoàn tất, làm 7 test cũ treo. Đây là lỗi của bản giả, không đổi điều test kiểm (bước 4).
+  - Ngoài mục 3.2: không có. Phương án dự phòng 3.4: không dùng (`LoadingRouteTest` qua với `collectAsStateWithLifecycle`).
+- **Việc còn lại:** T-025 (quay lại app) dùng khe app open; xét điểm nên sửa ở trên và mốc khóa 1 giây ở đường hồi phục khi làm T-025. Bản phát hành sau cần mã đơn vị `open_app`, `open_app_inter` (việc của người).
+- **Cần người xem:** kiểm thủ công trên máy thật (mục 4, dòng "KB-13, tiêu chí 1 đến 4 trên máy"); điểm nên sửa của rà soát (rời app trong lúc chờ); kết quả kịch bản emulator `T-024-mo-app-tu-choi-dong-y.txt` ở `device-session` cuối phiên.

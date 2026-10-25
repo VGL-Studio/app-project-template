@@ -208,6 +208,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên chính giao bước 3 đến 5 của 5 task lớn (tới 80 file) cho phiên con với danh sách file, thứ tự commit, điều kiện dừng và mẫu báo cáo. Cả 5 task merge, CI xanh vòng đầu, không file nào ngoài plan; ngữ cảnh của phiên chính đủ cho cả phiên. Nhưng phiên con làm trong thư mục chính, nên phiên chính không chạy được `check.sh` hay chuẩn bị task sau song song, và hook dừng phiên của môi trường cloud báo "có thay đổi chưa commit" ba lần. Một lần phiên chính sửa file khi `check.sh` chạy nền trong cùng thư mục và phải chạy lại.
 - **Cải tiến:** `docs/auto-run.md` mục 3: Giao bước 3 đến 5 cho phiên con, trong worktree riêng của nhánh task, nội dung giao việc tối thiểu, phiên chính kiểm danh sách file; không sửa file trong thư mục đang chạy `check.sh` nền.
 - **Trạng thái:** applied
+- **Kiểm chứng:** RUN-20261026-02 (T-024, 30 file): phiên con làm bước 3 đến 5 trong worktree `../task-T-024` sau khi `check.sh` nền của nhánh chính xong; phiên chính viết báo cáo song song, không file nào ngoài mục 3.2, CI xanh vòng đầu. Có hiệu quả.
 -- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`; PR #87.
 ### L-053. Nút chữ trên nền khác màu tự đặt màu chữ, đè màu thiết kế
 
@@ -280,6 +281,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** 4 trên 12 task có lỗi thật ở mức nên sửa do rà soát độc lập tìm ra, test viết trước không bắt: T-017 popup mất trạng thái khi activity dựng lại (khung hình đầu báo màn hình `null`; ca KB-3 thì popup biến mất), T-011 quảng cáo đã tải còn giữ khi vị trí bị tắt giữa chừng, T-010 nút CTA lệch thiết kế 8 dp, T-012 test thiếu kiểm đăng ký tài sản sau khi thu gọn. Plan không nêu trường hợp dựng lại activity hay cờ đổi giữa chừng.
 - **Cải tiến (đề xuất, chưa làm):** `docs/CLAUDE.md` mục Khi viết plan: trạng thái giữ ở vỏ app (`MainActivity`, `AppNavHost`) có test dựng lại activity (chuỗi khung hình đầu chưa có back stack, hay `ActivityScenario.recreate()`); tài nguyên giữ theo cờ hay khóa Remote Config có test khi cờ tắt giữa chừng.
 - **Trạng thái:** applied
+- **Kiểm chứng:** RUN-20261026-02 (T-024): plan có sẵn test dựng lại activity (`LoadingRouteTest.recreateWhileAdShows_doesNotShowAgain`) và test khóa tắt giữa chừng (`placementSwitch_keyTurnedOff_emitsFalse`, `keyTurnedOffDuringWait_returnsNextTick`); rà soát độc lập không thấy lỗi ở hai loại đó. Có hiệu quả với hai loại đã ghi. Rà soát vẫn bắt một loại đổi trạng thái giữa chừng khác mà plan không nêu: app rời foreground trong lúc chờ (L-091).
 -- **Áp dụng:** `docs/CLAUDE.md`, mục Khi viết plan (test dựng lại activity, test cờ tắt giữa chừng); PR #155.
 ### L-062. Test quét mã nguồn theo chuỗi con hỏng vì task chạy trước trong cùng phiên
 
@@ -521,3 +523,11 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5: ghi cách đẩy khi phiên con không báo giữa chừng (vòng nền có giới hạn theo dõi ref, gọi `save-branch.sh`, bắt đầu sau khi có kết quả `main-guard` của task trước), hoặc thêm script `scripts/push-on-commit.sh <nhánh> --minutes N` có test.
 - **Trạng thái:** proposed
 
+### L-091. Plan có bước chờ trước khi hiện quảng cáo không nêu trường hợp người dùng rời app giữa lúc chờ
+
+- **Ngày, nguồn:** 2026-10-25, RUN-20261026-02 (T-024, PR #170)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** màn loading chờ quảng cáo mở app tới 40 giây. Rà soát độc lập (mức nên sửa) thấy: người dùng bấm Home trong lúc chờ thì vòng chờ vẫn chạy, và quảng cáo hiện khi người dùng quay lại, có thể sau nhiều phút. Khi đó nó thành một quảng cáo khi quay lại app, nhưng không theo khóa và luật của KB-14. Spec KB-13 và plan không nói tới trường hợp này, nên phiên không sửa mà chuyển cho người quyết. Test viết trước có dựng lại activity và tắt khóa giữa chừng (L-061), nhưng không có trường hợp rời foreground.
+- **Bằng chứng:** nhật ký plan T-024 (RUN-20261026-02), mục Rà soát độc lập; mô tả PR #170.
+- **Đề xuất sửa:** `docs/CLAUDE.md` mục Khi viết plan, gạch L-061: thêm "plan có bước chờ có giới hạn trước khi hiện thứ gì đó (quảng cáo, hộp thoại, điều hướng): nêu điều xảy ra khi app rời foreground giữa lúc chờ, mục 4 có test `pause().stop()` rồi `resume()`". Spec mẫu (`docs/templates/spec.md`) có thể nhắc ca này cho kịch bản có thời gian chờ.
+- **Trạng thái:** proposed
