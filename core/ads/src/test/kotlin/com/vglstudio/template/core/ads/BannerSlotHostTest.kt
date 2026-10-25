@@ -47,6 +47,8 @@ class BannerSlotHostTest {
     private var enabled by mutableStateOf(true)
     private var unitId by mutableStateOf<String?>("u")
     private var shown by mutableStateOf(true)
+    private var placementKey by mutableStateOf(KEY)
+    private var refresh by mutableStateOf(BannerRefresh.BY_AD_UNIT)
 
     private val totalSends: Int get() = views.created.sumOf { it.sendCount }
 
@@ -58,12 +60,12 @@ class BannerSlotHostTest {
                     enabled = enabled,
                     unitId = unitId,
                     heightDp = HEIGHT_DP,
-                    refresh = BannerRefresh.BY_AD_UNIT,
+                    refresh = refresh,
                     visible = visible,
                     mayRequestNow = { gateOpen },
                     retryResets = retryResets,
                     logger = logger,
-                    placementKey = KEY,
+                    placementKey = placementKey,
                     newView = views::newView,
                     modifier = Modifier.fillMaxWidth().testTag(SLOT),
                 )
@@ -83,6 +85,25 @@ class BannerSlotHostTest {
     private fun update(change: () -> Unit) {
         composeRule.runOnIdle(change)
         composeRule.waitForIdle()
+    }
+
+    @Test
+    fun otherPlacementSameUnit_newView() {
+        setHost()
+        assertEquals(1, views.createdCount)
+        val first = views.last
+        // Control: a change that keeps the placement keeps the view.
+        update { retryResets.value += 1 }
+        assertEquals(1, views.createdCount)
+
+        update { placementKey = "other_banner" }
+        assertEquals(2, views.createdCount)
+        assertEquals(1, first.destroyCount)
+        val second = views.last
+
+        update { refresh = BannerRefresh.MANUAL }
+        assertEquals(3, views.createdCount)
+        assertEquals(1, second.destroyCount)
     }
 
     @Test
