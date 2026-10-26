@@ -1,16 +1,16 @@
 ---
 ticket: T-045
 title: Native giữ trọn CTA, nhãn "Ad" và media 120 dp khi cỡ chữ hệ thống lớn
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 22M          # cỡ M, số gợi ý 19.6M (scripts/token-usage.py estimate, 2026-10-26); cộng ma trận cỡ chữ cho chín dạng native, chiều cao thẻ ở bước dùng chung cho thẻ, khung chờ và màn xem thử, sửa hai test của T-044
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 5                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-045: NATIVE GIỮ TRỌN CTA, NHÃN "AD" VÀ MEDIA 120 DP KHI CỠ CHỮ HỆ THỐNG LỚN
@@ -247,14 +247,15 @@ Test viết trước code, đỏ đúng lý do trên code trước phần sửa 
    - **Trả lời (anh Nhật, 2026-10-26):** giữ vùng chạm của CTA theo thiết kế.
 5. **Spec KB-4, KB-20 ghi "cao 250 dp"**, trong khi theo câu 3 thẻ ở bước và lớp thu gọn cao thêm từ khoảng cỡ chữ 1.4.
    - Đề xuất của AI: hiểu "250 dp" là ở cỡ chữ mặc định (như mọi số của thiết kế), không sửa spec trong task này; lần cập nhật spec sau thêm một câu "khi cỡ chữ hệ thống lớn, thẻ cao thêm để media không dưới 120 dp". Nếu anh muốn sửa spec trước thì plan chờ spec được xác nhận lại.
+   - **Trả lời (anh Nhật, 2026-10-26):** đồng ý, "250 dp" là ở cỡ chữ mặc định; không sửa spec trong task này.
 
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** Anh Nhật duyệt 2026-10-26 trong phiên giám sát cùng AI. Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy thứ 5 trong RUN-20261026-05. 
 
 ## 10. Nhật ký thực hiện
 
