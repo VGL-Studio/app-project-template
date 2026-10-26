@@ -167,6 +167,75 @@ guard_wf=.github/workflows/main-guard.yml
 expect "main-guard: has workflow_dispatch and keeps the push trigger with the same paths-ignore" "1 1 1 1 1" \
   "$(grep -cE '^  workflow_dispatch:' "$guard_wf") $(grep -cE '^  push:$' "$guard_wf") $(grep -cE "^      - 'docs/\*\*'$" "$guard_wf") $(grep -cE "^      - '\*\*/\*\.md'$" "$guard_wf") $(awk '/^  guard:$/ { g = 1; next } g && /^    if: github.ref == .refs\/heads\/main.$/ { n++ } g && /^    steps:$/ { g = 0 } END { print n + 0 }' "$guard_wf")"
 
+# pr-check.yml: a PR without code still runs scripts/tests/run.sh in build-and-test, without Gradle or the Android SDK,
+# and the job keeps its name and is never skipped, so merge-if-green.sh still requires it green (L-040).
+# Each check takes the workflow path, so it also runs on a broken copy in $work (L-055).
+pr_wf=.github/workflows/pr-check.yml
+pr_steps() { # <workflow>; prints each step of build-and-test on one line, its lines joined by tabs
+  awk '/^  build-and-test:$/ { j = 1; next }
+    j && /^  [^ ]/ { j = 0 }
+    j && /^      - / { if (s != "") print s; s = $0; next }
+    j && s != "" && /^        / { s = s "\t" $0 }
+    END { if (s != "") print s }' "$1"
+}
+pr_docs_steps() { # <workflow>; counts the steps that run scripts/tests/run.sh only when the PR changes no code
+  pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -cF 'scripts/tests/run.sh 2>&1 | tee build.log' || true
+}
+pr_unconditional() { # <workflow> <uses>; "yes" when the step with that action has no if:
+  pr_steps "$1" | grep -F "uses: $2" | grep -q 'if:' && echo no || echo yes
+}
+pr_gradle_gated() { # <workflow>; "yes" when every step using Gradle or the Android SDK runs only for code
+  local bad tab=$'\t'
+  bad="$(pr_steps "$1" | grep -E 'setup-gradle|gradlew|scripts/check\.sh|ANDROID_HOME|android-emulator-runner' \
+    | grep -vcE "if: [^$tab]*needs\.changes\.outputs\.code == 'true'" || true)"
+  [[ "$bad" == 0 ]] && echo yes || echo no
+}
+pr_docs_step_tools() { # <workflow>; the docs-only step checks its tools and has its own timeout
+  local step
+  step="$(pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -F 'scripts/tests/run.sh' || true)"
+  local t n=0
+  for t in 'command -v' python3 jq java 'timeout-minutes: 10'; do
+    grep -qF -- "$t" <<<"$step" && n=$((n + 1))
+  done
+  echo "$n"
+}
+pr_job_if() { # <workflow>; counts job-level if: lines of build-and-test
+  awk '/^  build-and-test:$/ { j = 1; next } j && /^    steps:$/ { j = 0 } j && /^    if:/ { n++ } END { print n + 0 }' "$1"
+}
+pr_failure_comment() { # <workflow>; "yes" when the failure comment runs on any failure and shows run.sh failures
+  local step tab=$'\t'
+  step="$(pr_steps "$1" | grep -F 'name: Bình luận lỗi vào PR' || true)"
+  if grep -qE "if: failure\(\)($tab|$)" <<<"$step" && grep -qF '^FAIL - ' <<<"$step"; then echo yes; else echo no; fi
+}
+pr_missing_jobs() { # <workflow>; names of merge-if-green.sh's required and skippable checks with no job in the workflow
+  local names name missing="" count=0
+  names="$(sed -n -E 's/^(REQUIRED|SKIPPABLE)_CHECKS=\((.*)\)$/\2/p' scripts/merge-if-green.sh | tr -d '"')"
+  for name in $names; do
+    count=$((count + 1))
+    grep -qE "^  $name:$" "$1" || missing="$missing $name"
+  done
+  echo "names=$count missing=${missing:- none}"
+}
+expect "pr-check: build-and-test runs scripts/tests/run.sh when the PR changes no code" 1 "$(pr_docs_steps "$pr_wf")"
+expect "pr-check: checkout and Java run for every PR" "yes yes" \
+  "$(pr_unconditional "$pr_wf" actions/checkout@v5) $(pr_unconditional "$pr_wf" actions/setup-java@v5)"
+expect "pr-check: the docs-only path of build-and-test uses no Gradle and no Android SDK" yes "$(pr_gradle_gated "$pr_wf")"
+mkdir -p "$work/prwf"
+perl -0pe "s/- if: needs.changes.outputs.code == 'true'\n        uses: gradle\/actions\/setup-gradle/- uses: gradle\/actions\/setup-gradle/" \
+  "$pr_wf" > "$work/prwf/gradle.yml"
+expect "pr-check: the Gradle check fails on a copy whose setup-gradle runs for every PR" no "$(pr_gradle_gated "$work/prwf/gradle.yml")"
+expect "pr-check: the docs-only step checks python3, jq and java first and has its own timeout" 5 "$(pr_docs_step_tools "$pr_wf")"
+expect "pr-check: build-and-test has no job-level if" 0 "$(pr_job_if "$pr_wf")"
+awk '/^  build-and-test:$/ { j = 1 } { print } j && /^    needs: changes$/ { print "    if: needs.changes.outputs.code == '\''true'\''"; j = 0 }' \
+  "$pr_wf" > "$work/prwf/job-if.yml"
+expect "pr-check: the job-level if check fails on a copy that skips build-and-test" 1 "$(pr_job_if "$work/prwf/job-if.yml")"
+expect "pr-check: the failure comment of build-and-test also runs for docs-only PRs" yes "$(pr_failure_comment "$pr_wf")"
+expect "pr-check: every check merge-if-green.sh requires or may skip is a job of pr-check.yml" "names=3 missing= none" \
+  "$(pr_missing_jobs "$pr_wf")"
+sed 's/^  build-and-test:$/  build:/' "$pr_wf" > "$work/prwf/renamed.yml"
+expect "pr-check: the job name check names a renamed job" "names=3 missing= build-and-test" \
+  "$(pr_missing_jobs "$work/prwf/renamed.yml")"
+
 # merge-if-green.sh must reject any argument other than exactly "<PR> [--dry-run]" before doing anything.
 for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; do
   # shellcheck disable=SC2086
@@ -238,6 +307,18 @@ expect "merge-if-green: a PR with docs/STATUS.md gets a warning" 1 "$(grep -c 'P
 # 2026-10-18T02:00:00Z is 1792288800; three minutes later.
 expect "merge-if-green: a commit pushed minutes ago gets a warning" 1 \
   "$(NOW_EPOCH=1792288980 merge_run 12 --dry-run > /dev/null; grep -c 'mới 3 phút trước' "$work/mg.out")"
+# A docs-only PR has this shape: changes green, build-and-test runs scripts/tests/run.sh, ui-test skipped. A red or
+# skipped build-and-test is refused; the same fixture with build-and-test green is ready (L-040).
+red_docs_runs="${green_runs/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"success\"/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"failure\"}"
+skipped_docs_runs="${green_runs/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"success\"/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"skipped\"}"
+merge_routes claude/template-x '{"behind_by": 0}' "$green_runs"
+expect "merge-if-green: a docs-only PR whose build-and-test passed is ready" 0 "$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' "$red_docs_runs"
+expect "merge-if-green: a docs-only PR whose build-and-test failed is refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c 'có kiểm tra không qua: build-and-test\.' "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' "$skipped_docs_runs"
+expect "merge-if-green: a skipped build-and-test is refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c "kiểm tra 'build-and-test' kết thúc với kết quả 'skipped'" "$work/mg.out" || true)"
 merge_routes claude/RUN-20261018-01-report '{"behind_by": 0}' "$green_runs"
 merge_run 12 --dry-run > /dev/null
 # The page is not in git (status-page.yml builds it on the status branch, L-066): no PR carries it, the report PR neither.
@@ -1761,6 +1842,15 @@ expect "status: a checked item leaves the page" "0 1" \
   "$(grep -c 'Kiểm FPS' "$page" || true) $(grep -c 'RUN-20261004-01.md): T-040' "$page" || true)"
 expect "status: check passes after the release readiness section" "0 1" \
   "$(status_page --check > /dev/null; echo $?) $(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true)"
+# The page also builds from this repository's own docs, so a docs-only PR with a lesson number used twice is red in
+# build-and-test, not only in status-page.yml after the merge (L-040).
+mkdir -p "$work/status-real"
+cp -R docs "$work/status-real/docs"
+expect "status: the progress page builds from this repository's docs" 0 \
+  "$(STATUS_ROOT="$work/status-real" python3 -I scripts/status.py > "$work/status-real.out" 2>&1; echo $?)"
+printf -- '\n### L-040. Trùng số\n\n- **Trạng thái:** proposed\n' >> "$work/status-real/docs/lessons.md"
+expect "status: this repository's docs with a lesson number used twice stop the page" "1 1" \
+  "$(STATUS_ROOT="$work/status-real" python3 -I scripts/status.py > "$work/status-real.out" 2>&1; echo $?) $(grep -c 'số bài học dùng hai lần: L-040' "$work/status-real.out" || true)"
 
 
 # status.py --sync moves each ticket's status after its plan's (L-050).
