@@ -452,6 +452,22 @@ class BottomAdBarTest {
     }
 
     @Test
+    fun consentWithdrawn_bannerWithAd_barAndReservationKept() {
+        flags = barFlags(nativeBottom = false, collap = false)
+        setBar()
+        update { banners.last.emitLoaded() }
+        // Control: the banner with its ad keeps its height.
+        assertContentBottom("banner with an ad", SCREEN_HEIGHT - BANNER_HEIGHT_DP)
+
+        update { canRequest = false }
+
+        // B-06: the frame stays with its height, the ad hidden; the content keeps the space.
+        assertEquals(1, banners.createdCount)
+        assertEquals(0, banners.last.destroyCount)
+        assertContentBottom("consent withdrawn", SCREEN_HEIGHT - BANNER_HEIGHT_DP)
+    }
+
+    @Test
     fun placementOnAgain_barBuiltFresh() {
         setBar()
         loadBoth()
