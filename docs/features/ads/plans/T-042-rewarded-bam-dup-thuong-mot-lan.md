@@ -1,7 +1,7 @@
 ---
 ticket: T-042
 title: "Rewarded: bấm \"Xem quảng cáo\" hai lần khi chưa có quảng cáo chỉ làm hành động một lần"
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, data, core)
 risk_level: high             # low | medium | high
@@ -175,3 +175,21 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit, nhán
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-05, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #207, commit đầu `8c0de19`, trên nhánh chính 2026-10-26 17:00 UTC.
+- **Nhánh, PR:** `claude/T-042-rewarded-bam-dup` (từ nhánh chính `d852310`). Commit test `0943fa4`, code `3ff4208`; sửa theo rà soát: test `78036ee`, code `482d32b`, test `179d66c`, code `8c0de19`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-042` (L-052); phần sửa theo rà soát do phiên chính làm.
+- **Đã làm:** mọi phần của mục 3.1: "lần quyết định đang chạy" theo vị trí trong `RewardedTurns` (`Tap`, `Deciding`, `decide`, `endDecision`), bỏ khối xét lại sau khi chờ khóa; chốt `grantOnce` theo lần mở hộp thoại ở `RewardedAction`; dòng R-06 và câu `busy` mục 8.2 của `ads-business-rules.md`; sửa chú thích của `twoTapsAwaitingSwitch_firstOnSecondOff_secondShowsAgain_grantOnce` (không đổi câu khẳng định).
+- **Test viết trước:** 12 test mới (8 `RewardedTurnsTest`, 4 `RewardedActionTest`); 10 đỏ đúng lý do trên code cũ (hai kết quả, hai `not_ready`, `granted = 2`, hai dòng `skipped`). Qua ngay như plan nêu (test canh giữ): `doubleTapWithAdAwaitingSwitch_showsAgainBusy_grantOnce`, `decisionsOfTwoPlacementsApart`. Viết chặt bằng đối chứng: 2 (`doubleTapNoAd_allowAfter2_countsOneTry`, `sameOpening_secondGrant_ignored_nextOpeningRunsAgain`). Test JVM mọi module với test viết trước: chỉ 10 test dự kiến đỏ. Thêm 2 test theo rà soát, cả hai đỏ trước khi sửa.
+- **Rà soát độc lập:**
+  - Vòng 1: 0 chặn, 1 nên sửa, 3 ghi chú. Nên sửa (đã sửa): hiện quảng cáo báo lỗi ngay trong lời gọi (`showRewardedAd` khi không có quảng cáo hay activity) làm `turns.getValue` ném `NoSuchElementException` trong scope không bắt lỗi, app dừng; test `showFailsInsideTheCall_endsTurnOnce`.
+  - Vòng 2: 0 chặn, 1 nên sửa (đã sửa): cùng đường đó, người bấm đầu nhận kết quả theo chính sách thay vì người gọi mới nhất, lần bấm nhập vào không ghi `busy`; test `doubleTap_showFailsInsideTheCall_latestGetsPolicy_joinedIsBusy`.
+  - Vòng 3: 0 chặn, 1 nên sửa không sửa (hết 2 vòng rà soát lại, auto-run.md bước 6): phần đối chứng của test vòng 2 đi qua nhánh R-06 (`turns[declaration]`) thay vì nhánh nhập vào, vì cổng thừa của lượt nạp còn trong hàng; cách sửa: `port.switchGates.clear()` trước lần gọi thứ hai, kiểm thêm `showAgains`.
+  - Ghi chú: chú thích của cổng thừa trong `doubleTapAwaitingSwitch` chưa chính xác và gắn với việc lượt nạp đọc khóa đúng một lần; lần quyết định treo mãi ở `port.enabled()` giữ mọi lần bấm sau ở trạng thái nhập vào và `onStuck` không gỡ `decisions` (không phải hồi quy); `held` chỉ giữ kết quả cuối nếu SDK gọi đồng bộ cả `onShowed` và `onReward` (AdMob không làm vậy); KDoc của `request` chưa nêu đường lỗi ngay trong lời gọi.
+- **Kết quả CI:** `pr-check` xanh lần đầu (lần chạy 40362279248). Trên máy: `scripts/check.sh` 1380 test JVM, 0 lỗi, 82 ảnh, Cổng chất lượng: QUA.
+- **Lệch so với plan:** hàm dựng `doubleTapAwaitingSwitch` thêm một cổng `CompletableDeferred(on)` cho lượt nạp của lần bấm đầu (`rewardedLoadStep` cũng gọi `port.enabled()`), sửa trong commit code `3ff4208`; câu khẳng định `switchGates.size == 1` giữ nguyên, 6 test vẫn đỏ đúng lý do trên code cũ. Sửa theo rà soát thêm nhánh "hiện lỗi ngay trong lời gọi" trong `decide` (lambda tạm `held`).
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** không có ảnh mới hay đổi.
+- **Việc còn lại:** điểm nên sửa vòng 3 (đối chứng của test) để người quyết.
+- **Cần người xem:** điểm nên sửa vòng 3; cách giao kết quả khi hiện quảng cáo lỗi ngay trong lời gọi.
