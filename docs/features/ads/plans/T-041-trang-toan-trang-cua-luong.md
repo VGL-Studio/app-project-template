@@ -26,7 +26,7 @@ Ticket xử lý KB-20 trong `features/ads/spec.md` (spec `confirmed` 2026-10-26)
 | Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
 | KB-20 | Native toàn trang không có nút điều khiển riêng; nút Tiếp của app vẫn ở chỗ quen thuộc và không bị quảng cáo che. | Giữ nguyên (T-032). Thêm: mọi phần bắt buộc của quảng cáo (tiêu đề, nhãn "Ad" đủ chiều cao chữ, AdChoices, CTA 52 dp) nằm trọn trong trang ở mọi chiều cao và cỡ chữ mà trang lấy quảng cáo; media không dưới 120 dp (README thiết kế, dòng Media). Trang thấp hơn mức tối thiểu thì không lấy quảng cáo. Nút Next của màn xem thử ở cùng chỗ trên mọi bước (OB-01). |
-| KB-20 | Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống. | Giữ nguyên với trang chưa có trong luồng (`rememberNativeFullScreenStepReady`). Trang đã có trong luồng (số trang cố định khi luồng chạy, T-036) mà đang chờ quảng cáo thì vẽ khung chờ tĩnh thay vì trang trống (câu hỏi 1). Khóa tắt hay cổng đồng ý đóng thì vẫn không vẽ gì (L-061, S-11). |
+| KB-20 | Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống. | Giữ nguyên với trang chưa có trong luồng (`rememberNativeFullScreenStepReady`). Trang đã có trong luồng (số trang cố định khi luồng chạy, T-036) mà đang chờ quảng cáo thì vẽ khung chờ tĩnh thay vì trang trống (mục 8, câu 4). Khóa tắt hay cổng đồng ý đóng thì vẫn không vẽ gì (L-061, S-11). |
 | KB-20 (O-01, T-040) | Mỗi lượt hiện sở hữu một quảng cáo, rời màn thì hủy, một quảng cáo chỉ ghi một lượt hiển thị. | Dựng lại activity (xoay, gập, mở máy) là rời màn: quảng cáo cũ bị hủy, khe nạp lại ngay (`Reload ... in 0 ms`), trang dựng lại lấy quảng cáo mới khi về, như khe native của T-040 (`plans/T-040-nguon-mot-quang-cao-va-lam-moi.md`, dòng 58: dựng lại đóng khe rồi mở lại với một lượt nạp mới). Quảng cáo cũ chỉ có một lượt hiển thị vì nó bị hủy và không được vẽ lại. Quảng cáo mới là một lượt hiện mới, nên `af_native_ad_eligible` ghi lại như mọi khe native. |
 | KB-20 (G-03) | Trang native toàn trang giữ chặn quảng cáo tự hiện khi đang hiện. | Giữ nguyên: chặn khi trang vẽ quảng cáo. Khung chờ không chặn (như khi không có quảng cáo hôm nay). |
 
@@ -59,10 +59,10 @@ Trên màn xem thử `w360dp-h640dp`, trang chỉ còn 234 dp, và chữ "Instal
      - `minHeight = 16 + max(120, 36 + 16 + headerHeight + 16 + 52) + 16` (200 dp ở 1.0).
      - `bodyLineHeight = bodyMedium.lineHeight`.
      - `NativeFullScreenStepDefaults.MinHeight` công khai là 200 dp (mức ở cỡ chữ 1.0), ghi trong KDoc và `ads-guide.md`.
-   - Đầu quảng cáo (`AdHeader` của trang) dùng `heightIn(min = 48.dp)` thay `height(48.dp)` để tiêu đề và nhãn "Ad" không bị cắt khi chữ lớn (câu hỏi 2).
+   - Đầu quảng cáo (`AdHeader` của trang) dùng `heightIn(min = 48.dp)` thay `height(48.dp)` để tiêu đề và nhãn "Ad" không bị cắt khi chữ lớn (mục 8, câu 5).
    - Bố cục chọn bằng `BoxWithConstraints`:
      - **Chiều cao không giới hạn** (trang đặt trong vùng cuộn): cột, media cố định 200 dp, mô tả 3 dòng.
-     - **`maxHeight >= columnMinHeight`**: cột như hôm nay. Số dòng mô tả là `n = min(3, floor((maxHeight - columnMinHeight - 16 dp) / bodyLineHeight))`; `n <= 0` thì không vẽ mô tả. Media lấy phần còn lại bằng cách tính cụ thể `mediaHeight = maxHeight - (columnMinHeight - 120 dp) - bodyBlock` và đặt `height(mediaHeight)`, không dùng `weight` cộng `heightIn(min)`. Nhờ vậy media không bao giờ dưới 120 dp. Thứ tự co: media trước (tới 120 dp), rồi mô tả (3, 2, 1, 0 dòng).
+     - **`maxHeight >= columnMinHeight`**: cột như hôm nay. Số dòng mô tả là `n = min(3, floor((maxHeight - columnMinHeight - 16 dp) / bodyLineHeight))`; `n <= 0` thì không vẽ mô tả. Media lấy phần còn lại bằng cách tính cụ thể `mediaHeight = max(maxHeight - (columnMinHeight - MinMediaSize) - bodyBlock, MinMediaSize)` và đặt `height(mediaHeight)`, không dùng `weight` cộng `heightIn(min)`, theo cùng cách giữ sàn của `Layout` riêng mà T-044 làm cho thẻ `FULL`. Sàn là `NativeAdDimens.MinMediaSize` (120 dp; dùng, do T-044 tạo), không viết lại số 120. Nhờ vậy media không bao giờ dưới 120 dp. Thứ tự co: media trước (tới 120 dp), rồi mô tả (3, 2, 1, 0 dòng).
      - **`minHeight <= maxHeight < columnMinHeight`**: hàng ngang gọn, lề 16 dp bốn phía, các phần cách nhau 16 dp. Bên trái là media cao hết hàng, rộng `max(120 dp, min(cao hàng, 40% chiều rộng))`. Bên phải (`weight(1f)`), từ trên xuống:
        - hàng trên 36 dp chỉ có AdChoices ở góc trên phải (O-08);
        - đầu quảng cáo `headerHeight`;
@@ -74,13 +74,13 @@ Trên màn xem thử `w360dp-h640dp`, trang chỉ còn 234 dp, và chữ "Instal
 2. `NativeFlowStep.kt`: `NativeFullScreenStepGate` bọc nội dung trong `BoxWithConstraints`, với `fits = !hasBoundedHeight || maxHeight >= flowStepMetrics(...).minHeight`. Khi `!fits`, trang được coi như không `shown`:
    - không lấy quảng cáo và không chặn quảng cáo tự hiện;
    - báo `false` một lần nếu trước đó đã báo `true`, như nhánh `!allowed`;
-   - `ReportNativeEligible(allowed && shown && fits)`: trang quá thấp không phải cơ hội hiện, nên không ghi `af_native_ad_eligible` (câu hỏi 3).
+   - `ReportNativeEligible(allowed && shown && fits)`: trang quá thấp không phải cơ hội hiện, nên không ghi `af_native_ad_eligible` (mục 8, câu 6).
 3. Màn xem thử, `FlowStepsPage` (`app/src/staging`):
    - Vùng bước là một `Box(weight(1f))` chứa `HorizontalPager(fillMaxSize)` và khung thẻ 250 dp đặt đè ở đáy (`Alignment.BottomCenter`), vẫn ngoài pager theo MC-06.
    - Trang thường của pager đệm đáy 250 dp, nên chữ "Step n of 3" vẫn ở giữa phần phía trên thẻ như hôm nay. Trang toàn trang dùng cả vùng.
    - Khung thẻ (tag `FLOW_CARD_FRAME`) chỉ dựng khi trang đứng yên không phải trang toàn trang.
    - Pager cao như nhau ở mọi bước nên không nhảy khi chuyển trang. Nút Next nằm dưới vùng bước, cùng chỗ ở mọi bước (OB-01).
-   - Trang toàn trang sau thay đổi: 484 dp (72 tới 556) ở `w360dp-h640dp`; 255 dp ở `w891dp-h411dp`; 204 dp ở `w640dp-h360dp` (câu hỏi 4). Hôm nay ở hai khung ngang là 5 dp và 0 dp.
+   - Trang toàn trang sau thay đổi: 484 dp (72 tới 556) ở `w360dp-h640dp`; 255 dp ở `w891dp-h411dp`; 204 dp ở `w640dp-h360dp`. Hôm nay ở hai khung ngang là 5 dp và 0 dp (mục 8, câu 7).
 
 **Phần 2. Xoay, gập máy: hủy quảng cáo cũ, hiện quảng cáo mới (O-01, T-040).**
 
@@ -102,7 +102,7 @@ Mẫu làm theo:
 - cách đo của `NativeFlowStepTest.nextButton_samePlace_notCovered_withFullPage`;
 - dựng lại activity như `ResumeAdLifecycleTest.recreate_showsNothing`;
 - lối vào `putPreloadedNativeFullScreenForTest` và `openConsentGateForTest` của `AdsController` (T-044, T-026);
-- đặt cỡ chữ như T-044 (`CompositionLocalProvider(LocalDensity provides Density(density, fontScale))`).
+- đặt cỡ chữ bằng `WithFontScale` của T-044; sàn media `NativeAdDimens.MinMediaSize` và cách giữ sàn bằng chiều cao tính cụ thể như `Layout` riêng của thẻ `FULL` (T-044).
 
 ### 3.2. Danh sách file
 
@@ -128,11 +128,13 @@ Mẫu làm theo:
 | Sửa | `docs/ops/ads-guide.md` | Dòng trang toàn trang và màn xem thử (mục 3.1 bước 7) |
 | Sửa | `docs/features/ads/design/README.md` | Mục 8: dòng ảnh mới; dòng "Trang native ở bước của luồng" ghi hai bố cục và khung chờ |
 
+**Dùng, do T-044 tạo (không sửa, không tạo lại):** `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FontScaleTestSupport.kt` (`WithFontScale`), hằng `NativeAdDimens.MinMediaSize` trong `NativeAdCard.kt`, lối vào `AdsController.putPreloadedNativeFullScreenForTest`, luật dòng Media của `docs/features/ads/design/README.md` mục 3 ("media co trước, không dưới 120 dp"). T-044 chạy trước; nếu T-044 chưa merge khi T-041 chạy thì dừng và báo (mục 7), không tạo bản riêng.
+
 **Khung rỗng vào commit test của bước 3 (L-025)**, để test viết trước biên dịch được và đỏ đúng lý do, không lỗi biên dịch:
 - `NativeFullScreenStepDefaults` với `MinHeight = 200.dp` (giá trị thật, chỉ là hằng);
 - `internal data class FlowStepMetrics(headerHeight, columnMinHeight, minHeight, bodyLineHeight)` và `flowStepMetrics(density, typography)`, khung rỗng trả số của cỡ chữ 1.0 (48, 360, 200 dp, 20 dp) bất kể cỡ chữ: test cỡ chữ lớn đỏ;
 - hằng tag `NativeFullScreenAdTestTags.BODY` và `NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER` (chưa gắn vào giao diện: test tìm chúng đỏ);
-- `putPreloadedNativeFullScreenForTest` đã có từ T-044, chạy trước. Nếu T-044 chưa merge thì task này thêm đúng hàm đó vào commit test (mục 6).
+- `putPreloadedNativeFullScreenForTest`, `WithFontScale`, `MinMediaSize` đã có từ T-044, không cần khung rỗng.
 
 Phần sửa thật (bố cục, cổng, khung chờ, màn xem thử) vào commit code của bước 4.
 
@@ -147,7 +149,7 @@ L-020, nơi đọc ảnh chuẩn:
 
 - Cờ tính năng: Không có.
 - Quảng cáo: không thêm, bớt hay đổi định dạng vị trí. Đổi cách vẽ của `native_fullscreen` khi dùng làm trang của luồng: bố cục theo chiều cao và cỡ chữ, trang quá thấp thì không lấy quảng cáo, khung chờ khi đang chờ. Vòng đời quảng cáo không đổi.
-- Sự kiện phân tích: không thêm sự kiện. `af_native_ad_eligible` không ghi cho trang quá thấp để lấy quảng cáo (câu hỏi 3). Đây là điểm chặn 4 vì đổi lúc ghi một sự kiện đã có.
+- Sự kiện phân tích: không thêm sự kiện. `af_native_ad_eligible` không ghi cho trang quá thấp để lấy quảng cáo (mục 8, câu 6). Đây là điểm chặn 4 vì đổi lúc ghi một sự kiện đã có.
 - File R2: Không chạm.
 - **Quyền truy cập:** Không thêm.
 - **Thư viện và SDK:** Không thêm. `BoxWithConstraints`, `LocalDensity` từ Compose (đã có ở `:core:ads`). Test dùng `createAndroidComposeRule<ComponentActivity>()`, `ActivityScenario.recreate()` (androidx.test.core) như `ResumeAdLifecycleTest`.
@@ -172,7 +174,7 @@ Test viết trước, thất bại đúng lý do trên code hiện tại. Số �
 **`NativeFlowStepLayoutTest`** (`:core:ads`, Robolectric, `@GraphicsMode(NATIVE)`, `@Config(qualifiers = "w360dp-h640dp-xxhdpi")`).
 - Trang `NativeFullScreenStepContent(assets, media = { FakeMedia() }, adChoices = { FakeAdChoices() })` nằm trong một `Box(fillMaxWidth().height(h))` có tag.
 - Đo bằng `getUnclippedBoundsInRoot` (`useUnmergedTree = true`).
-- Cỡ chữ đặt như T-044: `CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale))`. Nếu T-044 đã đưa hàm phụ này vào một file dùng chung của `src/test` thì dùng lại; nếu không, viết một hàm phụ riêng trong file test này.
+- Cỡ chữ đặt bằng `WithFontScale(fontScale) { ... }` của `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FontScaleTestSupport.kt` (dùng, do T-044 tạo); không viết hàm phụ riêng.
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
@@ -318,7 +320,7 @@ Không thêm vị trí, quyền, SDK hay dữ liệu lưu trên máy. Mức Cao,
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
 | A. Phạm vi thay đổi | 3 | Hai module (`:core:ads`, `:app` staging); API công khai mới `NativeFullScreenStepDefaults`; một file code mới, ba file sửa |
-| B. Độ rõ của yêu cầu | 1 | Ticket, KB-20 và quyết định 2026-10-26 rõ; còn chiều cao đầu quảng cáo theo cỡ chữ và khung chờ (câu hỏi 1, 2) |
+| B. Độ rõ của yêu cầu | 1 | Ticket, KB-20 và các trả lời 2026-10-26 rõ; bố cục gọn và khung chờ không có trong Figma (anh Nhật duyệt) |
 | C. Khả năng kiểm chứng tự động | 2 | Bố cục, cổng, eligible và dựng lại có test Robolectric qua `AdsController` thật; quảng cáo thật qua xoay, gập máy và lượt hiển thị của SDK chỉ kiểm được trên máy thật |
 | D. Ảnh hưởng chéo | 2 | `AdsController.kt` (lối vào test), `ads-guide.md`, design README, `AdGalleryScreenTest.kt` cũng bị T-044 sửa; T-042 có thể sửa `AdsController.kt` (mục 6) |
 | E. Độ mới của kỹ thuật | 1 | Chọn bố cục theo `BoxWithConstraints` và đo cỡ chữ theo mẫu của T-044; dựng lại activity theo mẫu `ResumeAdLifecycleTest`. Không còn kỹ thuật giữ quảng cáo qua dựng lại |
@@ -332,10 +334,11 @@ Không thêm vị trí, quyền, SDK hay dữ liệu lưu trên máy. Mức Cao,
   - `AdsController.kt`: T-041 chỉ dùng lối vào `putPreloadedNativeFullScreenForTest` của T-044.
 - App dùng `NativeFullScreenStep` hôm nay: chỉ màn xem thử staging (`gallery_native_step_full`). Chưa có vị trí của app.
 - **T-044** (bổ sung test quảng cáo), chạy ngay trước T-041. Sửa các file sau, và T-041 dựa vào chúng:
-  - `AdsController.kt`: thêm `putPreloadedNativeFullScreenForTest` (`@VisibleForTesting internal`), cạnh `openConsentGateForTest`. T-041 dùng hàm này, không thêm lại. Nếu T-044 chưa merge khi T-041 chạy thì T-041 thêm đúng hàm đó ở commit test, và task chạy sau giữ một bản;
+  - `AdsController.kt`: thêm `putPreloadedNativeFullScreenForTest` (`@VisibleForTesting internal`), cạnh `openConsentGateForTest`. T-041 dùng hàm này (dùng, do T-044 tạo), không thêm lại;
   - `docs/features/ads/design/README.md`, mục 3, bảng thành phần, dòng Media: "đầy đủ 200 dp ở cỡ chữ 1.0, co lại khi chữ lớn". T-041 dùng cùng luật "media co trước, không dưới 120 dp" và sửa mục 8 (khác chỗ);
   - `docs/ops/ads-guide.md`, mục 4, bảng số đo, cột "Đầy đủ (`FULL`)". T-041 sửa dòng trang toàn trang của mục 3 và dòng màn xem thử (khác chỗ);
-  - `NativeAdCardTest.kt`: thêm hàm phụ đặt cỡ chữ. T-041 dùng cùng cách. Hàm đó riêng của file thì T-041 viết hàm phụ trong file test của mình, không sửa file của T-044;
+  - `NativeAdCard.kt`: `FullLayout` thành `Layout` riêng giữ sàn media, hằng `NativeAdDimens.MinMediaSize`. T-041 dùng hằng này cho trang toàn trang (dùng, do T-044 tạo), không sửa `NativeAdCard.kt`;
+  - tạo `FontScaleTestSupport.kt` (`WithFontScale`), hàm phụ cỡ chữ dùng chung của test `:core:ads`. T-041 dùng (dùng, do T-044 tạo), không sửa;
   - `AdGalleryScreenTest.kt`: sửa `buttons_haveTouchTargetOf48dp`. T-041 sửa nhóm `flowSteps_*`, khác chỗ. T-041 gộp nhánh chính sau T-044 trước khi viết test.
 - **T-042** (rewarded bấm đúp, chạy trước): sửa `RewardedAction.kt`, `RewardedTurns.kt`, có thể sửa `AdsController.kt` và dòng rewarded của `ads-guide.md`. T-041 không sửa `AdsController.kt`, và sửa dòng khác của `ads-guide.md`.
 - **T-043** (resume kiểm vị trí, chạy trước): sửa `ResumeAdTurns.kt`. Không chung file với T-041.
@@ -348,6 +351,7 @@ Không thêm vị trí, quyền, SDK hay dữ liệu lưu trên máy. Mức Cao,
 - Ảnh chuẩn `NativeFlowStep_full-page_light`, `_dark`, `_small` (`core/ads`) đổi: dừng và giải thích vì sao bố cục cột ở cỡ chữ 1.0 đổi. Không ghi lại ảnh.
 - Ảnh chuẩn `NativeFullScreenAdScreen_*` hay `NativeFullScreenOverlay_*` (bố cục sau inter) đổi: ngoài phạm vi, dừng và báo.
 - Kiểm thủ công trên máy thật thấy không có quảng cáo mới sau khi xoay. Ví dụ: khung chờ còn mãi trong khi log có `Reload ... in 0 ms` mà không có lượt nạp nào, hay lượt nạp không bao giờ được gửi. Khi đó dừng, ghi log vào báo cáo. Không thêm cách giữ quảng cáo cũ.
+- Khi bắt đầu task, `FontScaleTestSupport.kt`, `NativeAdDimens.MinMediaSize` hay `putPreloadedNativeFullScreenForTest` chưa có trên nhánh chính (T-044 chưa merge): dừng và báo, không tạo bản riêng.
 - Phần sửa cần đổi `AdPreloader`, `FreshAdCache`, `FullScreenReloads` hay `releaseStepFullScreenAd`: ngoài phạm vi, dừng và hỏi.
 
 ## 8. Câu hỏi cho người duyệt
@@ -358,18 +362,25 @@ Không thêm vị trí, quyền, SDK hay dữ liệu lưu trên máy. Mức Cao,
 2. **Tách phần 2 thành ticket riêng?** Trả lời: giữ một ticket.
 3. **Giữ quảng cáo qua xoay, gập máy?** Trả lời: không giữ. Theo T-040 và O-01, dựng lại đóng khe và nạp lại. Trang dựng lại phải xin và hiện quảng cáo mới, không để trống. Plan đã bỏ chỗ giữ, cửa sổ 10 giây và luật OB-03. Không cần luật mới, vì hành vi theo O-01 và T-040.
 
-Câu hỏi mới:
+Đã trả lời thêm (anh Nhật, 2026-10-26):
 
-1. **Khung chờ khi trang đang chờ quảng cáo mới.** Hôm nay trang không vẽ gì khi chưa có quảng cáo, nên sau khi xoay máy người dùng thấy trang trống trong lúc nạp lại. Đây là cái "mất quảng cáo" mà rà soát T-032 thấy.
-   - Đề xuất của AI: vẽ khung chờ tĩnh (không hiệu ứng, không chặn quảng cáo tự hiện) khi trang đang ở trên màn, được phép, đủ cao mà chưa có quảng cáo. Khung chờ áp cho mọi lần trang chờ, không chỉ sau khi dựng lại, vì trang đã nằm trong luồng. Phương án khác: giữ trang trống như T-032. Khi đó bỏ ảnh `NativeFlowStep_full-page-placeholder_light` và các câu khung chờ của mục 4.
-2. **Đầu quảng cáo 48 dp có lớn theo cỡ chữ hệ thống không?** T-044 cho thẻ `FULL` lớn theo chữ (media co lại). Ở trang toàn trang, đầu cố định 48 dp cắt nhãn "Ad" từ cỡ chữ 1.3.
-   - Đề xuất của AI: có. Đầu lấy `heightIn(min = 48.dp)` và lớn theo chữ. Mức cột và mức tối thiểu tính theo chiều cao đầu thật (mục 3.1 bước 1), nên với chữ lớn trang chuyển sang hàng gọn sớm hơn, hay không lấy quảng cáo khi quá thấp. Ở cỡ chữ 1.0 mọi số giữ như thiết kế.
-3. **`af_native_ad_eligible` cho trang quá thấp.** Hôm nay `ReportNativeEligible(allowed && shown)` không xét chiều cao, nên trang không lấy được quảng cáo vẫn ghi một cơ hội.
-   - Đề xuất của AI: không ghi (`allowed && shown && fits`). Trang không thể hiện quảng cáo thì không phải cơ hội, giống khóa tắt. Thay đổi này là điểm chặn 4, nên cần người phụ trách sản phẩm biết. Sau khi dựng lại, eligible vẫn ghi lại một lần cho lượt hiện mới, như mọi khe native.
-4. **Màn xem thử ở khung ngang nhỏ chỉ dư 4 dp.** Ở `w640dp-h360dp`, trang toàn trang cao 204 dp, trên mức tối thiểu 200 dp đúng 4 dp. Với cỡ chữ lớn hơn 1.0, mức tối thiểu tăng, nên trang ở khung này không lấy quảng cáo (chỉ khung chờ cũng không có). Trên điện thoại thường (`w891dp-h411dp`) trang 255 dp.
-   - Đề xuất của AI: chấp nhận cho màn xem thử, vì đây là công cụ của nhóm. Ghi vào `ads-guide.md` rằng app nên cho trang toàn trang ít nhất 360 dp ở hướng dọc, và cân nhắc ẩn trang quảng cáo của luồng ở hướng ngang trên điện thoại nhỏ. Có thể bớt thanh tiêu đề của màn xem thử ở hướng ngang, nhưng việc đó ngoài phạm vi.
-5. **Thẻ 250 dp ở khung ngang của màn xem thử.** Ở `w891dp-h411dp`, vùng bước thường chỉ còn 5 dp phía trên thẻ, cả hôm nay lẫn sau task. Ticket ghi "Thẻ 250 dp ngoài pager (không lỗi)".
+4. **Khung chờ khi trang đang chờ quảng cáo mới.** Sau khi xoay máy, trang trống trong lúc nạp lại; rà soát T-032 gọi là "mất quảng cáo".
+   - Đề xuất của AI: khung chờ tĩnh (không hiệu ứng, không chặn quảng cáo tự hiện) khi trang ở trên màn, được phép, đủ cao mà chưa có quảng cáo; áp cho mọi lần chờ.
+   - Trả lời: đồng ý, khung chờ tĩnh trong lúc chờ.
+5. **Đầu quảng cáo 48 dp có lớn theo cỡ chữ hệ thống không?** Đầu cố định 48 dp cắt nhãn "Ad" từ cỡ chữ 1.3.
+   - Đề xuất của AI: có; `heightIn(min = 48.dp)`, mức cột và mức tối thiểu tính theo chiều cao đầu thật; ở cỡ chữ 1.0 giữ số của thiết kế.
+   - Trả lời: đồng ý, đầu lớn theo cỡ chữ, các mức tính từ chiều cao đầu thật.
+6. **`af_native_ad_eligible` cho trang quá thấp.** `ReportNativeEligible(allowed && shown)` không xét chiều cao.
+   - Đề xuất của AI: không ghi khi trang quá thấp (`allowed && shown && fits`); giữ `analytics` trong `blocking_points`.
+   - Trả lời: đồng ý, không ghi; giữ `analytics` trong `blocking_points`.
+7. **Màn xem thử ở khung ngang nhỏ chỉ dư 4 dp** (204 dp so với mức 200 dp; cỡ chữ lớn hơn 1.0 thì không lấy quảng cáo ở khung này).
+   - Đề xuất của AI: chấp nhận cho màn xem thử; ghi vào `ads-guide.md` rằng app nên cho trang toàn trang ít nhất 360 dp.
+   - Trả lời: đồng ý; `ads-guide.md` khuyên ít nhất 360 dp.
+8. **Thẻ 250 dp ở khung ngang của màn xem thử** (vùng bước thường còn 5 dp ở `w891dp-h411dp`).
    - Đề xuất của AI: không sửa trong task này.
+   - Trả lời: đồng ý, ngoài phạm vi.
+
+Không còn câu hỏi mở.
 
 ## 9. Quyết định duyệt
 
