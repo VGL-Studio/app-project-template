@@ -1,7 +1,7 @@
 ---
 ticket: T-031
 title: Rewarded là hành động có điều kiện, kèm hộp thoại xem quảng cáo
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, data, core)
 risk_level: high             # low | medium | high
@@ -279,3 +279,21 @@ Mỗi đường tới một lượt nạp rewarded (L-072): kế hoạch nạp s
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #190, commit đầu `ef7452c`, commit trên nhánh chính `7e59462` (2026-10-26 03:56 UTC).
+- **Nhánh, PR:** `claude/T-031-rewarded-va-hop-thoai` (từ nhánh chính `614aace`). Commit test `71682c2`, code `030b067`, ảnh chuẩn `8b79977`; theo rà soát: test `a29af98`, sửa `f5259ce`, test `0cf74fe`, sửa `ef7452c`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-031` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: `RewardedRules`, bộ điều phối `RewardedTurns`, `rememberRewardedAction`, `RewardedAdDialog`, nạp sẵn và nạp lại rewarded, vị trí `gallery_rw_action`, hai sự kiện của mục 3.3, `ads-guide.md`.
+- **Test viết trước:** 4 file test mới (`RewardedRulesTest` 8, `RewardedTurnsTest` 27, `RewardedActionTest` 28, `RewardedAdDialogScreenshotTest` 3 ảnh), 7 file có sẵn thêm test hay sửa dữ liệu. Trên khung rỗng 66 test của `:core:ads`, 2 của `:core:analytics` đỏ đúng lý do; ngoài phạm vi `RemoteConfigKeysTest` 2 đỏ như plan dự đoán, xanh sau code. Qua ngay ở bước 3: 2 test canh giữ plan nêu, 3 test đường nạp có sẵn đối chứng, 2 test dữ liệu 7 thành 8 (dòng vị trí thêm vào khung để biên dịch), 3 test ảnh. Test viết chặt bằng bước đối chứng: 1 (`AdPreloadPlanTest.fromPlacements_hasRewardedInSecondGroup`).
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 7 ghi chú; vòng 2 (phần vừa sửa): 0 chặn, 3 nên sửa, 4 ghi chú; vòng 3: 0 chặn, 1 nên sửa, 3 ghi chú.
+  - Đã sửa, nên sửa vòng 1 (L-061): khóa tắt giữa lượt, bấm "Watch ad" lần hai nhận `Granted` ngay, rồi thưởng của lượt đầu chạy hành động lần nữa. `RewardedTurnsTest.switchedOffWhileTurnPending_secondTapShowsAgain_grantOnce` đỏ trước (`a29af98`), sửa `f5259ce`. Lần sửa thứ 1.
+  - Đã sửa, nên sửa vòng 2: cùng lỗi qua hai lần bấm cùng chờ khóa (nhánh khóa tắt sau khi chờ không xét lại lượt), kèm khối xét lại không có test. `twoTapsAwaitingSwitch_firstOnSecondOff_secondShowsAgain_grantOnce` đỏ trước (`0cf74fe`), sửa `ef7452c`. Lần sửa thứ 2.
+  - Không sửa, nên sửa vòng 2: plan mục 3.1 bước 3 chưa ghi thứ tự mới của `request` (plan `approved`).
+  - Không sửa, nên sửa vòng 3 (có từ trước, hết số vòng rà soát lại): `noAd` chờ `loadIfNeeded` (suspend); bấm "Watch ad" hai lần nhanh khi chưa có quảng cáo với `allow` thì `onGranted` chạy hai lần; `allow_after_2` tiêu hết hai lần thử. Đề xuất gộp các lần bấm chưa có kết quả của cùng `onOutcome` theo vị trí.
+  - Ghi chú: luật (a) của câu hỏi 8 chưa có trong `ads-business-rules.md`; `onStuck()` kết thúc lượt của mọi vị trí; `showingRewardeds` giữ một `RewardedAd` đã dùng; nhánh "không có gì để hiện" không hẹn nạp lại; lượt treo giữ lần bấm lúc khóa tắt ở `busy` tới `onStuck()`.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40265688938). Trên máy: `scripts/check.sh` 1123 test JVM, 0 lỗi, 58 ảnh screenshot, Cổng chất lượng: QUA.
+- **Lệch so với plan:** câu hỏi 8 phương án (a) (mục 9): test `consentClosed_noOpportunity_policyApplies` của mục 4 thành `consentClosed_grantsAtOnce_noOpportunity` như câu hỏi 8 ghi, thêm hai test `realController_*`; test dựng lại dùng `StateRestorationTester` thay `scenario.recreate()`; `positionInWindow`, `onBackPressedDispatcher`; `showRewarded` không `suspend`; thêm `rewardedTurns.onStuck()` ở `onAppActivityDestroyed`; `ads-guide.md` mục 8 "7 vị trí" thành 8; thứ tự mới của `request` (L-061). Phương án dự phòng 3.4: không chuyển.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** mới `RewardedAdDialog_default_light`, `_default_dark`, `RewardedAdDialog_content_small`. Ảnh cũ không đổi.
+- **Cần người xem:** 3 ảnh chuẩn mới; cập nhật luật (a) vào `ads-business-rules.md`; điểm nên sửa không sửa (bấm đúp với `allow`); phần nối với SDK thật trên máy sau T-036.
