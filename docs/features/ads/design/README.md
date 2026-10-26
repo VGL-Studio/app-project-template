@@ -74,7 +74,7 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 | Nhà quảng cáo, mô tả | asset advertiser, body | `onSurfaceVariant` | `bodySmall`, `bodyMedium` | |
 | CTA quảng cáo | asset call to action | nền `tertiaryContainer`, chữ `onTertiaryContainer` | `labelLarge` (small: cỡ 13 sp; medium `cta_large`: 17 sp) | cao 34 dp ở small, 44 dp ở medium (56 dp khi `cta_large`), 36 dp ở đầy đủ và thẻ dọc, 52 dp ở toàn màn hình; bo 8 dp |
 | Icon quảng cáo | asset icon | | | 36 dp ở small, 40 dp ở medium và đầy đủ, 48 dp ở toàn màn hình; bo 8 dp |
-| Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium cao 196 dp, đầy đủ 200 dp, lớp thu gọn lấp phần còn lại (134 dp) |
+| Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium cao 196 dp, đầy đủ 200 dp ở cỡ chữ 1.0, lớp thu gọn lấp phần còn lại (134 dp). Khi chữ lớn (cỡ chữ hệ thống), media co trước, không dưới 120 dp: các phần khác giữ cỡ, thẻ giữ chiều cao; chỉ khi media đã chạm 120 dp thì thẻ cao thêm |
 | AdChoices | do SDK vẽ, góc trên phải (lớp thu gọn: góc trên trái) | | | không đè, không vẽ lại |
 | Nút thu gọn | trong lớp thu gọn của thanh đáy | nền `scrim` độ mờ 40%, icon trắng (ngoại lệ có tên `CollapseIconTint`, plan T-030, câu hỏi 8) | | vẽ 32 dp tròn cách góc trên phải 4 dp, icon 20 dp; vùng chạm 48 dp do Compose tự nới |
 | Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 36 dp tròn tại (16, 24), vùng chạm 48 dp do Compose tự nới, góc trên trái |
