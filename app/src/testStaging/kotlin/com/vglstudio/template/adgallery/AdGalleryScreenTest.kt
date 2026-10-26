@@ -18,6 +18,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -240,6 +241,14 @@ class AdGalleryScreenTest {
         assertEquals("Collapsible ad", context.getString(R.string.ad_gallery_collapsible_title))
     }
 
+    private val planT014Buttons = setOf(
+        AdGalleryTestTags.INTERSTITIAL_BUTTON,
+        AdGalleryTestTags.NATIVE_FULL_SCREEN_BUTTON,
+        AdGalleryTestTags.INSPECTOR_BUTTON,
+        AdGalleryTestTags.IN_LIST_BUTTON,
+        AdGalleryTestTags.COLLAPSIBLE_BUTTON,
+    )
+
     @Test
     fun buttons_haveTouchTargetOf48dp() {
         setScreen(AdGalleryUiState.Default)
@@ -247,11 +256,13 @@ class AdGalleryScreenTest {
         val buttons = composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
             .fetchSemanticsNodes()
             .filter { node -> node.config.contains(SemanticsProperties.TestTag) }
-        // Control: the twelve buttons of the page are found: five of plan T-014, seven of "More formats" (T-036).
-        assertEquals(12, buttons.size)
+            // The five buttons of plan T-014; the seven of "More formats" are checked in
+            // moreFormats_buttonsHaveTouchTargetOf48dp (T-036).
+            .filter { node -> node.config[SemanticsProperties.TestTag] in planT014Buttons }
+        // Control: the five buttons of the page are found.
+        assertEquals(5, buttons.size)
         buttons.forEach { node ->
-            // Layout height, not the bounds in root: the buttons of "More formats" lie below the screen (T-036).
-            val height = with(composeRule.density) { node.size.height.toDp() }
+            val height = with(composeRule.density) { node.boundsInRoot.height.toDp() }
             assertTrue("${node.config} is $height high", height >= 48.dp - TOLERANCE_DP.dp)
         }
         composeRule.onNodeWithTag(AdGalleryTestTags.IN_LIST_BUTTON).assert(hasClickAction())
@@ -506,6 +517,53 @@ class AdGalleryScreenTest {
         click(AdGalleryTestTags.FLOW_NEXT)
         composeRule.onAllNodesWithText("Step 1 of 3").assertCountEquals(1)
         assertTrue(slots.shownValues.isEmpty())
+    }
+
+    @Test
+    fun flowSteps_restoredMidFlow_keepsStepAndPageCount() {
+        // A rotation in the middle of the flow: the pager keeps its page, and the number of pages must not change
+        // although the slot reads "not ready" in the first frame after the restore (T-032, question 4).
+        val slots = PreviewAdGallerySlots(stepFullPageReady = true)
+        val restoration = StateRestorationTester(composeRule)
+        restoration.setContent {
+            AppTheme { Screen(AdGalleryUiState.FlowSteps(3), slots, GalleryAdStatus.Unknown) }
+        }
+        composeRule.waitForIdle()
+        click(AdGalleryTestTags.FLOW_NEXT)
+        assertTrue(exists(PreviewAdTags.STEP_FULL_PAGE))
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 2 of 3").assertCountEquals(1)
+
+        slots.readyNow = false
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
+
+        composeRule.onAllNodesWithText("Step 2 of 3").assertCountEquals(1)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 3 of 3").assertCountEquals(1)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 1 of 3").assertCountEquals(1)
+        // Still four pages: Next from step 1 opens the ad page again.
+        click(AdGalleryTestTags.FLOW_NEXT)
+        assertTrue(exists(PreviewAdTags.STEP_FULL_PAGE))
+    }
+
+    @Test
+    fun flowSteps_readyTurnsFalseMidFlow_keepsFourPages() {
+        // The slot loses its ad while the flow runs: the pages stay as they were when the flow started.
+        val slots = PreviewAdGallerySlots(stepFullPageReady = true)
+        setScreen(AdGalleryUiState.FlowSteps(3), slots)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        assertTrue(exists(PreviewAdTags.STEP_FULL_PAGE))
+
+        slots.readyNow = false
+        composeRule.waitForIdle()
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 2 of 3").assertCountEquals(1)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 3 of 3").assertCountEquals(1)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 1 of 3").assertCountEquals(1)
     }
 
     @Test

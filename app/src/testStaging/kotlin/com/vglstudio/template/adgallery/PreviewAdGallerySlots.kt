@@ -14,6 +14,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -74,10 +77,13 @@ class PreviewAdGallerySlots(
     /** N of the grid page, or null while its ads are off. */
     private val gridEvery: Int? = 4,
     /** Whether the page of a flow step has an ad (plan T-032). */
-    private val stepFullPageReady: Boolean = false,
+    stepFullPageReady: Boolean = false,
     /** The card of a flow step draws nothing, as a card with no ad. */
     private val stepCardEmpty: Boolean = false,
 ) : AdGallerySlots {
+    /** What [stepFullPageReady] answers now; a test may change it while the screen shows. */
+    var readyNow by mutableStateOf(stepFullPageReady)
+
     /** Every `viewed` the pager card got, in order. */
     val viewedValues = mutableListOf<Boolean>()
 
@@ -186,7 +192,7 @@ class PreviewAdGallerySlots(
     }
 
     @Composable
-    override fun stepFullPageReady(): Boolean = stepFullPageReady
+    override fun stepFullPageReady(): Boolean = readyNow
 
     @Composable
     override fun StepFullPage(shown: Boolean, modifier: Modifier) {
