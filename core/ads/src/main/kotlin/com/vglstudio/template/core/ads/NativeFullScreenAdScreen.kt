@@ -91,7 +91,7 @@ private const val BODY_MAX_LINES = 3
 @Composable
 internal fun NativeFullScreenAdLayout(
     assets: NativeAdAssets,
-    onClose: () -> Unit,
+    onClose: (() -> Unit)?,
     binder: NativeAdBinder,
     modifier: Modifier = Modifier,
     media: @Composable BoxScope.() -> Unit = {},
@@ -99,7 +99,7 @@ internal fun NativeFullScreenAdLayout(
     secondsLeft: Int? = null,
 ) {
     NativeFullScreenFrame(modifier) {
-        NativeFullScreenTopBar(secondsLeft, onClose, adChoices)
+        NativeFullScreenTopBar(secondsLeft, onClose ?: {}, adChoices)
         Box(
             modifier = Modifier
                 .fillMaxWidth()

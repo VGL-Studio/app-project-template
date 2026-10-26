@@ -168,6 +168,8 @@ class NativeAdSlotTest {
         assertEquals(null, AdFormat.INTERSTITIAL.nativeLoadSize())
         assertEquals(NativeAdSize.SMALL, AdFormat.NATIVE_SMALL.nativeLoadSize())
         assertEquals(NativeAdSize.MEDIUM, AdFormat.NATIVE_MEDIUM.nativeLoadSize())
+        // The pool of a flow step loads its ads at the size of the 250 dp card (plan T-032).
+        assertEquals(NativeAdSize.STEP, AdFormat.NATIVE_STEP.nativeLoadSize())
     }
 
     @Test

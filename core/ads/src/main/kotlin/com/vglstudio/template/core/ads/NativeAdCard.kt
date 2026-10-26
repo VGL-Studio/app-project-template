@@ -61,7 +61,7 @@ import kotlin.math.sin
  * ads-business-rules.md 5.7; no ad format draws it yet (plan T-027, Q2). [CARD] is the portrait card of a grid, a list
  * or a pager page (`native_in_collection`, 5.7; plan T-028).
  */
-enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD }
+enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD, STEP }
 
 /**
  * What a native ad shows; the SDK fills it in the app, tests and previews use fixed values. [starRating] is the
@@ -186,6 +186,8 @@ internal object NativeAdDimens {
         NativeAdSize.MEDIUM -> if (ctaLarge) MediumLargeHeight else MediumHeight
         NativeAdSize.FULL -> FullPlaceholderHeight
         NativeAdSize.CARD -> CardHeight
+        // TODO(T-032): skeleton only, the step layout comes with the code.
+        NativeAdSize.STEP -> MediumHeight
     }
 
     /** The call to action of medium: 44 dp, 56 dp when large. */
@@ -261,7 +263,7 @@ internal fun NativeAdLayout(
             NativeAdSize.SMALL -> SmallLayout(assets, binder)
             NativeAdSize.MEDIUM -> MediumLayout(assets, binder, ctaLarge)
             NativeAdSize.FULL -> FullLayout(assets, binder)
-            NativeAdSize.CARD -> CardLayout(assets, binder)
+            NativeAdSize.CARD, NativeAdSize.STEP -> CardLayout(assets, binder)
         }
         if (showAdChoicesMarker) AdChoicesMarker(Modifier.align(Alignment.TopEnd))
     }
@@ -708,7 +710,7 @@ internal fun NativeAdPlaceholderLayout(
             ) {
                 MediumPlaceholderBlocks(mediumCallToActionHeight)
             }
-            NativeAdSize.CARD -> Column(
+            NativeAdSize.CARD, NativeAdSize.STEP -> Column(
                 modifier = Modifier.fillMaxSize().padding(NativeAdDimens.CardPadding).then(pulse),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
