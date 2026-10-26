@@ -5,7 +5,6 @@ import android.graphics.Canvas
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +22,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -127,8 +127,7 @@ class RewardedActionTest {
         composeRule.waitForIdle()
     }
 
-    private fun cards(): Int =
-        composeRule.onAllNodesWithTag(RewardedAdDialogTestTags.CARD).fetchSemanticsNodes().size
+    private fun cards(): Int = composeRule.onAllNodesWithTag(RewardedAdDialogTestTags.CARD).fetchSemanticsNodes().size
 
     @Test
     fun switchOn_start_showsDialogWithBothButtonsAndAppContent() {
@@ -229,11 +228,13 @@ class RewardedActionTest {
 
     @Test
     fun recreateWhileDialogOpen_keepsDialog_logsShowOnce() {
-        composeRule.setContent { Subject() }
+        val restoration = StateRestorationTester(composeRule)
+        restoration.setContent { Subject() }
         enabled.tryEmit(true)
         start()
 
-        recreate()
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
 
         assertEquals(1, cards())
         assertEquals(listOf("show"), events)
@@ -242,12 +243,14 @@ class RewardedActionTest {
 
     @Test
     fun recreateAfterWatchTapped_resultOnce() {
-        composeRule.setContent { Subject() }
+        val restoration = StateRestorationTester(composeRule)
+        restoration.setContent { Subject() }
         enabled.tryEmit(true)
         start()
         tapWatch()
 
-        recreate()
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
         emit(RewardedOutcome.Granted)
 
         assertEquals(1, granted)
@@ -533,13 +536,22 @@ class RewardedActionTest {
         // Control: 20 lines do not fit, so the content scrolls to its last line.
         val content = composeRule.onNodeWithTag(RewardedAdDialogTestTags.CONTENT).fetchSemanticsNode()
         val last = composeRule.onNodeWithTag("line20", useUnmergedTree = true).fetchSemanticsNode()
-        assertTrue(last.boundsInWindow.bottom > content.boundsInWindow.bottom)
+        // positionInWindow is not clipped by the scrolling content, boundsInWindow is.
+        val lastBottom = last.positionInWindow.y + last.size.height
+        assertTrue(
+            "line 20 at $lastBottom, content ends ${content.boundsInWindow.bottom}",
+            lastBottom > content.boundsInWindow.bottom,
+        )
 
         composeRule.onNodeWithTag(RewardedAdDialogTestTags.CONTENT).performScrollToNode(hasTestTag("line20"))
         composeRule.waitForIdle()
         val scrolledContent = composeRule.onNodeWithTag(RewardedAdDialogTestTags.CONTENT).fetchSemanticsNode()
         val scrolledLast = composeRule.onNodeWithTag("line20", useUnmergedTree = true).fetchSemanticsNode()
-        assertTrue(scrolledLast.boundsInWindow.bottom <= scrolledContent.boundsInWindow.bottom + 1f)
+        val scrolledBottom = scrolledLast.positionInWindow.y + scrolledLast.size.height
+        assertTrue(
+            "line 20 at $scrolledBottom, content ends ${scrolledContent.boundsInWindow.bottom}",
+            scrolledBottom <= scrolledContent.boundsInWindow.bottom + 1f,
+        )
     }
 
     @Test
@@ -570,7 +582,10 @@ class RewardedActionTest {
         assertEquals(0, cards())
         assertEquals(0, granted)
         assertTrue(
-            logger.entries.any { it.tag == "Ads" && it.message.startsWith("Rewarded gallery_rw_action skipped: not_ready") },
+            logger.entries.any {
+                it.tag == "Ads" &&
+                    it.message.startsWith("Rewarded gallery_rw_action skipped: not_ready")
+            },
         )
     }
 
@@ -606,13 +621,6 @@ class RewardedActionTest {
                 }
             }
         }
-    }
-
-    /** Recreates the activity and sets the same content again, as an activity does in `onCreate`. */
-    private fun recreate() {
-        composeRule.activityRule.scenario.recreate()
-        composeRule.activityRule.scenario.onActivity { it.setContent { Subject() } }
-        composeRule.waitForIdle()
     }
 
     private fun dialogBitmap(): Bitmap {

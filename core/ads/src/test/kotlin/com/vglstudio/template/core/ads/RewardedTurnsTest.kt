@@ -21,8 +21,10 @@ class RewardedTurnsTest {
     private val outcomes = mutableListOf<RewardedOutcome>()
     private val collect: (RewardedOutcome) -> Unit = { outcomes += it }
 
-    private suspend fun request(declaration: AdPlacementDeclaration = rwGetItem, to: (RewardedOutcome) -> Unit = collect) =
-        turns.request(declaration, activity = null, onOutcome = to)
+    private suspend fun request(
+        declaration: AdPlacementDeclaration = rwGetItem,
+        to: (RewardedOutcome) -> Unit = collect,
+    ) = turns.request(declaration, activity = null, onOutcome = to)
 
     @Test
     fun switchOff_grantsAtOnce_noShowNoMetric() = runTest {

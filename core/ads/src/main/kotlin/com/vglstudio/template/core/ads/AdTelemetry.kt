@@ -148,11 +148,17 @@ internal class AdTelemetry(
         log(AdMetricEvent.Clicked(format.metricCode(), placement?.key))
     }
 
-    /** Skeleton of T-031. */
-    fun rewardEarned(placement: AdPlacement) {}
+    /** The user earned the reward of a rewarded ad of [placement] (R-02, `ad_reward_earned`). */
+    fun rewardEarned(placement: AdPlacement) {
+        if (!lifecycleOn(AdFormat.REWARDED)) return
+        log(AdMetricEvent.RewardEarned(AdFormat.REWARDED.metricCode(), placement.key))
+    }
 
-    /** Skeleton of T-031. */
-    fun rewardDialog(placement: AdPlacement, action: String) {}
+    /** The dialog before the rewarded ad of [placement] was shown or dismissed (`reward_dialog`, [action]). */
+    fun rewardDialog(placement: AdPlacement, action: String) {
+        if (!lifecycleOn(AdFormat.REWARDED)) return
+        log(AdMetricEvent.RewardDialog(AdFormat.REWARDED.metricCode(), placement.key, action))
+    }
 
     private fun logRevenue(
         format: AdFormat,

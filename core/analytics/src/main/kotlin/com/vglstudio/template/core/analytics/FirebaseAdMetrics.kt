@@ -35,8 +35,8 @@ internal fun AdMetricEvent.firebaseName(): String = when (this) {
     is AdMetricEvent.Opportunity -> "ad_opportunity"
     is AdMetricEvent.ShowFail -> "ad_show_fail"
     is AdMetricEvent.Clicked -> "ad_clicked"
-    is AdMetricEvent.RewardEarned -> TODO("T-031")
-    is AdMetricEvent.RewardDialog -> TODO("T-031")
+    is AdMetricEvent.RewardEarned -> "ad_reward_earned"
+    is AdMetricEvent.RewardDialog -> "reward_dialog"
 }
 
 /**
@@ -85,8 +85,14 @@ internal fun AdMetricEvent.firebaseParams(): Map<String, Any> {
             "ad_format" to adFormat,
             "ad_placement" to adPlacement,
         )
-        is AdMetricEvent.RewardEarned -> TODO("T-031")
-        is AdMetricEvent.RewardDialog -> TODO("T-031")
+        // No `ad_format` for the two rewarded events (section 8.2).
+        is AdMetricEvent.RewardEarned -> listOf(
+            "ad_placement" to adPlacement,
+        )
+        is AdMetricEvent.RewardDialog -> listOf(
+            "ad_placement" to adPlacement,
+            "dialog_action" to dialogAction,
+        )
     }
     return buildMap {
         params.forEach { (key, value) ->

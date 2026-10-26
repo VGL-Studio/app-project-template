@@ -17,6 +17,8 @@ import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.nativead.NativeAd
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.vglstudio.template.core.analytics.AdMetrics
 import com.vglstudio.template.core.logging.AppLogger
 import com.vglstudio.template.core.network.InternetConnectivity
@@ -49,8 +51,8 @@ import kotlinx.coroutines.withContext
  * The only class that talks to the ads SDKs (ADR-0004). :app calls [start] once in `Application.onCreate` (HD-01),
  * [gatherConsent], [onAppForeground] and [onAppBackground] from its activity, places [AdsHost] at the root of its UI
  * (it provides [LocalAdsController], G-04), and draws native full-screen ads with [FullScreenAdHost]. Features use
- * [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd], [rememberAdSuppression], [SuppressResumeAds],
- * [rememberMarkLeavingApp] and [PrivacyOptionsButton], never this class or an SDK directly.
+ * [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd], [rememberRewardedAction], [rememberAdSuppression],
+ * [SuppressResumeAds], [rememberMarkLeavingApp] and [PrivacyOptionsButton], never this class or an SDK directly.
  *
  * Full-screen ads follow docs/ops/ads-business-rules.md, sections 3, 4 and 6 (plan T-022): one decision order
  * ([decideFullScreenShow]), a showing flag with a cap ([FullScreenAdPresence]), `ads_interval` marks per interval
@@ -92,6 +94,11 @@ import kotlinx.coroutines.withContext
  * full-screen ad of `native_combo` follows it with a countdown of 3 s ([NativeFullScreenTurns]), drawn by
  * [FullScreenAdHost]; the completion of the interstitial then runs when that ad closes. The startup interstitial never
  * opens the combo. Every interstitial shown is counted since install ([InterDisplayCounter], N-05).
+ *
+ * A rewarded placement holds an action of the user (plan T-031, MC-05, R-01 to R-06): [rememberRewardedAction] asks
+ * with its dialog and calls [showRewarded]; every rule of the turn and of its loads is in [RewardedTurns], which this
+ * class ties to the SDK ([RewardedAd]). The rewarded slot never reads nor moves `ads_interval` (R-05), shows even
+ * while another full-screen ad holds the showing flag (R-06), and is loaded with the resumed activity of the app.
  */
 @Singleton
 class AdsController @Inject internal constructor(
@@ -121,6 +128,12 @@ class AdsController @Inject internal constructor(
             it.destroy()
         },
     )
+
+    /** The rewarded slot (plan T-031): an ad an hour old is dropped when read, like app open. */
+    private val loadedRewardeds = FreshAdCache<RewardedAd>(onDiscard = { rewardedCells -= it })
+
+    /** The rewarded ad taken out of the slot for the turn on screen, kept for a second show (R-06). */
+    private val showingRewardeds = mutableMapOf<AdPlacement, RewardedAd>()
 
     /** The app open slot (A-07): a load replaces the ad kept before it, an ad an hour old is dropped when read. */
     private val loadedAppOpens = FreshAdCache<AppOpenAd>(APP_OPEN_MAX_AGE_MILLIS, onDiscard = { appOpenCells -= it })
@@ -152,6 +165,7 @@ class AdsController @Inject internal constructor(
     private val interstitialCells = mutableMapOf<InterstitialAd, PlacementCell>()
     private val nativeFullScreenCells = mutableMapOf<LoadedNativeAd, PlacementCell>()
     private val appOpenCells = mutableMapOf<AppOpenAd, PlacementCell>()
+    private val rewardedCells = mutableMapOf<RewardedAd, PlacementCell>()
 
     /** The completion of the full-screen turn on screen (interstitial or app open). */
     private var currentTurn: FullScreenCompletion? = null
@@ -322,6 +336,80 @@ class AdsController @Inject internal constructor(
 
     /** The native full-screen turn on screen, drawn by [FullScreenAdHost]; null when none (HD-05). */
     internal val nativeFullScreenView: StateFlow<NativeFullScreenView?> = nativeTurns.view
+
+    /** The placement of each rewarded declaration. */
+    private val rewardedPlacements: Map<AdPlacementDeclaration, AdPlacement> =
+        AdPlacement.entries.filter { it.format == AdFormat.REWARDED }.associateBy { it.declaration }
+
+    private fun AdPlacementDeclaration.placement(): AdPlacement = rewardedPlacements.getValue(this)
+
+    /** The rewarded turns and load rounds (plan T-031); this port ties them to the SDK. */
+    private val rewardedTurns = RewardedTurns(
+        port = object : RewardedPort {
+            override suspend fun enabled(declaration: AdPlacementDeclaration): Boolean =
+                isEnabled(declaration.placement()).first()
+
+            override fun consentOpen(): Boolean = canRequestAds.value && gate.state.value.allowed
+
+            override fun mayRequestNow(): Boolean = this@AdsController.mayRequestNow()
+
+            override fun offline(): Boolean = !online.value
+
+            override fun ready(declaration: AdPlacementDeclaration): Boolean =
+                isFullScreenAdReady(declaration.placement())
+
+            override fun needsLoad(declaration: AdPlacementDeclaration): Boolean =
+                // The gate is asked by the round itself (rewardedLoadStep).
+                needsLoad(fullScreenLoadState(declaration.placement()), clock.nowMillis(), gateOpen = true)
+
+            override fun loadState(declaration: AdPlacementDeclaration): String =
+                opportunityLoadState(declaration.placement())
+
+            override suspend fun loadIfNeeded(declaration: AdPlacementDeclaration) =
+                loadFullScreenAdIfNeeded(declaration.placement())
+
+            override fun clearLoading(declaration: AdPlacementDeclaration) {
+                loadStates -= declaration.placement()
+            }
+
+            override fun send(declaration: AdPlacementDeclaration) = sendRewardedLoad(declaration.placement())
+
+            override fun sendBlocked(declaration: AdPlacementDeclaration) {
+                val placement = declaration.placement()
+                loadStates[placement] = fullScreenReloads.onSendBlocked(placement)
+            }
+
+            override fun take(declaration: AdPlacementDeclaration): Boolean {
+                val placement = declaration.placement()
+                val ad = loadedRewardeds.take(placement, clock.nowMillis()) ?: return false
+                rewardedCells.remove(ad)?.value = placement
+                showingRewardeds[placement] = ad
+                return true
+            }
+
+            override fun show(declaration: AdPlacementDeclaration, activity: Activity?) =
+                showRewardedAd(declaration, activity)
+
+            override fun showAgain(declaration: AdPlacementDeclaration, activity: Activity?) =
+                showRewardedAd(declaration, activity)
+
+            override fun raisePresence(declaration: AdPlacementDeclaration, activity: Activity?): Boolean =
+                presence.tryBegin(
+                    declaration.placement(),
+                    activity?.let { System.identityHashCode(it) } ?: NO_HOST_ACTIVITY,
+                    clock.nowMillis(),
+                )
+
+            override fun lowerPresence() = presence.onClosed()
+
+            override fun recordOpportunity(declaration: AdPlacementDeclaration, result: String, loadState: String) =
+                telemetry.opportunity(AdFormat.REWARDED, declaration.placement(), result, loadState)
+
+            override fun recordReward(declaration: AdPlacementDeclaration) =
+                telemetry.rewardEarned(declaration.placement())
+        },
+        logger = logger,
+    )
 
     /** One slot of the preload plan per full-screen placement. */
     private val preloadSlots: List<PreloadSlot> = fullScreenPlacements().map { placement ->
@@ -547,6 +635,8 @@ class AdsController @Inject internal constructor(
         recordIntervalMark(placement)
         logger.warn(TAG, "Full-screen ${placement.key} stuck: flag released")
         endCurrentTurn("stuck_recovered")
+        // A rewarded turn is not the current turn: it ends here, with no outcome (F-03).
+        if (placement.format == AdFormat.REWARDED) rewardedTurns.onStuck()
     }
 
     /** An activity of the app was resumed ([AdsActivityTracker]): the steps of G-06, then S-25. */
@@ -570,6 +660,7 @@ class AdsController @Inject internal constructor(
         if (shown.hostActivityId != System.identityHashCode(activity)) return
         logger.warn(TAG, "Full-screen ${shown.placement.key}: host destroyed before close")
         endCurrentTurn("host_destroyed")
+        if (shown.placement.format == AdFormat.REWARDED) rewardedTurns.onStuck()
     }
 
     /** The consent gate opened: the first time starts the SDK, later times preload again (S-10, S-14). */
@@ -881,6 +972,62 @@ class AdsController @Inject internal constructor(
         return true
     }
 
+    /**
+     * Whether a tap on the action of the rewarded [placement] opens its dialog ([rememberRewardedAction]): the
+     * placement switches ([isEnabled]) and the consent gate ([canRequestAds]). A closed gate counts as switched off,
+     * so the action runs at once with no dialog (question 8 of plan T-031, option (a)).
+     */
+    internal fun rewardedSwitch(placement: AdPlacement): Flow<Boolean> =
+        combine(isEnabled(placement), canRequestAds) { on, consentOpen -> on && consentOpen }
+
+    /**
+     * One tap on "Watch ad" of the rewarded [placement], shown on [activity] ([RewardedTurns.request]). Runs in the
+     * scope of this controller, so a recreated screen does not cancel it; [onOutcome] runs on the main thread.
+     */
+    internal fun showRewarded(activity: Activity, placement: AdPlacement, onOutcome: (RewardedOutcome) -> Unit) {
+        require(placement.format == AdFormat.REWARDED) { "${placement.key} is not a rewarded placement" }
+        scope.launch { rewardedTurns.request(placement.declaration, activity, onOutcome) }
+    }
+
+    /** `reward_dialog` of the rewarded [placement], [action] `show` or `dismiss` (section 8.2). */
+    internal fun recordRewardDialog(placement: AdPlacement, action: String) {
+        telemetry.rewardDialog(placement, action)
+    }
+
+    /**
+     * Shows the rewarded ad taken for the turn of [declaration] on [activity]; the SDK callbacks go to
+     * [rewardedTurns]. Closing or failing to show loads again 2 s later (F-06); no `ads_interval` mark (R-05).
+     */
+    private fun showRewardedAd(declaration: AdPlacementDeclaration, activity: Activity?) {
+        val placement = declaration.placement()
+        val ad = showingRewardeds[placement]
+        if (ad == null || activity == null) {
+            logger.warn(TAG, "Rewarded ${placement.key}: nothing to show")
+            rewardedTurns.onShowFailed(declaration, SHOW_FAILED_INTERNAL)
+            return
+        }
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() = rewardedTurns.onShowed(declaration)
+
+            override fun onAdDismissedFullScreenContent() {
+                if (showingRewardeds[placement] === ad) showingRewardeds -= placement
+                rewardedTurns.onDismissed(declaration)
+                fullScreenReloads.onClosedOrShowFailed(placement)
+            }
+
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                logger.warn(TAG, "Rewarded ${placement.key} failed to show: ${error.code}")
+                telemetry.showFailed(AdFormat.REWARDED, placement, error.code)
+                rewardedTurns.onShowFailed(declaration, error.code)
+                fullScreenReloads.onClosedOrShowFailed(placement)
+            }
+
+            override fun onAdClicked() = telemetry.clicked(AdFormat.REWARDED, placement)
+        }
+        // R-02: the reward is given in the SDK's callback, before the ad closes.
+        ad.show(activity) { rewardedTurns.onReward(declaration) }
+    }
+
     /** The close button of the native full-screen turn on screen; works once its countdown is over (K-03, K-04). */
     internal fun closeNativeFullScreen() = nativeTurns.close()
 
@@ -933,6 +1080,8 @@ class AdsController @Inject internal constructor(
             preloadedNativeFullScreen.hasFresh(placement, clock.nowMillis()) -> FullScreenLoadState.Ready
         placement.format == AdFormat.APP_OPEN &&
             loadedAppOpens.hasFresh(placement, clock.nowMillis()) -> FullScreenLoadState.Ready
+        placement.format == AdFormat.REWARDED &&
+            loadedRewardeds.hasFresh(placement, clock.nowMillis()) -> FullScreenLoadState.Ready
         else -> loadStates[placement] ?: FullScreenLoadState.Idle
     }
 
@@ -1321,12 +1470,16 @@ class AdsController @Inject internal constructor(
     /** Personalization follows the consent string of UMP only (question 8 of the ads spec): no `npa` extra. */
     internal fun adRequest(): AdRequest = AdRequest.Builder().build()
 
-    /** Preloads one full-screen ad of [placement] now; each loader checks the switches and the gate itself. */
+    /**
+     * Preloads one full-screen ad of [placement] now; each loader checks the switches and the gate itself. A rewarded
+     * round decides in [RewardedTurns.loadIfNeeded] (L-072).
+     */
     private fun preloadNow(placement: AdPlacement) {
-        when (placement.format) {
-            AdFormat.NATIVE_FULL_SCREEN -> preloadNativeFullScreen(placement)
-            AdFormat.APP_OPEN -> preloadAppOpen(placement)
-            else -> preloadInterstitial(placement)
+        when (fullScreenLoaderOf(placement.format)) {
+            FullScreenLoader.NATIVE_FULL_SCREEN -> preloadNativeFullScreen(placement)
+            FullScreenLoader.APP_OPEN -> preloadAppOpen(placement)
+            FullScreenLoader.INTERSTITIAL -> preloadInterstitial(placement)
+            FullScreenLoader.REWARDED -> scope.launch { rewardedTurns.loadIfNeeded(placement.declaration) }
         }
     }
 
@@ -1549,6 +1702,66 @@ class AdsController @Inject internal constructor(
         }
     }
 
+    /**
+     * Sends one rewarded load of [placement] ([RewardedTurns.loadIfNeeded] decided it), with the resumed activity of
+     * the app when there is one, like an interstitial (Unity, ironSource). Its paid events carry the placement it is
+     * shown for (PL-03). A failure is counted, retried by F-05 and kept for the network rule of R-03.
+     */
+    private fun sendRewardedLoad(placement: AdPlacement) {
+        val unitId = unitId(placement) ?: return
+        loadStates[placement] = FullScreenLoadState.Loading
+        val slot = preloadCounterKey(placement.key)
+        val loadPlacement = loadPlacementOf(AdFormat.REWARDED, placement)
+        val callback = object : RewardedAdLoadCallback() {
+            override fun onAdLoaded(ad: RewardedAd) {
+                loadStates -= placement
+                lastLoadErrors -= placement
+                telemetry.loadSucceeded(AdFormat.REWARDED, slot, loadPlacement, clock.nowMillis())
+                val cell = PlacementCell()
+                val adapter = ad.responseInfo.loadedAdapterResponseInfo
+                ad.setOnPaidEventListener { value ->
+                    telemetry.revenue(
+                        AdFormat.REWARDED,
+                        unitId,
+                        { cell.value },
+                        value.valueMicros,
+                        value.currencyCode,
+                        adapter?.adSourceName,
+                        adapter?.adapterClassName,
+                    )
+                }
+                rewardedCells[ad] = cell
+                loadedRewardeds.put(placement, ad, clock.nowMillis())
+            }
+
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                logger.warn(TAG, "Rewarded ${placement.key} failed to load: ${error.code}")
+                onRewardedLoadFailed(placement, slot, loadPlacement, error.code, error.message)
+            }
+        }
+        try {
+            val request = adRequest()
+            telemetry.requestSent(slot, clock.nowMillis())
+            RewardedAd.load(fullScreenLoadContext(tracker?.resumedActivity, context), unitId, request, callback)
+        } catch (e: Exception) {
+            // O-09: the request could not be built or sent; never the message of the error.
+            logger.warn(TAG, "Rewarded ${placement.key} failed to load: 0 (request not built)")
+            onRewardedLoadFailed(placement, slot, loadPlacement, 0, null)
+        }
+    }
+
+    /** A rewarded load of [placement] failed: counted and retried (F-05), and the network flag of R-03 set. */
+    private fun onRewardedLoadFailed(
+        placement: AdPlacement,
+        slot: String,
+        loadPlacement: String?,
+        code: Int,
+        message: String?,
+    ) {
+        onFullScreenLoadFailed(AdFormat.REWARDED, placement, slot, loadPlacement, code, message)
+        rewardedTurns.onLoadFailed(placement.declaration, code, offline = !online.value)
+    }
+
     /** A load of the interstitial of [placement] failed: counted first (T-023), then a retry (F-05). */
     private fun onInterstitialLoadFailed(
         placement: AdPlacement,
@@ -1611,6 +1824,9 @@ class AdsController @Inject internal constructor(
 
         /** Time to wait for a native ad before its space is removed (kept from wave 2 until T-027). */
         const val NATIVE_LOAD_TIMEOUT_MILLIS = 10_000L
+
+        /** `FullScreenContentCallback` code "internal error", for a rewarded show with no ad or no activity. */
+        const val SHOW_FAILED_INTERNAL = 0
 
         /** Log key of the loads of a pool: never the ad unit (ADR-0019). */
         const val POOL_LOG_KEY = "pool"

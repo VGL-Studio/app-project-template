@@ -48,6 +48,7 @@ class FullScreenPreloadSlotTest {
         state = FullScreenLoadState.Idle
         assertTrue(slot.settled())
     }
+
     @Test
     fun rewardedSlot_loadsThroughLoadFullScreenAdIfNeeded() {
         var rewardedOn = true

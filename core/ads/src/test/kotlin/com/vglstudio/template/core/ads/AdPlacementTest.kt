@@ -217,6 +217,7 @@ class AdPlacementTest {
         // Control: the app-wide interstitial is still a startup placement.
         assertEquals(AdPlacement.OPEN_APP_INTER, StartupAdTurn(AdPlacement.OPEN_APP_INTER).placement)
     }
+
     @Test
     fun noAdPolicyOnNonRewarded_isRejected() {
         listOf(AdFormat.INTERSTITIAL, AdFormat.NATIVE_SMALL, AdFormat.APP_OPEN).forEach {
