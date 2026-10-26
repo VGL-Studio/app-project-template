@@ -20,10 +20,7 @@ import kotlinx.coroutines.flow.stateIn
  * flag or stored data. [switches] follows the global ad switches for the "Ad status" page (ADR-0003).
  */
 @HiltViewModel
-class AdGalleryViewModel @Inject constructor(
-    private val logger: AppLogger,
-    adsFlags: AdsFlags,
-) : ViewModel() {
+class AdGalleryViewModel @Inject constructor(private val logger: AppLogger, adsFlags: AdsFlags) : ViewModel() {
     private val _uiState = MutableStateFlow<AdGalleryUiState>(AdGalleryUiState.Default)
     val uiState: StateFlow<AdGalleryUiState> = _uiState.asStateFlow()
 

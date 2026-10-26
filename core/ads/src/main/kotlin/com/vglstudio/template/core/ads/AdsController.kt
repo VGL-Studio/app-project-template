@@ -1014,7 +1014,9 @@ class AdsController @Inject internal constructor(
         placement: AdPlacement,
         onFinished: () -> Unit = {},
     ): Boolean {
-        require(placement.declaration.acceptsStagingAppOpen()) { "${placement.key} is not a staging app open placement" }
+        require(placement.declaration.acceptsStagingAppOpen()) {
+            "${placement.key} is not a staging app open placement"
+        }
         return showAppOpen(activity, placement, onFinished)
     }
 

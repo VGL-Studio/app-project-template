@@ -48,7 +48,8 @@ class GalleryAdStatusTest {
         assertTrue(status.privacyOptionsRequired)
         assertFalse(status.sdkReady)
         // Control (L-055): the opposite values come through too.
-        val other = galleryAdStatus(ConsentPath.GRANTED, true, privacyOptionsRequired = false, sdkReady = true, switches)
+        val other =
+            galleryAdStatus(ConsentPath.GRANTED, true, privacyOptionsRequired = false, sdkReady = true, switches)
         assertFalse(other.privacyOptionsRequired)
         assertTrue(other.sdkReady)
     }

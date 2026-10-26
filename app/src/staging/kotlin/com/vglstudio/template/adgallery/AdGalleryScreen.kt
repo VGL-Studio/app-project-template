@@ -264,7 +264,13 @@ internal class SdkAdGallerySlots : AdGallerySlots {
         if (ads == null) {
             items(items.size, key = { items[it] }) { itemContent(items[it]) }
         } else {
-            itemsWithInListAds(items = items, ads = ads, columns = GRID_COLUMNS, key = { it }, itemContent = itemContent)
+            itemsWithInListAds(
+                items = items,
+                ads = ads,
+                columns = GRID_COLUMNS,
+                key = { it },
+                itemContent = itemContent,
+            )
         }
     }
 
