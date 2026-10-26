@@ -255,7 +255,16 @@ class AdGalleryScreenTest {
         val collapse = composeRule.onNodeWithContentDescription(context.getString(AdsR.string.ads_collapse))
             .getBoundsInRoot()
         assertInsideScreen("collapse button", collapse)
-        assertInsideScreen("call to action", textBounds("Install"))
+        // The call to action of the layer and of the slot below it.
+        val callsToAction = composeRule.onAllNodesWithText("Install").fetchSemanticsNodes()
+        assertEquals(2, callsToAction.size)
+        callsToAction.forEach { node ->
+            val px = node.boundsInRoot
+            val rect = with(composeRule.density) {
+                DpRect(px.left.toDp(), px.top.toDp(), px.right.toDp(), px.bottom.toDp())
+            }
+            assertInsideScreen("call to action", rect)
+        }
         composeRule.onNodeWithTag(AdGalleryTestTags.COLLAPSIBLE_LIST).performScrollToNode(hasText("List item 6"))
         assertInsideScreen("List item 6", textBounds("List item 6"))
         // The list scrolls to above the slot; the floating layer keeps no space (D-04).

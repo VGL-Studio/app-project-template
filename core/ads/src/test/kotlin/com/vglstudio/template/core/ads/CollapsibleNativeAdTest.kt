@@ -193,6 +193,8 @@ class CollapsibleNativeAdTest {
     /** Collapses with the clock stopped; returns the mark the state took. */
     private fun collapseTimed(): Long {
         node(COLLAPSE).performClick()
+        // One frame delivers the tap, the next one draws the collapsed state.
+        frame()
         frame()
         return checkNotNull(state.collapsedAtMillis) { "no mark after collapsing" }
     }
