@@ -88,9 +88,10 @@ private const val BODY_MAX_LINES = 3
 /**
  * The layout of [NativeFullScreenAdScreen]. Each ad part goes through [binder], so a fake ad and a real ad bound to
  * the SDK share it; a real ad puts the SDK's MediaView in [media]. A null [onClose] is the page of a flow step
- * ([NativeFullScreenStep], variant `Flow step` of the design, plan T-032): no close button and no countdown
- * ([secondsLeft] is ignored), the 36 dp top bar keeps only AdChoices so the media starts at the same height, and no
- * padding for the safe area of the window: the page sits in the frame the app gives it.
+ * ([NativeFullScreenStep], variant `Flow step` of the design, plan T-032), laid out by [FlowStepPageLayout] (plan
+ * T-041): no close button and no countdown ([secondsLeft] is ignored), the 36 dp top bar keeps only AdChoices so the
+ * media starts at the same height, no padding for the safe area of the window, and a layout chosen by the height the
+ * app gives.
  */
 @Composable
 internal fun NativeFullScreenAdLayout(
@@ -102,12 +103,12 @@ internal fun NativeFullScreenAdLayout(
     adChoices: @Composable () -> Unit = {},
     secondsLeft: Int? = null,
 ) {
-    NativeFullScreenFrame(modifier, safeArea = onClose != null) {
-        if (onClose != null) {
-            NativeFullScreenTopBar(secondsLeft, onClose, adChoices)
-        } else {
-            FlowStepTopBar(adChoices)
-        }
+    if (onClose == null) {
+        FlowStepPageLayout(assets, binder, modifier, media, adChoices)
+        return
+    }
+    NativeFullScreenFrame(modifier) {
+        NativeFullScreenTopBar(secondsLeft, onClose, adChoices)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -118,11 +119,11 @@ internal fun NativeFullScreenAdLayout(
                 .testTag(NativeFullScreenAdTestTags.MEDIA),
             content = media,
         )
-        AdHeader(assets, binder)
+        NativeFullScreenAdHeader(assets, binder)
         assets.body?.let { body ->
             NativeAdBody(body, binder, maxLines = BODY_MAX_LINES, modifier = Modifier.fillMaxWidth())
         }
-        assets.callToAction?.let { AdCallToAction(it, binder) }
+        assets.callToAction?.let { NativeFullScreenCallToAction(it, binder) }
     }
 }
 
@@ -156,18 +157,6 @@ internal fun NativeFullScreenTopBar(secondsLeft: Int?, onClose: () -> Unit, adCh
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (secondsLeft != null && secondsLeft > 0) CountdownBadge(secondsLeft) else CloseButton(onClose)
-        adChoices()
-    }
-}
-
-/** The 36 dp top bar of the page of a flow step: AdChoices on the right only, no control. */
-@Composable
-private fun FlowStepTopBar(adChoices: @Composable () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
         adChoices()
     }
 }
@@ -220,11 +209,19 @@ private fun CloseButton(onClose: () -> Unit) {
     }
 }
 
-/** Icon, headline, then the "Ad" label with the advertiser. */
+/**
+ * Icon, headline, then the "Ad" label with the advertiser: 48 dp. With [growWithText] (the page of a flow step, plan
+ * T-041) 48 dp at least, so the headline and the "Ad" label are never cut when the system text is large.
+ */
 @Composable
-private fun AdHeader(assets: NativeAdAssets, binder: NativeAdBinder) {
+internal fun NativeFullScreenAdHeader(assets: NativeAdAssets, binder: NativeAdBinder, growWithText: Boolean = false) {
+    val height = if (growWithText) {
+        Modifier.heightIn(min = NativeFullScreenAdDimens.HeaderHeight)
+    } else {
+        Modifier.height(NativeFullScreenAdDimens.HeaderHeight)
+    }
     Row(
-        modifier = Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.HeaderHeight),
+        modifier = Modifier.fillMaxWidth().then(height),
         horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -261,7 +258,7 @@ private fun AdIcon(icon: ImageBitmap?, binder: NativeAdBinder) {
 
 /** A plain box, not a Button, so a touch reaches the SDK's call-to-action view. */
 @Composable
-private fun AdCallToAction(text: String, binder: NativeAdBinder) {
+internal fun NativeFullScreenCallToAction(text: String, binder: NativeAdBinder) {
     binder.Asset(
         NativeAdAsset.CALL_TO_ACTION,
         Modifier

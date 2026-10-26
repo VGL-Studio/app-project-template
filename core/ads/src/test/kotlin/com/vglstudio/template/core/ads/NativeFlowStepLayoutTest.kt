@@ -21,6 +21,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -68,10 +70,8 @@ class NativeFlowStepLayoutTest {
                     val density = LocalDensity.current
                     val typography = MaterialTheme.typography
                     metrics = flowStepMetrics(density, typography)
-                    with(density) {
-                        badgeLine = typography.labelSmall.lineHeight.toDp()
-                        titleLine = typography.titleMedium.lineHeight.toDp()
-                    }
+                    badgeLine = density.lineOf(typography.labelSmall)
+                    titleLine = density.lineOf(typography.titleMedium)
                     Box(Modifier.fillMaxWidth().height(height).testTag(PAGE)) {
                         if (throughGate) {
                             key(height, fontScale) {
@@ -91,6 +91,13 @@ class NativeFlowStepLayoutTest {
         }
         composeRule.waitForIdle()
     }
+
+    /**
+     * One line of [style] as Compose draws it: with the non-linear font scale of Android 14 the line height follows
+     * the converted font size (lineHeight / fontSize of the style).
+     */
+    private fun Density.lineOf(style: TextStyle): Dp =
+        style.fontSize.toDp() * (style.lineHeight.value / style.fontSize.value)
 
     private fun gateStates(): Flow<NativeAdState> = fullScreenStepStates(
         take = { FakeLoadedNativeAd(FakeNativeAdAssets.Longest).also { takes += it } },

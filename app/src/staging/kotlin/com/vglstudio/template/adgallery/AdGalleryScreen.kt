@@ -741,8 +741,10 @@ private fun PagerPage(pageCount: Int, slots: AdGallerySlots, modifier: Modifier)
 
 /**
  * The flow page (T-032): steps in a pager moved by the Next button; the native page of a step after the first one
- * when its slot has an ad, decided until the flow starts so the number of pages does not change while it runs; the
- * step card outside the pager, in a fixed 250 dp frame, hidden on the native page (one native ad per step).
+ * when its slot has an ad, decided until the flow starts so the number of pages does not change while it runs. The
+ * step card sits outside the pager, in a fixed 250 dp frame laid over the bottom of the step area, built only on the
+ * steps with a card: the native page takes the whole step area (one native ad per step; plan T-041). The pager has
+ * the same height on every step and Next stays at one place (OB-01).
  */
 @Composable
 private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modifier) {
@@ -756,33 +758,42 @@ private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modif
     val isFullPage = { page: Int -> withFullPage && page == FLOW_FULL_PAGE }
     Column(modifier = modifier.testTag(AdGalleryTestTags.FLOW)) {
         PageTitle(stringResource(R.string.ad_gallery_flow_title))
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth().weight(1f).testTag(AdGalleryTestTags.FLOW_PAGER),
-            userScrollEnabled = false,
-        ) { page ->
-            if (isFullPage(page)) {
-                slots.StepFullPage(shown = pagerState.settledPage == page, modifier = Modifier.fillMaxSize())
-            } else {
-                val step = if (withFullPage && page > FLOW_FULL_PAGE) page else page + 1
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(R.string.ad_gallery_flow_step, step, stepCount),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize().testTag(AdGalleryTestTags.FLOW_PAGER),
+                userScrollEnabled = false,
+            ) { page ->
+                if (isFullPage(page)) {
+                    slots.StepFullPage(shown = pagerState.settledPage == page, modifier = Modifier.fillMaxSize())
+                } else {
+                    val step = if (withFullPage && page > FLOW_FULL_PAGE) page else page + 1
+                    // The bottom of the area is the card's: the text stays in the middle of the part above it.
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(bottom = StepCardFrame),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ad_gallery_flow_step, step, stepCount),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
             }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(StepCardFrame)
-                .padding(horizontal = Spacing.md)
-                .testTag(AdGalleryTestTags.FLOW_CARD_FRAME),
-        ) {
             val page = pagerState.settledPage
-            if (!isFullPage(page)) slots.StepCard(step = page, modifier = Modifier.fillMaxWidth())
+            if (!isFullPage(page)) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(StepCardFrame)
+                        .padding(horizontal = Spacing.md)
+                        .testTag(AdGalleryTestTags.FLOW_CARD_FRAME),
+                ) {
+                    slots.StepCard(step = page, modifier = Modifier.fillMaxWidth())
+                }
+            }
         }
         PrimaryButton(
             text = stringResource(R.string.ad_gallery_flow_next),
