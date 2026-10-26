@@ -70,14 +70,15 @@ internal class ResumeAdTurns(private val port: ResumeAdPort, private val logger:
     fun onAppActivityResumed(activity: Activity) {
         val placement = pending ?: return
         pending = null
+        // A placement switched off or changed since the decision is no opportunity, even while blocked (L-A05).
+        if (port.placementNow() != placement) {
+            logger.info(TAG, "Resume ad dropped: switched")
+            return
+        }
         if (port.suppressedNow()) {
             logger.info(TAG, "Resume ad ${ResumeDecision.SUPPRESSED} on resume: ${placement.key}")
             val result = ResumeDecision.SUPPRESSED.opportunityResult() ?: return
             port.recordOpportunity(placement, result, port.loadStateOf(placement))
-            return
-        }
-        if (port.placementNow() != placement) {
-            logger.info(TAG, "Resume ad dropped: switched")
             return
         }
         logger.info(TAG, "Resume ad shown on resume: ${placement.key}")

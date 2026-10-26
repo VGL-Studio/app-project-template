@@ -362,6 +362,45 @@ class ResumeAdTurnsTest {
     }
 
     @Test
+    fun switchedOffWhileSuppressed_atResume_recordsNothing() {
+        launched()
+        returnToApp()
+        // The key switched off and the consent form opened, both between the decision and the show (L-A05).
+        port.suppressedNow = true
+        port.placementNow = null
+        turns.onAppActivityResumed(activity)
+        assertTrue(port.opportunities.isEmpty())
+        assertEquals(0, port.shows)
+        assertTrue(logger.entries.any { it.message == "Resume ad dropped: switched" })
+        assertTrue(logger.entries.none { it.message == "Resume ad SUPPRESSED on resume: resume" })
+        // Control (L-055): switched on again and still blocked, the next return records suppressed once.
+        port.placementNow = AdPlacement.RESUME
+        returnToApp()
+        turns.onAppActivityResumed(activity)
+        assertEquals(listOf(ResumeOpportunity(AdPlacement.RESUME, "suppressed", "idle")), port.opportunities)
+        assertEquals(0, port.shows)
+    }
+
+    @Test
+    fun typeChangedWhileSuppressed_atResume_recordsNothing() {
+        launched()
+        returnToApp()
+        // The type changed and the consent form opened, both between the decision and the show (L-A05).
+        port.suppressedNow = true
+        port.placementNow = AdPlacement.RESUME_INTER
+        turns.onAppActivityResumed(activity)
+        assertTrue(port.opportunities.isEmpty())
+        assertEquals(0, port.shows)
+        assertTrue(logger.entries.any { it.message == "Resume ad dropped: switched" })
+        // Control (L-055): the next turn decided with the new type and still blocked records suppressed once.
+        port.gate = ALL_PASS.copy(placement = AdPlacement.RESUME_INTER)
+        returnToApp()
+        turns.onAppActivityResumed(activity)
+        assertEquals(listOf(ResumeOpportunity(AdPlacement.RESUME_INTER, "suppressed", "idle")), port.opportunities)
+        assertEquals(0, port.shows)
+    }
+
+    @Test
     fun startupNotFinished_isSilent_thenShowsAfterFinish() {
         launched()
         port.gate = ALL_PASS.copy(startupFinished = false)

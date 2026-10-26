@@ -61,20 +61,35 @@ class AdsControllerResumeTest {
 
     @Test
     fun resumeOff_gateHasNoPlacement_foregroundRecordsNothing() {
+        // The lifecycle metrics on, else no opportunity is ever recorded and the check proves nothing.
+        settings.set(AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS, true)
         val controller = startedController()
-        assertNull(controller.readResumeGate().placement)
+        controller.openConsentGateForTest()
+        // The 45 s cap of the startup turn over, so a return reaches the OFF gate, not STARTUP.
+        idleFor(45_100)
+        val gate = controller.readResumeGate()
+        assertTrue(gate.toString(), gate.serving)
+        assertTrue(gate.toString(), gate.startupFinished)
+        assertNull(gate.placement)
         controller.onProcessForegroundChanged(true)
         controller.onProcessForegroundChanged(false)
         controller.onProcessForegroundChanged(true)
         idle()
         assertTrue(metrics.events.none { it is AdMetricEvent.Opportunity })
-        val resumeLogs = logger.entries.filter { it.message.startsWith("Resume ad ") }
-        assertEquals(resumeLogs.toString(), 2, resumeLogs.size)
-        assertTrue(resumeLogs.toString(), resumeLogs.none { it.message.startsWith("Resume ad SHOW") })
-        // Control (L-055): the keys switch the placement of the gate.
+        val resumeLogs = logger.entries.map { it.message }.filter { it.startsWith("Resume ad ") }
+        assertEquals(listOf("Resume ad FIRST_FOREGROUND: none", "Resume ad OFF: none"), resumeLogs)
+        // Control (L-055): switched on, the next return is an opportunity of the resume placement.
         settings.set(AdsSettings.SHOW_RESUM_ADS, true)
         idle()
         assertEquals(AdPlacement.RESUME, controller.readResumeGate().placement)
+        controller.onProcessForegroundChanged(false)
+        controller.onProcessForegroundChanged(true)
+        idle()
+        val opportunities = metrics.events.filterIsInstance<AdMetricEvent.Opportunity>()
+        assertEquals(1, opportunities.size)
+        assertEquals("resume", opportunities.single().adPlacement)
+        assertEquals("not_ready", opportunities.single().result)
+        assertEquals("idle", opportunities.single().loadState)
         settings.set(AdsSettings.RESUME_AD_TYPE, "inter")
         idle()
         assertEquals(AdPlacement.RESUME_INTER, controller.readResumeGate().placement)
