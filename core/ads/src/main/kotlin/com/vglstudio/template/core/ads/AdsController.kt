@@ -304,9 +304,7 @@ class AdsController @Inject internal constructor(
             override fun loadStateAtOpen(): String = opportunityLoadState(AdPlacement.NATIVE_AFTER_INTER)
 
             override fun takeAd(): LoadedNativeAd? =
-                preloadedNativeFullScreen.take(AdPlacement.NATIVE_AFTER_INTER, clock.nowMillis())?.also {
-                    nativeFullScreenCells.remove(it)?.value = AdPlacement.NATIVE_AFTER_INTER
-                }
+                takePreloadedNativeFullScreen(AdPlacement.NATIVE_AFTER_INTER, clock.nowMillis())
 
             override fun ensureLoading(): Boolean {
                 loadFullScreenAdIfNeeded(AdPlacement.NATIVE_AFTER_INTER)
@@ -934,7 +932,7 @@ class AdsController @Inject internal constructor(
             if (decision != FullScreenShowDecision.SHOW) {
                 return@withContext skipTurn(placement, decision, loadState, onFinished)
             }
-            val takeAd = { preloadedNativeFullScreen.take(placement, clock.nowMillis()) }
+            val takeAd = { takePreloadedNativeFullScreen(placement, clock.nowMillis()) }
             if (!beginStandaloneNativeTurn(placement, takeAd, onFinished)) {
                 val skipped = if (nativeTurns.busy || presence.isBusy(clock.nowMillis())) {
                     FullScreenShowDecision.BUSY
@@ -1061,6 +1059,40 @@ class AdsController @Inject internal constructor(
                     guard.allows(placement.intervalGroup, intervalMillis, now),
             )
         }
+
+    /**
+     * Takes the preloaded native full-screen ad of [placement] out of its slot (the one place that does), and sets
+     * the placement its metrics read (P-04): the turn after an interstitial, the standalone turn and the page of a
+     * flow step. Null when the slot has no fresh ad.
+     */
+    private fun takePreloadedNativeFullScreen(placement: AdPlacement, now: Long): LoadedNativeAd? =
+        preloadedNativeFullScreen.take(placement, now)?.also { nativeFullScreenCells.remove(it)?.value = placement }
+
+    /**
+     * The states of the page of a flow step of [placement] ([NativeFullScreenStep], plan T-032): the preloaded ad of
+     * its slot, a load asked when there is none, the ad destroyed and the slot loaded again when the page leaves. No
+     * gate of full-screen ads, no `ads_interval` mark, no showing flag: the page is part of the flow (question 4).
+     */
+    internal fun fullScreenStep(placement: AdPlacement): Flow<NativeAdState> = fullScreenStepStates(
+        take = { takeStepFullScreenAd(placement) },
+        ensureLoading = { loadFullScreenAdIfNeeded(placement) },
+        release = { releaseStepFullScreenAd(placement, it) },
+    )
+
+    /** S-11: nothing is taken while consent does not allow ads. */
+    private fun takeStepFullScreenAd(placement: AdPlacement): LoadedNativeAd? =
+        stepFullScreenTake(canRequestAds.value) { takePreloadedNativeFullScreen(placement, clock.nowMillis()) }
+            ?.also { logger.info(TAG, "Flow step full page shown: ${placement.key}") }
+
+    /** The page left: its ad is destroyed and the slot loads again, as after a close. */
+    private fun releaseStepFullScreenAd(placement: AdPlacement, ad: LoadedNativeAd) {
+        ad.destroy()
+        logger.info(TAG, "Flow step full page left: ${placement.key}")
+        fullScreenReloads.onClosedOrShowFailed(placement)
+    }
+
+    /** Whether the page of a flow step of [placement] has an ad now ([rememberNativeFullScreenStepReady]). */
+    internal fun stepFullScreenReady(placement: AdPlacement): Boolean = isFullScreenAdReady(placement)
 
     /**
      * Whether a full-screen ad of [placement] is loaded and may be shown now. Reads the state only, never loads
@@ -1258,6 +1290,14 @@ class AdsController @Inject internal constructor(
      */
     internal fun pooledCell(placement: AdPlacement): Flow<NativeAdState> =
         nativePools.pool(placement)?.let { pooledCellStates(it, placement, logger, placement.key) }
+            ?: flowOf(NativeAdState.Unavailable)
+
+    /**
+     * The states of the card of a flow step of [placement] on its pool ([stepAdStates], plan T-032); Unavailable when
+     * the placement has no pool (no ad unit). The caller checks consent and [isEnabled] first, like [NativeStepAd].
+     */
+    internal fun stepAd(placement: AdPlacement, steps: Flow<Any>): Flow<NativeAdState> =
+        nativePools.pool(placement)?.let { stepAdStates(it, placement, steps, logger, placement.key) }
             ?: flowOf(NativeAdState.Unavailable)
 
     /** The `ad_opportunity` of one cell of a pool (P-07). */
@@ -1847,10 +1887,10 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
     AdFormat.NATIVE_FULL_SCREEN -> null
     // App open (its own slot, T-024) and rewarded are not native. The pool of T-028 loads the in-collection cards
-    // with portrait media; the native step waits for its layout (T-032).
+    // with portrait media, and the cards of a flow step at their 250 dp size, media wide (T-032).
     AdFormat.APP_OPEN -> null
     AdFormat.REWARDED -> null
     AdFormat.BANNER_COLLAPSIBLE -> null
-    AdFormat.NATIVE_STEP -> null
+    AdFormat.NATIVE_STEP -> NativeAdSize.STEP
     AdFormat.NATIVE_IN_COLLECTION -> NativeAdSize.CARD
 }

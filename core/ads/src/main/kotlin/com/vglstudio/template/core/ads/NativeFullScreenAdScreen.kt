@@ -86,20 +86,27 @@ private const val BODY_MAX_LINES = 3
 
 /**
  * The layout of [NativeFullScreenAdScreen]. Each ad part goes through [binder], so a fake ad and a real ad bound to
- * the SDK share it; a real ad puts the SDK's MediaView in [media].
+ * the SDK share it; a real ad puts the SDK's MediaView in [media]. A null [onClose] is the page of a flow step
+ * ([NativeFullScreenStep], variant `Flow step` of the design, plan T-032): no close button and no countdown
+ * ([secondsLeft] is ignored), the 36 dp top bar keeps only AdChoices so the media starts at the same height, and no
+ * padding for the safe area of the window: the page sits in the frame the app gives it.
  */
 @Composable
 internal fun NativeFullScreenAdLayout(
     assets: NativeAdAssets,
-    onClose: () -> Unit,
+    onClose: (() -> Unit)?,
     binder: NativeAdBinder,
     modifier: Modifier = Modifier,
     media: @Composable BoxScope.() -> Unit = {},
     adChoices: @Composable () -> Unit = {},
     secondsLeft: Int? = null,
 ) {
-    NativeFullScreenFrame(modifier) {
-        NativeFullScreenTopBar(secondsLeft, onClose, adChoices)
+    NativeFullScreenFrame(modifier, safeArea = onClose != null) {
+        if (onClose != null) {
+            NativeFullScreenTopBar(secondsLeft, onClose, adChoices)
+        } else {
+            FlowStepTopBar(adChoices)
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -118,14 +125,21 @@ internal fun NativeFullScreenAdLayout(
     }
 }
 
-/** The page of the native full-screen ad and of its placeholder: background, safe area, margins, 16 dp gaps. */
+/**
+ * The page of the native full-screen ad and of its placeholder: background, safe area, margins, 16 dp gaps. Without
+ * [safeArea] (the page of a flow step) the app's frame handles the safe area.
+ */
 @Composable
-internal fun NativeFullScreenFrame(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+internal fun NativeFullScreenFrame(
+    modifier: Modifier = Modifier,
+    safeArea: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .then(if (safeArea) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
             .padding(start = Spacing.md, top = Spacing.lg, end = Spacing.md, bottom = Spacing.xl),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
         content = content,
@@ -141,6 +155,18 @@ internal fun NativeFullScreenTopBar(secondsLeft: Int?, onClose: () -> Unit, adCh
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (secondsLeft != null && secondsLeft > 0) CountdownBadge(secondsLeft) else CloseButton(onClose)
+        adChoices()
+    }
+}
+
+/** The 36 dp top bar of the page of a flow step: AdChoices on the right only, no control. */
+@Composable
+private fun FlowStepTopBar(adChoices: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         adChoices()
     }
 }

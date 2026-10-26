@@ -42,6 +42,16 @@ class NativeRequestOptionsTest {
     }
 
     @Test
+    fun step_landscapeMedia_adChoicesTopRight() {
+        // O-06: the 250 dp card of a flow step draws its media wide, like medium; O-08: AdChoices top right.
+        val step = nativeRequestOptions(NativeAdSize.STEP)
+        assertEquals(MediaAspectRatio.LANDSCAPE, step.mediaAspect)
+        assertEquals(NativeAdOptions.ADCHOICES_TOP_RIGHT, step.adChoicesCorner)
+        assertEquals(nativeRequestOptions(NativeAdSize.MEDIUM), step)
+        assertEquals(NativeAdOptions.ADCHOICES_TOP_RIGHT, step.toNativeAdOptions().adChoicesPlacement)
+    }
+
+    @Test
     fun small_anyAspect() {
         // Small draws no media, so it does not narrow the ads it can get.
         assertEquals(MediaAspectRatio.ANY, nativeRequestOptions(NativeAdSize.SMALL).mediaAspect)

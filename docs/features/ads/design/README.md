@@ -78,6 +78,8 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 | Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 36 dp tròn tại (16, 24), vùng chạm 48 dp do Compose tự nới, góc trên trái |
 | Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 80 dp, medium 410 dp, đầy đủ 418 dp, thẻ dọc 300 dp hay cỡ ô) |
 | Nút của app | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` đậm 600 | |
+| Thẻ native ở bước của luồng (component `Native/Step`, T-032) | `NativeStepAd`, cỡ `NativeAdSize.STEP` | như khung native small, medium | tiêu đề `titleSmall` cỡ 13 sp | cao 250 dp, lề trong 12 dp, các phần cách nhau 8 dp; media ngang lấp phần trên, icon 32 dp, CTA 36 dp rộng hết thẻ; AdChoices góc trên phải; khung chờ 250 dp |
+| Trang native ở bước của luồng (biến thể `Flow step` của `Native/FullScreen`, T-032) | `NativeFullScreenStep`, `NativeFullScreenStepContent` | như native toàn màn hình | như native toàn màn hình | không nút đóng, không đếm ngược; hàng trên 36 dp chỉ có AdChoices (media bắt đầu ở y = 76 như bản sau inter); không đệm vùng an toàn; CTA 52 dp; nút Tiếp của app nằm ngoài vùng của trang |
 
 - **Giá trị "ngoài hệ thống" trong `context/`:** khoảng cách 2, 6 và 12 dp bên trong quảng cáo (giữa tiêu đề và dòng nhà quảng cáo, giữa nhãn "Ad" và chữ, lề trong khung). Plan T-010 quyết: giữ làm hằng số riêng của composable native trong `:core:ads` (kích thước của một component, như `MinHeight` của `PrimaryButton`), không thêm token.
 - **Thành phần mới cần thêm vào hệ thống thiết kế:** các composable native nằm ở `:core:ads` (ADR-0022), dùng token của `:core:designsystem`; không thêm thành phần vào `:core:designsystem`.
@@ -157,3 +159,12 @@ Thanh đáy và lớp native thu gọn 250 dp (T-030, 2026-10-26). Chạy thẳn
 | --- | --- | --- |
 | `AdGalleryScreen_collapsible-expanded_light` | 0.7% | Lớp mở 250 dp ở y 625 tới 875, cách mép 16 dp; media 134 dp, icon 32 dp, tiêu đề 13 sp, CTA 36 dp, nút thu gọn 32 dp nền `scrim` 40% cách góc trên phải 4 dp trùng thiết kế. Khác: ô AdChoices giả (góc trên trái) không có chữ "i", media giả không có nhãn "Media", hai mép CTA lệch khoảng 1 dp (lề 12 dp tính từ mép ngoài, như các native khác) |
 | `AdGalleryScreen_collapsible-collapsed_light` | 0.7% | Lớp ẩn, khe đáy 80 dp ở y 795 tới 875 trùng thiết kế; khác ở chữ "i" của ô AdChoices giả |
+
+Native ở bước của luồng (T-032, 2026-10-26): không có ảnh thiết kế hay file `context/` cho component `Native/Step` và biến thể `Flow step` của `Native/FullScreen`, nên không chạy `design-compare`. Số đo theo mục 5.7 của luật và bố cục 250 dp của `AdGalleryScreen_collapsible-expanded_light.md` (plan T-032, câu hỏi 2). Ảnh chuẩn mới ở `core/ads/src/test/screenshots/`; người duyệt PR so với component trên trang "Components / Native ads" của Figma, lệch quá một bước lưới 4 dp thì ghi vào bảng dưới.
+
+| Ảnh chuẩn | Nội dung (AI xem ảnh) | So với Figma (người duyệt) |
+| --- | --- | --- |
+| `NativeAdCard_step_light`, `_dark` | Thẻ 250 dp, lề 12 dp, media ngang lấp phần trên, ô AdChoices giả góc trên phải trên media, icon 32 dp, tiêu đề 13 sp, nhãn "Ad", CTA 36 dp rộng hết thẻ | chưa xem |
+| `NativeAdPlaceholder_step_light` | Khung chờ 250 dp cùng bố cục: khối media, icon, hai vạch chữ, khối CTA 36 dp | chưa xem |
+| `NativeFlowStep_card_light`, `_dark`, `_small` | Bước ví dụ, thẻ 250 dp ngoài pager ngay trên nút Tiếp 52 dp; khung thấp với chữ dài nhất: thẻ và nút Tiếp thấy đủ | chưa xem |
+| `NativeFlowStep_full-page_light`, `_dark`, `_small` | Trang không nút đóng, không đếm ngược; hàng trên chỉ có AdChoices, media từ y = 76; nút Tiếp dưới vùng của trang, không bị CTA che | chưa xem |

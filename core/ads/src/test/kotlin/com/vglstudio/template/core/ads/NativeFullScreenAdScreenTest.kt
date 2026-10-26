@@ -1,7 +1,16 @@
 package com.vglstudio.template.core.ads
 
 import android.content.Context
+import android.view.View
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -12,6 +21,7 @@ import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -21,6 +31,9 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.designsystem.theme.AppTheme
@@ -168,11 +181,135 @@ class NativeFullScreenAdScreenTest {
         assertTrue("body has ${layouts.single().lineCount} lines", layouts.single().lineCount <= 3)
     }
 
+    // The page of a flow step (plan T-032): no controls, in the area the app gives it.
+
+    @Test
+    fun flowStep_hasNoCloseButton_noCountdown() {
+        var flowStep by mutableStateOf(true)
+        composeRule.setContent {
+            AppTheme(darkTheme = false) {
+                NativeFullScreenAdLayout(
+                    assets = FakeNativeAdAssets.Design,
+                    onClose = if (flowStep) null else ({ closes++ }),
+                    binder = PreviewNativeAdBinder,
+                    media = { FakeMedia() },
+                    adChoices = { FakeAdChoices() },
+                    secondsLeft = if (flowStep) 3 else null,
+                )
+            }
+        }
+        assertNoNode(CLOSE)
+        assertNoNode(COUNTDOWN)
+        composeRule.onNodeWithTag(FAKE_AD_CHOICES_TAG).assertExists()
+        composeRule.onNodeWithTag(CTA).assertExists()
+
+        // Control: the same layout with onClose has its close button.
+        flowStep = false
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(CLOSE).assertExists()
+    }
+
+    @Test
+    fun flowStep_publicContent_hasNoCloseButton() {
+        composeRule.setContent {
+            AppTheme(darkTheme = false) {
+                NativeFullScreenStepContent(
+                    assets = FakeNativeAdAssets.Design,
+                    media = { FakeMedia() },
+                    adChoices = { FakeAdChoices() },
+                )
+            }
+        }
+        assertNoNode(CLOSE)
+        assertNoNode(COUNTDOWN)
+        composeRule.onNodeWithText(FakeNativeAdAssets.Design.headline).assertExists()
+        composeRule.onNodeWithTag(CTA).assertHeightIsEqualTo(52.dp)
+    }
+
+    @Test
+    fun flowStep_mediaStartsLikeAfterInter() {
+        var flowStep by mutableStateOf(true)
+        composeRule.setContent {
+            AppTheme(darkTheme = false) {
+                if (flowStep) {
+                    NativeFullScreenStepContent(FakeNativeAdAssets.Design, media = { FakeMedia() })
+                } else {
+                    NativeFullScreenAdScreen(FakeNativeAdAssets.Design, onClose = {}, media = { FakeMedia() })
+                }
+            }
+        }
+        val stepMedia = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
+        assertEquals(76f, stepMedia.top.value, TOLERANCE)
+
+        flowStep = false
+        composeRule.waitForIdle()
+        val afterInterMedia = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
+        assertEquals(afterInterMedia.top.value, stepMedia.top.value, TOLERANCE)
+        assertEquals(afterInterMedia.left.value, stepMedia.left.value, TOLERANCE)
+    }
+
+    @Test
+    fun flowStep_noWindowInsetPadding() {
+        var flowStep by mutableStateOf(true)
+        var view: View? = null
+        composeRule.setContent {
+            view = LocalView.current
+            AppTheme(darkTheme = false) {
+                Box(Modifier.size(360.dp, 556.dp).testTag(AREA)) {
+                    if (flowStep) {
+                        NativeFullScreenStepContent(FakeNativeAdAssets.Design, media = { FakeMedia() })
+                    } else {
+                        NativeFullScreenAdScreen(FakeNativeAdAssets.Design, onClose = {}, media = { FakeMedia() })
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        // A status bar of 40 dp: the page of a flow step sits in the frame of the app, which handles the safe area.
+        val topInset = with(composeRule.density) { STATUS_BAR.roundToPx() }
+        val dispatchStatusBar = {
+            composeRule.runOnUiThread {
+                ViewCompat.dispatchApplyWindowInsets(
+                    view!!,
+                    WindowInsetsCompat.Builder()
+                        .setInsets(WindowInsetsCompat.Type.statusBars(), Insets.of(0, topInset, 0, 0))
+                        .build(),
+                )
+            }
+            composeRule.waitForIdle()
+        }
+        dispatchStatusBar()
+        val area = composeRule.onNodeWithTag(AREA).getUnclippedBoundsInRoot()
+        val media = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
+        val cta = composeRule.onNodeWithTag(CTA).getUnclippedBoundsInRoot()
+        assertEquals("starts at the 16 dp margin", 16f, (media.left - area.left).value, TOLERANCE)
+        assertEquals("no safe area added", 76f, (media.top - area.top).value, TOLERANCE)
+        assertTrue("CTA inside the area: $cta", cta.bottom <= area.bottom)
+
+        // Control: the page after an interstitial covers the window, so it adds the status bar.
+        flowStep = false
+        composeRule.waitForIdle()
+        // Compose reads the insets of the window only once a composable asks for them: sent again for this page.
+        dispatchStatusBar()
+        val afterInter = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
+        assertEquals(76f + STATUS_BAR.value, (afterInter.top - area.top).value, TOLERANCE)
+    }
+
+    private fun assertNoNode(tag: String) {
+        assertTrue(
+            "$tag should not be drawn",
+            composeRule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().isEmpty(),
+        )
+    }
+
     private companion object {
         const val CLOSE = "nativeFullScreenClose"
         const val CTA = "nativeFullScreenCta"
         const val MEDIA = "nativeFullScreenMedia"
         const val ICON = "nativeFullScreenIcon"
+        const val COUNTDOWN = "nativeFullScreenCountdown"
+        const val AREA = "stepArea"
+        val STATUS_BAR = 40.dp
         const val TOLERANCE = 0.5f
     }
 }
