@@ -52,6 +52,19 @@ merged_on_main() {
     || true
 }
 
+# Every item of a list endpoint, one compact JSON per line. Pages are read with "&page=N" on the repos/<owner>/<repo>
+# path: `gh api --paginate` follows GitHub's Link header, which names the repository by numeric id, and the proxy of
+# a cloud session refuses such paths (L-092). The path must already end in "per_page=100".
+gh_all() {
+  local page=1 body
+  while (( page <= 50 )); do
+    body="$(gh api "$1&page=$page")" || return 1
+    jq -c '.[]' <<<"$body"
+    (( $(jq length <<<"$body") >= 100 )) || return 0
+    page=$((page + 1))
+  done
+}
+
 # Strict argument check: any unknown argument (including a mistyped --dry-run) is refused,
 # so a real merge never happens when the caller only wanted a dry run.
 DRY_RUN="no"
@@ -169,8 +182,8 @@ evaluate() {
   # report branch) are merged (docs/auto-run.md, section 1), plus the exact revert checked above, which the session
   # merges to bring main back (ADR-0025, point 4). A session is running when its report branch holds its run file
   # with status "running". Stale report branches of finished sessions do not block anything.
-  run_branches="$(gh api "repos/$REPO/branches?per_page=100" --paginate \
-    --jq '.[].name | select(test("^claude/RUN-[0-9]{8}-[0-9]{2}-report$"))')"
+  run_branches="$(gh_all "repos/$REPO/branches?per_page=100" \
+    | jq -r '.name | select(test("^claude/RUN-[0-9]{8}-[0-9]{2}-report$"))')"
   for run_branch in $run_branches; do
     run_id="${run_branch#claude/}"
     run_id="${run_id%-report}"
@@ -268,7 +281,7 @@ if [[ "$local_branch" == "$HEAD_REF" && "$updates" -eq 0 && "$(git rev-parse HEA
 fi
 
 # docs/STATUS.md is not in git: status-page.yml builds it on the status branch (docs/CLAUDE.md, section Trang tiến độ).
-pr_files="$( { gh api "repos/$REPO/pulls/$PR/files?per_page=100" --paginate --jq '.[].filename' 2>/dev/null || true; } )"
+pr_files="$( { gh_all "repos/$REPO/pulls/$PR/files?per_page=100" 2>/dev/null || true; } | jq -r '.filename' 2>/dev/null || true)"
 if grep -qx 'docs/STATUS.md' <<<"$pr_files"; then
   echo "CHÚ Ý: PR có docs/STATUS.md. Trang tiến độ không có trong git; status-page.yml sinh nó trên nhánh status sau khi merge. Bỏ file khỏi PR (git rm --cached docs/STATUS.md) để PR không xung đột nhau (docs/CLAUDE.md, mục Trang tiến độ)." >&2
 fi
@@ -295,9 +308,14 @@ if [[ "$merge_failed" == "yes" ]]; then
   [[ -n "$found" ]] || die "GitHub từ chối merge PR #$PR."
 fi
 
-# Delete the merged branch if it belongs to an auto-run session.
+# Delete the merged branch if it belongs to an auto-run session. The repository setting "Automatically delete head
+# branches" usually deleted it already; a branch still there after a failed delete gets a warning, because branches
+# that pile up past 100 once broke this script on cloud sessions (L-092).
 if [[ "$HEAD_REF" == claude/* ]]; then
-  gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null 2>&1 || true
+  if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null 2>&1 \
+    && gh api "repos/$REPO/git/ref/heads/$HEAD_REF" >/dev/null 2>&1; then
+    echo "CHÚ Ý: không xóa được nhánh '$HEAD_REF' sau khi merge; người xóa tay để số nhánh không tăng (L-092)." >&2
+  fi
 fi
 
 if [[ "$merge_failed" == "yes" ]]; then
