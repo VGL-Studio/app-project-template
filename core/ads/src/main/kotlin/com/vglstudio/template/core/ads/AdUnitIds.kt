@@ -7,8 +7,13 @@ package com.vglstudio.template.core.ads
 fun interface AdUnitIds {
     fun of(placement: AdPlacement): String?
 
-    /** The unit of [placement] drawn as [format] (a layer of a bottom bar). */
-    fun of(placement: AdPlacement, format: AdFormat): String? = null
+    /**
+     * The unit of [placement] drawn as [format]: a layer of a bottom bar (banner, collapsible native) is another
+     * format than the bar's own (plan T-030, question 2). By default only the placement's own format has a unit, so a
+     * layer of another format sends nothing (B-04) until units per slot exist (spec, question 14).
+     */
+    fun of(placement: AdPlacement, format: AdFormat): String? =
+        if (format == placement.format) of(placement) else null
 }
 
 /** Google's public test ad units. They never produce real impressions, so tapping them is safe. */
@@ -16,6 +21,9 @@ object GoogleTestAdUnitIds : AdUnitIds {
     const val APP_ID = "ca-app-pub-3940256099942544~3347511713"
 
     override fun of(placement: AdPlacement): String = unitFor(placement.format)
+
+    /** Staging shows every layer of a bottom bar: the test unit of the layer's format. */
+    override fun of(placement: AdPlacement, format: AdFormat): String = unitFor(format)
 
     /** The test unit of each format; also checks formats that have no placement yet. */
     internal fun unitFor(format: AdFormat): String = when (format) {

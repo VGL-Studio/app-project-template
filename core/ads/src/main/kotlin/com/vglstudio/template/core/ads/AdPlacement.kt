@@ -15,7 +15,10 @@ enum class AdFormat(val code: String) {
     /** Covers the whole screen, shown at a natural break with [rememberShowFullScreenAd]. */
     INTERSTITIAL("interstitial"),
 
-    /** Shown inside a screen with [NativeAdSlot], no media: icon, headline, "Ad" label, call to action. */
+    /**
+     * Shown inside a screen with [NativeAdSlot], no media: icon, headline, "Ad" label, call to action. Also the format
+     * of a bottom bar placement ([BottomAdBarScaffold]): its bottom slot is native small (plan T-030).
+     */
     NATIVE_SMALL("native_small"),
 
     /**
@@ -24,7 +27,10 @@ enum class AdFormat(val code: String) {
      */
     NATIVE_MEDIUM("native_medium"),
 
-    /** Medium that the user collapses to small, shown with [CollapsibleNativeAdSlot]; never expands again. */
+    /**
+     * The 250 dp layer of a bottom bar ([BottomAdBarScaffold]) floating over its slot: the user collapses it, and it
+     * opens again `time_expand_collap_ad` seconds later (CL-01 to CL-04). Not drawn on its own (D-01).
+     */
     NATIVE_COLLAPSIBLE("native_collap"),
 
     /**
@@ -135,6 +141,7 @@ enum class AdPlacement(
     /** A cell keeps a static placeholder instead of hiding while its pool is exhausted (P-06); pooled formats only. */
     val keepSpaceWhenPoolEmpty: Boolean = false,
 ) {
+    /** The bottom bar of the sample screen ([BottomAdBarScaffold], plan T-030, question 1). */
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
     OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
     OPEN_APP_INTER("open_app_inter", AdFormat.INTERSTITIAL, ignoreInterval = true, appWide = true),

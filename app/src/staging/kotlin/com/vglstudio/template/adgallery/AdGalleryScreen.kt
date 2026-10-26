@@ -333,18 +333,26 @@ private fun InListPage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier
     }
 }
 
+/**
+ * The collapsible page: the list in the bottom bar of the gallery (plan T-030), which keeps the slot's space below
+ * the list once the slot has an ad; the collapsible layer floats over the bottom of the list.
+ */
 @Composable
 private fun CollapsiblePage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier) {
     Column(modifier = modifier.testTag(AdGalleryTestTags.COLLAPSIBLE)) {
         PageTitle(stringResource(R.string.ad_gallery_collapsible_title))
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = Spacing.md)
-                .testTag(AdGalleryTestTags.COLLAPSIBLE_LIST),
-        ) {
-            items(itemCount, key = { it + 1 }) { ListItem(it + 1) }
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            slots.BottomBar { padding ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = Spacing.md)
+                        .testTag(AdGalleryTestTags.COLLAPSIBLE_LIST),
+                ) {
+                    items(itemCount, key = { it + 1 }) { ListItem(it + 1) }
+                }
+            }
         }
     }
 }

@@ -175,6 +175,14 @@ class AdsController @Inject internal constructor(
 
     /** Latest values read by the metrics, collected from [start]; before it nothing is served (S-19). */
     private val latestGlobalFlags = MutableStateFlow<AdsGlobalFlags?>(null)
+
+    /**
+     * The latest global ad switches ([AdsFlags.global]), the defaults until the first value: the bottom bar reads
+     * `is_show_native_bottom`, `is_show_native_collap` and `time_expand_collap_ad` from it (plan T-030).
+     */
+    internal val globalFlags: StateFlow<AdsGlobalFlags> = latestGlobalFlags
+        .map { it ?: DEFAULT_GLOBAL_FLAGS }
+        .stateIn(scope, SharingStarted.Eagerly, latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS)
     private val online = MutableStateFlow(true)
 
     /** Blocks the ads that show by themselves while a consent form is open (S-16, G-01); read by T-022, T-025. */
@@ -1010,9 +1018,14 @@ class AdsController @Inject internal constructor(
             .distinctUntilChanged()
     }
 
-    internal fun unitId(placement: AdPlacement, format: AdFormat = placement.format): String? = unitIds.of(placement).also {
-        if (it == null) Log.e(TAG, "No ad unit for placement ${placement.key}; it shows no ad")
-    }
+    /**
+     * The ad unit of [placement] drawn as [format]: its own format, or a layer of its bottom bar (plan T-030, question
+     * 2). Null shows no ad.
+     */
+    internal fun unitId(placement: AdPlacement, format: AdFormat = placement.format): String? =
+        unitIds.of(placement, format).also {
+            if (it == null) Log.e(TAG, "No ad unit for placement ${nativeSlotKey(placement, format)}; it shows no ad")
+        }
 
     /**
      * The single-ad sources of native small slots (plan T-040), one per (placement, format), shut down when the
@@ -1120,7 +1133,7 @@ class AdsController @Inject internal constructor(
         val size = requireNotNull(format.nativeLoadSize()) { "${placement.key} is not a native placement" }
         if (format == placement.format && format.usesPool) return pooledCell(placement)
         return flow {
-            val unitId = unitId(placement)
+            val unitId = unitId(placement, format)
             if (unitId == null) {
                 emit(NativeAdState.Unavailable)
                 return@flow
@@ -1167,11 +1180,13 @@ class AdsController @Inject internal constructor(
         format: AdFormat,
         use: NativeLoadUse,
     ): suspend () -> NativeAdState {
-        val unitId = unitId(placement) ?: return { NativeAdState.Unavailable }
+        val unitId = unitId(placement, format) ?: return { NativeAdState.Unavailable }
         val size = format.nativeLoadSize() ?: return { NativeAdState.Unavailable }
+        // The collapsible layer has the collapse button in its top right corner: AdChoices goes top left (T-030).
+        val options = if (format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
         return nativeLoadOnce(
             newEvents = { nativeAdMetrics(placement, unitId, use, format) },
-            newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
+            newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events, options) },
             unitId = unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1181,25 +1196,24 @@ class AdsController @Inject internal constructor(
     }
 
     /**
-     * The user collapsed the collapsible native ad of [placement] ([CollapsibleNativeAdSlot]). Logged only: no
-     * analytics event (spec section 6, ADR-0022).
+     * The user collapsed the collapsible layer of the bottom bar of [placement] ([BottomAdBarScaffold]). Logged only:
+     * no analytics event (spec section 6).
      */
     internal fun onNativeCollapsed(placement: AdPlacement) {
         logger.info(TAG, "native_collapsed placement=${placement.key}")
     }
 
-    /** The latest global ad switches, for the bottom bar. */
-    internal val globalFlags: StateFlow<AdsGlobalFlags> = MutableStateFlow(DEFAULT_GLOBAL_FLAGS)
-
-    /** The monotonic clock of the ad rules, for the timer of the collapsible layer. */
+    /** The monotonic clock of the ad rules, for the timer that opens the collapsible layer again (CL-03). */
     internal val adsClock: MonotonicClock get() = clock
 
-    /** The layers of the bottom bar of [placement] changed. Logged only. */
+    /** The layers of the bottom bar of [placement] changed ([BottomAdBarScaffold]). Logged only (ADR-0019). */
     internal fun onBottomBarLayers(placement: AdPlacement, layers: BottomAdBarLayers?) {
+        logger.info(TAG, bottomBarLayersLog(placement, layers))
     }
 
-    /** The collapsible layer of [placement] opened again after [seconds]. Logged only. */
+    /** The collapsible layer of [placement] opened again [seconds] after the user collapsed it (CL-03). Logged only. */
     internal fun onNativeReexpanded(placement: AdPlacement, seconds: Long) {
+        logger.info(TAG, "Collapsible ${placement.key} re-expanded after $seconds s")
     }
 
     /**

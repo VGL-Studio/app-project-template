@@ -5,7 +5,13 @@ package com.vglstudio.template.core.ads
  * after the user collapsed it at [collapsedAtMillis]. Null when it never opens again: not collapsed, or 0 seconds
  * (a negative remote value reads as 0).
  */
-internal fun collapsibleReexpandAtMillis(collapsedAtMillis: Long?, expandAfterSeconds: Long): Long? = null
+internal fun collapsibleReexpandAtMillis(collapsedAtMillis: Long?, expandAfterSeconds: Long): Long? {
+    if (collapsedAtMillis == null || expandAfterSeconds <= 0) return null
+    return collapsedAtMillis + expandAfterSeconds * MILLIS_PER_SECOND
+}
 
 /** CL-03: the layer opens again once [reexpandAtMillis] is reached, and only while it has an ad. */
-internal fun shouldReexpand(nowMillis: Long, reexpandAtMillis: Long?, hasAd: Boolean): Boolean = false
+internal fun shouldReexpand(nowMillis: Long, reexpandAtMillis: Long?, hasAd: Boolean): Boolean =
+    reexpandAtMillis != null && nowMillis >= reexpandAtMillis && hasAd
+
+private const val MILLIS_PER_SECOND = 1_000L

@@ -58,7 +58,23 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  */
 @Composable
 fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
-    val refresh = bannerRefreshOf(placement.format)
+    BannerSlot(placement, placement.format, modifier)
+}
+
+/**
+ * The banner of [placement] drawn as [format] (the placement's own, or the banner layer of a bottom bar): unit, frame
+ * and metrics of that format, reported under [placement] (D-05). [onAdAvailabilityChange] and [onHeight] (the frame's
+ * height) let a bottom bar keep the banner's space.
+ */
+@Composable
+private fun BannerSlot(
+    placement: AdPlacement,
+    format: AdFormat,
+    modifier: Modifier,
+    onAdAvailabilityChange: (Boolean) -> Unit = {},
+    onHeight: (Dp) -> Unit = {},
+) {
+    val refresh = bannerRefreshOf(format)
     val ads = LocalAdsController.current
     if (ads == null) {
         Box(modifier = modifier)
@@ -66,15 +82,17 @@ fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
     }
     val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
     val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
-    val unitId = remember(placement) { ads.unitId(placement) }
+    val unitId = remember(placement, format) { ads.unitId(placement, format) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val visible = remember(lifecycle) { lifecycle.resumedFlow() }
+    val currentOnHeight by rememberUpdatedState(onHeight)
     BoxWithConstraints(modifier = modifier) {
         // The activity of the screen: Unity and ironSource need an Activity to load a banner.
         val context = LocalContext.current
         val screenWidthDp = LocalConfiguration.current.screenWidthDp
         val widthDp = if (constraints.hasBoundedWidth) maxWidth.value.toInt() else screenWidthDp
         val adSize = remember(widthDp) { AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp) }
+        LaunchedEffect(adSize) { currentOnHeight(adSize.height.dp) }
         key(adSize) {
             BannerSlotHost(
                 gateOpen = canRequestAds,
@@ -86,15 +104,24 @@ fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
                 mayRequestNow = ads::mayRequestNow,
                 retryResets = ads.retryResets,
                 logger = ads.logger,
-                placementKey = placement.key,
+                placementKey = nativeSlotKey(placement, format),
                 newView = {
                     val id = checkNotNull(unitId) { "${placement.key} has no ad unit" }
                     val adView = AdView(context).apply {
                         adUnitId = id
                         setAdSize(adSize)
                     }
-                    SdkBannerAdView(adView, refresh, placement, id, ads.telemetry, ads::metricsNowMillis)
+                    SdkBannerAdView(
+                        adView = adView,
+                        refresh = refresh,
+                        placement = placement,
+                        unitId = id,
+                        telemetry = ads.telemetry,
+                        now = ads::metricsNowMillis,
+                        format = format,
+                    )
                 },
+                onAdAvailabilityChange = onAdAvailabilityChange,
             )
         }
     }
@@ -103,6 +130,8 @@ fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
 /**
  * The banner slot: its frame ([bannerFrame]), one ad view per frame ([newView], destroyed when the frame goes),
  * pause and resume ([bannerShouldRun]) and the sends ([runBannerLoads]) while the frame is active.
+ * [onAdAvailabilityChange] gets true on the first ad of a frame, and false once when the frame goes after that; a
+ * frame kept with its height (B-06) reports nothing, so a bottom bar keeps the space.
  */
 @Composable
 internal fun BannerSlotHost(
@@ -121,10 +150,14 @@ internal fun BannerSlotHost(
     onAdAvailabilityChange: (Boolean) -> Unit = {},
 ) {
     var hadAd by remember { mutableStateOf(false) }
+    val currentOnAvailability by rememberUpdatedState(onAdAvailabilityChange)
     val frame = bannerFrame(gateOpen, enabled, unitId, hadAd)
     if (frame == BannerFrame.NONE) {
         // The space is given back and the ad view destroyed: a later frame starts with no ad.
-        LaunchedEffect(Unit) { hadAd = false }
+        LaunchedEffect(Unit) {
+            if (hadAd) currentOnAvailability(false)
+            hadAd = false
+        }
         Box(modifier = modifier)
         return
     }
@@ -141,7 +174,12 @@ internal fun BannerSlotHost(
                 logger = logger,
                 placementKey = placementKey,
                 newView = newView,
-                onLoaded = { hadAd = true },
+                onLoaded = {
+                    if (!hadAd) {
+                        hadAd = true
+                        currentOnAvailability(true)
+                    }
+                },
             )
         }
     }
@@ -198,7 +236,11 @@ private fun BannerFrameContent(
     view.Content(showAd = active, modifier = Modifier.fillMaxWidth().height(heightDp.dp))
 }
 
-/** The banner slot of a bottom bar ([BottomAdBarScaffold]). */
+/**
+ * The banner slot of a bottom bar ([BottomAdBarScaffold], D-01): the fixed banner (refreshed by the SDK, B-01, B-02)
+ * as a layer of the bar's [placement], with the unit of [AdFormat.BANNER] for it; no unit (production today) sends
+ * nothing and takes no space (B-04). [onHeight] gets the frame's height for the space the bar keeps.
+ */
 @Composable
 internal fun BottomBannerSlot(
     placement: AdPlacement,
@@ -206,7 +248,7 @@ internal fun BottomBannerSlot(
     onHeight: (Dp) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier)
+    BannerSlot(placement, AdFormat.BANNER, modifier, onAdAvailabilityChange, onHeight)
 }
 
 /**

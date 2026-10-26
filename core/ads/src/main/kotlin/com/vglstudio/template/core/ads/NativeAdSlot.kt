@@ -199,7 +199,12 @@ internal fun NativeAdSlotContent(
     }
 }
 
-/** The native slot of a bottom bar ([BottomAdBarScaffold]). */
+/**
+ * The native slot of a bottom bar ([BottomAdBarScaffold], D-02): like [NativeAdSlot] for native small (gate, 80 dp
+ * placeholder, nothing with no ad, availability reported), with its first refresh [firstRefreshDelayMillis] after
+ * the first ad (section 5.7). The stream is built once per placement: a new delay (the layer turned on or off) applies
+ * from the next slot, without destroying the ad or loading again.
+ */
 @Composable
 internal fun BottomNativeSlot(
     placement: AdPlacement,
@@ -207,10 +212,26 @@ internal fun BottomNativeSlot(
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier)
+    val ads = LocalAdsController.current
+    if (ads == null) {
+        Box(modifier = modifier)
+        return
+    }
+    val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
+    val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
+    val unitId = remember(placement) { ads.unitId(placement, AdFormat.NATIVE_SMALL) }
+    key(placement) {
+        BottomNativeSlotHost(
+            allowed = nativeSlotAllowed(canRequestAds, enabled, unitId),
+            newStates = { delay -> ads.nativeAd(placement, AdFormat.NATIVE_SMALL, delay) },
+            firstRefreshDelayMillis = firstRefreshDelayMillis,
+            onAdAvailabilityChange = onAdAvailabilityChange,
+            modifier = modifier,
+        )
+    }
 }
 
-/** [BottomNativeSlot] without an ads controller. */
+/** [BottomNativeSlot] without an ads controller: [newStates] builds the stream once, with the delay given then. */
 @Composable
 internal fun BottomNativeSlotHost(
     allowed: Boolean,
@@ -220,5 +241,15 @@ internal fun BottomNativeSlotHost(
     modifier: Modifier = Modifier,
     adContent: @Composable (LoadedNativeAd) -> Unit = { BoundNativeAd(it, NativeAdSize.SMALL) },
 ) {
-    Box(modifier = modifier)
+    // A cold flow: nothing loads until the gate opens and the host collects it.
+    val states = remember { newStates(firstRefreshDelayMillis) }
+    NativeAdSlotGate(
+        allowed = allowed,
+        states = states,
+        size = NativeAdSize.SMALL,
+        keepSpaceWhenEmpty = false,
+        onAdAvailabilityChange = onAdAvailabilityChange,
+        modifier = modifier,
+        adContent = adContent,
+    )
 }

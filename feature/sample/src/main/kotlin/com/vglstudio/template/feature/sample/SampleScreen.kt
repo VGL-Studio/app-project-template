@@ -22,7 +22,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vglstudio.template.core.ads.AdPlacement
+import com.vglstudio.template.core.ads.BottomAdBarDefaults
+import com.vglstudio.template.core.ads.BottomAdBarLayout
 import com.vglstudio.template.core.ads.BottomAdBarScaffold
+import com.vglstudio.template.core.ads.NativeAdAssets
+import com.vglstudio.template.core.ads.NativeAdCard
+import com.vglstudio.template.core.ads.NativeAdSize
 import com.vglstudio.template.core.ads.PrivacyOptionsButton
 import com.vglstudio.template.core.designsystem.component.PrimaryButton
 import com.vglstudio.template.core.designsystem.theme.AppTheme
@@ -37,8 +42,9 @@ internal fun SampleRoute(viewModel: SampleViewModel = hiltViewModel()) {
 
 /**
  * Stateless screen: everything it shows comes from [uiState]. Tested on the JVM and by screenshots.
- * [bottomAd] draws the native ad pinned to the bottom, only when the feature is ready; tests pass a fake
- * [NativeAdCard] because they have no ads controller (ADR-0013).
+ * [bottomBar] wraps the content in the bottom ad bar of the screen (native small or banner at the bottom, collapsible
+ * layer over it), only when the feature is ready; the content keeps the bar's space at its bottom. Tests pass a
+ * [BottomAdBarLayout] with fake ads because they have no ads controller (ADR-0013).
  * Public so the screenshot test of the network dialog in :app can draw it under the dialog, as the design does
  * (plan T-017); other modules still open this feature only through its navigation destination.
  */
@@ -51,13 +57,15 @@ fun SampleScreen(
         BottomAdBarScaffold(AdPlacement.SAMPLE_NATIVE_SMALL, content = it)
     },
 ) {
+    val scrollState = rememberScrollState()
     Surface(modifier = modifier.fillMaxSize().testTag(SampleTestTags.SCREEN)) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        val content: @Composable (PaddingValues) -> Unit = { padding ->
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxSize()
+                    .padding(padding)
+                    .testTag(SampleTestTags.CONTENT)
+                    .verticalScroll(scrollState)
                     .padding(Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -75,6 +83,8 @@ fun SampleScreen(
                 PrivacyOptionsButton()
             }
         }
+        // The bar is pinned to the bottom, apart from the scrolling content, never right under the button (design).
+        if (uiState is SampleUiState.Ready) bottomBar(content) else content(PaddingValues())
     }
 }
 
@@ -112,5 +122,37 @@ internal object SampleTestTags {
 private fun SampleScreenPreview() {
     AppTheme {
         SampleScreen(uiState = SampleUiState.Ready(count = 3), onIncrement = {})
+    }
+}
+
+@Preview
+@Composable
+private fun SampleScreenWithAdPreview() {
+    AppTheme {
+        SampleScreen(
+            uiState = SampleUiState.Ready(count = 3),
+            onIncrement = {},
+            bottomBar = { content ->
+                BottomAdBarLayout(
+                    reservation = BottomAdBarDefaults.nativeReservation,
+                    slot = {
+                        NativeAdCard(
+                            assets = NativeAdAssets(
+                                headline = "Headline of the ad",
+                                advertiser = "Advertiser or short body",
+                                body = null,
+                                callToAction = "Install",
+                                icon = null,
+                                hasMedia = false,
+                            ),
+                            size = NativeAdSize.SMALL,
+                            modifier = it,
+                        )
+                    },
+                    layer = null,
+                    content = content,
+                )
+            },
+        )
     }
 }
