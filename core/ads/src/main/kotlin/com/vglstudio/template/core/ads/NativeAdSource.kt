@@ -34,7 +34,7 @@ internal fun NativeClaim.toStateOrNull(): NativeAdState? = when (this) {
     NativeClaim.Blocked -> null
 }
 
-/** Times of the native single-ad rules (docs/ops/ads-business-rules.md, O-04, CL-02). */
+/** Times of the native single-ad rules (docs/ops/ads-business-rules.md, O-04, CL-02, section 5.7). */
 internal object NativeAdPolicy {
     /** O-04: a native ad is not shown from 55 minutes after it was loaded. */
     const val MAX_AGE_MILLIS = 55 * 60 * 1_000L
@@ -44,6 +44,9 @@ internal object NativeAdPolicy {
 
     /** CL-02: a refresh waits at most 10 s for an ad, then keeps the old one. */
     const val REFRESH_WAIT_MILLIS = 10_000L
+
+    /** Section 5.7: the native bottom slot refreshes this long after the collapsible layer above it. */
+    const val BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS = 500L
 }
 
 /**

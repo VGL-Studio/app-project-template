@@ -14,7 +14,8 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * The staging ad gallery with fake ads, named as the design frames `AdGalleryScreen_*` (ADR-0020), plus the low
  * frame of each page (L-028). Nothing animates on these pages (fake ads, no loading state), so the screen settles
- * (L-048). Measurements of the low frame are in AdGalleryScreenTest.
+ * (L-048). Measurements of the low frame are in AdGalleryScreenTest. The collapsible page draws the bottom bar
+ * with fake ads ([PreviewAdGallerySlots.BottomBar], plan T-030).
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

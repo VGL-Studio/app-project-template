@@ -1,6 +1,7 @@
 package com.vglstudio.template.adgallery
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -8,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.vglstudio.template.core.ads.BottomAdBarDefaults
+import com.vglstudio.template.core.ads.BottomAdBarLayout
 import com.vglstudio.template.core.ads.CollapsibleNativeAdCard
 import com.vglstudio.template.core.ads.NativeAdAssets
 import com.vglstudio.template.core.ads.NativeAdCard
@@ -30,6 +33,7 @@ object PreviewAdTags {
     const val SMALL = "preview_ad_small"
     const val MEDIUM = "preview_ad_medium"
     const val COLLAPSIBLE = "preview_ad_collapsible"
+    const val BOTTOM_SLOT = "preview_ad_bottom_slot"
 
     /** The [slot]-th ad of the in-list page; small for even slots, medium for odd ones. */
     fun inList(slot: Int): String = "preview_inlist_ad_$slot"
@@ -55,11 +59,28 @@ class PreviewAdGallerySlots(
         NativeAdCard(assets, NativeAdSize.MEDIUM, modifier.testTag(PreviewAdTags.MEDIUM))
     }
 
+    /**
+     * The bottom bar of the collapsible page: the real layout of the bar with the native small card as its slot and,
+     * unless [collapsed], the open collapsible layer over it; the content keeps the space of a slot with an ad.
+     */
     @Composable
-    override fun Collapsible(modifier: Modifier) {
-        Box(modifier.testTag(PreviewAdTags.COLLAPSIBLE)) {
-            CollapsibleNativeAdCard(assets, collapsed = collapsed, onCollapse = {})
-        }
+    override fun BottomBar(content: @Composable (PaddingValues) -> Unit) {
+        BottomAdBarLayout(
+            reservation = BottomAdBarDefaults.nativeReservation,
+            slot = { NativeAdCard(assets, NativeAdSize.SMALL, it.testTag(PreviewAdTags.BOTTOM_SLOT)) },
+            layer = if (collapsed) {
+                null
+            } else {
+                {
+                    CollapsibleNativeAdCard(
+                        assets.copy(advertiser = "Advertiser", body = null),
+                        onCollapse = {},
+                        modifier = it.testTag(PreviewAdTags.COLLAPSIBLE),
+                    )
+                }
+            },
+            content = content,
+        )
     }
 
     @Composable

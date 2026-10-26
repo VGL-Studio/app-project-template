@@ -289,8 +289,20 @@ class NativeAdSourcesTest {
     }
 
     @Test
-    fun onlyNativeSmall_usesSingleAdSource() {
-        assertEquals(listOf(AdFormat.NATIVE_SMALL), AdFormat.entries.filter { it.usesSingleAdSource() })
+    fun singleAdSourceFormats_areSmallAndCollapsible() {
+        // CL-02: the collapsible layer of the bottom bar keeps one ad and one pending ad, like the slot (plan T-030).
+        assertEquals(
+            listOf(AdFormat.NATIVE_SMALL, AdFormat.NATIVE_COLLAPSIBLE),
+            AdFormat.entries.filter { it.usesSingleAdSource() },
+        )
+    }
+
+    @Test
+    fun bottomRefreshDelay_is500ms() {
+        // Section 5.7: the bottom slot refreshes 500 ms after the collapsible layer above it.
+        assertEquals(500L, NativeAdPolicy.BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS)
+        assertEquals(60_500L, bottomSlotFirstRefreshDelayMillis(collapsible = true))
+        assertEquals(60_000L, bottomSlotFirstRefreshDelayMillis(collapsible = false))
     }
 
     @Test

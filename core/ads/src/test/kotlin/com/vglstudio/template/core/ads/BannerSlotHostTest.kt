@@ -49,6 +49,7 @@ class BannerSlotHostTest {
     private var shown by mutableStateOf(true)
     private var placementKey by mutableStateOf(KEY)
     private var refresh by mutableStateOf(BannerRefresh.BY_AD_UNIT)
+    private val availability = mutableListOf<Boolean>()
 
     private val totalSends: Int get() = views.created.sumOf { it.sendCount }
 
@@ -68,6 +69,7 @@ class BannerSlotHostTest {
                     placementKey = placementKey,
                     newView = views::newView,
                     modifier = Modifier.fillMaxWidth().testTag(SLOT),
+                    onAdAvailabilityChange = { availability += it },
                 )
             }
         }
@@ -242,6 +244,35 @@ class BannerSlotHostTest {
         assertEquals(1, views.last.sendCount)
         assertEquals(2, totalSends)
         assertSlotHeight(HEIGHT_DP)
+    }
+
+    @Test
+    fun availability_trueOnFirstLoad_falseWhenFrameGone_notOnKeep() {
+        setHost()
+        // Nothing while the first load runs.
+        assertEquals(emptyList<Boolean>(), availability)
+
+        update { views.last.emitLoaded() }
+        update { views.last.emitLoaded() }
+        assertEquals("true once, not on each refresh of the SDK", listOf(true), availability)
+
+        // B-06: consent withdrawn after an ad keeps the frame, so the bar keeps its space: no false.
+        update { gateOpen = false }
+        assertSlotHeight(HEIGHT_DP)
+        assertEquals(listOf(true), availability)
+        update { gateOpen = true }
+        update { views.last.emitLoaded() }
+        assertEquals(listOf(true), availability)
+
+        // The placement switched off: the frame goes, false is reported once.
+        update { enabled = false }
+        assertSlotHeight(0)
+        assertEquals(listOf(true, false), availability)
+
+        // On again: a new frame, true again on its first ad.
+        update { enabled = true }
+        update { views.last.emitLoaded() }
+        assertEquals(listOf(true, false, true), availability)
     }
 
     private companion object {

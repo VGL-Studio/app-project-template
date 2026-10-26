@@ -87,6 +87,31 @@ class NativeRequestOptionsTest {
     }
 
     @Test
+    fun collapsible_adChoicesTopLeft_otherwiseLikeMedium() {
+        // The collapse button takes the top right corner of the layer, so the SDK pins AdChoices top left (plan T-030).
+        val collapsible = collapsibleNativeRequestOptions()
+        assertEquals(NativeAdOptions.ADCHOICES_TOP_LEFT, collapsible.adChoicesCorner)
+        val medium = nativeRequestOptions(NativeAdSize.MEDIUM)
+        assertEquals(medium.copy(adChoicesCorner = NativeAdOptions.ADCHOICES_TOP_LEFT), collapsible)
+        // Control: every other native ad keeps the top right corner.
+        NativeAdSize.entries.forEach { size ->
+            assertEquals("$size", NativeAdOptions.ADCHOICES_TOP_RIGHT, nativeRequestOptions(size).adChoicesCorner)
+        }
+        assertEquals(NativeAdOptions.ADCHOICES_TOP_RIGHT, fullScreenNativeRequestOptions().adChoicesCorner)
+    }
+
+    @Test
+    fun toNativeAdOptions_copiesAdChoicesCorner() {
+        val collapsible = collapsibleNativeRequestOptions().toNativeAdOptions()
+        assertEquals(NativeAdOptions.ADCHOICES_TOP_LEFT, collapsible.adChoicesPlacement)
+        // Control: the default corner comes through as top right.
+        assertEquals(
+            NativeAdOptions.ADCHOICES_TOP_RIGHT,
+            nativeRequestOptions(NativeAdSize.MEDIUM).toNativeAdOptions().adChoicesPlacement,
+        )
+    }
+
+    @Test
     fun onlyNativeRequestOptions_buildsNativeAdOptions() {
         val sources = File(SOURCE_DIR).walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
         // Control: the scan reads the module's sources, so an empty result below is not an empty folder.

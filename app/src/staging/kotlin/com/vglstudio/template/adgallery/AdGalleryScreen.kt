@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vglstudio.template.R
 import com.vglstudio.template.core.ads.AdInspectorResult
 import com.vglstudio.template.core.ads.AdPlacement
-import com.vglstudio.template.core.ads.CollapsibleNativeAdSlot
+import com.vglstudio.template.core.ads.BottomAdBarScaffold
 import com.vglstudio.template.core.ads.InListAds
 import com.vglstudio.template.core.ads.NativeAdSlot
 import com.vglstudio.template.core.ads.itemsWithInListAds
@@ -77,8 +78,9 @@ interface AdGallerySlots {
     @Composable
     fun Medium(modifier: Modifier)
 
+    /** The bottom bar of the collapsible page around [content]. */
     @Composable
-    fun Collapsible(modifier: Modifier)
+    fun BottomBar(content: @Composable (PaddingValues) -> Unit)
 
     /** N of the in-list page, or null while in-list ads are off. Called on the in-list page, before its list. */
     @Composable
@@ -107,8 +109,8 @@ internal class SdkAdGallerySlots : AdGallerySlots {
     }
 
     @Composable
-    override fun Collapsible(modifier: Modifier) {
-        CollapsibleNativeAdSlot(AdPlacement.GALLERY_NATIVE_COLLAPSIBLE, modifier)
+    override fun BottomBar(content: @Composable (PaddingValues) -> Unit) {
+        BottomAdBarScaffold(AdPlacement.GALLERY_NATIVE_SMALL, content = content)
     }
 
     @Composable
@@ -331,21 +333,27 @@ private fun InListPage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier
     }
 }
 
+/**
+ * The collapsible page: the list in the bottom bar of the gallery (plan T-030), which keeps the slot's space below
+ * the list once the slot has an ad; the collapsible layer floats over the bottom of the list.
+ */
 @Composable
 private fun CollapsiblePage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier) {
     Column(modifier = modifier.testTag(AdGalleryTestTags.COLLAPSIBLE)) {
         PageTitle(stringResource(R.string.ad_gallery_collapsible_title))
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = Spacing.md)
-                .testTag(AdGalleryTestTags.COLLAPSIBLE_LIST),
-        ) {
-            items(itemCount, key = { it + 1 }) { ListItem(it + 1) }
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            slots.BottomBar { padding ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = Spacing.md)
+                        .testTag(AdGalleryTestTags.COLLAPSIBLE_LIST),
+                ) {
+                    items(itemCount, key = { it + 1 }) { ListItem(it + 1) }
+                }
+            }
         }
-        // Pinned at the bottom, 16 dp from the edges, below the list.
-        slots.Collapsible(Modifier.fillMaxWidth().padding(Spacing.md))
     }
 }
 
