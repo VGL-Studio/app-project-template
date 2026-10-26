@@ -446,6 +446,23 @@ class NativeAdCardTest {
     @Test
     fun medium_headlineAndCtaColors_lightAndDark() = assertColorsInBothModes(NativeAdSize.MEDIUM)
 
+    @Test
+    fun mediumPlaceholder_ctaIs44dp() {
+        var ctaLarge by mutableStateOf(false)
+        composeRule.setContent {
+            AppTheme { NativeAdPlaceholder(NativeAdSize.MEDIUM, animated = false, ctaLarge = ctaLarge) }
+        }
+        composeRule.waitForIdle()
+        // The CTA block of the medium placeholder has the 44 dp CTA of the medium ad (plan T-028; kept from the
+        // control of CollapsibleNativeAdTest, plan T-030).
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER_CTA, useUnmergedTree = true).assertHeightIsEqualTo(44.dp)
+
+        // With the large call to action (`cta_large`): 56 dp.
+        ctaLarge = true
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER_CTA, useUnmergedTree = true).assertHeightIsEqualTo(56.dp)
+    }
+
     /**
      * In each mode, reads pixels of the drawn window: card and call-to-action backgrounds, then the text pixel
      * farthest from each background, against the tokens of that mode; text contrast at least 4.5:1 (KB-1).
