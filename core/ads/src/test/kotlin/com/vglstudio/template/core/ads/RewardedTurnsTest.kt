@@ -61,8 +61,9 @@ class RewardedTurnsTest {
 
     @Test
     fun twoTapsAwaitingSwitch_firstOnSecondOff_secondShowsAgain_grantOnce() = runTest {
-        // L-061: both taps wait for the switch before any turn exists; the first gets on and shows the ad, the key
-        // goes off, the second gets off once the turn is there: it is still the second tap of that turn (R-06).
+        // L-061: two taps before any turn exists; the first waits for the switch, the second joins its decision
+        // (plan T-042) and never reads the switch, so the key going off meanwhile does not matter: once the first
+        // shows the ad, the second is still the second tap of that turn (R-06).
         port.ready["rw_get_item"] = true
         val first = CompletableDeferred<Boolean>()
         val second = CompletableDeferred<Boolean>()
@@ -543,6 +544,9 @@ class RewardedTurnsTest {
     ) {
         val gates = List(2) { CompletableDeferred<Boolean>() }
         port.switchGates += gates
+        // With no ad, the load round of the first tap reads the switch too (F-07): it answers from its own gate, so
+        // a gate left in the queue afterwards means the second tap never waited for the switch.
+        port.switchGates += CompletableDeferred(on)
         launch { request(declaration, first) }
         launch { request(declaration, second) }
         runCurrent()

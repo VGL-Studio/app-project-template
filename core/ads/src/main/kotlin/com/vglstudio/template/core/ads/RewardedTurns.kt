@@ -78,8 +78,9 @@ internal interface RewardedPort {
  * - [loadIfNeeded] is the only place that decides whether a rewarded load is sent ([rewardedLoadStep], L-072); the
  *   preload plan, the retries (F-05), the reloads (F-06) and "load if needed" (F-07) all come here.
  * - [request] is one tap on "Watch ad": a turn still waiting for its ad shows it again and records `busy` (R-06),
- *   even when the key went off since (L-061); else a switched-off placement or a closed consent gate runs the action
- *   at once (question 8 of the plan, option (a));
+ *   even when the key went off since (L-061); a tap while a decision of the placement still runs joins it, so one
+ *   decision serves every tap of the placement until it has its outcome (plan T-042); else a switched-off placement
+ *   or a closed consent gate runs the action at once (question 8 of the plan, option (a));
  *   no ad gives [RewardedOutcome.NoAd] by the policy of the placement; else the ad is shown.
  * - The SDK callbacks ([onShowed], [onReward], [onDismissed], [onShowFailed]) end the turn. Every outcome is given at
  *   most once per turn and caller, so callbacks the SDK repeats for the second show run nothing twice (section 3.4).
@@ -99,6 +100,17 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
     }
 
     private val turns = mutableMapOf<AdPlacementDeclaration, Turn>()
+
+    /** One tap on "Watch ad": where to show the ad and who gets the outcome. */
+    private class Tap(val activity: Activity?, val onOutcome: (RewardedOutcome) -> Unit)
+
+    /** A decision of a placement still running: the tap that started it and the taps that joined it since. */
+    private class Deciding(val first: Tap) {
+        val followers = mutableListOf<Tap>()
+    }
+
+    /** Decisions between a first tap and its outcome, per placement like [turns] (L-068). */
+    private val decisions = mutableMapOf<AdPlacementDeclaration, Deciding>()
     private val noAdInARow = mutableMapOf<AdPlacementDeclaration, Int>()
 
     /** The policy of the last request of each placement; a request with another one counts its tries from 0. */
@@ -145,6 +157,12 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
      * [policy] applies when no ad can be shown: the line's own by default, or the one picked on the staging ad gallery
      * ([rewardedPolicyOf], plan T-036). A request with another policy than the last one of [declaration] starts the
      * count of tries with no ad again, so `allow_after_<n>` counts from the start after the tester changed it.
+     *
+     * One decision for every tap of the placement until it has its outcome (plan T-042): a tap while a decision of
+     * [declaration] still runs joins it, waits for nothing and counts no try of its own. The policy of the first tap
+     * applies; the latest caller gets the outcome, the others a blocked [RewardedOutcome.NoAd] so their dialog closes.
+     * A decision that shows the ad shows it again for every tap that joined, recorded as `busy` (R-06); one with no ad
+     * records `busy` for every tap that joined.
      */
     suspend fun request(
         declaration: AdPlacementDeclaration,
@@ -152,7 +170,6 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         onOutcome: (RewardedOutcome) -> Unit,
         policy: RewardedNoAdPolicy = declaration.effectiveNoAdPolicy,
     ) {
-        val code = declaration.code
         val previousPolicy = lastPolicy.put(declaration, policy)
         if (previousPolicy != null && previousPolicy != policy) noAdInARow -= declaration
         // R-06 first (L-061): a turn still waiting for its ad keeps the second tap, even if the key went off since,
@@ -161,15 +178,31 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
             showAgain(declaration, pending, activity, onOutcome)
             return
         }
-        val on = port.enabled(declaration)
-        // The switch was awaited: a turn may have started meanwhile, and keeps this tap whatever the switch says.
-        turns[declaration]?.let { pending ->
-            showAgain(declaration, pending, activity, onOutcome)
+        val tap = Tap(activity, onOutcome)
+        decisions[declaration]?.let { running ->
+            running.followers += tap
+            logger.info(TAG, "Rewarded ${declaration.code} tap joins the one being decided")
             return
         }
-        if (!on) {
+        val decision = Deciding(tap)
+        decisions[declaration] = decision
+        try {
+            decide(declaration, decision, policy)
+        } finally {
+            // Cancelled or failed: the taps that joined get nothing, like a turn ended by onStuck.
+            if (decisions[declaration] === decision) decisions -= declaration
+        }
+    }
+
+    /**
+     * The decision of [decision]'s first tap. While it waits (the switch, the load if needed) every other tap of
+     * [declaration] joins it, so no turn can start meanwhile.
+     */
+    private suspend fun decide(declaration: AdPlacementDeclaration, decision: Deciding, policy: RewardedNoAdPolicy) {
+        val code = declaration.code
+        if (!port.enabled(declaration)) {
             logger.info(TAG, "Rewarded $code granted: switched off")
-            onOutcome(RewardedOutcome.Granted)
+            endDecision(declaration, decision, RewardedOutcome.Granted)
             return
         }
         val reason = noAdReason(
@@ -182,11 +215,45 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
             reason == RewardedNoAdReason.CONSENT_CLOSED -> {
                 // Question 8 of the plan, option (a): a closed consent gate counts as switched off; no opportunity.
                 logger.info(TAG, "Rewarded $code granted: consent gate closed")
-                onOutcome(RewardedOutcome.Granted)
+                endDecision(declaration, decision, RewardedOutcome.Granted)
             }
-            reason != null || !port.take(declaration) -> noAd(declaration, reason, policy, onOutcome)
-            else -> show(declaration, activity, policy, onOutcome)
+            reason != null || !port.take(declaration) -> {
+                // No ad (R-03, R-04): `not_ready` with the state before the load, a load (F-07), then the policy
+                // (MC-05), counted once for the decision; every tap that joined is `busy` (section 8.2).
+                val network = reason == RewardedNoAdReason.NETWORK
+                port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
+                port.loadIfNeeded(declaration)
+                val granted = countNoAd(declaration, policy)
+                val label = if (network) "network" else NOT_READY
+                logger.info(TAG, "Rewarded $code skipped: $label (granted $granted)")
+                decision.followers.forEach { port.recordOpportunity(declaration, BUSY, port.loadState(declaration)) }
+                endDecision(declaration, decision, RewardedOutcome.NoAd(network = network, granted = granted))
+            }
+            else -> {
+                val first = decision.first
+                show(declaration, first.activity, policy, first.onOutcome)
+                decisions -= declaration
+                val turn = turns.getValue(declaration)
+                // R-06: every tap that joined is a second tap of this turn.
+                decision.followers.forEach { showAgain(declaration, turn, it.activity, it.onOutcome) }
+            }
         }
+    }
+
+    /**
+     * Ends [decision] with [outcome] for its latest caller; the other callers get a blocked [RewardedOutcome.NoAd],
+     * like [onShowFailed]. The decision is removed first, so a caller may tap again from its callback.
+     */
+    private fun endDecision(declaration: AdPlacementDeclaration, decision: Deciding, outcome: RewardedOutcome) {
+        decisions -= declaration
+        val callers = mutableListOf<(RewardedOutcome) -> Unit>()
+        (listOf(decision.first) + decision.followers).forEach { tap ->
+            callers -= tap.onOutcome
+            callers += tap.onOutcome
+        }
+        val network = (outcome as? RewardedOutcome.NoAd)?.network ?: false
+        callers.dropLast(1).forEach { it(RewardedOutcome.NoAd(network = network, granted = false)) }
+        callers.last()(outcome)
     }
 
     /** R-06: a second tap while the turn waits for its ad: the same ad is shown again, recorded as `busy`. */
@@ -204,22 +271,6 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         // The ad already covers the screen: this caller's dialog closes at once.
         if (turn.onScreen) onOutcome(RewardedOutcome.OnScreen)
         port.showAgain(declaration, activity)
-    }
-
-    /** No ad (R-03, R-04): `not_ready` with the state before the load, a load (F-07), then the policy (MC-05). */
-    private suspend fun noAd(
-        declaration: AdPlacementDeclaration,
-        reason: RewardedNoAdReason?,
-        policy: RewardedNoAdPolicy,
-        onOutcome: (RewardedOutcome) -> Unit,
-    ) {
-        val network = reason == RewardedNoAdReason.NETWORK
-        port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
-        port.loadIfNeeded(declaration)
-        val granted = countNoAd(declaration, policy)
-        val label = if (network) "network" else NOT_READY
-        logger.info(TAG, "Rewarded ${declaration.code} skipped: $label (granted $granted)")
-        onOutcome(RewardedOutcome.NoAd(network = network, granted = granted))
     }
 
     private fun show(
