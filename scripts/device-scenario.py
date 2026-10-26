@@ -517,6 +517,10 @@ class Runner:
         self.network_touched = False
         self.network_used = False  # any file of the run, so the last reset turns the network on
         self.terminated = False
+        self.terminated_at = None  # monotonic time of the first SIGTERM: every reset after it shares one limit
+        # False from the moment a file may change the device until a reset_device call runs to its end, so run() can
+        # give the device back when SIGTERM cut the reset of a file short.
+        self.reset_complete = True
         self.cached_screen = None  # last dump of consent decline or device, for the next step that reads the screen
         self.pending_screen = None  # that dump, handed to the step that runs now
         self.consent_state = None  # None, "late" (the app showed before the form) or "declined"
@@ -879,7 +883,11 @@ class Runner:
         """Gives the device back as the run found it. Each call has its own short limit and may fail alone; the
         whole reset stays within RESET_LIMIT (TERMINATED_RESET_LIMIT after SIGTERM)."""
         self.device_reset = True  # the next fresh waits after stopping the app (see step_fresh)
-        end = time.monotonic() + (TERMINATED_RESET_LIMIT if self.terminated else RESET_LIMIT)
+        if self.terminated:
+            self.terminated_at = self.terminated_at or time.monotonic()
+            end = self.terminated_at + TERMINATED_RESET_LIMIT
+        else:
+            end = time.monotonic() + RESET_LIMIT
         commands = [
             ["shell", "wm", "size", self.original_size or "reset"],
             ["shell", "wm", "density", self.original_density or "reset"],
@@ -905,6 +913,7 @@ class Runner:
                 run_process([str(SESSION_SCRIPT), "helper", "network-on"], limit, env=dict(os.environ, APP_PACKAGE=self.package))
             except AdbTimeout:
                 pass
+        self.reset_complete = True
 
     # -- files
     def run_file(self, path):
@@ -933,6 +942,7 @@ class Runner:
         self.cached_screen = self.pending_screen = None
         self.consent_state = None
         self.network_touched = False
+        self.reset_complete = False  # from here on the file may change the device
         result = RESULT_FAILED
         text = f"plan {name} step=0 start"
         try:
@@ -966,6 +976,7 @@ class Runner:
                     break
         except Terminated:
             self.terminated = True  # the reset below then uses the shorter limit
+            self.terminated_at = self.terminated_at or time.monotonic()
             self.log(f"{text} FAIL trình chạy bị dừng (SIGTERM, hết thời gian của cả lượt)")
             result = RESULT_FAILED
             raise
@@ -997,12 +1008,17 @@ class Runner:
             for path in files:
                 self.run_file(path)
         except Terminated:
-            self.terminated = True  # also when SIGTERM came between two files
+            self.terminated = True  # also when SIGTERM came between two files or during the reset of a file
+            self.terminated_at = self.terminated_at or time.monotonic()
             raise
         finally:
-            # After SIGTERM the file's own finally has already reset the device; the time left is for SIGKILL.
+            # After SIGTERM the file's own finally has usually reset the device already; SIGTERM during that reset
+            # cuts it short, so give the device back here, within what is left of TERMINATED_RESET_LIMIT. SIGTERM is
+            # ignored from the first one on (on_sigterm), so this reset is not interrupted again.
             if not self.terminated:
                 self.reset_device(network=self.network_used)
+            elif not self.reset_complete:
+                self.reset_device(network=True)
         print(f"Kịch bản theo plan: {len(files)} tệp, kết quả trong {self.log_path}")
 
 

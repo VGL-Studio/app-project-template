@@ -580,7 +580,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-097. `auto-run.md` bảo soạn phản hồi kịch bản lỗi mức `nen-sua`, mẫu phản hồi không có mức đó
 
-- **Ngày, nguồn:** 2026-10-25, app camera-pose (bài học L-074 của app, RUN-20261025-01), issue #163. Nguồn: camera-pose L-074
+- **Ngày, nguồn:** 2026-10-25, app camera-pose (bài học L-074 của app, RUN-20261025-01), issue #163
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** `docs/auto-run.md` mục 4, bước 1 bảo mỗi dòng `lỗi` của "Kịch bản theo plan" có một phản hồi `FB-...` "mức `nen-sua`". Mẫu `docs/templates/feedback.md` chỉ có `chan`, `nang`, `nhe`, `gop-y`, nên phiên phải tự chọn một bên (FB-20261025-01 của app ghi `nen-sua` kèm chú thích).
 - **Đề xuất sửa:** thêm `nen-sua` vào mẫu phản hồi, hoặc đổi `auto-run.md` sang một mức có sẵn.
@@ -598,7 +598,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-099. Phiên đẩy commit test của task sau trước khi có kết quả `main-guard` của lần merge trước
 
-- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-076 của app, RUN-20261026-01), issue #188. Nguồn: camera-pose L-076
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-076 của app, RUN-20261026-01), issue #188
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** `docs/auto-run.md` bước 3 bảo đẩy nhánh task ngay sau mỗi commit; bước 9 bảo trước khi đẩy commit đầu tiên của task sau phải có kết quả `main-guard` của lần merge trước. Phiên làm theo bước 3 và đẩy commit test của T-052, T-050 khi `main-guard` còn chạy. Không gây hại vì `main-guard` đều xanh, nhưng nếu đỏ thì task sau đã bắt đầu trên nhánh chính hỏng.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 ghi ngoại lệ của bước 9.
@@ -607,7 +607,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-100. Từ dịch lấy lại từ feature khác đổi nghĩa khi đi cùng con số
 
-- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-077 của app, T-050), issue #188. Nguồn: camera-pose L-077
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-077 của app, T-050), issue #188
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** plan bảo dịch "dùng lại cách gọi đã có". Phiên lấy từ "transparency" của màn giới thiệu cho nhãn con trượt độ đậm; câu không có số thì đúng, trên con trượt có phần trăm thì "100%" đọc thành "trong suốt hoàn toàn", ngược với nét đậm nhất. Test chữ (đủ bản dịch, giữ tham số) không bắt được; chỉ rà soát độc lập thấy.
 - **Đề xuất sửa:** plan dịch chữ liệt kê chuỗi đi cùng con số, ghi nghĩa của giá trị lớn nhất, có test chặn từ ngược nghĩa; rà soát task dịch kiểm nghĩa.
@@ -616,7 +616,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-101. Plan của app chép code từ dự án mẫu, nhưng phiên cloud của app chỉ đọc được repo của app
 
-- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-078 của app, T-053), issue #188. Nguồn: camera-pose L-078
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-078 của app, T-053), issue #188
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** plan T-053 của app bảo chép ba khối của `scripts/token-usage.py` từ dự án mẫu. Quyền GitHub của phiên `claude --cloud` chỉ gồm repo của app, nên phiên không đọc được repo mẫu và viết code theo mô tả ở mục 3.1 của plan. Code vẫn đúng nhờ mô tả kỹ, nhưng không so được với bản mẫu.
 - **Đề xuất sửa:** plan chép code từ dự án mẫu dán nguyên code hay `diff` vào plan; `docs/ops/from-app.md` ghi giới hạn này.
@@ -625,7 +625,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-102. Dòng `Task: T-NNN` trong lời giao soạn plan làm số token soạn plan thành mẫu ước tính của task
 
-- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-079 của app, T-053), issue #188. Nguồn: camera-pose L-079
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-079 của app, T-053), issue #188
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** lời giao cho phiên con ở bước soạn plan cuối phiên có dòng `Task: T-NNN` (L-071). Khi đó `scripts/token-usage.py report --csv` ghi một dòng chỉ có token soạn plan cho ticket đó, và `estimate` lấy dòng đó làm mẫu, kéo số gợi ý `token_estimate` xuống. Phần soạn plan của phiên chính chạy trên nhánh `claude/plan-T-NNN-...` lại vào dòng Chung: cách gán không nhất quán.
 - **Đề xuất sửa:** bỏ dòng `Task:` khỏi lời giao soạn plan.
@@ -634,7 +634,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 ### L-103. Sau task cuối, thư mục chính vẫn đứng trên nhánh task, token của việc cuối phiên tính vào task đó
 
-- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-080 của app, RUN-20261026-01), issue #188. Nguồn: camera-pose L-080
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-080 của app, RUN-20261026-01), issue #188
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** `scripts/token-usage.py` gán request của phiên chính theo nhánh của thư mục chính. Sau khi task cuối merge, phiên làm việc cuối phiên (chờ `main-guard`, `device-session`, staging, báo cáo) mà thư mục chính vẫn đứng trên nhánh task, nên phần đó (khoảng 12M token) tính vào task thay vì dòng Chung.
 - **Đề xuất sửa:** `docs/auto-run.md` mục 4: rời nhánh task trước việc cuối phiên.

@@ -32,7 +32,9 @@ case "$1" in
     exec sleep 300 ;;
   shell)
     shift
-    if [[ -n "${FAKE_ADB_HANG:-}" && "$*" == "${FAKE_ADB_HANG}"* ]]; then
+    # With FAKE_ADB_HANG_ONCE=1 only the first matching call hangs (hang.pid exists afterwards).
+    if [[ -n "${FAKE_ADB_HANG:-}" && "$*" == "${FAKE_ADB_HANG}"* && \
+      ! ( "${FAKE_ADB_HANG_ONCE:-}" == 1 && -s "${FAKE_ADB_STATE_DIR:-/nonexistent}/hang.pid" ) ]]; then
       if [[ -n "${FAKE_ADB_STATE_DIR:-}" ]]; then
         mkdir -p "${FAKE_ADB_STATE_DIR}"
         echo "$$" > "${FAKE_ADB_STATE_DIR}/hang.pid"

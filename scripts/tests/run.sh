@@ -2452,6 +2452,29 @@ ds_term_child="$(cat "$work/adb-term/hang.pid" 2> /dev/null || true)"
 expect "device-scenario: a terminated runner kills its adb child and says so" "143 1 dead" \
   "$ds_term_code $(ds_count '^plan runner_terminated' "$work/ds-term/scenarios.txt") $(if [[ -z "$ds_term_child" ]]; then echo nopid; elif kill -0 "$ds_term_child" 2> /dev/null; then echo alive; else echo dead; fi)"
 [[ -n "$ds_term_child" ]] && kill -9 "$ds_term_child" 2> /dev/null || true
+# SIGTERM while the reset after a file runs: the run still gives the device back (size, density, network) before 143.
+ds_script term-reset.txt 'device unfold'
+rm -rf "$work/adb-term2" "$work/ds-term2"
+mkdir -p "$work/ds-term2"
+: > "$work/ds-term2-calls.txt"
+env PATH="$work/bin:$PATH" FAKE_ADB_STATE_DIR="$work/adb-term2" FAKE_ADB_HANG="wm size reset" FAKE_ADB_HANG_ONCE=1 \
+  FAKE_ADB_UI_SEQ="$ds_fixtures/home.xml" FAKE_ADB_CALLS="$work/ds-term2-calls.txt" FAKE_ADB_NETWORK_ON=100 \
+  DEVICE_SCENARIOS_GLOB="$ds_files/term-reset.txt" DEVICE_SCENARIO_POLL=0.05 DEVICE_SESSION_SLEEP=0 \
+  APP_PACKAGE=com.example.app.staging \
+  python3 -I scripts/device-scenario.py run --session "$work/ds-term2" --package com.example.app.staging \
+  > "$work/ds-term2.out" 2>&1 &
+ds_term_pid=$!
+for _ in $(seq 1 100); do
+  [[ -s "$work/adb-term2/hang.pid" ]] && break
+  sleep 0.1
+done
+kill -TERM "$ds_term_pid" 2> /dev/null || true
+ds_term_code=0
+wait "$ds_term_pid" || ds_term_code=$?
+ds_term_child="$(cat "$work/adb-term2/hang.pid" 2> /dev/null || true)"
+[[ -n "$ds_term_child" ]] && kill -9 "$ds_term_child" 2> /dev/null || true
+expect "device-scenario: SIGTERM during the reset after a file still gives the device back" "143 2 1 yes" \
+  "$ds_term_code $(ds_count '^shell wm size reset$' "$work/ds-term2-calls.txt") $(ds_count '^shell wm density reset$' "$work/ds-term2-calls.txt") $([[ "$(ds_count '^shell svc wifi enable$' "$work/ds-term2-calls.txt")" -ge 1 ]] && echo yes || echo no)"
 
 # device-session.sh runs the plan scenarios after the standard ones and shows the result (plan T-046).
 export DEVICE_SESSION_SLEEP=0 FAKE_ADB_CALLS="$work/adb-calls.txt" DEVICE_SCENARIO_POLL=0.05 FAKE_ADB_STATE_DIR="$work/adb-state-session" \
