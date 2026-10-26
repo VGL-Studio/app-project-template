@@ -62,8 +62,12 @@ internal class NativeAdSources(
     }
 }
 
-/** The formats whose slot goes through a [NativeAdSource] and refreshes in place (plan T-040: native small only). */
-internal fun AdFormat.usesSingleAdSource(): Boolean = this == AdFormat.NATIVE_SMALL
+/**
+ * The formats whose slot goes through a [NativeAdSource] and refreshes in place: native small (plan T-040) and the
+ * collapsible layer of the bottom bar, one ad and one pending ad (CL-02, plan T-030).
+ */
+internal fun AdFormat.usesSingleAdSource(): Boolean =
+    this == AdFormat.NATIVE_SMALL || this == AdFormat.NATIVE_COLLAPSIBLE
 
 /** The log and counter key of [placement] drawn as [format]: the placement key for its own format. */
 internal fun nativeSlotKey(placement: AdPlacement, format: AdFormat): String =

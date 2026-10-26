@@ -369,6 +369,97 @@ class NativeAdSlotTest {
         composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(0.dp)
     }
 
+    // The native slot of the bottom bar (plan T-030): same gate as NativeAdSlot, first refresh after the layer.
+
+    private fun setBottomSlot(feed: FakeNativeFeed, reports: MutableList<Boolean>) {
+        composeRule.setContent {
+            AppTheme {
+                BottomNativeSlotHost(
+                    allowed = true,
+                    newStates = { feed.states() },
+                    firstRefreshDelayMillis = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+                    onAdAvailabilityChange = { reports += it },
+                    modifier = Modifier.width(CARD_WIDTH).testTag(SLOT),
+                    adContent = { NativeAdCard(it.assets, NativeAdSize.SMALL) },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun bottomNativeSlot_loading_showsPlaceholder80dp() {
+        val reports = mutableListOf<Boolean>()
+        setBottomSlot(FakeNativeFeed(), reports)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(80.dp)
+        assertEquals("nothing reported while loading", emptyList<Boolean>(), reports)
+    }
+
+    @Test
+    fun bottomNativeSlot_unavailable_takesNoSpace_reportsFalse() {
+        val feed = FakeNativeFeed()
+        val reports = mutableListOf<Boolean>()
+        setBottomSlot(feed, reports)
+        // Control: the slot takes 80 dp while loading.
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(80.dp)
+
+        composeRule.runOnIdle { feed.state.value = NativeAdState.Unavailable }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(0.dp)
+        assertEquals(listOf(false), reports)
+    }
+
+    /** Builds the bar with a native slot that records the first refresh delay it asks its stream for. */
+    private fun setBarRecordingDelay(collapsible: () -> Boolean, feed: FakeNativeFeed, asked: MutableList<Long>) {
+        composeRule.setContent {
+            AppTheme {
+                BottomAdBarHost(
+                    layers = BottomAdBarLayers(BottomSlotKind.NATIVE, collapsible = collapsible()),
+                    nativeSlot = { delay, onAvailability, modifier ->
+                        BottomNativeSlotHost(
+                            allowed = true,
+                            newStates = { first ->
+                                asked += first
+                                feed.states()
+                            },
+                            firstRefreshDelayMillis = delay,
+                            onAdAvailabilityChange = onAvailability,
+                            modifier = modifier,
+                            adContent = { NativeAdCard(it.assets, NativeAdSize.SMALL) },
+                        )
+                    },
+                    bannerSlot = { _, _, _ -> },
+                    layer = {},
+                    content = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun bottomNativeSlot_withLayer_firstRefreshAt60500ms() {
+        val asked = mutableListOf<Long>()
+        val feed = FakeNativeFeed()
+        var collapsible by mutableStateOf(true)
+        setBarRecordingDelay({ collapsible }, feed, asked)
+        assertEquals(listOf(60_500L), asked)
+
+        // Turning the layer off does not build the stream again (the slot keeps its ad, nothing loads again).
+        collapsible = false
+        composeRule.waitForIdle()
+        assertEquals(listOf(60_500L), asked)
+        assertEquals(1, feed.collections)
+    }
+
+    @Test
+    fun bottomNativeSlot_withoutLayer_firstRefreshAt60000ms() {
+        val asked = mutableListOf<Long>()
+        setBarRecordingDelay({ false }, FakeNativeFeed(), asked)
+        assertEquals(listOf(60_000L), asked)
+    }
+
     private companion object {
         val CARD_WIDTH = 379.dp
         const val SLOT = "slot"

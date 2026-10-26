@@ -96,4 +96,27 @@ class AdUnitIdsTest {
             GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_IN_COLLECTION),
         )
     }
+
+    @Test
+    fun staging_unitOfEachLayerFormat() {
+        // Staging shows every layer of a bottom bar with the test unit of the layer's format (question 2, plan T-030).
+        val bar = AdPlacement.SAMPLE_NATIVE_SMALL
+        assertEquals(GoogleTestAdUnitIds.unitFor(AdFormat.BANNER), GoogleTestAdUnitIds.of(bar, AdFormat.BANNER))
+        assertEquals(
+            GoogleTestAdUnitIds.unitFor(AdFormat.NATIVE_COLLAPSIBLE),
+            GoogleTestAdUnitIds.of(bar, AdFormat.NATIVE_COLLAPSIBLE),
+        )
+        assertEquals(GoogleTestAdUnitIds.of(bar), GoogleTestAdUnitIds.of(bar, AdFormat.NATIVE_SMALL))
+    }
+
+    @Test
+    fun production_otherFormat_null_ownFormat_configured() {
+        val ids = ConfiguredAdUnitIds("sample_native_small=unit/1")
+        val bar = AdPlacement.SAMPLE_NATIVE_SMALL
+        // Control: the placement's own format gets its configured unit.
+        assertEquals("unit/1", ids.of(bar, AdFormat.NATIVE_SMALL))
+        // The banner and collapsible layers have no unit on production until units per slot exist (spec, Q14).
+        assertNull(ids.of(bar, AdFormat.BANNER))
+        assertNull(ids.of(bar, AdFormat.NATIVE_COLLAPSIBLE))
+    }
 }

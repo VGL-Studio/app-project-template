@@ -34,12 +34,14 @@ internal interface NativeAdEvents {
 
 /**
  * Loads native ads with the Google Mobile Ads SDK. Main thread only, like the SDK. [events] gets the callbacks the
- * ad metrics read; one loader loads one ad.
+ * ad metrics read; one loader loads one ad. [options] are the request options, those of the size by default (the
+ * collapsible layer passes its own, plan T-030).
  */
 internal class SdkNativeAdLoader(
     private val context: Context,
     private val request: AdRequest,
     private val events: NativeAdEvents? = null,
+    private val options: NativeRequestOptions? = null,
 ) : NativeAdLoader {
     override fun load(
         unitId: String,
@@ -47,7 +49,7 @@ internal class SdkNativeAdLoader(
         onLoaded: (LoadedNativeAd) -> Unit,
         onFailed: (code: Int) -> Unit,
     ) {
-        val options = nativeRequestOptions(size).toNativeAdOptions()
+        val options = (options ?: nativeRequestOptions(size)).toNativeAdOptions()
         val listener = NativeAdLoadListener(events, onFailed)
         val loader = AdLoader.Builder(context, unitId)
             .forNativeAd { ad ->

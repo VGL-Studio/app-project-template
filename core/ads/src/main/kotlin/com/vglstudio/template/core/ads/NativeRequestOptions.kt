@@ -5,15 +5,16 @@ import com.google.android.gms.ads.VideoOptions
 import com.google.android.gms.ads.nativead.NativeAdOptions
 
 /**
- * What a native ad request asks the SDK for (O-06): video starts muted, no custom video controls, one image, and the
- * aspect of the media ([MediaAspectRatio]). The only place in the module that builds the SDK's NativeAdOptions, so
- * every native request goes through it (L-072).
+ * What a native ad request asks the SDK for (O-06): video starts muted, no custom video controls, one image, the
+ * aspect of the media ([MediaAspectRatio]), and the corner where the SDK pins AdChoices ([adChoicesCorner]). The
+ * only place in the module that builds the SDK's NativeAdOptions, so every native request goes through it (L-072).
  */
 internal data class NativeRequestOptions(
     val startMuted: Boolean,
     val customControls: Boolean,
     val multipleImages: Boolean,
     val mediaAspect: Int,
+    val adChoicesCorner: Int = NativeAdOptions.ADCHOICES_TOP_RIGHT,
 )
 
 /**
@@ -42,9 +43,16 @@ internal fun fullScreenNativeRequestOptions(): NativeRequestOptions = NativeRequ
     mediaAspect = MediaAspectRatio.ANY,
 )
 
-/** The SDK options of this request; AdChoices in the top right corner, which every layout keeps free. */
+/**
+ * Options of the collapsible layer of a bottom bar: as medium, but AdChoices in the top left corner, since the collapse
+ * button takes the top right one (design, plan T-030).
+ */
+internal fun collapsibleNativeRequestOptions(): NativeRequestOptions =
+    nativeRequestOptions(NativeAdSize.MEDIUM).copy(adChoicesCorner = NativeAdOptions.ADCHOICES_TOP_LEFT)
+
+/** The SDK options of this request; AdChoices in [NativeRequestOptions.adChoicesCorner], kept free by the layout. */
 internal fun NativeRequestOptions.toNativeAdOptions(): NativeAdOptions = NativeAdOptions.Builder()
-    .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT)
+    .setAdChoicesPlacement(adChoicesCorner)
     .setMediaAspectRatio(mediaAspect)
     .setRequestMultipleImages(multipleImages)
     .setVideoOptions(
