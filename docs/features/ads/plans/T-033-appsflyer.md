@@ -1,7 +1,7 @@
 ---
 ticket: T-033
 title: AppsFlyer trong :core:analytics: doanh thu và phễu quảng cáo
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (sdk, analytics, consent, core)
 risk_level: high             # low | medium | high
@@ -332,3 +332,18 @@ Test qua ngay trên khung rỗng (L-055), có bước đối chứng ghi sẵn: 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #193, commit đầu `d57d7f1`, commit trên nhánh chính `a975f10` (2026-10-26 06:33 UTC).
+- **Nhánh, PR:** `claude/T-033-appsflyer` (từ nhánh chính `a6e617b`). Commit test `5639f1f`, code `c1046b2`; theo rà soát: test `c507f25`, sửa `d57d7f1`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-033` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: AppsFlyer 6.18.1 trong `:core:analytics` (`gradle/libs.versions.toml` theo mục 3.2), `af_ad_revenue` với tám tham số của mục 8.3, phễu `af_*` (eligible, api_called, displayed, số lần inter đã hiện), khởi động theo đồng ý (ba đường của bước 6, TCF trước `init`), khóa dev theo biến thể build (staging rỗng cố định), manifest bỏ hai quyền cửa hàng và gói `mapsagent`, `FanOutAdMetrics`, `ads-guide.md` mục 9.
+- **Test viết trước:** 67 test mới (`:core:analytics` 29, `:core:ads` 31, `:app` 7). Trên khung rỗng 62 đỏ đúng lý do. 5 test canh giữ qua ngay, cả 5 có đối chứng: `MergedManifestTest.mergedManifest_hasNoAppsFlyerStorePermissions` (thêm SDK mà chưa có manifest bỏ quyền thì đỏ), `AppsFlyerSdkUseTest.noAdRevenueApi` (tệp tạm có `logAdRevenue` thì đỏ), 3 test có đối chứng trong test. Không test cũ nào đỏ.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 6 ghi chú; vòng 2 (phần vừa sửa): 0 chặn, 0 nên sửa, 4 ghi chú.
+  - Đã sửa, nên sửa: `NativeAdSlotGate` gửi `af_native_ad_eligible` bỏ qua `onScreen` (trang pager dựng sẵn ngoài màn vẫn gửi). `NativeEligibleReportTest.slotGate_offScreen_recordsNothing_thenOnScreen_recordsOnce` đỏ trước (`c507f25`), sửa `d57d7f1`. Lần sửa thứ 1.
+  - Ghi chú: đường (c) có thể khởi động AppsFlyer khi hộp thoại đồng ý chưa kịp hiện lúc 10 giây (đúng câu hỏi 9; kiểm TCF ở EEA); eligible của combo gửi cả khi cổng đồng ý đóng; `loadStateAtOpen()` có tác dụng phụ gửi eligible; `NativeEligibleCoverageTest` kiểm theo tệp; `onlyAppsFlyerSink_importsTheSdk` chỉ tìm dòng `import`; hàng `LazyColumn` dựng sẵn có thể gửi eligible sớm; KDoc chưa nói `onScreen`; `NativeStepAd` đổi bước không gửi lại eligible; chưa có test eligible với `HorizontalPager` thật.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40277320954, khoảng 33 phút, có build release). Trên máy: `scripts/check.sh` 1304 test JVM, 0 lỗi, 67 ảnh screenshot, Cổng chất lượng: QUA. `./gradlew :app:assembleStagingRelease` qua (chỉ cảnh báo R8 plan đã biết, không thêm luật). Manifest gộp `stagingDebug`: 11 `uses-permission`, bằng danh sách cũ.
+- **Lệch so với plan:** eligible của combo native gửi ở `loadStateAtOpen()` thay `beginPresence()` (T-026 gọi `beginPresence()` trước khi đọc khóa combo), thêm `comboOff_recordsInterEligibleOnly`; `FanOutAdMetrics` `public`, nhận `logger`; cổng toàn trang của bước gửi khi `allowed && shown`, khe native khi `allowed && onScreen`; `showRewarded` không `suspend`. Phương án dự phòng: không chuyển.
+- **Ngoài mục 3.2 (ADR-0029):** nối chỗ gọi `CollapsibleNativeAd.kt`, `NativeFlowStep.kt` (mỗi file một dòng `ReportNativeEligible`); dữ liệu test `AdsControllerNativeComboTest.kt`, `AdsControllerResumeTest.kt`, `RewardedActionTest.kt` (dựng controller qua `testAdsController(...)`), `NativeAdSourcesTest.kt` (thêm `funnel`). Tổng `9 +, 72 -`, không xóa khẳng định nào.
+- **Ảnh chuẩn:** không có ảnh mới hay đổi.
+- **Cần người xem:** `scripts/release.sh` chưa truyền `-PappsFlyerDevKey`, bản production kế tiếp dừng build tới khi người sửa script (câu hỏi 2); phần ngoài mục 3.2; kiểm trên máy với khóa dev (sự kiện, `displayed`, SDK Integration Test, TCF ở EEA).

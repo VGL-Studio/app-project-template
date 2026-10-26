@@ -1,7 +1,7 @@
 ---
 ticket: T-036
 title: Màn hình xem thử quảng cáo thêm các định dạng mới
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -309,3 +309,20 @@ Không bắt buộc (tiêu chí E là 1). Đã chạy toàn bộ test JVM với 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #194, commit đầu `067b5b0`, commit trên nhánh chính `a12a3aa` (2026-10-26 07:45 UTC). Task bắt đầu sau lần tiếp tục phiên (GitHub không chạy job `main-guard` sau T-033, anh Nhật nâng trần chi tiêu Actions).
+- **Nhánh, PR:** `claude/T-036-man-xem-thu-them-dinh-dang` (từ nhánh chính `a975f10`). Commit test `0d3204c`, code `f7567b7`, ktlint `7a9740a`, ảnh chuẩn `6d26401`; theo rà soát: test `1454f71`, sửa `edcede9`, test `067b5b0`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-036` (L-052). Mọi plan phụ thuộc đã merge, tên API khớp, không phải đổi tên theo mục 3.4.
+- **Đã làm:** mọi phần của mục 3.1: sáu vị trí `gallery_*` chỉ staging; nút "App open" (`rememberShowAppOpenAd`); trang Banners, Grid, Pager, Flow steps, Rewarded (`noAdPolicyOverride`), Status; nhóm nạp sẵn đầu thêm `NATIVE_STEP`; bảng khóa Remote Config sinh lại.
+- **Test viết trước:** 47 test mới (18 ở `:core:ads`, 26 ở `:app` staging, 15 screenshot test), cập nhật dữ liệu 5 test cũ (`AdPlacementTest` 2, `AdUnitIdsTest`, `AdPreloadPlanTest`, `RemoteConfigKeysTest` bằng sinh lại bảng khóa). Trên khung rỗng 10 test của `:core:ads`, 31 của `:app` đỏ đúng lý do. Test viết chặt bằng bước đối chứng: 2 (dòng vị trí nằm sẵn trong khung: tạm đặt `GALLERY_APP_OPEN` thành `appWide = true` thì 3 test đỏ; `firstGroupNativeStep_noUnitId_*` có đối chứng riêng).
+- **Rà soát độc lập:** vòng 1: 0 chặn, 2 nên sửa, 6 ghi chú; vòng 2: 0 chặn, 1 nên sửa, 6 ghi chú; vòng 3: 0 chặn, 1 nên sửa, 4 ghi chú.
+  - Đã sửa, nên sửa vòng 1: trang Flow steps mất số trang đã cố định khi xoay máy giữa luồng. `flowSteps_restoredMidFlow_keepsStepAndPageCount` đỏ trước (`1454f71`), sửa `edcede9`; kèm `flowSteps_readyTurnsFalseMidFlow_keepsFourPages` (giữ hành vi, qua ngay).
+  - Đã sửa, ADR-0029: `buttons_haveTouchTargetOf48dp` (test cũ) bị đổi cách đo ở bước 3; khôi phục cách đo (`1454f71`) và câu đếm trên mọi nút có tag (`067b5b0`, nên sửa vòng 2).
+  - Không sửa, nên sửa vòng 3 (hết số vòng): `buttons_haveTouchTargetOf48dp` đếm 12 nút nhưng chỉ đo 5 nút cũ; 7 nút mới đo ở `moreFormats_buttonsHaveTouchTargetOf48dp` cùng cách đo.
+  - Ghi chú: `AdGalleryScreen_flow-full-page_small` ghi lại quảng cáo toàn trang bị cắt mất CTA (khung thẻ 250 dp giữ chỗ theo plan); `CollectionCard(onScreen)` không có test; log nạp sẵn production nhóm 2 ghi thêm ba định dạng (không đổi thời gian); `RewardedTurns.request` đặt lại bộ đếm trước khi xét lượt đang chờ (chỉ staging); chính sách rewarded của route tính từ `uiState`.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40286581541). Trên máy: `scripts/check.sh` 1364 test JVM, 0 lỗi, 82 ảnh screenshot, Cổng chất lượng: QUA.
+- **Lệch so với plan:** `CollectionCard` nhận `onScreen = pagerState.isPageVisible(page)` (P-01); test `noAdPolicyOverride` qua `rememberRewardedActionOf`; số trang của luồng cố định ở lần bấm "Next" đầu (vì `rememberNativeFullScreenStepReady` trả `false` ở khung đầu) và lưu qua dựng lại; banner dưới tiêu đề 24 dp; tách `flowSteps_notReady_noFullPage`; `inListGalleryPlacements_declareNativeEvery8` giữ tên dù N = 4. Phương án dự phòng: không chuyển.
+- **Ngoài mục 3.2 (ADR-0029, plan mục 6 đã nêu):** code `RewardedAction.kt`, `RewardedTurns.kt`; test `RewardedTurnsTest.kt`, `RewardedActionTest.kt` (chỉ thêm test); `163 +, 15 -`.
+- **Ảnh chuẩn:** 15 ảnh mới `AdGalleryScreen_default-more_light`, `_banners_*`, `_grid_*`, `_pager_*`, `_flow-card_*`, `_flow-full-page_*`, `_rewarded_*`, `_status_*`; ghi lại `AdGalleryScreen_default_light`, `_dark`.
+- **Cần người xem:** ảnh chuẩn, nhất là `AdGalleryScreen_flow-full-page_small`; phần ngoài mục 3.2; kiểm thủ công trên máy theo mục 4.

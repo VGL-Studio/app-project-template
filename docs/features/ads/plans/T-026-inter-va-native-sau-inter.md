@@ -1,7 +1,7 @@
 ---
 ticket: T-026
 title: Interstitial theo PARTNER và combo native toàn màn hình sau inter
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, analytics, core)
 risk_level: high             # low | medium | high
@@ -296,3 +296,20 @@ Mọi test thời gian dùng `runTest` với `StandardTestDispatcher`, `Monotoni
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #187, commit đầu `2ed28cf`, commit trên nhánh chính `d277e82` (2026-10-26 01:53 UTC).
+- **Nhánh, PR:** `claude/T-026-inter-va-native-sau-inter` (từ nhánh chính `4ea461c`). Commit test `ded2ed6`, code `4e68358`, ảnh chuẩn và ktlint `a3e077f`, test theo rà soát `fc22eba`, sửa `2ed28cf`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-026` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: vị trí toàn app `native_combo`; `NativeAfterInterRules`, `NativeLoadResults`; bộ điều phối `NativeFullScreenTurns` và port; nối trong `AdsController` (mọi đường kết thúc a tới f của lượt inter qua combo, lượt độc lập, tín hiệu nạp theo vị trí); `InterDisplayCounter`; vòng đếm ngược trong `NativeFullScreenAdScreen`; lớp phủ `NativeFullScreenOverlay`; `ads_close_countdown`; `ads-guide.md`.
+- **Test viết trước:** 85 test mới hoặc sửa (6 file test mới, 5 file có sẵn). Trên khung rỗng 65 test của `:core:ads` đỏ đúng lý do. Test JVM mọi module trên khung rỗng: `:app` 2 đỏ (`RemoteConfigKeysTest.templateFile_matchesCode`, `keysFile_matchesCode`, vì khung rỗng chưa có `appWide = true` nên sinh khóa `is_show_native_combo`), xanh sau code, không phải sửa. Test viết chặt bằng bước đối chứng: 3 (`blockedAtGate_consentClosed_finishesOnce_noView`, `showStartupAd_blocked_neverOpensCombo`, `standalone_noAd_showsNothing_finishesAtOnce`).
+- **Rà soát độc lập:** vòng 1: 0 chặn, 2 nên sửa, 5 ghi chú; vòng 2 (phần vừa sửa): 0 chặn, 2 nên sửa, 3 ghi chú.
+  - Đã sửa, nên sửa: lượt native độc lập gọi khi lượt khác còn mở quá trần 10 phút (F-02) lấy quảng cáo, ghi `shown` rồi bị từ chối mà không hạ cờ "đang hiện". Test `AdsControllerNativeComboTest.standalone_whileTurnOpenPastCap_isRejected_takesNoAd` đỏ trước (`fc22eba`), sửa bằng `NativeFullScreenTurns.busy` (`2ed28cf`). Lần sửa thứ 1.
+  - Không sửa, nên sửa vòng 1: `standalone_noAd_showsNothing_finishesAtOnce` không đi qua `showNativeFullScreen` tới `skipTurn(NOT_READY)`; test thêm sẽ qua ngay, không có test đỏ trước.
+  - Không sửa, nên sửa vòng 2: dòng `nativeTurns.busy ||` của `showNativeFullScreen` (ghi `BUSY`) chưa có test, test thêm sẽ qua ngay; mục 3.1 bước 5 chưa ghi bước kiểm `busy` (plan `approved`, không sửa; ghi trong mô tả PR).
+  - Ghi chú: sau trần 10 phút một inter chen lên lượt native đang mở thì đóng lượt này hạ luôn cờ "đang hiện" của lượt kia; `openConsentGateForTest` là lối vào chỉ cho test trong code production; `recordIntervalMark` nằm ngoài `try/finally` của `close()` (đúng plan); `comboKey_readAtCompletion` không mô phỏng đổi khóa giữa lượt inter; hoàn tất cưỡng bức (N-04) nay hoãn `onFinished` tới khi combo đóng (đường e của plan); `decideFullScreenTurn` chỉ đọc `presence.isBusy`; một dòng KDoc dài 172 ký tự.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40255621589). Trên máy: `scripts/check.sh` 990 test JVM, 0 lỗi, 54 ảnh screenshot, Cổng chất lượng: QUA.
+- **Lệch so với plan:** `NativeFullScreenPort.reload(placement)` thay `reload()`; `internal fun openConsentGateForTest()` (`@VisibleForTesting`) vì không test controller nào mở được cổng đồng ý; đường (c) qua `internal fun onInterstitialLost(...)`; tín hiệu nạp thêm ở hai nhánh thoát sớm của `preloadNativeFullScreen`; lỗi ghi cơ hội lúc đóng được bắt và log `warn`; test controller (a) tới (e) bấm đóng sau 2 giây (trên JVM lượt ở trạng thái nạp lỗi, tự đóng ở mốc); `showStartupAd_blocked_neverOpensCombo` thêm một khẳng định ở bước 4 (chặt hơn, không để test qua). Phương án dự phòng 3.4: không chuyển.
+- **Ngoài mục 3.2 (ADR-0029):** `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdCard.kt`, loại code: `placeholderAlpha` từ `private` sang `internal` để khung chờ toàn màn hình dùng chung nhịp mờ (`4 ++--`).
+- **Ảnh chuẩn:** mới `NativeFullScreenOverlay_countdown_light`, `_countdown_dark`, `_loading_light`, `_failed_light`, `_countdown_small`. Ảnh cũ không đổi. `scripts/design-compare.sh ads` không chạy được: script tìm `feature/ads/src/test/screenshots`.
+- **Cần người xem:** 5 ảnh chuẩn mới; phần ngoài mục 3.2; điểm nên sửa không sửa và các ghi chú; kiểm thủ công trên máy thật theo mục 4.

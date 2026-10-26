@@ -1,7 +1,7 @@
 ---
 ticket: T-032
 title: Native ở một bước của luồng (giới thiệu và luồng khác)
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -260,3 +260,16 @@ Ghi log: `AppLogger` (ADR-0019) ở `stepAdStates` và `AdsController` như trê
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #191, commit đầu `de01b50`, commit trên nhánh chính `ae74e54` (2026-10-26 04:34 UTC).
+- **Nhánh, PR:** `claude/T-032-native-gioi-thieu` (từ nhánh chính `7e59462`). Commit test `ab3276b`, code `91c7e20`, ảnh chuẩn `de01b50`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-032` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: định dạng `NATIVE_STEP`, thẻ `STEP` 250 dp, `NativeStepAd`, `stepAdStates` (lấy mới trước, trả cũ sau, OB-02), trang toàn trang `NativeFullScreenStep` không nút đóng, không đếm ngược, `takePreloadedNativeFullScreen`, `ads-guide.md`, README thiết kế mục 8.
+- **Test viết trước:** 51 test mới (6 file test). Trên khung rỗng 42 đỏ đúng lý do. 7 test qua ngay, mỗi test có test đối chứng đỏ đi kèm (L-055): `stepAd_unavailable_takesNoSpace`, `stepAllowed_falseWithoutUnitId`, `stepReady_falseWhenDisallowed`, `step_showsAdBadge_leavesAdChoicesCornerFree`, `flowStep_mediaStartsLikeAfterInter`, `releaseBeforeClaim_wouldHandTheSameAdBack_control` (chính nó là đối chứng). Không có test đỏ ngoài mục 3.2.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 0 nên sửa, 6 ghi chú: xoay máy hay gập, mở máy thì trang toàn trang mất quảng cáo (đúng plan, đề xuất ticket sau); nhánh trả quảng cáo cũ khi bước đổi lúc `send` đang chờ chưa có test; rendezvous chưa bảo đảm B đã vẽ khi thẻ khác dùng chung pool; dòng gán ô vị trí lặp trong `beginStandaloneNativeTurn`; `nextButton_samePlace_notCovered_withFullPage` không kiểm vế chạm; README mục 8 cột "So với Figma" chưa điền.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40268808016). Trên máy: `scripts/check.sh` 1178 test JVM, 0 lỗi, 67 ảnh screenshot, Cổng chất lượng: QUA.
+- **Lệch so với plan:** `stepAdStates` nhận `PooledNativeAds` thay `NativeAdPool`; phần "không có `AdsController` thì `Box` rỗng" kiểm qua `requireStepFormat`, `NativeFullScreenStep(GALLERY_NATIVE_FULL_SCREEN)`, `NativeStepAdHost` (chưa có vị trí `NATIVE_STEP`); tham số `shown` của `NativeFullScreenStepGate`; ba chỗ sửa chi tiết dựng test (`refill()`, gửi lại vùng an toàn, `Snapshot.sendApplyNotifications()`; `stepReady_allowedTurnsFalse_midFlow` tốn 2 lần sửa); 9 ảnh theo mục 3.2 (plan có chỗ ghi 10); `NativeAdViewBinding.kt` chỉ KDoc. Phương án dự phòng 3.4: không chuyển.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** mới `NativeAdCard_step_light`, `_dark`, `NativeAdPlaceholder_step_light`, `NativeFlowStep_card_light`, `_dark`, `_small`, `NativeFlowStep_full-page_light`, `_dark`, `_small`. Ảnh cũ không đổi.
+- **Cần người xem:** 9 ảnh chuẩn so với Figma (README mục 8); ghi chú của rà soát (trang mất quảng cáo khi xoay, gập máy); kiểm trên máy sau T-036.

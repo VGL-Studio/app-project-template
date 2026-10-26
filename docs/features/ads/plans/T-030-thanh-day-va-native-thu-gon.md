@@ -1,7 +1,7 @@
 ---
 ticket: T-030
 title: Thanh đáy ghép theo màn: native nhỏ 80 dp hoặc banner, lớp native thu gọn 250 dp tự mở lại
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -330,3 +330,20 @@ Test viết trước code (auto-run.md, bước 3). Test kiểm kích thước d
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #189, commit đầu `af54200`, commit trên nhánh chính `614aace` (2026-10-26 02:58 UTC).
+- **Nhánh, PR:** `claude/T-030-thanh-day-va-native-thu-gon` (từ nhánh chính `d277e82`). Commit test `8f5eaa5`, sửa chi tiết test `fb85243`, code `87c4b99`, ktlint `386ac36`, ảnh chuẩn `b6d96bc`, tài liệu `3bb4053`; theo rà soát: test `df7f6f6`, `d3c4d20`, sửa `22ce65d`, test `f664b4a`, sửa `af54200`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-030` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: thanh đáy ghép theo màn (`BottomAdBar`, `BottomAdBarScaffold`, khoảng chừa của khe), lớp native thu gọn 250 dp (nút 32 dp góc trên phải, góc AdChoices, mở lại theo Remote Config, CL-01 tới CL-04), mã đơn vị theo định dạng, `BannerSlot` dùng chung, màn mẫu dùng thanh đáy, `ads-guide.md`, README thiết kế mục 8, 2 ảnh so sánh.
+- **Test viết trước:** 70 test mới hay viết lại. Trên khung rỗng 61 đỏ ở `:core:ads`, 7 ở `:feature:sample`, 3 ở `:app`, đều đúng lý do. Test viết chặt bằng bước đối chứng: 6 (`withoutAdsController_drawsContentOnly_noPadding`, `reservation_notAllowed_isZero`, `notCollapsed_neverReexpands`, `tapCollapse_reportsOnce`, `expanded_refreshSwap_staysExpanded_rebinds`, `onlyNativeRequestOptions_buildsNativeAdOptions`). Qua ngay không đối chứng: `collapsibleFormat_loadsAsMedium` (test cũ giữ), `leavingComposition_destroysHeldAd_evenWhenCollapsed`.
+- **Rà soát độc lập:** vòng 1: 1 chặn, 2 nên sửa, 3 ghi chú; vòng 2 (phần vừa sửa): 0 chặn, 0 nên sửa, 5 ghi chú.
+  - Đã sửa, chặn: commit test đã xóa `CollapsibleNativeAdTest.loadingExpanded_placeholderCtaStays36dp` (T-028 thêm sau khi plan viết), mất khẳng định CTA 44 dp của khung chờ medium (ADR-0029, quyết định 2). Giữ lại ở `NativeAdCardTest.mediumPlaceholder_ctaIs44dp` (`df7f6f6`); nửa 36 dp bỏ theo CL-01. Lần sửa thứ 1.
+  - Đã sửa, nên sửa: phần nối B-06 của `BottomAdBarScaffold` chưa có test. `BottomAdBarTest.consentWithdrawn_bannerWithAd_barAndReservationKept` đỏ trước (`d3c4d20`), sửa bằng `rememberBottomAdBarLayers` dùng chung (`22ce65d`).
+  - Đã sửa, nên sửa: chưa đồng ý mà banner còn giữ, bật `is_show_native_bottom` thì ra khe native và lớp thu gọn. `BottomAdBarTest.layers_bannerKeptWithoutConsent_neverNativeOrLayer` đỏ trước (`f664b4a`), sửa `af54200`.
+  - Ghi chú: chờ mở lại dùng `snapshotFlow` đọc `clock.nowMillis()`; đổi cỡ banner rồi rút đồng ý có thể kẹt khoảng chừa 62 dp; nội dung `SampleScreen` gọi ở hai chỗ theo trạng thái; dòng nối `onSlotHasAdChange` của scaffold không có test; comment ở `BottomAdBarTest.kt:482` và KDoc của `BottomAdBarScaffold`, `NativeAdCard.kt:667` chưa khớp; chuỗi banner giữ, rút đồng ý, bật native đáy chỉ có test hàm thuần.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40260792563). Trên máy: `scripts/check.sh` 1045 test JVM, 0 lỗi, 55 ảnh screenshot, Cổng chất lượng: QUA.
+- **Lệch so với plan:** sửa chi tiết hai test viết trước (`fb85243`: `collapseTimed` thêm một khung hình; test khung thấp kiểm cả hai nút "Install"); test màu nút thu gọn lấy điểm khác nền nhất trong ô biểu tượng thay điểm cố định; test góc AdChoices chỉ kiểm phần tử bấm được; thêm `bottomAdBarAllowed(..., bannerHadAd)` (B-06), `rememberBottomAdBarLayers`, `SampleTestTags.CONTENT`, preview có thanh đáy giả; khóa bộ đếm banner theo `nativeSlotKey(placement, format)`.
+- **Ngoài mục 3.2 (ADR-0029):** `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt`, loại dữ liệu test (giữ khẳng định cũ, điểm chặn của rà soát), `17 +++`.
+- **Ảnh chuẩn:** mới `BottomAdBar_expanded_light`, `BottomAdBar_collapsed_light`, `SampleScreen_bar-expanded_small`; ghi lại `CollapsibleNativeAd_expanded_light`, `_dark`, `_small`, `AdGalleryScreen_collapsible-expanded_light`, `_small`; xóa `CollapsibleNativeAd_collapsed_light`, `_dark`. So thiết kế: `AdGalleryScreen_collapsible-*` 0,7%.
+- **Cần người xem:** ảnh chuẩn mới, ghi lại, xóa; phần ngoài mục 3.2; ghi chú của rà soát; trên máy thật: chạm vào `NativeAdView` trong lớp nổi, hẹn giờ mở lại khi app ở nền; kiểm thủ công theo mục 4.
