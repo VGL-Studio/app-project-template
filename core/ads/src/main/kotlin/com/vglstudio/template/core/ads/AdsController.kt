@@ -49,7 +49,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * The only class that talks to the ads SDKs (ADR-0004). :app calls [start] once in `Application.onCreate` (HD-01),
- * [gatherConsent], [onAppForeground] and [onAppBackground] from its activity, places [AdsHost] at the root of its UI
+ * [gatherConsent] from its activity, places [AdsHost] at the root of its UI
  * (it provides [LocalAdsController], G-04), and draws native full-screen ads with [FullScreenAdHost]. Features use
  * [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd], [rememberRewardedAction], [rememberAdSuppression],
  * [SuppressResumeAds], [rememberMarkLeavingApp] and [PrivacyOptionsButton], never this class or an SDK directly.
@@ -99,6 +99,13 @@ import kotlinx.coroutines.withContext
  * with its dialog and calls [showRewarded]; every rule of the turn and of its loads is in [RewardedTurns], which this
  * class ties to the SDK ([RewardedAd]). The rewarded slot never reads nor moves `ads_interval` (R-05), shows even
  * while another full-screen ad holds the showing flag (R-06), and is loaded with the resumed activity of the app.
+ *
+ * The resume ad (plan T-025, KB-14, A-10 to A-15) is decided each time the whole process comes to foreground
+ * ([AdsActivityTracker], all activities of the process, a rotation is not a return), except the first time, by the
+ * gates of [decideResumeAd], and shown on the next resume of an app activity ([ResumeAdTurns], [ActivityResumeSteps]):
+ * app open of `resume` through the app open slot, or the interstitial of `resume_inter` with the combo, which skips
+ * the `ads_interval` gate. It stays silent until the startup ad turn of the loading screen is over. A click on any ad
+ * ([AdTelemetry.clicked]) skips the next return (A-14).
  */
 @Singleton
 class AdsController @Inject internal constructor(
@@ -118,7 +125,6 @@ class AdsController @Inject internal constructor(
     // Touched on the main thread only.
     private val clock: MonotonicClock = SystemMonotonicClock
     private val guard = FullScreenAdGuard()
-    private val startedActivities = StartedActivityCounter()
     private val loadedInterstitials = mutableMapOf<AdPlacement, InterstitialAd>()
     private val presence = FullScreenAdPresence()
     private val stuck = StuckFullScreenRecovery()
@@ -140,6 +146,12 @@ class AdsController @Inject internal constructor(
 
     /** When the last app open ad closed, for the lock of A-08; null before the first one. */
     private var lastAppOpenClosedAt: Long? = null
+
+    /**
+     * The startup ad turn of the loading screen is over (question 7 of plan T-025): [awaitStartupAd] returned null,
+     * the completion of [showStartupAd] ran, or 45 s passed since [start]. The resume ad stays silent until then.
+     */
+    private val startupFinished = MutableStateFlow(false)
 
     /** When [start] ran: the origin of the three limits of A-03 (question 4 of plan T-024); null before it. */
     private var startedAtMillis: Long? = null
@@ -220,11 +232,11 @@ class AdsController @Inject internal constructor(
         onGateOpened = ::onGateOpened,
     )
 
-    /** G-06: stuck recovery before the regather of consent (S-09), then the leave mark. */
+    /** G-06: stuck recovery before the regather of consent (S-09), then the resume ad (T-025), then the leave mark. */
     private val resumeSteps = ActivityResumeSteps(
         recoverStuck = { recoverStuckFullScreen(it) },
         regatherConsent = { coordinator.onActivityResumed(it) },
-        showResumeAd = {},
+        showResumeAd = { resumeAds.onAppActivityResumed(it) },
         releaseLeaveMark = { resumeSuppression.onActivityResumed() },
     )
 
@@ -250,6 +262,8 @@ class AdsController @Inject internal constructor(
         offline = { !online.value },
         counter = loadCounter,
         logger = logger,
+        // A-14: a click on any ad skips the next return to the app (plan T-025).
+        onClicked = { resumeSuppression.markAdClicked() },
     )
 
     /** How ads were allowed in this process (S-13); null before the first result (S-19). */
@@ -330,6 +344,33 @@ class AdsController @Inject internal constructor(
         },
         clock = clock,
         scope = scope,
+        logger = logger,
+    )
+
+    /** The resume ad (plan T-025): decided when the process comes to foreground, shown on the next resume. */
+    private val resumeAds = ResumeAdTurns(
+        port = object : ResumeAdPort {
+            override fun readGate(): ResumeGate = readResumeGate()
+
+            override fun loadStateOf(placement: AdPlacement): String = opportunityLoadState(placement)
+
+            override fun recordOpportunity(placement: AdPlacement, result: String, loadState: String) =
+                telemetry.opportunity(placement.format, placement, result, loadState)
+
+            override fun loadIfNeeded(placement: AdPlacement) = loadFullScreenAdIfNeeded(placement)
+
+            override fun placementNow(): AdPlacement? = latestGlobalFlags.value?.let(::resumeAdPlacement)
+
+            override fun suppressedNow(): Boolean = resumeAdsSuppressed.value
+
+            override fun showAppOpen(activity: Activity, placement: AdPlacement) {
+                scope.launch { this@AdsController.showAppOpen(activity, placement, onFinished = {}) }
+            }
+
+            override fun showInterstitial(activity: Activity, placement: AdPlacement, combo: Boolean) {
+                scope.launch { showInterstitialTurn(activity, placement, combo, onFinished = {}) }
+            }
+        },
         logger = logger,
     )
 
@@ -463,6 +504,9 @@ class AdsController @Inject internal constructor(
                     coordinator.onForegroundChanged(foreground)
                 }
 
+                override fun onProcessForegroundChanged(foreground: Boolean) =
+                    this@AdsController.onProcessForegroundChanged(foreground)
+
                 override fun onActivityResumed(activity: Activity) = onAppActivityResumed(activity)
 
                 override fun onActivityPaused(activity: Activity) = onAppActivityPaused(activity)
@@ -472,6 +516,12 @@ class AdsController @Inject internal constructor(
         )
         tracker = activityTracker
         application.registerActivityLifecycleCallbacks(activityTracker)
+        // An app with no loading screen does not keep the resume ad silent for ever (question 7 of plan T-025).
+        scope.launch {
+            delay(STARTUP_FINISHED_CAP_MILLIS)
+            if (!startupFinished.value) logger.info(TAG, "Startup ad turn over: 45 s cap")
+            startupFinished.value = true
+        }
         scope.launch {
             flags.global
                 .map { shortcutActive(shortcutConfig.enabledInBuild, it.consentShortcutEnabled) }
@@ -526,6 +576,7 @@ class AdsController @Inject internal constructor(
         val startedAt = startedAtMillis
         if (startedAt == null) {
             logger.info(TAG, "startup ad: ads not started")
+            startupFinished.value = true
             return@withContext null
         }
         startupChoiceKnown.first { it }
@@ -551,7 +602,10 @@ class AdsController @Inject internal constructor(
                 opportunityLoadState(placement),
             )
         }
-        awaitStartupAd(probe, startedAt, logger = logger)?.let { StartupAdTurn(it) }
+        val turn = awaitStartupAd(probe, startedAt, logger = logger)?.let { StartupAdTurn(it) }
+        // No ad to show: the startup turn is over, the resume ad may show (question 7 of plan T-025).
+        if (turn == null) startupFinished.value = true
+        turn
     }
 
     /**
@@ -563,7 +617,12 @@ class AdsController @Inject internal constructor(
     internal fun showStartupAd(activity: Activity, turn: StartupAdTurn, onFinished: (interShown: Boolean) -> Unit) {
         scope.launch {
             var interShown = false
-            val completion = FullScreenCompletion(logger).apply { set { onFinished(interShown) } }
+            val completion = FullScreenCompletion(logger).apply {
+                set {
+                    startupFinished.value = true
+                    onFinished(interShown)
+                }
+            }
             if (activity.isFinishing || activity.isDestroyed) {
                 logger.info(TAG, "Startup ad ${turn.placement.key} skipped: activity gone")
                 completion.complete("activity_gone")
@@ -638,10 +697,30 @@ class AdsController @Inject internal constructor(
         if (placement.format == AdFormat.REWARDED) rewardedTurns.onStuck()
     }
 
-    // T-025 skeleton.
-    internal fun readResumeGate(): ResumeGate = ResumeGate(true, true, true, true, null, true, false, true)
+    /**
+     * The gate of the resume ad read now (plan T-025): what [ResumeAdTurns] reads when the process comes to
+     * foreground. Before the keys are read, resume counts as off.
+     */
+    internal fun readResumeGate(): ResumeGate {
+        val now = clock.nowMillis()
+        val placement = latestGlobalFlags.value?.let(::resumeAdPlacement)
+        return ResumeGate(
+            firstForeground = false,
+            startupFinished = startupFinished.value,
+            serving = canRequestAds.value,
+            suppressed = resumeAdsSuppressed.value,
+            placement = placement,
+            busy = presence.isBusy(now),
+            appOpenLockPassed = appOpenLockPassed(lastAppOpenClosedAt, now),
+            ready = placement != null && isFullScreenAdReady(placement),
+        )
+    }
 
-    internal fun onProcessForegroundChanged(foreground: Boolean) {}
+    /** The whole process came to foreground or went to background ([AdsActivityTracker]): the resume ad turn. */
+    internal fun onProcessForegroundChanged(foreground: Boolean) {
+        logger.info(TAG, if (foreground) "App in foreground" else "App in background")
+        resumeAds.onProcessForegroundChanged(foreground)
+    }
 
     /** An activity of the app was resumed ([AdsActivityTracker]): the steps of G-06, then S-25. */
     internal fun onAppActivityResumed(activity: Activity) {
@@ -733,19 +812,6 @@ class AdsController @Inject internal constructor(
             }
             onResult(result)
         }
-    }
-
-    /**
-     * Call from `Activity.onStart`. Counts the started activities of the app, so switching between activities or
-     * rotating the screen is not a return to the app (kept for the resume ad, T-025).
-     */
-    fun onAppForeground() {
-        if (startedActivities.onStart()) logger.info(TAG, "App in foreground")
-    }
-
-    /** Call from `Activity.onStop`. */
-    fun onAppBackground() {
-        if (startedActivities.onStop()) logger.info(TAG, "App in background")
     }
 
     /**
@@ -1867,6 +1933,9 @@ class AdsController @Inject internal constructor(
 
         /** Host of a full-screen ad drawn by the composition; `System.identityHashCode` gives 0 only for null. */
         const val NO_HOST_ACTIVITY = 0
+
+        /** The startup ad turn counts as over this long after [start] (question 7 of plan T-025, A-03 is 40 s). */
+        const val STARTUP_FINISHED_CAP_MILLIS = 45_000L
 
         /** Time to wait for a native ad before its space is removed (kept from wave 2 until T-027). */
         const val NATIVE_LOAD_TIMEOUT_MILLIS = 10_000L

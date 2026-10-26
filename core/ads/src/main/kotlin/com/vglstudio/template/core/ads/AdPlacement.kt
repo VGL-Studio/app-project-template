@@ -40,7 +40,10 @@ enum class AdFormat(val code: String) {
      */
     NATIVE_FULL_SCREEN("native_fullscreen"),
 
-    /** App open ad. Shown by the loading screen through [StartupAds] (T-024); resume ads come with T-025. */
+    /**
+     * App open ad. Shown by the loading screen through [StartupAds] (T-024) and when the app comes back to foreground
+     * (`resume`, T-025).
+     */
     APP_OPEN("app_open"),
 
     /**
@@ -142,7 +145,7 @@ enum class AdPlacement(
     val recordInterval: Boolean = true,
     /**
      * Switched on by the shared keys of section 10.1, with no `is_show_<code>` of its own (MC-09): the ads of the
-     * loading screen (T-024) and the native ad of the combo (T-026). Features never show it.
+     * loading screen (T-024), the native ad of the combo (T-026) and the resume ad (T-025). Features never show it.
      */
     val appWide: Boolean = false,
     /** The large call to action of 5.7 (56 dp, 17 sp, card 422 dp high); native medium only (`cta_large`). */
@@ -256,7 +259,10 @@ internal data class AdPlacementDeclaration(
     private companion object {
         val NATIVE_EVERY_FORMATS = setOf(AdFormat.NATIVE_SMALL, AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_IN_COLLECTION)
 
-        /** App open and interstitial when the app opens (T-024), native full screen for the combo (T-026). */
+        /**
+         * App open and interstitial when the app opens (T-024) or comes back (T-025), native full screen for the
+         * combo (T-026).
+         */
         val APP_WIDE_FORMATS = setOf(AdFormat.APP_OPEN, AdFormat.INTERSTITIAL, AdFormat.NATIVE_FULL_SCREEN)
     }
 }
