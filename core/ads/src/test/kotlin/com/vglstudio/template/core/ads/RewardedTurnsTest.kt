@@ -5,6 +5,7 @@ import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -533,6 +534,153 @@ class RewardedTurnsTest {
         assertFalse(logger.entries.any { it.message.contains(FakeRewardedPort.UNIT_ID) })
     }
 
+    /** Two taps of [declaration] waiting for the switch at the same time, then both gates open with [on]. */
+    private fun TestScope.doubleTapAwaitingSwitch(
+        declaration: AdPlacementDeclaration,
+        on: Boolean = true,
+        first: (RewardedOutcome) -> Unit = collect,
+        second: (RewardedOutcome) -> Unit = collect,
+    ) {
+        val gates = List(2) { CompletableDeferred<Boolean>() }
+        port.switchGates += gates
+        launch { request(declaration, first) }
+        launch { request(declaration, second) }
+        runCurrent()
+        gates.forEach { it.complete(on) }
+        runCurrent()
+    }
+
+    @Test
+    fun doubleTapNoAd_allow_grantsOnce_secondTapBusy() = runTest {
+        doubleTapAwaitingSwitch(rwAllow)
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), outcomes)
+        assertEquals(
+            listOf(Triple("rw_allow", "not_ready", "idle"), Triple("rw_allow", "busy", "loading")),
+            port.opportunities,
+        )
+        assertEquals(listOf("rw_allow"), port.loads)
+        // The second tap joined the first: it never waited for the switch itself.
+        assertEquals(1, port.switchGates.size)
+    }
+
+    @Test
+    fun doubleTapNoAd_allowAfter2_countsOneTry() = runTest {
+        doubleTapAwaitingSwitch(rwExport)
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), outcomes)
+        assertEquals(1, port.switchGates.size)
+
+        // Control (L-055): the next opening is the second try in a row, so the counter was kept, not dropped.
+        port.switchGates.clear()
+        request(rwExport)
+        assertEquals(listOf(false, true), outcomes.map { (it as RewardedOutcome.NoAd).granted })
+    }
+
+    @Test
+    fun doubleTapNoAd_block_oneOutcome_userMayTryAgain() = runTest {
+        doubleTapAwaitingSwitch(rwGetItem)
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), outcomes)
+        assertEquals(1, port.opportunities.count { it.second == "not_ready" })
+        assertEquals(1, port.opportunities.count { it.second == "busy" })
+        assertEquals(1, port.switchGates.size)
+
+        // The user may try again.
+        port.switchGates.clear()
+        port.ready["rw_get_item"] = true
+        request()
+        assertEquals(listOf("rw_get_item"), port.shows)
+    }
+
+    @Test
+    fun secondTapWhileLoading_joinsDecision() = runTest {
+        val load = CompletableDeferred<Unit>()
+        port.loadGates += load
+        launch { request(rwAllow) }
+        runCurrent()
+        assertEquals(listOf(Triple("rw_allow", "not_ready", "idle")), port.opportunities)
+
+        launch { request(rwAllow) }
+        runCurrent()
+        assertTrue(outcomes.isEmpty())
+        assertEquals(listOf("rw_allow"), port.loads)
+
+        load.complete(Unit)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), outcomes)
+        assertEquals(listOf("not_ready", "busy"), port.opportunities.map { it.second })
+        assertEquals(listOf("rw_allow"), port.loads)
+    }
+
+    @Test
+    fun doubleTapAwaitingSwitch_off_grantsOnce_noOpportunity() = runTest {
+        val first = CompletableDeferred<Boolean>()
+        port.switchGates += first
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request() }
+        launch { request() }
+        runCurrent()
+
+        first.complete(false)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.Granted), outcomes)
+        assertEquals(1, port.switchGates.size)
+        assertTrue(port.opportunities.isEmpty())
+        assertTrue(port.shows.isEmpty())
+    }
+
+    @Test
+    fun twoCallersOverlapNoAd_allow_onlyLatestGranted() = runTest {
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+
+        doubleTapAwaitingSwitch(rwAllow, first = { a += it }, second = { b += it })
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), a)
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), b)
+    }
+
+    @Test
+    fun doubleTapWithAdAwaitingSwitch_showsAgainBusy_grantOnce() = runTest {
+        port.ready["rw_get_item"] = true
+        doubleTapAwaitingSwitch(rwGetItem)
+
+        assertEquals(listOf("rw_get_item"), port.shows)
+        assertEquals(listOf("rw_get_item"), port.showAgains)
+        assertEquals(
+            listOf(Triple("rw_get_item", "shown", "ready"), Triple("rw_get_item", "busy", "idle")),
+            port.opportunities,
+        )
+        port.fireShowed()
+        port.fireReward()
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+    }
+
+    @Test
+    fun decisionsOfTwoPlacementsApart() = runTest {
+        val allow = mutableListOf<RewardedOutcome>()
+        val export = mutableListOf<RewardedOutcome>()
+        val gate = CompletableDeferred<Boolean>()
+        port.switchGates += gate
+        launch { request(rwAllow) { allow += it } }
+        runCurrent()
+
+        launch { request(rwExport) { export += it } }
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), export)
+
+        gate.complete(true)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), allow)
+        assertEquals(
+            listOf(Triple("rw_export", "not_ready", "idle"), Triple("rw_allow", "not_ready", "idle")),
+            port.opportunities,
+        )
+        assertFalse(port.opportunities.any { it.second == "busy" })
+    }
+
     /**
      * The port of [RewardedTurns] without the SDK: switches and states per placement code, every call recorded.
      * [ready] turns false once the ad is taken out to be shown, like the cache of [AdsController].
@@ -549,6 +697,9 @@ class RewardedTurnsTest {
 
         /** When not empty, each call of [enabled] waits for the next of these instead of answering at once. */
         val switchGates = ArrayDeque<CompletableDeferred<Boolean>>()
+
+        /** When not empty, each call of [loadIfNeeded] waits for the next of these before the load round. */
+        val loadGates = ArrayDeque<CompletableDeferred<Unit>>()
 
         val sends = mutableListOf<String>()
         val sendBlocked = mutableListOf<String>()
@@ -592,6 +743,7 @@ class RewardedTurnsTest {
 
         override suspend fun loadIfNeeded(declaration: AdPlacementDeclaration) {
             loads += declaration.code
+            loadGates.removeFirstOrNull()?.await()
             turns.loadIfNeeded(declaration)
         }
 
