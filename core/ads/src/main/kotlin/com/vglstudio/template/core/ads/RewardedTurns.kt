@@ -233,7 +233,13 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
                 val first = decision.first
                 show(declaration, first.activity, policy, first.onOutcome)
                 decisions -= declaration
-                val turn = turns.getValue(declaration)
+                val turn = turns[declaration]
+                if (turn == null) {
+                    // The show failed inside the call and ended the turn: every other dialog closes, blocked.
+                    decision.followers.map { it.onOutcome }.distinct().filter { it != first.onOutcome }
+                        .forEach { it(RewardedOutcome.NoAd(network = false, granted = false)) }
+                    return
+                }
                 // R-06: every tap that joined is a second tap of this turn.
                 decision.followers.forEach { showAgain(declaration, turn, it.activity, it.onOutcome) }
             }
