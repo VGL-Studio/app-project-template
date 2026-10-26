@@ -213,4 +213,40 @@ class StartupAdChoiceTest {
         assertTrue(AdPlacement.OPEN_APP in chosen)
         assertTrue(AdPlacement.OPEN_APP_INTER in chosen)
     }
+
+    @Test
+    fun placementSwitch_galleryAppOpen_followsOwnKey() = runTest {
+        val gallery = AdPlacement.GALLERY_APP_OPEN
+        // Its own key on, the keys of the loading screen off: on, with no wait for the first-open mark.
+        settings.set("is_show_gallery_app_open", true)
+        assertEquals(true, placementSwitch(gallery, flags, neverRead).first())
+        // Its own key off, the keys of the loading screen on: off.
+        settings.set("is_show_gallery_app_open", false)
+        settings.set("show_open_ads", true)
+        settings.set("show_open_ads_first_open", true)
+        assertEquals(false, placementSwitch(gallery, flags, neverRead).first())
+        // Control (L-055): the same keys switch on the app open of the loading screen.
+        assertEquals(true, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
+
+        // The loading screen never chooses the gallery placement, whatever the keys.
+        val base = globalFlags()
+        val chosen = mutableListOf<AdPlacement?>()
+        val bools = listOf(true, false)
+        for (open in bools) {
+            for (openFirst in bools) {
+                for (firstOpen in bools) {
+                    for (openType in OpenAdType.entries) {
+                        val global = base.copy(
+                            showOpenAds = open,
+                            showOpenAdsFirstOpen = openFirst,
+                            openAdType = openType,
+                        )
+                        chosen += startupAdPlacement(global, firstOpen)
+                    }
+                }
+            }
+        }
+        assertTrue(chosen.none { it == gallery })
+        assertTrue(AdPlacement.OPEN_APP in chosen)
+    }
 }

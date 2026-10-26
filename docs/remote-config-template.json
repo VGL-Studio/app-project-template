@@ -36,6 +36,26 @@
       "description": "Master switch for every ad. When false, the app loads and shows no ad at all. Name set by the template, not an AdsKit key.",
       "valueType": "BOOLEAN"
     },
+    "is_show_gallery_app_open": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_app_open (app_open).",
+      "valueType": "BOOLEAN"
+    },
+    "is_show_gallery_banner": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_banner (banner).",
+      "valueType": "BOOLEAN"
+    },
+    "is_show_gallery_banner_collapsible": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_banner_collapsible (banner_collapsible).",
+      "valueType": "BOOLEAN"
+    },
+    "is_show_gallery_in_collection": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_in_collection (native_in_collection).",
+      "valueType": "BOOLEAN"
+    },
     "is_show_gallery_inlist_medium": {
       "defaultValue": { "value": "false" },
       "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_inlist_medium (native_medium).",
@@ -51,11 +71,6 @@
       "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_interstitial (interstitial).",
       "valueType": "BOOLEAN"
     },
-    "is_show_gallery_native_collapsible": {
-      "defaultValue": { "value": "false" },
-      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_collapsible (native_collap).",
-      "valueType": "BOOLEAN"
-    },
     "is_show_gallery_native_full_screen": {
       "defaultValue": { "value": "false" },
       "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_full_screen (native_fullscreen).",
@@ -69,6 +84,16 @@
     "is_show_gallery_native_small": {
       "defaultValue": { "value": "false" },
       "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_small (native_small).",
+      "valueType": "BOOLEAN"
+    },
+    "is_show_gallery_native_step": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_step (native_step).",
+      "valueType": "BOOLEAN"
+    },
+    "is_show_gallery_native_step_full": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_step_full (native_fullscreen).",
       "valueType": "BOOLEAN"
     },
     "is_show_gallery_rw_action": {
@@ -95,6 +120,11 @@
       "defaultValue": { "value": "false" },
       "description": "Shows ads in this placement. Off by default. Derived key of placement sample_native_small (native_small).",
       "valueType": "BOOLEAN"
+    },
+    "native_every_gallery_in_collection": {
+      "defaultValue": { "value": "4" },
+      "description": "Number of items between two native ads of this placement, in items. Derived key of placement gallery_in_collection (native_in_collection).",
+      "valueType": "NUMBER"
     },
     "native_every_gallery_inlist_medium": {
       "defaultValue": { "value": "8" },

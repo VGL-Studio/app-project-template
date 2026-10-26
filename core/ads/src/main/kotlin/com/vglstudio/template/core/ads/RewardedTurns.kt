@@ -86,8 +86,11 @@ internal interface RewardedPort {
  * - It never reads nor moves the `ads_interval` mark (R-05) and has no `FullScreenAdGuard`.
  */
 internal class RewardedTurns(private val port: RewardedPort, private val logger: AppLogger) {
-    /** One turn waiting for its ad to close: its callers, the latest last, and what the SDK reported so far. */
-    private class Turn(val raisedPresence: Boolean) {
+    /**
+     * One turn waiting for its ad to close: its callers, the latest last, and what the SDK reported so far; [policy]
+     * applies when every show of it fails.
+     */
+    private class Turn(val raisedPresence: Boolean, val policy: RewardedNoAdPolicy) {
         val callers = mutableListOf<(RewardedOutcome) -> Unit>()
         var shows = 1
         var showFailures = 0
@@ -97,6 +100,9 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
 
     private val turns = mutableMapOf<AdPlacementDeclaration, Turn>()
     private val noAdInARow = mutableMapOf<AdPlacementDeclaration, Int>()
+
+    /** The policy of the last request of each placement; a request with another one counts its tries from 0. */
+    private val lastPolicy = mutableMapOf<AdPlacementDeclaration, RewardedNoAdPolicy>()
     private val lastLoadNetworkError = mutableMapOf<AdPlacementDeclaration, Boolean>()
 
     /** Rounds between their first check and their decision, so a second call meanwhile sends nothing more. */
@@ -134,13 +140,21 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         lastLoadNetworkError[declaration] = isNetworkLoadError(code, offline)
     }
 
-    /** One tap on "Watch ad" of [declaration], shown on [activity]; [onOutcome] gets what happens (R-02 to R-06). */
+    /**
+     * One tap on "Watch ad" of [declaration], shown on [activity]; [onOutcome] gets what happens (R-02 to R-06).
+     * [policy] applies when no ad can be shown: the line's own by default, or the one picked on the staging ad gallery
+     * ([rewardedPolicyOf], plan T-036). A request with another policy than the last one of [declaration] starts the
+     * count of tries with no ad again, so `allow_after_<n>` counts from the start after the tester changed it.
+     */
     suspend fun request(
         declaration: AdPlacementDeclaration,
         activity: Activity?,
         onOutcome: (RewardedOutcome) -> Unit,
+        policy: RewardedNoAdPolicy = declaration.effectiveNoAdPolicy,
     ) {
         val code = declaration.code
+        val previousPolicy = lastPolicy.put(declaration, policy)
+        if (previousPolicy != null && previousPolicy != policy) noAdInARow -= declaration
         // R-06 first (L-061): a turn still waiting for its ad keeps the second tap, even if the key went off since,
         // so the reward of that ad is the only outcome that runs the action.
         turns[declaration]?.let { pending ->
@@ -170,8 +184,8 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
                 logger.info(TAG, "Rewarded $code granted: consent gate closed")
                 onOutcome(RewardedOutcome.Granted)
             }
-            reason != null || !port.take(declaration) -> noAd(declaration, reason, onOutcome)
-            else -> show(declaration, activity, onOutcome)
+            reason != null || !port.take(declaration) -> noAd(declaration, reason, policy, onOutcome)
+            else -> show(declaration, activity, policy, onOutcome)
         }
     }
 
@@ -196,21 +210,27 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
     private suspend fun noAd(
         declaration: AdPlacementDeclaration,
         reason: RewardedNoAdReason?,
+        policy: RewardedNoAdPolicy,
         onOutcome: (RewardedOutcome) -> Unit,
     ) {
         val network = reason == RewardedNoAdReason.NETWORK
         port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
         port.loadIfNeeded(declaration)
-        val granted = countNoAd(declaration)
+        val granted = countNoAd(declaration, policy)
         val label = if (network) "network" else NOT_READY
         logger.info(TAG, "Rewarded ${declaration.code} skipped: $label (granted $granted)")
         onOutcome(RewardedOutcome.NoAd(network = network, granted = granted))
     }
 
-    private fun show(declaration: AdPlacementDeclaration, activity: Activity?, onOutcome: (RewardedOutcome) -> Unit) {
+    private fun show(
+        declaration: AdPlacementDeclaration,
+        activity: Activity?,
+        policy: RewardedNoAdPolicy,
+        onOutcome: (RewardedOutcome) -> Unit,
+    ) {
         port.recordOpportunity(declaration, SHOWN, READY)
         // R-06: shown even when another full-screen ad holds the flag; then only that ad lowers it.
-        val turn = Turn(raisedPresence = port.raisePresence(declaration, activity))
+        val turn = Turn(raisedPresence = port.raisePresence(declaration, activity), policy = policy)
         turn.callers += onOutcome
         turns[declaration] = turn
         logger.info(TAG, "Rewarded ${declaration.code} shown")
@@ -256,7 +276,7 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         }
         turns -= declaration
         if (turn.raisedPresence) port.lowerPresence()
-        val granted = countNoAd(declaration)
+        val granted = countNoAd(declaration, turn.policy)
         logger.info(TAG, "Rewarded ${declaration.code} skipped: show failed $code (granted $granted)")
         val latest = turn.callers.last()
         turn.callers.dropLast(1).forEach { it(RewardedOutcome.NoAd(network = false, granted = false)) }
@@ -274,9 +294,9 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
     }
 
     /** One more try with no ad in a row; back to 0 once the policy lets the action run. */
-    private fun countNoAd(declaration: AdPlacementDeclaration): Boolean {
+    private fun countNoAd(declaration: AdPlacementDeclaration, policy: RewardedNoAdPolicy): Boolean {
         val tries = (noAdInARow[declaration] ?: 0) + 1
-        val granted = grantsWithoutAd(declaration.effectiveNoAdPolicy, tries)
+        val granted = grantsWithoutAd(policy, tries)
         if (granted) noAdInARow -= declaration else noAdInARow[declaration] = tries
         return granted
     }

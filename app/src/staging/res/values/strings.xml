@@ -17,4 +17,47 @@
     <string name="ad_gallery_list_item" translatable="false">List item %1$d</string>
     <string name="ad_gallery_inspector_failed" translatable="false">Ad Inspector unavailable (code %1$d). Register this phone as a test device in AdMob.</string>
     <string name="ad_gallery_inspector_not_ready" translatable="false">Ads are not started yet (consent).</string>
+    <!-- Plan T-036: the pages of the new formats. -->
+    <string name="ad_gallery_more_formats" translatable="false">More formats</string>
+    <string name="ad_gallery_app_open" translatable="false">App open</string>
+    <string name="ad_gallery_open_banners" translatable="false">Banners</string>
+    <string name="ad_gallery_open_grid" translatable="false">Grid ads</string>
+    <string name="ad_gallery_open_pager" translatable="false">Pager ads</string>
+    <string name="ad_gallery_open_flow" translatable="false">Flow steps</string>
+    <string name="ad_gallery_open_rewarded" translatable="false">Rewarded</string>
+    <string name="ad_gallery_open_status" translatable="false">Ad status</string>
+    <string name="ad_gallery_banners_title" translatable="false">Banners</string>
+    <string name="ad_gallery_grid_title" translatable="false">Grid ads (every %1$d items)</string>
+    <string name="ad_gallery_grid_title_off" translatable="false">Grid ads (off)</string>
+    <string name="ad_gallery_grid_item" translatable="false">Item %1$d</string>
+    <string name="ad_gallery_pager_title" translatable="false">Pager ads</string>
+    <string name="ad_gallery_pager_page" translatable="false">Page %1$d</string>
+    <string name="ad_gallery_pager_hint" translatable="false">Swipe, page %1$d of %2$d</string>
+    <string name="ad_gallery_flow_title" translatable="false">Flow steps</string>
+    <string name="ad_gallery_flow_step" translatable="false">Step %1$d of %2$d</string>
+    <string name="ad_gallery_flow_next" translatable="false">Next</string>
+    <string name="ad_gallery_rewarded_title" translatable="false">Rewarded</string>
+    <string name="ad_gallery_rewarded_placement" translatable="false">Placement: gallery_rw_action</string>
+    <string name="ad_gallery_rewarded_block" translatable="false">If no ad: block</string>
+    <string name="ad_gallery_rewarded_allow" translatable="false">If no ad: allow</string>
+    <string name="ad_gallery_rewarded_allow_after" translatable="false">If no ad: allow after 2 tries</string>
+    <string name="ad_gallery_rewarded_run" translatable="false">Run action</string>
+    <string name="ad_gallery_rewarded_ran" translatable="false">Action ran %1$d times</string>
+    <string name="ad_gallery_rewarded_dialog_title" translatable="false">Watch an ad to run the action?</string>
+    <string name="ad_gallery_status_title" translatable="false">Ad status</string>
+    <string name="ad_gallery_status_line" translatable="false">%1$s: %2$s</string>
+    <string name="ad_gallery_status_consent_path" translatable="false">Consent path</string>
+    <string name="ad_gallery_status_allowed" translatable="false">Ads allowed now</string>
+    <string name="ad_gallery_status_temporary" translatable="false">Temporary right</string>
+    <string name="ad_gallery_status_privacy" translatable="false">Privacy options required</string>
+    <string name="ad_gallery_status_sdk" translatable="false">SDK ready</string>
+    <string name="ad_gallery_status_shortcut" translatable="false">Consent shortcut (remote)</string>
+    <string name="ad_gallery_status_combo" translatable="false">Native after interstitial</string>
+    <string name="ad_gallery_status_bottom" translatable="false">Native bottom slot</string>
+    <string name="ad_gallery_status_collapsible" translatable="false">Collapsible layer</string>
+    <string name="ad_gallery_status_on" translatable="false">on</string>
+    <string name="ad_gallery_status_off" translatable="false">off</string>
+    <string name="ad_gallery_status_yes" translatable="false">yes</string>
+    <string name="ad_gallery_status_no" translatable="false">no</string>
+    <string name="ad_gallery_status_pending" translatable="false">pending</string>
 </resources>

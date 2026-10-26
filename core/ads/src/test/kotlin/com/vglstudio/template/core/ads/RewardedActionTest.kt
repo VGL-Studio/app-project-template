@@ -357,6 +357,44 @@ class RewardedActionTest {
     }
 
     @Test
+    fun policyOverride_nonStagingPlacement_isRejected() {
+        // No rewarded placement of the template is outside the gallery, so the line is one of the test's own,
+        // passed to the function that rememberRewardedAction wraps (plan T-036, step 2b).
+        val notStaging = AdPlacementDeclaration("rw_export", AdFormat.REWARDED)
+        val error = runCatching {
+            composeRule.setContent {
+                rememberRewardedActionOf(
+                    placement = AdPlacement.GALLERY_RW_ACTION,
+                    declaration = notStaging,
+                    onGranted = {},
+                    noAdPolicyOverride = RewardedNoAdPolicy.Allow,
+                )
+            }
+            composeRule.waitForIdle()
+        }.exceptionOrNull()
+
+        assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+    }
+
+    @Test
+    fun policyOverride_galleryPlacement_isAccepted() {
+        // Control of the test above: the gallery placement takes an override through the public entry.
+        composeRule.setContent {
+            AppTheme {
+                val current = rememberRewardedAction(
+                    AdPlacement.GALLERY_RW_ACTION,
+                    onGranted = { granted++ },
+                    noAdPolicyOverride = RewardedNoAdPolicy.Allow,
+                )
+                action = current
+                RewardedAdDialog(current, title = TITLE)
+            }
+        }
+        start()
+        assertEquals(1, granted)
+    }
+
+    @Test
     fun watch_dialogStaysUntilOnScreen_thenGrantedRunsActionOnce() {
         composeRule.setContent { Subject() }
         enabled.tryEmit(true)
@@ -582,6 +620,27 @@ class RewardedActionTest {
         )
     }
 
+    @Test
+    fun realController_policyOverrideAllow_watchWithoutAd_runsAction() {
+        // The override reaches the rewarded turns of the controller (plan T-036, step 2b): with no ad, allow runs
+        // the action where the line's own policy (block, test above) runs nothing.
+        val controller = realController()
+        composeRule.runOnUiThread { controller.openConsentGateForTest() }
+        setRealContent(controller, override = RewardedNoAdPolicy.Allow)
+
+        start()
+        assertEquals(1, cards())
+        tapWatch()
+
+        assertEquals(0, cards())
+        assertEquals(1, granted)
+        assertTrue(
+            logger.entries.any {
+                it.tag == "Ads" && it.message.startsWith("Rewarded gallery_rw_action skipped: not_ready (granted true)")
+            },
+        )
+    }
+
     private val logger = RecordingAppLogger()
 
     private fun realController(): AdsController {
@@ -595,11 +654,15 @@ class RewardedActionTest {
         )
     }
 
-    private fun setRealContent(controller: AdsController) {
+    private fun setRealContent(controller: AdsController, override: RewardedNoAdPolicy? = null) {
         composeRule.setContent {
             AdsHost(controller) {
                 AppTheme {
-                    val current = rememberRewardedAction(AdPlacement.GALLERY_RW_ACTION, onGranted = { granted++ })
+                    val current = rememberRewardedAction(
+                        AdPlacement.GALLERY_RW_ACTION,
+                        onGranted = { granted++ },
+                        noAdPolicyOverride = override,
+                    )
                     action = current
                     RewardedAdDialog(current, title = TITLE)
                 }

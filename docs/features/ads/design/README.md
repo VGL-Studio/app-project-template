@@ -35,6 +35,8 @@ docs/design-system/tokens.json.
 
 Ảnh `SampleScreen_disabled_light` (đã có) không đổi: trạng thái tắt không có quảng cáo.
 
+Khu "More formats" của trang mặc định (dưới y 786, ngoài khung thiết kế) và sáu trang "Banners", "Grid ads", "Pager ads", "Flow steps", "Rewarded", "Ad status" của `AdGalleryScreen` (T-036) không có ảnh thiết kế: màn xem thử là công cụ của nhóm, dựng theo token và component có sẵn; ảnh chuẩn `AdGalleryScreen_*` của plan T-036 trong `app/src/test/screenshots` là bản gốc (câu hỏi 1 của plan đó).
+
 **Vẽ lại theo kích thước AdsKit (T-035, 2026-10-25, anh Nhật duyệt).** Component trên trang "Components / Native ads" theo `docs/ops/ads-business-rules.md`, mục 5.7:
 
 - `Native/Small` (khe đáy): cao 80 dp, icon 36 dp, CTA cao 34 dp chữ 13 sp, nhãn "Ad" 10 sp.
