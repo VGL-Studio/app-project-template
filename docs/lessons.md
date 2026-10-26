@@ -639,3 +639,28 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` mục 4: rời nhánh task trước việc cuối phiên.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/auto-run.md` mục 4, bước 0: `git checkout --detach origin/main` trước việc cuối phiên; `docs/ops/token-usage.md`. Không đổi `scripts/token-usage.py`; issue #188.
+
+### L-104. Lệnh tải log job của `auto-run.md` bước 8 dùng cờ `--allow-escape-sequences` mà `gh` của môi trường cloud không có
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-05, task T-044 (PR #208)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `docs/auto-run.md` bước 8 ghi `gh api --allow-escape-sequences "repos/{owner}/{repo}/actions/jobs/<job id>/logs" > ci.log`. `gh` 2.89.0 của môi trường cloud trả "unknown flag: --allow-escape-sequences" và in phần trợ giúp vào `ci.log`; `scripts/failure-kind.sh --playbook ci.log` vẫn chạy trên tệp đó và báo `khong-co`, dễ hiểu nhầm là lỗi thật chưa có trong bảng. Bỏ cờ thì tải được log (1185 dòng).
+- **Đề xuất sửa:** `docs/auto-run.md` bước 8 bỏ cờ `--allow-escape-sequences`; `scripts/failure-kind.sh` báo lỗi riêng khi tệp log là phần trợ giúp của `gh` (dòng `Usage:  gh api`).
+- **Trạng thái:** proposed
+
+### L-105. Job `ui-test` trên máy của GitHub nhận 403 từ Maven Central khi tải thư viện của test trên emulator
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-05, task T-044 (PR #208, lần chạy 40369736285)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `:app:connectedStagingDebugAndroidTest` đỏ với "Could not GET 'https://repo.maven.apache.org/maven2/.../proto-google-common-protos-2.17.0.pom'. Received status code 403 from server: Forbidden" (thư viện của `com.android.tools.utp`), rồi "Không có test nào chạy trên emulator". `failure-kind.sh --playbook` báo `khong-co`. Chạy lại job đỏ một lần thì xanh. Lỗi tải, không phải lỗi của code.
+- **Đề xuất sửa:** thêm một dòng vào `docs/ops/failure-playbook.md`: mẫu `repo\.maven\.apache\.org.*Received status code 403`, job `ui-test` hay `build-and-test`, loại `chay-lai` (một lần, không tính vào 3 lần sửa), kèm tệp log thật trong `scripts/tests/playbook/`.
+- **Trạng thái:** proposed
+
+### L-106. Chạy thử của plan dùng khung tạm cao 0 dp nên không thấy test có sẵn mâu thuẫn với bố cục mới
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-05, task T-041 (dừng ở bước 5)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-041 đổi vị trí khung thẻ 250 dp của màn xem thử (đè ở đáy vùng bước thay vì nằm dưới pager). Mục 4.1 chạy thử với khung thẻ cao 0 dp ở bước toàn trang, nên không đo được bố cục ở bước thẻ. Test có sẵn `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` khẳng định thẻ nằm dưới pager về hình học; trong phiên test này đỏ và task phải dừng (điều kiện 3), sau khi đã viết xong code.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan đổi vị trí hay kích thước của một phần tử giao diện có tag thì tìm mọi test đo `bounds` hay vị trí của tag đó (`grep -rn "<TAG>" */src/test*`) và liệt kê ở mục 3.2 từng câu khẳng định sẽ còn đúng hay phải đổi (đặt thành câu hỏi khi phải đổi); chạy thử ở mục 4.1 dựng đúng bố cục mới, không dùng khung tạm.
+- **Trạng thái:** proposed
+

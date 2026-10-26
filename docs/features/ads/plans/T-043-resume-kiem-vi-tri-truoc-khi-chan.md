@@ -1,7 +1,7 @@
 ---
 ticket: T-043
 title: Quảng cáo khi quay lại app: kiểm vị trí tắt trước cổng chặn (L-A05)
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -194,3 +194,17 @@ Unit test JVM chạy bằng Robolectric, cùng cách của `ResumeAdTurnsTest` (
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-05, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #203, commit đầu `9a604a2`, commit trên nhánh chính `d852310` (2026-10-26 15:50 UTC).
+- **Nhánh, PR:** `claude/T-043-resume-kiem-vi-tri` (từ nhánh chính `d1165e0`). Commit test `5bda956`, code và tài liệu `9a604a2`. Phiên chính tự làm bước 3 đến 5 (cỡ S).
+- **Đã làm:** mục 3.1 bước 1 đến 3: đổi chỗ hai khối kiểm ở `ResumeAdTurns.onAppActivityResumed`, sửa `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing`, một câu ở `docs/ops/ads-guide.md`.
+- **Test viết trước:** 2 test mới của `ResumeAdTurnsTest`, cả hai đỏ đúng lý do trên code cũ (`AssertionError` ở `opportunities.isEmpty()`: ghi một `suppressed`). Test sửa của `AdsControllerResumeTest` qua trên code cũ, đúng ngoại lệ (1) của plan. Test JVM mọi module với test viết trước: 0 đỏ ngoài 2 test đó.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa. Ghi chú: phần đối chứng của test bộ điều khiển kiểm vị trí, kết quả, `load_state` mà không kiểm `adFormat` (plan ghi `APP_OPEN`).
+- **Kết quả CI:** `pr-check` xanh lần đầu (lần chạy 40351133284). Trên máy: `scripts/check.sh` 1366 test JVM, 0 lỗi, 82 ảnh, Cổng chất lượng: QUA.
+- **Lệch so với plan:** phần đối chứng không kiểm `adFormat` (ghi chú của rà soát).
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** không có ảnh mới hay đổi.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** kiểm trên máy (không bắt buộc) theo dòng cuối mục 4.
