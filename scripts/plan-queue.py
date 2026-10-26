@@ -12,12 +12,13 @@ Order: `sprint` (a number before a word before empty), then the ticket number.
 
 stdout: at most N lines `T-NNN<TAB><ticket path>`. stderr: one line per ticket skipped, with the reason.
 Exit 0 when the documents were read (also for an empty list); 2 when a document, a `git` or a `gh` call failed.
-Reads every open pull request and its files (gh api --paginate). Writes no file.
+Reads every open pull request and its files (gh api, page by page). Writes no file.
 The session runs `git fetch origin` before calling it.
 PLAN_QUEUE_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -72,6 +73,19 @@ def read_tickets(run_check):
     return tickets
 
 
+def api_all(path):
+    """Every item of a list endpoint. Pages are read with "&page=N" on the repos/<owner>/<repo> path: `gh api
+    --paginate` follows GitHub's Link header, which names the repository by numeric id, and the proxy of a cloud
+    session refuses such paths (L-092). The path must already end in "per_page=100"."""
+    items = []
+    for page in range(1, 51):
+        batch = json.loads(run(["gh", "api", f"{path}&page={page}"]) or "[]")
+        items.extend(batch)
+        if len(batch) < 100:
+            break
+    return items
+
+
 def plan_branches():
     out = run(["git", "-C", str(ROOT), "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin/claude/"])
     return out.split()
@@ -84,12 +98,10 @@ def open_pr_files():
     if not match:
         fail("không xác định được repo GitHub từ remote.origin.url.")
     repo = f"{match.group(1)}/{match.group(2)}"
-    numbers = run(["gh", "api", f"repos/{repo}/pulls?state=open&per_page=100", "--paginate", "--jq", ".[].number"])
     files = {}
-    for number in numbers.split():
-        names = run(["gh", "api", f"repos/{repo}/pulls/{number}/files?per_page=100", "--paginate",
-                     "--jq", ".[].filename"])
-        files[int(number)] = names.split()
+    for pull in api_all(f"repos/{repo}/pulls?state=open&per_page=100"):
+        number = pull["number"]
+        files[int(number)] = [f["filename"] for f in api_all(f"repos/{repo}/pulls/{number}/files?per_page=100")]
     return files
 
 
