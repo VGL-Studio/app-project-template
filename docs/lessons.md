@@ -593,8 +593,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** plan T-048 của app có nhiều test của `scripts/device-scenario.py` chạy trên `scripts/tests/fake-adb` với chuỗi dump giả. Người viết plan đọc code rồi suy ra test nào thất bại và vì sao; 4 vòng rà soát liền có điểm chặn vì kỳ vọng sai (ví dụ `ui-seq.n` của `fake-adb` không vượt số tệp của chuỗi). Chỉ hết khi mọi test mới được chạy thật trên code hiện tại trong một khối tạm không commit. Sau đó ở app: 29/32 test thất bại đúng lý do, 3 đối chứng qua như plan ghi, CI xanh lần đầu; T-049 và RUN-20261026-01 lặp lại kết quả đó (L-075 của app: verified).
 - **Đề xuất sửa:** test của script chạy trên chuỗi giả hay tệp mẫu được chạy thật lúc viết plan; mục 4.1 ghi kết quả thật của từng test.
-- **Trạng thái:** applied
-- **Áp dụng:** `docs/CLAUDE.md` mục Khi viết plan; `docs/ops/pre-run-review.md` mục 2.2; issue #163.
+- **Trạng thái:** rejected: anh Nhật quyết 2026-10-26 không nhận, vì trái ADR-0029 (không chạy thử lúc soạn plan; test viết trong phiên tự chạy). Ghi lại để đối chiếu với app.
 
 ### L-099. Phiên đẩy commit test của task sau trước khi có kết quả `main-guard` của lần merge trước
 
