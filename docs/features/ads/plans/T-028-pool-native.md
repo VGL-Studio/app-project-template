@@ -1,7 +1,7 @@
 ---
 ticket: T-028
 title: Pool native và native trong tập hợp (lưới, danh sách, pager), medium
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # sửa theo rà soát độc lập (2 chặn, 9 nên sửa, ghi chú) trước khi duyệt, chưa duyệt nên giữ 1
 risk_score:                  # để trống: chạm điểm chặn (ads, analytics, core)
 risk_level: high             # low | medium | high
@@ -378,3 +378,7 @@ Mọi test JVM ở `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/` t
 - **Ảnh chuẩn:** ghi lại `NativeAdCard_medium_light`, `_dark`, `NativeAdPlaceholder_medium_light`, `AdGalleryScreen_default_light`, `_dark`, `_small`, `AdGalleryScreen_inlist_light`, `_small`; mới `NativeAdCard_medium-cta-large_light`, `NativeAdCard_card_light`, `_dark`, `NativeAdPlaceholder_card_light`. So thiết kế: `AdGalleryScreen_default_*` 2.0%, `AdGalleryScreen_inlist_light` 1.7%.
 - **Việc còn lại:** merge PR #185 khi `merge-if-green.sh` chạy được (người giảm số nhánh xuống dưới 101 hay sửa script, L-092), hoặc đưa cùng phiên bản plan vào danh sách chạy mới, tiếp tục trên nhánh `claude/T-028-pool-native` từ bước 9.
 - **Cần người xem:** 12 ảnh chuẩn; điểm nên sửa vòng 2 và các ghi chú; kiểm thủ công theo mục 4.
+
+### Merge sau phiên, 2026-10-26 (phiên giám sát)
+
+- **Kết quả:** đã merge. Anh Nhật chọn dọn nhánh (L-092): xóa 93 nhánh `claude/*` của PR đã merge hay đã đóng, bật "Automatically delete head branches" của repo; repo còn 8 nhánh. `scripts/merge-if-green.sh 185 --update` chạy từ máy dev, merge PR #185 tại `f096e7c`, commit trên nhánh chính `135fac7`. Không đổi code so với lúc CI xanh.

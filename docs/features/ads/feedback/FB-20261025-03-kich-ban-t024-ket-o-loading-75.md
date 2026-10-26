@@ -51,3 +51,7 @@ Từ chối đồng ý thì màn loading không chờ quảng cáo mở app, app
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
 Đề xuất của AI: xử lý cùng FB-20261025-01 (sửa kịch bản hay cách từ chối đồng ý trên emulator), thêm bước thử lại khi màn loading báo lỗi.
+
+## Chạy lại 2026-10-26
+
+`device-session.yml` lần chạy 40249869438 trên `135fac7` (có thêm T-028), phiên `TS-20261026-01`, cùng hạt giống monkey 20261017: crash 0, ANR 0, monkey đủ 1500 sự kiện; kịch bản `T-024-mo-app-tu-choi-dong-y.txt` đạt (20 giây). Không lặp lại; giữ mục này để so nếu gặp lại.

@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-2, KB-3, KB-21]   # KB-2 tiêu chí 3 (hai ô medium cùng màn khác quảng cáo), thêm 2026-10-25 theo câu hỏi 15 của plan T-027
 owner: Nhật
-status: approved
+status: on-staging
 risk: high
 size: M
 depends_on: [T-011, T-027, T-040]
