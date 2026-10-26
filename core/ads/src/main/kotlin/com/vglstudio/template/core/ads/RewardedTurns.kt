@@ -231,15 +231,23 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
             }
             else -> {
                 val first = decision.first
-                show(declaration, first.activity, policy, first.onOutcome)
-                decisions -= declaration
+                // Held while the SDK is called: a show that fails inside the call ends like a decision with no ad.
+                var failedAtOnce: RewardedOutcome? = null
+                val held: (RewardedOutcome) -> Unit = { failedAtOnce = it }
+                show(declaration, first.activity, policy, held)
                 val turn = turns[declaration]
                 if (turn == null) {
-                    // The show failed inside the call and ended the turn: every other dialog closes, blocked.
-                    decision.followers.map { it.onOutcome }.distinct().filter { it != first.onOutcome }
-                        .forEach { it(RewardedOutcome.NoAd(network = false, granted = false)) }
+                    // Every tap that joined is `busy`, as with no ad (section 8.2).
+                    repeat(decision.followers.size) {
+                        port.recordOpportunity(declaration, BUSY, port.loadState(declaration))
+                    }
+                    val outcome = failedAtOnce ?: RewardedOutcome.NoAd(network = false, granted = false)
+                    endDecision(declaration, decision, outcome)
                     return
                 }
+                decisions -= declaration
+                turn.callers[turn.callers.indexOf(held)] = first.onOutcome
+                failedAtOnce?.let(first.onOutcome)
                 // R-06: every tap that joined is a second tap of this turn.
                 decision.followers.forEach { showAgain(declaration, turn, it.activity, it.onOutcome) }
             }
