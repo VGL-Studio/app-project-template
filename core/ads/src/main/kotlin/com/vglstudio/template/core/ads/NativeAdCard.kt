@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -45,14 +47,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -157,6 +162,9 @@ internal object NativeAdDimens {
     val CallToActionMinWidth = 80.dp
     val MediaHeight = 196.dp
     val FullMediaHeight = 200.dp
+
+    /** The least media of a native ad, 120 x 120 dp (KB-2, AdMob); the full native ad never shrinks it below this. */
+    val MinMediaSize = 120.dp
     val BodyHeight = 40.dp
     val AdChoicesSize = 16.dp
     val StarRowHeight = 16.dp
@@ -181,8 +189,9 @@ internal object NativeAdDimens {
     val StepHeadlineTextSize = 13.sp
 
     /**
-     * Full native: fixed, so its placeholder matches it: 1 + 24 top, head 40, media 200, body 40 (two lines), call to
-     * action 36, star row 16, four 12 dp gaps between these five parts, 12 + 1 bottom.
+     * Full native, the height of its placeholder: 1 + 24 top, head 40, media 200, body 40 (two lines), call to action
+     * 36, star row 16, four 12 dp gaps between these five parts, 12 + 1 bottom. With large text the media shrinks to
+     * keep this height, down to [MinMediaSize]; only past that does the card grow ([fullMediaHeight], plan T-044).
      */
     val FullHeight = 418.dp
     val FullPlaceholderHeight = FullHeight
@@ -267,7 +276,14 @@ internal fun NativeAdLayout(
     NativeAdFrame(
         modifier = modifier
             .fillMaxWidth()
-            .height(NativeAdDimens.heightOf(size, ctaLarge))
+            .then(
+                // The full ad grows past 418 dp only when its media reaches the floor (FullLayout).
+                if (size == NativeAdSize.FULL) {
+                    Modifier.heightIn(min = NativeAdDimens.FullHeight)
+                } else {
+                    Modifier.height(NativeAdDimens.heightOf(size, ctaLarge))
+                },
+            )
             .testTag(NativeAdTestTags.CARD),
     ) {
         when (size) {
@@ -398,34 +414,70 @@ private fun StepLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
 }
 
 /**
- * The full native ad (ads-business-rules.md 5.7): head, 200 dp media, body of two lines, call to action, star row.
- * Every part has a fixed height, so the card keeps the height of its placeholder with any text.
+ * The full native ad (ads-business-rules.md 5.7): head, media, body of two lines, call to action, star row, 12 dp
+ * apart. At font scale 1.0 the media is 200 dp and the card 418 dp, the height of its placeholder. When the text
+ * grows (system font size), the media shrinks first, never below [NativeAdDimens.MinMediaSize] ([fullMediaHeight],
+ * plan T-044): the call to action, the star row and the two body lines keep their size, and the card stays 418 dp up
+ * to font scale 2.0. Only past the floor (font scales a device does not offer) does the card grow. A `Column` cannot
+ * hold this floor (a weighted child gets a fixed constraint), so the parts are measured and placed by hand.
  */
 @Composable
 private fun FullLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
-    Column(
+    Layout(
+        content = {
+            NativeAdHeader(assets, binder, iconSize = NativeAdDimens.FullIconSize)
+            NativeAdMediaArea(binder, Modifier.fillMaxWidth())
+            val bodyModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.BodyHeight)
+            val body = assets.body
+            if (body != null) {
+                NativeAdBody(
+                    body,
+                    binder,
+                    maxLines = FULL_BODY_LINES,
+                    modifier = bodyModifier,
+                    minLines = FULL_BODY_LINES,
+                )
+            } else {
+                Spacer(bodyModifier)
+            }
+            val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight)
+            val callToAction = assets.callToAction
+            if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
+            NativeAdStarRow(assets.starRating, Modifier.fillMaxWidth().height(NativeAdDimens.StarRowHeight))
+        },
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom),
-        verticalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
-    ) {
-        NativeAdHeader(assets, binder, iconSize = NativeAdDimens.FullIconSize)
-        NativeAdMediaArea(binder, Modifier.fillMaxWidth().height(NativeAdDimens.FullMediaHeight))
-        val bodyModifier = Modifier.fillMaxWidth().height(NativeAdDimens.BodyHeight)
-        val body = assets.body
-        if (body != null) {
-            NativeAdBody(body, binder, maxLines = FULL_BODY_LINES, modifier = bodyModifier, minLines = FULL_BODY_LINES)
-        } else {
-            Spacer(bodyModifier)
+    ) { measurables, constraints ->
+        check(measurables.size == FULL_PARTS) { "The full native ad has $FULL_PARTS parts, got ${measurables.size}" }
+        val width = constraints.maxWidth
+        val free = Constraints(minWidth = width, maxWidth = width)
+        val header = measurables[0].measure(free)
+        val rest = measurables.drop(2).map { it.measure(free) }
+        val gap = NativeAdDimens.PartGap.roundToPx()
+        val others = header.height + rest.sumOf { it.height } + gap * (FULL_PARTS - 1)
+        val inner = (NativeAdDimens.FullHeight - MediumInnerTop - MediumInnerBottom).roundToPx()
+        val mediaHeight = fullMediaHeight(inner, others, NativeAdDimens.MinMediaSize.roundToPx())
+        val media = measurables[1].measure(Constraints.fixed(width, mediaHeight))
+        val parts = listOf(header, media) + rest
+        layout(width, constraints.constrainHeight(others + mediaHeight)) {
+            var y = 0
+            parts.forEach { part ->
+                part.placeRelative(0, y)
+                y += part.height + gap
+            }
         }
-        val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight)
-        val callToAction = assets.callToAction
-        if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
-        NativeAdStarRow(assets.starRating, Modifier.fillMaxWidth().height(NativeAdDimens.StarRowHeight))
     }
 }
 
 private const val FULL_BODY_LINES = 2
+private const val FULL_PARTS = 5
+
+/**
+ * Height of the media of the full native ad: what the [inner] height of the 418 dp card leaves after the [others]
+ * (the other parts and their gaps), never below [floor] (120 dp, KB-2). Past the floor the card grows instead.
+ */
+internal fun fullMediaHeight(inner: Int, others: Int, floor: Int): Int = max(inner - others, floor)
 
 /** Filled stars of the ad's rating (O-08); nothing when the ad has no rating above 0. */
 @Composable
