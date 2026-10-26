@@ -1,6 +1,7 @@
 package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.analytics.AdFunnel
+import com.vglstudio.template.core.analytics.AdFunnelEvent
 import com.vglstudio.template.core.analytics.AdMetricEvent
 import com.vglstudio.template.core.analytics.AdMetrics
 import com.vglstudio.template.core.logging.AppLogger
@@ -13,7 +14,10 @@ import com.vglstudio.template.core.logging.AppLogger
  * - Lifecycle events are logged only when the switch of the format's group ([lifecycleSwitches], read at every
  *   event) is on and ads are being served ([serving]).
  * - The [counter] moves on every request and result, metrics on or off (T-021 reads it).
- * - A failing [metrics] is swallowed and logged by class name only: the ads keep running. No message of the SDK is
+ * - The AppsFlyer funnel ([eligible], [apiCalled], [displayed], [interDisplayed], plan T-033) goes to [funnel] whatever
+ *   the lifecycle switches or the consent gate say: its own switches are read by :core:analytics. App open and banners
+ *   have no funnel ([funnelKind]).
+ * - A failing [metrics] or [funnel] is swallowed and logged by class name only: the ads keep running. No message of the SDK is
  *   ever put in a param.
  */
 internal class AdTelemetry(
@@ -172,14 +176,32 @@ internal class AdTelemetry(
         log(AdMetricEvent.RewardDialog(AdFormat.REWARDED.metricCode(), placement.key, action))
     }
 
-    // SKELETON (T-033, step 3).
-    fun eligible(format: AdFormat) = Unit
+    /**
+     * A turn of [format] passed the gate of the app (interstitial, native) or the user tapped "Watch ad" (rewarded):
+     * `af_*_ad_eligible`, with no param.
+     */
+    fun eligible(format: AdFormat) {
+        val kind = format.funnelKind() ?: return
+        logFunnel(AdFunnelEvent.Eligible(kind))
+    }
 
-    fun apiCalled(format: AdFormat, unitId: String, adapterClassName: String?) = Unit
+    /** An ad of [format] was loaded (`af_*_api_called`); `ad_source` is the adapter class, empty when none. */
+    fun apiCalled(format: AdFormat, unitId: String, adapterClassName: String?) {
+        val kind = format.funnelKind() ?: return
+        logFunnel(AdFunnelEvent.ApiCalled(kind, format.metricCode(), unitId, adapterClassName.orEmpty()))
+    }
 
-    fun displayed(format: AdFormat, unitId: String, adapterClassName: String?) = Unit
+    /** An ad of [format] came on screen (`af_inters_displayed`, `af_*_ad_displayed`). */
+    fun displayed(format: AdFormat, unitId: String, adapterClassName: String?) {
+        val kind = format.funnelKind() ?: return
+        logFunnel(AdFunnelEvent.Displayed(kind, format.metricCode(), unitId, adapterClassName.orEmpty()))
+    }
 
-    fun interDisplayed(count: Int?) = Unit
+    /** The [count]-th interstitial since install came on screen (N-05); null, a failed count, sends nothing. */
+    fun interDisplayed(count: Int?) {
+        if (count == null) return
+        logFunnel(AdFunnelEvent.InterDisplayedTimes(count))
+    }
 
     private fun logRevenue(
         format: AdFormat,
@@ -202,7 +224,8 @@ internal class AdTelemetry(
             AdMetricEvent.ImpressionRevenue(
                 adFormat = format.metricCode(),
                 adSource = adSourceOrAdmob(adSource),
-                monetizationNetwork = "",
+                // The raw source for AppsFlyer, empty when the SDK reports none (section 8.3).
+                monetizationNetwork = adSource.orEmpty(),
                 adUnitName = unitId,
                 currency = currency,
                 value = value,
@@ -228,6 +251,15 @@ internal class AdTelemetry(
         } catch (e: Exception) {
             // Class name only: the message of the error may hold anything.
             logger.warn(TAG, "Ad metric not logged: ${e.javaClass.simpleName}")
+        }
+    }
+
+    private fun logFunnel(event: AdFunnelEvent) {
+        try {
+            funnel.log(event)
+        } catch (e: Exception) {
+            // Class name only, as for the metrics.
+            logger.warn(TAG, "Ad funnel event not logged: ${e.javaClass.simpleName}")
         }
     }
 

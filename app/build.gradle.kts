@@ -17,8 +17,6 @@ android {
         applicationId = "com.vglstudio.template"
         versionCode = 1
         versionName = "0.1.0"
-        // SKELETON (T-033, step 3): set per flavor in step 4.
-        buildConfigField("String", "APPSFLYER_DEV_KEY", "\"skeleton\"")
     }
 
     // Staging builds sent to the team are signed with a fixed staging-only key, so each build installs over
@@ -48,10 +46,13 @@ android {
     // on R2; production values are given by the person building the release, never stored in the repo (ADR-0009):
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
     //   -PassetsBaseUrl=<https address of the production files on R2>
+    //   -PappsFlyerDevKey=<AppsFlyer dev key>
     productFlavors {
         named("staging") {
             manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
             buildConfigField("String", "ASSETS_BASE_URL", "\"https://app-project-template.vgl.io.vn/\"")
+            // No AppsFlyer key in staging, never read from a parameter: AppsFlyer never starts (ADR-0027, ADR-0012).
+            buildConfigField("String", "APPSFLYER_DEV_KEY", "\"\"")
             // Builds sent to the team by staging.yml carry the run number, so testers can tell them apart.
             providers.gradleProperty("stagingBuildNumber").orNull?.toInt()?.let { buildNumber ->
                 versionCode = buildNumber
@@ -67,18 +68,24 @@ android {
                 "ASSETS_BASE_URL",
                 "\"${providers.gradleProperty("assetsBaseUrl").getOrElse("")}\"",
             )
+            buildConfigField(
+                "String",
+                "APPSFLYER_DEV_KEY",
+                "\"${providers.gradleProperty("appsFlyerDevKey").getOrElse("")}\"",
+            )
             signingConfigs.findByName("upload")?.let { signingConfig = it }
         }
     }
 }
 
-// Building production without the real configuration fails at once, rather than shipping an app without ads
-// or files. Checked when a production variant is built, not at configuration, so other builds and IDE sync work
-// without it.
+// Building production without the real configuration fails at once, rather than shipping an app without ads,
+// files or AppsFlyer. Checked when a production variant is built, not at configuration, so other builds and IDE
+// sync work without it.
 val missingProductionProperties = mapOf(
     "admobAppId" to "ADR-0013",
     "adUnits" to "ADR-0013",
     "assetsBaseUrl" to "ADR-0015",
+    "appsFlyerDevKey" to "ADR-0027",
 ).filterKeys { !providers.gradleProperty(it).isPresent }
 tasks.matching { it.name.startsWith("preProduction") && it.name.endsWith("Build") }.configureEach {
     doFirst {

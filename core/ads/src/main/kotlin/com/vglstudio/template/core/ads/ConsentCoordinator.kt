@@ -29,8 +29,13 @@ internal class ConsentCoordinator(
     /** The round of this start has its final result, or the result was settled before. */
     val finished: StateFlow<Boolean> = _finished.asStateFlow()
 
-    /** SKELETON (T-033, step 3). */
-    val consentFormOpen: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+    private val _consentFormOpen = MutableStateFlow(false)
+
+    /**
+     * True while the consent form really shows: from the hold of [CONSENT_FORM] to the close of the form, an error or
+     * an interruption included (plan T-033: AppsFlyer does not start under an open form).
+     */
+    val consentFormOpen: StateFlow<Boolean> = _consentFormOpen.asStateFlow()
 
     private val _privacyOptionsRequired = MutableStateFlow(false)
 
@@ -169,6 +174,7 @@ internal class ConsentCoordinator(
         running = false
         regatherWanted = false
         _finished.value = false
+        _consentFormOpen.value = false
         lastLoggedPath = null
         logger.info(TAG, "Consent reset")
         afterGateChange()
@@ -183,9 +189,11 @@ internal class ConsentCoordinator(
         afterGateChange()
         // S-16: only a form that really shows holds the suppression.
         val hold = if (platform.consentFormRequired()) suppressor.acquire(CONSENT_FORM) else null
+        if (hold != null) _consentFormOpen.value = true
         var closed = false
         platform.showFormIfRequired(activity) { code ->
             hold?.release()
+            _consentFormOpen.value = false
             if (closed) return@showFormIfRequired
             closed = true
             val failure = code?.let { umpFailureOf(it, isActivityGone(activity)) }

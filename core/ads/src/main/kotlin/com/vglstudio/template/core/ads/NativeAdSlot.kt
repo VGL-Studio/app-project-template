@@ -88,6 +88,8 @@ internal fun NativeAdSlotGate(
     onScreen: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
+    // `af_native_ad_eligible` once each time the slot comes in allowed (plan T-033).
+    ReportNativeEligible(allowed)
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
     val reported = remember { AvailabilityReport() }
     if (!allowed) {
