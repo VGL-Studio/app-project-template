@@ -105,6 +105,34 @@ class NativeEligibleReportTest {
     }
 
     @Test
+    fun slotGate_offScreen_recordsNothing_thenOnScreen_recordsOnce() {
+        val funnel = RecordingAdFunnel()
+        val controller = testAdsController(funnel = funnel)
+        var onScreen by mutableStateOf(false)
+        composeRule.setContent {
+            CompositionLocalProvider(LocalAdsController provides controller) {
+                NativeAdSlotGate(
+                    allowed = true,
+                    states = flowOf(NativeAdState.Loading),
+                    size = NativeAdSize.SMALL,
+                    keepSpaceWhenEmpty = false,
+                    onAdAvailabilityChange = {},
+                    modifier = Modifier,
+                    onScreen = onScreen,
+                    adContent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        // A page of a pager kept in composition off screen has not come into view.
+        assertTrue(funnel.events.isEmpty())
+
+        onScreen = true
+        composeRule.waitForIdle()
+        assertEquals(listOf<AdFunnelEvent>(AdFunnelEvent.Eligible(AdFunnelKind.NATIVE)), funnel.events)
+    }
+
+    @Test
     fun fullPageStepGate_withController_recordsOnlyWhenShown() {
         val funnel = RecordingAdFunnel()
         val controller = testAdsController(funnel = funnel)
