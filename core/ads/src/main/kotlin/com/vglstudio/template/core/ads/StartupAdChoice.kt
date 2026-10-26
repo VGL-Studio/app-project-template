@@ -17,8 +17,9 @@ internal fun startupAdPlacement(flags: AdsGlobalFlags, firstOpen: Boolean): AdPl
 }
 
 /**
- * The switch of [placement]: for `native_combo`, `is_show_native_after_inter` (plan T-026); for another app-wide
- * placement, whether [startupAdPlacement] chooses it (waits for [firstOpen]); for any other placement,
+ * The switch of [placement]: for `native_combo`, `is_show_native_after_inter` (plan T-026); for `resume` and
+ * `resume_inter`, whether [resumeAdPlacement] chooses it (plan T-025); for another app-wide placement, whether
+ * [startupAdPlacement] chooses it (waits for [firstOpen]); for any other placement,
  * `is_show_ads && is_show_<code>` as before. Every load and show path reads it through AdsController.isEnabled (L-072).
  */
 internal fun placementSwitch(placement: AdPlacement, flags: AdsFlags, firstOpen: Flow<Boolean>): Flow<Boolean> {
@@ -27,6 +28,19 @@ internal fun placementSwitch(placement: AdPlacement, flags: AdsFlags, firstOpen:
     if (placement == AdPlacement.NATIVE_AFTER_INTER) {
         return flags.global.map { it.showNativeAfterInter }.distinctUntilChanged()
     }
+    // The resume ad (plan T-025): `show_resum_ads` and `resume_ad_type`; no first-open mark.
+    if (placement == AdPlacement.RESUME || placement == AdPlacement.RESUME_INTER) {
+        return flags.global.map { resumeAdPlacement(it) == placement }.distinctUntilChanged()
+    }
     return combine(flags.global, firstOpen) { global, first -> startupAdPlacement(global, first) == placement }
         .distinctUntilChanged()
+}
+
+/**
+ * A-12: the placement of the resume ad, or null when `show_resum_ads` (with `is_show_ads`) is off; `resume_ad_type` =
+ * `inter` chooses the interstitial (plan T-025).
+ */
+internal fun resumeAdPlacement(flags: AdsGlobalFlags): AdPlacement? {
+    if (!flags.showResumeAds) return null
+    return if (flags.resumeAdType == OpenAdType.INTERSTITIAL) AdPlacement.RESUME_INTER else AdPlacement.RESUME
 }

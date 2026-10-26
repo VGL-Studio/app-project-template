@@ -66,13 +66,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        ads.onAppForeground()
         // Back from the background without network: the dialog shows at once (spec network, KB-2).
         networkDialog.onAppForeground()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        ads.onAppBackground()
     }
 }

@@ -131,7 +131,11 @@ class AdPlacementTest {
         // OPEN_APP_INTER ignores the interval gate on purpose (question 3 of plan T-024); checked on its own.
         assertTrue(AdPlacement.OPEN_APP_INTER.ignoreInterval)
         assertTrue(AdPlacement.OPEN_APP_INTER.recordInterval)
-        AdPlacement.entries.filterNot { it == AdPlacement.OPEN_APP_INTER }.forEach {
+        // RESUME_INTER too (AS-01, plan T-025): no `ads_interval` gate, the mark still moves when it closes.
+        assertTrue(AdPlacement.RESUME_INTER.ignoreInterval)
+        assertTrue(AdPlacement.RESUME_INTER.recordInterval)
+        val skipInterval = setOf(AdPlacement.OPEN_APP_INTER, AdPlacement.RESUME_INTER)
+        AdPlacement.entries.filterNot { it in skipInterval }.forEach {
             assertFalse(it.key, it.ignoreInterval)
             assertTrue(it.key, it.recordInterval)
             assertFalse(it.key, it.declaration.ignoreInterval)
@@ -184,7 +188,13 @@ class AdPlacementTest {
     fun appWidePlacements_areOpenAppAndCombo() {
         val appWide = AdPlacement.entries.filter { it.appWide }
         assertEquals(
-            listOf(AdPlacement.OPEN_APP, AdPlacement.OPEN_APP_INTER, AdPlacement.NATIVE_AFTER_INTER),
+            listOf(
+                AdPlacement.OPEN_APP,
+                AdPlacement.OPEN_APP_INTER,
+                AdPlacement.NATIVE_AFTER_INTER,
+                AdPlacement.RESUME,
+                AdPlacement.RESUME_INTER,
+            ),
             appWide,
         )
         appWide.forEach { assertFalse(it.key, it.stagingOnly) }
@@ -270,5 +280,41 @@ class AdPlacementTest {
         }
         // Control: an interstitial takes both.
         AdPlacementDeclaration("x", AdFormat.INTERSTITIAL, ignoreInterval = true, recordInterval = false)
+    }
+
+    @Test
+    fun resumePlacements_areAppWide() {
+        val resume = AdPlacement.RESUME
+        assertEquals("resume", resume.key)
+        assertEquals(AdFormat.APP_OPEN, resume.format)
+        assertTrue(resume.appWide)
+        assertFalse(resume.stagingOnly)
+        // App open moves no `ads_interval` mark (I-02).
+        assertFalse(resume.declaration.pushesIntervalMark())
+        val inter = AdPlacement.RESUME_INTER
+        assertEquals("resume_inter", inter.key)
+        assertEquals(AdFormat.INTERSTITIAL, inter.format)
+        assertTrue(inter.ignoreInterval)
+        assertTrue(inter.recordInterval)
+        assertTrue(inter.appWide)
+        assertFalse(inter.stagingOnly)
+        assertFalse(inter.declaration.readsInterval())
+        assertTrue(inter.declaration.pushesIntervalMark())
+        assertEquals(AdIntervalGroup.DEFAULT, inter.intervalGroup)
+        val names = AdsSettings.all().map { it.name }
+        assertFalse(names.toString(), "is_show_resume" in names)
+        assertFalse(names.toString(), "is_show_resume_inter" in names)
+        // Control: the shared keys that switch the resume ad are there.
+        assertTrue(names.toString(), "show_resum_ads" in names)
+        assertTrue(names.toString(), "resume_ad_type" in names)
+    }
+
+    @Test
+    fun startupTurn_rejectsResumePlacements() {
+        assertThrows(IllegalArgumentException::class.java) { StartupAdTurn(AdPlacement.RESUME) }
+        assertThrows(IllegalArgumentException::class.java) { StartupAdTurn(AdPlacement.RESUME_INTER) }
+        // Control: the two placements of the loading screen are accepted.
+        assertEquals(AdPlacement.OPEN_APP, StartupAdTurn(AdPlacement.OPEN_APP).placement)
+        assertEquals(AdPlacement.OPEN_APP_INTER, StartupAdTurn(AdPlacement.OPEN_APP_INTER).placement)
     }
 }

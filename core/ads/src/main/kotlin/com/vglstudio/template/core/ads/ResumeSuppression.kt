@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
  * until the app's root reports that no hold is left (G-02, G-04). Main thread only.
  */
 internal class ResumeSuppression(private val suppressor: ForegroundAdSuppressor, private val logger: AppLogger) {
-    private var leaveMark = false
+    /** The log source of the leave mark ([LEAVE_APP] or [AD_CLICK]), null when none is set. */
+    private var leaveMark: String? = null
     private val _awaitingReport = MutableStateFlow(false)
     private val _resumeAdsSuppressed = MutableStateFlow(false)
 
@@ -56,9 +57,15 @@ internal class ResumeSuppression(private val suppressor: ForegroundAdSuppressor,
 
     /** G-03, way 3: after leaving the app on purpose succeeded. */
     fun markLeavingApp() {
-        leaveMark = true
-        logger.info(TAG, "Resume ads held: $LEAVE_APP")
-        update()
+        setLeaveMark(LEAVE_APP)
+    }
+
+    /**
+     * A-14: the user clicked an ad of any format ([AdTelemetry.clicked]), so the next return to the app shows no
+     * resume ad. Same mark as [markLeavingApp], a flag and not a counter; released like it (G-05).
+     */
+    fun markAdClicked() {
+        setLeaveMark(AD_CLICK)
     }
 
     /**
@@ -66,9 +73,15 @@ internal class ResumeSuppression(private val suppressor: ForegroundAdSuppressor,
      * background; SDK activities are filtered out by AdsActivityTracker.
      */
     fun onActivityResumed() {
-        if (!leaveMark) return
-        leaveMark = false
-        logger.info(TAG, "Resume ads released: $LEAVE_APP")
+        val source = leaveMark ?: return
+        leaveMark = null
+        logger.info(TAG, "Resume ads released: $source")
+        update()
+    }
+
+    private fun setLeaveMark(source: String) {
+        leaveMark = source
+        logger.info(TAG, "Resume ads held: $source")
         update()
     }
 
@@ -78,7 +91,7 @@ internal class ResumeSuppression(private val suppressor: ForegroundAdSuppressor,
     }
 
     private fun update() {
-        _resumeAdsSuppressed.value = leaveMark || _awaitingReport.value
+        _resumeAdsSuppressed.value = leaveMark != null || _awaitingReport.value
     }
 
     companion object {
@@ -86,6 +99,7 @@ internal class ResumeSuppression(private val suppressor: ForegroundAdSuppressor,
         const val SYSTEM_SCREEN = "system_screen"
         const val FULL_SCREEN_PAGE = "full_screen_page"
         const val LEAVE_APP = "leave_app"
+        const val AD_CLICK = "ad_click"
 
         private const val TAG = "Ads"
     }

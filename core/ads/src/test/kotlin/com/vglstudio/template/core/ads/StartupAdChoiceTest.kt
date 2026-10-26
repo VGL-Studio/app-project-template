@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The placement shown when the app opens (A-01, A-02) and the switch of every placement (L-072), plan T-024. */
@@ -134,5 +135,82 @@ class StartupAdChoiceTest {
         settings.set("show_open_ads", true)
         assertEquals(true, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
         assertEquals(true, placementSwitch(combo, flags, neverRead).first())
+    }
+
+    @Test
+    fun resumeAdPlacement_followsResumeKeys() = runTest {
+        // Control: off by default.
+        assertNull(resumeAdPlacement(globalFlags()))
+        settings.set("show_resum_ads", true)
+        assertEquals(AdPlacement.RESUME, resumeAdPlacement(globalFlags()))
+        settings.set("resume_ad_type", "inter")
+        assertEquals(AdPlacement.RESUME_INTER, resumeAdPlacement(globalFlags()))
+        // Only the exact value `inter` is an interstitial (A-12).
+        settings.set("resume_ad_type", "INTER")
+        assertEquals(AdPlacement.RESUME, resumeAdPlacement(globalFlags()))
+        settings.set("resume_ad_type", "")
+        assertEquals(AdPlacement.RESUME, resumeAdPlacement(globalFlags()))
+        settings.set("resume_ad_type", "inter")
+        settings.set("is_show_ads", false)
+        assertNull(resumeAdPlacement(globalFlags()))
+        settings.set("is_show_ads", true)
+        settings.set("show_resum_ads", false)
+        assertNull(resumeAdPlacement(globalFlags()))
+    }
+
+    @Test
+    fun placementSwitch_resume_followsResumeKeys() = runTest {
+        settings.set("show_resum_ads", true)
+        // No wait for the first-open mark.
+        assertEquals(true, placementSwitch(AdPlacement.RESUME, flags, neverRead).first())
+        assertEquals(false, placementSwitch(AdPlacement.RESUME_INTER, flags, neverRead).first())
+        settings.set("resume_ad_type", "inter")
+        assertEquals(false, placementSwitch(AdPlacement.RESUME, flags, neverRead).first())
+        assertEquals(true, placementSwitch(AdPlacement.RESUME_INTER, flags, neverRead).first())
+        // Switched off midway (L-061): the switch emits false.
+        placementSwitch(AdPlacement.RESUME_INTER, flags, neverRead).test {
+            assertEquals(true, awaitItem())
+            settings.set("show_resum_ads", false)
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(false, placementSwitch(AdPlacement.RESUME, flags, neverRead).first())
+        // Control: OPEN_APP still follows show_open_ads, whatever show_resum_ads is.
+        assertEquals(false, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
+        settings.set("show_open_ads", true)
+        assertEquals(true, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
+        settings.set("show_resum_ads", true)
+        assertEquals(true, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
+    }
+
+    @Test
+    fun startupAdPlacement_neverResume() = runTest {
+        val base = globalFlags()
+        val chosen = mutableListOf<AdPlacement?>()
+        val bools = listOf(true, false)
+        for (open in bools) {
+            for (openFirst in bools) {
+                for (resume in bools) {
+                    for (firstOpen in bools) {
+                        for (openType in OpenAdType.entries) {
+                            for (resumeType in OpenAdType.entries) {
+                                val flags = base.copy(
+                                    showOpenAds = open,
+                                    showOpenAdsFirstOpen = openFirst,
+                                    showResumeAds = resume,
+                                    openAdType = openType,
+                                    resumeAdType = resumeType,
+                                )
+                                chosen += startupAdPlacement(flags, firstOpen)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(chosen.none { it == AdPlacement.RESUME || it == AdPlacement.RESUME_INTER })
+        // Control (L-055): the loop did reach the startup placements.
+        assertTrue(AdPlacement.OPEN_APP in chosen)
+        assertTrue(AdPlacement.OPEN_APP_INTER in chosen)
     }
 }

@@ -25,6 +25,8 @@ internal class AdTelemetry(
     private val offline: () -> Boolean,
     private val counter: LoadAttemptCounter,
     private val logger: AppLogger,
+    /** Runs at every click of any format, before the metrics switches are read: the resume block (A-14, T-025). */
+    private val onClicked: () -> Unit = {},
 ) {
     /** One paid event of the SDK (T-01). */
     fun revenue(
@@ -143,7 +145,14 @@ internal class AdTelemetry(
         log(AdMetricEvent.ShowFail(format.metricCode(), placement?.key, code.toString(), showFailReasonOf(code)))
     }
 
+    /** A click on an ad of any format; every click callback of :core:ads comes here, so it always skips a resume. */
     fun clicked(format: AdFormat, placement: AdPlacement?) {
+        try {
+            onClicked()
+        } catch (e: Exception) {
+            // Class name only, as for the metrics: the SDK callback must not break.
+            logger.warn(TAG, "Ad click not handled: ${e.javaClass.simpleName}")
+        }
         if (!lifecycleOn(format)) return
         log(AdMetricEvent.Clicked(format.metricCode(), placement?.key))
     }

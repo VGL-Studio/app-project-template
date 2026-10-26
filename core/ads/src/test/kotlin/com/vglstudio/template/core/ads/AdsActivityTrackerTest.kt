@@ -3,6 +3,8 @@ package com.vglstudio.template.core.ads
 import android.app.Activity
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.fakesdk.FakeSdkActivity
@@ -27,6 +29,7 @@ class OtherAppTestActivity : ComponentActivity()
 class AdsActivityTrackerTest {
     private val application = ApplicationProvider.getApplicationContext<Application>()
     private val events = mutableListOf<String>()
+    private val processEvents = mutableListOf<Boolean>()
     private val resumed = mutableListOf<Activity>()
     private val destroyed = mutableListOf<Pair<Activity, Boolean>>()
     private val registered = mutableListOf<AdsActivityTracker>()
@@ -34,6 +37,10 @@ class AdsActivityTrackerTest {
     private val listener = object : AdsActivityTracker.Listener {
         override fun onForegroundChanged(foreground: Boolean) {
             events += "foreground:$foreground"
+        }
+
+        override fun onProcessForegroundChanged(foreground: Boolean) {
+            processEvents += foreground
         }
 
         override fun onActivityResumed(activity: Activity) {
@@ -129,5 +136,56 @@ class AdsActivityTrackerTest {
         val second = controller.get()
         controller.pause().stop().destroy()
         assertEquals(listOf(first to true, second to false), destroyed)
+    }
+
+    @Test
+    fun processForeground_recreate_reportsNothing() {
+        tracker()
+        // ActivityController.recreate() of Robolectric.
+        val controller = Robolectric.buildActivity(AppTestActivity::class.java).setup()
+        controller.recreate()
+        controller.recreate()
+        assertEquals(listOf(true), processEvents)
+        // Control (L-055): a real stop of the recreated activity is a trip to background.
+        controller.pause().stop()
+        assertEquals(listOf(true, false), processEvents)
+        controller.destroy()
+
+        // ActivityScenario.recreate(), with an activity outside the app's package: the process counts every activity.
+        processEvents.clear()
+        ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+            scenario.recreate()
+            scenario.recreate()
+            assertEquals(listOf(true), processEvents)
+            scenario.moveToState(Lifecycle.State.CREATED)
+            assertEquals(listOf(true, false), processEvents)
+        }
+    }
+
+    @Test
+    fun processForeground_backgroundAndBack_reportsFalseThenTrue() {
+        tracker()
+        val app = Robolectric.buildActivity(AppTestActivity::class.java).setup()
+        app.pause().stop()
+        app.start().resume()
+        assertEquals(listOf(true, false, true), processEvents)
+        // The app's own foreground is unchanged.
+        assertEquals(listOf("foreground:true", "foreground:false", "foreground:true"), events)
+    }
+
+    @Test
+    fun processForeground_sdkActivityCoversApp_staysTrue() {
+        val tracker = tracker()
+        val app = Robolectric.buildActivity(AppTestActivity::class.java).setup()
+        // A full-screen ad of the SDK opens over the app and closes; the app starts again before the SDK stops.
+        val sdk = Robolectric.buildActivity(FakeSdkActivity::class.java).setup()
+        app.pause().stop()
+        assertFalse(tracker.foreground)
+        sdk.pause()
+        app.start().resume()
+        sdk.stop().destroy()
+        assertEquals(listOf(true), processEvents)
+        // Control: the app's own foreground did go to false and back (SDK activities are not app activities).
+        assertEquals(listOf("foreground:true", "foreground:false", "foreground:true"), events)
     }
 }
