@@ -77,8 +77,9 @@ internal interface RewardedPort {
  *
  * - [loadIfNeeded] is the only place that decides whether a rewarded load is sent ([rewardedLoadStep], L-072); the
  *   preload plan, the retries (F-05), the reloads (F-06) and "load if needed" (F-07) all come here.
- * - [request] is one tap on "Watch ad": a switched-off placement or a closed consent gate runs the action at once
- *   (question 8 of the plan, option (a)); a turn still waiting for its ad shows it again and records `busy` (R-06);
+ * - [request] is one tap on "Watch ad": a turn still waiting for its ad shows it again and records `busy` (R-06),
+ *   even when the key went off since (L-061); else a switched-off placement or a closed consent gate runs the action
+ *   at once (question 8 of the plan, option (a));
  *   no ad gives [RewardedOutcome.NoAd] by the policy of the placement; else the ad is shown.
  * - The SDK callbacks ([onShowed], [onReward], [onDismissed], [onShowFailed]) end the turn. Every outcome is given at
  *   most once per turn and caller, so callbacks the SDK repeats for the second show run nothing twice (section 3.4).
@@ -140,13 +141,19 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         onOutcome: (RewardedOutcome) -> Unit,
     ) {
         val code = declaration.code
+        // R-06 first (L-061): a turn still waiting for its ad keeps the second tap, even if the key went off since,
+        // so the reward of that ad is the only outcome that runs the action.
+        turns[declaration]?.let { pending ->
+            showAgain(declaration, pending, activity, onOutcome)
+            return
+        }
         if (!port.enabled(declaration)) {
             logger.info(TAG, "Rewarded $code granted: switched off")
             onOutcome(RewardedOutcome.Granted)
             return
         }
-        val pending = turns[declaration]
-        if (pending != null) {
+        // The switch was awaited: a turn may have started meanwhile.
+        turns[declaration]?.let { pending ->
             showAgain(declaration, pending, activity, onOutcome)
             return
         }
