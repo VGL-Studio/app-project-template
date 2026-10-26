@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-19]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: S
 depends_on: [T-031]
 sprint:
-plan:
+plan: features/ads/plans/T-042-rewarded-bam-dup-thuong-mot-lan.md
 created: 2026-10-26
 ---
 
