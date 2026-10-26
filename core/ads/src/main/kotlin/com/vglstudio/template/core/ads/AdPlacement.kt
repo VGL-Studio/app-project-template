@@ -18,7 +18,10 @@ enum class AdFormat(val code: String) {
     /** Shown inside a screen with [NativeAdSlot], no media: icon, headline, "Ad" label, call to action. */
     NATIVE_SMALL("native_small"),
 
-    /** Shown inside a screen with [NativeAdSlot], with media (image or video); replaces MREC. */
+    /**
+     * Shown inside a screen with [NativeAdSlot], in a list row or with [NativeAdCell], with media (image or video),
+     * from the pool (T-028); replaces MREC.
+     */
     NATIVE_MEDIUM("native_medium"),
 
     /** Medium that the user collapses to small, shown with [CollapsibleNativeAdSlot]; never expands again. */
@@ -42,7 +45,10 @@ enum class AdFormat(val code: String) {
     /** 250 dp native card at one step of a flow (onboarding, result). No function shows it yet (T-028). */
     NATIVE_STEP("native_step"),
 
-    /** Native card in a grid, a list or a pager page, from the pool. No function shows it yet (T-027). */
+    /**
+     * Native card in a grid, a list or a pager page, shown with [NativeAdCell] or as an in-list row, from the pool
+     * (T-028).
+     */
     NATIVE_IN_COLLECTION("native_in_collection"),
 }
 
@@ -118,6 +124,10 @@ enum class AdPlacement(
     val recordInterval: Boolean = true,
     /** Switched on by the shared keys of section 10.1, with no `is_show_<code>` of its own (MC-09). */
     val appWide: Boolean = false,
+    /** The large call to action of 5.7 (56 dp, 17 sp, card 422 dp high); native medium only (`cta_large`). */
+    val ctaLarge: Boolean = false,
+    /** A cell keeps a static placeholder instead of hiding while its pool is exhausted (P-06); pooled formats only. */
+    val keepSpaceWhenPoolEmpty: Boolean = false,
 ) {
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
     OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
@@ -150,6 +160,8 @@ enum class AdPlacement(
             ignoreInterval,
             recordInterval,
             appWide,
+            ctaLarge,
+            keepSpaceWhenPoolEmpty,
         )
 }
 
@@ -170,6 +182,10 @@ internal data class AdPlacementDeclaration(
     val recordInterval: Boolean = true,
     /** Switched on by the shared keys of section 10.1, no `is_show_<code>` (MC-09). */
     val appWide: Boolean = false,
+    /** The large call to action (`cta_large`, 5.7); native medium only. */
+    val ctaLarge: Boolean = false,
+    /** A cell keeps a static placeholder while its pool is exhausted (P-06); pooled formats only. */
+    val keepSpaceWhenPoolEmpty: Boolean = false,
 ) {
     init {
         require(CODE_PATTERN.matches(code)) { "Placement code '$code' must be lower snake case" }
@@ -181,6 +197,12 @@ internal data class AdPlacementDeclaration(
         }
         require(!appWide || format == AdFormat.APP_OPEN || format == AdFormat.INTERSTITIAL) {
             "Placement $code: appWide is for app open and interstitial placements only"
+        }
+        require(!ctaLarge || format == AdFormat.NATIVE_MEDIUM) {
+            "Placement $code: ctaLarge is for native medium only"
+        }
+        require(!keepSpaceWhenPoolEmpty || format.usesPool) {
+            "Placement $code: keepSpaceWhenPoolEmpty is for pooled formats only"
         }
         if (nativeEvery != null) {
             require(format in NATIVE_EVERY_FORMATS) { "Placement $code: nativeEvery is for list formats only" }

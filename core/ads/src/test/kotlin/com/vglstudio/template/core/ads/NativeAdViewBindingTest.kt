@@ -119,8 +119,8 @@ class NativeAdViewBindingTest {
 
         size = NativeAdSize.MEDIUM
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(NativeAdTestTags.CARD, useUnmergedTree = true).assertHeightIsEqualTo(386.dp)
-        composeRule.onNodeWithTag(NativeAdTestTags.CTA, useUnmergedTree = true).assertHeightIsEqualTo(36.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD, useUnmergedTree = true).assertHeightIsEqualTo(410.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CTA, useUnmergedTree = true).assertHeightIsEqualTo(44.dp)
         composeRule.onNodeWithTag(NativeAdTestTags.MEDIA, useUnmergedTree = true).assertHeightIsEqualTo(196.dp)
     }
 

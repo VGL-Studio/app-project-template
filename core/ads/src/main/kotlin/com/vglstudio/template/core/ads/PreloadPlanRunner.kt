@@ -3,7 +3,7 @@ package com.vglstudio.template.core.ads
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.delay
 
-/** One slot the plan can preload: a full-screen placement today, native slots from T-027 and T-028. */
+/** One slot the plan can preload: full-screen placements and native pools. */
 internal interface PreloadSlot {
     val format: AdFormat
 

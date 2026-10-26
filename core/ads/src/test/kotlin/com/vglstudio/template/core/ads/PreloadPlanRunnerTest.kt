@@ -2,6 +2,8 @@ package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -112,5 +114,48 @@ class PreloadPlanRunnerTest {
         // Control: the slot in the plan loads once.
         assertEquals(1, interstitial.loadCalls.size)
         assertTrue(logger.entries.any { it.tag == "Ads" && it.message == "Preload group 1/1 started: INTERSTITIAL" })
+    }
+
+    @Test
+    fun poolSlot_inSecondGroup_startsAfterFirstSettles() = runTest {
+        val loader = FakeNativeAdLoader()
+        val loads = FakePoolLoads(loader, { now() }, logger)
+        val pools = NativeAdPools(
+            placements = listOf(AdPlacement.GALLERY_NATIVE_MEDIUM),
+            unitId = { "unit" },
+            enabled = { flowOf(true) },
+            canRequestAds = MutableStateFlow(true),
+            newPool = { key, _ ->
+                NativeAdPool(
+                    key = key,
+                    capacity = 3,
+                    load = { loads.load() },
+                    sendGate = { true },
+                    canLoadNow = { true },
+                    canShowNow = { true },
+                    retryResets = MutableStateFlow(0),
+                    clock = { now() },
+                    scope = backgroundScope,
+                    logger = logger,
+                    logKey = "native_medium#1",
+                )
+            },
+            scope = backgroundScope,
+            logger = logger,
+        )
+        runCurrent()
+        val plan = AdPreloadPlan.fromPlacements(listOf(AdPlacement.OPEN_APP, AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertEquals(listOf(setOf(AdFormat.APP_OPEN), setOf(AdFormat.NATIVE_MEDIUM)), plan.groups)
+        val appOpen = slot(AdFormat.APP_OPEN)
+        val runner = PreloadPlanRunner(MonotonicClock { now() }, logger)
+        backgroundScope.launch {
+            runner.run(plan) { format -> listOf(appOpen).filter { it.format == format } + pools.preloadSlots(format) }
+        }
+        runCurrent()
+
+        at(5_800)
+        assertEquals(emptyList<Long>(), loads.times)
+        at(6_000)
+        assertEquals(listOf(6_000L), loads.times)
     }
 }
