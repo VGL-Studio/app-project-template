@@ -288,6 +288,7 @@ class NativeAdCardTest {
                 NativeAdSize.MEDIUM -> 410.dp
                 NativeAdSize.FULL -> FULL_HEIGHT
                 NativeAdSize.CARD -> 300.dp
+                NativeAdSize.STEP -> 250.dp
             }
             assertEquals("$current card height", expected.value, (card.bottom - card.top).value, 0.5f)
             assertEquals(
@@ -297,6 +298,68 @@ class NativeAdCardTest {
                 0.5f,
             )
         }
+    }
+
+    @Test
+    fun step_is250dpHigh_icon32_cta36_headline13sp() {
+        setCard(NativeAdSize.STEP)
+        val card = bounds(NativeAdTestTags.CARD)
+        assertEquals(250f, (card.bottom - card.top).value, 0.5f)
+        composeRule.onNodeWithTag(NativeAdTestTags.ICON, useUnmergedTree = true)
+            .assertWidthIsEqualTo(32.dp)
+            .assertHeightIsEqualTo(32.dp)
+        assertEquals(13.sp, textStyle("Headline of the ad").fontSize)
+        val media = bounds(NativeAdTestTags.MEDIA)
+        val icon = bounds(NativeAdTestTags.ICON)
+        val cta = bounds(NativeAdTestTags.CTA)
+        // Section 5.7 and the 250 dp layout of design/context/AdGalleryScreen_collapsible-expanded_light.md: 12 dp
+        // inner margin, media on top, head, then a call to action of 36 dp as wide as the card.
+        assertEquals(12f, (media.top - card.top).value, 0.5f)
+        assertEquals(12f, (media.left - card.left).value, 0.5f)
+        assertTrue("media at least 120 dp wide: $media", (media.right - media.left) >= 120.dp)
+        assertTrue("media above the icon", media.bottom <= icon.top)
+        assertEquals(36f, (cta.bottom - cta.top).value, 0.5f)
+        assertEquals((card.right - card.left).value - 24f, (cta.right - cta.left).value, 0.5f)
+        assertEquals(12f, (card.bottom - cta.bottom).value, 0.5f)
+        assertTrue("head above the call to action", icon.bottom <= cta.top)
+    }
+
+    @Test
+    fun step_showsAdBadge_leavesAdChoicesCornerFree() {
+        setCard(NativeAdSize.STEP)
+        composeRule.onNodeWithText(badge, useUnmergedTree = true).assertExists()
+        val card = bounds(NativeAdTestTags.CARD)
+        val corner = DpRect(card.right - 24.dp, card.top, card.right, card.top + 24.dp)
+        // O-08: AdChoices sits on the media, top right, as on every native ad but the collapsible layer.
+        listOf(NativeAdTestTags.ICON, NativeAdTestTags.HEADLINE, NativeAdTestTags.BADGE, NativeAdTestTags.CTA)
+            .forEach { tag ->
+                val part = bounds(tag)
+                val overlaps = part.left < corner.right &&
+                    part.right > corner.left &&
+                    part.top < corner.bottom &&
+                    part.bottom > corner.top
+                assertFalse("$tag $part overlaps the AdChoices corner $corner", overlaps)
+            }
+    }
+
+    @Test
+    fun step_longTexts_keepHeight() {
+        setCard(NativeAdSize.STEP, longFullNativeAdAssets)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(250.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CTA, useUnmergedTree = true).assertHeightIsEqualTo(36.dp)
+        val card = bounds(NativeAdTestTags.CARD)
+        val cta = bounds(NativeAdTestTags.CTA)
+        assertTrue("call to action inside the card: $cta, $card", cta.bottom <= card.bottom)
+    }
+
+    @Test
+    fun stepPlaceholder_ctaIs36dp() {
+        composeRule.setContent {
+            AppTheme { NativeAdPlaceholder(NativeAdSize.STEP, Modifier.width(CARD_WIDTH), animated = false) }
+        }
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(250.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER_CTA, useUnmergedTree = true)
+            .assertHeightIsEqualTo(36.dp)
     }
 
     @Test

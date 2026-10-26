@@ -59,9 +59,10 @@ import kotlin.math.sin
 /**
  * Size of a native ad drawn inside a screen (ads-guide.md, section 4). [FULL] is the full native ad of
  * ads-business-rules.md 5.7; no ad format draws it yet (plan T-027, Q2). [CARD] is the portrait card of a grid, a list
- * or a pager page (`native_in_collection`, 5.7; plan T-028).
+ * or a pager page (`native_in_collection`, 5.7; plan T-028). [STEP] is the 250 dp card of a flow step (`native_step`,
+ * 5.7; plan T-032).
  */
-enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD }
+enum class NativeAdSize { SMALL, MEDIUM, FULL, CARD, STEP }
 
 /**
  * What a native ad shows; the SDK fills it in the app, tests and previews use fixed values. [starRating] is the
@@ -169,6 +170,17 @@ internal object NativeAdDimens {
     val CardHeadlineTextSize = 13.sp
 
     /**
+     * Card of a flow step (5.7, component `Native/Step` of the design, T-035): 250 dp, 32 dp icon, 36 dp call to
+     * action, 13 sp headline; the 250 dp layout of design/context/AdGalleryScreen_collapsible-expanded_light.md (12 dp
+     * margin, 8 dp gaps, media filling the rest). Its own constants on purpose: `Native/Collapsible` has the same
+     * numbers today, but the two components change apart.
+     */
+    val StepHeight = 250.dp
+    val StepIconSize = 32.dp
+    val StepCallToActionHeight = 36.dp
+    val StepHeadlineTextSize = 13.sp
+
+    /**
      * Full native: fixed, so its placeholder matches it: 1 + 24 top, head 40, media 200, body 40 (two lines), call to
      * action 36, star row 16, four 12 dp gaps between these five parts, 12 + 1 bottom.
      */
@@ -186,6 +198,7 @@ internal object NativeAdDimens {
         NativeAdSize.MEDIUM -> if (ctaLarge) MediumLargeHeight else MediumHeight
         NativeAdSize.FULL -> FullPlaceholderHeight
         NativeAdSize.CARD -> CardHeight
+        NativeAdSize.STEP -> StepHeight
     }
 
     /** The call to action of medium: 44 dp, 56 dp when large. */
@@ -262,6 +275,7 @@ internal fun NativeAdLayout(
             NativeAdSize.MEDIUM -> MediumLayout(assets, binder, ctaLarge)
             NativeAdSize.FULL -> FullLayout(assets, binder)
             NativeAdSize.CARD -> CardLayout(assets, binder)
+            NativeAdSize.STEP -> StepLayout(assets, binder)
         }
         if (showAdChoicesMarker) AdChoicesMarker(Modifier.align(Alignment.TopEnd))
     }
@@ -347,6 +361,37 @@ private fun CardLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
             }
         }
         val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight)
+        val callToAction = assets.callToAction
+        if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
+    }
+}
+
+/**
+ * The card of a flow step (5.7, 250 dp): media fills the top (AdChoices sits on it, top right, O-08), then the 32 dp
+ * icon with a one-line 13 sp headline and the "Ad" line, then a 36 dp call to action as wide as the card; 12 dp
+ * margin, 8 dp gaps.
+ */
+@Composable
+private fun StepLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(NativeAdDimens.InnerPadding),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        NativeAdMediaArea(binder, Modifier.fillMaxWidth().weight(1f))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NativeAdIcon(assets.icon, binder, size = NativeAdDimens.StepIconSize)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(NativeAdDimens.HeadlineGap),
+            ) {
+                NativeAdHeadline(assets.headline, binder, fontSize = NativeAdDimens.StepHeadlineTextSize)
+                NativeAdBadgeLine(assets, binder, bodyWhenNoAdvertiser = false)
+            }
+        }
+        val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.StepCallToActionHeight)
         val callToAction = assets.callToAction
         if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
     }
@@ -714,6 +759,12 @@ internal fun NativeAdPlaceholderLayout(
             ) {
                 CardPlaceholderBlocks()
             }
+            NativeAdSize.STEP -> Column(
+                modifier = Modifier.fillMaxSize().padding(NativeAdDimens.InnerPadding).then(pulse),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                CardPlaceholderBlocks(NativeAdDimens.StepIconSize, NativeAdDimens.StepCallToActionHeight)
+            }
         }
     }
 }
@@ -735,20 +786,25 @@ private fun ColumnScope.MediumPlaceholderBlocks(callToActionHeight: Dp) {
 }
 
 @Composable
-private fun ColumnScope.CardPlaceholderBlocks() {
+private fun ColumnScope.CardPlaceholderBlocks(
+    iconSize: Dp = NativeAdDimens.CardIconSize,
+    callToActionHeight: Dp = NativeAdDimens.CallToActionHeight,
+) {
     PlaceholderBlock(Modifier.fillMaxWidth().weight(1f))
     Row(
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlaceholderBlock(Modifier.size(NativeAdDimens.CardIconSize))
+        PlaceholderBlock(Modifier.size(iconSize))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             val bar = RoundedCornerShape(NativeAdDimens.LineHeight / 2)
             PlaceholderBlock(Modifier.fillMaxWidth().height(NativeAdDimens.LineHeight), bar)
             PlaceholderBlock(Modifier.fillMaxWidth(fraction = CARD_SHORT_LINE).height(NativeAdDimens.LineHeight), bar)
         }
     }
-    PlaceholderBlock(Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight))
+    PlaceholderBlock(
+        Modifier.fillMaxWidth().height(callToActionHeight).testTag(NativeAdTestTags.PLACEHOLDER_CTA),
+    )
 }
 
 private const val CARD_SHORT_LINE = 0.6f
@@ -814,6 +870,7 @@ private fun NativeAdCardPreview() {
             NativeAdCard(assets.copy(starRating = 4.0), NativeAdSize.MEDIUM)
             NativeAdCard(assets.copy(starRating = 4.0), NativeAdSize.FULL)
             NativeAdCard(assets, NativeAdSize.CARD, Modifier.size(180.dp, 300.dp))
+            NativeAdCard(assets, NativeAdSize.STEP)
         }
     }
 }
