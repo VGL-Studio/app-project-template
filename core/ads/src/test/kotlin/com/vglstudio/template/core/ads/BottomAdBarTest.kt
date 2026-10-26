@@ -105,9 +105,9 @@ class BottomAdBarTest {
     @Composable
     private fun Bar(content: @Composable (PaddingValues) -> Unit = { DefaultContent(it) }) {
         AppTheme(darkTheme = false) {
-            val layers = bottomAdBarLayers(bottomAdBarAllowed(canRequest, enabled), flags)
+            val choice = rememberBottomAdBarLayers(canRequest, enabled, flags)
             BottomAdBarHost(
-                layers = layers,
+                layers = choice.layers,
                 nativeSlot = { delay, onAvailability, modifier ->
                     SideEffect { recordedDelays += delay }
                     NativeAdSlotGate(
@@ -151,6 +151,7 @@ class BottomAdBarTest {
                     )
                 },
                 onLayersChange = { layerChanges += it },
+                onSlotHasAdChange = choice.onSlotHasAdChange,
                 content = content,
             )
         }

@@ -151,10 +151,9 @@ fun BottomAdBarScaffold(
         "${placement.key} is ${placement.format}: a bottom bar placement is native small"
     }
     val ads = LocalAdsController.current
-    var bannerHadAd by remember { mutableStateOf(false) }
-    val bar = rememberBottomAdBarState(ads, placement, bannerHadAd)
+    val bar = rememberBottomAdBarState(ads, placement)
     BottomAdBarHost(
-        layers = bar.layers,
+        layers = bar.choice.layers,
         nativeSlot = { delay, onAvailability, slotModifier ->
             BottomNativeSlot(placement, delay, onAvailability, slotModifier)
         },
@@ -164,27 +163,39 @@ fun BottomAdBarScaffold(
         layer = { layerModifier -> CollapsibleNativeAdLayer(placement, bar.expandAfterSeconds, layerModifier) },
         modifier = modifier,
         onLayersChange = { ads?.onBottomBarLayers(placement, it) },
-        onSlotHasAdChange = { hasAd -> bannerHadAd = hasAd && bar.layers?.slot == BottomSlotKind.BANNER },
+        onSlotHasAdChange = bar.choice.onSlotHasAdChange,
         content = content,
     )
 }
 
 /** What the bar of [placement] shows now, read from [ads]; nothing without a controller (tests, previews). */
-private class BottomAdBarState(val layers: BottomAdBarLayers?, val expandAfterSeconds: Long)
+private class BottomAdBarState(val choice: BottomAdBarChoice, val expandAfterSeconds: Long)
 
 @Composable
-private fun rememberBottomAdBarState(
-    ads: AdsController?,
-    placement: AdPlacement,
-    bannerHadAd: Boolean,
-): BottomAdBarState {
-    if (ads == null) return BottomAdBarState(layers = null, expandAfterSeconds = 0)
+private fun rememberBottomAdBarState(ads: AdsController?, placement: AdPlacement): BottomAdBarState {
+    if (ads == null) return BottomAdBarState(BottomAdBarChoice(layers = null, onSlotHasAdChange = {}), 0)
     val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
     val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
     val flags by ads.globalFlags.collectAsStateWithLifecycle()
-    // The one place the layers are decided (L-072).
+    return BottomAdBarState(rememberBottomAdBarLayers(canRequestAds, enabled, flags), flags.expandCollapAfterSeconds)
+}
+
+/** The layers of a bar, and what to call when its slot has an ad or not ([BottomAdBarHost.onSlotHasAdChange]). */
+internal class BottomAdBarChoice(val layers: BottomAdBarLayers?, val onSlotHasAdChange: (Boolean) -> Unit)
+
+/**
+ * The one place the layers of a bar are decided (L-072), for [BottomAdBarScaffold] and its tests: keeps whether the
+ * banner slot has an ad, so a banner with an ad keeps the bar when consent is withdrawn (B-06).
+ */
+@Composable
+internal fun rememberBottomAdBarLayers(
+    canRequestAds: Boolean,
+    enabled: Boolean,
+    flags: AdsGlobalFlags,
+): BottomAdBarChoice {
+    var bannerHadAd by remember { mutableStateOf(false) }
     val layers = bottomAdBarLayers(bottomAdBarAllowed(canRequestAds, enabled, bannerHadAd), flags)
-    return BottomAdBarState(layers, flags.expandCollapAfterSeconds)
+    return BottomAdBarChoice(layers) { hasAd -> bannerHadAd = hasAd && layers?.slot == BottomSlotKind.BANNER }
 }
 
 /**
