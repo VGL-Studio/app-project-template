@@ -73,6 +73,8 @@ internal object NativeFullScreenAdTestTags {
     const val MEDIA = "nativeFullScreenMedia"
     const val CTA = "nativeFullScreenCta"
     const val ICON = "nativeFullScreenIcon"
+    const val COUNTDOWN = "nativeFullScreenCountdown"
+    const val PLACEHOLDER = "nativeFullScreenPlaceholder"
 }
 
 private const val BODY_MAX_LINES = 3

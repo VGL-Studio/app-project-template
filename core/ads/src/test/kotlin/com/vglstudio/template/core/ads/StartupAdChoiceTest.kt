@@ -118,4 +118,21 @@ class StartupAdChoiceTest {
         settings.set("is_show_open_app", true)
         assertEquals(false, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
     }
+
+    @Test
+    fun placementSwitch_nativeCombo_followsNativeAfterInterKey() = runTest {
+        val combo = AdPlacement.NATIVE_AFTER_INTER
+        // Waits for nothing: the combo does not depend on the first-open mark.
+        assertEquals(false, placementSwitch(combo, flags, neverRead).first())
+        settings.set("is_show_native_after_inter", true)
+        assertEquals(true, placementSwitch(combo, flags, neverRead).first())
+        settings.set("is_show_ads", false)
+        assertEquals(false, placementSwitch(combo, flags, neverRead).first())
+        settings.set("is_show_ads", true)
+        // Control: OPEN_APP still follows show_open_ads, not the combo key.
+        assertEquals(false, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
+        settings.set("show_open_ads", true)
+        assertEquals(true, placementSwitch(AdPlacement.OPEN_APP, flags, flowOf(false)).first())
+        assertEquals(true, placementSwitch(combo, flags, neverRead).first())
+    }
 }

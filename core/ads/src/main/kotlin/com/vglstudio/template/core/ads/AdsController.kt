@@ -98,6 +98,7 @@ class AdsController @Inject internal constructor(
     metrics: AdMetrics,
     internal val logger: AppLogger,
     private val firstOpenMark: FirstOpenMark,
+    private val interDisplayCounter: InterDisplayCounter,
 ) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -489,7 +490,7 @@ class AdsController @Inject internal constructor(
      * N-04, HD-03: the activity that showed the full-screen ad is destroyed before the ad reported its close. Lowers
      * the flag and runs the waiting completion once (forced completion).
      */
-    private fun onAppActivityDestroyed(activity: Activity) {
+    internal fun onAppActivityDestroyed(activity: Activity) {
         val shown = presence.current ?: return
         if (shown.hostActivityId != System.identityHashCode(activity)) return
         logger.warn(TAG, "Full-screen ${shown.placement.key}: host destroyed before close")
@@ -723,6 +724,38 @@ class AdsController @Inject internal constructor(
             logger.info(TAG, "Native full-screen shown: ${placement.key}")
             true
         }
+
+    // Skeleton of plan T-026, step 3.
+    internal val nativeFullScreenView: StateFlow<NativeFullScreenView?> = MutableStateFlow(null)
+
+    internal fun closeNativeFullScreen() {}
+
+    internal fun onNativeFullScreenBack() {}
+
+    internal fun beginInterstitialTurn(
+        placement: AdPlacement,
+        hostActivityId: Int,
+        combo: Boolean,
+        onFinished: () -> Unit,
+    ): FullScreenCompletion? = null
+
+    internal fun onInterstitialClosed(placement: AdPlacement, turn: FullScreenCompletion) {}
+
+    internal fun onInterstitialShowFailed(placement: AdPlacement, turn: FullScreenCompletion, code: Int) {}
+
+    internal fun onInterstitialLost(placement: AdPlacement, turn: FullScreenCompletion, loadState: String) {}
+
+    internal fun onAppActivityResumed(activity: Activity) {}
+
+    internal fun onAppActivityPaused(activity: Activity) {}
+
+    internal fun beginStandaloneNativeTurn(
+        placement: AdPlacement,
+        takeAd: () -> LoadedNativeAd?,
+        onFinished: () -> Unit,
+    ): Boolean = false
+
+    internal fun openConsentGateForTest() {}
 
     /** The user closed the native full-screen ad (close button or back button). Main thread only. */
     internal fun closeNativeFullScreenAd() {
