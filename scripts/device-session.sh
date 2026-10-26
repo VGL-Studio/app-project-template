@@ -29,7 +29,7 @@
 #   DEVICE_SESSION_SLEEP seconds for every wait in `scenarios`; tests set 0 (default: the wait of each step)
 #   DEVICE_SCENARIOS_GLOB   scenario files of the plans; default: feature/*/src/deviceScenarios/*.txt
 #                        app/src/deviceScenarios/*.txt (read by scripts/device-scenario.py)
-#   DEVICE_SCENARIOS_BUDGET seconds for all scenario files of the plans; default 600
+#   DEVICE_SCENARIOS_BUDGET seconds for all scenario files of the plans, giving the device back included; default 600
 #   DEVICE_SCENARIO_CMD  command that runs them; default: python3 scripts/device-scenario.py
 # Messages are in Vietnamese for the team; comments are in English.
 set -euo pipefail
@@ -344,6 +344,16 @@ print_plan_scenarios() {
     echo
   else
     echo "Kịch bản theo plan: không có"
+    echo
+  fi
+  # Notes of the runner that are out of the ordinary: a late consent form it declined, an app it had to start again.
+  local notes
+  notes="$(sed -n 's/^plan \([^ ]*\) note step=\([0-9]*\) t=[^ ]* \(.*\)$/- \1, bước \2: \3/p' "${dir}/scenarios.txt" |
+    grep -E 'hộp thoại đồng ý hiện muộn|mở lại' || true)"
+  if [[ -n "${notes}" ]]; then
+    echo "Ghi chú của trình chạy:"
+    echo
+    echo "${notes}"
     echo
   fi
   if grep -q '^plan runner_error' "${dir}/scenarios.txt"; then
