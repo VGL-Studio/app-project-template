@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-8]
 owner: Nhật
-status: approved
+status: on-staging
 risk: high      # plan T-036: thêm, bớt vị trí gallery_* và API của :core:ads (điểm chặn 1, 7)
 size: M
 depends_on: [T-014, T-024, T-025, T-026, T-028, T-029, T-030, T-031, T-032]   # T-029 thêm 2026-10-25 theo câu hỏi 1 của plan T-029
