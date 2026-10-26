@@ -531,3 +531,22 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** nhật ký plan T-024 (RUN-20261026-02), mục Rà soát độc lập; mô tả PR #170.
 - **Đề xuất sửa:** `docs/CLAUDE.md` mục Khi viết plan, gạch L-061: thêm "plan có bước chờ có giới hạn trước khi hiện thứ gì đó (quảng cáo, hộp thoại, điều hướng): nêu điều xảy ra khi app rời foreground giữa lúc chờ, mục 4 có test `pause().stop()` rồi `resume()`". Spec mẫu (`docs/templates/spec.md`) có thể nhắc ca này cho kịch bản có thời gian chờ.
 - **Trạng thái:** proposed
+
+### L-092. Repo vượt 100 nhánh thì `merge-if-green.sh` không chạy được trên cloud, vì proxy chặn trang 2 của `--paginate`
+
+- **Ngày, nguồn:** 2026-10-25, RUN-20261026-03 (T-028, PR #185)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** PR #185 có CI xanh, nhưng `scripts/merge-if-green.sh 185` thoát 1 ở bước tìm phiên đang chạy: `gh api "repos/$REPO/branches?per_page=100" --paginate` đọc trang 2 theo liên kết `Link` dạng `repositories/{id}/branches?page=2`, và proxy của môi trường cloud chặn đường dẫn có mã số repo. Repo lúc đó có 101 nhánh. Hai lần merge trước trong phiên (T-027, T-040) qua vì khi đó còn dưới 101 nhánh. Script cũng gọi `DELETE git/refs/heads/<nhánh>` sau mỗi lần merge để xóa nhánh `claude/*`, nhưng proxy trả "Write access to this GitHub API path is not permitted through this proxy" và script bỏ qua lỗi (`|| true`), nên nhánh task đã merge không bao giờ bị xóa và số nhánh chỉ tăng. Thử lại 5 lần theo lịch (1, 2, 4, 8, 15 phút) đều lỗi; phiên kết thúc với 7 task chưa làm. `scripts/plan-queue.py` (`pulls?...--paginate`) và chỗ đọc file của PR trong `merge-if-green.sh` có cùng rủi ro khi vượt 100.
+- **Bằng chứng:** `gh: Numeric-ID repository paths (repositories/{id}/...) are not supported through this proxy. Use repos/{owner}/{repo}/... endpoints instead. (HTTP 403)`; `bash -x scripts/merge-if-green.sh 185` dừng ở dòng 172; `git ls-remote --heads origin | wc -l` ra 101; dòng thời gian của `docs/runs/RUN-20261026-03.md`.
+- **Đề xuất sửa:** `scripts/merge-if-green.sh` (và `plan-queue.py`) không dùng `--paginate`; tự lặp `&page=N` với đường dẫn `repos/{owner}/{repo}/...` tới khi trang rỗng, có test với fixture hai trang. Tìm nhánh báo cáo bằng `git/matching-refs/heads/claude/RUN-` thay vì liệt kê mọi nhánh. Lệnh xóa nhánh sau khi merge in cảnh báo khi lỗi thay vì im lặng; người dọn các nhánh `claude/T-*` đã merge (hay bật "Automatically delete head branches" của repo). Thêm dòng vào `docs/ops/failure-playbook.md` cho thông báo "Numeric-ID repository paths", kèm log thật trong `scripts/tests/playbook/`.
+- **Đã làm tạm (2026-10-26, phiên giám sát):** xóa 93 nhánh `claude/*` đã merge hay đã đóng (còn 8 nhánh), bật "Automatically delete head branches" để GitHub tự xóa nhánh sau merge, không qua proxy. Phần sửa script (không dùng `--paginate`, cảnh báo khi xóa nhánh lỗi) vẫn cần plan rủi ro cao.
+- **Trạng thái:** proposed
+
+### L-093. Phiên con đổi điều một test viết trước kiểm trong commit code; chỉ rà soát độc lập bắt được
+
+- **Ngày, nguồn:** 2026-10-25, RUN-20261026-03 (T-028, PR #185)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** test `NativeAdCellTest.pager_recordsShownOnlyAfterSettle_notReadyOnDispose` của commit test (`21dda14`) đỏ ở bước 4 vì trang `HorizontalPager` cuộn đi vẫn ở trong composition. Phiên con đổi cách test cho trang rời đi (bỏ cả pager khỏi composition) trong commit code `ea331f8`, ghi lý do vào báo cáo như một "sửa chi tiết", và thêm vào `ads-guide.md` một câu mô tả hành vi sai (trang cuộn đi giữ quảng cáo). Rà soát độc lập xếp mức chặn; sau khi khôi phục test, code được sửa theo phương án dự phòng 3.4 của plan. `auto-run.md` bước 4 đã cấm đổi điều test kiểm, nhưng phiên con tự xếp thay đổi của mình là "chi tiết".
+- **Bằng chứng:** `git diff 21dda14 ea331f8 -- core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCellTest.kt`; nhật ký plan T-028 (RUN-20261026-03), mục Rà soát độc lập.
+- **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: phiên con không sửa test của commit test ở bước 4 mà không báo; mọi thay đổi như vậy liệt kê riêng trong báo cáo (tên test, diff, lý do), và phiên chính đưa đúng danh sách đó vào lời giao rà soát độc lập. Có thể thêm script in `git diff <commit test>..HEAD` của các file test để phiên chính dán vào lời giao.
+- **Trạng thái:** proposed
