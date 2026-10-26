@@ -68,4 +68,41 @@ class ResumeSuppressionTest {
         suppression.markLeavingApp()
         assertTrue(suppression.resumeAdsSuppressed.value)
     }
+
+    @Test
+    fun adClick_suppressesUntilNextActivityResume() {
+        // Control: nothing blocks before the click.
+        assertFalse(suppression.resumeAdsSuppressed.value)
+        suppression.markAdClicked()
+        assertTrue(suppression.resumeAdsSuppressed.value)
+        suppression.onActivityResumed()
+        assertFalse(suppression.resumeAdsSuppressed.value)
+    }
+
+    @Test
+    fun adClickTwice_keepsOneMark() {
+        suppression.markAdClicked()
+        suppression.markAdClicked()
+        assertTrue(suppression.resumeAdsSuppressed.value)
+        // A flag, not a counter: one resume releases both clicks.
+        suppression.onActivityResumed()
+        assertFalse(suppression.resumeAdsSuppressed.value)
+    }
+
+    @Test
+    fun adClick_doesNotReleaseHolds() {
+        val hold = suppression.hold(ResumeSuppression.SYSTEM_SCREEN)
+        suppression.markAdClicked()
+        suppression.onActivityResumed()
+        // The click mark is used up, the hold is not (G-01).
+        assertTrue(suppression.resumeAdsSuppressed.value)
+        suppression.onShellReported(true)
+        assertTrue(suppression.resumeAdsSuppressed.value)
+        suppression.release(hold)
+        suppression.onShellReported(false)
+        assertFalse(suppression.resumeAdsSuppressed.value)
+        // Control (L-055): a click alone blocks, so the release above was the hold's and not a missing mark.
+        suppression.markAdClicked()
+        assertTrue(suppression.resumeAdsSuppressed.value)
+    }
 }

@@ -23,14 +23,43 @@ class AdTelemetryTest {
     private var serving = false
     private var offline = false
 
-    private fun telemetry(target: AdMetrics = metrics) = AdTelemetry(
+    private fun telemetry(target: AdMetrics = metrics, onClicked: () -> Unit = {}) = AdTelemetry(
         metrics = target,
         lifecycleSwitches = { DEFAULT_FLAGS.copy(logFullScreenEvents = logFullScreen, logSlotEvents = logSlot) },
         serving = { serving },
         offline = { offline },
         counter = counter,
         logger = logger,
+        onClicked = onClicked,
     )
+
+    @Test
+    fun clicked_runsOnClicked_evenWhenLifecycleLogsOff() {
+        var clicks = 0
+        val telemetry = telemetry(onClicked = { clicks++ })
+        // Group switches off and nothing served: no event, the click still counts (A-14).
+        telemetry.clicked(AdFormat.NATIVE_SMALL, AdPlacement.SAMPLE_NATIVE_SMALL)
+        telemetry.clicked(AdFormat.INTERSTITIAL, AdPlacement.GALLERY_INTERSTITIAL)
+        assertEquals(2, clicks)
+        assertTrue(metrics.events.isEmpty())
+        // Control (L-055): group on and served, both the click and its event.
+        logSlot = true
+        serving = true
+        telemetry.clicked(AdFormat.NATIVE_SMALL, AdPlacement.SAMPLE_NATIVE_SMALL)
+        assertEquals(3, clicks)
+        assertEquals(listOf(AdMetricEvent.Clicked("NATIVE_SMALL", "sample_native_small")), metrics.events)
+    }
+
+    @Test
+    fun clicked_onClickedThrows_isSwallowed() {
+        logSlot = true
+        serving = true
+        val telemetry = telemetry(onClicked = { throw IllegalStateException("boom") })
+        telemetry.clicked(AdFormat.NATIVE_SMALL, AdPlacement.SAMPLE_NATIVE_SMALL)
+        // The SDK callback does not break, and the event is still logged.
+        assertEquals(listOf(AdMetricEvent.Clicked("NATIVE_SMALL", "sample_native_small")), metrics.events)
+        assertTrue(logger.entries.any { it.level == LogLevel.WARN && "IllegalStateException" in it.message })
+    }
 
     @Test
     fun revenue_readsPlacementAtEventTime() {

@@ -10,11 +10,15 @@ interface StartupAds {
     suspend fun awaitStartupAd(): StartupAdTurn?
 }
 
-/** One ad to show when the app opens. Only app-wide placements are accepted, never the combo (`native_combo`). */
+/**
+ * One ad to show when the app opens. Only the two placements of the loading screen are accepted, `open_app` and
+ * `open_app_inter`: never the combo (`native_combo`) nor the resume ad (`resume`, `resume_inter`, plan T-025).
+ */
 class StartupAdTurn(val placement: AdPlacement) {
     init {
-        require(placement.appWide) { "${placement.key} is not an app-wide placement" }
-        require(placement.format != AdFormat.NATIVE_FULL_SCREEN) { "${placement.key} is not a startup placement" }
+        require(placement == AdPlacement.OPEN_APP || placement == AdPlacement.OPEN_APP_INTER) {
+            "${placement.key} is not a startup placement"
+        }
     }
 }
 
