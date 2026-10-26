@@ -306,7 +306,7 @@ Sau đó AI:
 
    Đo token khi viết mục Token: `scripts/token-usage.py report --since <started_at> --run RUN-YYYYMMDD-NN --csv docs/metrics/token-usage.csv`, dán bảng vào mục Token (`docs/ops/token-usage.md`). Không đo được thì ghi lý do và đi tiếp; việc đo không bao giờ chặn phiên.
 3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, `docs/metrics/token-usage.csv`, bài học mới trong `docs/lessons.md` (mục 6), plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).
-4. Merge PR báo cáo bằng `scripts/merge-if-green.sh`. Script từ chối (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
+4. Merge PR báo cáo bằng `scripts/merge-if-green.sh <số PR> --update`. PR báo cáo chỉ có tài liệu vẫn có CI khoảng 2 phút: job `build-and-test` chạy `scripts/tests/run.sh`, bộ test này kiểm cả tài liệu (số bài học, `foundation.md`, quét mã thật, danh sách chạy) (L-040); `--update` để script chờ kiểm tra đang chạy. CI đỏ thì đọc lỗi bằng `scripts/wait-run.sh --pr <số PR>` (dòng `FAIL - ` nói test nào), sửa tài liệu trên nhánh báo cáo, đẩy lại rồi gọi lại script. Script từ chối vì lý do khác (ví dụ nhánh chính đang đỏ) thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
 5. **Soạn plan cho hàng chờ (L-084).** Chỉ sau khi PR báo cáo đã merge, nên báo cáo không bị chậm và hết hạn mức giữa chừng không làm mất báo cáo. Danh sách chạy đã `finished`, bước này không giữ nhánh chính.
 
    Điều kiện chạy:
