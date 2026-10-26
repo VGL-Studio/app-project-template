@@ -184,7 +184,7 @@ merge_during_run() {
 {"routes": {
   "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$head_ref"}, "title": "t", "labels": $labels},
   "issues?state=open&labels=main-broken&per_page=10": [],
-  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261015-01-report"}, {"name": "claude/RUN-20261016-01-report"}],
+  "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261015-01-report"}, {"name": "claude/RUN-20261016-01-report"}],
   "contents/docs/runs/RUN-20261015-01.md?ref=claude/RUN-20261015-01-report": "---\nid: RUN-20261015-01\nstatus: finished\n---\n",
   "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: $run_status   # draft | approved | running | finished\n---\n",
   "compare/main...abc1234": {"behind_by": 2}
@@ -210,11 +210,11 @@ merge_routes() { # <head ref> <compare route JSON fields> <check-runs answer> [e
 {"routes": {
   "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$1"}, "title": "t", "labels": []},
   "issues?state=open&labels=main-broken&per_page=10": [],
-  "branches?per_page=100": [{"name": "main"}],
+  "branches?per_page=100&page=1": [{"name": "main"}],
   "compare/main...abc1234": $2,
   "commits/abc1234/check-runs?per_page=100": $3,
   "commits/abc1234": {"commit": {"committer": {"date": "2026-10-18T02:00:00Z"}, "message": "Sửa nút\n\nchi tiết"}},
-  "pulls/12/files?per_page=100": [{"filename": "docs/STATUS.md"}, {"filename": "docs/lessons.md"}]${4:-}
+  "pulls/12/files?per_page=100&page=1": [{"filename": "docs/STATUS.md"}, {"filename": "docs/lessons.md"}]${4:-}
 }}
 JSON
 }
@@ -274,6 +274,33 @@ expect "merge-if-green --update: merges the new commit" 1 "$(grep -c '^ĐÃ MERG
 expect "merge-if-green: without --update a branch behind main exits 3" 3 \
   "$(python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["routes"]["pulls/12"]=fx["routes"]["pulls/12"]["__sequence__"][0]; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"; merge_run 12)"
 
+# merge-if-green.sh reads every page of the branch list itself, on repos/<owner>/<repo> paths (L-092): a running
+# session whose report branch is on page 2 still blocks other PRs.
+python3 -I - "$work/merge.json" << 'PY'
+import json, sys
+fx = {"routes": {
+  "pulls/12": {"state": "open", "draft": False, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "claude/template-x"}, "title": "t", "labels": []},
+  "issues?state=open&labels=main-broken&per_page=10": [],
+  "branches?per_page=100&page=1": [{"name": f"claude/old-{n}"} for n in range(100)],
+  "branches?per_page=100&page=2": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
+  "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: running\n---\n",
+  "compare/main...abc1234": {"behind_by": 2}}}
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+code=0
+PATH="$work/bin:$PATH" FIXTURE="$work/merge.json" scripts/merge-if-green.sh 12 --dry-run > "$work/mg-paged.out" 2>&1 || code=$?
+expect "merge-if-green: a running session on page 2 of the branches still blocks other PRs" "1 1" \
+  "$code $(grep -c 'phiên RUN-20261016-01 đang chạy' "$work/mg-paged.out" || true)"
+
+# After the merge, a branch the script could not delete gets a warning, unless GitHub already deleted it (L-092).
+merge_routes claude/template-x '{"behind_by": 0}' "$green_runs"
+python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["fail_writes"]=["DELETE git/refs/heads/claude/template-x"]; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch already deleted by GitHub gets no warning" 0 "$(grep -c 'không xóa được nhánh' "$work/mg.out" || true)"
+python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["routes"]["git/ref/heads/claude/template-x"]={"ref": "x"}; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch left after a failed delete gets a warning" 1 "$(grep -c "không xóa được nhánh 'claude/template-x'" "$work/mg.out" || true)"
+
 # merge-if-green.sh notices a PR that is already on main, and a merge that GitHub answered with an error although the
 # squash commit reached main (L-080). Every earlier check still comes first (L-058).
 # The fixture is built from MIG_* variables; MIG_MAIN is the answer of "commits?sha=main", a JSON value or a
@@ -295,7 +322,7 @@ mig_run() { # <extra arg or empty>; reads MIG_*; prints the exit code, output in
  "routes": {
   "pulls/12": {"state": "${MIG_STATE:-open}", "draft": ${MIG_DRAFT:-false}, "base": {"ref": "${MIG_BASE:-main}"}, "head": {"sha": "abc1234", "ref": "claude/template-x"}, "title": "t", "labels": ${MIG_LABELS:-[]}},
   "issues?state=open&labels=main-broken&per_page=10": ${MIG_ISSUES:-[]},
-  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
+  "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
   "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: ${MIG_RUN:-finished}\n---\n",
   "compare/main...abc1234": {"behind_by": ${MIG_BEHIND:-0}},
   "git/commits/abc1234": {"tree": {"sha": "tree1"}},
@@ -488,7 +515,7 @@ merge_while_broken() { # <issues JSON> [IS_EXACT_REVERT] [run status]; prints th
 {"routes": {
   "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "$(git_t rev-parse good)", "ref": "revert/${culprit::7}"}, "title": "Revert", "labels": []},
   "issues?state=open&labels=main-broken&per_page=10": $1,
-  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
+  "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
   "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: ${3:-finished}\n---\n",
   "compare/main...$(git_t rev-parse good)": {"behind_by": 2}
 }}
@@ -664,7 +691,7 @@ resume_check() { # <run status> <minutes since the last commit> [extra routes JS
   last="$(python3 -c "import datetime as d; print((d.datetime(2026,10,18,3,0,tzinfo=d.timezone.utc)-d.timedelta(minutes=$2)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
   cat > "$work/resume.json" << JSON
 {"routes": {
-  "branches?per_page=100": [{"name": "main"}, {"name": "claude/RUN-20261018-01-report"}, {"name": "claude/T-007-x"}, {"name": "claude/T-099-other"}],
+  "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261018-01-report"}, {"name": "claude/T-007-x"}, {"name": "claude/T-099-other"}],
   "contents/docs/runs/RUN-20261018-01.md?ref=claude/RUN-20261018-01-report": "---\nid: RUN-20261018-01\nstatus: $1\nstarted_at: 2026-10-17 22:00 UTC\n---\n\n## 1. Danh sách chạy\n\n| 1 | T-007 | demo |\n",
   "commits/claude/RUN-20261018-01-report": {"commit": {"committer": {"date": "2026-10-17T22:05:00Z"}}},
   "commits/claude/T-007-x": {"commit": {"committer": {"date": "$last"}}},
@@ -682,6 +709,16 @@ expect "resume-check: a finished session is left alone" "" "$(resume_check finis
 expect "resume-check: not while main is red" "" "$(resume_check running 120 '[{"number": 5}]')"
 expect "resume-check: not a session started more than a day ago" "" \
   "$(RESUME_MAX_HOURS=3 resume_check running 120)"
+python3 -I - "$work/resume.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+first = fx["routes"].pop("branches?per_page=100&page=1")
+fx["routes"]["branches?per_page=100&page=1"] = [{"name": f"claude/old-{n}"} for n in range(100)]
+fx["routes"]["branches?per_page=100&page=2"] = first
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+expect "resume-check: finds a report branch on page 2 of the branches" docs/runs/RUN-20261018-01.md \
+  "$(PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z python3 -I scripts/resume-check.py 2> /dev/null)"
 
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"
@@ -1384,7 +1421,7 @@ pq_git init -q -b main
 pq_git add -A
 pq_git commit -q -m init
 pq_git update-ref refs/remotes/origin/claude/plan-T-919-x HEAD
-pq_fixture='{"routes": {"pulls?state=open&per_page=100": [{"number": 77}], "pulls/77/files?per_page=100": [{"filename": "docs/features/demo/tickets/T-920-x.md"}]}}'
+pq_fixture='{"routes": {"pulls?state=open&per_page=100&page=1": [{"number": 77}], "pulls/77/files?per_page=100&page=1": [{"filename": "docs/features/demo/tickets/T-920-x.md"}]}}'
 echo "$pq_fixture" > "$work/pq.json"
 pq_run() { # <args...>; stdout of the script, its stderr goes to $work/pq.err
   PLAN_QUEUE_ROOT="${PQ_ROOT:-$pq}" PATH="$work/bin:$PATH" FIXTURE="${PQ_FIXTURE:-$work/pq.json}" \
@@ -1432,15 +1469,25 @@ printf -- '---\nid: X-1\nstatus: ready\n---\n' > "$work/pq2/docs/features/demo/t
 printf -- '---\nid: T-930\nstatus: ready\n---\n' > "$work/pq2/docs/features/demo/tickets/T-930-x.md"
 expect "plan-queue: a ticket id that is not T-NNN exits 2" 2 "$(PQ_ROOT="$work/pq2" pq_codes)"
 expect "plan-queue: a gh error exits 2" 2 "$(PQ_FIXTURE="$work/pq-nogh.json" pq_codes)"
-echo '{"routes": {"pulls?state=open&per_page=100": []}}' > "$work/pq-empty.json"
+echo '{"routes": {"pulls?state=open&per_page=100&page=1": []}}' > "$work/pq-empty.json"
 expect "plan-queue: runs on the repository" 1 \
   "$([ "$(PQ_ROOT="$PWD" PQ_FIXTURE="$work/pq-empty.json" pq_codes --max 1)" != 2 ] && echo 1 || echo 0)"
 expect "plan-queue: an ssh remote names the same repo" 0 \
   "$(GIT_CONFIG_VALUE_0=git@github.com:o/r.git pq_codes --max 1)"
 expect "plan-queue: a remote that is not GitHub exits 2 without printing it" "2 0" \
   "$(GIT_CONFIG_VALUE_0=https://user:tok@mirror.example/o/r.git pq_codes) $(GIT_CONFIG_VALUE_0=https://user:tok@mirror.example/o/r.git pq_run > /dev/null; grep -c 'tok' "$work/pq.err" || true)"
-expect "plan-queue: open pull requests and their files are read with paging" 2 \
-  "$(grep -c '"--paginate"' scripts/plan-queue.py || true)"
+# Pages are read with "&page=N", not --paginate (L-092): a PR on page 2 of the open PRs still holds its ticket.
+python3 -I - "$work/pq-paged.json" << 'PY'
+import json, sys
+routes = {"pulls?state=open&per_page=100&page=1": [{"number": 1000 + n} for n in range(100)],
+          "pulls?state=open&per_page=100&page=2": [{"number": 77}],
+          "pulls/77/files?per_page=100&page=1": [{"filename": "docs/features/demo/tickets/T-920-x.md"}]}
+routes.update({f"pulls/{1000 + n}/files?per_page=100&page=1": [] for n in range(100)})
+json.dump({"routes": routes}, open(sys.argv[1], "w"))
+PY
+paged_ids="$(PQ_FIXTURE="$work/pq-paged.json" pq_ids --max 20)"
+expect "plan-queue: a PR on page 2 of the open PRs still holds its ticket" "0 1" \
+  "$(grep -c 'T-920' <<< "$paged_ids" || true) $(grep -c 'T-901' <<< "$paged_ids" || true)"
 
 # token-usage.py counts tokens per task from transcripts, one usage per request, never failing the session.
 tokens="$work/token-repo"
