@@ -161,6 +161,8 @@ enum class AdPlacement(
     OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
     OPEN_APP_INTER("open_app_inter", AdFormat.INTERSTITIAL, ignoreInterval = true, appWide = true),
     NATIVE_AFTER_INTER("native_combo", AdFormat.NATIVE_FULL_SCREEN, appWide = true),
+    RESUME("resume", AdFormat.APP_OPEN, appWide = true),
+    RESUME_INTER("resume_inter", AdFormat.INTERSTITIAL, ignoreInterval = true, appWide = true),
 
     // Staging ad gallery only (plan T-014): one placement per format, see [stagingOnly].
     GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),

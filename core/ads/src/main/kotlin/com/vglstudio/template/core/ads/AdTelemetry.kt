@@ -25,6 +25,7 @@ internal class AdTelemetry(
     private val offline: () -> Boolean,
     private val counter: LoadAttemptCounter,
     private val logger: AppLogger,
+    private val onClicked: () -> Unit = {},
 ) {
     /** One paid event of the SDK (T-01). */
     fun revenue(

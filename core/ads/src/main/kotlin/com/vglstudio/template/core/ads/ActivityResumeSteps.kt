@@ -6,6 +6,7 @@ import android.app.Activity
 internal class ActivityResumeSteps(
     private val recoverStuck: (Activity) -> Unit,
     private val regatherConsent: (Activity) -> Unit,
+    private val showResumeAd: (Activity) -> Unit,
     private val releaseLeaveMark: () -> Unit,
 ) {
     /** Releases a stuck full-screen flag (F-03) before gathering consent again (S-09), then the leave mark (G-03). */

@@ -61,6 +61,8 @@ internal class ResumeSuppression(private val suppressor: ForegroundAdSuppressor,
         update()
     }
 
+    fun markAdClicked() {} // T-025 skeleton
+
     /**
      * G-03 way 3, G-05: the next resume of an app activity releases the mark, whether or not the app went to
      * background; SDK activities are filtered out by AdsActivityTracker.

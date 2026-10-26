@@ -30,3 +30,6 @@ internal fun placementSwitch(placement: AdPlacement, flags: AdsFlags, firstOpen:
     return combine(flags.global, firstOpen) { global, first -> startupAdPlacement(global, first) == placement }
         .distinctUntilChanged()
 }
+
+/** A-12: the placement of the resume ad, or null when `show_resum_ads` (with `is_show_ads`) is off. */
+internal fun resumeAdPlacement(flags: AdsGlobalFlags): AdPlacement? = null // T-025 skeleton

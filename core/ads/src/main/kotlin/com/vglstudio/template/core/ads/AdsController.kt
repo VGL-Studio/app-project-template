@@ -224,6 +224,7 @@ class AdsController @Inject internal constructor(
     private val resumeSteps = ActivityResumeSteps(
         recoverStuck = { recoverStuckFullScreen(it) },
         regatherConsent = { coordinator.onActivityResumed(it) },
+        showResumeAd = {},
         releaseLeaveMark = { resumeSuppression.onActivityResumed() },
     )
 
@@ -636,6 +637,11 @@ class AdsController @Inject internal constructor(
         // A rewarded turn is not the current turn: it ends here, with no outcome (F-03).
         if (placement.format == AdFormat.REWARDED) rewardedTurns.onStuck()
     }
+
+    // T-025 skeleton.
+    internal fun readResumeGate(): ResumeGate = ResumeGate(true, true, true, true, null, true, false, true)
+
+    internal fun onProcessForegroundChanged(foreground: Boolean) {}
 
     /** An activity of the app was resumed ([AdsActivityTracker]): the steps of G-06, then S-25. */
     internal fun onAppActivityResumed(activity: Activity) {

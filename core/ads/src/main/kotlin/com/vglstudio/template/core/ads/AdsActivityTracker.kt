@@ -36,6 +36,8 @@ internal class AdsActivityTracker(private val filter: AppActivityFilter, private
     interface Listener {
         fun onForegroundChanged(foreground: Boolean) {}
 
+        fun onProcessForegroundChanged(foreground: Boolean) {}
+
         fun onActivityResumed(activity: Activity) {}
 
         fun onActivityPaused(activity: Activity) {}
