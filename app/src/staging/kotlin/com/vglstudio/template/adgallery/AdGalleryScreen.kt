@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -746,7 +747,8 @@ private fun PagerPage(pageCount: Int, slots: AdGallerySlots, modifier: Modifier)
 @Composable
 private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modifier) {
     val ready = slots.stepFullPageReady()
-    var fixedFullPage by remember { mutableStateOf<Boolean?>(null) }
+    // Saved, like the page of the pager: after a rotation the slot reads "not ready" in its first frame (T-032).
+    var fixedFullPage by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val withFullPage = fixedFullPage ?: ready
     val pageCount = stepCount + if (withFullPage) 1 else 0
     val pagerState = rememberPagerState { pageCount }
