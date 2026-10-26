@@ -67,8 +67,9 @@ internal fun BoundNativeAd(
 }
 
 /**
- * Draws a loaded ad of [size] (small, medium, or the card of a collection, which binds its media like medium); used
- * by [NativeAdSlot], [NativeAdCell] and by ads inside lists. [ctaLarge] is the large call to action of medium.
+ * Draws a loaded ad of [size] (small, medium, or the card of a collection or of a flow step, which bind their media
+ * like medium); used by [NativeAdSlot], [NativeAdCell], [NativeStepAd] and by ads inside lists. [ctaLarge] is the
+ * large call to action of medium.
  */
 @Composable
 internal fun BoundNativeAd(

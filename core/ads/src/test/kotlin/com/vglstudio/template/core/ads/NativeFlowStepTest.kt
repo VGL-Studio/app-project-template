@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsEqualTo
@@ -161,7 +162,7 @@ class NativeFlowStepTest {
 
     @Test
     fun stepAd_stepChange_showsAnotherAdOfThePool() {
-        val pool = RecordingPool(immediatePool(numberedAds(3), logger = logger))
+        val pool = RecordingPool(immediatePool(numberedAds(3), logger = logger).also { it.refill() })
         var step by mutableStateOf(0)
         composeRule.setContent {
             AppTheme {
@@ -227,7 +228,7 @@ class NativeFlowStepTest {
 
     @Test
     fun stepAd_allowedTurnsFalse_hidesAndReportsFalse() {
-        val pool = RecordingPool(immediatePool(numberedAds(3), logger = logger))
+        val pool = RecordingPool(immediatePool(numberedAds(3), logger = logger).also { it.refill() })
         val reports = mutableListOf<Boolean>()
         var allowed by mutableStateOf(true)
         composeRule.setContent {
@@ -633,7 +634,10 @@ class NativeFlowStepTest {
         assertEquals(true, ready)
 
         allowed = false
-        composeRule.mainClock.advanceTimeByFrame()
+        // The clock is stopped: the change is sent to the composition by hand, then one frame, far less than the
+        // 500 ms between two reads, so false comes from the recomposition itself.
+        Snapshot.sendApplyNotifications()
+        composeRule.mainClock.advanceTimeBy(FRAME_MILLIS)
         assertEquals(false, ready)
     }
 

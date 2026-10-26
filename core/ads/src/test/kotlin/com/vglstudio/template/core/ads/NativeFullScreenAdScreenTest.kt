@@ -267,15 +267,18 @@ class NativeFullScreenAdScreenTest {
         composeRule.waitForIdle()
         // A status bar of 40 dp: the page of a flow step sits in the frame of the app, which handles the safe area.
         val topInset = with(composeRule.density) { STATUS_BAR.roundToPx() }
-        composeRule.runOnUiThread {
-            ViewCompat.dispatchApplyWindowInsets(
-                view!!,
-                WindowInsetsCompat.Builder()
-                    .setInsets(WindowInsetsCompat.Type.statusBars(), Insets.of(0, topInset, 0, 0))
-                    .build(),
-            )
+        val dispatchStatusBar = {
+            composeRule.runOnUiThread {
+                ViewCompat.dispatchApplyWindowInsets(
+                    view!!,
+                    WindowInsetsCompat.Builder()
+                        .setInsets(WindowInsetsCompat.Type.statusBars(), Insets.of(0, topInset, 0, 0))
+                        .build(),
+                )
+            }
+            composeRule.waitForIdle()
         }
-        composeRule.waitForIdle()
+        dispatchStatusBar()
         val area = composeRule.onNodeWithTag(AREA).getUnclippedBoundsInRoot()
         val media = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
         val cta = composeRule.onNodeWithTag(CTA).getUnclippedBoundsInRoot()
@@ -286,6 +289,8 @@ class NativeFullScreenAdScreenTest {
         // Control: the page after an interstitial covers the window, so it adds the status bar.
         flowStep = false
         composeRule.waitForIdle()
+        // Compose reads the insets of the window only once a composable asks for them: sent again for this page.
+        dispatchStatusBar()
         val afterInter = composeRule.onNodeWithTag(MEDIA).getUnclippedBoundsInRoot()
         assertEquals(76f + STATUS_BAR.value, (afterInter.top - area.top).value, TOLERANCE)
     }

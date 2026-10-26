@@ -35,7 +35,8 @@ enum class AdFormat(val code: String) {
 
     /**
      * Covers the whole screen at a natural break, shown with [rememberShowFullScreenAd], or right after an
-     * interstitial when the combo is on (`native_combo`, through [NativeFullScreenTurns], plan T-026).
+     * interstitial when the combo is on (`native_combo`, through [NativeFullScreenTurns], plan T-026), or as the page
+     * of a flow step with [NativeFullScreenStep], no controls (MC-06, plan T-032).
      */
     NATIVE_FULL_SCREEN("native_fullscreen"),
 
@@ -55,7 +56,10 @@ enum class AdFormat(val code: String) {
      */
     BANNER_COLLAPSIBLE("banner_collapsible"),
 
-    /** 250 dp native card at one step of a flow (onboarding, result). No function shows it yet (T-028). */
+    /**
+     * 250 dp native card at one step of a flow (onboarding, result), shown with [NativeStepAd] outside the pager, one
+     * pooled ad per step (MC-06, T-032).
+     */
     NATIVE_STEP("native_step"),
 
     /**

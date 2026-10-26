@@ -26,8 +26,9 @@ internal fun nativeRequestOptions(size: NativeAdSize): NativeRequestOptions = Na
     customControls = false,
     multipleImages = false,
     mediaAspect = when (size) {
-        NativeAdSize.SMALL, NativeAdSize.STEP -> MediaAspectRatio.ANY
-        NativeAdSize.MEDIUM, NativeAdSize.FULL -> MediaAspectRatio.LANDSCAPE
+        NativeAdSize.SMALL -> MediaAspectRatio.ANY
+        // The 250 dp card of a flow step draws its media wide, like medium (plan T-032); AdChoices top right.
+        NativeAdSize.MEDIUM, NativeAdSize.FULL, NativeAdSize.STEP -> MediaAspectRatio.LANDSCAPE
         NativeAdSize.CARD -> MediaAspectRatio.PORTRAIT
     },
 )
