@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-14]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: S
 depends_on: [T-025]
 sprint:
-plan:
+plan: features/ads/plans/T-043-resume-kiem-vi-tri-truoc-khi-chan.md
 created: 2026-10-26
 ---
 
