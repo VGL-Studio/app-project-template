@@ -19,7 +19,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.vglstudio.template.core.analytics.AdFunnel
 import com.vglstudio.template.core.analytics.AdMetrics
+import com.vglstudio.template.core.analytics.AppsFlyerStartup
 import com.vglstudio.template.core.logging.AppLogger
 import com.vglstudio.template.core.network.InternetConnectivity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -106,6 +108,12 @@ import kotlinx.coroutines.withContext
  * app open of `resume` through the app open slot, or the interstitial of `resume_inter` with the combo, which skips
  * the `ads_interval` gate. It stays silent until the startup ad turn of the loading screen is over. A click on any ad
  * ([AdTelemetry.clicked]) skips the next return (A-14).
+ *
+ * AppsFlyer (plan T-033, ADR-0027) is started through [AppsFlyerStartup] at the first of: the SDK started, an answer of
+ * the consent round, or 10 s after [start] with no consent form open ([awaitAttributionStart]). Its funnel goes through
+ * [AdTelemetry] to [AdFunnel]: eligible when an interstitial or native full-screen turn opens and at each tap on
+ * "Watch ad" of a rewarded ad, `api_called` at each load, `displayed` when the ad shows ([NativeFunnel] for native
+ * ads), and the display count of interstitials (N-05). Native slots report eligible with [ReportNativeEligible].
  */
 @Singleton
 class AdsController @Inject internal constructor(
@@ -119,6 +127,8 @@ class AdsController @Inject internal constructor(
     internal val logger: AppLogger,
     private val firstOpenMark: FirstOpenMark,
     private val interDisplayCounter: InterDisplayCounter,
+    private val attribution: AppsFlyerStartup,
+    funnel: AdFunnel,
 ) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -257,6 +267,7 @@ class AdsController @Inject internal constructor(
     /** The recorder of ad metrics (plan T-023); the banner of [AdSlot] and the native loads report to it too. */
     internal val telemetry = AdTelemetry(
         metrics = metrics,
+        funnel = funnel,
         lifecycleSwitches = { latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS },
         serving = { canRequestAds.value },
         offline = { !online.value },
@@ -316,7 +327,11 @@ class AdsController @Inject internal constructor(
 
             override fun consentOpen(): Boolean = canRequestAds.value && gate.state.value.allowed
 
-            override fun loadStateAtOpen(): String = opportunityLoadState(AdPlacement.NATIVE_AFTER_INTER)
+            // Called once, when the native full-screen turn after an interstitial opens: its eligible event (T-033).
+            override fun loadStateAtOpen(): String {
+                telemetry.eligible(AdFormat.NATIVE_FULL_SCREEN)
+                return opportunityLoadState(AdPlacement.NATIVE_AFTER_INTER)
+            }
 
             override fun takeAd(): LoadedNativeAd? =
                 takePreloadedNativeFullScreen(AdPlacement.NATIVE_AFTER_INTER, clock.nowMillis())
@@ -496,6 +511,13 @@ class AdsController @Inject internal constructor(
         }
         logger.info(TAG, "Ads started")
         startedAtMillis = clock.nowMillis()
+        // AppsFlyer starts once consent allows it (ADR-0027, decision 3; plan T-033).
+        scope.launch {
+            val consentAnswered = combine(coordinator.finished, gate.state) { done, state -> done && state.settled }
+            awaitAttributionStart(sdkStarted, consentAnswered, coordinator.consentFormOpen, ATTRIBUTION_WAIT_MILLIS)
+            logger.info(TAG, "AppsFlyer may start")
+            attribution.start()
+        }
         val activityTracker = AdsActivityTracker(
             appActivities,
             object : AdsActivityTracker.Listener {
@@ -848,10 +870,16 @@ class AdsController @Inject internal constructor(
         recordShownOpportunity(placement)
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdShowedFullScreenContent() {
-                // N-05: counted for T-033; a failed count never touches the turn.
+                telemetry.displayed(
+                    AdFormat.INTERSTITIAL,
+                    ad.adUnitId,
+                    ad.responseInfo.loadedAdapterResponseInfo?.adapterClassName,
+                )
+                // N-05: counted for T-033; a failed count never touches the turn and sends nothing.
                 scope.launch {
-                    val count = interDisplayCounter.increment() ?: return@launch
-                    logger.info(TAG, "Interstitial displays since install: $count")
+                    val count = interDisplayCounter.increment()
+                    telemetry.interDisplayed(count)
+                    if (count != null) logger.info(TAG, "Interstitial displays since install: $count")
                 }
             }
 
@@ -880,6 +908,8 @@ class AdsController @Inject internal constructor(
         onFinished: () -> Unit,
     ): FullScreenCompletion? {
         if (!presence.tryBegin(placement, hostActivityId, clock.nowMillis())) return null
+        // The turn opens: `af_inters_ad_eligible` (T-033), for every interstitial turn, the startup one included.
+        telemetry.eligible(AdFormat.INTERSTITIAL)
         val finish: () -> Unit = if (combo) {
             { nativeTurns.afterInterstitial(placement, onFinished) }
         } else {
@@ -1037,6 +1067,8 @@ class AdsController @Inject internal constructor(
         }
         nativeFullScreenCells.remove(ad)?.value = placement
         recordShownOpportunity(placement)
+        // The turn opens with an ad: `af_native_ad_eligible` (T-033).
+        telemetry.eligible(AdFormat.NATIVE_FULL_SCREEN)
         val completion = FullScreenCompletion(logger).apply { set(onFinished) }
         nativeTurns.showStandalone(placement, ad) { completion.complete("closed") }
         return true
@@ -1056,6 +1088,8 @@ class AdsController @Inject internal constructor(
      */
     internal fun showRewarded(activity: Activity, placement: AdPlacement, onOutcome: (RewardedOutcome) -> Unit) {
         require(placement.format == AdFormat.REWARDED) { "${placement.key} is not a rewarded placement" }
+        // Every tap on "Watch ad", busy or with no ad too (T-033, AdsKit RewardedAdManagerImpl).
+        telemetry.eligible(AdFormat.REWARDED)
         scope.launch { rewardedTurns.request(placement.declaration, activity, onOutcome) }
     }
 
@@ -1077,7 +1111,14 @@ class AdsController @Inject internal constructor(
             return
         }
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdShowedFullScreenContent() = rewardedTurns.onShowed(declaration)
+            override fun onAdShowedFullScreenContent() {
+                telemetry.displayed(
+                    AdFormat.REWARDED,
+                    ad.adUnitId,
+                    ad.responseInfo.loadedAdapterResponseInfo?.adapterClassName,
+                )
+                rewardedTurns.onShowed(declaration)
+            }
 
             override fun onAdDismissedFullScreenContent() {
                 if (showingRewardeds[placement] === ad) showingRewardeds -= placement
@@ -1529,6 +1570,7 @@ class AdsController @Inject internal constructor(
     ) : NativeAdEvents {
         private val fallback = NativeRevenueFallback()
         private var fallbackJob: Job? = null
+        private val funnel = NativeFunnel(telemetry, format, unitId)
 
         @Volatile private var adSource: String? = null
 
@@ -1541,6 +1583,7 @@ class AdsController @Inject internal constructor(
             adSource = adapter?.adSourceName
             adapterClassName = adapter?.adapterClassName
             load.succeeded(clock.nowMillis())
+            funnel.onLoaded(adapter?.adapterClassName)
         }
 
         override fun onFailed(code: Int, sdkMessage: String?) {
@@ -1562,6 +1605,7 @@ class AdsController @Inject internal constructor(
         }
 
         override fun onImpression() {
+            funnel.onImpression()
             val due = fallback.onImpression(clock.nowMillis())
             fallbackJob?.cancel()
             fallbackJob = scope.launch {
@@ -1720,6 +1764,7 @@ class AdsController @Inject internal constructor(
                     telemetry.loadSucceeded(AdFormat.INTERSTITIAL, slot, loadPlacement, clock.nowMillis())
                     val cell = PlacementCell()
                     val adapter = ad.responseInfo.loadedAdapterResponseInfo
+                    telemetry.apiCalled(AdFormat.INTERSTITIAL, unitId, adapter?.adapterClassName)
                     ad.setOnPaidEventListener { value ->
                         telemetry.revenue(
                             AdFormat.INTERSTITIAL,
@@ -1831,6 +1876,7 @@ class AdsController @Inject internal constructor(
                 telemetry.loadSucceeded(AdFormat.REWARDED, slot, loadPlacement, clock.nowMillis())
                 val cell = PlacementCell()
                 val adapter = ad.responseInfo.loadedAdapterResponseInfo
+                telemetry.apiCalled(AdFormat.REWARDED, unitId, adapter?.adapterClassName)
                 ad.setOnPaidEventListener { value ->
                     telemetry.revenue(
                         AdFormat.REWARDED,
@@ -1936,6 +1982,12 @@ class AdsController @Inject internal constructor(
 
         /** The startup ad turn counts as over this long after [start] (question 7 of plan T-025, A-03 is 40 s). */
         const val STARTUP_FINISHED_CAP_MILLIS = 45_000L
+
+        /**
+         * AppsFlyer starts at the latest this long after [start] when no consent form is open: the consent wait of
+         * the loading screen ([StartupAdWait], ADR-0027, decision 3).
+         */
+        const val ATTRIBUTION_WAIT_MILLIS = 10_000L
 
         /** Time to wait for a native ad before its space is removed (kept from wave 2 until T-027). */
         const val NATIVE_LOAD_TIMEOUT_MILLIS = 10_000L

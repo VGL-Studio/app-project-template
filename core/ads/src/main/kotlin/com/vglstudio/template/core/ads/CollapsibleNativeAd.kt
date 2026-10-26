@@ -330,6 +330,8 @@ internal fun CollapsibleNativeAdLayer(placement: AdPlacement, expandAfterSeconds
     // Outside any branch that depends on the ad: a new ad never opens it again.
     val state = rememberCollapsibleAdState()
     val unitId = remember(placement) { ads.unitId(placement, AdFormat.NATIVE_COLLAPSIBLE) }
+    // `af_native_ad_eligible` once each time the layer comes in: the bar checked consent and its key (plan T-033).
+    ReportNativeEligible(unitId != null)
     // Collected while in composition; leaving it cancels the collection, which destroys the ad.
     val states = remember(placement) { ads.nativeAd(placement, AdFormat.NATIVE_COLLAPSIBLE) }
     CollapsibleNativeAdLayerHost(

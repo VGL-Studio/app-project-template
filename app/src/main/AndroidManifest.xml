@@ -1,17 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
         Every new permission is a high-risk change (risk-scoring.md, blocking point 3)
         and must match the Data safety declaration on Google Play.
     -->
 
+    <!--
+        The AppsFlyer SDK sets allowBackup="true" with tools:replace; the app keeps backup off (plan T-033). The
+        backup rules of AppsFlyer (dataExtractionRules, fullBackupContent) are merged in: they only narrow what is
+        copied.
+    -->
     <application
         android:name=".TemplateApplication"
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.App">
+        android:theme="@style/Theme.App"
+        tools:replace="android:allowBackup">
         <!-- Set per build flavor in app/build.gradle.kts: Google's test app id in staging (ADR-0013). -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

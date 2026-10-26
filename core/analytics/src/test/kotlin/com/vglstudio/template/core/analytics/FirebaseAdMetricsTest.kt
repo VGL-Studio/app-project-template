@@ -13,6 +13,7 @@ class FirebaseAdMetricsTest {
         val event = AdMetricEvent.ImpressionRevenue(
             adFormat = "INTER",
             adSource = "AppLovin",
+            monetizationNetwork = "AppLovin",
             adUnitName = "unit",
             currency = "USD",
             value = 0.0123,
@@ -35,6 +36,27 @@ class FirebaseAdMetricsTest {
         assertEquals(0.0123, params["value"] as Double, 0.0)
         assertEquals("gallery_interstitial", params["ad_placement"])
         assertFalse(params.values.any { it == "com.x.Adapter" })
+    }
+
+    @Test
+    fun revenue_monetizationNetwork_isNotSentToFirebase() {
+        val event = AdMetricEvent.ImpressionRevenue(
+            adFormat = "INTER",
+            adSource = "admob",
+            monetizationNetwork = "RawSourceName",
+            adUnitName = "unit",
+            currency = "USD",
+            value = 0.0,
+            adPlacement = "p",
+            adapterClassName = null,
+        )
+
+        val params = event.firebaseParams()
+
+        assertFalse(params.containsKey("monetization_network"))
+        assertFalse(params.values.contains("RawSourceName"))
+        // Control: Firebase gets its own network name.
+        assertEquals("admob", params["ad_source"])
     }
 
     @Test
@@ -160,6 +182,7 @@ class FirebaseAdMetricsTest {
     private fun revenue(adPlacement: String?) = AdMetricEvent.ImpressionRevenue(
         adFormat = "NATIVE_SMALL",
         adSource = "admob",
+        monetizationNetwork = "",
         adUnitName = "unit",
         currency = "USD",
         value = 0.0,

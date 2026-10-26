@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import com.vglstudio.template.core.analytics.AdFunnelKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -13,6 +14,26 @@ class AdTelemetryRulesTest {
         assertEquals("admob", adSourceOrAdmob(null))
         assertEquals("admob", adSourceOrAdmob(""))
         assertEquals("Pangle", adSourceOrAdmob("Pangle"))
+    }
+
+    @Test
+    fun funnelKind_coversEveryFormat() {
+        // Copied by hand from section 8.3: app open and banners have no funnel.
+        val expected = mapOf(
+            AdFormat.INTERSTITIAL to AdFunnelKind.INTERS,
+            AdFormat.REWARDED to AdFunnelKind.REWARDED,
+            AdFormat.NATIVE_FULL_SCREEN to AdFunnelKind.NATIVE,
+            AdFormat.NATIVE_COLLAPSIBLE to AdFunnelKind.NATIVE,
+            AdFormat.NATIVE_SMALL to AdFunnelKind.NATIVE,
+            AdFormat.NATIVE_STEP to AdFunnelKind.NATIVE,
+            AdFormat.NATIVE_IN_COLLECTION to AdFunnelKind.NATIVE,
+            AdFormat.NATIVE_MEDIUM to AdFunnelKind.NATIVE,
+            AdFormat.APP_OPEN to null,
+            AdFormat.BANNER to null,
+            AdFormat.BANNER_COLLAPSIBLE to null,
+        )
+        assertEquals(AdFormat.entries.toSet(), expected.keys)
+        expected.forEach { (format, kind) -> assertEquals(format.name, kind, format.funnelKind()) }
     }
 
     @Test

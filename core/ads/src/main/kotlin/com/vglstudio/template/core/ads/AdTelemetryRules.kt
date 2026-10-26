@@ -1,5 +1,7 @@
 package com.vglstudio.template.core.ads
 
+import com.vglstudio.template.core.analytics.AdFunnelKind
+
 /**
  * The pure mappings of the ad metrics (docs/ops/ads-business-rules.md, sections 8.1 and 8.2; plan T-023). The code
  * that listens to the SDK reads its data and calls [AdTelemetry]; every decision of a metric is here.
@@ -21,6 +23,23 @@ internal fun AdFormat.metricCode(): String = when (this) {
     AdFormat.NATIVE_STEP -> "NATIVE_ONBOARDING"
     AdFormat.NATIVE_IN_COLLECTION -> "NATIVE_CONTENT"
     AdFormat.NATIVE_MEDIUM -> "NATIVE_MEDIUM"
+}
+
+/**
+ * The AppsFlyer funnel of a format (section 8.3): interstitial, rewarded and every native format; app open and
+ * banners have none. Exhaustive on purpose, with no `else`: a new [AdFormat] must choose.
+ */
+internal fun AdFormat.funnelKind(): AdFunnelKind? = when (this) {
+    AdFormat.INTERSTITIAL -> AdFunnelKind.INTERS
+    AdFormat.REWARDED -> AdFunnelKind.REWARDED
+    AdFormat.NATIVE_FULL_SCREEN,
+    AdFormat.NATIVE_COLLAPSIBLE,
+    AdFormat.NATIVE_SMALL,
+    AdFormat.NATIVE_STEP,
+    AdFormat.NATIVE_IN_COLLECTION,
+    AdFormat.NATIVE_MEDIUM,
+    -> AdFunnelKind.NATIVE
+    AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE -> null
 }
 
 /** Full screen: `INTER`, `REWARDED`, `APP_OPEN`, `NATIVE_FULL`; every other format is a slot (section 8.2). */

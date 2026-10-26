@@ -35,6 +35,14 @@ class AppsFlyerSettingsTest {
     }
 
     @Test
+    fun switches_areAllKeys_inOrder() {
+        val switches = AppsFlyerSettings.switches()
+        // Control: the 11 keys are there.
+        assertEquals(11, switches.size)
+        assertEquals(AppsFlyerSettings.all().map { it.name }, switches.map { it.name })
+    }
+
+    @Test
     fun everyKey_isMarkedAsTemplateName() {
         val keys = AppsFlyerSettings.all()
         // Control: the 11 keys are there, so the check below looks at real keys.
