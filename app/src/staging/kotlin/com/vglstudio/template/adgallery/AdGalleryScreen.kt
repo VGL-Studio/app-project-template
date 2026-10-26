@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -65,6 +67,30 @@ object AdGalleryTestTags {
     const val INSPECTOR_BUTTON = "ad_gallery_inspector_button"
     const val IN_LIST_BUTTON = "ad_gallery_inlist_button"
     const val COLLAPSIBLE_BUTTON = "ad_gallery_collapsible_button"
+    const val APP_OPEN_BUTTON = "ad_gallery_app_open_button"
+    const val BANNERS_BUTTON = "ad_gallery_banners_button"
+    const val GRID_BUTTON = "ad_gallery_grid_button"
+    const val PAGER_BUTTON = "ad_gallery_pager_button"
+    const val FLOW_BUTTON = "ad_gallery_flow_button"
+    const val REWARDED_BUTTON = "ad_gallery_rewarded_button"
+    const val STATUS_BUTTON = "ad_gallery_status_button"
+    const val BANNERS = "ad_gallery_banners"
+    const val BANNERS_LIST = "ad_gallery_banners_list"
+    const val GRID = "ad_gallery_grid"
+    const val PAGER = "ad_gallery_pager"
+    const val FLOW = "ad_gallery_flow"
+    const val FLOW_PAGER = "ad_gallery_flow_pager"
+    const val FLOW_NEXT = "ad_gallery_flow_next"
+    const val FLOW_CARD_FRAME = "ad_gallery_flow_card_frame"
+    const val REWARDED = "ad_gallery_rewarded"
+    const val REWARDED_BLOCK = "ad_gallery_rewarded_block"
+    const val REWARDED_ALLOW = "ad_gallery_rewarded_allow"
+    const val REWARDED_ALLOW_AFTER = "ad_gallery_rewarded_allow_after"
+    const val REWARDED_RUN = "ad_gallery_rewarded_run"
+    const val STATUS = "ad_gallery_status"
+
+    /** The item [number] of the grid page. */
+    fun gridItem(number: Int): String = "ad_gallery_grid_item_$number"
 }
 
 /**
@@ -88,6 +114,32 @@ interface AdGallerySlots {
 
     /** Adds [items] to the list of the in-list page, with ads where they go. */
     fun LazyListScope.listWithAds(items: List<Int>, itemContent: @Composable LazyItemScope.(Int) -> Unit)
+
+    @Composable
+    fun Banner(modifier: Modifier)
+
+    @Composable
+    fun CollapsibleBanner(modifier: Modifier)
+
+    @Composable
+    fun gridEvery(): Int?
+
+    fun LazyGridScope.gridWithAds(items: List<Int>, itemContent: @Composable LazyGridItemScope.(Int) -> Unit)
+
+    @Composable
+    fun CollectionCard(viewed: Boolean, modifier: Modifier)
+
+    @Composable
+    fun StepCard(step: Int, modifier: Modifier)
+
+    @Composable
+    fun stepFullPageReady(): Boolean
+
+    @Composable
+    fun StepFullPage(shown: Boolean, modifier: Modifier)
+
+    @Composable
+    fun PrivacyButton(modifier: Modifier)
 }
 
 /**
@@ -129,6 +181,34 @@ internal class SdkAdGallerySlots : AdGallerySlots {
             itemsWithInListAds(items = items, ads = inListAds, key = { it }, itemContent = itemContent)
         }
     }
+
+    // SKELETON (plan T-036, step 3): bodies come in step 4.
+    @Composable
+    override fun Banner(modifier: Modifier) = Unit
+
+    @Composable
+    override fun CollapsibleBanner(modifier: Modifier) = Unit
+
+    @Composable
+    override fun gridEvery(): Int? = null
+
+    override fun LazyGridScope.gridWithAds(items: List<Int>, itemContent: @Composable LazyGridItemScope.(Int) -> Unit) =
+        Unit
+
+    @Composable
+    override fun CollectionCard(viewed: Boolean, modifier: Modifier) = Unit
+
+    @Composable
+    override fun StepCard(step: Int, modifier: Modifier) = Unit
+
+    @Composable
+    override fun stepFullPageReady(): Boolean = false
+
+    @Composable
+    override fun StepFullPage(shown: Boolean, modifier: Modifier) = Unit
+
+    @Composable
+    override fun PrivacyButton(modifier: Modifier) = Unit
 }
 
 /** The staging ad gallery with real ads, its ViewModel and the device's back button. */
@@ -185,6 +265,16 @@ fun AdGalleryScreen(
     onShowNativeFullScreen: () -> Unit,
     onOpenAdInspector: () -> Unit,
     modifier: Modifier = Modifier,
+    status: GalleryAdStatus = GalleryAdStatus.Unknown,
+    onShowAppOpen: () -> Unit = {},
+    onOpenBanners: () -> Unit = {},
+    onOpenGrid: () -> Unit = {},
+    onOpenPager: () -> Unit = {},
+    onOpenFlowSteps: () -> Unit = {},
+    onOpenRewarded: () -> Unit = {},
+    onOpenStatus: () -> Unit = {},
+    onStartRewarded: () -> Unit = {},
+    onSelectRewardedPolicy: (GalleryRewarded) -> Unit = {},
 ) {
     Box(
         modifier = modifier
@@ -227,6 +317,8 @@ private fun AdGalleryPage(
         )
         is AdGalleryUiState.InList -> InListPage(uiState.itemCount, slots, pageModifier)
         is AdGalleryUiState.Collapsible -> CollapsiblePage(uiState.itemCount, slots, pageModifier)
+        // SKELETON (plan T-036, step 3).
+        else -> Unit
     }
 }
 

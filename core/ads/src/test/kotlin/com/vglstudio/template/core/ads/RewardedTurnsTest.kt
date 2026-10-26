@@ -166,6 +166,50 @@ class RewardedTurnsTest {
     }
 
     @Test
+    fun policyOverride_allowAfter2_onGallery() = runTest {
+        // The gallery placement declares no policy (Block); the gallery picks one at run time (plan T-036, step 2b).
+        val gallery = AdPlacement.GALLERY_RW_ACTION.declaration
+        repeat(3) { turns.request(gallery, null, collect, RewardedNoAdPolicy.AllowAfter(2)) }
+        assertEquals(listOf(false, true, false), outcomes.map { (it as RewardedOutcome.NoAd).granted })
+
+        // Control (L-055): without the override the line's policy blocks every try.
+        outcomes.clear()
+        repeat(3) { request(gallery) }
+        assertEquals(listOf(false, false, false), outcomes.map { (it as RewardedOutcome.NoAd).granted })
+    }
+
+    @Test
+    fun policyOverride_appliesWhenShowFails() = runTest {
+        val gallery = AdPlacement.GALLERY_RW_ACTION.declaration
+        port.ready["gallery_rw_action"] = true
+        turns.request(gallery, null, collect, RewardedNoAdPolicy.Allow)
+        port.fireShowFailed(0)
+
+        // The turn keeps the policy of its request: the show failure runs the action.
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), outcomes)
+    }
+
+    @Test
+    fun policyChanged_resetsNoAdCount() = runTest {
+        val gallery = AdPlacement.GALLERY_RW_ACTION.declaration
+        val allowAfter2 = RewardedNoAdPolicy.AllowAfter(2)
+        // One try with no ad under allow_after_2, then the tester picks block, then allow_after_2 again.
+        turns.request(gallery, null, collect, allowAfter2)
+        turns.request(gallery, null, collect, RewardedNoAdPolicy.Block)
+        turns.request(gallery, null, collect, allowAfter2)
+        turns.request(gallery, null, collect, allowAfter2)
+
+        // allow_after_2 counts from the start after the change: granted on its second try in a row only.
+        assertEquals(listOf(false, false, false, true), outcomes.map { (it as RewardedOutcome.NoAd).granted })
+
+        // Control (L-055): with no change in between, the second try in a row is granted.
+        outcomes.clear()
+        turns.request(gallery, null, collect, allowAfter2)
+        turns.request(gallery, null, collect, allowAfter2)
+        assertEquals(listOf(false, true), outcomes.map { (it as RewardedOutcome.NoAd).granted })
+    }
+
+    @Test
     fun allowAfter_counterResetsWhenAdShows() = runTest {
         request(rwExport)
         port.ready["rw_export"] = true

@@ -139,6 +139,7 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         declaration: AdPlacementDeclaration,
         activity: Activity?,
         onOutcome: (RewardedOutcome) -> Unit,
+        policy: RewardedNoAdPolicy = declaration.effectiveNoAdPolicy,
     ) {
         val code = declaration.code
         // R-06 first (L-061): a turn still waiting for its ad keeps the second tap, even if the key went off since,

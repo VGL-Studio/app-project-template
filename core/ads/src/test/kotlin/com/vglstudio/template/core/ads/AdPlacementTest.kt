@@ -13,20 +13,25 @@ class AdPlacementTest {
 
     @Test
     fun galleryPlacements_coverEveryFormatOnce() {
-        assertEquals(8, galleryPlacements.size)
+        assertEquals(13, galleryPlacements.size)
+        // Every format but the collapsible layer, which loads through the placement of its bottom bar (plan T-036).
         assertEquals(
-            setOf(
-                AdFormat.NATIVE_SMALL,
-                AdFormat.NATIVE_MEDIUM,
-                AdFormat.NATIVE_COLLAPSIBLE,
-                AdFormat.INTERSTITIAL,
-                AdFormat.NATIVE_FULL_SCREEN,
-                AdFormat.REWARDED,
-            ),
+            AdFormat.entries.toSet() - AdFormat.NATIVE_COLLAPSIBLE,
             galleryPlacements.map { it.format }.toSet(),
         )
         val keys = AdPlacement.entries.map { it.key }
         assertEquals(keys.size, keys.toSet().size)
+    }
+
+    @Test
+    fun galleryAppOpen_isStagingOnly_notAppWide() {
+        // Not app-wide: it has a switch of its own, `is_show_gallery_app_open`, which staging switches on.
+        assertTrue(AdPlacement.GALLERY_APP_OPEN.stagingOnly)
+        assertFalse(AdPlacement.GALLERY_APP_OPEN.appWide)
+        assertEquals(AdFormat.APP_OPEN, AdPlacement.GALLERY_APP_OPEN.format)
+        assertEquals("is_show_gallery_app_open", AdsSettings.placementEnabled(AdPlacement.GALLERY_APP_OPEN).name)
+        // Control: the app open of the loading screen is app-wide.
+        assertTrue(AdPlacement.OPEN_APP.appWide)
     }
 
     @Test
@@ -112,7 +117,13 @@ class AdPlacementTest {
     fun inListGalleryPlacements_declareNativeEvery8() {
         assertEquals(8, AdPlacement.GALLERY_INLIST_SMALL.nativeEvery)
         assertEquals(8, AdPlacement.GALLERY_INLIST_MEDIUM.nativeEvery)
-        val inList = setOf(AdPlacement.GALLERY_INLIST_SMALL, AdPlacement.GALLERY_INLIST_MEDIUM)
+        // The cards of the grid and pager pages (plan T-036).
+        assertEquals(4, AdPlacement.GALLERY_IN_COLLECTION.nativeEvery)
+        val inList = setOf(
+            AdPlacement.GALLERY_INLIST_SMALL,
+            AdPlacement.GALLERY_INLIST_MEDIUM,
+            AdPlacement.GALLERY_IN_COLLECTION,
+        )
         AdPlacement.entries.filterNot { it in inList }
             .forEach { assertNull(it.key, it.nativeEvery) }
     }

@@ -165,7 +165,20 @@ internal class RewardedActionCallbacks(
  * when the screen is recreated. With no ads controller (tests, previews), `start()` runs [onGranted] at once.
  */
 @Composable
-fun rememberRewardedAction(placement: AdPlacement, onGranted: () -> Unit): RewardedAction {
+fun rememberRewardedAction(
+    placement: AdPlacement,
+    onGranted: () -> Unit,
+    noAdPolicyOverride: RewardedNoAdPolicy? = null,
+): RewardedAction = rememberRewardedActionOf(placement, placement.declaration, onGranted, noAdPolicyOverride)
+
+// SKELETON (plan T-036, step 3).
+@Composable
+internal fun rememberRewardedActionOf(
+    placement: AdPlacement,
+    declaration: AdPlacementDeclaration,
+    onGranted: () -> Unit,
+    noAdPolicyOverride: RewardedNoAdPolicy?,
+): RewardedAction {
     require(placement.format == AdFormat.REWARDED) { "${placement.key} is not a rewarded placement" }
     val ads = LocalAdsController.current
     val activity = LocalActivity.current

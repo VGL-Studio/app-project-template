@@ -22,6 +22,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdFunnelEvent
 import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
+import com.vglstudio.template.core.logging.RecordingAppLogger
 import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -150,6 +151,66 @@ class FullScreenAdsTest {
         assertEquals(1, attribution.starts)
         // :core:ads never prepares AppsFlyer: :app does (ADR-0027, decision 1).
         assertEquals(0, attribution.prepares)
+    }
+
+    @Test
+    fun showAppOpenAd_rejectsNonStagingPlacement() {
+        var placement by mutableStateOf(AdPlacement.GALLERY_APP_OPEN)
+        composeRule.setContent { rememberShowAppOpenAd(placement) }
+        // Control: the app open placement of the gallery is accepted.
+        composeRule.waitForIdle()
+        val error = runCatching {
+            placement = AdPlacement.OPEN_APP
+            composeRule.waitForIdle()
+        }.exceptionOrNull()
+        assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+    }
+
+    @Test
+    fun showAppOpenAd_withoutController_finishesOnce() {
+        val finished = mutableListOf<String>()
+        var label by mutableStateOf("first")
+        var action: () -> Unit = {}
+        composeRule.setContent {
+            val current = label
+            action = rememberShowAppOpenAd(AdPlacement.GALLERY_APP_OPEN, onFinished = { finished += current })
+        }
+        composeRule.waitForIdle()
+        action()
+        composeRule.waitForIdle()
+        assertEquals(listOf("first"), finished)
+
+        // Rebuilt with another lambda: the latest one runs.
+        label = "second"
+        composeRule.waitForIdle()
+        action()
+        composeRule.waitForIdle()
+        assertEquals(listOf("first", "second"), finished)
+    }
+
+    @Test
+    fun showAppOpenAd_realController_goesThroughAppOpenGate() {
+        // A real controller with no SDK: consent is not given, so the gate of app open skips the turn (A-05) and
+        // onFinished runs once; the log names the gallery placement, so the action reached the controller.
+        val logger = RecordingAppLogger()
+        val real = testAdsController(logger = logger)
+        var finished = 0
+        var action: () -> Unit = {}
+        composeRule.setContent {
+            CompositionLocalProvider(LocalAdsController provides real) {
+                action = rememberShowAppOpenAd(AdPlacement.GALLERY_APP_OPEN, onFinished = { finished++ })
+            }
+        }
+        composeRule.waitForIdle()
+        action()
+        composeRule.waitForIdle()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, finished)
+        assertTrue(
+            "${logger.entries}",
+            logger.entries.any { it.tag == "Ads" && it.message.startsWith("Full-screen gallery_app_open skipped") },
+        )
     }
 
     private val controller by lazy { testAdsController() }

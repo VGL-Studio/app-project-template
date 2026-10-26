@@ -50,8 +50,9 @@ class AdPreloadPlanTest {
 
     @Test
     fun templatePlan_hasAppOpenFirst() {
-        // HD-02: the app open ad of the loading screen (T-024) is preloaded first.
-        assertEquals(setOf(AdFormat.APP_OPEN), AdPreloadPlan.fromPlacements().groups.first())
+        // HD-02: the app open ad of the loading screen (T-024) is preloaded first, with the pool of the flow steps
+        // (`gallery_native_step`, plan T-036).
+        assertEquals(setOf(AdFormat.APP_OPEN, AdFormat.NATIVE_STEP), AdPreloadPlan.fromPlacements().groups.first())
     }
 
     @Test

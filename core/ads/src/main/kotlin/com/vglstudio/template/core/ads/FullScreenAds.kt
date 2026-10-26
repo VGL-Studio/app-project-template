@@ -28,6 +28,10 @@ fun rememberShowFullScreenAd(placement: AdPlacement, onFinished: () -> Unit = {}
     )
 }
 
+// SKELETON (plan T-036, step 3).
+@Composable
+fun rememberShowAppOpenAd(placement: AdPlacement, onFinished: () -> Unit = {}): () -> Unit = {}
+
 /**
  * The action of [rememberShowFullScreenAd]: calls [show] when an ads controller and an activity are present, else
  * [onUnavailable].

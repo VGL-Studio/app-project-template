@@ -158,4 +158,43 @@ class PreloadPlanRunnerTest {
         at(6_000)
         assertEquals(listOf(6_000L), loads.times)
     }
+
+    @Test
+    fun firstGroupNativeStep_noUnitId_secondGroupStartsAtOnce() = runTest {
+        // HD-02 with `gallery_native_step` (plan T-036): in production the step placement has no ad unit, so its pool
+        // slot is settled from the start, like the pool slot of T-028 with no pool; only app open is waited for.
+        val plan = AdPreloadPlan(
+            listOf(setOf(AdFormat.APP_OPEN, AdFormat.NATIVE_STEP), setOf(AdFormat.INTERSTITIAL)),
+        )
+        val appOpen = slot(AdFormat.APP_OPEN, settleAt = 300)
+        val step = slot(AdFormat.NATIVE_STEP, settleAt = 0)
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = 0)
+        runPlan(plan, listOf(appOpen, step, interstitial))
+
+        at(399)
+        assertEquals(emptyList<Long>(), interstitial.loadCalls)
+        // The next check after app open settled at 300.
+        at(400)
+        assertEquals(listOf(400L), interstitial.loadCalls)
+        assertTrue(
+            logger.entries.any { it.tag == "Ads" && it.message == "Preload group 1/2 started: APP_OPEN, NATIVE_STEP" },
+        )
+    }
+
+    @Test
+    fun firstGroupNativeStep_unsettled_secondGroupWaits6s() = runTest {
+        // Control (L-055): a step slot that never settles holds the second group until the cap of 6 s.
+        val plan = AdPreloadPlan(
+            listOf(setOf(AdFormat.APP_OPEN, AdFormat.NATIVE_STEP), setOf(AdFormat.INTERSTITIAL)),
+        )
+        val appOpen = slot(AdFormat.APP_OPEN, settleAt = 300)
+        val step = slot(AdFormat.NATIVE_STEP)
+        val interstitial = slot(AdFormat.INTERSTITIAL, settleAt = 0)
+        runPlan(plan, listOf(appOpen, step, interstitial))
+
+        at(5_800)
+        assertEquals(emptyList<Long>(), interstitial.loadCalls)
+        at(6_000)
+        assertEquals(listOf(6_000L), interstitial.loadCalls)
+    }
 }
