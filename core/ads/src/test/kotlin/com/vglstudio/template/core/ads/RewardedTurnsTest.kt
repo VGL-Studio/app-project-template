@@ -663,6 +663,39 @@ class RewardedTurnsTest {
     }
 
     @Test
+    fun showFailsInsideTheCall_endsTurnOnce() = runTest {
+        port.ready["rw_get_item"] = true
+        port.failShowAtOnce = 0
+
+        request()
+
+        assertEquals(listOf("rw_get_item"), port.shows)
+        assertEquals(1, outcomes.size)
+        assertTrue(outcomes.single() is RewardedOutcome.NoAd)
+        // Control: a show that does not fail keeps the turn waiting for its ad.
+        port.failShowAtOnce = null
+        port.ready["rw_get_item"] = true
+        request()
+        assertEquals(1, outcomes.size)
+        assertEquals(listOf("rw_get_item", "rw_get_item"), port.shows)
+    }
+
+    @Test
+    fun doubleTap_showFailsInsideTheCall_everyDialogClosesOnce() = runTest {
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        port.ready["rw_get_item"] = true
+        port.failShowAtOnce = 0
+
+        doubleTapAwaitingSwitch(rwGetItem, first = { a += it }, second = { b += it })
+
+        assertEquals(1, a.size)
+        assertTrue(a.single() is RewardedOutcome.NoAd)
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), b)
+        assertTrue(port.showAgains.isEmpty())
+    }
+
+    @Test
     fun decisionsOfTwoPlacementsApart() = runTest {
         val allow = mutableListOf<RewardedOutcome>()
         val export = mutableListOf<RewardedOutcome>()
@@ -713,6 +746,7 @@ class RewardedTurnsTest {
         val loads = mutableListOf<String>()
         val opportunities = mutableListOf<Triple<String, String, String>>()
         val rewards = mutableListOf<String>()
+        var failShowAtOnce: Int? = null
         var presenceRaised = 0
         var presenceLowered = 0
         private var lastShown: AdPlacementDeclaration? = null
@@ -774,6 +808,8 @@ class RewardedTurnsTest {
         override fun show(declaration: AdPlacementDeclaration, activity: Activity?) {
             lastShown = declaration
             shows += declaration.code
+            // The show fails inside the call, as AdsController does with no ad or no activity.
+            failShowAtOnce?.let { turns.onShowFailed(declaration, it) }
         }
 
         override fun showAgain(declaration: AdPlacementDeclaration, activity: Activity?) {
