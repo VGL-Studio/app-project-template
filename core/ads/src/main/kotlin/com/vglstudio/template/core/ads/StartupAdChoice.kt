@@ -3,6 +3,7 @@ package com.vglstudio.template.core.ads
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /**
  * A-01, A-02: the placement shown when the app opens, or null when the key of this open is off. The first open
@@ -16,12 +17,16 @@ internal fun startupAdPlacement(flags: AdsGlobalFlags, firstOpen: Boolean): AdPl
 }
 
 /**
- * The switch of [placement]: for an app-wide placement, whether [startupAdPlacement] chooses it (waits for
- * [firstOpen]); for any other placement, `is_show_ads && is_show_<code>` as before. Every load and show path reads
- * it through AdsController.isEnabled (L-072).
+ * The switch of [placement]: for `native_combo`, `is_show_native_after_inter` (plan T-026); for another app-wide
+ * placement, whether [startupAdPlacement] chooses it (waits for [firstOpen]); for any other placement,
+ * `is_show_ads && is_show_<code>` as before. Every load and show path reads it through AdsController.isEnabled (L-072).
  */
 internal fun placementSwitch(placement: AdPlacement, flags: AdsFlags, firstOpen: Flow<Boolean>): Flow<Boolean> {
     if (!placement.appWide) return flags.placementEnabled(placement)
+    // The combo (plan T-026): `is_show_native_after_inter`, with `is_show_ads` applied; no first-open mark.
+    if (placement == AdPlacement.NATIVE_AFTER_INTER) {
+        return flags.global.map { it.showNativeAfterInter }.distinctUntilChanged()
+    }
     return combine(flags.global, firstOpen) { global, first -> startupAdPlacement(global, first) == placement }
         .distinctUntilChanged()
 }

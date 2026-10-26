@@ -167,11 +167,12 @@ class AdPlacementTest {
     }
 
     @Test
-    fun appWide_onlyForAppOpenAndInterstitial() {
-        // Control: app open and interstitial accept it.
+    fun appWide_onlyForAppOpenInterstitialAndNativeFullScreen() {
+        // Control: app open, interstitial and native full screen (the combo of plan T-026) accept it.
         AdPlacementDeclaration("x", AdFormat.APP_OPEN, appWide = true)
         AdPlacementDeclaration("x", AdFormat.INTERSTITIAL, appWide = true)
-        listOf(AdFormat.NATIVE_SMALL, AdFormat.BANNER, AdFormat.NATIVE_FULL_SCREEN, AdFormat.REWARDED).forEach {
+        AdPlacementDeclaration("x", AdFormat.NATIVE_FULL_SCREEN, appWide = true)
+        listOf(AdFormat.NATIVE_SMALL, AdFormat.BANNER, AdFormat.REWARDED).forEach {
             assertThrows("$it", IllegalArgumentException::class.java) {
                 AdPlacementDeclaration("x", it, appWide = true)
             }
@@ -179,9 +180,12 @@ class AdPlacementTest {
     }
 
     @Test
-    fun appWidePlacements_areExactlyOpenApp() {
+    fun appWidePlacements_areOpenAppAndCombo() {
         val appWide = AdPlacement.entries.filter { it.appWide }
-        assertEquals(listOf(AdPlacement.OPEN_APP, AdPlacement.OPEN_APP_INTER), appWide)
+        assertEquals(
+            listOf(AdPlacement.OPEN_APP, AdPlacement.OPEN_APP_INTER, AdPlacement.NATIVE_AFTER_INTER),
+            appWide,
+        )
         appWide.forEach { assertFalse(it.key, it.stagingOnly) }
     }
 
@@ -190,5 +194,26 @@ class AdPlacementTest {
         assertThrows(IllegalArgumentException::class.java) { StartupAdTurn(AdPlacement.SAMPLE_NATIVE_SMALL) }
         // Control: an app-wide placement is accepted.
         assertEquals(AdPlacement.OPEN_APP, StartupAdTurn(AdPlacement.OPEN_APP).placement)
+    }
+
+    @Test
+    fun nativeCombo_isAppWideNativeFullScreen() {
+        val combo = AdPlacement.NATIVE_AFTER_INTER
+        assertEquals("native_combo", combo.key)
+        assertEquals(AdFormat.NATIVE_FULL_SCREEN, combo.format)
+        assertTrue(combo.appWide)
+        assertTrue(combo.declaration.appWide)
+        assertFalse(combo.stagingOnly)
+        val names = AdsSettings.all().map { it.name }
+        assertFalse(names.toString(), "is_show_native_combo" in names)
+        // Control: the shared key that switches the combo on is there.
+        assertTrue(names.toString(), "is_show_native_after_inter" in names)
+    }
+
+    @Test
+    fun startupTurn_rejectsNativeCombo() {
+        assertThrows(IllegalArgumentException::class.java) { StartupAdTurn(AdPlacement.NATIVE_AFTER_INTER) }
+        // Control: the app-wide interstitial is still a startup placement.
+        assertEquals(AdPlacement.OPEN_APP_INTER, StartupAdTurn(AdPlacement.OPEN_APP_INTER).placement)
     }
 }

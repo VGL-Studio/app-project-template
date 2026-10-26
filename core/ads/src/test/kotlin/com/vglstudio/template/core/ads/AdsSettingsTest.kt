@@ -235,8 +235,9 @@ class AdsSettingsTest {
     @Test
     fun allKeys_haveUniqueNames() {
         val names = AdsSettings.all().map { it.name }
-        // Control: the 14 keys of the table and one key per placement are there, so an empty list cannot pass.
-        assertTrue("Only $names", names.size >= 14 + AdPlacement.entries.size)
+        // Control: the 14 keys of the table and one key per placement that is not app-wide are there, so an empty
+        // list cannot pass.
+        assertTrue("Only $names", names.size >= 14 + AdPlacement.entries.count { !it.appWide })
         assertEquals(names.distinct(), names)
     }
 }

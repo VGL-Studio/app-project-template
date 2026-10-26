@@ -5,4 +5,5 @@
     <string name="ads_native_star_rating">%1$d of 5 stars</string>
     <string name="ads_collapse">Collapse ad</string>
     <string name="ads_close_full_screen">Close ad</string>
+    <string name="ads_close_countdown">Ad can be closed in %1$d s</string>
 </resources>

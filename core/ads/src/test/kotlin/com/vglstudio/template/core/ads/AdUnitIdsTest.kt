@@ -9,13 +9,17 @@ class AdUnitIdsTest {
     @Test
     fun configuredUnits_areParsedPerPlacementKey() {
         val ids = ConfiguredAdUnitIds(
-            " sample_native_small = unit/1 ; other_key=unit/2;open_app=unit/3;open_app_inter=unit/4",
+            " sample_native_small = unit/1 ; other_key=unit/2;open_app=unit/3;open_app_inter=unit/4;" +
+                "native_combo=unit/5",
         )
         assertEquals("unit/1", ids.of(AdPlacement.SAMPLE_NATIVE_SMALL))
         assertTrue(ids.missing.isEmpty())
         // Control: app-wide placements still need a unit on production (plan T-024, section 3.3).
         val withoutAppWide = ConfiguredAdUnitIds(" sample_native_small = unit/1 ; other_key=unit/2;")
-        assertEquals(listOf(AdPlacement.OPEN_APP, AdPlacement.OPEN_APP_INTER), withoutAppWide.missing)
+        assertEquals(
+            listOf(AdPlacement.OPEN_APP, AdPlacement.OPEN_APP_INTER, AdPlacement.NATIVE_AFTER_INTER),
+            withoutAppWide.missing,
+        )
     }
 
     @Test
