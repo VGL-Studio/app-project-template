@@ -641,6 +641,86 @@ class RewardedActionTest {
         )
     }
 
+    @Test
+    fun sameOpening_secondGrant_ignored_nextOpeningRunsAgain() {
+        composeRule.setContent { Subject() }
+        enabled.tryEmit(true)
+        start()
+        tapWatch()
+        tapWatch()
+
+        composeRule.runOnIdle { handlers[0](RewardedOutcome.NoAd(network = false, granted = true)) }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle { handlers[1](RewardedOutcome.NoAd(network = false, granted = true)) }
+        composeRule.waitForIdle()
+        assertEquals(1, granted)
+
+        // Control (L-055): a new opening of the dialog runs the action again.
+        start()
+        tapWatch()
+        emit(RewardedOutcome.Granted)
+        assertEquals(2, granted)
+    }
+
+    @Test
+    fun realController_allowDoubleWatchBeforeOutcome_runsActionOnce() {
+        val controller = realController()
+        composeRule.runOnUiThread { controller.openConsentGateForTest() }
+        setRealContent(controller, override = RewardedNoAdPolicy.Allow)
+
+        start()
+        doubleWatch()
+
+        assertEquals(1, granted)
+        assertEquals(0, cards())
+        assertEquals(1, adsLines { it.startsWith("Rewarded gallery_rw_action skipped:") })
+        // The second tap joined the first decision: one outcome, not two that the dialog would cut down to one.
+        assertEquals(1, adsLines { it.contains("tap joins") })
+    }
+
+    @Test
+    fun realController_allowAfter2DoubleWatch_countsOneTry() {
+        val controller = realController()
+        composeRule.runOnUiThread { controller.openConsentGateForTest() }
+        setRealContent(controller, override = RewardedNoAdPolicy.AllowAfter(2))
+
+        start()
+        doubleWatch()
+        assertEquals(0, granted)
+        assertEquals(0, cards())
+
+        // The next opening is the second try in a row.
+        start()
+        tapWatch()
+        assertEquals(1, granted)
+    }
+
+    @Test
+    fun realController_blockDoubleWatch_skipsOnce() {
+        val controller = realController()
+        composeRule.runOnUiThread { controller.openConsentGateForTest() }
+        setRealContent(controller)
+
+        start()
+        doubleWatch()
+
+        assertEquals(0, granted)
+        assertEquals(0, cards())
+        assertEquals(1, adsLines { it.startsWith("Rewarded gallery_rw_action skipped:") })
+    }
+
+    /** Two taps on "Watch ad" in the same frame, before the first has an outcome. */
+    private fun doubleWatch() {
+        composeRule.runOnUiThread {
+            action!!.watch()
+            action!!.watch()
+        }
+        composeRule.waitForIdle()
+    }
+
+    private fun adsLines(predicate: (String) -> Boolean): Int =
+        logger.entries.count { it.tag == "Ads" && predicate(it.message) }
+
     private val logger = RecordingAppLogger()
 
     private fun realController(): AdsController {
