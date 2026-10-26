@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.awaitCancellation
@@ -33,6 +35,18 @@ private const val TAG = "Ads"
 internal object NativeFlowStepTestTags {
     /** The root of [NativeFullScreenStepGate]: the area the app gives the page. */
     const val FULL_PAGE = "nativeFlowStepFullPage"
+
+    /** The static placeholder of the page while it waits for an ad (plan T-041). */
+    const val FULL_PAGE_PLACEHOLDER = "nativeFlowStepFullPagePlaceholder"
+}
+
+/** Numbers of the page of a flow step ([NativeFullScreenStep]) for the app (plan T-041). */
+object NativeFullScreenStepDefaults {
+    /**
+     * The least height of the page at font scale 1.0: the page takes no ad in a shorter area. With larger text the
+     * least height grows with the head of the ad.
+     */
+    val MinHeight: Dp = 200.dp
 }
 
 /**

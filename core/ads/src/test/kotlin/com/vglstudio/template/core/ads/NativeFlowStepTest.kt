@@ -4,12 +4,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
@@ -455,6 +457,97 @@ class NativeFlowStepTest {
         assertEquals(listOf(true, false), reports)
         assertEquals(listOf<LoadedNativeAd>(ad), released)
         assertFalse(suppressor.suppressed.value)
+    }
+
+    // The height of the page (plan T-041).
+
+    @Test
+    fun fullScreenStep_belowMinHeight_takesNothing() {
+        val ad = FakeLoadedNativeAd(FakeNativeAdAssets.Design)
+        val takes = mutableListOf<LoadedNativeAd?>()
+        var height by mutableStateOf(190.dp)
+        composeRule.setContent {
+            AppTheme {
+                AdsHostContent(suppression, suppressor) {
+                    Box(Modifier.fillMaxWidth().height(height)) {
+                        NativeFullScreenStepGate(
+                            allowed = true,
+                            states = remember(height) { fullPageStates(ad, takes) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        assertTrue("nothing taken in 190 dp: $takes", takes.isEmpty())
+        assertNoNode(NativeFullScreenAdTestTags.CTA)
+        assertNoNode(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER)
+        assertFalse(suppressor.suppressed.value)
+
+        // Control (L-055): the least height takes the ad and draws it.
+        height = 200.dp
+        composeRule.waitForIdle()
+        assertEquals(1, takes.size)
+        composeRule.onNodeWithTag(NativeFullScreenAdTestTags.CTA).assertExists()
+    }
+
+    @Test
+    fun fullScreenStep_shrinksBelowMinHeight_releasesAndReportsFalse() {
+        val ad = FakeLoadedNativeAd(FakeNativeAdAssets.Design)
+        val released = mutableListOf<LoadedNativeAd>()
+        val reports = mutableListOf<Boolean>()
+        var height by mutableStateOf(484.dp)
+        composeRule.setContent {
+            AppTheme {
+                AdsHostContent(suppression, suppressor) {
+                    Box(Modifier.fillMaxWidth().height(height)) {
+                        NativeFullScreenStepGate(
+                            allowed = true,
+                            states = remember { fullPageStates(ad, released = released) },
+                            modifier = Modifier.fillMaxSize(),
+                            onAdAvailabilityChange = { reports += it },
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        assertEquals(listOf(true), reports)
+        assertTrue(suppressor.suppressed.value)
+
+        height = 190.dp
+        composeRule.waitForIdle()
+
+        assertNoNode(NativeFullScreenAdTestTags.CTA)
+        assertEquals(listOf<LoadedNativeAd>(ad), released)
+        assertEquals(listOf(true, false), reports)
+        assertFalse(suppressor.suppressed.value)
+    }
+
+    @Test
+    fun fullScreenStep_waiting_drawsStaticPlaceholder_noSuppress() {
+        var allowed by mutableStateOf(true)
+        composeRule.setContent {
+            AppTheme {
+                AdsHostContent(suppression, suppressor) {
+                    NativeFullScreenStepGate(
+                        allowed = allowed,
+                        states = remember { fullPageStates(null) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER, useUnmergedTree = true).assertExists()
+        assertNoNode(NativeFullScreenAdTestTags.CTA)
+        assertFalse("the placeholder does not block resume ads", suppressor.suppressed.value)
+
+        // Control: not allowed (placement off, consent closed), no placeholder.
+        allowed = false
+        composeRule.waitForIdle()
+        assertNoNode(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER)
     }
 
     // The Next button of the app.
