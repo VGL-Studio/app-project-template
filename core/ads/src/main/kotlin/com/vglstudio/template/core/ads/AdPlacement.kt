@@ -42,7 +42,11 @@ enum class AdFormat(val code: String) {
     /** App open ad. Shown by the loading screen through [StartupAds] (T-024); resume ads come with T-025. */
     APP_OPEN("app_open"),
 
-    /** Rewarded ad before an action the user chose. No function shows it yet (T-031). */
+    /**
+     * Rewarded ad before an action the user chose (MC-05): the feature holds the action with [rememberRewardedAction]
+     * and asks with [RewardedAdDialog] (plan T-031). It has a full-screen slot ([hasFullScreenSlot]) but is not
+     * [isFullScreen]: it never reads nor moves `ads_interval` (R-05, I-02).
+     */
     REWARDED("rewarded"),
 
     /**
@@ -69,11 +73,12 @@ internal val AdFormat.isFullScreen: Boolean
     get() = this == AdFormat.INTERSTITIAL || this == AdFormat.NATIVE_FULL_SCREEN
 
 /**
- * Formats with a preloaded full-screen slot in [AdsController]: the formats of [isFullScreen] and app open. App open
- * is not [isFullScreen] (features never show it), so it moves no `ads_interval` mark (I-02).
+ * Formats with a preloaded full-screen slot in [AdsController]: the formats of [isFullScreen], app open and rewarded.
+ * App open and rewarded are not [isFullScreen] (not shown with [rememberShowFullScreenAd]), so they move no
+ * `ads_interval` mark (I-02, R-05).
  */
 internal val AdFormat.hasFullScreenSlot: Boolean
-    get() = isFullScreen || this == AdFormat.APP_OPEN
+    get() = isFullScreen || this == AdFormat.APP_OPEN || this == AdFormat.REWARDED
 
 /**
  * The interval group of an interstitial (MC-04). [DEFAULT] uses the key `ads_interval`; a group made with [named]
@@ -140,6 +145,12 @@ enum class AdPlacement(
     val ctaLarge: Boolean = false,
     /** A cell keeps a static placeholder instead of hiding while its pool is exhausted (P-06); pooled formats only. */
     val keepSpaceWhenPoolEmpty: Boolean = false,
+    /**
+     * What the action of a rewarded placement does when no ad can be shown (MC-05): [RewardedNoAdPolicy.Block] when
+     * null; rewarded only. The action itself is the `onGranted` of [rememberRewardedAction], named in the comment of
+     * the line and in the app's spec.
+     */
+    val noAdPolicy: RewardedNoAdPolicy? = null,
 ) {
     /** The bottom bar of the sample screen ([BottomAdBarScaffold], plan T-030, question 1). */
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
@@ -155,6 +166,9 @@ enum class AdPlacement(
     GALLERY_NATIVE_COLLAPSIBLE("gallery_native_collapsible", AdFormat.NATIVE_COLLAPSIBLE),
     GALLERY_INTERSTITIAL("gallery_interstitial", AdFormat.INTERSTITIAL),
     GALLERY_NATIVE_FULL_SCREEN("gallery_native_full_screen", AdFormat.NATIVE_FULL_SCREEN),
+
+    // Holds the sample action of the gallery, policy block by default (plan T-031, question 13 of the ads spec).
+    GALLERY_RW_ACTION("gallery_rw_action", AdFormat.REWARDED),
     ;
 
     /**
@@ -176,6 +190,7 @@ enum class AdPlacement(
             appWide,
             ctaLarge,
             keepSpaceWhenPoolEmpty,
+            noAdPolicy,
         )
 }
 
@@ -200,7 +215,12 @@ internal data class AdPlacementDeclaration(
     val ctaLarge: Boolean = false,
     /** A cell keeps a static placeholder while its pool is exhausted (P-06); pooled formats only. */
     val keepSpaceWhenPoolEmpty: Boolean = false,
+    /** What the action does when no ad can be shown (MC-05); rewarded only. */
+    val noAdPolicy: RewardedNoAdPolicy? = null,
 ) {
+    /** The policy of this placement: [noAdPolicy], or [RewardedNoAdPolicy.Block] (MC-05). */
+    val effectiveNoAdPolicy: RewardedNoAdPolicy get() = noAdPolicy ?: RewardedNoAdPolicy.Block
+
     init {
         require(CODE_PATTERN.matches(code)) { "Placement code '$code' must be lower snake case" }
         require(intervalGroup == AdIntervalGroup.DEFAULT || format == AdFormat.INTERSTITIAL) {
@@ -217,6 +237,9 @@ internal data class AdPlacementDeclaration(
         }
         require(!keepSpaceWhenPoolEmpty || format.usesPool) {
             "Placement $code: keepSpaceWhenPoolEmpty is for pooled formats only"
+        }
+        require(noAdPolicy == null || format == AdFormat.REWARDED) {
+            "Placement $code: noAdPolicy is for rewarded only"
         }
         if (nativeEvery != null) {
             require(format in NATIVE_EVERY_FORMATS) { "Placement $code: nativeEvery is for list formats only" }

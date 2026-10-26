@@ -20,6 +20,7 @@ Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu đ
 | `is_show_gallery_native_full_screen` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_full_screen (native_fullscreen). |
 | `is_show_gallery_native_medium` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_medium (native_medium). |
 | `is_show_gallery_native_small` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_native_small (native_small). |
+| `is_show_gallery_rw_action` | boolean | `false` | `:core:ads` | Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_rw_action (rewarded). |
 | `is_show_native_after_inter` | boolean | `false` | `:core:ads` | Shows a full-screen native ad right after an interstitial (combo). |
 | `is_show_native_bottom` | boolean | `false` | `:core:ads` | Bottom slot of every bottom ad bar: a small native ad when true, a banner when false. |
 | `is_show_native_collap` | boolean | `true` | `:core:ads` | Collapsible native layer on the bottom ad bar, only when is_show_native_bottom is also true. Name set by the template, not an AdsKit key. |

@@ -57,7 +57,7 @@ class FirebaseAdMetricsTest {
     @Test
     fun noEventIsNamedAdImpression() {
         val subclasses = AdMetricEvent::class.sealedSubclasses
-        assertEquals(6, subclasses.size)
+        assertEquals(8, subclasses.size)
         val events = listOf(
             revenue(adPlacement = "p"),
             AdMetricEvent.LoadSuccess("INTER", "preload", 1, 10),
@@ -65,6 +65,8 @@ class FirebaseAdMetricsTest {
             AdMetricEvent.Opportunity("INTER", "p", "shown", "ready"),
             AdMetricEvent.ShowFail("INTER", "p", "1", "ad_reused"),
             AdMetricEvent.Clicked("INTER", "p"),
+            AdMetricEvent.RewardEarned("REWARDED", "p"),
+            AdMetricEvent.RewardDialog("REWARDED", "p", "show"),
         )
         // One event of every subclass.
         assertEquals(subclasses.toSet(), events.map { it::class }.toSet())
@@ -137,6 +139,21 @@ class FirebaseAdMetricsTest {
         assertEquals(
             mapOf("ad_format" to "NATIVE_MEDIUM", "ad_placement" to "gallery_native_medium"),
             event.firebaseParams(),
+        )
+    }
+
+    @Test
+    fun rewardEvents_nameAndParams() {
+        val earned = AdMetricEvent.RewardEarned("REWARDED", "gallery_rw_action")
+        assertEquals("ad_reward_earned", earned.firebaseName())
+        assertEquals(mapOf("ad_placement" to "gallery_rw_action"), earned.firebaseParams())
+
+        val dialog = AdMetricEvent.RewardDialog("REWARDED", "gallery_rw_action", "dismiss")
+        assertEquals("reward_dialog", dialog.firebaseName())
+        // No `ad_format` (section 8.2).
+        assertEquals(
+            mapOf("ad_placement" to "gallery_rw_action", "dialog_action" to "dismiss"),
+            dialog.firebaseParams(),
         )
     }
 

@@ -41,7 +41,7 @@ class AdUnitIdsTest {
     @Test
     fun googleTestIds_coverGalleryPlacements() {
         val gallery = AdPlacement.entries.filter { it.stagingOnly }
-        assertEquals(7, gallery.size)
+        assertEquals(8, gallery.size)
         gallery.forEach { placement ->
             assertTrue(placement.key, GoogleTestAdUnitIds.of(placement).startsWith("ca-app-pub-3940256099942544/"))
         }

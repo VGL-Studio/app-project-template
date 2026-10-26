@@ -1,0 +1,291 @@
+package com.vglstudio.template.core.ads
+
+import android.app.Activity
+import com.vglstudio.template.core.logging.AppLogger
+
+/**
+ * What one caller of a rewarded turn gets (R-02 to R-04): [OnScreen] when the ad covers the screen (the dialog
+ * closes), [Granted] when the SDK reports the reward (the action runs), [NoAd] when no ad could be shown, with whether
+ * it was the network ([NoAd.network], R-03) and whether the policy of the placement lets the action run
+ * ([NoAd.granted], MC-05). Closing the ad before the reward gives nothing (R-04).
+ */
+internal sealed interface RewardedOutcome {
+    data object OnScreen : RewardedOutcome
+
+    data object Granted : RewardedOutcome
+
+    data class NoAd(val network: Boolean, val granted: Boolean) : RewardedOutcome
+}
+
+/** What [RewardedTurns] asks [AdsController] for; the controller ties it to the SDK. Main thread only. */
+internal interface RewardedPort {
+    /** `is_show_ads` and `is_show_<code>` (KB-19, criterion 2); waits for the first value. */
+    suspend fun enabled(declaration: AdPlacementDeclaration): Boolean
+
+    /** The consent gate is open and the SDK started (S-11). */
+    fun consentOpen(): Boolean
+
+    /** A request may be sent right now (S-08, S-15). */
+    fun mayRequestNow(): Boolean
+
+    /** No usable Internet now. */
+    fun offline(): Boolean
+
+    /** A fresh ad is loaded for [declaration]. */
+    fun ready(declaration: AdPlacementDeclaration): Boolean
+
+    /** No ad is loaded, loading or waiting for a retry that is not due (F-04). */
+    fun needsLoad(declaration: AdPlacementDeclaration): Boolean
+
+    /** The `load_state` of an opportunity, taken at the decision (section 8.2). */
+    fun loadState(declaration: AdPlacementDeclaration): String
+
+    /** "Load if needed" of the controller (F-07), which comes back to [RewardedTurns.loadIfNeeded]. */
+    suspend fun loadIfNeeded(declaration: AdPlacementDeclaration)
+
+    /** A round that sends nothing because the placement is off: the slot is no longer loading. */
+    fun clearLoading(declaration: AdPlacementDeclaration)
+
+    /** Sends one load request now. */
+    fun send(declaration: AdPlacementDeclaration)
+
+    /** The consent gate stopped a round (S-15): nothing sent, no retry. */
+    fun sendBlocked(declaration: AdPlacementDeclaration)
+
+    /** Takes the loaded ad out of the slot for this turn; false when there is none. */
+    fun take(declaration: AdPlacementDeclaration): Boolean
+
+    /** Shows the ad taken for this turn on [activity]. */
+    fun show(declaration: AdPlacementDeclaration, activity: Activity?)
+
+    /** Shows the same ad again: the second tap before it covers the screen (R-06). */
+    fun showAgain(declaration: AdPlacementDeclaration, activity: Activity?)
+
+    /** Raises the flag "a full-screen ad shows" on [activity]; false when another full-screen ad holds it. */
+    fun raisePresence(declaration: AdPlacementDeclaration, activity: Activity?): Boolean
+
+    fun lowerPresence()
+
+    fun recordOpportunity(declaration: AdPlacementDeclaration, result: String, loadState: String)
+
+    fun recordReward(declaration: AdPlacementDeclaration)
+}
+
+/**
+ * The rewarded turns and load rounds (docs/ops/ads-business-rules.md, MC-05, R-01 to R-06, F-05 to F-07; plan
+ * T-031), kept per placement declaration so two placements never mix (L-068). Main thread only.
+ *
+ * - [loadIfNeeded] is the only place that decides whether a rewarded load is sent ([rewardedLoadStep], L-072); the
+ *   preload plan, the retries (F-05), the reloads (F-06) and "load if needed" (F-07) all come here.
+ * - [request] is one tap on "Watch ad": a turn still waiting for its ad shows it again and records `busy` (R-06),
+ *   even when the key went off since (L-061); else a switched-off placement or a closed consent gate runs the action
+ *   at once (question 8 of the plan, option (a));
+ *   no ad gives [RewardedOutcome.NoAd] by the policy of the placement; else the ad is shown.
+ * - The SDK callbacks ([onShowed], [onReward], [onDismissed], [onShowFailed]) end the turn. Every outcome is given at
+ *   most once per turn and caller, so callbacks the SDK repeats for the second show run nothing twice (section 3.4).
+ * - It never reads nor moves the `ads_interval` mark (R-05) and has no `FullScreenAdGuard`.
+ */
+internal class RewardedTurns(private val port: RewardedPort, private val logger: AppLogger) {
+    /** One turn waiting for its ad to close: its callers, the latest last, and what the SDK reported so far. */
+    private class Turn(val raisedPresence: Boolean) {
+        val callers = mutableListOf<(RewardedOutcome) -> Unit>()
+        var shows = 1
+        var showFailures = 0
+        var onScreen = false
+        var rewarded = false
+    }
+
+    private val turns = mutableMapOf<AdPlacementDeclaration, Turn>()
+    private val noAdInARow = mutableMapOf<AdPlacementDeclaration, Int>()
+    private val lastLoadNetworkError = mutableMapOf<AdPlacementDeclaration, Boolean>()
+
+    /** Rounds between their first check and their decision, so a second call meanwhile sends nothing more. */
+    private val deciding = mutableSetOf<AdPlacementDeclaration>()
+
+    /** One load round of [declaration]; sends at most one request. */
+    suspend fun loadIfNeeded(declaration: AdPlacementDeclaration) {
+        if (declaration in deciding || !port.needsLoad(declaration)) return
+        deciding += declaration
+        val step = try {
+            rewardedLoadStep(port.needsLoad(declaration), port.enabled(declaration), port.mayRequestNow())
+        } finally {
+            deciding -= declaration
+        }
+        when (step) {
+            RewardedLoadStep.NOT_NEEDED -> Unit
+            RewardedLoadStep.SWITCHED_OFF -> {
+                logger.info(TAG, "Rewarded ${declaration.code} not requested: switched off")
+                port.clearLoading(declaration)
+            }
+            RewardedLoadStep.GATE_CLOSED -> {
+                logger.info(TAG, "Rewarded ${declaration.code} not requested: consent gate closed")
+                port.sendBlocked(declaration)
+            }
+            RewardedLoadStep.SEND -> {
+                // R-03: the network flag is cleared at the start of every load that is sent.
+                lastLoadNetworkError -= declaration
+                port.send(declaration)
+            }
+        }
+    }
+
+    /** A load of [declaration] failed with [code]; R-03 keeps whether it was the network until the next send. */
+    fun onLoadFailed(declaration: AdPlacementDeclaration, code: Int, offline: Boolean) {
+        lastLoadNetworkError[declaration] = isNetworkLoadError(code, offline)
+    }
+
+    /** One tap on "Watch ad" of [declaration], shown on [activity]; [onOutcome] gets what happens (R-02 to R-06). */
+    suspend fun request(
+        declaration: AdPlacementDeclaration,
+        activity: Activity?,
+        onOutcome: (RewardedOutcome) -> Unit,
+    ) {
+        val code = declaration.code
+        // R-06 first (L-061): a turn still waiting for its ad keeps the second tap, even if the key went off since,
+        // so the reward of that ad is the only outcome that runs the action.
+        turns[declaration]?.let { pending ->
+            showAgain(declaration, pending, activity, onOutcome)
+            return
+        }
+        val on = port.enabled(declaration)
+        // The switch was awaited: a turn may have started meanwhile, and keeps this tap whatever the switch says.
+        turns[declaration]?.let { pending ->
+            showAgain(declaration, pending, activity, onOutcome)
+            return
+        }
+        if (!on) {
+            logger.info(TAG, "Rewarded $code granted: switched off")
+            onOutcome(RewardedOutcome.Granted)
+            return
+        }
+        val reason = noAdReason(
+            consentOpen = port.consentOpen(),
+            ready = port.ready(declaration),
+            offline = port.offline(),
+            lastLoadNetworkError = lastLoadNetworkError[declaration] == true,
+        )
+        when {
+            reason == RewardedNoAdReason.CONSENT_CLOSED -> {
+                // Question 8 of the plan, option (a): a closed consent gate counts as switched off; no opportunity.
+                logger.info(TAG, "Rewarded $code granted: consent gate closed")
+                onOutcome(RewardedOutcome.Granted)
+            }
+            reason != null || !port.take(declaration) -> noAd(declaration, reason, onOutcome)
+            else -> show(declaration, activity, onOutcome)
+        }
+    }
+
+    /** R-06: a second tap while the turn waits for its ad: the same ad is shown again, recorded as `busy`. */
+    private fun showAgain(
+        declaration: AdPlacementDeclaration,
+        turn: Turn,
+        activity: Activity?,
+        onOutcome: (RewardedOutcome) -> Unit,
+    ) {
+        if (onOutcome in turn.callers) turn.callers -= onOutcome
+        turn.callers += onOutcome
+        turn.shows++
+        port.recordOpportunity(declaration, BUSY, port.loadState(declaration))
+        logger.info(TAG, "Rewarded ${declaration.code} busy: show again")
+        // The ad already covers the screen: this caller's dialog closes at once.
+        if (turn.onScreen) onOutcome(RewardedOutcome.OnScreen)
+        port.showAgain(declaration, activity)
+    }
+
+    /** No ad (R-03, R-04): `not_ready` with the state before the load, a load (F-07), then the policy (MC-05). */
+    private suspend fun noAd(
+        declaration: AdPlacementDeclaration,
+        reason: RewardedNoAdReason?,
+        onOutcome: (RewardedOutcome) -> Unit,
+    ) {
+        val network = reason == RewardedNoAdReason.NETWORK
+        port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
+        port.loadIfNeeded(declaration)
+        val granted = countNoAd(declaration)
+        val label = if (network) "network" else NOT_READY
+        logger.info(TAG, "Rewarded ${declaration.code} skipped: $label (granted $granted)")
+        onOutcome(RewardedOutcome.NoAd(network = network, granted = granted))
+    }
+
+    private fun show(declaration: AdPlacementDeclaration, activity: Activity?, onOutcome: (RewardedOutcome) -> Unit) {
+        port.recordOpportunity(declaration, SHOWN, READY)
+        // R-06: shown even when another full-screen ad holds the flag; then only that ad lowers it.
+        val turn = Turn(raisedPresence = port.raisePresence(declaration, activity))
+        turn.callers += onOutcome
+        turns[declaration] = turn
+        logger.info(TAG, "Rewarded ${declaration.code} shown")
+        port.show(declaration, activity)
+    }
+
+    /** The ad covers the screen: every waiting dialog closes, and the tries with no ad start again (question 3). */
+    fun onShowed(declaration: AdPlacementDeclaration) {
+        val turn = turns[declaration] ?: return
+        if (turn.onScreen) return
+        turn.onScreen = true
+        noAdInARow -= declaration
+        turn.callers.toList().forEach { it(RewardedOutcome.OnScreen) }
+    }
+
+    /** R-02: the reward, at the SDK callback, once per turn, to the latest caller only (question 9). */
+    fun onReward(declaration: AdPlacementDeclaration) {
+        val turn = turns[declaration] ?: return
+        if (turn.rewarded) return
+        turn.rewarded = true
+        port.recordReward(declaration)
+        logger.info(TAG, "Rewarded ${declaration.code} reward")
+        turn.callers.last()(RewardedOutcome.Granted)
+    }
+
+    /** The ad closed: the turn ends; closed before the reward gives nothing (R-04). */
+    fun onDismissed(declaration: AdPlacementDeclaration) {
+        val turn = turns.remove(declaration) ?: return
+        if (turn.raisedPresence) port.lowerPresence()
+        if (!turn.rewarded) logger.info(TAG, "Rewarded ${declaration.code} closed without reward")
+    }
+
+    /**
+     * One show call failed (R-04). The turn ends only when every show call of it failed before the ad covered the
+     * screen (question 5): the latest caller gets the policy, the others a blocked [RewardedOutcome.NoAd].
+     */
+    fun onShowFailed(declaration: AdPlacementDeclaration, code: Int) {
+        val turn = turns[declaration] ?: return
+        turn.showFailures++
+        if (turn.onScreen || turn.showFailures < turn.shows) {
+            logger.info(TAG, "Rewarded ${declaration.code} show failed: $code (turn goes on)")
+            return
+        }
+        turns -= declaration
+        if (turn.raisedPresence) port.lowerPresence()
+        val granted = countNoAd(declaration)
+        logger.info(TAG, "Rewarded ${declaration.code} skipped: show failed $code (granted $granted)")
+        val latest = turn.callers.last()
+        turn.callers.dropLast(1).forEach { it(RewardedOutcome.NoAd(network = false, granted = false)) }
+        latest(RewardedOutcome.NoAd(network = false, granted = granted))
+    }
+
+    /** Stuck recovery (F-03) or a lost host: every waiting turn ends as if closed, with no outcome. */
+    fun onStuck() {
+        if (turns.isEmpty()) return
+        turns.forEach { (declaration, turn) ->
+            if (turn.raisedPresence) port.lowerPresence()
+            logger.warn(TAG, "Rewarded ${declaration.code} stuck: turn ended")
+        }
+        turns.clear()
+    }
+
+    /** One more try with no ad in a row; back to 0 once the policy lets the action run. */
+    private fun countNoAd(declaration: AdPlacementDeclaration): Boolean {
+        val tries = (noAdInARow[declaration] ?: 0) + 1
+        val granted = grantsWithoutAd(declaration.effectiveNoAdPolicy, tries)
+        if (granted) noAdInARow -= declaration else noAdInARow[declaration] = tries
+        return granted
+    }
+
+    private companion object {
+        const val TAG = "Ads"
+        const val SHOWN = "shown"
+        const val READY = "ready"
+        const val BUSY = "busy"
+        const val NOT_READY = "not_ready"
+    }
+}
