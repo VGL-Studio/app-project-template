@@ -6,4 +6,7 @@
     <string name="ads_collapse">Collapse ad</string>
     <string name="ads_close_full_screen">Close ad</string>
     <string name="ads_close_countdown">Ad can be closed in %1$d s</string>
+    <string name="ads_reward_watch">Watch ad</string>
+    <string name="ads_reward_no_thanks">No, thanks</string>
+    <string name="ads_reward_check_connection">Check your connection and try again</string>
 </resources>

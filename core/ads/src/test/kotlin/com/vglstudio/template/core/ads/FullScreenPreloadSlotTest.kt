@@ -48,4 +48,26 @@ class FullScreenPreloadSlotTest {
         state = FullScreenLoadState.Idle
         assertTrue(slot.settled())
     }
+
+    @Test
+    fun rewardedSlot_loadsThroughLoadFullScreenAdIfNeeded() {
+        var rewardedOn = true
+        val rewardedLoads = mutableListOf<AdPlacement>()
+        val rewarded = FullScreenPreloadSlot(
+            placement = AdPlacement.GALLERY_RW_ACTION,
+            enabled = { rewardedOn },
+            state = { FullScreenLoadState.Idle },
+            // In AdsController this is loadFullScreenAdIfNeeded, which reaches RewardedTurns.loadIfNeeded.
+            load = { rewardedLoads += it },
+        )
+
+        assertEquals(AdFormat.REWARDED, rewarded.format)
+        rewarded.loadIfNeeded()
+        assertEquals(listOf(AdPlacement.GALLERY_RW_ACTION), rewardedLoads)
+
+        // Control: switched off, nothing is loaded.
+        rewardedOn = false
+        rewarded.loadIfNeeded()
+        assertEquals(listOf(AdPlacement.GALLERY_RW_ACTION), rewardedLoads)
+    }
 }

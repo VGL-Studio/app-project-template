@@ -13,7 +13,7 @@ class AdPlacementTest {
 
     @Test
     fun galleryPlacements_coverEveryFormatOnce() {
-        assertEquals(7, galleryPlacements.size)
+        assertEquals(8, galleryPlacements.size)
         assertEquals(
             setOf(
                 AdFormat.NATIVE_SMALL,
@@ -21,6 +21,7 @@ class AdPlacementTest {
                 AdFormat.NATIVE_COLLAPSIBLE,
                 AdFormat.INTERSTITIAL,
                 AdFormat.NATIVE_FULL_SCREEN,
+                AdFormat.REWARDED,
             ),
             galleryPlacements.map { it.format }.toSet(),
         )
@@ -215,5 +216,59 @@ class AdPlacementTest {
         assertThrows(IllegalArgumentException::class.java) { StartupAdTurn(AdPlacement.NATIVE_AFTER_INTER) }
         // Control: the app-wide interstitial is still a startup placement.
         assertEquals(AdPlacement.OPEN_APP_INTER, StartupAdTurn(AdPlacement.OPEN_APP_INTER).placement)
+    }
+
+    @Test
+    fun noAdPolicyOnNonRewarded_isRejected() {
+        listOf(AdFormat.INTERSTITIAL, AdFormat.NATIVE_SMALL, AdFormat.APP_OPEN).forEach {
+            assertThrows(IllegalArgumentException::class.java) {
+                AdPlacementDeclaration("x", it, noAdPolicy = RewardedNoAdPolicy.Allow)
+            }
+        }
+        // Control: a rewarded placement takes it.
+        AdPlacementDeclaration("x", AdFormat.REWARDED, noAdPolicy = RewardedNoAdPolicy.Allow)
+    }
+
+    @Test
+    fun rewardedWithoutPolicy_isBlock() {
+        assertEquals(RewardedNoAdPolicy.Block, AdPlacementDeclaration("x", AdFormat.REWARDED).effectiveNoAdPolicy)
+        // Control (L-055): a declared policy is kept.
+        assertEquals(
+            RewardedNoAdPolicy.Allow,
+            AdPlacementDeclaration("x", AdFormat.REWARDED, noAdPolicy = RewardedNoAdPolicy.Allow).effectiveNoAdPolicy,
+        )
+        assertEquals(RewardedNoAdPolicy.Block, AdPlacement.GALLERY_RW_ACTION.declaration.effectiveNoAdPolicy)
+    }
+
+    @Test
+    fun allowAfterBelowOne_isRejected() {
+        assertThrows(IllegalArgumentException::class.java) { RewardedNoAdPolicy.AllowAfter(0) }
+        assertEquals(1, RewardedNoAdPolicy.AllowAfter(1).tries)
+    }
+
+    @Test
+    fun rewardedDeclarations_rwGetItemAndRwExport_areAccepted() {
+        val getItem = AdPlacementDeclaration("rw_get_item", AdFormat.REWARDED)
+        val export = AdPlacementDeclaration(
+            "rw_export",
+            AdFormat.REWARDED,
+            noAdPolicy = RewardedNoAdPolicy.AllowAfter(2),
+        )
+
+        assertEquals(RewardedNoAdPolicy.Block, getItem.effectiveNoAdPolicy)
+        assertEquals(RewardedNoAdPolicy.AllowAfter(2), export.effectiveNoAdPolicy)
+    }
+
+    @Test
+    fun rewarded_cannotDeclareIntervalOptions() {
+        // Guard (R-05): rewarded never reads nor moves the `ads_interval` mark.
+        assertThrows(IllegalArgumentException::class.java) {
+            AdPlacementDeclaration("x", AdFormat.REWARDED, ignoreInterval = true)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AdPlacementDeclaration("x", AdFormat.REWARDED, recordInterval = false)
+        }
+        // Control: an interstitial takes both.
+        AdPlacementDeclaration("x", AdFormat.INTERSTITIAL, ignoreInterval = true, recordInterval = false)
     }
 }

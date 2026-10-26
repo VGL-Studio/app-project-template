@@ -61,4 +61,11 @@ sealed interface AdMetricEvent {
     ) : AdMetricEvent
 
     data class Clicked(override val adFormat: String, val adPlacement: String?) : AdMetricEvent
+
+    /** The user earned the reward of a rewarded ad (R-02); Firebase gets no `ad_format` for it. */
+    data class RewardEarned(override val adFormat: String, val adPlacement: String) : AdMetricEvent
+
+    /** The dialog before a rewarded ad was shown or dismissed ([dialogAction] `show`, `dismiss`); no `ad_format`. */
+    data class RewardDialog(override val adFormat: String, val adPlacement: String, val dialogAction: String) :
+        AdMetricEvent
 }

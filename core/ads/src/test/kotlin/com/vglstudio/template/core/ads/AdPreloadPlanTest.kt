@@ -37,6 +37,18 @@ class AdPreloadPlanTest {
     }
 
     @Test
+    fun fromPlacements_hasRewardedInSecondGroup() {
+        val groups = AdPreloadPlan.fromPlacements().groups
+
+        assertEquals(2, groups.size)
+        assertTrue(AdFormat.REWARDED in groups[1])
+        assertTrue(AdFormat.REWARDED !in groups[0])
+        // Control (L-055): without the rewarded placement of the gallery, no group has REWARDED.
+        val withoutRewarded = AdPreloadPlan.fromPlacements(AdPlacement.entries - AdPlacement.GALLERY_RW_ACTION)
+        assertTrue(AdFormat.REWARDED !in withoutRewarded.groups.flatten())
+    }
+
+    @Test
     fun templatePlan_hasAppOpenFirst() {
         // HD-02: the app open ad of the loading screen (T-024) is preloaded first.
         assertEquals(setOf(AdFormat.APP_OPEN), AdPreloadPlan.fromPlacements().groups.first())
