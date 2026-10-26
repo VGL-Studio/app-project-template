@@ -1,7 +1,7 @@
 ---
 ticket: T-044
 title: Bổ sung test quảng cáo còn yếu theo rà soát RUN-20261026-03 và RUN-20261026-04
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -212,3 +212,17 @@ Mọi test viết trước code. Test của phần A và C qua ngay trên code h
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-05, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #208, commit đầu `57ccc52`, commit trên nhánh chính `04e80c0` (2026-10-26 17:55 UTC).
+- **Nhánh, PR:** `claude/T-044-bo-sung-test-quang-cao` (từ nhánh chính `4e5d776`). Commit test `920412f`, code `57ccc52`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-044` (L-052).
+- **Đã làm:** phần A (lối vào `putPreloadedNativeFullScreenForTest` cạnh `openConsentGateForTest`; ba test qua `showFullScreenAd` trong `AdsControllerNativeComboTest`; `NativeFullScreenTurnsTest.comboWhileStandaloneOpen_presenceFree_skipsBusy`), phần B (`FullLayout` thành `Layout` riêng, media co trước, sàn 120 dp: `fullMediaHeight`, `NativeAdDimens.MinMediaSize`; khung `FULL` `heightIn(min = FullHeight)`, mô tả `heightIn(min = BodyHeight)`; hàm phụ test `WithFontScale`; luật ở dòng Media của `design/README.md`, `ads-guide.md` dẫn về), phần C (`buttons_haveTouchTargetOf48dp` đo cao và rộng 12 nút).
+- **Test viết trước:** 11 test mới (gồm 4 của `FullMediaHeightTest`), sửa 1 test (`buttons_haveTouchTargetOf48dp`). 4 đỏ đúng lý do trên khung rỗng (`FullMediaHeightTest` 200 và 134; hàng sao 6 dp ở cỡ 1.3; media 200 thay vì 120 ở cỡ 3.0). Qua ngay vì code cũ không lỗi, chỉ thiếu test (plan nêu): 3 test phần A, vế `turn != null`, 2 ca chạm sàn, test vùng chạm. Viết chặt bằng đột biến đối chứng (chạy rồi hoàn lại): 8. Test JVM mọi module với test viết trước: chỉ 4 test đó đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, ghi chú: `check(measurables.size == FULL_PARTS)` chạy cả bản release (đổi số phần mà quên hằng thì app dừng; `FULL` chưa có vị trí nào vẽ); KDoc của `fullMediaHeight` nói "the 418 dp card", nên sửa cho chung khi T-041 dùng; `ads-guide.md` ghi "mô tả ít nhất 2 dòng" mà code luôn đúng 2 dòng, cao ít nhất 40 dp; phần mô tả và CTA trong `SdkNativeAdBinder` đo với chiều cao không giới hạn, chỉ kiểm được trên máy thật.
+- **Kết quả CI:** `pr-check` lần 1 đỏ ở `ui-test`: Gradle trên máy của GitHub nhận 403 từ `repo.maven.apache.org` khi tải thư viện của `connectedStagingDebugAndroidTest` (`failure-kind.sh`: `khong-co`); chạy lại job đỏ một lần (lỗi tải, không tính vào 3 lần sửa), lần 2 xanh (lần chạy 40369736285, attempt 2). Trên máy: `scripts/check.sh` 1390 test JVM, 0 lỗi, 82 ảnh, Cổng chất lượng: QUA.
+- **Lệch so với plan:** `standalone_withAd_throughShow_opensTurn` chờ 3 giây đếm ngược của nút đóng (K-03) và kiểm `closeEnabled` trước khi đóng; thêm `check` đủ 5 phần và hằng `FULL_PARTS`; file `NativeFullScreenTurnsTest` có 31 test cũ (plan ghi 32).
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** không có ảnh mới hay đổi.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** các ghi chú của rà soát; kiểm thẻ `FULL` trên máy thật khi có vị trí dùng.
