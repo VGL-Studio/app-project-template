@@ -140,6 +140,8 @@ enum class AdPlacement(
     val ctaLarge: Boolean = false,
     /** A cell keeps a static placeholder instead of hiding while its pool is exhausted (P-06); pooled formats only. */
     val keepSpaceWhenPoolEmpty: Boolean = false,
+    /** What the action does when no ad can be shown (MC-05); rewarded only, [RewardedNoAdPolicy.Block] by default. */
+    val noAdPolicy: RewardedNoAdPolicy? = null,
 ) {
     /** The bottom bar of the sample screen ([BottomAdBarScaffold], plan T-030, question 1). */
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
@@ -155,6 +157,9 @@ enum class AdPlacement(
     GALLERY_NATIVE_COLLAPSIBLE("gallery_native_collapsible", AdFormat.NATIVE_COLLAPSIBLE),
     GALLERY_INTERSTITIAL("gallery_interstitial", AdFormat.INTERSTITIAL),
     GALLERY_NATIVE_FULL_SCREEN("gallery_native_full_screen", AdFormat.NATIVE_FULL_SCREEN),
+
+    // Rewarded before the sample action of the gallery (plan T-031, question 13 of the ads spec); its button is T-036.
+    GALLERY_RW_ACTION("gallery_rw_action", AdFormat.REWARDED),
     ;
 
     /**
@@ -176,6 +181,7 @@ enum class AdPlacement(
             appWide,
             ctaLarge,
             keepSpaceWhenPoolEmpty,
+            noAdPolicy,
         )
 }
 
@@ -200,7 +206,12 @@ internal data class AdPlacementDeclaration(
     val ctaLarge: Boolean = false,
     /** A cell keeps a static placeholder while its pool is exhausted (P-06); pooled formats only. */
     val keepSpaceWhenPoolEmpty: Boolean = false,
+    /** What the action does when no ad can be shown (MC-05); rewarded only. */
+    val noAdPolicy: RewardedNoAdPolicy? = null,
 ) {
+    /** The policy of this placement: [noAdPolicy], or [RewardedNoAdPolicy.Block] (MC-05). */
+    val effectiveNoAdPolicy: RewardedNoAdPolicy get() = TODO("T-031")
+
     init {
         require(CODE_PATTERN.matches(code)) { "Placement code '$code' must be lower snake case" }
         require(intervalGroup == AdIntervalGroup.DEFAULT || format == AdFormat.INTERSTITIAL) {

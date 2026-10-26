@@ -148,6 +148,12 @@ internal class AdTelemetry(
         log(AdMetricEvent.Clicked(format.metricCode(), placement?.key))
     }
 
+    /** Skeleton of T-031. */
+    fun rewardEarned(placement: AdPlacement) {}
+
+    /** Skeleton of T-031. */
+    fun rewardDialog(placement: AdPlacement, action: String) {}
+
     private fun logRevenue(
         format: AdFormat,
         unitId: String,

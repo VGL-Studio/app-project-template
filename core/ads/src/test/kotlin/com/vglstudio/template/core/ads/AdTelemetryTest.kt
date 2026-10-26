@@ -470,6 +470,39 @@ class AdTelemetryTest {
         )
     }
 
+    @Test
+    fun rewardEvents_needFullScreenGroupAndServing() {
+        val telemetry = telemetry()
+        val placement = AdPlacement.GALLERY_RW_ACTION
+        logFullScreen = true
+        serving = true
+
+        telemetry.rewardEarned(placement)
+        telemetry.rewardDialog(placement, "show")
+        assertEquals(
+            listOf(
+                AdMetricEvent.RewardEarned("REWARDED", "gallery_rw_action"),
+                AdMetricEvent.RewardDialog("REWARDED", "gallery_rw_action", "show"),
+            ),
+            metrics.events,
+        )
+
+        // Control: group off, not serving, or only the slot group on: nothing more.
+        logFullScreen = false
+        telemetry.rewardEarned(placement)
+        telemetry.rewardDialog(placement, "dismiss")
+        logFullScreen = true
+        serving = false
+        telemetry.rewardEarned(placement)
+        telemetry.rewardDialog(placement, "dismiss")
+        serving = true
+        logFullScreen = false
+        logSlot = true
+        telemetry.rewardEarned(placement)
+        telemetry.rewardDialog(placement, "dismiss")
+        assertEquals(2, metrics.events.size)
+    }
+
     /** `load_attempt` of a load event; any other event is a test error. */
     private fun AdMetricEvent.loadAttemptOrMissing(): Int? = when (this) {
         is AdMetricEvent.LoadSuccess -> loadAttempt

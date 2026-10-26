@@ -220,7 +220,38 @@ class FullScreenReloadsTest {
         assertEquals(listOf(5_000L), loadsOf(NATIVE_FULL_SCREEN))
     }
 
+    @Test
+    fun rewardedFailure_retriesThroughLoadIfNeeded() = runTest {
+        var failures = 1
+        val reloads = reloads(failuresInARow = { failures })
+
+        assertEquals(FullScreenLoadState.WaitingRetry(2_000), reloads.onLoadFailed(REWARDED, 3))
+        at(1_999)
+        assertEquals(emptyList<Long>(), loadsOf(REWARDED))
+        at(2_000)
+        assertEquals(listOf(2_000L), loadsOf(REWARDED))
+
+        // Five failures in a row: the cap of 10 s (F-05).
+        failures = 5
+        assertEquals(FullScreenLoadState.WaitingRetry(12_000), reloads.onLoadFailed(REWARDED, 3))
+        at(12_000)
+        assertEquals(listOf(2_000L, 12_000L), loadsOf(REWARDED))
+    }
+
+    @Test
+    fun closedRewarded_reloadsAfter2s() = runTest {
+        val reloads = reloads(failuresInARow = { 1 })
+
+        reloads.onClosedOrShowFailed(REWARDED)
+
+        at(1_999)
+        assertEquals(emptyList<Long>(), loadsOf(REWARDED))
+        at(2_000)
+        assertEquals(listOf(2_000L), loadsOf(REWARDED))
+    }
+
     private companion object {
+        val REWARDED = AdPlacement.GALLERY_RW_ACTION
         val INTER = AdPlacement.GALLERY_INTERSTITIAL
         val NATIVE_FULL_SCREEN = AdPlacement.GALLERY_NATIVE_FULL_SCREEN
     }
