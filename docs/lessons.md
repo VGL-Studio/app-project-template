@@ -93,8 +93,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** plan T-008 (PR #68, chỉ có tài liệu) có mã AdMob giả toàn số 0. Bộ quét mã thật (PR #65) coi là mã thật, nhưng CI bỏ qua commit chỉ có tài liệu nên `main` có test của script đỏ mà không ai biết; phát hiện khi chạy test trên máy ở PR #69.
 - **Cải tiến:** bộ quét cho qua mã toàn số 0 (PR #69). Đề xuất: CI chạy `scripts/tests/run.sh` cả với commit chỉ có tài liệu (nhanh, không cần Gradle), vì nhiều test của nó kiểm tài liệu (`foundation.py`, `status.py`, quét mã thật). Đổi `.github/workflows/` là việc rủi ro cao, cần người quyết.
-- **Trạng thái:** accepted
-- **Áp dụng:** phần quét mã toàn số 0: PR #69; test của script chạy khi PR sửa `scripts/`: L-073 (PR #139). Còn lại: commit chỉ có tài liệu vẫn không chạy `scripts/tests/run.sh`; cần plan rủi ro cao vì sửa `.github/`.
+- **Trạng thái:** applied
+- **Áp dụng:** phần quét mã toàn số 0: PR #69; test của script chạy khi PR sửa `scripts/`: L-073 (PR #139); commit chỉ có tài liệu: nhánh nhẹ của `build-and-test`, PR #199 (T-039).
 
 ### L-041. Plan ghi sẵn phương án dự phòng đã duyệt, để phiên chuyển sang thay vì dừng task
 
@@ -577,3 +577,65 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian 01:54 của `docs/runs/RUN-20261026-04.md`; lệnh `git worktree remove ../task-T-026 && pkill -f "Push T-026"` thoát 144.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9 (đoạn L-082): nói rõ cách dừng vòng nền: công cụ dừng tác vụ nền của phiên, hay một vòng có giới hạn tự hết; không kết thúc vòng nền bằng lệnh tìm theo chuỗi. Mục Giao bước 3 đến 5 có thể nêu mẫu vòng đẩy nền (đọc `git rev-parse <nhánh>` mỗi phút, gọi `save-branch.sh` khi đổi).
 - **Trạng thái:** proposed
+
+### L-097. `auto-run.md` bảo soạn phản hồi kịch bản lỗi mức `nen-sua`, mẫu phản hồi không có mức đó
+
+- **Ngày, nguồn:** 2026-10-25, app camera-pose (bài học L-074 của app, RUN-20261025-01), issue #163
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `docs/auto-run.md` mục 4, bước 1 bảo mỗi dòng `lỗi` của "Kịch bản theo plan" có một phản hồi `FB-...` "mức `nen-sua`". Mẫu `docs/templates/feedback.md` chỉ có `chan`, `nang`, `nhe`, `gop-y`, nên phiên phải tự chọn một bên (FB-20261025-01 của app ghi `nen-sua` kèm chú thích).
+- **Đề xuất sửa:** thêm `nen-sua` vào mẫu phản hồi, hoặc đổi `auto-run.md` sang một mức có sẵn.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục 4, bước 1 đổi sang mức `nang` (app bị đóng hay ANR thì `chan`); mẫu phản hồi không đổi. Chọn `nang`, không chọn `nhe` như app, vì các phản hồi kịch bản lỗi đã có của mẫu (`docs/features/ads/feedback/FB-20261025-01`, `FB-20261025-03`) đều ghi `nang`; issue #163, phiên giám sát 2026-10-26.
+
+### L-098. Plan có test chạy trên chuỗi giả mà người viết suy kết quả bằng tay, kỳ vọng sai qua 4 vòng rà soát
+
+- **Ngày, nguồn:** 2026-10-25, app camera-pose (bài học L-075 của app, plan T-048), issue #163. Nguồn: camera-pose L-075
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** plan T-048 của app có nhiều test của `scripts/device-scenario.py` chạy trên `scripts/tests/fake-adb` với chuỗi dump giả. Người viết plan đọc code rồi suy ra test nào thất bại và vì sao; 4 vòng rà soát liền có điểm chặn vì kỳ vọng sai (ví dụ `ui-seq.n` của `fake-adb` không vượt số tệp của chuỗi). Chỉ hết khi mọi test mới được chạy thật trên code hiện tại trong một khối tạm không commit. Sau đó ở app: 29/32 test thất bại đúng lý do, 3 đối chứng qua như plan ghi, CI xanh lần đầu; T-049 và RUN-20261026-01 lặp lại kết quả đó (L-075 của app: verified).
+- **Đề xuất sửa:** test của script chạy trên chuỗi giả hay tệp mẫu được chạy thật lúc viết plan; mục 4.1 ghi kết quả thật của từng test.
+- **Trạng thái:** rejected: anh Nhật quyết 2026-10-26 không nhận, vì trái ADR-0029 (không chạy thử lúc soạn plan; test viết trong phiên tự chạy). Ghi lại để đối chiếu với app.
+
+### L-099. Phiên đẩy commit test của task sau trước khi có kết quả `main-guard` của lần merge trước
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-076 của app, RUN-20261026-01), issue #188
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `docs/auto-run.md` bước 3 bảo đẩy nhánh task ngay sau mỗi commit; bước 9 bảo trước khi đẩy commit đầu tiên của task sau phải có kết quả `main-guard` của lần merge trước. Phiên làm theo bước 3 và đẩy commit test của T-052, T-050 khi `main-guard` còn chạy. Không gây hại vì `main-guard` đều xanh, nhưng nếu đỏ thì task sau đã bắt đầu trên nhánh chính hỏng.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 3 ghi ngoại lệ của bước 9.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` bước 3: commit đầu của task sau chỉ đẩy khi có kết quả `main-guard`, trong lúc chờ commit cục bộ; issue #188.
+
+### L-100. Từ dịch lấy lại từ feature khác đổi nghĩa khi đi cùng con số
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-077 của app, T-050), issue #188
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** plan bảo dịch "dùng lại cách gọi đã có". Phiên lấy từ "transparency" của màn giới thiệu cho nhãn con trượt độ đậm; câu không có số thì đúng, trên con trượt có phần trăm thì "100%" đọc thành "trong suốt hoàn toàn", ngược với nét đậm nhất. Test chữ (đủ bản dịch, giữ tham số) không bắt được; chỉ rà soát độc lập thấy.
+- **Đề xuất sửa:** plan dịch chữ liệt kê chuỗi đi cùng con số, ghi nghĩa của giá trị lớn nhất, có test chặn từ ngược nghĩa; rà soát task dịch kiểm nghĩa.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md` mục Khi viết plan; `docs/auto-run.md` bước 6, nội dung rà soát; issue #188.
+
+### L-101. Plan của app chép code từ dự án mẫu, nhưng phiên cloud của app chỉ đọc được repo của app
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-078 của app, T-053), issue #188
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** plan T-053 của app bảo chép ba khối của `scripts/token-usage.py` từ dự án mẫu. Quyền GitHub của phiên `claude --cloud` chỉ gồm repo của app, nên phiên không đọc được repo mẫu và viết code theo mô tả ở mục 3.1 của plan. Code vẫn đúng nhờ mô tả kỹ, nhưng không so được với bản mẫu.
+- **Đề xuất sửa:** plan chép code từ dự án mẫu dán nguyên code hay `diff` vào plan; `docs/ops/from-app.md` ghi giới hạn này.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md` mục Khi viết plan; `docs/ops/from-app.md` mục 1; issue #188.
+
+### L-102. Dòng `Task: T-NNN` trong lời giao soạn plan làm số token soạn plan thành mẫu ước tính của task
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-079 của app, T-053), issue #188
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** lời giao cho phiên con ở bước soạn plan cuối phiên có dòng `Task: T-NNN` (L-071). Khi đó `scripts/token-usage.py report --csv` ghi một dòng chỉ có token soạn plan cho ticket đó, và `estimate` lấy dòng đó làm mẫu, kéo số gợi ý `token_estimate` xuống. Phần soạn plan của phiên chính chạy trên nhánh `claude/plan-T-NNN-...` lại vào dòng Chung: cách gán không nhất quán.
+- **Đề xuất sửa:** bỏ dòng `Task:` khỏi lời giao soạn plan.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục 4, bước 5 (lời giao soạn plan không có dòng `Task:`); `docs/ops/token-usage.md`. Không đổi `scripts/token-usage.py`; issue #188.
+
+### L-103. Sau task cuối, thư mục chính vẫn đứng trên nhánh task, token của việc cuối phiên tính vào task đó
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-080 của app, RUN-20261026-01), issue #188
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `scripts/token-usage.py` gán request của phiên chính theo nhánh của thư mục chính. Sau khi task cuối merge, phiên làm việc cuối phiên (chờ `main-guard`, `device-session`, staging, báo cáo) mà thư mục chính vẫn đứng trên nhánh task, nên phần đó (khoảng 12M token) tính vào task thay vì dòng Chung.
+- **Đề xuất sửa:** `docs/auto-run.md` mục 4: rời nhánh task trước việc cuối phiên.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục 4, bước 0: `git checkout --detach origin/main` trước việc cuối phiên; `docs/ops/token-usage.md`. Không đổi `scripts/token-usage.py`; issue #188.

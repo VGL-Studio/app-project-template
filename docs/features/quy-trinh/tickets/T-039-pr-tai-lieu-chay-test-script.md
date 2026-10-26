@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-040, không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: approved
+status: on-staging
 risk: high
 size: S
 depends_on: []
