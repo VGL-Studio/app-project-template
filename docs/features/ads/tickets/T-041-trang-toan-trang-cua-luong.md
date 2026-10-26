@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-20]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: M
 depends_on: [T-032, T-036]
 sprint:
-plan:
+plan: features/ads/plans/T-041-trang-toan-trang-cua-luong.md
 created: 2026-10-26
 ---
 
