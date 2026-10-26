@@ -325,6 +325,27 @@ class CollapsibleNativeAdTest {
     }
 
     @Test
+    fun loadingExpanded_placeholderCtaStays36dp() {
+        var collapsibleShown by mutableStateOf(true)
+        content = CollapsibleAdContent.Loading
+        composeRule.setContent {
+            if (collapsibleShown) {
+                Host()
+            } else {
+                AppTheme { NativeAdPlaceholder(NativeAdSize.MEDIUM, animated = false) }
+            }
+        }
+        composeRule.waitForIdle()
+        // The CTA block of the collapsible placeholder keeps the 36 dp of the collapsible CTA (T-030 owns its sizes).
+        assertHeight(NativeAdTestTags.PLACEHOLDER_CTA, 36f)
+
+        // Control: the medium placeholder has the 44 dp CTA of the medium ad (plan T-028).
+        collapsibleShown = false
+        composeRule.waitForIdle()
+        assertHeight(NativeAdTestTags.PLACEHOLDER_CTA, 44f)
+    }
+
+    @Test
     fun hidden_takesNoSpace() {
         // Control: the same host has the ad's height while an ad is shown.
         setHost()

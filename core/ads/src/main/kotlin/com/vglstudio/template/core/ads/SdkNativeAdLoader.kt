@@ -48,6 +48,7 @@ internal class SdkNativeAdLoader(
         onFailed: (code: Int) -> Unit,
     ) {
         val options = nativeRequestOptions(size).toNativeAdOptions()
+        val listener = NativeAdLoadListener(events, onFailed)
         val loader = AdLoader.Builder(context, unitId)
             .forNativeAd { ad ->
                 events?.let { metrics ->
@@ -55,28 +56,39 @@ internal class SdkNativeAdLoader(
                     ad.setOnPaidEventListener { metrics.onPaid(it) }
                     metrics.onLoaded(ad)
                 }
-                onLoaded(SdkLoadedNativeAd(ad, events))
+                val loaded = SdkLoadedNativeAd(ad, events)
+                listener.loaded = loaded
+                onLoaded(loaded)
             }
-            .withAdListener(
-                object : AdListener() {
-                    override fun onAdFailedToLoad(error: LoadAdError) {
-                        events?.onFailed(error.code, error.message)
-                        onFailed(error.code)
-                    }
-
-                    override fun onAdImpression() {
-                        events?.onImpression()
-                    }
-
-                    override fun onAdClicked() {
-                        events?.onClicked()
-                    }
-                },
-            )
+            .withAdListener(listener)
             .withNativeAdOptions(options)
             .build()
         events?.onRequestSent()
         loader.loadAd(request)
+    }
+}
+
+/**
+ * The SDK listener of one native load: hands the load error, impression and click to [events], and marks the
+ * impression on the [loaded] ad, so a pool destroys it instead of showing it again (P-01a, plan T-028).
+ */
+internal class NativeAdLoadListener(private val events: NativeAdEvents?, private val onFailed: (Int) -> Unit) :
+    AdListener() {
+    /** The ad of this load, set as soon as the SDK returns it. */
+    var loaded: SdkLoadedNativeAd? = null
+
+    override fun onAdFailedToLoad(error: LoadAdError) {
+        events?.onFailed(error.code, error.message)
+        onFailed(error.code)
+    }
+
+    override fun onAdImpression() {
+        events?.onImpression()
+        loaded?.markImpression()
+    }
+
+    override fun onAdClicked() {
+        events?.onClicked()
     }
 }
 
@@ -93,6 +105,14 @@ internal class SdkLoadedNativeAd(val nativeAd: NativeAd, private val events: Nat
         hasMedia = nativeAd.mediaContent != null,
         starRating = nativeAd.starRating,
     )
+
+    override var impressionRecorded: Boolean = false
+        private set
+
+    /** The SDK recorded an impression of this ad (P-01a). */
+    fun markImpression() {
+        impressionRecorded = true
+    }
 
     override fun destroy() {
         events?.onDestroyed()

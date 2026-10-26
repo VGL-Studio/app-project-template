@@ -1,6 +1,9 @@
 package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.logging.AppLogger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** The illustration texts of the design, used by every native ad test. */
 internal val sampleNativeAdAssets = NativeAdAssets(
@@ -21,10 +24,12 @@ internal val longFullNativeAdAssets = sampleNativeAdAssets.copy(
     callToAction = "Install now and get the full version",
 )
 
-/** A loaded ad that counts how many times it was destroyed. */
+/** A loaded ad that counts how many times it was destroyed; the test sets [impressionRecorded] (P-01a). */
 internal class FakeLoadedNativeAd(override val assets: NativeAdAssets = sampleNativeAdAssets) : LoadedNativeAd {
     var destroyCount = 0
         private set
+
+    override var impressionRecorded = false
 
     override fun destroy() {
         destroyCount++
@@ -105,3 +110,61 @@ internal class FakeNativeLoads(
         const val FAKE_KEY = "sample_native_small"
     }
 }
+
+/**
+ * The loads of a native pool (plan T-028) through [loader] ([loadOneNativeAd]): records the send time of each in
+ * [times] and the holder cell of each ad in [holders]. A Loaded result becomes a [PoolLoad], any other one null (a
+ * failed load). [throwNext] makes the next load throw before anything is sent (O-09).
+ */
+internal class FakePoolLoads(
+    private val loader: FakeNativeAdLoader,
+    private val now: () -> Long,
+    private val logger: AppLogger,
+    private val timeoutMillis: Long = 30_000L,
+) {
+    val times = mutableListOf<Long>()
+    val holders = mutableListOf<PlacementCell>()
+    var throwNext: Exception? = null
+
+    suspend fun load(): PoolLoad? {
+        throwNext?.let {
+            throwNext = null
+            throw it
+        }
+        times += now()
+        val state =
+            loadOneNativeAd(loader, FAKE_POOL_UNIT_ID, NativeAdSize.MEDIUM, timeoutMillis, logger, FAKE_POOL_KEY)
+        val ad = (state as? NativeAdState.Loaded)?.ad ?: return null
+        return PoolLoad(ad, PlacementCell().also { holders += it })
+    }
+
+    companion object {
+        const val FAKE_POOL_UNIT_ID = "test-pool-unit"
+        const val FAKE_POOL_KEY = "native_medium#1"
+    }
+}
+
+/**
+ * A pool for Compose tests: every load answers at once from [ads] (null when none is left), sent through an
+ * unconfined scope, so [NativeAdPool.refill] fills it before it returns.
+ */
+internal fun immediatePool(ads: List<FakeLoadedNativeAd>, capacity: Int = 3, logger: AppLogger): NativeAdPool {
+    val left = ArrayDeque(ads)
+    return NativeAdPool(
+        key = NativePoolKey(AdFormat.NATIVE_MEDIUM, FakePoolLoads.FAKE_POOL_UNIT_ID),
+        capacity = capacity,
+        load = { left.removeFirstOrNull()?.let { PoolLoad(it, PlacementCell()) } },
+        sendGate = { true },
+        canLoadNow = { true },
+        canShowNow = { true },
+        retryResets = MutableStateFlow(0),
+        clock = { 0L },
+        scope = CoroutineScope(Dispatchers.Unconfined),
+        logger = logger,
+        logKey = FakePoolLoads.FAKE_POOL_KEY,
+    )
+}
+
+/** Fake ads with the headlines "Ad 1" to "Ad [count]". */
+internal fun numberedAds(count: Int): List<FakeLoadedNativeAd> =
+    (1..count).map { FakeLoadedNativeAd(sampleNativeAdAssets.copy(headline = "Ad $it")) }

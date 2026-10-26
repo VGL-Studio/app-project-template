@@ -72,6 +72,12 @@ import kotlinx.coroutines.withContext
  * O-01 to O-04) and replaces it in place every 60 s in foreground ([refreshingNativeAdStates], CL-02); every send of
  * it goes through one gate ([awaitSendAllowed], L-072). Native ads are not shown 55 minutes after loading (O-04).
  *
+ * Native medium and in-collection cards come from pools (plan T-028, P-01 to P-08): one [NativeAdPool] per (format,
+ * ad unit), managed by [NativeAdPools], filled one request at a time through the same send gate and by the preload
+ * plan (HD-02, S-22, S-25). [NativeAdSlot] of a medium placement, a medium row of [rememberInListAds] and
+ * [NativeAdCell] are cells of a pool ([pooledCell]): they claim an ad while on screen, give it back when they leave,
+ * and record their opportunity (P-07). A load of a pool logs `ad_placement = pool` (PL-02).
+ *
  * Banners follow B-01 to B-06 (plan T-029): [AdSlot] keeps every send in one loop ([runBannerLoads]) that waits for
  * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads every 30 s.
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
@@ -262,7 +268,8 @@ class AdsController @Inject internal constructor(
     private val preloader = AdPreloader(
         scope = scope,
         runner = PreloadPlanRunner(clock, logger),
-        slotsOf = { format -> preloadSlots.filter { it.format == format } },
+        // Full-screen placements, then the slot of each native pool (HD-02, S-22); a pool slot is asked lazily.
+        slotsOf = { format -> preloadSlots.filter { it.format == format } + nativePools.preloadSlots(format) },
         gate = {
             PreloadGate(
                 sdkStarted = sdkStarted.value,
@@ -342,7 +349,8 @@ class AdsController @Inject internal constructor(
      * (S-20), a change of the gate for a held preload (S-23), Internet back (S-24).
      */
     private fun collectPreloadTriggers() {
-        val placements = fullScreenPlacements()
+        // Full-screen placements and pooled ones: switching either on remotely asks for a preload (S-20).
+        val placements = fullScreenPlacements() + pooledPlacements()
         scope.launch {
             combine(placements.map { placement -> isEnabled(placement).map { placement to it } }) { it.toMap() }
                 .collect { switches ->
@@ -532,6 +540,8 @@ class AdsController @Inject internal constructor(
     }
 
     private fun fullScreenPlacements() = AdPlacement.entries.filter { it.format.hasFullScreenSlot }
+
+    private fun pooledPlacements() = AdPlacement.entries.filter { it.format.usesPool }
 
     /**
      * Opens AdMob's Ad Inspector ([rememberOpenAdInspector], staging ad gallery only). Google opens it only on an
@@ -874,13 +884,85 @@ class AdsController @Inject internal constructor(
     }
 
     /**
+     * The pools of native medium and in-collection placements (plan T-028), one per (format, ad unit), closed when
+     * every placement of a pool is switched off ([isEnabled]) or consent withdrawn ([canRequestAds]). Every send goes
+     * through the send gate of native ads ([awaitSendAllowed], L-072).
+     */
+    private val nativePools: NativeAdPools by lazy {
+        var made = 0
+        NativeAdPools(
+            placements = pooledPlacements(),
+            unitId = ::unitId,
+            enabled = ::isEnabled,
+            canRequestAds = canRequestAds,
+            newPool = { key, placement ->
+                made++
+                NativeAdPool(
+                    key = key,
+                    capacity = requireNotNull(key.format.poolCapacity()),
+                    load = { poolLoad(key, placement) },
+                    sendGate = { awaitSendAllowed(foregroundState, ::mayRequestNow) },
+                    canLoadNow = { _sdkReady.value && foregroundState.value && mayRequestNow() },
+                    canShowNow = { canRequestAds.value },
+                    retryResets = preloader.nativeRetryResets,
+                    clock = clock,
+                    scope = scope,
+                    logger = logger,
+                    logKey = "${key.format.code}#$made",
+                )
+            },
+            scope = scope,
+            logger = logger,
+        )
+    }
+
+    /**
+     * One load of a pool: a fresh [PlacementCell] for the placement of the ad, set when a cell claims it (P-04); the
+     * metrics of the load report `pool` with no `load_attempt` (PL-02). Null when no ad came.
+     */
+    private suspend fun poolLoad(key: NativePoolKey, placement: AdPlacement): PoolLoad? {
+        val size = key.format.nativeLoadSize() ?: return null
+        val holder = PlacementCell()
+        val state = nativeLoadOnce(
+            newEvents = {
+                NativeAdMetrics(
+                    format = key.format,
+                    unitId = key.unitId,
+                    load = telemetry.nativeLoadReport(placement, NativeLoadUse.POOL),
+                    placement = { holder.value },
+                )
+            },
+            newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
+            unitId = key.unitId,
+            size = size,
+            timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
+            logger = logger,
+            placementKey = POOL_LOG_KEY,
+        )()
+        return (state as? NativeAdState.Loaded)?.let { PoolLoad(it.ad, holder) }
+    }
+
+    /**
+     * The states of one cell of the pool of [placement] ([pooledCellStates]); Unavailable when the placement has no
+     * pool (no ad unit). The caller checks consent and [isEnabled] first, like [NativeAdSlot].
+     */
+    internal fun pooledCell(placement: AdPlacement): Flow<NativeAdState> =
+        nativePools.pool(placement)?.let { pooledCellStates(it, placement, logger, placement.key) }
+            ?: flowOf(NativeAdState.Unavailable)
+
+    /** The `ad_opportunity` of one cell of a pool (P-07). */
+    internal fun recordPoolCellOpportunity(placement: AdPlacement, result: String) {
+        telemetry.poolCellOpportunity(placement, result)
+    }
+
+    /**
      * The states of one native ad of [placement], drawn as [format], for a slot on screen: loading, then loaded, or
      * unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back cuts
      * the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
      * (T-023). A native small slot ([usesSingleAdSource]) claims its ad from the source of its placement and replaces
      * it in place every 60 s in foreground, the first time [firstRefreshDelayMillis] after the first ad (plan T-040);
-     * other formats keep their ad. The ad is destroyed when the collection is cancelled. The caller checks consent
-     * and [isEnabled] first, like [NativeAdSlot].
+     * a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats keep their ad, destroyed
+     * when the collection is cancelled. The caller checks consent and [isEnabled] first, like [NativeAdSlot].
      */
     internal fun nativeAd(
         placement: AdPlacement,
@@ -888,6 +970,7 @@ class AdsController @Inject internal constructor(
         firstRefreshDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
     ): Flow<NativeAdState> {
         val size = requireNotNull(format.nativeLoadSize()) { "${placement.key} is not a native placement" }
+        if (format == placement.format && format.usesPool) return pooledCell(placement)
         return flow {
             val unitId = unitId(placement)
             if (unitId == null) {
@@ -1345,12 +1428,10 @@ class AdsController @Inject internal constructor(
 
         /** Time to wait for a native ad before its space is removed (kept from wave 2 until T-027). */
         const val NATIVE_LOAD_TIMEOUT_MILLIS = 10_000L
-    }
-}
 
-/** The placement a full-screen ad is shown for; empty until its show (PL-03). */
-private class PlacementCell {
-    @Volatile var value: AdPlacement? = null
+        /** Log key of the loads of a pool: never the ad unit (ADR-0019). */
+        const val POOL_LOG_KEY = "pool"
+    }
 }
 
 /** The native full-screen ad on screen and its placement. */
@@ -1369,11 +1450,11 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
     // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
     AdFormat.NATIVE_FULL_SCREEN -> null
-    // App open (its own slot, T-024) and rewarded are not native; the pool of T-027, T-028 loads the native step
-    // and in-collection cards.
+    // App open (its own slot, T-024) and rewarded are not native. The pool of T-028 loads the in-collection cards
+    // with portrait media; the native step waits for its layout (T-032).
     AdFormat.APP_OPEN -> null
     AdFormat.REWARDED -> null
     AdFormat.BANNER_COLLAPSIBLE -> null
     AdFormat.NATIVE_STEP -> null
-    AdFormat.NATIVE_IN_COLLECTION -> null
+    AdFormat.NATIVE_IN_COLLECTION -> NativeAdSize.CARD
 }

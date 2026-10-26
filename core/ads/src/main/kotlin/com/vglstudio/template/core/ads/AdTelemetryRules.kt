@@ -66,14 +66,15 @@ internal fun showFailReasonOf(code: Int): String = when (code) {
 }
 
 /**
- * `ad_placement` of a load (section 8.2): full-screen formats always `preload`; one native ad and the collapsible
- * one the placement of the screen using the slot, else `preload`; the pool `pool`; a banner the placement of the
- * screen, else none.
+ * `ad_placement` of a load (section 8.2): full-screen formats always `preload`; one native small ad and the
+ * collapsible one the placement of the screen using the slot, else `preload`; the pooled formats (medium, step,
+ * in-collection: plan T-028, PL-02) always `pool`, since the placement of a pooled ad is set when it is claimed
+ * (P-04); a banner the placement of the screen, else none.
  */
 internal fun loadPlacementOf(format: AdFormat, screenPlacement: AdPlacement?): String? = when (format) {
     AdFormat.INTERSTITIAL, AdFormat.APP_OPEN, AdFormat.REWARDED, AdFormat.NATIVE_FULL_SCREEN -> PRELOAD
-    AdFormat.NATIVE_SMALL, AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_COLLAPSIBLE -> screenPlacement?.key ?: PRELOAD
-    AdFormat.NATIVE_STEP, AdFormat.NATIVE_IN_COLLECTION -> POOL
+    AdFormat.NATIVE_SMALL, AdFormat.NATIVE_COLLAPSIBLE -> screenPlacement?.key ?: PRELOAD
+    AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_STEP, AdFormat.NATIVE_IN_COLLECTION -> POOL
     AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE -> screenPlacement?.key
 }
 

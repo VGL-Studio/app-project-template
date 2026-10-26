@@ -16,7 +16,10 @@ internal data class NativeRequestOptions(
     val mediaAspect: Int,
 )
 
-/** Options of a native ad drawn in a screen: landscape media where the layout draws media; small draws none. */
+/**
+ * Options of a native ad drawn in a screen: landscape media where the layout draws media, portrait for the card of a
+ * grid (O-06); small draws none.
+ */
 internal fun nativeRequestOptions(size: NativeAdSize): NativeRequestOptions = NativeRequestOptions(
     startMuted = true,
     customControls = false,
@@ -24,6 +27,7 @@ internal fun nativeRequestOptions(size: NativeAdSize): NativeRequestOptions = Na
     mediaAspect = when (size) {
         NativeAdSize.SMALL -> MediaAspectRatio.ANY
         NativeAdSize.MEDIUM, NativeAdSize.FULL -> MediaAspectRatio.LANDSCAPE
+        NativeAdSize.CARD -> MediaAspectRatio.PORTRAIT
     },
 )
 

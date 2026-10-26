@@ -2,7 +2,9 @@ package com.vglstudio.template.core.ads
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -148,9 +150,121 @@ class NativeAdCardTest {
     }
 
     @Test
-    fun medium_is386dpHigh() {
+    fun medium_is410dpHigh() {
         setCard(NativeAdSize.MEDIUM)
-        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(386.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(410.dp)
+    }
+
+    @Test
+    fun medium_ctaIs44dp_labelLarge14sp() {
+        var labelLarge: TextStyle? = null
+        composeRule.setContent {
+            AppTheme {
+                labelLarge = MaterialTheme.typography.labelLarge
+                NativeAdCard(sampleNativeAdAssets, NativeAdSize.MEDIUM, Modifier.width(CARD_WIDTH))
+            }
+        }
+        composeRule.onNodeWithTag(NativeAdTestTags.CTA, useUnmergedTree = true).assertHeightIsEqualTo(44.dp)
+        val style = textStyle("Install")
+        assertEquals(14.sp, style.fontSize)
+        assertEquals(labelLarge!!.fontWeight, style.fontWeight)
+    }
+
+    @Test
+    fun medium_starRow16dp_belowBadgeLine_hiddenStarsKeepHeight() {
+        var assets by mutableStateOf(sampleNativeAdAssets.copy(starRating = 4.0))
+        composeRule.setContent {
+            AppTheme { NativeAdCard(assets, NativeAdSize.MEDIUM, Modifier.width(CARD_WIDTH)) }
+        }
+        composeRule.onAllNodesWithTag(NativeAdTestTags.STAR, useUnmergedTree = true).assertCountEquals(4)
+        val row = bounds(NativeAdTestTags.STAR_ROW)
+        assertEquals(16f, (row.bottom - row.top).value, 0.5f)
+        assertTrue("star row below the badge line", row.top >= bounds(NativeAdTestTags.BADGE).bottom)
+        val mediaTop = bounds(NativeAdTestTags.MEDIA).top
+
+        // L-055: a rating of 0 draws no star, yet the card and its parts keep their place.
+        assets = sampleNativeAdAssets.copy(starRating = 0.0)
+        composeRule.waitForIdle()
+        composeRule.onAllNodesWithTag(NativeAdTestTags.STAR, useUnmergedTree = true).assertCountEquals(0)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(410.dp)
+        assertEquals(mediaTop.value, bounds(NativeAdTestTags.MEDIA).top.value, 0.5f)
+    }
+
+    @Test
+    fun medium_ctaLarge_56dp_17sp_cardIs422dp() {
+        var large by mutableStateOf(true)
+        composeRule.setContent {
+            AppTheme {
+                NativeAdCard(sampleNativeAdAssets, NativeAdSize.MEDIUM, Modifier.width(CARD_WIDTH), ctaLarge = large)
+            }
+        }
+        composeRule.onNodeWithTag(NativeAdTestTags.CTA, useUnmergedTree = true).assertHeightIsEqualTo(56.dp)
+        assertEquals(17.sp, textStyle("Install").fontSize)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(422.dp)
+        // The text of the SDK is kept as it is, never upper-cased.
+        composeRule.onNodeWithText("Install", useUnmergedTree = true).assertExists()
+
+        // Control: the same ad without cta_large.
+        large = false
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(NativeAdTestTags.CTA, useUnmergedTree = true).assertHeightIsEqualTo(44.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(410.dp)
+    }
+
+    @Test
+    fun card_iconIs32dp_headline13sp_mediaFillsTop_ctaIs36dp() {
+        composeRule.setContent {
+            AppTheme { NativeAdCard(sampleNativeAdAssets, NativeAdSize.CARD, Modifier.size(180.dp, 300.dp)) }
+        }
+        val card = bounds(NativeAdTestTags.CARD)
+        assertEquals(180f, (card.right - card.left).value, 0.5f)
+        assertEquals(300f, (card.bottom - card.top).value, 0.5f)
+        composeRule.onNodeWithTag(NativeAdTestTags.ICON, useUnmergedTree = true)
+            .assertWidthIsEqualTo(32.dp)
+            .assertHeightIsEqualTo(32.dp)
+        assertEquals(13.sp, textStyle("Headline of the ad").fontSize)
+        val media = bounds(NativeAdTestTags.MEDIA)
+        val icon = bounds(NativeAdTestTags.ICON)
+        val cta = bounds(NativeAdTestTags.CTA)
+        assertEquals(8f, (media.top - card.top).value, 0.5f)
+        assertEquals(164f, (media.right - media.left).value, 0.5f)
+        assertTrue("media above the icon", media.bottom <= icon.top)
+        assertTrue("media fills the top", (media.bottom - media.top) >= 120.dp)
+        assertEquals(36f, (cta.bottom - cta.top).value, 0.5f)
+        assertEquals(164f, (cta.right - cta.left).value, 0.5f)
+        assertEquals(8f, (card.bottom - cta.bottom).value, 0.5f)
+    }
+
+    @Test
+    fun card_showsAdBadge_leavesAdChoicesCornerFree() {
+        composeRule.setContent {
+            AppTheme { NativeAdCard(sampleNativeAdAssets, NativeAdSize.CARD, Modifier.size(180.dp, 300.dp)) }
+        }
+        composeRule.onNodeWithText(badge, useUnmergedTree = true).assertExists()
+        val card = bounds(NativeAdTestTags.CARD)
+        val corner = DpRect(card.right - 24.dp, card.top, card.right, card.top + 24.dp)
+        // AdChoices sits on the media, top right; no part of the app's own layout is there.
+        listOf(NativeAdTestTags.ICON, NativeAdTestTags.HEADLINE, NativeAdTestTags.BADGE, NativeAdTestTags.CTA)
+            .forEach { tag ->
+                val part = bounds(tag)
+                val overlaps = part.left < corner.right &&
+                    part.right > corner.left &&
+                    part.top < corner.bottom &&
+                    part.bottom > corner.top
+                assertFalse("$tag $part overlaps the AdChoices corner $corner", overlaps)
+            }
+    }
+
+    @Test
+    fun card_inFixedCell_takesCellSize() {
+        composeRule.setContent {
+            AppTheme {
+                Box(Modifier.size(160.dp, 240.dp)) { NativeAdCard(sampleNativeAdAssets, NativeAdSize.CARD) }
+            }
+        }
+        val card = bounds(NativeAdTestTags.CARD)
+        assertEquals(160f, (card.right - card.left).value, 0.5f)
+        assertEquals(240f, (card.bottom - card.top).value, 0.5f)
     }
 
     @Test
@@ -171,8 +285,9 @@ class NativeAdCardTest {
             val placeholder = bounds(NativeAdTestTags.PLACEHOLDER)
             val expected = when (current) {
                 NativeAdSize.SMALL -> 80.dp
-                NativeAdSize.MEDIUM -> 386.dp
+                NativeAdSize.MEDIUM -> 410.dp
                 NativeAdSize.FULL -> FULL_HEIGHT
+                NativeAdSize.CARD -> 300.dp
             }
             assertEquals("$current card height", expected.value, (card.bottom - card.top).value, 0.5f)
             assertEquals(
@@ -196,7 +311,7 @@ class NativeAdCardTest {
 
         size = NativeAdSize.MEDIUM
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(386.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(410.dp)
         composeRule.onNodeWithTag(NativeAdTestTags.HEADLINE, useUnmergedTree = true).assertHeightIsEqualTo(20.dp)
     }
 
@@ -209,6 +324,8 @@ class NativeAdCardTest {
         assertTrue("Media is ${media.right - media.left} wide", media.right - media.left >= 355.dp - 0.5.dp)
         assertEquals(196f, (media.bottom - media.top).value, 0.5f)
         assertTrue(media.right - media.left >= 120.dp && media.bottom - media.top >= 120.dp)
+        // Below the 56 dp head with its star row: 1 + 24 + 56 + 12 dp from the top of the card.
+        assertEquals(93f, (media.top - card.top).value, 0.5f)
     }
 
     @Test
@@ -325,6 +442,9 @@ class NativeAdCardTest {
 
     @Test
     fun full_headlineAndCtaColors_lightAndDark() = assertColorsInBothModes(NativeAdSize.FULL)
+
+    @Test
+    fun medium_headlineAndCtaColors_lightAndDark() = assertColorsInBothModes(NativeAdSize.MEDIUM)
 
     /**
      * In each mode, reads pixels of the drawn window: card and call-to-action backgrounds, then the text pixel

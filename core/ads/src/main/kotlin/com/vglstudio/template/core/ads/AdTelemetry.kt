@@ -213,26 +213,34 @@ internal interface LoadReport {
 }
 
 /**
- * How a native placement is loaded: one ad in its slot, one row of a list (plan T-023, question 6), or a refresh of a
- * single-ad slot, which also covers the next load after a claim (plan T-040, section 8.2).
+ * How a native placement is loaded: one ad in its slot, one row of a list (plan T-023, question 6), a refresh of a
+ * single-ad slot, which also covers the next load after a claim (plan T-040, section 8.2), or one load of a pool
+ * (plan T-028, P-04, PL-02).
  */
-internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH }
+internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH, POOL }
 
 /**
  * The load report of a native [placement] drawn as [format] and used as [use]; the choice of [AdsController],
  * testable without the SDK. A single ad counts `load_attempt` per placement and format ([nativeSlotKey]), so two
- * formats of one placement never share a counter (L-068). A list row and a refresh get a new report per request:
- * no `load_attempt`, latency from the send of that request, and the counter is not touched.
+ * formats of one placement never share a counter (L-068). A list row, a refresh and a load of a pool get a new report
+ * per request: no `load_attempt`, latency from the send of that request, and the counter is not touched.
  */
 internal fun AdTelemetry.nativeLoadReport(
     placement: AdPlacement,
     use: NativeLoadUse,
     format: AdFormat = placement.format,
 ): LoadReport {
-    // A list row keeps the placement key of its screen (question 7); only a real pool (T-028) logs `pool`.
+    // A list row keeps the placement key of its screen (question 7); a load of a pool logs `pool` (PL-02).
     val loadPlacement = loadPlacementOf(format, placement)
     return when (use) {
         NativeLoadUse.SINGLE_AD -> countedLoad(format, nativeSlotKey(placement, format), loadPlacement)
-        NativeLoadUse.LIST_ROW, NativeLoadUse.REFRESH -> perRequestLoad(format, loadPlacement)
+        NativeLoadUse.LIST_ROW, NativeLoadUse.REFRESH, NativeLoadUse.POOL -> perRequestLoad(format, loadPlacement)
     }
 }
+
+/**
+ * The `ad_opportunity` of one cell of a pool (P-07, section 8.2): `shown` is always `ready`; `not_ready` is `idle`,
+ * since a pool has no single-ad slot whose state it could report.
+ */
+internal fun AdTelemetry.poolCellOpportunity(placement: AdPlacement, result: String) =
+    opportunity(placement.format, placement, result, loadState = if (result == "shown") "ready" else "idle")

@@ -110,4 +110,15 @@ class AdTelemetryRulesTest {
         assertEquals("sample_native_small", loadPlacementOf(AdFormat.BANNER, screen))
         assertNull(loadPlacementOf(AdFormat.BANNER, null))
     }
+
+    @Test
+    fun loadPlacement_pooledFormats_arePool() {
+        // PL-02: a load of a pool is always `pool`, even with a placement of a screen.
+        listOf(AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_STEP, AdFormat.NATIVE_IN_COLLECTION).forEach {
+            assertEquals(it.name, "pool", loadPlacementOf(it, AdPlacement.GALLERY_NATIVE_MEDIUM))
+            assertEquals(it.name, "pool", loadPlacementOf(it, null))
+        }
+        // Control: a single native small ad keeps the placement of its screen.
+        assertEquals("sample_native_small", loadPlacementOf(AdFormat.NATIVE_SMALL, AdPlacement.SAMPLE_NATIVE_SMALL))
+    }
 }
