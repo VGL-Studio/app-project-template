@@ -147,14 +147,15 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
             showAgain(declaration, pending, activity, onOutcome)
             return
         }
-        if (!port.enabled(declaration)) {
-            logger.info(TAG, "Rewarded $code granted: switched off")
-            onOutcome(RewardedOutcome.Granted)
-            return
-        }
-        // The switch was awaited: a turn may have started meanwhile.
+        val on = port.enabled(declaration)
+        // The switch was awaited: a turn may have started meanwhile, and keeps this tap whatever the switch says.
         turns[declaration]?.let { pending ->
             showAgain(declaration, pending, activity, onOutcome)
+            return
+        }
+        if (!on) {
+            logger.info(TAG, "Rewarded $code granted: switched off")
+            onOutcome(RewardedOutcome.Granted)
             return
         }
         val reason = noAdReason(
