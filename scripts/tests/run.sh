@@ -2206,14 +2206,15 @@ expect "device-scenario: SIGTERM still resets the device and ends the file" "yes
 
 # The reset is part of the budget: a file ends early enough for the reset to finish within DEVICE_SCENARIOS_BUDGET.
 ds_script slow-budget.txt 'wait id=never_shown 25'
-ds_run "home.xml" "$ds_files/slow-budget.txt" DEVICE_SCENARIOS_BUDGET=6 DEVICE_SCENARIO_RESET_LIMIT=4 > /dev/null
+ds_run "home.xml" "$ds_files/slow-budget.txt" DEVICE_SCENARIOS_BUDGET=6 DEVICE_SCENARIO_RESET_LIMIT=4 \
+  DEVICE_SCENARIO_EVIDENCE_RESERVE=0 > /dev/null
 expect "device-scenario: the file deadline leaves room for the reset" 1 "$(ds_count '^plan slow-budget.txt result=lỗi seconds=2$')"
 
-# The file name goes to the device shell quoted.
+# A quote in the file name never reaches the device shell: such a name is a file error (SAFE_NAME), no adb call.
 printf "ticket: T-999\ncriterion: Quote\ntimeout: 30\nback\n" > "$ds_files/q'x.txt"
 ds_run "home.xml" "$ds_files/q'x.txt" > /dev/null
-expect "device-scenario: the log marker quotes the file name for the device shell" 1 \
-  "$(grep -cF "shell log -t VGL.Session 'scenario=plan file=q'\"'\"'x.txt'" "$ds_calls" || true)"
+expect "device-scenario: a file name with a quote is a file error that sends nothing to the device shell" "1 0" \
+  "$(ds_count '^plan q_x.txt result=lỗi tệp') $(grep -c 'log -t' "$ds_calls" || true)"
 
 expect "device-scenario: check reports an unknown command with its line" "1 1" \
   "$(code=0; python3 -I scripts/device-scenario.py check "$ds_fixtures/bad.txt" > "$work/ds-check.out" 2>&1 || code=$?; echo "$code") $(grep -c 'bad.txt dòng 5' "$work/ds-check.out" || true)"
@@ -2250,12 +2251,197 @@ expect "device-scenario: DEVICE_SCENARIO_FIRST_SCREENS names another first scree
   "$(ds_run "grid.xml" "$ds_files/first.txt" DEVICE_SCENARIO_FIRST_SCREENS='id=gallery_screen') $(ds_count 'result=đạt') $(ds_run "grid.xml" "$ds_files/first.txt") $(ds_count 'result=lỗi')"
 ds_script fresh.txt 'fresh'
 expect "device-scenario: fresh opens MainActivity when the build has two LAUNCHER activities" "0 1 0" \
-  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_LAUNCHERS="com.example.app.staging/com.example.app.ads.AdPreviewActivity com.example.app.staging/com.example.app.MainActivity") $(ds_count '^shell am start -n com.example.app.staging/com.example.app.MainActivity$' "$ds_calls") $(ds_count 'resolve-activity' "$ds_calls")"
+  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_LAUNCHERS="com.example.app.staging/com.example.app.ads.AdPreviewActivity com.example.app.staging/com.example.app.MainActivity") $(ds_count '^shell am start -W -n com.example.app.staging/com.example.app.MainActivity$' "$ds_calls") $(ds_count 'resolve-activity' "$ds_calls")"
 empty_code="$(ds_run "home.xml" "$work/no-scenarios/*.txt")"
 empty_calls="$(wc -l < "$ds_calls" | tr -d ' ')"
 ds_run "consent.xml welcome.xml home.xml" "$ds_fixtures/scenarios/ok.txt" > /dev/null
 expect "device-scenario: an empty glob exits before any adb call (a file makes calls)" "0 0 yes" \
   "$(joined "$empty_code" "$empty_calls" "$([[ "$(wc -l < "$ds_calls")" -gt 0 ]] && echo yes || echo no)")"
+
+# From camera-pose T-048, T-049, T-052 (issues #163, #188): fresh, late consent, selected on a parent, settle after
+# device, notes, quotes, file names, evidence reserve, SIGTERM, unfold on small screens, stop settle.
+ds_n() { cat "$work/adb-state/ui-seq.n" 2> /dev/null || echo 0; } # dumps taken by the last ds_run
+ds_check() { # <file> [VAR=value ...]; prints the exit code of check, output in $work/ds-check.out
+  local code=0
+  env "${@:2}" python3 -I scripts/device-scenario.py check "$1" > "$work/ds-check.out" 2>&1 || code=$?
+  echo "$code"
+}
+ds_in_order() { # <file> <pattern...>: yes when the first line of each pattern comes after the one before
+  local file="$1" last=0 n pattern
+  shift
+  for pattern in "$@"; do
+    n="$(grep -n -- "$pattern" "$file" 2> /dev/null | head -n 1 | cut -d: -f1 || true)"
+    if [[ -z "$n" || "$n" -le "$last" ]]; then echo no; return; fi
+    last="$n"
+  done
+  echo yes
+}
+
+expect "device-scenario: fresh clears the app and starts it with am start -W" "0 yes 1 1" \
+  "$(ds_run "home.xml" "$ds_files/fresh.txt") $(ds_in_order "$ds_calls" '^shell am force-stop com.example.app.staging$' \
+    '^shell pm clear com.example.app.staging$' '^shell am start -W -n com.example.app/.MainActivity$' \
+    '^shell pidof com.example.app.staging$') $(ds_count '^plan fresh.txt step=1 fresh ok$') $(ds_count '^shell am start -W' "$ds_calls")"
+expect "device-scenario: fresh starts the app again when the first start left no process" "0 2 1 1 1" \
+  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_DEAD_STARTS=1 DEVICE_SCENARIO_PROCESS_WAIT=0.3) $(ds_count '^shell am start -W' "$ds_calls") $(ds_count '^logcat -b crash -d$' "$ds_calls") $(ds_count '^plan fresh.txt step=1 fresh ok$') $(ds_count '^plan fresh.txt note step=1 t=[0-9.]* .*pidof rỗng.*mở lại')"
+printf 'ticket: T-999\ncriterion: Hang\ntimeout: 60\nfresh\n' > "$ds_files/fresh-hang.txt"
+ds_started=$SECONDS
+ds_code="$(ds_run "home.xml" "$ds_files/fresh-hang.txt" FAKE_ADB_HANG="am start" DEVICE_SCENARIO_START_WAIT=1 DEVICE_SCENARIO_PROCESS_WAIT=0.3)"
+expect "device-scenario: a hanging am start counts as no process and is retried" "0 1 2 1 yes" \
+  "$ds_code $(ds_count '^plan fresh-hang.txt note step=1 .*am start -W hết 1 giây') $(ds_count '^shell am start -W' "$ds_calls") $(ds_count '^plan fresh-hang.txt step=1 fresh FAIL app không chạy sau 2 lần mở$') $([[ $((SECONDS - ds_started)) -lt 15 ]] && echo yes || echo no)"
+expect "device-scenario: a slow am start with a live process is not restarted" "0 1 1 1 1" \
+  "$(ds_run "home.xml" "$ds_files/fresh-hang.txt" FAKE_ADB_HANG="am start" DEVICE_SCENARIO_START_WAIT=1 FAKE_ADB_ALIVE_AFTER_HANG=1) $(ds_count '^shell am start -W' "$ds_calls") $(ds_count '^plan fresh-hang.txt step=1 fresh ok$') $(ds_count '^plan fresh-hang.txt note step=1 .*am start -W hết 1 giây') $(ds_count '^shell am force-stop' "$ds_calls")"
+expect "device-scenario: fresh fails when the app never runs" "0 1 2" \
+  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_DEAD_STARTS=5 DEVICE_SCENARIO_PROCESS_WAIT=0.3) $(ds_count '^plan fresh.txt step=1 fresh FAIL app không chạy sau 2 lần mở$') $(ds_count '^shell am start -W' "$ds_calls")"
+printf '%s\n' '--------- beginning of crash' 'E AndroidRuntime: FATAL EXCEPTION: main' \
+  'E AndroidRuntime: Process: com.example.app.staging, PID: 4242' > "$work/ds-crash.txt"
+expect "device-scenario: fresh fails on a first-start crash instead of starting again" "0 1 1" \
+  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_DEAD_STARTS=1 DEVICE_SCENARIO_PROCESS_WAIT=0.3 FAKE_ADB_CRASH_LOG="$work/ds-crash.txt") $(ds_count '^plan fresh.txt step=1 fresh FAIL app crash ở lần mở đầu$') $(ds_count '^shell am start -W' "$ds_calls")"
+expect "device-scenario: fresh does not take an adb error with digits for a process" "0 2 1" \
+  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_PIDOF_TEXT="error: device 'emulator-5554' not found" DEVICE_SCENARIO_PROCESS_WAIT=0.3) $(ds_count '^shell am start -W' "$ds_calls") $(ds_count '^plan fresh.txt step=1 fresh FAIL app không chạy sau 2 lần mở$')"
+expect "device-scenario: control: pidof with two pids counts as a process" "0 1 1" \
+  "$(ds_run "home.xml" "$ds_files/fresh.txt" FAKE_ADB_PIDOF_TEXT="4242 4243") $(ds_count '^shell am start -W' "$ds_calls") $(ds_count '^plan fresh.txt step=1 fresh ok$')"
+# Stopping the app right after the device was given back makes the system kill the next start (camera-pose
+# FB-20261025-02), so fresh of a file after a reset waits after stopping the app; the first file does not.
+ds_script settle-1.txt 'fresh'
+ds_script settle-2.txt 'fresh'
+settle_began="$(date +%s)"
+settle_code="$(ds_run "home.xml" "$ds_files/settle-*.txt" DEVICE_SCENARIO_STOP_SETTLE=2)"
+settle_seconds=$(( $(date +%s) - settle_began ))
+expect "device-scenario: fresh after a reset waits after stopping the app, the first file does not" "0 1 0 yes" \
+  "$settle_code $(ds_count '^plan settle-2.txt note step=1 .*fresh: chờ 2 giây sau khi dừng app') $(ds_count '^plan settle-1.txt note step=1 .*fresh: chờ') $([ "$settle_seconds" -ge 2 ] && echo yes || echo no)"
+ds_script settle-mid.txt 'fresh' 'fresh'
+expect "device-scenario: control: a second fresh inside one file does not wait" "0 0 2" \
+  "$(ds_run "home.xml" "$ds_files/settle-mid.txt" DEVICE_SCENARIO_STOP_SETTLE=2) $(ds_count 'fresh: chờ') $(ds_count '^plan settle-mid.txt step=[12] fresh ok$')"
+
+# A form later than the grace of consent decline: the next step that reads the screen declines it once. The grace is
+# 0 here, so consent decline ends on the first screen of the app.
+ds_late() { ds_run "$1" "$2" DEVICE_SCENARIO_CONSENT_GRACE=0 "${@:3}"; }
+ds_script consent-late.txt 'consent decline 5' 'wait id=welcome_screen 10' 'expect id=home_screen'
+expect "device-scenario: a consent form that shows after consent decline saw the app is declined once" "0 1 1 1 4" \
+  "$(ds_late "welcome.xml consent.xml welcome.xml home.xml" "$ds_files/consent-late.txt") $(ds_count '^plan consent-late.txt result=đạt') $(ds_count '^shell input tap 540 1970$' "$ds_calls") $(ds_count '^plan consent-late.txt note step=2 t=[0-9.]* hộp thoại đồng ý hiện muộn, đã từ chối') $(ds_n)"
+ds_script consent-twice.txt 'consent decline 5' 'wait id=welcome_screen 3' 'wait id=home_screen 1'
+expect "device-scenario: a second late consent form is not declined again" "0 1 1 4" \
+  "$(ds_late "welcome.xml consent.xml welcome.xml consent.xml" "$ds_files/consent-twice.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-twice.txt step=3 wait id=home_screen 1 FAIL hộp thoại đồng ý hiện lại sau khi đã từ chối$') $(ds_n)"
+ds_script consent-again.txt 'consent decline 5' 'wait id=home_screen 3'
+expect "device-scenario: a consent form that shows again after decline is a failure" "0 1 1 3" \
+  "$(ds_late "consent.xml welcome.xml consent.xml" "$ds_files/consent-again.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-again.txt step=2 wait id=home_screen 3 FAIL hộp thoại đồng ý hiện lại sau khi đã từ chối$') $(ds_n)"
+ds_script consent-none.txt 'expect id=welcome_screen'
+expect "device-scenario: without consent decline a consent form is not tapped" "0 0 1" \
+  "$(ds_late "consent.xml" "$ds_files/consent-none.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-none.txt step=1 expect id=welcome_screen FAIL')"
+ds_script consent-fresh.txt 'fresh' 'consent decline 5' 'fresh' 'wait id=welcome_screen 3'
+expect "device-scenario: fresh resets the consent state" "0 1 1 4" \
+  "$(ds_late "consent.xml welcome.xml consent.xml welcome.xml" "$ds_files/consent-fresh.txt") $(ds_count '^plan consent-fresh.txt result=đạt') $(ds_count 'input tap' "$ds_calls") $(ds_n)"
+mkdir -p "$work/ds-two"
+printf 'ticket: T-999\ncriterion: A\ntimeout: 30\nconsent decline 5\n' > "$work/ds-two/a.txt"
+printf 'ticket: T-999\ncriterion: B\ntimeout: 30\nexpect id=home_screen\n' > "$work/ds-two/b.txt"
+expect "device-scenario: nothing kept crosses into the next file" "0 1 1 3" \
+  "$(ds_late "consent.xml welcome.xml home.xml" "$work/ds-two/*.txt") $(ds_count '^plan a.txt result=đạt') $(ds_count '^plan b.txt result=đạt') $(ds_n)"
+ds_script consent-back.txt 'consent decline 5' 'back' 'expect id=home_screen'
+expect "device-scenario: a kept screen is not used after back" "0 1 3" \
+  "$(ds_late "consent.xml welcome.xml home.xml" "$ds_files/consent-back.txt") $(ds_count '^plan consent-back.txt result=đạt') $(ds_n)"
+ds_script consent-close.txt 'consent decline 5' 'expect id=welcome_screen'
+expect "device-scenario: consent decline waits for the form to close and taps once" "0 1 1 4" \
+  "$(ds_late "consent.xml consent.xml consent.xml welcome.xml" "$ds_files/consent-close.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-close.txt result=đạt') $(ds_n)"
+ds_script consent-need.txt 'consent decline 5' 'need id=x 3'
+expect "device-scenario: a consent error inside need is a failure, not a skip" "0 1 1 3" \
+  "$(ds_late "consent.xml welcome.xml consent.xml" "$ds_files/consent-need.txt") $(ds_count '^plan consent-need.txt result=lỗi ') $(ds_count '^plan consent-need.txt step=2 need id=x 3 FAIL hộp thoại đồng ý hiện lại sau khi đã từ chối$') $(ds_n)"
+expect "device-scenario: a consent form that does not close after the tap is a failure" "0 1 1" \
+  "$(ds_late "consent.xml" "$ds_files/consent.txt" DEVICE_SCENARIO_CONSENT_CLOSE=1) $(ds_count '^plan consent.txt step=1 consent decline 5 FAIL hộp thoại đồng ý không đóng sau khi chạm từ chối$') $(ds_count 'input tap' "$ds_calls")"
+ds_script consent-second-form.txt 'consent decline 5' 'consent decline 5'
+expect "device-scenario: a second consent decline that sees the form again after a decline fails, tapping once" "0 1 1" \
+  "$(ds_late "consent.xml welcome.xml consent.xml welcome.xml" "$ds_files/consent-second-form.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-second-form.txt step=2 consent decline 5 FAIL hộp thoại đồng ý hiện lại sau khi đã từ chối$')"
+ds_script consent-second-keep.txt 'consent decline 5' 'consent decline 5' 'wait id=home_screen 3'
+expect "device-scenario: a second consent decline without a form keeps the decline, a form after it is a failure" "0 1 1" \
+  "$(ds_late "consent.xml welcome.xml welcome.xml consent.xml" "$ds_files/consent-second-keep.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-second-keep.txt step=3 wait id=home_screen 3 FAIL hộp thoại đồng ý hiện lại sau khi đã từ chối$')"
+ds_script consent-second-none.txt 'consent decline 5' 'consent decline 5' 'expect id=welcome_screen'
+expect "device-scenario: control: a second consent decline without a form passes" "0 1 1" \
+  "$(ds_late "consent.xml welcome.xml welcome.xml" "$ds_files/consent-second-none.txt") $(ds_count 'input tap' "$ds_calls") $(ds_count '^plan consent-second-none.txt result=đạt')"
+
+# selected=true of a Compose chip: the text is a child of the selected node (fixtures from a real dump of the app).
+ds_script chip-all.txt 'expect text=All selected=true'
+expect "device-scenario: selected=true matches a text whose parent chip is selected" "0 1" \
+  "$(ds_run "chips.xml" "$ds_files/chip-all.txt") $(ds_count '^plan chip-all.txt result=đạt')"
+ds_script chip-saved.txt 'expect text=Saved selected=true'
+expect "device-scenario: selected=true stops at the clickable parent of an unselected chip" "0 1 0 1" \
+  "$(ds_run "chips.xml" "$ds_files/chip-saved.txt") $(ds_count '^plan chip-saved.txt result=lỗi ') $(ds_run "chips-saved.xml" "$ds_files/chip-saved.txt") $(ds_count '^plan chip-saved.txt result=đạt')"
+ds_script chip-deep.txt 'expect desc=deep_clickable selected=true'
+expect "device-scenario: a clickable node is selected only by itself" "0 1" \
+  "$(ds_run "chips.xml" "$ds_files/chip-deep.txt") $(ds_count '^plan chip-deep.txt step=1 expect desc=deep_clickable selected=true FAIL')"
+ds_script chip-far.txt 'expect text=Sâu selected=true'
+expect "device-scenario: selected=true looks at most two parents up" "0 1" \
+  "$(ds_run "chips.xml" "$ds_files/chip-far.txt") $(ds_count '^plan chip-far.txt step=1 expect text=Sâu selected=true FAIL')"
+
+ds_script unfold.txt 'device unfold'
+ds_script unfold-grid.txt 'device unfold' 'expect id=gallery_grid'
+expect "device-scenario: a device command waits until two dumps agree" "0 1 3 1 0 0 1 3" \
+  "$(ds_run "home.xml grid.xml grid.xml" "$ds_files/unfold.txt") $(ds_count '^plan unfold.txt result=đạt') $(ds_n) $(ds_count '^plan unfold.txt note step=1 t=[0-9.]* .*ổn định sau') $(ds_count 'không ổn định') $(ds_run "home.xml grid.xml grid.xml home.xml" "$ds_files/unfold-grid.txt") $(ds_count '^plan unfold-grid.txt result=đạt') $(ds_n)"
+ds_alternating=""
+for _ in $(seq 1 50); do ds_alternating+="home.xml grid.xml "; done
+expect "device-scenario: a screen that never settles is noted, not failed" "0 1 1 yes" \
+  "$(ds_run "$ds_alternating" "$ds_files/unfold.txt" DEVICE_SCENARIO_SETTLE=1) $(ds_count '^plan unfold.txt step=1 device unfold ok$') $(ds_count '^plan unfold.txt note step=1 t=[0-9.]* .*không ổn định') $([[ "$(ds_n)" -lt 100 ]] && echo yes || echo no)"
+expect "device-scenario: a tap notes its coordinates and the element" "0 1 6" \
+  "$(ds_run "consent.xml welcome.xml home.xml" "$ds_fixtures/scenarios/ok.txt") $(ds_count '^plan ok.txt note step=3 t=[0-9]*\.[0-9] .*540,1806.*welcome_continue') $(ds_count '^plan ok.txt step=[0-9]* .* ok$')"
+expect "device-scenario: device unfold turns the letterbox education off before it changes the size" "0 1 yes" \
+  "$(ds_run "home.xml grid.xml grid.xml" "$ds_files/unfold.txt") $(ds_count '^shell wm set-letterbox-style --isEducationEnabled false$' "$ds_calls") $(ds_in_order "$ds_calls" '^shell wm set-letterbox-style --isEducationEnabled false$' '^shell wm size 1766x2208$')"
+expect "device-scenario: the reset after the file and at the end turns the letterbox education back to the default" "0 2 yes" \
+  "$(ds_run "home.xml grid.xml grid.xml" "$ds_files/unfold.txt") $(ds_count '^shell wm reset-letterbox-style isEducationEnabled$' "$ds_calls") $(ds_in_order "$ds_calls" '^shell wm size 1766x2208$' '^shell wm reset-letterbox-style isEducationEnabled$')"
+expect "device-scenario: on a 320x640 screen unfold picks a size within three times the screen, 673 x 841 dp" "0 1 1 0" \
+  "$(ds_run "home.xml grid.xml grid.xml" "$ds_files/unfold.txt" FAKE_ADB_PHYSICAL_SIZE=320x640) $(ds_count '^shell wm size 1536x1919$' "$ds_calls") $(ds_count '^shell wm density 365$' "$ds_calls") $(ds_count '^shell wm size 1766x2208$' "$ds_calls")"
+expect "device-scenario: control: on a large screen unfold keeps 1766x2208 at 420" "0 1 1" \
+  "$(ds_run "home.xml grid.xml grid.xml" "$ds_files/unfold.txt") $(ds_count '^shell wm size 1766x2208$' "$ds_calls") $(ds_count '^shell wm density 420$' "$ds_calls")"
+
+ds_script quoted.txt 'wait text="Hands in Pockets" 3'
+expect "device-scenario: a quoted value keeps its spaces and the number after it is the timeout" "0 1 0" \
+  "$(ds_run "chips.xml" "$ds_files/quoted.txt") $(ds_count '^plan quoted.txt result=đạt') $(ds_check "$ds_files/quoted.txt")"
+ds_script page.txt 'wait text=Page 2'
+ds_script grid-wait.txt 'wait id=gallery_grid 2'
+mkdir -p "$work/ds-grid-root/feature/x/src/main"
+printf 'val g = "gallery_grid"\n' > "$work/ds-grid-root/feature/x/src/main/G.kt"
+ds_page_check="$(ds_check "$ds_files/page.txt")"
+ds_page_line="$(grep -c 'page.txt dòng 4: .*ngoặc kép' "$work/ds-check.out" || true)"
+expect "device-scenario: a text with spaces followed by a number is a file error" "1 1 0 1 0 0" \
+  "$ds_page_check $ds_page_line $(ds_run "chips.xml" "$ds_files/page.txt") $(ds_count '^plan page.txt result=lỗi tệp') $(ds_count 'input' "$ds_calls") $(ds_check "$ds_files/grid-wait.txt" DEVICE_SCENARIO_ROOT="$work/ds-grid-root")"
+ds_script one-word.txt 'wait desc=Back 10'
+expect "device-scenario: an unquoted one-word desc= on a line that ends in a number is ambiguous, the message says so" "1 1" \
+  "$(ds_check "$ds_files/one-word.txt") $(ds_count 'one-word.txt dòng 4: .*kể cả một từ.*ngoặc kép' "$work/ds-check.out")"
+ds_script one-word-quoted.txt 'wait desc="Back" 10'
+expect "device-scenario: control: the quoted one-word value passes check" 0 "$(ds_check "$ds_files/one-word-quoted.txt")"
+mkdir -p "$work/ds-names"
+printf 'ticket: T-999\ncriterion: Test\ntimeout: 30\nback\n' > "$work/ds-names/a b|c.txt"
+expect "device-scenario: a file name with odd characters is a file error and sends no adb command" "0 1 1 0 1" \
+  "$(ds_run "home.xml" "$work/ds-names/*.txt") $(ds_count '^plan a_b_c.txt step=0 check FAIL .*tên tệp') $(ds_count '^plan a_b_c.txt result=lỗi tệp') $(ds_count 'log -t' "$ds_calls") $(ds_check "$work/ds-names/a b|c.txt")"
+printf 'ticket: T-902\ncriterion: Test\ntimeout: 30\nback\n' > "$ds_files/T-901-x.txt"
+printf 'ticket: T-901\ncriterion: Test\ntimeout: 30\nback\n' > "$ds_files/T-901-y.txt"
+expect "device-scenario: a T-NNN file whose ticket differs is a file error" "1 1 0 0" \
+  "$(ds_check "$ds_files/T-901-x.txt") $(grep -c 'tên tệp bắt đầu bằng T-901' "$work/ds-check.out" || true) $(ds_check "$ds_files/T-901-y.txt") $(grep -c 'tên tệp' "$work/ds-check.out" || true)"
+
+# The reset and the evidence (log marker, fail.png) are taken from the budget before the file starts.
+ds_script reserve.txt 'wait id=never_shown 25'
+ds_run "home.xml" "$ds_files/reserve.txt" DEVICE_SCENARIOS_BUDGET=9 DEVICE_SCENARIO_RESET_LIMIT=4 DEVICE_SCENARIO_EVIDENCE_RESERVE=3 > /dev/null
+expect "device-scenario: the file deadline also leaves room for the evidence" 1 "$(ds_count '^plan reserve.txt result=lỗi seconds=2$')"
+expect "device-scenario: a budget that only covers the reset and the evidence skips the file" 1 \
+  "$(ds_run "home.xml" "$ds_files/reserve.txt" DEVICE_SCENARIOS_BUDGET=6 DEVICE_SCENARIO_RESET_LIMIT=4 DEVICE_SCENARIO_EVIDENCE_RESERVE=3 > /dev/null; ds_count '^plan reserve.txt result=bỏ qua (hết thời gian)')"
+
+# SIGTERM from outside (timeout of device-session.sh) must not leave the adb child running (no pgrep -f).
+ds_script term.txt 'wait id=x 90'
+rm -rf "$work/adb-term" "$work/ds-term"
+mkdir -p "$work/ds-term"
+env PATH="$work/bin:$PATH" FAKE_ADB_STATE_DIR="$work/adb-term" FAKE_ADB_HANG=uiautomator DEVICE_SCENARIO_ADB_TIMEOUT=100 \
+  DEVICE_SCENARIOS_GLOB="$ds_files/term.txt" DEVICE_SESSION_SLEEP=0 APP_PACKAGE=com.example.app.staging \
+  python3 -I scripts/device-scenario.py run --session "$work/ds-term" --package com.example.app.staging \
+  > "$work/ds-term.out" 2>&1 &
+ds_term_pid=$!
+for _ in $(seq 1 100); do
+  [[ -s "$work/adb-term/hang.pid" ]] && break
+  sleep 0.1
+done
+kill -TERM "$ds_term_pid" 2> /dev/null || true
+ds_term_code=0
+wait "$ds_term_pid" || ds_term_code=$?
+ds_term_child="$(cat "$work/adb-term/hang.pid" 2> /dev/null || true)"
+expect "device-scenario: a terminated runner kills its adb child and says so" "143 1 dead" \
+  "$ds_term_code $(ds_count '^plan runner_terminated' "$work/ds-term/scenarios.txt") $(if [[ -z "$ds_term_child" ]]; then echo nopid; elif kill -0 "$ds_term_child" 2> /dev/null; then echo alive; else echo dead; fi)"
+[[ -n "$ds_term_child" ]] && kill -9 "$ds_term_child" 2> /dev/null || true
 
 # device-session.sh runs the plan scenarios after the standard ones and shows the result (plan T-046).
 export DEVICE_SESSION_SLEEP=0 FAKE_ADB_CALLS="$work/adb-calls.txt" DEVICE_SCENARIO_POLL=0.05 FAKE_ADB_STATE_DIR="$work/adb-state-session" \
@@ -2310,6 +2496,16 @@ expect "device-session: summary lists the plan scenarios" "0 1 1 1 1" \
     "$(cell '| ok.txt | T-900 | Mẫu đạt | đạt |  | 12 | 0 / 0 |')" \
     "$(cell '| fail.txt | T-901 | Mẫu lỗi | lỗi | 2: expect id=x | 3 | 0 / 0 |')" \
     "$(cell '| need.txt | T-902 | Mẫu thiếu | bỏ qua (môi trường) |  | 2 | 0 / 0 |')")"
+# Notes of the runner about a late consent form or a restarted app are listed under the table (camera-pose T-048).
+mkplan "$work/plan-notes" "$plan_lines
+plan ok.txt note step=1 t=0.4
+plan ok.txt note step=2 t=3.1 hộp thoại đồng ý hiện muộn, đã từ chối" "$(cat "$fixtures/logcat-clean.txt")"
+notes_code="$(session /dev/null summary "$work/plan-notes" com.example.app.staging)"
+notes_cell() { grep -cF -- "$1" "$work/plan-notes/summary.md" || true; }
+expect "device-session: summary lists the runner notes about consent and restarts" "0 1 1 0 0" \
+  "$(joined "$notes_code" "$(notes_cell 'Ghi chú của trình chạy:')" \
+    "$(notes_cell '- ok.txt, bước 2: hộp thoại đồng ý hiện muộn, đã từ chối')" "$(notes_cell '- ok.txt, bước 1')" \
+    "$(cell 'Ghi chú của trình chạy')")"
 mkplan "$work/plan-pipe" 'plan ok.txt ticket=T-900 criterion=a | b
 plan ok.txt result=đạt seconds=1' "$(cat "$fixtures/logcat-clean.txt")"
 session /dev/null summary "$work/plan-pipe" com.example.app.staging > /dev/null
