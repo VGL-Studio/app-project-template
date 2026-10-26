@@ -88,8 +88,9 @@ internal fun NativeAdSlotGate(
     onScreen: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
-    // `af_native_ad_eligible` once each time the slot comes in allowed (plan T-033).
-    ReportNativeEligible(allowed)
+    // `af_native_ad_eligible` once each time the slot comes on screen allowed (plan T-033): a page of a pager kept in
+    // composition off screen does not count, and coming back on screen counts again.
+    ReportNativeEligible(allowed && onScreen)
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
     val reported = remember { AvailabilityReport() }
     if (!allowed) {
