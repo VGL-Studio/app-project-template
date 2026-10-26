@@ -550,3 +550,30 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** `git diff 21dda14 ea331f8 -- core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCellTest.kt`; nhật ký plan T-028 (RUN-20261026-03), mục Rà soát độc lập.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: phiên con không sửa test của commit test ở bước 4 mà không báo; mọi thay đổi như vậy liệt kê riêng trong báo cáo (tên test, diff, lý do), và phiên chính đưa đúng danh sách đó vào lời giao rà soát độc lập. Có thể thêm script in `git diff <commit test>..HEAD` của các file test để phiên chính dán vào lời giao.
 - **Trạng thái:** proposed
+
+### L-094. Hết hạn mức thanh toán GitHub Actions giữa phiên dài; kiểm tra đầu phiên không đọc hạn mức Actions
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-04 (sau T-033, PR #193)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** sau 6 lần merge, GitHub không cấp máy cho job `main-guard` của commit merge T-033 ("recent account payments have failed or your spending limit needs to be increased"). Phiên dừng trước task thứ 7 theo `auto-run.md` mục 4. Phiên mở bằng `claude --cloud` nên không được `resume-run.yml` tiếp tục (L-044); `resume-run.yml` cũng là workflow của Actions nên cũng không chạy được khi hết hạn mức. Kiểm tra đầu phiên và mục Kiểm tra trước khi duyệt không có bước nào xem hạn mức Actions còn đủ cho danh sách.
+- **Bằng chứng:** `scripts/wait-run.sh` mã 4, lần chạy 40280561101; `scripts/failure-kind.sh --playbook` ra PB-02; dòng thời gian của `docs/runs/RUN-20261026-04.md` (06:34). CI của 6 task khoảng 90 phút `pr-check` (T-033 33 phút vì build release) cộng 6 lần `main-guard`.
+- **Đề xuất sửa:** `docs/auto-run.md` mục 1: dev kiểm Billing & plans của Actions trước phiên dài, ước tính số phút CI của danh sách (mỗi task khoảng 10 phút `pr-check` và 10 phút `main-guard`, gấp ba khi đổi thư viện). `docs/templates/run.md`: thêm dòng "hạn mức Actions còn đủ cho danh sách" ở mục Kiểm tra trước khi duyệt.
+- **Trạng thái:** proposed
+
+### L-095. Phiên con xóa một test cũ thêm sau khi plan viết, kéo theo phần đối chứng của hành vi vẫn giữ
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-04 (T-030, PR #189)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `CollapsibleNativeAdTest.loadingExpanded_placeholderCtaStays36dp` do T-028 thêm sau khi plan T-030 viết, nên không có trong bảng "Test đã có" của plan. Nửa đầu của test kiểm hành vi mà T-030 bỏ (CL-01), nửa đối chứng kiểm CTA 44 dp của khung chờ medium (T-028, vẫn giữ). Phiên con xóa cả test; rà soát độc lập xếp mức chặn (ADR-0029, quyết định 2) và phần đối chứng được giữ lại ở `NativeAdCardTest.mediumPlaceholder_ctaIs44dp`. Sau khi phiên chính thêm vào lời giao việc một dòng về việc này, bốn task sau không lặp lại.
+- **Bằng chứng:** nhật ký plan T-030 (RUN-20261026-04), mục Rà soát độc lập; commit `df7f6f6`.
+- **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con, phần giao việc chung: "không xóa test cũ nào, kể cả test thêm sau khi plan viết; hành vi cũ bị plan thay thì chỉ bỏ câu khẳng định của hành vi đó, phần còn lại giữ (chuyển file nếu cần, báo là ngoài mục 3.2)".
+- **Trạng thái:** proposed
+
+### L-096. Dọn vòng đẩy nền bằng `pkill -f` dù L-082 đã cấm
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-04 (sau T-026)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** phiên chính chạy một vòng nền đẩy nhánh task mỗi khi có commit mới của phiên con (L-070). Sau khi merge T-026, phiên dọn vòng đó bằng `pkill -f "Push T-026"`; lệnh thoát 144 vì chuỗi khớp dòng lệnh của chính shell đó. Không mất gì (lệnh gỡ worktree chạy trước trong cùng dòng), nhưng L-082 đã cấm đúng việc này. Từ T-030 phiên dừng vòng nền bằng công cụ dừng tác vụ nền của môi trường.
+- **Bằng chứng:** dòng thời gian 01:54 của `docs/runs/RUN-20261026-04.md`; lệnh `git worktree remove ../task-T-026 && pkill -f "Push T-026"` thoát 144.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 9 (đoạn L-082): nói rõ cách dừng vòng nền: công cụ dừng tác vụ nền của phiên, hay một vòng có giới hạn tự hết; không kết thúc vòng nền bằng lệnh tìm theo chuỗi. Mục Giao bước 3 đến 5 có thể nêu mẫu vòng đẩy nền (đọc `git rev-parse <nhánh>` mỗi phút, gọi `save-branch.sh` khi đổi).
+- **Trạng thái:** proposed
