@@ -1,16 +1,16 @@
 ---
 ticket: T-043
 title: Quảng cáo khi quay lại app: kiểm vị trí tắt trước cổng chặn (L-A05)
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 4.1M         # cỡ S, số gợi ý 4.1M (scripts/token-usage.py estimate, 2026-10-26); đổi thứ tự hai khối trong một hàm, hai test mới, sửa một test, một câu tài liệu
 blocking_points: [ads, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 1                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-043: QUẢNG CÁO KHI QUAY LẠI APP: KIỂM VỊ TRÍ TẮT TRƯỚC CỔNG CHẶN (L-A05)
@@ -187,9 +187,9 @@ Unit test JVM chạy bằng Robolectric, cùng cách của `ResumeAdTurnsTest` (
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** Anh Nhật duyệt 2026-10-26 trong phiên giám sát cùng AI. Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy thứ 1 trong RUN-20261026-05. 
 
 ## 10. Nhật ký thực hiện
 

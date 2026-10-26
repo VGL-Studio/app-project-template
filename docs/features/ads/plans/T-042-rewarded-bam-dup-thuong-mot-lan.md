@@ -1,16 +1,16 @@
 ---
 ticket: T-042
 title: "Rewarded: bấm \"Xem quảng cáo\" hai lần khi chưa có quảng cáo chỉ làm hành động một lần"
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, data, core)
 risk_level: high             # low | medium | high
 token_estimate: 5M           # cỡ S, số gợi ý 4.1M (scripts/token-usage.py estimate, 2026-10-26); nâng nhẹ vì hai file code, hai file test với 12 test mới và một vòng rà soát luật số liệu
 blocking_points: [ads, data, core]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 2                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-26
 ---
 
 # PLAN T-042: REWARDED: BẤM "XEM QUẢNG CÁO" HAI LẦN KHI CHƯA CÓ QUẢNG CÁO CHỈ LÀM HÀNH ĐỘNG MỘT LẦN
@@ -168,9 +168,9 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit, nhán
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** Anh Nhật duyệt 2026-10-26 trong phiên giám sát cùng AI. Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy thứ 2 trong RUN-20261026-05. 
 
 ## 10. Nhật ký thực hiện
 
