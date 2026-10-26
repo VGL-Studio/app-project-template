@@ -181,8 +181,10 @@ pr_steps() { # <workflow>; prints each step of build-and-test on one line, its l
 pr_docs_steps() { # <workflow>; counts the steps that run scripts/tests/run.sh only when the PR changes no code
   pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -cF 'scripts/tests/run.sh 2>&1 | tee build.log' || true
 }
-pr_unconditional() { # <workflow> <uses>; "yes" when the step with that action has no if:
-  pr_steps "$1" | grep -F "uses: $2" | grep -q 'if:' && echo no || echo yes
+pr_unconditional() { # <workflow> <uses>; "yes" when the step with that action has no if:, "missing" with no such step
+  local step
+  step="$(pr_steps "$1" | grep -F "uses: $2" || true)"
+  if [[ -z "$step" ]]; then echo missing; elif grep -q 'if:' <<<"$step"; then echo no; else echo yes; fi
 }
 pr_gradle_gated() { # <workflow>; "yes" when every step using Gradle or the Android SDK runs only for code
   local bad tab=$'\t'
@@ -221,6 +223,9 @@ expect "pr-check: checkout and Java run for every PR" "yes yes" \
   "$(pr_unconditional "$pr_wf" actions/checkout@v5) $(pr_unconditional "$pr_wf" actions/setup-java@v5)"
 expect "pr-check: the docs-only path of build-and-test uses no Gradle and no Android SDK" yes "$(pr_gradle_gated "$pr_wf")"
 mkdir -p "$work/prwf"
+grep -v 'uses: actions/setup-java@v5' "$pr_wf" > "$work/prwf/no-java.yml"
+expect "pr-check: the unconditional check names a step that is missing" missing \
+  "$(pr_unconditional "$work/prwf/no-java.yml" actions/setup-java@v5)"
 perl -0pe "s/- if: needs.changes.outputs.code == 'true'\n        uses: gradle\/actions\/setup-gradle/- uses: gradle\/actions\/setup-gradle/" \
   "$pr_wf" > "$work/prwf/gradle.yml"
 expect "pr-check: the Gradle check fails on a copy whose setup-gradle runs for every PR" no "$(pr_gradle_gated "$work/prwf/gradle.yml")"
