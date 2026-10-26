@@ -198,3 +198,27 @@ internal fun NativeAdSlotContent(
         }
     }
 }
+
+/** The native slot of a bottom bar ([BottomAdBarScaffold]). */
+@Composable
+internal fun BottomNativeSlot(
+    placement: AdPlacement,
+    firstRefreshDelayMillis: Long,
+    onAdAvailabilityChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier)
+}
+
+/** [BottomNativeSlot] without an ads controller. */
+@Composable
+internal fun BottomNativeSlotHost(
+    allowed: Boolean,
+    newStates: (firstRefreshDelayMillis: Long) -> Flow<NativeAdState>,
+    firstRefreshDelayMillis: Long,
+    onAdAvailabilityChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    adContent: @Composable (LoadedNativeAd) -> Unit = { BoundNativeAd(it, NativeAdSize.SMALL) },
+) {
+    Box(modifier = modifier)
+}

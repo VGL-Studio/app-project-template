@@ -155,8 +155,24 @@ class AdGalleryScreenTest {
         assertDp("gap below the ad", 16.dp, root.bottom - ad.bottom)
         assertDp("start margin", 16.dp, ad.left - root.left)
         assertDp("end margin", 16.dp, root.right - ad.right)
-        // Control: the ad is the expanded form, so it is pinned with its own height, not stretched.
-        assertDp("expanded height", 342.dp, ad.height)
+        // Control: the ad is the open layer, so it is pinned with its own height, not stretched.
+        assertDp("open layer height", 250.dp, ad.height)
+        // Design: the layer floats over the 80 dp slot, same bottom edge (y 625 to 875).
+        assertDp("layer top", 625.dp, ad.top)
+        assertDp("same bottom as the slot", bounds(PreviewAdTags.BOTTOM_SLOT).bottom, ad.bottom)
+    }
+
+    @Test
+    fun collapsibleCollapsed_slotAt795() {
+        setScreen(AdGalleryUiState.Collapsible(6), PreviewAdGallerySlots(collapsed = true))
+
+        composeRule.onAllNodesWithTag(PreviewAdTags.COLLAPSIBLE).assertCountEquals(0)
+        val slot = bounds(PreviewAdTags.BOTTOM_SLOT)
+        assertDp("slot top", 795.dp, slot.top)
+        assertDp("slot height", 80.dp, slot.height)
+        assertDp("start margin", 16.dp, slot.left)
+        // The list ends where the slot starts (D-04).
+        assertDp("list bottom", 795.dp, bounds(AdGalleryTestTags.COLLAPSIBLE_LIST).bottom)
     }
 
     @Test
@@ -242,8 +258,8 @@ class AdGalleryScreenTest {
         assertInsideScreen("call to action", textBounds("Install"))
         composeRule.onNodeWithTag(AdGalleryTestTags.COLLAPSIBLE_LIST).performScrollToNode(hasText("List item 6"))
         assertInsideScreen("List item 6", textBounds("List item 6"))
-        // The list stays above the pinned ad.
-        assertTrue(textBounds("List item 6").bottom <= bounds(PreviewAdTags.COLLAPSIBLE).top)
+        // The list scrolls to above the slot; the floating layer keeps no space (D-04).
+        assertTrue(textBounds("List item 6").bottom <= bounds(PreviewAdTags.BOTTOM_SLOT).top + TOLERANCE_DP.dp)
     }
 
     private companion object {

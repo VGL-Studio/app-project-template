@@ -17,22 +17,23 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Screenshots of the collapsible native ad with a fake ad (Roborazzi), at the bottom of the screen with the 16 dp
- * screen margin, as in the design frames. The design-named images `AdGalleryScreen_collapsible-*` belong to the
- * gallery screen (T-014); these have their own names. Nothing here animates, so the screen settles (L-048).
+ * Screenshots of the open collapsible layer (250 dp, plan T-030) with a fake ad (Roborazzi), at the bottom of the
+ * screen with the 16 dp screen margin, as in the design frames. Collapsed, the layer draws nothing, so it has no
+ * image of its own (BottomAdBar_collapsed_light shows the slot it reveals). The design-named images
+ * `AdGalleryScreen_collapsible-*` belong to the gallery screen; these have their own names. Nothing here animates,
+ * so the screen settles (L-048).
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class CollapsibleNativeAdScreenshotTest {
     @Composable
-    private fun AtBottom(darkTheme: Boolean, collapsed: Boolean) {
+    private fun AtBottom(darkTheme: Boolean) {
         AppTheme(darkTheme = darkTheme) {
             Surface {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                     CollapsibleNativeAdCard(
                         assets = screenshotAd,
-                        collapsed = collapsed,
                         onCollapse = {},
                         modifier = Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.md),
                     )
@@ -44,14 +45,7 @@ class CollapsibleNativeAdScreenshotTest {
     @Test
     fun expanded_light() {
         captureRoboImage("src/test/screenshots/CollapsibleNativeAd_expanded_light.png") {
-            AtBottom(darkTheme = false, collapsed = false)
-        }
-    }
-
-    @Test
-    fun collapsed_light() {
-        captureRoboImage("src/test/screenshots/CollapsibleNativeAd_collapsed_light.png") {
-            AtBottom(darkTheme = false, collapsed = true)
+            AtBottom(darkTheme = false)
         }
     }
 
@@ -59,21 +53,14 @@ class CollapsibleNativeAdScreenshotTest {
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun expanded_small() {
         captureRoboImage("src/test/screenshots/CollapsibleNativeAd_expanded_small.png") {
-            AtBottom(darkTheme = false, collapsed = false)
+            AtBottom(darkTheme = false)
         }
     }
 
     @Test
     fun expanded_dark() {
         captureRoboImage("src/test/screenshots/CollapsibleNativeAd_expanded_dark.png") {
-            AtBottom(darkTheme = true, collapsed = false)
-        }
-    }
-
-    @Test
-    fun collapsed_dark() {
-        captureRoboImage("src/test/screenshots/CollapsibleNativeAd_collapsed_dark.png") {
-            AtBottom(darkTheme = true, collapsed = true)
+            AtBottom(darkTheme = true)
         }
     }
 

@@ -14,6 +14,7 @@ internal data class NativeRequestOptions(
     val customControls: Boolean,
     val multipleImages: Boolean,
     val mediaAspect: Int,
+    val adChoicesCorner: Int = NativeAdOptions.ADCHOICES_TOP_RIGHT,
 )
 
 /**
@@ -41,6 +42,9 @@ internal fun fullScreenNativeRequestOptions(): NativeRequestOptions = NativeRequ
     multipleImages = false,
     mediaAspect = MediaAspectRatio.ANY,
 )
+
+/** Options of the collapsible layer of a bottom bar. */
+internal fun collapsibleNativeRequestOptions(): NativeRequestOptions = nativeRequestOptions(NativeAdSize.MEDIUM)
 
 /** The SDK options of this request; AdChoices in the top right corner, which every layout keeps free. */
 internal fun NativeRequestOptions.toNativeAdOptions(): NativeAdOptions = NativeAdOptions.Builder()

@@ -113,6 +113,32 @@ class SdkBannerAdViewTest {
         assertEquals(2, requests.size)
     }
 
+    @Test
+    fun barBanner_reportsBannerFormatAndBarPlacement() {
+        // The banner layer of the bottom bar of a native small placement (plan T-030, D-05): metrics name the format
+        // of the layer and the placement of the bar.
+        val view = SdkBannerAdView(
+            adView = adView,
+            refresh = BannerRefresh.BY_AD_UNIT,
+            placement = AdPlacement.SAMPLE_NATIVE_SMALL,
+            unitId = "unit",
+            telemetry = telemetry,
+            now = { nowMillis },
+            load = { requests += it },
+            format = AdFormat.BANNER,
+        )
+        view.send()
+        adView.adListener.onAdLoaded()
+        adView.adListener.onAdClicked()
+
+        val success = metrics.events.filterIsInstance<AdMetricEvent.LoadSuccess>().single()
+        assertEquals(AdFormat.BANNER.metricCode(), success.adFormat)
+        assertEquals("sample_native_small", success.adPlacement)
+        val click = metrics.events.filterIsInstance<AdMetricEvent.Clicked>().single()
+        assertEquals(AdFormat.BANNER.metricCode(), click.adFormat)
+        assertEquals("sample_native_small", click.adPlacement)
+    }
+
     private companion object {
         /** The defaults of T-019, as read when Remote Config has no value. */
         val DEFAULT_FLAGS: AdsGlobalFlags = runBlocking { DefaultAdsFlags(FakeRemoteSettings()).global.first() }

@@ -67,6 +67,7 @@ internal class SdkBannerAdView(
     private val now: () -> Long,
     private val load: (AdRequest) -> Unit = adView::loadAd,
     private val newRequestId: () -> String = { UUID.randomUUID().toString() },
+    private val format: AdFormat = placement.format,
 ) : BannerAdView {
     // Callbacks come one at a time; the buffer keeps tryEmit from dropping a result the loop has not read yet.
     private val emitted = MutableSharedFlow<BannerLoadResult>(extraBufferCapacity = RESULT_BUFFER)

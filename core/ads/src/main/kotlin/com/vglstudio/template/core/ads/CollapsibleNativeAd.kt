@@ -28,18 +28,24 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
+import kotlinx.coroutines.flow.Flow
 
-/** Whether a collapsible ad is collapsed. It can only collapse: there is no way to expand it again (ADR-0022). */
+/** Whether a collapsible ad is collapsed, and since when ([collapsedAtMillis], monotonic clock). */
 @Stable
-class CollapsibleAdState internal constructor(collapsed: Boolean) {
+class CollapsibleAdState internal constructor(collapsed: Boolean, collapsedAtMillis: Long? = null) {
     var collapsed by mutableStateOf(collapsed)
         private set
 
-    fun collapse() {
+    var collapsedAtMillis by mutableStateOf(collapsedAtMillis)
+        private set
+
+    fun collapse(nowMillis: Long) {
         collapsed = true
+    }
+
+    internal fun expand() {
     }
 
     internal companion object {
@@ -55,21 +61,11 @@ class CollapsibleAdState internal constructor(collapsed: Boolean) {
 fun rememberCollapsibleAdState(): CollapsibleAdState =
     rememberSaveable(saver = CollapsibleAdState.Saver) { CollapsibleAdState(collapsed = false) }
 
-/**
- * A collapsible native ad with fixed content, for screenshots and previews (the app shows real ads with
- * [CollapsibleNativeAdSlot]). Expanded: a 48 dp collapse button in the top start corner, then the ad as medium;
- * collapsed: the same as [NativeAdCard] small, with no way to expand again.
- */
+/** A collapsible native ad with fixed content, for screenshots and previews. */
 @Composable
-fun CollapsibleNativeAdCard(
-    assets: NativeAdAssets,
-    collapsed: Boolean,
-    onCollapse: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun CollapsibleNativeAdCard(assets: NativeAdAssets, onCollapse: () -> Unit, modifier: Modifier = Modifier) {
     CollapsibleNativeAdLayout(
         assets = assets,
-        collapsed = collapsed,
         onCollapse = onCollapse,
         binder = PreviewNativeAdBinder,
         showAdChoicesMarker = true,
@@ -96,26 +92,16 @@ private val ExpandedInnerTop = NativeAdDimens.BorderWidth + Spacing.sm
 /** Bottom margin inside the border, so the parts add up to the 342 dp of the design. */
 private val ExpandedInnerBottom = NativeAdDimens.BorderWidth + NativeAdDimens.InnerPadding
 
-/**
- * The layout of both forms. Each ad part goes through [binder], so a fake ad and a real ad bound to the SDK share it.
- * The collapse button is not an ad asset: a tap on it is not a click on the ad.
- */
+/** The layout of the open layer; each ad part goes through [binder]. */
 @Composable
 internal fun CollapsibleNativeAdLayout(
     assets: NativeAdAssets,
-    collapsed: Boolean,
     onCollapse: () -> Unit,
     binder: NativeAdBinder,
     showAdChoicesMarker: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (collapsed) {
-        Box(modifier = modifier.fillMaxWidth().testTag(CollapsibleNativeAdTestTags.AD)) {
-            NativeAdLayout(assets, NativeAdSize.SMALL, binder, showAdChoicesMarker)
-        }
-    } else {
-        ExpandedLayout(assets, onCollapse, binder, modifier)
-    }
+    ExpandedLayout(assets, onCollapse, binder, modifier)
 }
 
 /**
@@ -177,100 +163,41 @@ private fun CollapseButton(onCollapse: () -> Unit) {
     }
 }
 
-/** What a collapsible slot shows, independent of the SDK. */
-internal sealed interface CollapsibleAdContent {
-    data object Loading : CollapsibleAdContent
-    data class Ready(val assets: NativeAdAssets) : CollapsibleAdContent
-    data object Hidden : CollapsibleAdContent
-}
-
-/**
- * Draws [content] in the form [state] says. While loading, the placeholder has the height of the current form (342 dp
- * expanded, 80 dp collapsed), so nothing moves when the ad arrives. [onCollapsed] runs once, on the first tap.
- */
+/** The collapsible layer of a bottom bar, testable without an ads controller. */
 @Composable
-internal fun CollapsibleNativeAdContent(
-    content: CollapsibleAdContent,
+internal fun CollapsibleNativeAdLayerHost(
+    states: Flow<NativeAdState>,
+    expandAfterSeconds: Long,
+    clock: MonotonicClock,
     state: CollapsibleAdState,
     onCollapsed: () -> Unit,
+    onReexpanded: () -> Unit,
     modifier: Modifier = Modifier,
-    renderReady: @Composable (assets: NativeAdAssets, collapsed: Boolean, onCollapse: () -> Unit) -> Unit =
-        { assets, collapsed, onCollapse -> CollapsibleNativeAdCard(assets, collapsed, onCollapse) },
+    allowed: Boolean = true,
+    renderAd: @Composable (ad: LoadedNativeAd, onCollapse: () -> Unit) -> Unit = { ad, onCollapse ->
+        BoundNativeAd(ad) { binder ->
+            CollapsibleNativeAdLayout(ad.assets, onCollapse, binder, showAdChoicesMarker = false)
+        }
+    },
 ) {
-    Box(modifier = modifier) {
-        when (content) {
-            CollapsibleAdContent.Loading -> Box(modifier = Modifier.testTag(CollapsibleNativeAdTestTags.AD)) {
-                if (state.collapsed) {
-                    NativeAdPlaceholder(NativeAdSize.SMALL)
-                } else {
-                    NativeAdPlaceholderLayout(
-                        size = NativeAdSize.MEDIUM,
-                        height = CollapsibleNativeAdDimens.ExpandedHeight,
-                        mediumCallToActionHeight = NativeAdDimens.CallToActionHeight,
-                    )
-                }
-            }
-            is CollapsibleAdContent.Ready -> renderReady(content.assets, state.collapsed) {
-                if (!state.collapsed) {
-                    state.collapse()
+    if (!allowed) return
+    val adState by states.collectAsState(initial = NativeAdState.Loading)
+    val current = adState
+    if (current is NativeAdState.Loaded) {
+        Box(modifier = modifier) {
+            key(current.ad) {
+                renderAd(current.ad) {
+                    state.collapse(clock.nowMillis())
                     onCollapsed()
                 }
             }
-            CollapsibleAdContent.Hidden -> Unit
         }
     }
 }
 
-/**
- * Shows the collapsible native ad of [placement] (format [AdFormat.NATIVE_COLLAPSIBLE]). It opens expanded; a tap on
- * its collapse button turns it into the small form, and it never expands again while the screen entry lives, even
- * when a new ad loads (KB-4, ADR-0022). The calling screen places it at the bottom; it only takes the width it is
- * given. Like [NativeAdSlot], it takes no space until ads are allowed, keeps its height while loading, gives the space
- * back with no ad, and destroys the ad when it leaves the screen.
- */
+/** The collapsible layer of the bottom bar of [placement]. */
 @Composable
-fun CollapsibleNativeAdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
-    require(placement.format == AdFormat.NATIVE_COLLAPSIBLE) {
-        "${placement.format} is not drawn by CollapsibleNativeAdSlot"
-    }
-    // First, outside any branch or key that depends on the ad: a new ad never expands it again.
-    val state = rememberCollapsibleAdState()
-    val ads = LocalAdsController.current
-    if (ads == null) {
-        Box(modifier = modifier)
-        return
-    }
-    val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
-    val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
-    val unitId = remember(placement) { ads.unitId(placement) }
-    if (!canRequestAds || !enabled || unitId == null) {
-        Box(modifier = modifier)
-        return
-    }
-    // Collected while in composition; leaving it cancels the collection, which destroys the ad (like NativeAdSlot).
-    val adState by remember(placement) { ads.nativeAd(placement) }.collectAsState(initial = NativeAdState.Loading)
-    val current = adState
-    val content = when (current) {
-        NativeAdState.Loading -> CollapsibleAdContent.Loading
-        is NativeAdState.Loaded -> CollapsibleAdContent.Ready(current.ad.assets)
-        NativeAdState.Unavailable -> CollapsibleAdContent.Hidden
-    }
-    CollapsibleNativeAdContent(
-        content = content,
-        state = state,
-        onCollapsed = { ads.onNativeCollapsed(placement) },
-        modifier = modifier,
-        renderReady = { assets, collapsed, onCollapse ->
-            if (current is NativeAdState.Loaded) {
-                // One NativeAdView per ad; collapsing keeps it and binds it again without the media view.
-                key(current.ad) {
-                    BoundNativeAd(current.ad) { binder ->
-                        CollapsibleNativeAdLayout(assets, collapsed, onCollapse, binder, showAdChoicesMarker = false)
-                    }
-                }
-            }
-        },
-    )
+internal fun CollapsibleNativeAdLayer(placement: AdPlacement, expandAfterSeconds: Long, modifier: Modifier = Modifier) {
 }
 
 @Preview
@@ -286,8 +213,7 @@ private fun CollapsibleNativeAdCardPreview() {
     )
     AppTheme {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            CollapsibleNativeAdCard(assets, collapsed = false, onCollapse = {})
-            CollapsibleNativeAdCard(assets, collapsed = true, onCollapse = {})
+            CollapsibleNativeAdCard(assets, onCollapse = {})
         }
     }
 }

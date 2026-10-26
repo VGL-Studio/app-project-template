@@ -6,6 +6,9 @@ package com.vglstudio.template.core.ads
  */
 fun interface AdUnitIds {
     fun of(placement: AdPlacement): String?
+
+    /** The unit of [placement] drawn as [format] (a layer of a bottom bar). */
+    fun of(placement: AdPlacement, format: AdFormat): String? = null
 }
 
 /** Google's public test ad units. They never produce real impressions, so tapping them is safe. */

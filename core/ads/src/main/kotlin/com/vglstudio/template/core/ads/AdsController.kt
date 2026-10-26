@@ -1010,7 +1010,7 @@ class AdsController @Inject internal constructor(
             .distinctUntilChanged()
     }
 
-    internal fun unitId(placement: AdPlacement): String? = unitIds.of(placement).also {
+    internal fun unitId(placement: AdPlacement, format: AdFormat = placement.format): String? = unitIds.of(placement).also {
         if (it == null) Log.e(TAG, "No ad unit for placement ${placement.key}; it shows no ad")
     }
 
@@ -1186,6 +1186,20 @@ class AdsController @Inject internal constructor(
      */
     internal fun onNativeCollapsed(placement: AdPlacement) {
         logger.info(TAG, "native_collapsed placement=${placement.key}")
+    }
+
+    /** The latest global ad switches, for the bottom bar. */
+    internal val globalFlags: StateFlow<AdsGlobalFlags> = MutableStateFlow(DEFAULT_GLOBAL_FLAGS)
+
+    /** The monotonic clock of the ad rules, for the timer of the collapsible layer. */
+    internal val adsClock: MonotonicClock get() = clock
+
+    /** The layers of the bottom bar of [placement] changed. Logged only. */
+    internal fun onBottomBarLayers(placement: AdPlacement, layers: BottomAdBarLayers?) {
+    }
+
+    /** The collapsible layer of [placement] opened again after [seconds]. Logged only. */
+    internal fun onNativeReexpanded(placement: AdPlacement, seconds: Long) {
     }
 
     /**

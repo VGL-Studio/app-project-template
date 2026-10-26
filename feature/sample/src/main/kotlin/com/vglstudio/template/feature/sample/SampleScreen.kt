@@ -2,6 +2,7 @@ package com.vglstudio.template.feature.sample
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,10 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vglstudio.template.core.ads.AdPlacement
-import com.vglstudio.template.core.ads.NativeAdAssets
-import com.vglstudio.template.core.ads.NativeAdCard
-import com.vglstudio.template.core.ads.NativeAdSize
-import com.vglstudio.template.core.ads.NativeAdSlot
+import com.vglstudio.template.core.ads.BottomAdBarScaffold
 import com.vglstudio.template.core.ads.PrivacyOptionsButton
 import com.vglstudio.template.core.designsystem.component.PrimaryButton
 import com.vglstudio.template.core.designsystem.theme.AppTheme
@@ -49,7 +47,9 @@ fun SampleScreen(
     uiState: SampleUiState,
     onIncrement: () -> Unit,
     modifier: Modifier = Modifier,
-    bottomAd: @Composable (Modifier) -> Unit = { NativeAdSlot(AdPlacement.SAMPLE_NATIVE_SMALL, it) },
+    bottomBar: @Composable (content: @Composable (PaddingValues) -> Unit) -> Unit = {
+        BottomAdBarScaffold(AdPlacement.SAMPLE_NATIVE_SMALL, content = it)
+    },
 ) {
     Surface(modifier = modifier.fillMaxSize().testTag(SampleTestTags.SCREEN)) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -73,14 +73,6 @@ fun SampleScreen(
                 }
                 // Only visible where the consent form applies; an app usually puts it in its settings screen.
                 PrivacyOptionsButton()
-            }
-            if (uiState is SampleUiState.Ready) {
-                // Pinned to the bottom, apart from the scrolling content, never right under the button (design).
-                bottomAd(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.md),
-                )
             }
         }
     }
@@ -112,6 +104,7 @@ internal object SampleTestTags {
     const val SCREEN = "sample_screen"
     const val COUNT = "sample_count"
     const val SAVE_ERROR = "sample_save_error"
+    const val CONTENT = "sample_content"
 }
 
 @Preview
@@ -119,30 +112,5 @@ internal object SampleTestTags {
 private fun SampleScreenPreview() {
     AppTheme {
         SampleScreen(uiState = SampleUiState.Ready(count = 3), onIncrement = {})
-    }
-}
-
-@Preview
-@Composable
-private fun SampleScreenWithAdPreview() {
-    AppTheme {
-        SampleScreen(
-            uiState = SampleUiState.Ready(count = 3),
-            onIncrement = {},
-            bottomAd = {
-                NativeAdCard(
-                    assets = NativeAdAssets(
-                        headline = "Headline of the ad",
-                        advertiser = "Advertiser or short body",
-                        body = null,
-                        callToAction = "Install",
-                        icon = null,
-                        hasMedia = false,
-                    ),
-                    size = NativeAdSize.SMALL,
-                    modifier = it,
-                )
-            },
-        )
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -117,6 +118,7 @@ internal fun BannerSlotHost(
     placementKey: String,
     newView: () -> BannerAdView,
     modifier: Modifier = Modifier,
+    onAdAvailabilityChange: (Boolean) -> Unit = {},
 ) {
     var hadAd by remember { mutableStateOf(false) }
     val frame = bannerFrame(gateOpen, enabled, unitId, hadAd)
@@ -194,6 +196,17 @@ private fun BannerFrameContent(
         }
     }
     view.Content(showAd = active, modifier = Modifier.fillMaxWidth().height(heightDp.dp))
+}
+
+/** The banner slot of a bottom bar ([BottomAdBarScaffold]). */
+@Composable
+internal fun BottomBannerSlot(
+    placement: AdPlacement,
+    onAdAvailabilityChange: (Boolean) -> Unit,
+    onHeight: (Dp) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier)
 }
 
 /**

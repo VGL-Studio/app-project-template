@@ -40,6 +40,7 @@ internal class SdkNativeAdLoader(
     private val context: Context,
     private val request: AdRequest,
     private val events: NativeAdEvents? = null,
+    private val options: NativeRequestOptions? = null,
 ) : NativeAdLoader {
     override fun load(
         unitId: String,
