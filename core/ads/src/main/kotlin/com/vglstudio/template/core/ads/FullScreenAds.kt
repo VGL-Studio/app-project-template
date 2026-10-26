@@ -28,9 +28,26 @@ fun rememberShowFullScreenAd(placement: AdPlacement, onFinished: () -> Unit = {}
     )
 }
 
-// SKELETON (plan T-036, step 3).
+/**
+ * Returns an action that shows the app open ad of [placement], for the staging ad gallery only (plan T-036): the
+ * app open ads of the app show on the loading screen ([StartupAds], T-024) and when the app comes back (T-025), never
+ * from a button, so any placement that is not a staging-only app open placement is an [IllegalArgumentException]. The
+ * action goes through the same gate as those ads: consent, the placement switch `is_show_<code>`, one ad at a time, a
+ * loaded ad, and the lock of one second after the previous app open ad closed (A-08); it never reads nor moves
+ * `ads_interval` (I-02). [onFinished] runs exactly once per call, as for [rememberShowFullScreenAd].
+ */
 @Composable
-fun rememberShowAppOpenAd(placement: AdPlacement, onFinished: () -> Unit = {}): () -> Unit = {}
+fun rememberShowAppOpenAd(placement: AdPlacement, onFinished: () -> Unit = {}): () -> Unit {
+    require(placement.declaration.acceptsStagingAppOpen()) {
+        "${placement.key}: app open of the app is shown by StartupAds and the resume ad, never by a button"
+    }
+    val currentOnFinished = rememberUpdatedState(onFinished)
+    return rememberFullScreenAdAction(
+        placement = placement,
+        show = { ads, activity, shown -> ads.showStagingAppOpen(activity, shown) { currentOnFinished.value() } },
+        onUnavailable = { currentOnFinished.value() },
+    )
+}
 
 /**
  * The action of [rememberShowFullScreenAd]: calls [show] when an ads controller and an activity are present, else

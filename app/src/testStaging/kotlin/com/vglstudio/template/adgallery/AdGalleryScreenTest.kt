@@ -250,7 +250,8 @@ class AdGalleryScreenTest {
         // Control: the twelve buttons of the page are found: five of plan T-014, seven of "More formats" (T-036).
         assertEquals(12, buttons.size)
         buttons.forEach { node ->
-            val height = with(composeRule.density) { node.boundsInRoot.height.toDp() }
+            // Layout height, not the bounds in root: the buttons of "More formats" lie below the screen (T-036).
+            val height = with(composeRule.density) { node.size.height.toDp() }
             assertTrue("${node.config} is $height high", height >= 48.dp - TOLERANCE_DP.dp)
         }
         composeRule.onNodeWithTag(AdGalleryTestTags.IN_LIST_BUTTON).assert(hasClickAction())

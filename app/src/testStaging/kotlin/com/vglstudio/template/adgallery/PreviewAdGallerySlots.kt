@@ -173,7 +173,7 @@ class PreviewAdGallerySlots(
     }
 
     @Composable
-    override fun CollectionCard(viewed: Boolean, modifier: Modifier) {
+    override fun CollectionCard(viewed: Boolean, onScreen: Boolean, modifier: Modifier) {
         viewedValues += viewed
         NativeAdCard(assets, NativeAdSize.CARD, modifier.testTag(PreviewAdTags.COLLECTION_CARD))
     }

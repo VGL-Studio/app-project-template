@@ -163,6 +163,10 @@ internal class RewardedActionCallbacks(
  * policy of the placement allows it (MC-05). Closing the ad before the reward runs nothing (R-04). A network failure
  * that blocks the action shows a short message (R-03). Make it a function of the ViewModel, so the result is not lost
  * when the screen is recreated. With no ads controller (tests, previews), `start()` runs [onGranted] at once.
+ *
+ * [noAdPolicyOverride] is for the staging ad gallery only (plan T-036): non-null, it replaces the policy of the
+ * placement for the next taps, and the placement must be staging only, else this throws [IllegalArgumentException]
+ * when composed. A feature declares its policy on the placement line and leaves it null.
  */
 @Composable
 fun rememberRewardedAction(
@@ -171,7 +175,10 @@ fun rememberRewardedAction(
     noAdPolicyOverride: RewardedNoAdPolicy? = null,
 ): RewardedAction = rememberRewardedActionOf(placement, placement.declaration, onGranted, noAdPolicyOverride)
 
-// SKELETON (plan T-036, step 3).
+/**
+ * [rememberRewardedAction] with the declaration whose policy applies given apart from [placement], so tests can pass
+ * a line of their own ([rewardedPolicyOf]).
+ */
 @Composable
 internal fun rememberRewardedActionOf(
     placement: AdPlacement,
@@ -180,6 +187,7 @@ internal fun rememberRewardedActionOf(
     noAdPolicyOverride: RewardedNoAdPolicy?,
 ): RewardedAction {
     require(placement.format == AdFormat.REWARDED) { "${placement.key} is not a rewarded placement" }
+    val policy = rewardedPolicyOf(declaration, noAdPolicyOverride)
     val ads = LocalAdsController.current
     val activity = LocalActivity.current
     val context = LocalContext.current
@@ -197,7 +205,7 @@ internal fun rememberRewardedActionOf(
     return rememberRewardedActionWith(
         placement = placement,
         enabled = switch,
-        start = { onOutcome -> ads.showRewarded(activity, placement, onOutcome) },
+        start = { onOutcome -> ads.showRewarded(activity, placement, policy, onOutcome) },
         onDialogEvent = { ads.recordRewardDialog(placement, it) },
         onGranted = onGranted,
         notify = { showRewardedNotice(context, it) },

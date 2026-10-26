@@ -1006,6 +1006,19 @@ class AdsController @Inject internal constructor(
         }
 
     /**
+     * Shows the app open ad of a staging-only [placement] for the staging ad gallery ([rememberShowAppOpenAd], plan
+     * T-036) through [showAppOpen], unchanged: the same gate, lock and metrics as the app open of the loading screen.
+     */
+    internal suspend fun showStagingAppOpen(
+        activity: Activity,
+        placement: AdPlacement,
+        onFinished: () -> Unit = {},
+    ): Boolean {
+        require(placement.declaration.acceptsStagingAppOpen()) { "${placement.key} is not a staging app open placement" }
+        return showAppOpen(activity, placement, onFinished)
+    }
+
+    /**
      * Shows the full-screen ad of [placement], interstitial or native full screen, if the full-screen gate allows it,
      * and returns whether it was shown ([rememberShowFullScreenAd]). [onFinished] runs once, as for
      * [showInterstitial].
@@ -1083,14 +1096,20 @@ class AdsController @Inject internal constructor(
         combine(isEnabled(placement), canRequestAds) { on, consentOpen -> on && consentOpen }
 
     /**
-     * One tap on "Watch ad" of the rewarded [placement], shown on [activity] ([RewardedTurns.request]). Runs in the
-     * scope of this controller, so a recreated screen does not cancel it; [onOutcome] runs on the main thread.
+     * One tap on "Watch ad" of the rewarded [placement], shown on [activity] ([RewardedTurns.request]), with [policy]
+     * when no ad can be shown (the line's own policy, or the one picked on the staging ad gallery, plan T-036). Runs in
+     * the scope of this controller, so a recreated screen does not cancel it; [onOutcome] runs on the main thread.
      */
-    internal fun showRewarded(activity: Activity, placement: AdPlacement, onOutcome: (RewardedOutcome) -> Unit) {
+    internal fun showRewarded(
+        activity: Activity,
+        placement: AdPlacement,
+        policy: RewardedNoAdPolicy = placement.declaration.effectiveNoAdPolicy,
+        onOutcome: (RewardedOutcome) -> Unit,
+    ) {
         require(placement.format == AdFormat.REWARDED) { "${placement.key} is not a rewarded placement" }
         // Every tap on "Watch ad", busy or with no ad too (T-033, AdsKit RewardedAdManagerImpl).
         telemetry.eligible(AdFormat.REWARDED)
-        scope.launch { rewardedTurns.request(placement.declaration, activity, onOutcome) }
+        scope.launch { rewardedTurns.request(placement.declaration, activity, onOutcome, policy) }
     }
 
     /** `reward_dialog` of the rewarded [placement], [action] `show` or `dismiss` (section 8.2). */
