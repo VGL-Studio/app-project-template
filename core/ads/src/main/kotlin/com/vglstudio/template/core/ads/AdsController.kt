@@ -1173,6 +1173,12 @@ class AdsController @Inject internal constructor(
         sdkStarted.value = true
     }
 
+    /** Tests only: puts [ad] in the preloaded native full-screen slot of [placement], as a load would (plan T-044). */
+    @VisibleForTesting
+    internal fun putPreloadedNativeFullScreenForTest(placement: AdPlacement, ad: LoadedNativeAd) {
+        preloadedNativeFullScreen.put(placement, ad, clock.nowMillis())
+    }
+
     /**
      * The full-screen gate of [placement], shared by every full-screen format, in the order of [decideFullScreenShow]:
      * consent (S-11), the placement switches, another full-screen ad on screen (F-01, F-02), a loaded ad (F-04), then

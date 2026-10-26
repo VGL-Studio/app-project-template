@@ -262,12 +262,14 @@ class AdGalleryScreenTest {
             allTagged.map { it.config[SemanticsProperties.TestTag] }.toSet(),
         )
         assertEquals(12, allTagged.size)
-        // The seven of "More formats" lie below the screen: moreFormats_buttonsHaveTouchTargetOf48dp measures them.
-        val buttons = allTagged.filter { node -> node.config[SemanticsProperties.TestTag] in planT014Buttons }
-        assertEquals(5, buttons.size)
-        buttons.forEach { node ->
-            val height = with(composeRule.density) { node.boundsInRoot.height.toDp() }
-            assertTrue("${node.config} is $height high", height >= 48.dp - TOLERANCE_DP.dp)
+        // Every button of the tree, scrolled into view first: one below the screen measures 0 dp (plan T-044).
+        allTagged.map { it.config[SemanticsProperties.TestTag] }.forEach { tag ->
+            composeRule.onNodeWithTag(tag).performScrollTo()
+            val rect = bounds(tag)
+            val height = rect.bottom - rect.top
+            val width = rect.right - rect.left
+            assertTrue("$tag is $height high", height >= 48.dp - TOLERANCE_DP.dp)
+            assertTrue("$tag is $width wide", width >= 48.dp - TOLERANCE_DP.dp)
         }
         composeRule.onNodeWithTag(AdGalleryTestTags.IN_LIST_BUTTON).assert(hasClickAction())
     }
