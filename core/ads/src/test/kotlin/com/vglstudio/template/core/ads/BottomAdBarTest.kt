@@ -247,6 +247,23 @@ class BottomAdBarTest {
         assertFalse(bottomAdBarAllowed(canRequestAds = true, enabled = false, bannerHadAd = true))
     }
 
+    @Test
+    fun layers_bannerKeptWithoutConsent_neverNativeOrLayer() {
+        val nativeOn = barFlags(nativeBottom = true, collap = true)
+        // B-06 keeps the banner that had an ad; with no consent nothing else may load, even if the native slot is on.
+        assertEquals(
+            BottomAdBarLayers(BottomSlotKind.BANNER, collapsible = false),
+            bottomAdBarLayers(canRequestAds = false, enabled = true, flags = nativeOn, bannerHadAd = true),
+        )
+        // Control: with consent the same switches give the native slot and the layer.
+        assertEquals(
+            BottomAdBarLayers(BottomSlotKind.NATIVE, collapsible = true),
+            bottomAdBarLayers(canRequestAds = true, enabled = true, flags = nativeOn, bannerHadAd = true),
+        )
+        assertNull(bottomAdBarLayers(canRequestAds = false, enabled = true, flags = nativeOn, bannerHadAd = false))
+        assertNull(bottomAdBarLayers(canRequestAds = false, enabled = false, flags = nativeOn, bannerHadAd = true))
+    }
+
     // Space kept by the content (D-04, AR-02).
 
     @Test

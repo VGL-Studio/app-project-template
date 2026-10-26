@@ -45,6 +45,14 @@ internal fun bottomAdBarLayers(allowed: Boolean, flags: AdsGlobalFlags): BottomA
     return BottomAdBarLayers(slot, collapsible = slot == BottomSlotKind.NATIVE && flags.showNativeCollap)
 }
 
+/** The layers of the bar from consent, `is_show_<code>` and whether the banner slot has an ad (D-01, D-04, B-06). */
+internal fun bottomAdBarLayers(
+    canRequestAds: Boolean,
+    enabled: Boolean,
+    flags: AdsGlobalFlags,
+    bannerHadAd: Boolean,
+): BottomAdBarLayers? = bottomAdBarLayers(bottomAdBarAllowed(canRequestAds, enabled, bannerHadAd), flags)
+
 /**
  * The space the content of the screen keeps at the bottom (D-04): only once the slot has an ad; the native slot with
  * its bottom margin ([NativeAdDimens.BottomSlotHeight], AR-02), the banner its own height. The floating layer keeps
