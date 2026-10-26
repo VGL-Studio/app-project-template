@@ -58,6 +58,9 @@ class RewardedAction internal constructor(
 ) {
     private var waitingForSwitch = false
 
+    /** The action ran since the dialog last opened: one opening runs it at most once (plan T-042). */
+    private var grantedThisOpening = false
+
     /** True while the dialog shows: asking, or after "Watch ad" until the ad covers the screen. */
     val dialogVisible: Boolean get() = phase.value != RewardedDialogPhase.HIDDEN
 
@@ -83,6 +86,7 @@ class RewardedAction internal constructor(
                 callbacks.value.onGranted()
             } else if (!dialogVisible) {
                 phase.value = RewardedDialogPhase.ASKING
+                grantedThisOpening = false
                 callbacks.value.onDialogEvent(DIALOG_SHOW)
             }
         }
@@ -119,17 +123,23 @@ class RewardedAction internal constructor(
             RewardedOutcome.OnScreen -> closeAfterWatch()
             RewardedOutcome.Granted -> {
                 closeAfterWatch()
-                callbacks.value.onGranted()
+                grantOnce()
             }
             is RewardedOutcome.NoAd -> {
                 closeAfterWatch()
                 when {
-                    outcome.granted -> callbacks.value.onGranted()
+                    outcome.granted -> grantOnce()
                     // R-03: only a network failure that blocks the action is reported (question 10).
                     outcome.network -> callbacks.value.notifyNoConnection()
                 }
             }
         }
+    }
+
+    private fun grantOnce() {
+        if (grantedThisOpening) return
+        grantedThisOpening = true
+        callbacks.value.onGranted()
     }
 
     private fun closeAfterWatch() {
@@ -158,7 +168,7 @@ internal class RewardedActionCallbacks(
  * RewardedAdDialog(unlock, title = stringResource(R.string.export_reward_title)) { Text(...) }
  * ```
  *
- * [onGranted] runs at most once per tap, on the main thread: at once when `is_show_ads` or `is_show_<code>` is off or
+ * [onGranted] runs at most once per opening of the dialog, on the main thread: at once when `is_show_ads` or `is_show_<code>` is off or
  * the consent gate is closed; when the SDK reports the reward, before the ad closes (R-02); or with no ad when the
  * policy of the placement allows it (MC-05). Closing the ad before the reward runs nothing (R-04). A network failure
  * that blocks the action shows a short message (R-03). Make it a function of the ViewModel, so the result is not lost
