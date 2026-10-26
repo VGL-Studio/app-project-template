@@ -45,13 +45,20 @@ internal fun bottomAdBarLayers(allowed: Boolean, flags: AdsGlobalFlags): BottomA
     return BottomAdBarLayers(slot, collapsible = slot == BottomSlotKind.NATIVE && flags.showNativeCollap)
 }
 
-/** The layers of the bar from consent, `is_show_<code>` and whether the banner slot has an ad (D-01, D-04, B-06). */
+/**
+ * The layers of the bar from consent, `is_show_<code>` and whether the banner slot has an ad (D-01, D-04, B-06).
+ * Without consent only a banner that had an ad is kept, never the native slot or the layer: nothing may load then.
+ */
 internal fun bottomAdBarLayers(
     canRequestAds: Boolean,
     enabled: Boolean,
     flags: AdsGlobalFlags,
     bannerHadAd: Boolean,
-): BottomAdBarLayers? = bottomAdBarLayers(bottomAdBarAllowed(canRequestAds, enabled, bannerHadAd), flags)
+): BottomAdBarLayers? {
+    if (!bottomAdBarAllowed(canRequestAds, enabled, bannerHadAd)) return null
+    if (!canRequestAds) return BottomAdBarLayers(BottomSlotKind.BANNER, collapsible = false)
+    return bottomAdBarLayers(allowed = true, flags = flags)
+}
 
 /**
  * The space the content of the screen keeps at the bottom (D-04): only once the slot has an ad; the native slot with
@@ -202,7 +209,7 @@ internal fun rememberBottomAdBarLayers(
     flags: AdsGlobalFlags,
 ): BottomAdBarChoice {
     var bannerHadAd by remember { mutableStateOf(false) }
-    val layers = bottomAdBarLayers(bottomAdBarAllowed(canRequestAds, enabled, bannerHadAd), flags)
+    val layers = bottomAdBarLayers(canRequestAds, enabled, flags, bannerHadAd)
     return BottomAdBarChoice(layers) { hasAd -> bannerHadAd = hasAd && layers?.slot == BottomSlotKind.BANNER }
 }
 
