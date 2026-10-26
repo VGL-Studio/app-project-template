@@ -141,8 +141,9 @@ class NativeFullScreenOverlayTest {
         val countdown = boundsOf(COUNTDOWN)
         // 48 x 48 dp in the top right corner, inside the 16 dp margin: where the SDK draws AdChoices.
         val topRight = DpRect(411.dp - 16.dp - 48.dp, 24.dp, 411.dp - 16.dp, 72.dp)
-        val overlaps = countdown.left < topRight.right && topRight.left < countdown.right &&
-            countdown.top < topRight.bottom && topRight.top < countdown.bottom
+        val overlapsX = countdown.left < topRight.right && topRight.left < countdown.right
+        val overlapsY = countdown.top < topRight.bottom && topRight.top < countdown.bottom
+        val overlaps = overlapsX && overlapsY
         assertFalse("$countdown overlaps $topRight", overlaps)
         // Control: the countdown was found and is on the top row.
         assertEquals(24f, countdown.top.value, TOLERANCE)

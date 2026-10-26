@@ -681,7 +681,8 @@ class AdsController @Inject internal constructor(
             override fun onAdShowedFullScreenContent() {
                 // N-05: counted for T-033; a failed count never touches the turn.
                 scope.launch {
-                    interDisplayCounter.increment()?.let { logger.info(TAG, "Interstitial displays since install: $it") }
+                    val count = interDisplayCounter.increment() ?: return@launch
+                    logger.info(TAG, "Interstitial displays since install: $count")
                 }
             }
 
