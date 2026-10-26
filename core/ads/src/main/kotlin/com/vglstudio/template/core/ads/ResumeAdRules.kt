@@ -1,7 +1,17 @@
 package com.vglstudio.template.core.ads
 
 /** What the resume gate decides when the process comes to foreground (A-10, A-11, plan T-025). */
-internal enum class ResumeDecision { FIRST_FOREGROUND, STARTUP, NOT_SERVING, SUPPRESSED, OFF, BUSY, THROTTLED, NOT_READY, SHOW }
+internal enum class ResumeDecision {
+    FIRST_FOREGROUND,
+    STARTUP,
+    NOT_SERVING,
+    SUPPRESSED,
+    OFF,
+    BUSY,
+    THROTTLED,
+    NOT_READY,
+    SHOW,
+}
 
 /**
  * What the resume gate reads when the process comes to foreground. [placement] is [resumeAdPlacement], null when

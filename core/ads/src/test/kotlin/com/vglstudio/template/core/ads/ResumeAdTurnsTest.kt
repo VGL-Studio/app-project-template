@@ -18,10 +18,8 @@ internal data class ResumeOpportunity(val placement: AdPlacement, val result: St
  * [ResumeAdPort] for tests: [gate] is what the controller reads, [placementNow] and [suppressedNow] what it reads
  * again right before showing. [liveSuppressed], when given, replaces both suppressed reads (a real ResumeSuppression).
  */
-internal class FakeResumeAdPort(
-    var gate: ResumeGate = ALL_PASS,
-    private val liveSuppressed: (() -> Boolean)? = null,
-) : ResumeAdPort {
+internal class FakeResumeAdPort(var gate: ResumeGate = ALL_PASS, private val liveSuppressed: (() -> Boolean)? = null) :
+    ResumeAdPort {
     var placementNow: AdPlacement? = AdPlacement.RESUME
     var suppressedNow = false
     var loadState = "idle"

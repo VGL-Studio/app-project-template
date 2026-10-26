@@ -188,16 +188,24 @@ class StartupAdChoiceTest {
         val base = globalFlags()
         val chosen = mutableListOf<AdPlacement?>()
         val bools = listOf(true, false)
-        for (open in bools) for (openFirst in bools) for (resume in bools) for (firstOpen in bools) {
-            for (openType in OpenAdType.entries) for (resumeType in OpenAdType.entries) {
-                val flags = base.copy(
-                    showOpenAds = open,
-                    showOpenAdsFirstOpen = openFirst,
-                    showResumeAds = resume,
-                    openAdType = openType,
-                    resumeAdType = resumeType,
-                )
-                chosen += startupAdPlacement(flags, firstOpen)
+        for (open in bools) {
+            for (openFirst in bools) {
+                for (resume in bools) {
+                    for (firstOpen in bools) {
+                        for (openType in OpenAdType.entries) {
+                            for (resumeType in OpenAdType.entries) {
+                                val flags = base.copy(
+                                    showOpenAds = open,
+                                    showOpenAdsFirstOpen = openFirst,
+                                    showResumeAds = resume,
+                                    openAdType = openType,
+                                    resumeAdType = resumeType,
+                                )
+                                chosen += startupAdPlacement(flags, firstOpen)
+                            }
+                        }
+                    }
+                }
             }
         }
         assertTrue(chosen.none { it == AdPlacement.RESUME || it == AdPlacement.RESUME_INTER })

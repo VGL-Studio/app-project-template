@@ -59,7 +59,11 @@ internal class ResumeAdTurns(private val port: ResumeAdPort, private val logger:
                 // Blocked at an earlier gate: no load (A-13).
                 if (decision == ResumeDecision.NOT_READY) port.loadIfNeeded(placement)
             }
-            ResumeDecision.FIRST_FOREGROUND, ResumeDecision.STARTUP, ResumeDecision.NOT_SERVING, ResumeDecision.OFF -> {}
+            ResumeDecision.FIRST_FOREGROUND,
+            ResumeDecision.STARTUP,
+            ResumeDecision.NOT_SERVING,
+            ResumeDecision.OFF,
+            -> {}
         }
     }
 
