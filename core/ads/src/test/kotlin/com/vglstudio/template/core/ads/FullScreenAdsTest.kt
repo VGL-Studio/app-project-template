@@ -102,6 +102,19 @@ class FullScreenAdsTest {
         assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
     }
 
+    @Test
+    fun rememberShowFullScreenAd_rejectsNativeCombo() {
+        var placement by mutableStateOf(AdPlacement.GALLERY_NATIVE_FULL_SCREEN)
+        composeRule.setContent { rememberShowFullScreenAd(placement) }
+        // Control: a native full-screen placement that is not app-wide is accepted.
+        composeRule.waitForIdle()
+        val error = runCatching {
+            placement = AdPlacement.NATIVE_AFTER_INTER
+            composeRule.waitForIdle()
+        }.exceptionOrNull()
+        assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+    }
+
     private val controller by lazy {
         AdsController(
             context = ApplicationProvider.getApplicationContext(),
@@ -115,6 +128,7 @@ class FullScreenAdsTest {
             metrics = RecordingAdMetrics(),
             logger = RecordingAppLogger(),
             firstOpenMark = FirstOpenMark(EmptyDataStore(), RecordingAppLogger()),
+            interDisplayCounter = InterDisplayCounter(EmptyDataStore(), RecordingAppLogger()),
         )
     }
 
