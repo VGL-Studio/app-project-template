@@ -157,6 +157,9 @@ internal object NativeAdDimens {
     val CallToActionMinWidth = 80.dp
     val MediaHeight = 196.dp
     val FullMediaHeight = 200.dp
+
+    /** The least media of a native ad, 120 x 120 dp (KB-2, AdMob); the full native ad never shrinks it below this. */
+    val MinMediaSize = 120.dp
     val BodyHeight = 40.dp
     val AdChoicesSize = 16.dp
     val StarRowHeight = 16.dp
@@ -426,6 +429,9 @@ private fun FullLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
 }
 
 private const val FULL_BODY_LINES = 2
+
+/** Skeleton for the tests written first (plan T-044); the rule comes with the fix. */
+internal fun fullMediaHeight(inner: Int, others: Int, floor: Int): Int = floor
 
 /** Filled stars of the ad's rating (O-08); nothing when the ad has no rating above 0. */
 @Composable

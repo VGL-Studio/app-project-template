@@ -560,6 +560,25 @@ class NativeFullScreenTurnsTest {
         assertSame(comboAd, turns.view.value!!.ad)
         assertEquals(0, finishes)
     }
+
+    @Test
+    fun comboWhileStandaloneOpen_presenceFree_skipsBusy() = runTest {
+        // The `turn != null` side of the busy check of the combo: a native turn is open while the showing flag is
+        // free (as past the cap of F-02), so only the open turn can stop the combo.
+        val port = newPort().apply { slot = FakeLoadedNativeAd() }
+        val turns = turnsOf(port)
+        val standalone = FakeLoadedNativeAd()
+        var standaloneFinishes = 0
+        turns.showStandalone(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, standalone) { standaloneFinishes++ }
+        turns.afterInter(port)
+        assertEquals(1, finishes)
+        assertTrue(logger.entries.any { it.message == "Native combo skipped: busy" })
+        runCurrent()
+        assertSame(standalone, turns.view.value!!.ad)
+        assertFalse(port.presence.showing.value)
+        assertFalse(port.calls.contains("beginPresence"))
+        assertEquals(0, standaloneFinishes)
+    }
 }
 
 /** A loaded ad that writes its destroy into the call list of the port. */

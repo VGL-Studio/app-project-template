@@ -482,6 +482,77 @@ class NativeAdCardTest {
         }
     }
 
+    /** Lines of the laid-out [text] (the semantics text is the whole text, even when the line cuts it off). */
+    private fun lineCount(text: String): Int {
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeRule.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult].action!!(layouts)
+        return layouts.single().lineCount
+    }
+
+    @Test
+    fun full_partsKeepSize_insideCard_textsAndFontScales() {
+        var fontScale by mutableStateOf(1f)
+        var assets by mutableStateOf(sampleNativeAdAssets)
+        composeRule.setContent {
+            WithFontScale(fontScale) {
+                AppTheme { NativeAdCard(assets, NativeAdSize.FULL, Modifier.width(CARD_WIDTH)) }
+            }
+        }
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            listOf(sampleNativeAdAssets, longFullNativeAdAssets).forEach { current ->
+                fontScale = scale
+                assets = current
+                composeRule.waitForIdle()
+                val case = "font scale $scale, ${if (current === sampleNativeAdAssets) "short" else "long"} texts"
+                val card = bounds(NativeAdTestTags.CARD)
+                val cta = bounds(NativeAdTestTags.CTA)
+                val stars = bounds(NativeAdTestTags.STAR_ROW)
+                val media = bounds(NativeAdTestTags.MEDIA)
+                val badgeBounds = bounds(NativeAdTestTags.BADGE)
+                assertEquals("card, $case", FULL_HEIGHT.value, (card.bottom - card.top).value, 0.5f)
+                assertEquals("call to action, $case", 36f, (cta.bottom - cta.top).value, 0.5f)
+                assertEquals("star row, $case", 16f, (stars.bottom - stars.top).value, 0.5f)
+                // 12 dp inner margin and 1 dp border below the star row.
+                assertTrue(
+                    "star row bottom ${stars.bottom}, card bottom ${card.bottom}, $case",
+                    stars.bottom.value <= (card.bottom - 13.dp).value + 0.5f,
+                )
+                assertEquals("gap above the star row, $case", 12f, (stars.top - cta.bottom).value, 0.5f)
+                assertTrue(
+                    "media is ${media.bottom - media.top} high, $case",
+                    (media.bottom - media.top).value >= 120f - 0.5f,
+                )
+                assertTrue(
+                    "media top ${media.top}, label bottom ${badgeBounds.bottom}, $case",
+                    media.top.value >= badgeBounds.bottom.value - 0.5f,
+                )
+                assertEquals("body lines, $case", 2, lineCount(current.body!!))
+                if (scale == 1f) {
+                    assertEquals("media at the design size, $case", 200f, (media.bottom - media.top).value, 0.5f)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun full_mediaFloor120dp_cardGrows_atFontScale3() {
+        composeRule.setContent {
+            WithFontScale(3f) {
+                AppTheme { NativeAdCard(longFullNativeAdAssets, NativeAdSize.FULL, Modifier.width(CARD_WIDTH)) }
+            }
+        }
+        val card = bounds(NativeAdTestTags.CARD)
+        val cta = bounds(NativeAdTestTags.CTA)
+        val stars = bounds(NativeAdTestTags.STAR_ROW)
+        val media = bounds(NativeAdTestTags.MEDIA)
+        assertEquals("media", 120f, (media.bottom - media.top).value, 0.5f)
+        assertEquals("call to action", 36f, (cta.bottom - cta.top).value, 0.5f)
+        assertEquals("star row", 16f, (stars.bottom - stars.top).value, 0.5f)
+        assertEquals("star row to card bottom", 13f, (card.bottom - stars.bottom).value, 0.5f)
+        assertTrue("card is ${card.bottom - card.top} high", (card.bottom - card.top).value > FULL_HEIGHT.value + 0.5f)
+    }
+
     @Test
     fun full_starRow_hiddenWhenZero_shownFilledWhenFour() {
         var assets by mutableStateOf(sampleNativeAdAssets.copy(starRating = 0.0))
