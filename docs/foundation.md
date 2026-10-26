@@ -177,6 +177,16 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - rà soát độc lập xét riêng phần đó, vi phạm là mức chặn
 - ở bước 6 phải sửa điểm nên sửa có test viết trước, giới hạn 3 lần sửa mỗi điểm và 2 vòng rà soát lại mỗi task
 
+### [ADR-0030](adr/0030-dong-bo-du-an-mau-ve-app.md): Đưa thay đổi của dự án mẫu về app theo từng đợt, bằng PR đồng bộ dựng từ diff của dự án mẫu
+
+- không chép tay code hay tài liệu của dự án mẫu về phần dùng chung của app, dùng `scripts/template-sync.sh` theo `docs/ops/to-app.md`
+- không sửa `base=` hay `hold=` của `docs/template-sync.txt` ngoài PR đồng bộ
+- trước khi đồng bộ, đưa cải tiến chung của app chưa về dự án mẫu qua `from-app.md`
+- xung đột ở phần của dự án mẫu thì lấy bản mẫu, trừ phần app chưa đưa về và giá trị riêng của app ở mục 6 của `to-app.md`
+- phần app cũng sửa thì gộp tay, giữ phần riêng của app
+- mô tả PR đồng bộ liệt kê cách gộp từng file xung đột
+- phần giữ lại vì lớn thì đưa vào bằng một task có plan
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
