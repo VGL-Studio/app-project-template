@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-2, KB-5, KB-8, KB-16]
 owner: Nhật
-status: ready
+status: planned
 risk: high
 size: S
 depends_on: [T-026, T-027, T-036]
 sprint:
-plan:
+plan: features/ads/plans/T-044-bo-sung-test-quang-cao.md
 created: 2026-10-26
 ---
 
