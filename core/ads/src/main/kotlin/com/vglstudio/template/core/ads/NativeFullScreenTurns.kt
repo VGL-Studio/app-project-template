@@ -90,6 +90,9 @@ internal class NativeFullScreenTurns(
     private var turn: Turn? = null
     private val _view = MutableStateFlow<NativeFullScreenView?>(null)
 
+    /** True while a turn is open, waiting for the interstitial or on screen, past the cap of F-02 too. */
+    val busy: Boolean get() = turn != null
+
     /** What the overlay draws; null while no turn is open. */
     val view: StateFlow<NativeFullScreenView?> = _view.asStateFlow()
 

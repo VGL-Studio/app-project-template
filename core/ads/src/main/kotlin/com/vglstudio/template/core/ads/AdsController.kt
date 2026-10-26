@@ -837,7 +837,7 @@ class AdsController @Inject internal constructor(
             }
             val takeAd = { preloadedNativeFullScreen.take(placement, clock.nowMillis()) }
             if (!beginStandaloneNativeTurn(placement, takeAd, onFinished)) {
-                val skipped = if (presence.isBusy(clock.nowMillis())) {
+                val skipped = if (nativeTurns.busy || presence.isBusy(clock.nowMillis())) {
                     FullScreenShowDecision.BUSY
                 } else {
                     FullScreenShowDecision.NOT_READY
@@ -849,8 +849,8 @@ class AdsController @Inject internal constructor(
 
     /**
      * Starts a standalone native full-screen turn of [placement] that passed the gate: raises the showing flag and
-     * takes the ad with [takeAd]; false, with the flag down, when another full-screen ad shows or no ad is there (the
-     * caller skips the turn, KB-5). The turn has no host activity and is not the [currentTurn], so stuck recovery,
+     * takes the ad with [takeAd]; false, with the flag down, when another full-screen ad or native full-screen turn
+     * shows (even past the cap of F-02) or no ad is there (the caller skips the turn, KB-5). The turn has no host activity and is not the [currentTurn], so stuck recovery,
      * forced completion and the cap of F-02 never end it; only its close lowers the flag. [onFinished] runs once.
      */
     internal fun beginStandaloneNativeTurn(
@@ -858,6 +858,8 @@ class AdsController @Inject internal constructor(
         takeAd: () -> LoadedNativeAd?,
         onFinished: () -> Unit,
     ): Boolean {
+        // A turn still open past the cap of F-02 keeps the screen: rejected before any ad is taken or recorded.
+        if (nativeTurns.busy) return false
         if (!presence.tryBegin(placement, NO_HOST_ACTIVITY, clock.nowMillis())) return false
         val ad = takeAd()
         if (ad == null) {
