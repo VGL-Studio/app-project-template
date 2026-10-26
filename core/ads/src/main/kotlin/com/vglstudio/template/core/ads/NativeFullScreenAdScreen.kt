@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,10 +42,11 @@ import com.vglstudio.template.core.designsystem.theme.Spacing
 
 /**
  * A native ad that covers the whole screen (KB-5), as in design/screens/NativeFullScreenAdScreen_default_*.png: a
- * 36 dp close button (touch area widened to 48 dp) in the top left corner, visible and enabled from the first frame (no countdown), AdChoices in the
- * top right corner ([adChoices]; the SDK draws it on real ads), a large [media] area, then the head of the ad, the
- * body and a wide call to action. The app shows it with [rememberShowFullScreenAd]; the gallery screen (T-014) and
- * tests draw it with fixed content.
+ * 36 dp close button (touch area widened to 48 dp) in the top left corner, AdChoices in the top right corner
+ * ([adChoices]; the SDK draws it on real ads), a large [media] area, then the head of the ad, the body and a wide call
+ * to action. While [secondsLeft] is above 0, a countdown of the same size takes the place of the close button and
+ * takes no touch (K-03, plan T-026); null or 0 shows the close button. The app shows it with
+ * [rememberShowFullScreenAd]; the gallery screen (T-014) and tests draw it with fixed content.
  */
 @Composable
 fun NativeFullScreenAdScreen(
@@ -51,8 +55,9 @@ fun NativeFullScreenAdScreen(
     modifier: Modifier = Modifier,
     media: @Composable BoxScope.() -> Unit = {},
     adChoices: @Composable () -> Unit = {},
+    secondsLeft: Int? = null,
 ) {
-    NativeFullScreenAdLayout(assets, onClose, PreviewNativeAdBinder, modifier, media, adChoices)
+    NativeFullScreenAdLayout(assets, onClose, PreviewNativeAdBinder, modifier, media, adChoices, secondsLeft)
 }
 
 /** Sizes of the native full-screen ad, from design/context/NativeFullScreenAdScreen_default_light.md. */
@@ -91,23 +96,10 @@ internal fun NativeFullScreenAdLayout(
     modifier: Modifier = Modifier,
     media: @Composable BoxScope.() -> Unit = {},
     adChoices: @Composable () -> Unit = {},
+    secondsLeft: Int? = null,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(start = Spacing.md, top = Spacing.lg, end = Spacing.md, bottom = Spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CloseButton(onClose)
-            adChoices()
-        }
+    NativeFullScreenFrame(modifier) {
+        NativeFullScreenTopBar(secondsLeft, onClose, adChoices)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -123,6 +115,57 @@ internal fun NativeFullScreenAdLayout(
             NativeAdBody(body, binder, maxLines = BODY_MAX_LINES, modifier = Modifier.fillMaxWidth())
         }
         assets.callToAction?.let { AdCallToAction(it, binder) }
+    }
+}
+
+/** The page of the native full-screen ad and of its placeholder: background, safe area, margins, 16 dp gaps. */
+@Composable
+internal fun NativeFullScreenFrame(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(start = Spacing.md, top = Spacing.lg, end = Spacing.md, bottom = Spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        content = content,
+    )
+}
+
+/** The 36 dp top bar: the countdown while [secondsLeft] is above 0, else the close button; AdChoices on the right. */
+@Composable
+internal fun NativeFullScreenTopBar(secondsLeft: Int?, onClose: () -> Unit, adChoices: @Composable () -> Unit = {}) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (secondsLeft != null && secondsLeft > 0) CountdownBadge(secondsLeft) else CloseButton(onClose)
+        adChoices()
+    }
+}
+
+/**
+ * K-03: the seconds left in a 36 dp circle, where the close button comes once they are over; it takes no touch.
+ * Same frame and colour as the close button (question 4 of plan T-026).
+ */
+@Composable
+private fun CountdownBadge(secondsLeft: Int) {
+    val description = stringResource(R.string.ads_close_countdown, secondsLeft)
+    Box(
+        modifier = Modifier
+            .size(NativeFullScreenAdDimens.CloseButtonSize)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .testTag(NativeFullScreenAdTestTags.COUNTDOWN)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "$secondsLeft",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

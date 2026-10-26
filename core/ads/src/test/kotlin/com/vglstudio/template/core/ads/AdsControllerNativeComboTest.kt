@@ -172,6 +172,9 @@ class AdsControllerNativeComboTest {
     fun showStartupAd_blocked_neverOpensCombo() {
         val results = mutableListOf<Boolean>()
         controller.showStartupAd(activity, StartupAdTurn(AdPlacement.OPEN_APP_INTER)) { results += it }
+        // At once: a combo that fails to load would also finish, but only when its countdown ends.
+        idle()
+        assertEquals(listOf(false), results)
         idleFor(5_000)
         assertEquals(listOf(false), results)
         assertNull(controller.nativeFullScreenView.value)

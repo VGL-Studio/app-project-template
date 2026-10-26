@@ -10,10 +10,11 @@ interface StartupAds {
     suspend fun awaitStartupAd(): StartupAdTurn?
 }
 
-/** One ad to show when the app opens. Only app-wide placements are accepted. */
+/** One ad to show when the app opens. Only app-wide placements are accepted, never the combo (`native_combo`). */
 class StartupAdTurn(val placement: AdPlacement) {
     init {
         require(placement.appWide) { "${placement.key} is not an app-wide placement" }
+        require(placement.format != AdFormat.NATIVE_FULL_SCREEN) { "${placement.key} is not a startup placement" }
     }
 }
 

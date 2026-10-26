@@ -27,7 +27,10 @@ enum class AdFormat(val code: String) {
     /** Medium that the user collapses to small, shown with [CollapsibleNativeAdSlot]; never expands again. */
     NATIVE_COLLAPSIBLE("native_collap"),
 
-    /** Covers the whole screen at a natural break, shown with [rememberShowFullScreenAd]. */
+    /**
+     * Covers the whole screen at a natural break, shown with [rememberShowFullScreenAd], or right after an
+     * interstitial when the combo is on (`native_combo`, through [NativeFullScreenTurns], plan T-026).
+     */
     NATIVE_FULL_SCREEN("native_fullscreen"),
 
     /** App open ad. Shown by the loading screen through [StartupAds] (T-024); resume ads come with T-025. */
@@ -122,7 +125,10 @@ enum class AdPlacement(
     val ignoreInterval: Boolean = false,
     /** False when closing this placement moves no `ads_interval` mark (MC-04, I-04); full screen only. */
     val recordInterval: Boolean = true,
-    /** Switched on by the shared keys of section 10.1, with no `is_show_<code>` of its own (MC-09). */
+    /**
+     * Switched on by the shared keys of section 10.1, with no `is_show_<code>` of its own (MC-09): the ads of the
+     * loading screen (T-024) and the native ad of the combo (T-026). Features never show it.
+     */
     val appWide: Boolean = false,
     /** The large call to action of 5.7 (56 dp, 17 sp, card 422 dp high); native medium only (`cta_large`). */
     val ctaLarge: Boolean = false,
@@ -132,7 +138,7 @@ enum class AdPlacement(
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
     OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
     OPEN_APP_INTER("open_app_inter", AdFormat.INTERSTITIAL, ignoreInterval = true, appWide = true),
-    NATIVE_AFTER_INTER("native_combo", AdFormat.NATIVE_FULL_SCREEN),
+    NATIVE_AFTER_INTER("native_combo", AdFormat.NATIVE_FULL_SCREEN, appWide = true),
 
     // Staging ad gallery only (plan T-014): one placement per format, see [stagingOnly].
     GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),
@@ -196,8 +202,8 @@ internal data class AdPlacementDeclaration(
         require((!ignoreInterval && recordInterval) || format.isFullScreen) {
             "Placement $code: ignoreInterval and recordInterval are for full-screen formats only"
         }
-        require(!appWide || format == AdFormat.APP_OPEN || format == AdFormat.INTERSTITIAL) {
-            "Placement $code: appWide is for app open and interstitial placements only"
+        require(!appWide || format in APP_WIDE_FORMATS) {
+            "Placement $code: appWide is for app open, interstitial and native full-screen placements only"
         }
         require(!ctaLarge || format == AdFormat.NATIVE_MEDIUM) {
             "Placement $code: ctaLarge is for native medium only"
@@ -213,6 +219,9 @@ internal data class AdPlacementDeclaration(
 
     private companion object {
         val NATIVE_EVERY_FORMATS = setOf(AdFormat.NATIVE_SMALL, AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_IN_COLLECTION)
+
+        /** App open and interstitial when the app opens (T-024), native full screen for the combo (T-026). */
+        val APP_WIDE_FORMATS = setOf(AdFormat.APP_OPEN, AdFormat.INTERSTITIAL, AdFormat.NATIVE_FULL_SCREEN)
     }
 }
 

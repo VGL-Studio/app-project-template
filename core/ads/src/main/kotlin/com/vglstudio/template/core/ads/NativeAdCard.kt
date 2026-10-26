@@ -784,9 +784,9 @@ private fun PlaceholderBlock(
     Box(modifier = modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHighest))
 }
 
-/** A soft pulse of the loading blocks; full opacity, fixed, when not [animated]. */
+/** A soft pulse of the loading blocks; full opacity, fixed, when not [animated]. Shared with the full-screen one. */
 @Composable
-private fun placeholderAlpha(animated: Boolean): State<Float> {
+internal fun placeholderAlpha(animated: Boolean): State<Float> {
     if (!animated) return remember { mutableFloatStateOf(1f) }
     return rememberInfiniteTransition(label = "nativeAdPlaceholder").animateFloat(
         initialValue = 1f,
