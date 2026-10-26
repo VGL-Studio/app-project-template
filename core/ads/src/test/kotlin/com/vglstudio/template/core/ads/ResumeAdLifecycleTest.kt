@@ -123,13 +123,14 @@ class ResumeAdLifecycleTest {
         val sdk = Robolectric.buildActivity(FakeSdkActivity::class.java).setup()
         app.pause().stop()
         sdk.pause()
-        app.start().resume()
+        // restart(), not start(): after start() alone Robolectric skips the next stop of the activity.
+        app.restart().resume()
         sdk.stop().destroy()
         assertEquals(0, port.gateReads)
         assertEquals(0, port.shows)
         // Control in the same test: Home for real, then back, is one turn shown once.
         app.pause().stop()
-        app.start().resume()
+        app.restart().resume()
         assertEquals(1, port.gateReads)
         assertEquals(1, port.shows)
         assertSame(app.get(), port.appOpenShows.single().first)
