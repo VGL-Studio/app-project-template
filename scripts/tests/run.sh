@@ -1110,7 +1110,8 @@ plan_check "$plans/T-937-a.md" > /dev/null
 expect "plan-check: a ticket in step with its plan gets no warning" 0 "$(grep -c 'ticket T-937' "$work/plan-check.out")"
 
 # Rule 11 (L-085): every manual test row of section 4 says where it runs; an emulator row names a scenario
-# file that exists and passes `device-scenario.py check`. Only a warning, for draft and approved plans alike.
+# file that exists and passes `device-scenario.py check`. An error for a draft plan, a warning for an approved one
+# (camera-pose T-052).
 mkdir -p "$repo/feature/demo/src/deviceScenarios" "$repo/feature/demo/src/main/res/values"
 printf 'object DemoTags { const val TAG = "demo_tag" }\n' > "$repo/feature/demo/DemoTags.kt"
 printf '<resources>\n    <string name="demo_text">Demo</string>\n</resources>\n' > "$repo/feature/demo/src/main/res/values/strings.xml"
@@ -1126,7 +1127,7 @@ manual_rows() { # <plan> <test type cell>...: appends manual test rows to sectio
 rule11() { grep -c 'quy tắc 11' "$work/plan-check.out" || true; } # lines of rule 11 in the last plan-check output
 write_plan "$plans/T-940-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
 manual_rows "$plans/T-940-a.md" 'Kiểm tra thủ công'
-expect "plan-check: a manual row without where it runs is a warning" "pass 1 1" \
+expect "plan-check: a manual row without where it runs is an error for a draft plan" "stop 1 1" \
   "$(plan_check "$plans/T-940-a.md") $(rule11) $(grep -c 'nơi chạy' "$work/plan-check.out" || true)"
 write_plan "$plans/T-941-a.md" medium approved "$(row Sửa feature/demo/A.kt)" "$decision_v1"
 manual_rows "$plans/T-941-a.md" 'Kiểm tra thủ công'
@@ -1134,15 +1135,15 @@ expect "plan-check: a manual row of an approved plan without where it runs is a 
   "$(plan_check "$plans/T-941-a.md") $(rule11)"
 write_plan "$plans/T-942-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
 manual_rows "$plans/T-942-a.md" 'Kiểm tra thủ công (emulator: feature/demo/src/deviceScenarios/T-942-none.txt)'
-expect "plan-check: an emulator row needs a scenario file in the file list or the repository" "pass 1" \
+expect "plan-check: an emulator row needs a scenario file in the file list or the repository" "stop 1" \
   "$(plan_check "$plans/T-942-a.md") $(grep -c 'quy tắc 11.*T-942-none.txt' "$work/plan-check.out" || true)"
 write_plan "$plans/T-943-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
 manual_rows "$plans/T-943-a.md" 'Kiểm tra thủ công (emulator: feature/demo/src/deviceScenarios/T-941-bad.txt)'
-expect "plan-check: a scenario file that fails check is a warning" "pass 1" \
+expect "plan-check: a scenario file that fails check is an error for a draft plan" "stop 1" \
   "$(plan_check "$plans/T-943-a.md") $(grep -c 'quy tắc 11.*T-941-bad.txt dòng 4' "$work/plan-check.out" || true)"
 write_plan "$plans/T-944-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
 manual_rows "$plans/T-944-a.md" 'Kiểm tra thủ công (máy thật: )' 'Kiểm tra thủ công (người:)'
-expect "plan-check: máy thật and người need a reason" "pass 2" \
+expect "plan-check: máy thật and người need a reason" "stop 2" \
   "$(plan_check "$plans/T-944-a.md") $(grep -c 'quy tắc 11.*thiếu lý do' "$work/plan-check.out" || true)"
 # Control: a correct plan has no line of rule 11. The file of the first row is only in the file list, not yet in the
 # repository (a plan creates it), so only the rows that can be read are checked.
@@ -1152,6 +1153,15 @@ manual_rows "$plans/T-945-a.md" \
   'Kiểm tra thủ công (máy thật: camera thật)' 'Kiểm tra thủ công (người: đọc tài liệu)' 'Kiểm tra tự động (unit test)'
 expect "plan-check: a correct plan has no line of rule 11 (the rule does run on T-940)" "pass 0 1" \
   "$(plan_check "$plans/T-945-a.md") $(rule11) $(plan_check "$plans/T-940-a.md" > /dev/null; rule11)"
+# camera-pose T-052: rule 11 stops a draft plan, as an error, and only warns for an approved one, like rule 7.
+write_plan "$plans/T-951-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
+manual_rows "$plans/T-951-a.md" 'Kiểm tra thủ công'
+expect "plan-check: rule 11 stops a draft plan, as an error" "stop 1 0" \
+  "$(plan_check "$plans/T-951-a.md") $(grep -c 'LỖI:.*quy tắc 11' "$work/plan-check.out" || true) $(grep -c 'CHÚ Ý:.*quy tắc 11' "$work/plan-check.out" || true)"
+write_plan "$plans/T-952-a.md" medium approved "$(row Sửa feature/demo/A.kt)" "$decision_v1"
+manual_rows "$plans/T-952-a.md" 'Kiểm tra thủ công'
+expect "plan-check: control: rule 11 only warns for an approved plan" "pass 1 0" \
+  "$(plan_check "$plans/T-952-a.md") $(grep -c 'CHÚ Ý:.*quy tắc 11' "$work/plan-check.out" || true) $(grep -c 'LỖI:.*quy tắc 11' "$work/plan-check.out" || true)"
 
 # Rule 12 (L-088): TMPDIR is not set in a cloud session, so "$TMPDIR/x" writes to /x. A plan writes ${TMPDIR:-/tmp}.
 # The dollar signs below are plan text, not shell expansion.
@@ -1172,7 +1182,7 @@ expect "plan-check: an approved plan with \$TMPDIR only warns" "pass 1" \
 write_plan "$plans/T-949-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Ghi vào `${TMPDIR:-/tmp}/out.txt` và `$TMPDIR_OLD`.'
 expect "plan-check: \${TMPDIR:-/tmp} passes" "pass 0" "$(plan_check "$plans/T-949-a.md") $(tmpdir_lines)"
 
-# The latest run list must not get an error from rule 11 (it only warns).
+# The latest run list must not get an error from rule 11 (the plans of a run list are approved, so rule 11 only warns).
 latest_run="$(ls docs/runs/RUN-*.md | sort | tail -n 1)"
 python3 -I scripts/run-check.py "$latest_run" > "$work/run-check-latest.out" 2>&1 || true
 expect "run-check: the latest run list has no new error from rule 11" "0 yes" \

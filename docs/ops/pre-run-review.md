@@ -45,6 +45,7 @@ Nội dung giao việc tối thiểu: "Rà soát danh sách chạy `<đường d
 - Có test cho nhánh lỗi, giá trị biên, trạng thái rỗng, lần thử lại, khi spec nêu các trường hợp đó.
 - Tiêu chí về hình ảnh (màu, viền, vị trí) phải kiểm bằng hình ảnh hay số đo, không chỉ bằng cây ngữ nghĩa (L-042). Nút chữ trên nền khác màu có test đo màu chữ (L-053).
 - Test kiểm giá trị mặc định có bước đối chứng, để không qua ngay trên khung rỗng (L-055).
+- Test của script chạy trên chuỗi giả hay tệp mẫu có kết quả thật ở mục 4.1 của plan (đã chạy trên code hiện tại), không phải kết quả suy từ code (L-098).
 - Khung test tái hiện được nơi phát hiện lỗi: cùng chiều rộng, chiều cao, chế độ đồ họa (`docs/CLAUDE.md`, mục Khi viết plan).
 - **Nguy cơ chập chờn:**
   - screenshot của trạng thái có hiệu ứng chạy mãi mà không dừng đồng hồ (L-048, `CLAUDE.md` bước 10);
