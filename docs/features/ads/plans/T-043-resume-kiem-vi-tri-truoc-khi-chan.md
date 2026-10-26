@@ -76,7 +76,7 @@ fun onAppActivityResumed(activity: Activity) {
 
 Test mới (giữ tên): bật `AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS`; `startedController()`; `controller.openConsentGateForTest()` (hàm có sẵn, `AdsControllerNativeComboTest` dùng); `idleFor(45_100)` cho hết trần 45 giây của lượt mở app (cách của `readResumeGate_mapsControllerState`); khẳng định cổng đọc được `serving == true`, `startupFinished == true`, `placement == null`; lên foreground, xuống nền, lên lại; khẳng định log resume đúng bằng `["Resume ad FIRST_FOREGROUND: none", "Resume ad OFF: none"]` và không có `Opportunity`. Đối chứng (L-055) trong cùng test: bật `SHOW_RESUM_ADS`, xuống nền rồi lên lại thì có đúng một `Opportunity(APP_OPEN, resume, not_ready, idle)`; giữ phần đối chứng cũ (`RESUME_AD_TYPE = inter` thì cổng đọc `RESUME_INTER`). Hàm phụ `startedController()`, `idleFor()` đã có trong file, không thêm hàm phụ (L-025 không áp dụng).
 
-**3. Tài liệu** (`docs/ops/ads-guide.md`, gạch "Quảng cáo khi quay lại app không có khoảng chờ" ở mục quy tắc, dòng 138): thêm câu "Khóa resume tắt hay đổi loại giữa lúc quyết và lúc hiện thì lượt bỏ, không ghi cơ hội, kể cả khi đang bị chặn (L-A05, T-043)."
+**3. Tài liệu** (`docs/ops/ads-guide.md`, gạch "Quảng cáo khi quay lại app không có khoảng chờ" ở mục quy tắc, dòng 138): thêm câu "Giữa lúc quyết và lúc hiện, khóa resume bị tắt (`show_resum_ads`) hay loại resume bị đổi (`resume_ad_type`, `resume` thành `resume_inter` hay ngược lại) thì lượt bỏ và không ghi cơ hội nào, kể cả khi đang bị chặn; cả hai trường hợp đều không phải cơ hội (L-A05 mở rộng cho đổi loại, T-043)."
 
 ### 3.2. Danh sách file
 
@@ -166,6 +166,7 @@ Unit test JVM chạy bằng Robolectric, cùng cách của `ResumeAdTurnsTest` (
 ## 7. Điều kiện dừng riêng
 
 - Cần sửa `AdsController.kt`, `ResumeAdRules.kt` hay `ResumeAdPort` để qua test.
+- Bản sửa của `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing` (mục 3.1 bước 2) thất bại trước khi đổi `ResumeAdTurns.kt`: nhánh `OFF` thật của bộ điều khiển sai, ngoài phạm vi task.
 - Hai test viết trước của `ResumeAdTurnsTest` qua ngay trên code hiện tại (số đo ở mục 4 không còn đúng: code đã đổi từ commit `6077815`).
 - Đổi thứ tự làm đổi lúc hiện quảng cáo (một test có sẵn đếm `shows` đỏ).
 
@@ -179,6 +180,8 @@ Unit test JVM chạy bằng Robolectric, cùng cách của `ResumeAdTurnsTest` (
 
 3. **Duyệt chéo khi nhóm chỉ có một dev:** theo `risk-scoring.md` mục 3, anh Nhật vừa duyệt vừa duyệt chéo, ghi lý do ở mục 9.
    - Đề xuất của AI: như T-025, T-038.
+
+**Trả lời của anh Nhật (2026-10-26):** câu 1 đến 3: theo đề xuất của AI (giữ log `Resume ad dropped: switched`; thêm câu vào `ads-guide.md`, nói rõ cả tắt lẫn đổi loại; anh Nhật vừa duyệt vừa duyệt chéo).
 
 ## 9. Quyết định duyệt
 
