@@ -681,18 +681,32 @@ class RewardedTurnsTest {
     }
 
     @Test
-    fun doubleTap_showFailsInsideTheCall_everyDialogClosesOnce() = runTest {
+    fun doubleTap_showFailsInsideTheCall_latestGetsPolicy_joinedIsBusy() = runTest {
         val a = mutableListOf<RewardedOutcome>()
         val b = mutableListOf<RewardedOutcome>()
-        port.ready["rw_get_item"] = true
+        port.ready["rw_allow"] = true
         port.failShowAtOnce = 0
 
-        doubleTapAwaitingSwitch(rwGetItem, first = { a += it }, second = { b += it })
+        doubleTapAwaitingSwitch(rwAllow, first = { a += it }, second = { b += it })
 
-        assertEquals(1, a.size)
-        assertTrue(a.single() is RewardedOutcome.NoAd)
-        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), b)
+        // Like a decision with no ad: the latest caller gets the policy, the other closes blocked.
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), a)
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), b)
+        assertEquals(
+            listOf(Triple("rw_allow", "shown", "ready"), Triple("rw_allow", "busy", "idle")),
+            port.opportunities,
+        )
         assertTrue(port.showAgains.isEmpty())
+        // Control (L-055): a show that does not fail keeps both taps on the turn, the latest rewarded.
+        a.clear()
+        b.clear()
+        port.opportunities.clear()
+        port.failShowAtOnce = null
+        port.ready["rw_allow"] = true
+        doubleTapAwaitingSwitch(rwAllow, first = { a += it }, second = { b += it })
+        port.fireReward()
+        assertTrue(a.isEmpty())
+        assertEquals(listOf(RewardedOutcome.Granted), b)
     }
 
     @Test
