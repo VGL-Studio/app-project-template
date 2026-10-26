@@ -12,8 +12,7 @@ fun interface AdUnitIds {
      * format than the bar's own (plan T-030, question 2). By default only the placement's own format has a unit, so a
      * layer of another format sends nothing (B-04) until units per slot exist (spec, question 14).
      */
-    fun of(placement: AdPlacement, format: AdFormat): String? =
-        if (format == placement.format) of(placement) else null
+    fun of(placement: AdPlacement, format: AdFormat): String? = if (format == placement.format) of(placement) else null
 }
 
 /** Google's public test ad units. They never produce real impressions, so tapping them is safe. */

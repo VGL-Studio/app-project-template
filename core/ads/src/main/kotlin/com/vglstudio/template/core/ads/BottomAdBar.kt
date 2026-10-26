@@ -60,9 +60,8 @@ internal fun bottomBarReservation(slot: BottomSlotKind?, slotHasAd: Boolean, ban
  * The first refresh of the native bottom slot (section 5.7): 500 ms after the one of the collapsible layer above it,
  * so both requests are not sent together; the plain 60 s without the layer.
  */
-internal fun bottomSlotFirstRefreshDelayMillis(collapsible: Boolean): Long =
-    NativeAdPolicy.REFRESH_INTERVAL_MILLIS +
-        if (collapsible) NativeAdPolicy.BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS else 0L
+internal fun bottomSlotFirstRefreshDelayMillis(collapsible: Boolean): Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS +
+    if (collapsible) NativeAdPolicy.BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS else 0L
 
 /** Sizes of the bottom bar, from design/context/AdGalleryScreen_collapsible-*.md. */
 object BottomAdBarDimens {
@@ -235,9 +234,8 @@ internal fun BottomAdBarHost(
 }
 
 /** The log line of a change of the layers of the bar of [placement] (ADR-0019). */
-internal fun bottomBarLayersLog(placement: AdPlacement, layers: BottomAdBarLayers?): String =
-    if (layers == null) {
-        "Bottom bar ${placement.key}: off"
-    } else {
-        "Bottom bar ${placement.key}: slot=${layers.slot} collapsible=${layers.collapsible}"
-    }
+internal fun bottomBarLayersLog(placement: AdPlacement, layers: BottomAdBarLayers?): String = if (layers == null) {
+    "Bottom bar ${placement.key}: off"
+} else {
+    "Bottom bar ${placement.key}: slot=${layers.slot} collapsible=${layers.collapsible}"
+}

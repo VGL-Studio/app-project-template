@@ -99,10 +99,7 @@ class CollapsibleNativeAdTest {
     private val clock = MonotonicClock { composeRule.mainClock.currentTime }
 
     @Composable
-    private fun Host(
-        expandAfterSeconds: Long,
-        renderAd: (@Composable (LoadedNativeAd, () -> Unit) -> Unit)? = null,
-    ) {
+    private fun Host(expandAfterSeconds: Long, renderAd: (@Composable (LoadedNativeAd, () -> Unit) -> Unit)? = null) {
         AppTheme(darkTheme = false) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 key(attempt) {
