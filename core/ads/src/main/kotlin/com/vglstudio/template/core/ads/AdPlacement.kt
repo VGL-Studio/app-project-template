@@ -167,17 +167,23 @@ enum class AdPlacement(
     RESUME("resume", AdFormat.APP_OPEN, appWide = true),
     RESUME_INTER("resume_inter", AdFormat.INTERSTITIAL, ignoreInterval = true, appWide = true),
 
-    // Staging ad gallery only (plan T-014): one placement per format, see [stagingOnly].
+    // Staging ad gallery only (plans T-014, T-036): placements of every format, see [stagingOnly]. The collapsible
+    // layer has none of its own: it loads through the placement of its bottom bar (GALLERY_NATIVE_SMALL, T-030).
     GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),
     GALLERY_NATIVE_MEDIUM("gallery_native_medium", AdFormat.NATIVE_MEDIUM),
     GALLERY_INLIST_SMALL("gallery_inlist_small", AdFormat.NATIVE_SMALL, nativeEvery = 8),
     GALLERY_INLIST_MEDIUM("gallery_inlist_medium", AdFormat.NATIVE_MEDIUM, nativeEvery = 8),
-    GALLERY_NATIVE_COLLAPSIBLE("gallery_native_collapsible", AdFormat.NATIVE_COLLAPSIBLE),
     GALLERY_INTERSTITIAL("gallery_interstitial", AdFormat.INTERSTITIAL),
     GALLERY_NATIVE_FULL_SCREEN("gallery_native_full_screen", AdFormat.NATIVE_FULL_SCREEN),
 
     // Holds the sample action of the gallery, policy block by default (plan T-031, question 13 of the ads spec).
     GALLERY_RW_ACTION("gallery_rw_action", AdFormat.REWARDED),
+    GALLERY_APP_OPEN("gallery_app_open", AdFormat.APP_OPEN),
+    GALLERY_BANNER("gallery_banner", AdFormat.BANNER),
+    GALLERY_BANNER_COLLAPSIBLE("gallery_banner_collapsible", AdFormat.BANNER_COLLAPSIBLE),
+    GALLERY_IN_COLLECTION("gallery_in_collection", AdFormat.NATIVE_IN_COLLECTION, nativeEvery = 4),
+    GALLERY_NATIVE_STEP("gallery_native_step", AdFormat.NATIVE_STEP),
+    GALLERY_NATIVE_STEP_FULL("gallery_native_step_full", AdFormat.NATIVE_FULL_SCREEN),
     ;
 
     /**
