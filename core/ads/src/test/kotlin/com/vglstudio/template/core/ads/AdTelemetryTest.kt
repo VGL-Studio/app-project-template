@@ -1,7 +1,12 @@
 package com.vglstudio.template.core.ads
 
+import com.vglstudio.template.core.analytics.AdFunnel
+import com.vglstudio.template.core.analytics.AdFunnelEvent
+import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.AdMetricEvent
 import com.vglstudio.template.core.analytics.AdMetrics
+import com.vglstudio.template.core.analytics.FanOutAdMetrics
+import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.LogLevel
 import com.vglstudio.template.core.logging.RecordingAppLogger
@@ -16,6 +21,7 @@ import org.junit.Test
 /** The recorder of ad metrics: group gate, placement read at event time, swallowed errors (plan T-023). */
 class AdTelemetryTest {
     private val metrics = RecordingAdMetrics()
+    private val funnel = RecordingAdFunnel()
     private val logger = RecordingAppLogger()
     private val counter = LoadAttemptCounter()
     private var logFullScreen = false
@@ -23,15 +29,17 @@ class AdTelemetryTest {
     private var serving = false
     private var offline = false
 
-    private fun telemetry(target: AdMetrics = metrics, onClicked: () -> Unit = {}) = AdTelemetry(
-        metrics = target,
-        lifecycleSwitches = { DEFAULT_FLAGS.copy(logFullScreenEvents = logFullScreen, logSlotEvents = logSlot) },
-        serving = { serving },
-        offline = { offline },
-        counter = counter,
-        logger = logger,
-        onClicked = onClicked,
-    )
+    private fun telemetry(target: AdMetrics = metrics, funnelTarget: AdFunnel = funnel, onClicked: () -> Unit = {}) =
+        AdTelemetry(
+            metrics = target,
+            funnel = funnelTarget,
+            lifecycleSwitches = { DEFAULT_FLAGS.copy(logFullScreenEvents = logFullScreen, logSlotEvents = logSlot) },
+            serving = { serving },
+            offline = { offline },
+            counter = counter,
+            logger = logger,
+            onClicked = onClicked,
+        )
 
     @Test
     fun clicked_runsOnClicked_evenWhenLifecycleLogsOff() {
@@ -530,6 +538,103 @@ class AdTelemetryTest {
         telemetry.rewardEarned(placement)
         telemetry.rewardDialog(placement, "dismiss")
         assertEquals(2, metrics.events.size)
+    }
+
+    @Test
+    fun revenue_monetizationNetwork_isRawSource() {
+        val telemetry = telemetry()
+        telemetry.revenue(AdFormat.BANNER, "unit", { null }, 1_000, "USD", null, null)
+        telemetry.revenue(AdFormat.BANNER, "unit", { null }, 1_000, "USD", "Pangle", null)
+
+        val events = metrics.events.map { it as AdMetricEvent.ImpressionRevenue }
+        assertEquals("", events[0].monetizationNetwork)
+        assertEquals("admob", events[0].adSource)
+        assertEquals("Pangle", events[1].monetizationNetwork)
+        assertEquals("Pangle", events[1].adSource)
+    }
+
+    @Test
+    fun revenueFallback_reachesBothTargets() {
+        val firebaseRec = RecordingAdMetrics()
+        val afRec = RecordingAdMetrics()
+        val telemetry = telemetry(target = FanOutAdMetrics(listOf(firebaseRec, afRec), logger))
+
+        telemetry.revenueFallback(AdFormat.NATIVE_SMALL, "unit", { AdPlacement.SAMPLE_NATIVE_SMALL }, null, null)
+
+        listOf(firebaseRec, afRec).forEach { recorder ->
+            val event = recorder.events.single() as AdMetricEvent.ImpressionRevenue
+            assertEquals(0.0, event.value, 0.0)
+            assertEquals("USD", event.currency)
+            assertEquals("NATIVE_SMALL", event.adFormat)
+        }
+    }
+
+    @Test
+    fun interDisplayed_nullCount_sendsNothing() {
+        val telemetry = telemetry()
+        telemetry.interDisplayed(null)
+        assertTrue(funnel.events.isEmpty())
+
+        // Control: a count is sent.
+        telemetry.interDisplayed(3)
+        assertEquals(listOf<AdFunnelEvent>(AdFunnelEvent.InterDisplayedTimes(3)), funnel.events)
+    }
+
+    @Test
+    fun funnel_ignoresLifecycleSwitchesAndServing() {
+        // Both lifecycle switches off and nothing served.
+        val telemetry = telemetry()
+
+        telemetry.eligible(AdFormat.INTERSTITIAL)
+        telemetry.apiCalled(AdFormat.INTERSTITIAL, "u", null)
+        telemetry.displayed(AdFormat.NATIVE_MEDIUM, "u", "A")
+
+        assertEquals(
+            listOf(
+                AdFunnelEvent.Eligible(AdFunnelKind.INTERS),
+                AdFunnelEvent.ApiCalled(AdFunnelKind.INTERS, "INTER", "u", ""),
+                AdFunnelEvent.Displayed(AdFunnelKind.NATIVE, "NATIVE_MEDIUM", "u", "A"),
+            ),
+            funnel.events,
+        )
+        // Control: under the same conditions a lifecycle event is not logged.
+        telemetry.clicked(AdFormat.INTERSTITIAL, AdPlacement.GALLERY_INTERSTITIAL)
+        assertTrue(metrics.events.isEmpty())
+    }
+
+    @Test
+    fun funnel_appOpenAndBanner_sendNothing() {
+        val telemetry = telemetry()
+        listOf(AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE).forEach { format ->
+            telemetry.eligible(format)
+            telemetry.apiCalled(format, "u", "A")
+            telemetry.displayed(format, "u", "A")
+        }
+        assertTrue(funnel.events.isEmpty())
+
+        // Control: rewarded has a funnel.
+        telemetry.eligible(AdFormat.REWARDED)
+        assertEquals(listOf<AdFunnelEvent>(AdFunnelEvent.Eligible(AdFunnelKind.REWARDED)), funnel.events)
+    }
+
+    @Test
+    fun funnelThrows_isSwallowed() {
+        val failing = object : AdFunnel {
+            override fun log(event: AdFunnelEvent): Unit = throw IllegalStateException("message of the sdk")
+        }
+        val telemetry = telemetry(funnelTarget = failing)
+
+        telemetry.eligible(AdFormat.INTERSTITIAL)
+        telemetry.apiCalled(AdFormat.REWARDED, "u", null)
+        telemetry.displayed(AdFormat.NATIVE_SMALL, "u", null)
+        telemetry.interDisplayed(1)
+
+        val warnings = logger.entries.filter { it.level == LogLevel.WARN }
+        assertEquals(4, warnings.size)
+        warnings.forEach {
+            assertTrue(it.message, "IllegalStateException" in it.message)
+            assertFalse(it.message, "message of the sdk" in it.message)
+        }
     }
 
     /** `load_attempt` of a load event; any other event is a test error. */

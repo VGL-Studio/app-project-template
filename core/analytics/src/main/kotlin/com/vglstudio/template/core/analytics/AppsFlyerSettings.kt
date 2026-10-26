@@ -21,6 +21,9 @@ object AppsFlyerSettings {
     val IS_LOG_AF_INTERS_DISPLAYED_N_TIMES =
         key("is_log_af_inters_displayed_n_times", "Sends af_inters_displayed_{N}_times.")
 
+    /** SKELETON (T-033, step 3). */
+    fun switches(): List<RemoteKey<Boolean>> = emptyList()
+
     /** Every key of the module, in the order of section 10.1. */
     fun all(): List<RemoteKey<*>> = listOf(
         IS_LOG_AF_AD_REVENUE,

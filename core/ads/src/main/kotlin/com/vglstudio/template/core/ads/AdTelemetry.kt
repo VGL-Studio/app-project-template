@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import com.vglstudio.template.core.analytics.AdFunnel
 import com.vglstudio.template.core.analytics.AdMetricEvent
 import com.vglstudio.template.core.analytics.AdMetrics
 import com.vglstudio.template.core.logging.AppLogger
@@ -17,6 +18,8 @@ import com.vglstudio.template.core.logging.AppLogger
  */
 internal class AdTelemetry(
     private val metrics: AdMetrics,
+    /** The AppsFlyer funnel (plan T-033). */
+    private val funnel: AdFunnel,
     /** Latest value of [AdsFlags.global], read at each event. */
     private val lifecycleSwitches: () -> AdsGlobalFlags,
     /** [AdsController.canRequestAds]. */
@@ -169,6 +172,15 @@ internal class AdTelemetry(
         log(AdMetricEvent.RewardDialog(AdFormat.REWARDED.metricCode(), placement.key, action))
     }
 
+    // SKELETON (T-033, step 3).
+    fun eligible(format: AdFormat) = Unit
+
+    fun apiCalled(format: AdFormat, unitId: String, adapterClassName: String?) = Unit
+
+    fun displayed(format: AdFormat, unitId: String, adapterClassName: String?) = Unit
+
+    fun interDisplayed(count: Int?) = Unit
+
     private fun logRevenue(
         format: AdFormat,
         unitId: String,
@@ -190,6 +202,7 @@ internal class AdTelemetry(
             AdMetricEvent.ImpressionRevenue(
                 adFormat = format.metricCode(),
                 adSource = adSourceOrAdmob(adSource),
+                monetizationNetwork = "",
                 adUnitName = unitId,
                 currency = currency,
                 value = value,

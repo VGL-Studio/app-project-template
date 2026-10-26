@@ -272,6 +272,51 @@ class ConsentCoordinatorTest {
     }
 
     @Test
+    fun consentFormOpen_trueOnlyWhileFormShows() {
+        val env = Env(allowReset = true).started(shortcut = false)
+        env.platform.formRequired = true
+        var openAtForm: Boolean? = null
+        env.platform.onFormShown = { openAtForm = env.coordinator.consentFormOpen.value }
+        assertFalse(env.coordinator.consentFormOpen.value)
+        env.coordinator.gather(activityA)
+        // Updating: no form yet.
+        assertFalse(env.coordinator.consentFormOpen.value)
+        env.platform.completeUpdate()
+        assertEquals(true, openAtForm)
+        assertTrue(env.coordinator.consentFormOpen.value)
+        env.platform.closeForm(null)
+        assertFalse(env.coordinator.consentFormOpen.value)
+
+        // Closed with an error, the callback called twice: closed.
+        val failing = Env().started(shortcut = false)
+        failing.platform.formRequired = true
+        failing.coordinator.gather(activityA)
+        failing.platform.completeUpdate()
+        assertTrue(failing.coordinator.consentFormOpen.value)
+        failing.platform.closeForm(INTERNAL_ERROR, twice = true)
+        assertFalse(failing.coordinator.consentFormOpen.value)
+
+        // A reset while the form shows clears it.
+        val reset = Env(allowReset = true).started(shortcut = false)
+        reset.platform.formRequired = true
+        reset.coordinator.gather(activityA)
+        reset.platform.completeUpdate()
+        assertTrue(reset.coordinator.consentFormOpen.value)
+        reset.coordinator.reset()
+        assertFalse(reset.coordinator.consentFormOpen.value)
+
+        // Control: UMP says no form is required, so none shows.
+        val notRequired = Env().started(shortcut = false)
+        var notRequiredAtForm: Boolean? = null
+        notRequired.platform.onFormShown = { notRequiredAtForm = notRequired.coordinator.consentFormOpen.value }
+        notRequired.coordinator.gather(activityA)
+        notRequired.platform.completeUpdate()
+        assertEquals(false, notRequiredAtForm)
+        notRequired.platform.closeForm(null)
+        assertFalse(notRequired.coordinator.consentFormOpen.value)
+    }
+
+    @Test
     fun privacyForm_alwaysHoldsSuppression() {
         val env = Env().granted()
         var suppressedAtForm: Boolean? = null

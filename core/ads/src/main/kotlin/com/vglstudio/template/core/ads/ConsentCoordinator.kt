@@ -29,6 +29,9 @@ internal class ConsentCoordinator(
     /** The round of this start has its final result, or the result was settled before. */
     val finished: StateFlow<Boolean> = _finished.asStateFlow()
 
+    /** SKELETON (T-033, step 3). */
+    val consentFormOpen: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+
     private val _privacyOptionsRequired = MutableStateFlow(false)
 
     /** UMP requires the privacy options entry point ([PrivacyOptionsButton], S-14). */

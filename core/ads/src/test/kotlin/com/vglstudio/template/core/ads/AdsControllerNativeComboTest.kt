@@ -3,19 +3,11 @@ package com.vglstudio.template.core.ads
 import android.app.Activity
 import android.os.Looper
 import androidx.activity.ComponentActivity
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
-import com.vglstudio.template.core.network.InternetConnectivity
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -42,20 +34,11 @@ class AdsControllerNativeComboTest {
     private var finishes = 0
     private val onFinished: () -> Unit = { finishes++ }
 
-    private val controller = AdsController(
-        context = ApplicationProvider.getApplicationContext(),
+    private val controller = testAdsController(
         // No ad unit: a skipped turn that loads sends nothing.
         unitIds = AdUnitIds { null },
-        consentDebug = ConsentDebugOptions.NONE,
         flags = DefaultAdsFlags(settings),
-        connectivity = object : InternetConnectivity {
-            override val connected = flowOf(true)
-        },
-        shortcutConfig = ConsentShortcutConfig.OFF,
-        metrics = RecordingAdMetrics(),
         logger = logger,
-        firstOpenMark = FirstOpenMark(EmptyPreferencesStore(), RecordingAppLogger()),
-        interDisplayCounter = InterDisplayCounter(EmptyPreferencesStore(), RecordingAppLogger()),
     )
 
     private fun idleFor(millis: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
@@ -269,12 +252,4 @@ class AdsControllerNativeComboTest {
         // The caller skips the turn (NOT_READY), which runs onFinished once.
         assertEquals(0, finishes)
     }
-}
-
-/** A preferences store that is always empty and drops every write. */
-private class EmptyPreferencesStore : DataStore<Preferences> {
-    override val data: Flow<Preferences> = flowOf(emptyPreferences())
-
-    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-        transform(emptyPreferences())
 }

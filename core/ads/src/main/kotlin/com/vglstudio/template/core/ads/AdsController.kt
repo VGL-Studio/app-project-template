@@ -19,7 +19,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.vglstudio.template.core.analytics.AdFunnel
 import com.vglstudio.template.core.analytics.AdMetrics
+import com.vglstudio.template.core.analytics.AppsFlyerStartup
 import com.vglstudio.template.core.logging.AppLogger
 import com.vglstudio.template.core.network.InternetConnectivity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -119,6 +121,8 @@ class AdsController @Inject internal constructor(
     internal val logger: AppLogger,
     private val firstOpenMark: FirstOpenMark,
     private val interDisplayCounter: InterDisplayCounter,
+    private val attribution: AppsFlyerStartup,
+    funnel: AdFunnel,
 ) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -257,6 +261,7 @@ class AdsController @Inject internal constructor(
     /** The recorder of ad metrics (plan T-023); the banner of [AdSlot] and the native loads report to it too. */
     internal val telemetry = AdTelemetry(
         metrics = metrics,
+        funnel = funnel,
         lifecycleSwitches = { latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS },
         serving = { canRequestAds.value },
         offline = { !online.value },

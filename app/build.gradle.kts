@@ -17,6 +17,8 @@ android {
         applicationId = "com.vglstudio.template"
         versionCode = 1
         versionName = "0.1.0"
+        // SKELETON (T-033, step 3): set per flavor in step 4.
+        buildConfigField("String", "APPSFLYER_DEV_KEY", "\"skeleton\"")
     }
 
     // Staging builds sent to the team are signed with a fixed staging-only key, so each build installs over

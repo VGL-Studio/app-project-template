@@ -7,6 +7,7 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,6 +37,7 @@ class SdkBannerAdViewTest {
 
     private val telemetry = AdTelemetry(
         metrics = metrics,
+        funnel = RecordingAdFunnel(),
         lifecycleSwitches = { DEFAULT_FLAGS.copy(logSlotEvents = true) },
         serving = { true },
         offline = { false },
