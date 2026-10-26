@@ -234,6 +234,33 @@ class AdsControllerNativeComboTest {
     }
 
     @Test
+    fun standalone_whileTurnOpenPastCap_isRejected_takesNoAd() {
+        val first = FakeLoadedNativeAd()
+        assertTrue(controller.beginStandaloneNativeTurn(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, { first }, onFinished))
+        // F-02: past the cap of 10 minutes the showing flag no longer reads busy, but the first turn is still open.
+        idleFor(FullScreenAdPresence.SHOWING_CAP_MILLIS + 1)
+        var taken = 0
+        var secondFinishes = 0
+        val second = controller.beginStandaloneNativeTurn(
+            AdPlacement.GALLERY_NATIVE_FULL_SCREEN,
+            {
+                taken++
+                FakeLoadedNativeAd()
+            },
+        ) { secondFinishes++ }
+        // Rejected before the gate takes an ad, so no `shown` opportunity; the caller skips the turn (BUSY).
+        assertFalse(second)
+        assertEquals(0, taken)
+        assertEquals(0, secondFinishes)
+        assertTrue(controller.fullScreenAdShowing.value)
+        assertTrue(controller.nativeFullScreenView.value!!.ad === first)
+        controller.closeNativeFullScreen()
+        assertEquals(1, finishes)
+        assertNull(controller.nativeFullScreenView.value)
+        assertFalse(controller.fullScreenAdShowing.value)
+    }
+
+    @Test
     fun standalone_noAd_showsNothing_finishesAtOnce() {
         val shown = controller.beginStandaloneNativeTurn(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, { null }, onFinished)
         assertFalse(shown)
