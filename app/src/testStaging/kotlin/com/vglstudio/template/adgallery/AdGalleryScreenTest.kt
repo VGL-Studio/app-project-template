@@ -253,13 +253,17 @@ class AdGalleryScreenTest {
     fun buttons_haveTouchTargetOf48dp() {
         setScreen(AdGalleryUiState.Default)
 
-        val buttons = composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
+        val allTagged = composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
             .fetchSemanticsNodes()
             .filter { node -> node.config.contains(SemanticsProperties.TestTag) }
-            // The five buttons of plan T-014; the seven of "More formats" are checked in
-            // moreFormats_buttonsHaveTouchTargetOf48dp (T-036).
-            .filter { node -> node.config[SemanticsProperties.TestTag] in planT014Buttons }
-        // Control: the five buttons of the page are found.
+        // Control: every button of the page is found: five of plan T-014, seven of "More formats" (T-036).
+        assertEquals(
+            planT014Buttons + moreFormatButtons.toSet(),
+            allTagged.map { it.config[SemanticsProperties.TestTag] }.toSet(),
+        )
+        assertEquals(12, allTagged.size)
+        // The seven of "More formats" lie below the screen: moreFormats_buttonsHaveTouchTargetOf48dp measures them.
+        val buttons = allTagged.filter { node -> node.config[SemanticsProperties.TestTag] in planT014Buttons }
         assertEquals(5, buttons.size)
         buttons.forEach { node ->
             val height = with(composeRule.density) { node.boundsInRoot.height.toDp() }
