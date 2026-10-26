@@ -1,7 +1,7 @@
 ---
 ticket: T-025
 title: Quảng cáo khi quay lại app, bỏ lượt sau khi bấm quảng cáo
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # sửa theo rà soát độc lập 2026-10-25, trước khi duyệt (chưa duyệt nên giữ 1)
 risk_score:                  # để trống: chạm điểm chặn (ads, analytics, core)
 risk_level: high             # low | medium | high
@@ -362,3 +362,18 @@ Mỗi đường tới một lượt resume (L-072): chỉ một đường, `AdsA
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-04, phiên bản plan 1
+
+- **Kết quả:** đã merge. PR #192, commit đầu `17a1e89`, commit trên nhánh chính `a6e617b` (2026-10-26 05:19 UTC).
+- **Nhánh, PR:** `claude/T-025-quang-cao-khi-quay-lai-app` (từ nhánh chính `ae74e54`). Commit test `dfcf9f0`, sửa chi tiết test `38eccf8`, code `77f6980`, ktlint `17a1e89`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-025` (L-052). Điều kiện dừng trước bước 3 (T-026 đã merge, spec có `resume_inter`) không gặp.
+- **Đã làm:** mọi phần của mục 3.1: vị trí `resume`, `resume_inter`; `ProcessForegroundCounter`; `ResumeAdRules`, `ResumeAdTurns` và port; nối trong `AdsController` (app open hay interstitial nối combo của T-026, bỏ lượt sau khi bấm quảng cáo); `MainActivity` bỏ hai lời gọi ghi log; `ads-guide.md`.
+- **Test viết trước:** 58 test mới (11 file), sửa dữ liệu 4 test cũ (ADR-0029). Trên khung rỗng 57 đỏ đúng lý do. Qua ngay: `startupAdPlacement_neverResume` (test chặn, có đối chứng trong test), `resumePlacements_areAppWide` (dòng enum nằm sẵn trong khung). Test viết chặt bằng bước đối chứng: 2 (`ProcessForegroundCounterTest.configChangeStopThenStart_reportsNothing`, `ResumeSuppressionTest.adClick_doesNotReleaseHolds`). Test JVM các module khác: 0 đỏ.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 6 ghi chú.
+  - Không sửa, nên sửa: `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing` không tới nhánh `OFF` nên qua cả khi nhánh đó hỏng; code đúng, không có test đỏ trước.
+  - Ghi chú: kiểm `suppressedNow()` trước `placementNow()` ngay trước khi hiện (đúng plan) làm resume vừa tắt mà đang bị chặn vẫn ghi `suppressed`, lệch L-A05; đổi thứ tự cần người quyết. `MainActivity` không có test Robolectric (ngoại lệ (2)); dòng log foreground nay đếm cả process; `ProcessForegroundCounter` có thể kẹt cờ đổi cấu hình khi Activity `finish()` đúng lúc đó; log `NOT_SERVING: resume` khác `none` của dòng kiểm thủ công (đúng định dạng của mục 3.1); `restart()` ở `38eccf8` sát máy thật hơn.
+- **Kết quả CI:** `pr-check` xanh ở lần đầu (lần chạy 40272498388). Trên máy: `scripts/check.sh` 1236 test JVM, 0 lỗi, 67 ảnh screenshot, Cổng chất lượng: QUA (lần 1 đỏ vì ktlint).
+- **Lệch so với plan:** tên test cũ `appWidePlacements_areOpenAppAndCombo` (T-026 đổi), dữ liệu `unit/6`, `unit/7`; `AdsSettingsTest.kt` không phải sửa; `38eccf8` đổi `app.start()` thành `app.restart()` trong `ResumeAdLifecycleTest.sdkActivityCoversApp_thenAppReturns_noTurn` (Robolectric bỏ qua `stop()` kế tiếp sau `start()` lên Activity đã dừng; điều test kiểm không đổi); log ghi vị trí đọc được (`NOT_SERVING: resume`); `startupFinished` bật ở mọi trường hợp `awaitStartupAd` trả `null`. Phương án dự phòng 3.4: không chuyển.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** không có ảnh mới hay đổi.
+- **Cần người xem:** điểm nên sửa và ghi chú thứ tự kiểm (L-A05); kiểm trên máy theo mục 4 (thứ tự `AdActivity` của SDK, xoay màn hình, bấm quảng cáo rồi quay lại, form đồng ý cùng app open).
