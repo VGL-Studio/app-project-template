@@ -39,6 +39,21 @@ class RewardedTurnsTest {
     }
 
     @Test
+    fun switchedOffWhileTurnPending_secondTapShowsAgain_grantOnce() = runTest {
+        // L-061: the key goes off while the first ad is on its way; a second tap is still R-06, not "switched off".
+        port.ready["rw_get_item"] = true
+        request()
+        port.enabled["rw_get_item"] = false
+        request()
+        port.fireShowed()
+        port.fireReward()
+
+        assertEquals(1, outcomes.count { it == RewardedOutcome.Granted })
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+        assertEquals(listOf("rw_get_item"), port.showAgains)
+    }
+
+    @Test
     fun switchedOffWhileDialogOpen_watchGrantsAtOnce() = runTest {
         port.ready["rw_get_item"] = true
         // The dialog opened while the key was on; it is off when "Watch ad" is tapped (L-061).
