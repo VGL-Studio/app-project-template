@@ -2,6 +2,10 @@ package com.vglstudio.template.core.ads
 
 import android.app.Activity
 import com.vglstudio.template.core.logging.RecordingAppLogger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +16,7 @@ import org.junit.Test
  * The rewarded turns and load rounds with a fake port (KB-19, MC-05, R-01 to R-06, F-07, L-068, L-072; plan T-031).
  * The fake fires the SDK callbacks itself ([FakeRewardedPort.fireShowed] and the others).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class RewardedTurnsTest {
     private val logger = RecordingAppLogger()
     private val port = FakeRewardedPort()
@@ -50,6 +55,32 @@ class RewardedTurnsTest {
 
         assertEquals(1, outcomes.count { it == RewardedOutcome.Granted })
         assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+        assertEquals(listOf("rw_get_item"), port.showAgains)
+    }
+
+    @Test
+    fun twoTapsAwaitingSwitch_firstOnSecondOff_secondShowsAgain_grantOnce() = runTest {
+        // L-061: both taps wait for the switch before any turn exists; the first gets on and shows the ad, the key
+        // goes off, the second gets off once the turn is there: it is still the second tap of that turn (R-06).
+        port.ready["rw_get_item"] = true
+        val first = CompletableDeferred<Boolean>()
+        val second = CompletableDeferred<Boolean>()
+        port.switchGates += first
+        port.switchGates += second
+        launch { request() }
+        launch { request() }
+        runCurrent()
+        assertTrue(port.shows.isEmpty())
+
+        first.complete(true)
+        runCurrent()
+        assertEquals(listOf("rw_get_item"), port.shows)
+        second.complete(false)
+        runCurrent()
+        port.fireShowed()
+        port.fireReward()
+
+        assertEquals(1, outcomes.count { it == RewardedOutcome.Granted })
         assertEquals(listOf("rw_get_item"), port.showAgains)
     }
 
@@ -472,6 +503,9 @@ class RewardedTurnsTest {
         val ready = mutableMapOf<String, Boolean>()
         val loadState = mutableMapOf<String, String>()
 
+        /** When not empty, each call of [enabled] waits for the next of these instead of answering at once. */
+        val switchGates = ArrayDeque<CompletableDeferred<Boolean>>()
+
         val sends = mutableListOf<String>()
         val sendBlocked = mutableListOf<String>()
         val cleared = mutableListOf<String>()
@@ -493,7 +527,8 @@ class RewardedTurnsTest {
         fun fireShowFailed(code: Int, declaration: AdPlacementDeclaration = lastShown!!) =
             turns.onShowFailed(declaration, code)
 
-        override suspend fun enabled(declaration: AdPlacementDeclaration): Boolean = enabled[declaration.code] ?: true
+        override suspend fun enabled(declaration: AdPlacementDeclaration): Boolean =
+            switchGates.removeFirstOrNull()?.await() ?: enabled[declaration.code] ?: true
 
         override fun consentOpen(): Boolean = consentOpen
 
