@@ -211,6 +211,8 @@ internal fun NativeFullScreenStepGate(
     onAdAvailabilityChange: (Boolean) -> Unit = {},
     adContent: @Composable (LoadedNativeAd) -> Unit = { FlowStepFullPage(it) },
 ) {
+    // `af_native_ad_eligible` once each time the page comes on screen allowed (plan T-033).
+    ReportNativeEligible(allowed && shown)
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
     val reported = remember { StepAvailability() }
     Box(modifier = modifier.testTag(NativeFlowStepTestTags.FULL_PAGE)) {

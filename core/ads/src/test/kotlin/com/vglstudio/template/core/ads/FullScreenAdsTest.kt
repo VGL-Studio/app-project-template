@@ -1,6 +1,9 @@
 package com.vglstudio.template.core.ads
 
 import android.app.Activity
+import android.app.Application
+import android.os.Looper
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
@@ -14,21 +17,19 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.vglstudio.template.core.analytics.RecordingAdMetrics
-import com.vglstudio.template.core.logging.RecordingAppLogger
-import com.vglstudio.template.core.network.InternetConnectivity
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import com.vglstudio.template.core.analytics.AdFunnelEvent
+import com.vglstudio.template.core.analytics.AdFunnelKind
+import com.vglstudio.template.core.analytics.RecordingAdFunnel
+import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.GraphicsMode
 
 /** The entry point of features for full-screen ads, in tests and previews that provide no ads controller. */
@@ -115,32 +116,45 @@ class FullScreenAdsTest {
         assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
     }
 
-    private val controller by lazy {
-        AdsController(
-            context = ApplicationProvider.getApplicationContext(),
-            unitIds = GoogleTestAdUnitIds,
-            consentDebug = ConsentDebugOptions.NONE,
-            flags = DefaultAdsFlags(FakeRemoteSettings()),
-            connectivity = object : InternetConnectivity {
-                override val connected = flowOf(true)
-            },
-            shortcutConfig = ConsentShortcutConfig.OFF,
-            metrics = RecordingAdMetrics(),
-            logger = RecordingAppLogger(),
-            firstOpenMark = FirstOpenMark(EmptyDataStore(), RecordingAppLogger()),
-            interDisplayCounter = InterDisplayCounter(EmptyDataStore(), RecordingAppLogger()),
+    @Test
+    fun showRewarded_recordsEligible_evenWithoutAd() {
+        val recorder = RecordingAdFunnel()
+        val controller = testAdsController(funnel = recorder)
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        val outcomes = mutableListOf<RewardedOutcome>()
+
+        // Two taps on "Watch ad": no consent, no ad loaded; the second one may come while the first is busy.
+        controller.showRewarded(activity, AdPlacement.GALLERY_RW_ACTION) { outcomes += it }
+        controller.showRewarded(activity, AdPlacement.GALLERY_RW_ACTION) { outcomes += it }
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(
+            listOf(AdFunnelEvent.Eligible(AdFunnelKind.REWARDED), AdFunnelEvent.Eligible(AdFunnelKind.REWARDED)),
+            recorder.events,
         )
     }
+
+    @Test
+    fun start_startsAppsFlyerAt10s_notBefore() {
+        val attribution = FakeAppsFlyerStartup()
+        val controller = testAdsController(attribution = attribution)
+        val application = ApplicationProvider.getApplicationContext<Application>()
+
+        // No activity: no consent form opens and the gate stays closed, so only the 10 s path starts AppsFlyer.
+        controller.start(application, AppActivityFilter.inPackageOf(ComponentActivity::class.java))
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(9_999))
+        assertEquals(0, attribution.starts)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
+        assertEquals(1, attribution.starts)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(20))
+        assertEquals(1, attribution.starts)
+        // :core:ads never prepares AppsFlyer: :app does (ADR-0027, decision 1).
+        assertEquals(0, attribution.prepares)
+    }
+
+    private val controller by lazy { testAdsController() }
 
     private companion object {
         const val CONTROL = "control"
     }
-}
-
-/** A preferences store that is always empty and drops every write. */
-private class EmptyDataStore : DataStore<Preferences> {
-    override val data: Flow<Preferences> = flowOf(emptyPreferences())
-
-    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-        transform(emptyPreferences())
 }

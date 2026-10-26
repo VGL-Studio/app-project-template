@@ -129,6 +129,81 @@ class MergedManifestTest {
         )
     }
 
+    @Test
+    fun mergedManifest_hasNoAppsFlyerStorePermissions() {
+        // AppsFlyer reads the referrer of the preinstalled Samsung and Huawei stores; the app ships on Google Play only
+        // (core/analytics/src/main/AndroidManifest.xml, plan T-033).
+        val permissions = names("uses-permission")
+        assertFalse("com.samsung.android.mapsagent.permission.READ_APP_INFO" in permissions)
+        assertFalse("com.huawei.appmarket.service.commondata.permission.GET_COMMON_DATA" in permissions)
+    }
+
+    @Test
+    fun mergedManifest_hasNoAppsFlyerStartupComponent() {
+        // Control: the merged manifest has providers, so an empty match means something.
+        assertTrue(names("provider").isNotEmpty())
+        val components = names("provider") + names("receiver") + names("service")
+        assertEquals(emptyList<String>(), components.filter { it.startsWith("com.appsflyer.") })
+    }
+
+    @Test
+    fun mergedManifest_queriesAreExactlyTheAllowedSet() {
+        val queries = manifest.getElementsByTagName("queries")
+        val packages = mutableSetOf<String>()
+        val actions = mutableSetOf<String>()
+        for (i in 0 until queries.length) {
+            val query = queries.item(i) as Element
+            val packageNodes = query.getElementsByTagName("package")
+            for (j in 0 until packageNodes.length) {
+                packages += (packageNodes.item(j) as Element).getAttributeNS(ANDROID_NS, "name")
+            }
+            val actionNodes = query.getElementsByTagName("action")
+            for (j in 0 until actionNodes.length) {
+                actions += (actionNodes.item(j) as Element).getAttributeNS(ANDROID_NS, "name")
+            }
+        }
+        val expectedPackages = setOf(
+            "com.facebook.katana",
+            "com.android.vending",
+            "com.google.market",
+            "com.amazon.venezia",
+            "com.sec.android.app.samsungapps",
+            "com.xiaomi.market",
+            "com.huawei.appmarket",
+            "com.oppo.market",
+            "com.bbk.appstore",
+            "com.topjohnwu.magisk",
+            "eu.chainfire.supersu",
+            "com.noshufou.android.su",
+            "com.koushikdutta.superuser",
+            "com.thirdparty.superuser",
+            // AppsFlyer (plan T-033); com.samsung.android.mapsagent is removed with its permission.
+            "com.instagram.android",
+            "com.facebook.lite",
+        )
+        assertEquals(16, expectedPackages.size)
+        assertEquals(expectedPackages, packages)
+        // Measured on the main branch before AppsFlyer (plan T-033, 2026-10-26), plus its referrer provider.
+        val expectedActions = setOf(
+            "android.intent.action.VIEW",
+            "android.intent.action.INSERT",
+            "android.intent.action.DIAL",
+            "android.intent.action.MAIN",
+            "android.support.customtabs.action.CustomTabsService",
+            "androidx.browser.customtabs.CustomTabsService",
+            "com.attribution.REFERRAL_PROVIDER",
+            "com.digitalturbine.ignite.cl.IgniteRemoteService",
+            "com.appsflyer.referrer.INSTALL_PROVIDER",
+        )
+        assertEquals(expectedActions, actions)
+    }
+
+    @Test
+    fun mergedManifest_keepsBackupOff() {
+        val application = manifest.getElementsByTagName("application").item(0) as Element
+        assertEquals("false", application.getAttributeNS(ANDROID_NS, "allowBackup"))
+    }
+
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
         const val MERGED_MANIFEST =

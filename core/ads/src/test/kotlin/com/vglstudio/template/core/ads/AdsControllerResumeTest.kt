@@ -2,20 +2,14 @@ package com.vglstudio.template.core.ads
 
 import android.app.Application
 import android.os.Looper
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdMetricEvent
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
-import com.vglstudio.template.core.network.InternetConnectivity
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,19 +30,12 @@ class AdsControllerResumeTest {
     private val metrics = RecordingAdMetrics()
     private val logger = RecordingAppLogger()
 
-    private fun controller() = AdsController(
+    private fun controller() = testAdsController(
         context = application,
         unitIds = AdUnitIds { null },
-        consentDebug = ConsentDebugOptions.NONE,
         flags = DefaultAdsFlags(settings),
-        connectivity = object : InternetConnectivity {
-            override val connected = flowOf(true)
-        },
-        shortcutConfig = ConsentShortcutConfig.OFF,
         metrics = metrics,
         logger = logger,
-        firstOpenMark = FirstOpenMark(ResumeTestPreferencesStore(), RecordingAppLogger()),
-        interDisplayCounter = InterDisplayCounter(ResumeTestPreferencesStore(), RecordingAppLogger()),
     )
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
@@ -130,11 +117,4 @@ class AdsControllerResumeTest {
         idleFor(1_100)
         assertTrue(other.readResumeGate().startupFinished)
     }
-}
-
-private class ResumeTestPreferencesStore : DataStore<Preferences> {
-    override val data: Flow<Preferences> = flowOf(emptyPreferences())
-
-    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-        transform(emptyPreferences())
 }

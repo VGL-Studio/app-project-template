@@ -19,12 +19,18 @@ sealed interface AdMetricEvent {
     /** One paid impression (T-01), or the zero-value fallback of a native ad (T-02). Always sent. */
     data class ImpressionRevenue(
         override val adFormat: String,
+        /** Network name for Firebase: the source the SDK reports, `admob` when it reports none (T-03). */
         val adSource: String,
+        /** The source the SDK reports, as is: empty when it reports none; `monetization_network` of AppsFlyer. */
+        val monetizationNetwork: String,
         val adUnitName: String,
         val currency: String,
         val value: Double,
         val adPlacement: String?,
-        /** Adapter class of the network that served the ad; for AppsFlyer (T-033), never sent to Firebase. */
+        /**
+         * Adapter class of the network that served the ad. Sent nowhere (section 8.3 has no such param): kept for
+         * the logs and diagnosis.
+         */
         val adapterClassName: String?,
     ) : AdMetricEvent
 

@@ -393,6 +393,8 @@ internal fun inListAdTag(slot: Int): String = "inlist_ad_$slot"
  */
 @Composable
 internal fun InListAdRow(ads: InListAds, slot: Int, modifier: Modifier = Modifier) {
+    // `af_native_ad_eligible` once each time the row comes into the list (plan T-033): rows exist only when allowed.
+    ReportNativeEligible(true)
     val size = inListAdSize(ads.placement.format)
     val ctaLarge = ads.placement.ctaLarge
     val pooledCell = ads.pooledCell

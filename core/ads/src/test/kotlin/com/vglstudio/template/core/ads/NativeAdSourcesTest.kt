@@ -1,6 +1,7 @@
 package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.Deferred
@@ -235,6 +236,7 @@ class NativeAdSourcesTest {
         val counter = LoadAttemptCounter()
         val telemetry = AdTelemetry(
             metrics = metrics,
+            funnel = RecordingAdFunnel(),
             lifecycleSwitches = { DEFAULT_FLAGS.copy(logSlotEvents = true) },
             serving = { true },
             offline = { false },

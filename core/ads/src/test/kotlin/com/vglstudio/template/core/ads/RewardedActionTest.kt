@@ -32,21 +32,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.Lifecycle
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.RecordingAppLogger
-import com.vglstudio.template.core.network.InternetConnectivity
 import kotlin.math.abs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -595,19 +588,10 @@ class RewardedActionTest {
         val settings = FakeRemoteSettings().apply {
             set(AdsSettings.placementEnabled(AdPlacement.GALLERY_RW_ACTION), true)
         }
-        return AdsController(
-            context = ApplicationProvider.getApplicationContext(),
+        return testAdsController(
             unitIds = AdUnitIds { null },
-            consentDebug = ConsentDebugOptions.NONE,
             flags = DefaultAdsFlags(settings),
-            connectivity = object : InternetConnectivity {
-                override val connected = flowOf(true)
-            },
-            shortcutConfig = ConsentShortcutConfig.OFF,
-            metrics = RecordingAdMetrics(),
             logger = logger,
-            firstOpenMark = FirstOpenMark(EmptyStore(), RecordingAppLogger()),
-            interDisplayCounter = InterDisplayCounter(EmptyStore(), RecordingAppLogger()),
         )
     }
 
@@ -662,14 +646,6 @@ class RewardedActionTest {
     }
 
     private fun channels(argb: Int) = listOf(argb shr 16 and 0xFF, argb shr 8 and 0xFF, argb and 0xFF)
-
-    /** A preferences store that is always empty and drops every write. */
-    private class EmptyStore : DataStore<Preferences> {
-        override val data: Flow<Preferences> = flowOf(emptyPreferences())
-
-        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-            transform(emptyPreferences())
-    }
 
     private companion object {
         const val TITLE = "Unlock export"
