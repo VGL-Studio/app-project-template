@@ -167,6 +167,80 @@ guard_wf=.github/workflows/main-guard.yml
 expect "main-guard: has workflow_dispatch and keeps the push trigger with the same paths-ignore" "1 1 1 1 1" \
   "$(grep -cE '^  workflow_dispatch:' "$guard_wf") $(grep -cE '^  push:$' "$guard_wf") $(grep -cE "^      - 'docs/\*\*'$" "$guard_wf") $(grep -cE "^      - '\*\*/\*\.md'$" "$guard_wf") $(awk '/^  guard:$/ { g = 1; next } g && /^    if: github.ref == .refs\/heads\/main.$/ { n++ } g && /^    steps:$/ { g = 0 } END { print n + 0 }' "$guard_wf")"
 
+# pr-check.yml: a PR without code still runs scripts/tests/run.sh in build-and-test, without Gradle or the Android SDK,
+# and the job keeps its name and is never skipped, so merge-if-green.sh still requires it green (L-040).
+# Each check takes the workflow path, so it also runs on a broken copy in $work (L-055).
+pr_wf=.github/workflows/pr-check.yml
+pr_steps() { # <workflow>; prints each step of build-and-test on one line, its lines joined by tabs
+  awk '/^  build-and-test:$/ { j = 1; next }
+    j && /^  [^ ]/ { j = 0 }
+    j && /^      - / { if (s != "") print s; s = $0; next }
+    j && s != "" && /^        / { s = s "\t" $0 }
+    END { if (s != "") print s }' "$1"
+}
+pr_docs_steps() { # <workflow>; counts the steps that run scripts/tests/run.sh only when the PR changes no code
+  pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -cF 'scripts/tests/run.sh 2>&1 | tee build.log' || true
+}
+pr_unconditional() { # <workflow> <uses>; "yes" when the step with that action has no if:, "missing" with no such step
+  local step
+  step="$(pr_steps "$1" | grep -F "uses: $2" || true)"
+  if [[ -z "$step" ]]; then echo missing; elif grep -q 'if:' <<<"$step"; then echo no; else echo yes; fi
+}
+pr_gradle_gated() { # <workflow>; "yes" when every step using Gradle or the Android SDK runs only for code
+  local bad tab=$'\t'
+  bad="$(pr_steps "$1" | grep -E 'setup-gradle|gradlew|scripts/check\.sh|ANDROID_HOME|android-emulator-runner' \
+    | grep -vcE "if: [^$tab]*needs\.changes\.outputs\.code == 'true'" || true)"
+  [[ "$bad" == 0 ]] && echo yes || echo no
+}
+pr_docs_step_tools() { # <workflow>; the docs-only step checks its tools and has its own timeout
+  local step
+  step="$(pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -F 'scripts/tests/run.sh' || true)"
+  local t n=0
+  for t in 'command -v' python3 jq java 'timeout-minutes: 10'; do
+    grep -qF -- "$t" <<<"$step" && n=$((n + 1))
+  done
+  echo "$n"
+}
+pr_job_if() { # <workflow>; counts job-level if: lines of build-and-test
+  awk '/^  build-and-test:$/ { j = 1; next } j && /^    steps:$/ { j = 0 } j && /^    if:/ { n++ } END { print n + 0 }' "$1"
+}
+pr_failure_comment() { # <workflow>; "yes" when the failure comment runs on any failure and shows run.sh failures
+  local step tab=$'\t'
+  step="$(pr_steps "$1" | grep -F 'name: Bình luận lỗi vào PR' || true)"
+  if grep -qE "if: failure\(\)($tab|$)" <<<"$step" && grep -qF '^FAIL - ' <<<"$step"; then echo yes; else echo no; fi
+}
+pr_missing_jobs() { # <workflow>; names of merge-if-green.sh's required and skippable checks with no job in the workflow
+  local names name missing="" count=0
+  names="$(sed -n -E 's/^(REQUIRED|SKIPPABLE)_CHECKS=\((.*)\)$/\2/p' scripts/merge-if-green.sh | tr -d '"')"
+  for name in $names; do
+    count=$((count + 1))
+    grep -qE "^  $name:$" "$1" || missing="$missing $name"
+  done
+  echo "names=$count missing=${missing:- none}"
+}
+expect "pr-check: build-and-test runs scripts/tests/run.sh when the PR changes no code" 1 "$(pr_docs_steps "$pr_wf")"
+expect "pr-check: checkout and Java run for every PR" "yes yes" \
+  "$(pr_unconditional "$pr_wf" actions/checkout@v5) $(pr_unconditional "$pr_wf" actions/setup-java@v5)"
+expect "pr-check: the docs-only path of build-and-test uses no Gradle and no Android SDK" yes "$(pr_gradle_gated "$pr_wf")"
+mkdir -p "$work/prwf"
+grep -v 'uses: actions/setup-java@v5' "$pr_wf" > "$work/prwf/no-java.yml"
+expect "pr-check: the unconditional check names a step that is missing" missing \
+  "$(pr_unconditional "$work/prwf/no-java.yml" actions/setup-java@v5)"
+perl -0pe "s/- if: needs.changes.outputs.code == 'true'\n        uses: gradle\/actions\/setup-gradle/- uses: gradle\/actions\/setup-gradle/" \
+  "$pr_wf" > "$work/prwf/gradle.yml"
+expect "pr-check: the Gradle check fails on a copy whose setup-gradle runs for every PR" no "$(pr_gradle_gated "$work/prwf/gradle.yml")"
+expect "pr-check: the docs-only step checks python3, jq and java first and has its own timeout" 5 "$(pr_docs_step_tools "$pr_wf")"
+expect "pr-check: build-and-test has no job-level if" 0 "$(pr_job_if "$pr_wf")"
+awk '/^  build-and-test:$/ { j = 1 } { print } j && /^    needs: changes$/ { print "    if: needs.changes.outputs.code == '\''true'\''"; j = 0 }' \
+  "$pr_wf" > "$work/prwf/job-if.yml"
+expect "pr-check: the job-level if check fails on a copy that skips build-and-test" 1 "$(pr_job_if "$work/prwf/job-if.yml")"
+expect "pr-check: the failure comment of build-and-test also runs for docs-only PRs" yes "$(pr_failure_comment "$pr_wf")"
+expect "pr-check: every check merge-if-green.sh requires or may skip is a job of pr-check.yml" "names=3 missing= none" \
+  "$(pr_missing_jobs "$pr_wf")"
+sed 's/^  build-and-test:$/  build:/' "$pr_wf" > "$work/prwf/renamed.yml"
+expect "pr-check: the job name check names a renamed job" "names=3 missing= build-and-test" \
+  "$(pr_missing_jobs "$work/prwf/renamed.yml")"
+
 # merge-if-green.sh must reject any argument other than exactly "<PR> [--dry-run]" before doing anything.
 for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; do
   # shellcheck disable=SC2086
@@ -238,6 +312,18 @@ expect "merge-if-green: a PR with docs/STATUS.md gets a warning" 1 "$(grep -c 'P
 # 2026-10-18T02:00:00Z is 1792288800; three minutes later.
 expect "merge-if-green: a commit pushed minutes ago gets a warning" 1 \
   "$(NOW_EPOCH=1792288980 merge_run 12 --dry-run > /dev/null; grep -c 'mới 3 phút trước' "$work/mg.out")"
+# A docs-only PR has this shape: changes green, build-and-test runs scripts/tests/run.sh, ui-test skipped. A red or
+# skipped build-and-test is refused; the same fixture with build-and-test green is ready (L-040).
+red_docs_runs="${green_runs/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"success\"/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"failure\"}"
+skipped_docs_runs="${green_runs/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"success\"/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"skipped\"}"
+merge_routes claude/template-x '{"behind_by": 0}' "$green_runs"
+expect "merge-if-green: a docs-only PR whose build-and-test passed is ready" 0 "$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' "$red_docs_runs"
+expect "merge-if-green: a docs-only PR whose build-and-test failed is refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c 'có kiểm tra không qua: build-and-test\.' "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' "$skipped_docs_runs"
+expect "merge-if-green: a skipped build-and-test is refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c "kiểm tra 'build-and-test' kết thúc với kết quả 'skipped'" "$work/mg.out" || true)"
 merge_routes claude/RUN-20261018-01-report '{"behind_by": 0}' "$green_runs"
 merge_run 12 --dry-run > /dev/null
 # The page is not in git (status-page.yml builds it on the status branch, L-066): no PR carries it, the report PR neither.
@@ -806,7 +892,8 @@ release_fails_with() {
   fi
 }
 write_release_properties() {
-  printf '%s\n' "admobAppId=$1" "adUnits=$2" "assetsBaseUrl=$3" "uploadKeyAlias=upload" > "$release_dir/release.properties"
+  printf '%s\n' "admobAppId=$1" "adUnits=$2" "assetsBaseUrl=$3" "uploadKeyAlias=upload" "appsFlyerDevKey=${4-AbCdEf0123456789XyZ}" \
+    > "$release_dir/release.properties"
 }
 mkdir -p "$release_dir"
 release_fails_with "missing files" "/release/google-services.json"
@@ -815,8 +902,16 @@ write_release_properties "ca-app-pub-3940256099942544~3347511713" "" "https://cd
 release_fails_with "Google test app id" "mã thử của Google"
 write_release_properties "ca-app-pub-1234567890123456/1111111111" "" "https://cdn.example.vn/"
 release_fails_with "ad unit given as app id" "admobAppId phải có dạng"
-write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner=ca-app-pub-3940256099942544/9214589741" "https://cdn.example.vn/"
-release_fails_with "Google test ad unit" "mã quảng cáo thử"
+# A Google test unit given by hand is accepted (2026-10-26): the folder check goes on to the next value.
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner=ca-app-pub-3940256099942544/9214589741" "http://cdn.example.vn/"
+release_fails_with "a Google test ad unit given by hand passes the ad unit check" "assetsBaseUrl phải"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
+release_fails_with "missing AppsFlyer dev key" "thiếu appsFlyerDevKey"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "key with spaces"
+release_fails_with "AppsFlyer dev key with odd characters" "thiếu appsFlyerDevKey"
+expect "release.sh never prints the AppsFlyer dev key" 0 \
+  "$(write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/" "SecretKey0123456789"
+     scripts/release.sh --config "$release_dir" 2>&1 < /dev/null | grep -c 'SecretKey0123456789' || true)"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner" "https://cdn.example.vn/"
 release_fails_with "malformed ad unit entry" "mục adUnits"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/"
@@ -825,6 +920,14 @@ release_fails_with "unknown argument" "tham số không hợp lệ" --upload
 expect "release.sh: native placements and placements with attributes need a production ad unit, gallery ones do not" \
   "sample_bottom_banner sample_native_small home_full_screen inter_sounds list_native" \
   "$(scripts/release.sh --list-placements scripts/tests/fixtures/release/AdPlacement.kt | tr '\n' ' ' | sed 's/ $//')"
+# Placements without a real unit get Google's test unit of their format, and are listed (decision 2026-10-26).
+expect "release.sh: placements without a real unit get the test unit of their format" \
+  "sample_bottom_banner=ca-app-pub-1/2;sample_native_small=ca-app-pub-3940256099942544/2247696110;home_full_screen=ca-app-pub-3940256099942544/1044960115;inter_sounds=ca-app-pub-3940256099942544/1033173712;list_native=ca-app-pub-3940256099942544/2247696110" \
+  "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2> /dev/null)"
+expect "release.sh: lists the placements that got a test unit" 1 \
+  "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2>&1 > /dev/null | grep -c 'không có doanh thu) cho vị trí: sample_native_small home_full_screen inter_sounds list_native.$')"
+expect "release.sh: every real placement has a test unit for its format" 0 \
+  "$(code=0; scripts/release.sh --fill-test-units core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt '' > /dev/null 2>&1 || code=$?; echo $code)"
 printf '%s\n' 'enum class AdPlacement(val key: String) {' '    WRAPPED(' '        "wrapped",' '        AdFormat.BANNER,' '    ),' '}' \
   > "$work/WrappedAdPlacement.kt"
 expect "release.sh refuses a placement wrapped over several lines" "1 1" \
@@ -1771,6 +1874,15 @@ expect "status: a checked item leaves the page" "0 1" \
   "$(grep -c 'Kiểm FPS' "$page" || true) $(grep -c 'RUN-20261004-01.md): T-040' "$page" || true)"
 expect "status: check passes after the release readiness section" "0 1" \
   "$(status_page --check > /dev/null; echo $?) $(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true)"
+# The page also builds from this repository's own docs, so a docs-only PR with a lesson number used twice is red in
+# build-and-test, not only in status-page.yml after the merge (L-040).
+mkdir -p "$work/status-real"
+cp -R docs "$work/status-real/docs"
+expect "status: the progress page builds from this repository's docs" 0 \
+  "$(STATUS_ROOT="$work/status-real" python3 -I scripts/status.py > "$work/status-real.out" 2>&1; echo $?)"
+printf -- '\n### L-040. Trùng số\n\n- **Trạng thái:** proposed\n' >> "$work/status-real/docs/lessons.md"
+expect "status: this repository's docs with a lesson number used twice stop the page" "1 1" \
+  "$(STATUS_ROOT="$work/status-real" python3 -I scripts/status.py > "$work/status-real.out" 2>&1; echo $?) $(grep -c 'số bài học dùng hai lần: L-040' "$work/status-real.out" || true)"
 
 
 # status.py --sync moves each ticket's status after its plan's (L-050).
