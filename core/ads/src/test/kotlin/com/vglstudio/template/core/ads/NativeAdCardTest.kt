@@ -490,6 +490,18 @@ class NativeAdCardTest {
         return layouts.single().lineCount
     }
 
+    /**
+     * Whether the laid-out call-to-action [text] is cut in height (plan T-045): its box is lower than its line. Not
+     * `didOverflowHeight`, which is also true for a long text cut with "…" across.
+     */
+    private fun ctaOverflows(text: String): Boolean {
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeRule.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult].action!!(layouts)
+        val layout = layouts.single()
+        return layout.size.height < layout.multiParagraph.height
+    }
+
     @Test
     fun full_partsKeepSize_insideCard_textsAndFontScales() {
         var fontScale by mutableStateOf(1f)
@@ -511,7 +523,13 @@ class NativeAdCardTest {
                 val media = bounds(NativeAdTestTags.MEDIA)
                 val badgeBounds = bounds(NativeAdTestTags.BADGE)
                 assertEquals("card, $case", FULL_HEIGHT.value, (card.bottom - card.top).value, 0.5f)
-                assertEquals("call to action, $case", 36f, (cta.bottom - cta.top).value, 0.5f)
+                // Plan T-045: the call to action is 36 dp at least and grows with its one line of text.
+                if (scale <= 1.3f) {
+                    assertEquals("call to action, $case", 36f, (cta.bottom - cta.top).value, 0.5f)
+                } else {
+                    assertTrue("call to action, $case", (cta.bottom - cta.top).value >= 36f - 0.5f)
+                    assertFalse("call to action text overflows, $case", ctaOverflows(current.callToAction!!))
+                }
                 assertEquals("star row, $case", 16f, (stars.bottom - stars.top).value, 0.5f)
                 // 12 dp inner margin and 1 dp border below the star row.
                 assertTrue(
@@ -547,7 +565,9 @@ class NativeAdCardTest {
         val stars = bounds(NativeAdTestTags.STAR_ROW)
         val media = bounds(NativeAdTestTags.MEDIA)
         assertEquals("media", 120f, (media.bottom - media.top).value, 0.5f)
-        assertEquals("call to action", 36f, (cta.bottom - cta.top).value, 0.5f)
+        // Plan T-045: the call to action is 36 dp at least and grows with its one line of text.
+        assertTrue("call to action", (cta.bottom - cta.top).value >= 36f - 0.5f)
+        assertFalse("call to action text overflows", ctaOverflows(longFullNativeAdAssets.callToAction!!))
         assertEquals("star row", 16f, (stars.bottom - stars.top).value, 0.5f)
         assertEquals("star row to card bottom", 13f, (card.bottom - stars.bottom).value, 0.5f)
         assertTrue("card is ${card.bottom - card.top} high", (card.bottom - card.top).value > FULL_HEIGHT.value + 0.5f)

@@ -52,6 +52,13 @@ object NativeFullScreenStepDefaults {
     val MinHeight: Dp = 200.dp
 }
 
+/** Numbers of the card of a flow step ([NativeStepAd]) for the app (plan T-045). */
+object NativeStepAdDefaults {
+    /** The height of the step card at the current font scale. Empty skeleton of the test commit (plan T-045). */
+    @Composable
+    fun height(): Dp = 250.dp
+}
+
 /**
  * The native card of a flow step (MC-06, OB-01, OB-02; plan T-032): 250 dp, from the pool of its placement
  * (`native_step`, P-02), drawn outside the pager. Pass the key of the step on screen as [step] (for example
