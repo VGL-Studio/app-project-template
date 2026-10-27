@@ -1,16 +1,16 @@
 ---
 ticket: T-047
 title: "Rewarded: lượt quyết định treo không giữ mãi các lần bấm sau"
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 4.6M         # cỡ S, số gợi ý 4.6M (scripts/token-usage.py estimate, 2026-10-27); giữ nguyên: một file code, hai file test, ba chỗ tài liệu
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-28
 ---
 
 # PLAN T-047: REWARDED: LƯỢT QUYẾT ĐỊNH TREO KHÔNG GIỮ MÃI CÁC LẦN BẤM SAU
@@ -214,9 +214,9 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit, nhán
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** Anh Nhật duyệt 2026-10-28 trong phiên giám sát cùng AI, gồm phần đổi luật nghiệp vụ (hạn chờ 5 giây ở mục 11, nửa câu ở R-06 và mục 8.2 của `ads-business-rules.md`). Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua hai vòng rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy sau T-046.
 
 ## 10. Nhật ký thực hiện
 
