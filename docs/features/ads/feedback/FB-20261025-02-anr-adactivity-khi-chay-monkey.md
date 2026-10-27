@@ -7,7 +7,7 @@ build: 0.1.0-staging (main 934695d, chưa phát)
 feature: ads
 ticket:
 severity: chan               # auto-run.md mục 4: crash hay ANR thì không phát staging
-status: wontfix
+status: fixed
 created: 2026-10-25
 ---
 
@@ -55,11 +55,25 @@ Không có ảnh lúc ANR. Artifact `device-session` của lần chạy 40228765
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-- **Loại:** lỗi môi trường của emulator CI (không GPU), không do code của app
-- **Xử lý:** không sửa; gặp lại cùng dấu hiệu thì mở lại và so với nhánh chính trước đó
-- **Lý do:** chạy lại cùng hạt giống monkey trên `135fac7` (lần chạy 40249869438) và ở RUN-20261026-04, RUN-20261026-05: 0 ANR. ANR nằm trong `AdActivity` của SDK khi monkey gửi sự kiện trackball lúc quảng cáo thử đang hiện
-- **Liên kết:** TS-20261025-04, TS-20261026-01
+- **Loại:** lỗi môi trường của emulator CI (không GPU) khi monkey chạm vào quảng cáo toàn màn hình thử, chưa thấy do code của app; nhưng lặp lại và làm phiên không phát staging
+- **Xử lý:** anh Nhật quyết 2026-10-27: `scripts/device-session.sh` đếm riêng ANR chỉ nằm trong `AdActivity` của SDK, mức `xem`, không chặn phát staging; ANR ở activity của app vẫn chặn. Có test
+- **Lý do:** ngày 2026-10-27 đã chuyển `wontfix` vì ba lần chạy lại đều 0 ANR; cùng ngày lặp lại (dưới), nên mở lại
+- **Liên kết:** TS-20261025-04, TS-20261026-01, TS-20261027-01
 
 ## Chạy lại 2026-10-26
 
 `device-session.yml` lần chạy 40249869438 trên `135fac7` (có thêm T-028), phiên `TS-20261026-01`, cùng hạt giống monkey 20261017: crash 0, ANR 0, monkey đủ 1500 sự kiện; kịch bản `T-024-mo-app-tu-choi-dong-y.txt` đạt (20 giây). Không lặp lại; giữ mục này để so nếu gặp lại.
+
+## Lặp lại 2026-10-27
+
+`device-session.yml` lần chạy 40451148896 trên nhánh chính `ecaf377`, phiên `TS-20261027-01`, cùng hạt giống monkey 20261017: crash 0, ANR 2 (mức chặn), monkey dừng ở 1059 trên 1500 sự kiện ("System appears to have crashed"). Kịch bản theo plan T-024 đạt. Trước ANR của app, hệ thống emulator đã có ANR ở tiến trình khác:
+
+```text
+10-27 04:58:43.959 E ActivityManager: ANR in com.google.android.as
+10-27 04:58:44.276 E ActivityManager: ANR in com.google.android.gms.persistent
+10-27 04:59:06.537 E ActivityManager: ANR in com.google.android.gms.persistent
+10-27 05:01:28.446 I WindowManager: ANR in Window{... com.vglstudio.template.staging/com.google.android.gms.ads.AdActivity}. Reason:Input dispatching timed out (... AdActivity (server) is not responding ...)
+```
+
+Lần này sự kiện chờ là `TOUCHSCREEN`, không phải `TRACKBALL`. Đã gặp ở 2 trong 6 lần chạy gần nhất, luôn trong `AdActivity` của quảng cáo thử khi monkey chạm vào nó. Hệ quả: phiên tự chạy nào gặp lại thì không phát staging (`auto-run.md` mục 4).
+
