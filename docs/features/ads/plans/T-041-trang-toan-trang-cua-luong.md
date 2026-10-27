@@ -2,15 +2,15 @@
 ticket: T-041
 title: Native toàn trang của luồng giữ CTA trong màn thấp và hiện quảng cáo mới sau khi xoay, gập máy
 status: approved                # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 22M          # cỡ M, số gợi ý 19.6M (scripts/token-usage.py estimate, 2026-10-26); bỏ phần giữ quảng cáo, thêm đo cỡ chữ, khung chờ và test qua AdsController thật, ghi lại ảnh chuẩn ở hai module
 blocking_points: [ads, core, analytics]
-run_order: 4                   # AI điền sau họp đánh giá rủi ro
+run_order: 1                   # AI điền sau họp đánh giá rủi ro
 reviewer: Nhật                    # người duyệt
 cross_reviewer: Nhật              # bắt buộc khi risk_level là high
-approved_at: 2026-10-26
+approved_at: 2026-10-27
 ---
 
 # PLAN T-041: NATIVE TOÀN TRANG CỦA LUỒNG GIỮ CTA TRONG MÀN THẤP VÀ HIỆN QUẢNG CÁO MỚI SAU KHI XOAY, GẬP MÁY
@@ -19,6 +19,8 @@ approved_at: 2026-10-26
 
 Hai phần. (1) Bố cục: trang native toàn trang của một bước (`NativeFullScreenStep`, `:core:ads`) chọn bố cục theo chiều cao app cho. Đủ chỗ thì là cột như thiết kế: media co trước, không dưới 120 dp, rồi phần mô tả bớt dòng. Thấp hơn thì là hàng ngang gọn: media bên trái, chữ và CTA bên phải. Thấp hơn mức tối thiểu (200 dp ở cỡ chữ 1.0) thì trang không lấy quảng cáo. Chiều cao không giới hạn thì media cố định 200 dp. Đầu quảng cáo cao theo cỡ chữ hệ thống, và các mức trên tính theo nó. Trang "Flow steps" của màn xem thử không giữ khung thẻ 250 dp ở bước toàn trang, nút Next không đổi chỗ. (2) Xoay, gập máy: theo quyết định của anh Nhật (2026-10-26) và T-040, dựng lại activity đóng khe như mọi khe native: quảng cáo cũ bị hủy, trang dựng lại xin và hiện quảng cáo mới. Đọc code và chạy thử qua `AdsController` thật cho thấy đường này đã chạy. Trang chỉ trống trong lúc chờ quảng cáo mới vì trang không vẽ gì khi chưa có quảng cáo. Task thêm khung chờ tĩnh cho lúc đó, và test dựng lại activity qua `AdsController.fullScreenStep` thật để giữ hành vi này.
 
+
+**Phiên bản 2 (RUN-20261026-05, vì sao plan chưa đủ tốt):** phiên bản 1 dừng ở bước 5. Test có sẵn `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` (T-032) có câu đối chứng `bounds(STEP_CARD).top >= bounds(FLOW_PAGER).bottom - 1`: thẻ nằm dưới pager về hình học. Mục 3.1 bước 3 của plan đặt pager lấp cả vùng bước và khung thẻ 250 dp đè ở đáy vùng đó, còn test viết trước `flowSteps_pagerHeight_sameOnCardAndFullPage` đòi pager cao như nhau ở mọi bước. Ba điều này không thể cùng đúng, nên câu đối chứng đỏ; sửa nó là đổi điều một test cũ kiểm về hành vi đã có (`risk-scoring.md` mục 4, điều kiện 3 và 5). Lần chạy thử ở mục 4.1 không thấy vì khi đó khung thẻ cao 0 dp ở bước toàn trang. Phần MC-06 của test (thẻ không có pager là tổ tiên) vẫn qua. Thay đổi so với phiên bản 1: chỉ thêm câu hỏi 9 ở mục 8 và dòng sửa test ở mục 3.2; cách làm không đổi.
 ## 2. Hiểu yêu cầu
 
 Ticket xử lý KB-20 trong `features/ads/spec.md` (spec `confirmed` 2026-10-26), luật MC-06, OB-01, OB-02, O-01, O-08, G-03, S-11 trong `docs/ops/ads-business-rules.md`. Lỗi gốc: ảnh chuẩn `app/src/test/screenshots/AdGalleryScreen_flow-full-page_small.png` (ghi chú rà soát của T-036) và ghi chú rà soát của T-032 (xoay, gập máy thì trang mất quảng cáo).
@@ -39,6 +41,8 @@ ADR liên quan: ADR-0013, ADR-0020, ADR-0026, ADR-0027, ADR-0029.
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
+
+**Cách tiếp tục (phiên bản 2):** tiếp tục trên nhánh cũ `claude/T-041-trang-toan-trang` (commit test `49e2fd7`, code `4e60b58`, chưa có PR). Cập nhật nhánh theo nhánh chính, sửa `flowSteps_cardOutsidePager_followsStep` theo trả lời của câu hỏi 9, chạy lại `scripts/check.sh`, rồi làm tiếp từ bước 6 (rà soát độc lập). Bước 3 chỉ áp dụng cho test đổi điều kiểm của câu hỏi 9. Phần còn lại của mục 3.1 đã làm xong trên nhánh: theo đúng phiên bản 1, lệch ghi ở mục 10.
 
 **Phần 1. Bố cục trang toàn trang (KB-20, O-08).**
 
@@ -120,7 +124,7 @@ Mẫu làm theo:
 | Tạo | `core/ads/src/test/screenshots/NativeFlowStep_full-page-placeholder_light.png` | Ảnh chuẩn mới, khung chờ tĩnh, khung `w411dp-h891dp-xxhdpi` |
 | Sửa | `core/ads/src/test/screenshots/NativeFlowStep_full-page_light.png`, `NativeFlowStep_full-page_dark.png`, `NativeFlowStep_full-page_small.png` | Dự kiến không đổi (trang 807 dp và 556 dp, cột ở cỡ chữ 1.0; chạy thử với khung API tạm: `verifyRoborazziDebug` qua). Đổi thì dừng (mục 7) |
 | Sửa | `app/src/staging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreen.kt` | `FlowStepsPage`: khung thẻ đặt đè ở đáy vùng bước, chỉ dựng ở bước có thẻ; KDoc |
-| Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenTest.kt` | Sửa `flowSteps_smallScreen_nextNotCovered` (bước toàn trang không còn khung 250 dp, theo phạm vi ticket); thêm test mục 4 |
+| Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenTest.kt` | Sửa `flowSteps_smallScreen_nextNotCovered` (bước toàn trang không còn khung 250 dp, theo phạm vi ticket); phiên bản 2: sửa câu đối chứng của `flowSteps_cardOutsidePager_followsStep` theo câu hỏi 9; thêm test mục 4 |
 | Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenScreenshotTest.kt` | Thêm ảnh khung ngang |
 | Sửa | `app/src/test/screenshots/AdGalleryScreen_flow-full-page_light.png`, `AdGalleryScreen_flow-full-page_small.png` | Ghi lại (trang lớn hơn, CTA đủ; chạy thử thấy hai ảnh này đổi) |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_flow-full-page_landscape.png` | Ảnh chuẩn mới, khung `w640dp-h360dp-xxhdpi` |
@@ -382,6 +386,13 @@ Không thêm vị trí, quyền, SDK hay dữ liệu lưu trên máy. Mức Cao,
 
 Không còn câu hỏi mở.
 
+Câu hỏi của phiên bản 2:
+
+9. **Câu đối chứng "thẻ nằm dưới pager" của `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` mâu thuẫn với khung thẻ đặt đè ở đáy vùng bước (mục 3.1 bước 3).**
+   - Đề xuất của AI: đổi câu đối chứng thành "thẻ nằm ở đáy vùng bước": `bounds(STEP_CARD).bottom` bằng `bounds(FLOW_PAGER).bottom` (sai số 1 dp) và thẻ cao 250 dp; giữ phần MC-06 (không có pager là tổ tiên) như cũ. Điều test kiểm về MC-06 không đổi, chỉ đổi vị trí hình học theo bố cục mới.
+   - Phương án khác: (b) bỏ test viết trước `flowSteps_pagerHeight_sameOnCardAndFullPage`, cho pager ở bước thẻ thấp hơn 250 dp, thẻ nằm dưới pager như hôm nay (giao diện nhảy khi chuyển giữa bước thẻ và bước toàn trang); (c) giữ cả hai, thêm khoảng đệm 250 dp dưới pager ở mọi bước và cho trang toàn trang tràn xuống phần đệm (trang không còn là con của pager theo chiều cao, phức tạp hơn).
+   - Trả lời (2026-10-27, anh Nhật giao AI xử lý, chọn đề xuất của AI): đổi câu đối chứng theo đề xuất, viết cụ thể như sau. (1) `bounds(FLOW_CARD_FRAME).bottom` bằng `bounds(FLOW_PAGER).bottom` (sai số `TOLERANCE_DP`): khung thẻ ở đáy vùng bước. (2) `STEP_CARD` nằm trọn trong `FLOW_CARD_FRAME`. (3) Đỉnh của `STEP_CARD` không cao hơn đáy của chữ "Step 2 of 3": thẻ không che nội dung của bước, là điều câu cũ giữ. Giữ nguyên phần MC-06 (không có pager là tổ tiên) và phần chuyển bước. Lý do: (b) làm nút Next nhảy chỗ (OB-01, đã duyệt ở câu 1 đến 8); (c) phức tạp hơn mà không thêm gì cho người dùng. Ba câu mới kiểm cùng điều câu cũ kiểm (thẻ ngoài pager, không che bước) trên bố cục đã duyệt, nên không phải nới test (`risk-scoring.md` mục 4, điều kiện 5). Đã chạy thử ba câu này trên nhánh (`4e60b58`, 2026-10-27): `AdGalleryScreenTest` 36 test qua, 0 lỗi.
+
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này. -->
@@ -390,6 +401,23 @@ Không còn câu hỏi mở.
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
 - **Ghi chú:** Anh Nhật duyệt 2026-10-26 trong phiên giám sát cùng AI. Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy thứ 4 trong RUN-20261026-05. 
 
+Phiên bản 2: Duyệt, 2026-10-27. Anh Nhật giao AI xử lý task bị dừng của RUN-20261026-05; câu hỏi 9 theo đề xuất của AI (mục 8). Chạy thứ 1 trong RUN-20261026-06.
+
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-05, phiên bản plan 1
+
+- **Kết quả:** dừng ở bước 5 (`risk-scoring.md` mục 4, điều kiện 3): test có sẵn `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` đỏ ở câu đối chứng "thẻ nằm dưới pager" (dòng 491), mâu thuẫn với mục 3.1 bước 3 và test viết trước `flowSteps_pagerHeight_sameOnCardAndFullPage`. Không sửa test. Plan phiên bản 2 ở trên.
+- **Nhánh, PR:** `claude/T-041-trang-toan-trang` (từ nhánh chính `04e80c0`). Commit test `49e2fd7`, code `4e60b58` (thông điệp ghi rõ chưa qua `check.sh`), đã đẩy. Chưa mở PR. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-041` (L-052).
+- **Đã làm:** mọi phần của mục 3.1: `NativeFlowStepLayout.kt` (`FlowStepMetrics`, `flowStepMetrics`, `FlowStepPageLayout` với cột giữ sàn media `MinMediaSize`, hàng ngang gọn, chiều cao không giới hạn media 200 dp; `FlowStepPagePlaceholder`); `NativeFlowStep.kt` (`MinHeight` 200 dp, cổng đo chiều cao `fits`, `ReportNativeEligible(allowed && shown && fits)`, khung chờ `FULL_PAGE_PLACEHOLDER`); `NativeFullScreenAdScreen.kt` (nhánh `onClose == null` dùng `FlowStepPageLayout`, đầu quảng cáo `heightIn(min = 48.dp)`, tag `BODY`); `AdGalleryScreen.kt` (khung thẻ đè ở đáy vùng bước); `ads-guide.md`, `design/README.md`.
+- **Test viết trước:** 23 test mới, sửa `flowSteps_smallScreen_nextNotCovered` (plan cho phép). 16 đỏ đúng lý do trên khung rỗng (ví dụ CTA 27 dp ở trang 255 dp; media 0 dp khi chiều cao không giới hạn; media 44 dp ở 360 dp; 190 dp vẫn lấy quảng cáo; trang trên màn xem thử chỉ 234 dp). Qua ngay như plan nêu: bốn test dựng lại (`recreate_*`, đường hủy và nạp lại có sẵn; hai test có đối chứng bật lại khóa hay mở lại đồng ý) và `flowSteps_pagerHeight_sameOnCardAndFullPage` (đối chứng với khung tạm `height(if (fullPage) 0 else 250)` đỏ, 557 so với 807). 9 test viết chặt bằng đối chứng. Test JVM mọi module sau commit test: chỉ 16 test đó đỏ.
+- **Kiểm tra cục bộ:** `scripts/check.sh` dừng ở bước ghi ảnh của `:app` vì 1 test đỏ (test nói trên). Chạy tay các task của cổng với `--continue`: `checkModuleDependencies`, `ktlintCheck`, `:app:lintStagingDebug`, `:app:assembleStagingDebug`, `verifyRoborazziDebug` của các module thư viện qua; test JVM `:core:ads` 1030 test 0 lỗi, `:app` 142 test 1 lỗi.
+- **Rà soát độc lập:** chưa làm (dừng trước bước 6).
+- **Kết quả CI:** chưa có.
+- **Lệch so với plan:** `fontScale_requiredPartsKeepSize` tính "một dòng" bằng cỡ chữ đổi sang dp nhân `lineHeight / fontSize` (Compose đổi chiều cao dòng qua bảng phi tuyến: 21,0 dp ở cỡ 1.3, không phải 20,2 dp), điều test kiểm không đổi; `shrinkOrder` ở 400 dp ra media 124 dp (test kiểm sàn từ 120 dp); media ở bố cục cột dùng `Layout` riêng đo các phần thật như T-044, nên ảnh `NativeFlowStep_full-page_*` giữ nguyên từng byte. S-11 thu hồi đồng ý bằng `controller.resetConsent()`.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** mới `NativeFlowStep_full-page-compact_light.png`, `NativeFlowStep_full-page-placeholder_light.png` (`core/ads`), `AdGalleryScreen_flow-full-page_landscape.png` (`app`); ghi lại `AdGalleryScreen_flow-full-page_light.png`, `_small.png`. Các ảnh khác giữ nguyên từng byte. Phiên con đã mở xem từng ảnh.
+- **Việc còn lại:** câu hỏi 9 ở mục 8; rồi bước 5 đến 10 trên nhánh cũ.
+- **Cần người xem:** câu hỏi 9; T-045 bị bỏ qua vì phụ thuộc T-041.

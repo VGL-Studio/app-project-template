@@ -23,7 +23,10 @@ import org.robolectric.Shadows.shadowOf
  * The real [AdsController] with the combo key on (plan T-026, L-072): every way an interstitial turn that passed the
  * gate can end reaches the combo, with no gap in the showing flag or the resume block; turns blocked at the gate, the
  * startup interstitial and the standalone native full-screen turn never open the combo. No SDK ad is needed: the
- * turns are opened with [AdsController.beginInterstitialTurn] and [AdsController.beginStandaloneNativeTurn].
+ * turns are opened with [AdsController.beginInterstitialTurn] and [AdsController.beginStandaloneNativeTurn]. The
+ * standalone native full-screen turn is also played through [AdsController.showFullScreenAd], the path of
+ * [rememberShowFullScreenAd], with an ad put in its slot by [AdsController.putPreloadedNativeFullScreenForTest] (plan
+ * T-044): no ad skips the turn as `NOT_READY`, a turn still open past the cap of F-02 skips the next one as `BUSY`.
  */
 @RunWith(AndroidJUnit4::class)
 class AdsControllerNativeComboTest {
@@ -251,5 +254,81 @@ class AdsControllerNativeComboTest {
         assertNull(controller.nativeFullScreenView.value)
         // The caller skips the turn (NOT_READY), which runs onFinished once.
         assertEquals(0, finishes)
+    }
+
+    /** Turns the standalone native full-screen placement on and opens the consent gate, as on a device. */
+    private fun enableStandaloneThroughShow() {
+        settings.set(AdsSettings.placementEnabled(AdPlacement.GALLERY_NATIVE_FULL_SCREEN), true)
+        controller.openConsentGateForTest()
+        idle()
+        assertTrue(controller.canRequestAds.value)
+    }
+
+    /** Plays [AdPlacement.GALLERY_NATIVE_FULL_SCREEN] through [AdsController.showFullScreenAd]; returns its result. */
+    private fun showStandalone(onDone: () -> Unit): Boolean? {
+        var result: Boolean? = null
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            result = controller.showFullScreenAd(activity, AdPlacement.GALLERY_NATIVE_FULL_SCREEN, onDone)
+        }
+        idle()
+        return result
+    }
+
+    @Test
+    fun standalone_noAd_throughShow_skipsNotReady_finishesOnce() {
+        enableStandaloneThroughShow()
+        val result = showStandalone(onFinished)
+        assertEquals(false, result)
+        assertEquals(1, finishes)
+        assertTrue(
+            logger.entries.any { it.message == "Full-screen gallery_native_full_screen skipped: NOT_READY" },
+        )
+        assertFalse(controller.fullScreenAdShowing.value)
+        assertNull(controller.nativeFullScreenView.value)
+        idleFor(5_000)
+        assertEquals(1, finishes)
+    }
+
+    @Test
+    fun standalone_withAd_throughShow_opensTurn() {
+        enableStandaloneThroughShow()
+        val ad = FakeLoadedNativeAd()
+        controller.putPreloadedNativeFullScreenForTest(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, ad)
+        val result = showStandalone(onFinished)
+        assertEquals(true, result)
+        assertEquals(0, finishes)
+        assertTrue(controller.nativeFullScreenView.value!!.ad === ad)
+        assertFalse(logger.entries.any { it.message.contains("skipped") })
+        // The consent gate is open, so the close button waits for its countdown of 3 s (K-03).
+        idleFor(3_000)
+        assertTrue(controller.nativeFullScreenView.value!!.closeEnabled)
+        controller.closeNativeFullScreen()
+        assertEquals(1, finishes)
+    }
+
+    @Test
+    fun standalone_turnOpenPastCap_throughShow_skipsBusy_keepsAdInSlot() {
+        enableStandaloneThroughShow()
+        val first = FakeLoadedNativeAd()
+        controller.putPreloadedNativeFullScreenForTest(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, first)
+        assertEquals(true, showStandalone(onFinished))
+        // F-02: past the cap of 10 minutes the showing flag no longer reads busy and the gate says SHOW, but the
+        // first turn is still open.
+        idleFor(FullScreenAdPresence.SHOWING_CAP_MILLIS + 1)
+        val second = FakeLoadedNativeAd()
+        controller.putPreloadedNativeFullScreenForTest(AdPlacement.GALLERY_NATIVE_FULL_SCREEN, second)
+        var secondFinishes = 0
+        val result = showStandalone { secondFinishes++ }
+        assertEquals(false, result)
+        assertEquals(1, secondFinishes)
+        assertTrue(logger.entries.any { it.message == "Full-screen gallery_native_full_screen skipped: BUSY" })
+        assertFalse(logger.entries.any { it.message.contains("skipped: NOT_READY") })
+        // The second ad is not taken out of its slot.
+        assertTrue(controller.isFullScreenAdReady(AdPlacement.GALLERY_NATIVE_FULL_SCREEN))
+        assertEquals(0, second.destroyCount)
+        assertTrue(controller.nativeFullScreenView.value!!.ad === first)
+        assertEquals(0, finishes)
+        controller.closeNativeFullScreen()
+        assertEquals(1, finishes)
     }
 }

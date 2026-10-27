@@ -7,7 +7,7 @@ risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 22M          # cỡ M, số gợi ý 19.6M (scripts/token-usage.py estimate, 2026-10-26); cộng ma trận cỡ chữ cho chín dạng native, chiều cao thẻ ở bước dùng chung cho thẻ, khung chờ và màn xem thử, sửa hai test của T-044
 blocking_points: [ads, core]
-run_order: 5                   # AI điền sau họp đánh giá rủi ro
+run_order: 2                   # AI điền sau họp đánh giá rủi ro
 reviewer: Nhật                    # người duyệt
 cross_reviewer: Nhật              # bắt buộc khi risk_level là high
 approved_at: 2026-10-26
