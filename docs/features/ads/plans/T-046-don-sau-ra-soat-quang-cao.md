@@ -43,9 +43,9 @@ Năm phần, mỗi phần nhỏ và độc lập.
 
 **A. Bỏ `safeArea` của `NativeFullScreenFrame` (T-041).** `NativeFullScreenAdScreen.kt`: hai nơi gọi (`NativeFullScreenAdLayout` nhánh sau inter, `NativeFullScreenOverlay.kt` khung chờ) đều dùng giá trị mặc định `true`. Bỏ tham số, giữ `.windowInsetsPadding(WindowInsets.safeDrawing)` không điều kiện (bỏ `.then(if (safeArea) … else Modifier)`). KDoc mới: "The page of the native full-screen ad after an interstitial and of its placeholder: background, the safe area of the window, margins, 16 dp gaps. The page of a flow step has its own frame ([FlowStepPageFrame], plan T-041)." `NativeFullScreenOverlay.kt` không phải sửa (gọi theo vị trí, chỉ truyền `modifier` và `content`).
 
-**B. Bỏ `growWithText` của `NativeFullScreenAdHeader` (T-045).** Hai nơi gọi (`NativeFullScreenAdLayout` nhánh sau inter, `FlowStepPageLayout` trong `NativeFlowStepLayout.kt`) đều truyền `true`. Bỏ tham số, giữ `Modifier.heightIn(min = NativeFullScreenAdDimens.HeaderHeight)` không điều kiện; bỏ nhánh `height(...)` cố định. Hai nơi gọi bỏ đối số `growWithText = true`; bỏ luôn dòng chú thích "The head grows with the text…" ở nhánh sau inter nếu KDoc của hàm đã nói. KDoc mới: "Icon, headline, then the "Ad" label with the advertiser: 48 dp at least, taller with the text, so the headline and the "Ad" label are never cut when the system text is large (O-08; plans T-041, T-045)."
+**B. Bỏ `growWithText` của `NativeFullScreenAdHeader` (T-045).** Hai nơi gọi (`NativeFullScreenAdLayout` nhánh sau inter, `FlowStepPageLayout` trong `NativeFlowStepLayout.kt`) đều truyền `true`. Bỏ tham số, giữ `Modifier.heightIn(min = NativeFullScreenAdDimens.HeaderHeight)` không điều kiện; bỏ nhánh `height(...)` cố định. Hai nơi gọi bỏ đối số `growWithText = true`; bỏ dòng chú thích `// The head grows with the text…` ở `NativeFullScreenAdScreen.kt:123` (nhánh sau inter), vì KDoc mới của hàm đã nói ý đó. KDoc mới: "Icon, headline, then the "Ad" label with the advertiser: 48 dp at least, taller with the text, so the headline and the "Ad" label are never cut when the system text is large (O-08; plans T-041, T-045)."
 
-**C. `docs/ops/ads-guide.md`, bảng kích thước (T-044).** Ô "Khung" của cột "Đầy đủ (`FULL`)": "cao 418 dp như khung chờ (mô tả ít nhất 2 dòng), như small" thành "cao 418 dp như khung chờ (mô tả đúng 2 dòng, cao ít nhất 40 dp), như small". Code: `FULL_BODY_LINES = 2` cho cả `minLines` và `maxLines`, khung `heightIn(min = NativeAdDimens.BodyHeight)` (40 dp) (`NativeAdCard.kt`, `FullLayout`). Không script, workflow hay test nào đọc `ads-guide.md` (`grep -rn ads-guide.md scripts/ .github/ */src/test core/*/src/test`: không có), nên không file nào khác bị ảnh hưởng (L-020).
+**C. `docs/ops/ads-guide.md`, bảng kích thước (T-044).** Ô "Khung" của cột "Đầy đủ (`FULL`)": "cao 418 dp như khung chờ (mô tả ít nhất 2 dòng), như small" thành "cao 418 dp như khung chờ (mô tả đúng 2 dòng, cao ít nhất 40 dp; không có mô tả thì chỗ trống 40 dp), như small". Code: `FULL_BODY_LINES = 2` cho cả `minLines` và `maxLines`, khung `heightIn(min = NativeAdDimens.BodyHeight)` (40 dp) (`NativeAdCard.kt`, `FullLayout`). Không script, workflow hay test nào đọc `ads-guide.md` (`grep -rn ads-guide.md scripts/ .github/ */src/test core/*/src/test`: không có), nên không file nào khác bị ảnh hưởng (L-020).
 
 **D. `RewardedTurnsTest` (T-042).**
 
@@ -105,7 +105,7 @@ Không có: plan không đổi hành vi nào. Code `main` chỉ bỏ hai tham s�
 
 ## 4. Kiểm thử
 
-Code `main` của plan chỉ bớt tham số, nên không có test mới đỏ được vì phần đó; hành vi được canh bằng test và ảnh có sẵn (mục 3.5, dòng 4 dưới). Hai test sửa ở `RewardedTurnsTest` và `AdsControllerResumeTest` là chính phần việc của ticket: viết câu khẳng định mới trước, xem nó đỏ đúng lý do trên code hôm nay, rồi mới thêm phần làm nó đúng.
+Code `main` của plan chỉ bớt tham số, nên không có test mới đỏ được vì phần đó; hành vi được canh bằng test và ảnh có sẵn (bảng dưới, dòng KB-5, KB-16, KB-20). Hai test sửa ở `RewardedTurnsTest` và `AdsControllerResumeTest` là chính phần việc của ticket: viết câu khẳng định mới trước, xem nó đỏ đúng lý do trên code hôm nay, rồi mới thêm phần làm nó đúng.
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
@@ -158,6 +158,7 @@ Code `main` của plan chỉ bớt tham số, nên không có test mới đỏ �
 
 - Sau khi bỏ tham số, một ảnh chuẩn sẵn có lệch (`verifyRoborazzi*` báo lỗi): dừng, không ghi lại ảnh; báo ảnh và chỗ lệch. Plan không cho ghi lại ảnh nào.
 - Ở bước 3, câu khẳng định mới của đối chứng T-042 qua ngay khi chưa có `clear()` (khác số đo mục 4.1): dừng, báo số dòng nhập vào và số cổng đo được; không đổi câu cho tới khi đỏ.
+- Sau khi thêm `clear()`, câu số dòng nhập vào hay số cổng của đối chứng T-042 vẫn đỏ: dừng, báo số đo, không đổi số mong đợi.
 - Sau khi thêm `clear()`, đối chứng T-042 đỏ ở câu cũ (`a.isEmpty()`, `b == [Granted]`): dừng, không sửa câu cũ; báo kết quả thật (có thể là lỗi của nhánh nhập vào mà đối chứng cũ che).
 
 ## 8. Câu hỏi cho người duyệt
