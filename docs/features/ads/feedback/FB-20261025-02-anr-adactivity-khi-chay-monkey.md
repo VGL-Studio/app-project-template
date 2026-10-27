@@ -7,7 +7,7 @@ build: 0.1.0-staging (main 934695d, chưa phát)
 feature: ads
 ticket:
 severity: chan               # auto-run.md mục 4: crash hay ANR thì không phát staging
-status: new
+status: wontfix
 created: 2026-10-25
 ---
 
@@ -55,7 +55,10 @@ Không có ảnh lúc ANR. Artifact `device-session` của lần chạy 40228765
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-Đề xuất của AI: chạy lại `device-session.yml` một lần trên `934695d` để biết ANR có lặp lại không. Lặp lại thì so với `3d4f165` để tìm commit; không lặp thì xếp vào lỗi môi trường của emulator và phát staging.
+- **Loại:** lỗi môi trường của emulator CI (không GPU), không do code của app
+- **Xử lý:** không sửa; gặp lại cùng dấu hiệu thì mở lại và so với nhánh chính trước đó
+- **Lý do:** chạy lại cùng hạt giống monkey trên `135fac7` (lần chạy 40249869438) và ở RUN-20261026-04, RUN-20261026-05: 0 ANR. ANR nằm trong `AdActivity` của SDK khi monkey gửi sự kiện trackball lúc quảng cáo thử đang hiện
+- **Liên kết:** TS-20261025-04, TS-20261026-01
 
 ## Chạy lại 2026-10-26
 
