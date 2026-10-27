@@ -164,8 +164,10 @@ Code `main` của plan chỉ bớt tham số, nên không có test mới đỏ �
 
 1. **Ô AdChoices giả ở cỡ chữ 2.0: giữ nguyên hay cho chữ vừa ô?** Ô có chữ "i" chỉ nằm trong test (`FakeAdChoices`); ô của màn xem thử (`AdChoicesMarker`, `main`) không có chữ, nên ảnh `NativeAdCard_font-scale-2_light.png` không có chữ bị cắt.
    - Đề xuất của AI: giữ nguyên, ghi lý do vào KDoc của `FakeAdChoices` (mục 3.1 F). Cho chữ vừa ô đổi mọi ảnh có ô này ở cỡ 1.0, trái điều ticket giữ ảnh từng byte, mà không giúp gì quảng cáo thật. Nếu anh muốn sửa: cho chữ "i" cỡ cố định theo dp (không theo cỡ chữ hệ thống), ghi lại `NativeFullScreenAdScreen_font-scale-2_light.png` và kiểm các ảnh ở cỡ 1.0 vẫn giữ byte; khi đó plan lên phiên bản 2.
+   - **Trả lời (anh Nhật, 2026-10-27):** giữ nguyên ô giả, ghi lý do vào KDoc, theo đề xuất.
 2. **Điểm chặn.** Ticket ghi điểm chặn 1 (quảng cáo); plan không đổi vị trí, định dạng hay tần suất nên chỉ điểm 7 (core) là chắc chắn.
    - Đề xuất của AI: giữ `blocking_points: [ads, core]` như T-044, T-045 cho nhất quán; mức Cao không đổi vì điểm 7.
+   - **Trả lời (anh Nhật, 2026-10-27):** giữ `[ads, core]`, theo đề xuất.
 
 ## 9. Quyết định duyệt
 
