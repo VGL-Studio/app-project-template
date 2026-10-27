@@ -200,7 +200,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `AppNavHost` gọi một hàm `suspend` đọc DataStore rồi `navController.navigate` trong `scope.launch`; coroutine được tiếp tục trên luồng nền và app dừng với "setCurrentState must be called on the main thread". Phần vỏ app nằm trong ngoại lệ viết test trước của plan, nên lỗi chỉ lộ ra ở `ui-test` trên emulator, vòng CI dài nhất.
 - **Cải tiến:** `CLAUDE.md` bước 6: điều hướng sau lời gọi `suspend` chạy trên `Dispatchers.Main.immediate`. `docs/CLAUDE.md` mục Khi viết plan: plan đổi hàm `suspend` mà vỏ app gọi có test Robolectric dựng vỏ app, không để vào ngoại lệ.
 - **Trạng thái:** applied
--- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`; PR #87.
+- **Áp dụng:** nhánh `claude/from-camera-pose-bai-hoc-RUN-20261023-02`; PR #87.
 ### L-052. Giao bước 3 đến 5 cho phiên con, trong worktree riêng
 
 - **Ngày, nguồn:** 2026-10-23, app camera-pose (bài học L-031, L-034 của app, issue #86)
@@ -521,7 +521,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `auto-run.md` (Giao bước 3 đến 5 cho phiên con) bảo phiên chính đẩy nhánh task ngay khi phiên con báo xong mỗi commit. Phiên con chạy nền chỉ báo một lần khi xong. Phiên này chạy một vòng nền có giới hạn theo dõi ref của nhánh task và gọi `scripts/save-branch.sh` khi ref đổi: commit test T-029 (11:58) được đẩy lúc 12:01 cùng commit code. Với T-024, vòng không chạy vì lần đẩy đầu phải chờ `main-guard` của task trước, nên commit test chỉ được đẩy sau khi phiên con dừng.
 - **Bằng chứng:** dòng thời gian của `docs/runs/RUN-20261026-01.md`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5: ghi cách đẩy khi phiên con không báo giữa chừng (vòng nền có giới hạn theo dõi ref, gọi `save-branch.sh`, bắt đầu sau khi có kết quả `main-guard` của task trước), hoặc thêm script `scripts/push-on-commit.sh <nhánh> --minutes N` có test.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/push-on-commit.sh` (vòng nền có giới hạn, đẩy khi có commit mới, mã 3 khi không đẩy được; có test), `docs/auto-run.md` mục Giao bước 3 đến 5, `CLAUDE.md` mục Lệnh. Anh Nhật duyệt trong retro 2026-10-27.
 
 ### L-091. Plan có bước chờ trước khi hiện quảng cáo không nêu trường hợp người dùng rời app giữa lúc chờ
 
@@ -530,7 +531,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** màn loading chờ quảng cáo mở app tới 40 giây. Rà soát độc lập (mức nên sửa) thấy: người dùng bấm Home trong lúc chờ thì vòng chờ vẫn chạy, và quảng cáo hiện khi người dùng quay lại, có thể sau nhiều phút. Khi đó nó thành một quảng cáo khi quay lại app, nhưng không theo khóa và luật của KB-14. Spec KB-13 và plan không nói tới trường hợp này, nên phiên không sửa mà chuyển cho người quyết. Test viết trước có dựng lại activity và tắt khóa giữa chừng (L-061), nhưng không có trường hợp rời foreground.
 - **Bằng chứng:** nhật ký plan T-024 (RUN-20261026-02), mục Rà soát độc lập; mô tả PR #170.
 - **Đề xuất sửa:** `docs/CLAUDE.md` mục Khi viết plan, gạch L-061: thêm "plan có bước chờ có giới hạn trước khi hiện thứ gì đó (quảng cáo, hộp thoại, điều hướng): nêu điều xảy ra khi app rời foreground giữa lúc chờ, mục 4 có test `pause().stop()` rồi `resume()`". Spec mẫu (`docs/templates/spec.md`) có thể nhắc ca này cho kịch bản có thời gian chờ.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md` mục Khi viết plan, nối vào gạch L-061: nêu điều xảy ra khi app ra nền giữa lúc chờ, mục 4 có test đưa activity ra nền rồi trở lại. Retro 2026-10-27.
 
 ### L-092. Repo vượt 100 nhánh thì `merge-if-green.sh` không chạy được trên cloud, vì proxy chặn trang 2 của `--paginate`
 
@@ -549,7 +551,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** test `NativeAdCellTest.pager_recordsShownOnlyAfterSettle_notReadyOnDispose` của commit test (`21dda14`) đỏ ở bước 4 vì trang `HorizontalPager` cuộn đi vẫn ở trong composition. Phiên con đổi cách test cho trang rời đi (bỏ cả pager khỏi composition) trong commit code `ea331f8`, ghi lý do vào báo cáo như một "sửa chi tiết", và thêm vào `ads-guide.md` một câu mô tả hành vi sai (trang cuộn đi giữ quảng cáo). Rà soát độc lập xếp mức chặn; sau khi khôi phục test, code được sửa theo phương án dự phòng 3.4 của plan. `auto-run.md` bước 4 đã cấm đổi điều test kiểm, nhưng phiên con tự xếp thay đổi của mình là "chi tiết".
 - **Bằng chứng:** `git diff 21dda14 ea331f8 -- core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCellTest.kt`; nhật ký plan T-028 (RUN-20261026-03), mục Rà soát độc lập.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: phiên con không sửa test của commit test ở bước 4 mà không báo; mọi thay đổi như vậy liệt kê riêng trong báo cáo (tên test, diff, lý do), và phiên chính đưa đúng danh sách đó vào lời giao rà soát độc lập. Có thể thêm script in `git diff <commit test>..HEAD` của các file test để phiên chính dán vào lời giao.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục Giao bước 3 đến 5 (mọi thay đổi ở file test sau commit test liệt kê riêng) và bước 6 (phiên rà soát nhận `git diff <commit test>..HEAD` của file test). Retro 2026-10-27.
 
 ### L-094. Hết hạn mức thanh toán GitHub Actions giữa phiên dài; kiểm tra đầu phiên không đọc hạn mức Actions
 
@@ -558,7 +561,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** sau 6 lần merge, GitHub không cấp máy cho job `main-guard` của commit merge T-033 ("recent account payments have failed or your spending limit needs to be increased"). Phiên dừng trước task thứ 7 theo `auto-run.md` mục 4. Phiên mở bằng `claude --cloud` nên không được `resume-run.yml` tiếp tục (L-044); `resume-run.yml` cũng là workflow của Actions nên cũng không chạy được khi hết hạn mức. Kiểm tra đầu phiên và mục Kiểm tra trước khi duyệt không có bước nào xem hạn mức Actions còn đủ cho danh sách.
 - **Bằng chứng:** `scripts/wait-run.sh` mã 4, lần chạy 40280561101; `scripts/failure-kind.sh --playbook` ra PB-02; dòng thời gian của `docs/runs/RUN-20261026-04.md` (06:34). CI của 6 task khoảng 90 phút `pr-check` (T-033 33 phút vì build release) cộng 6 lần `main-guard`.
 - **Đề xuất sửa:** `docs/auto-run.md` mục 1: dev kiểm Billing & plans của Actions trước phiên dài, ước tính số phút CI của danh sách (mỗi task khoảng 10 phút `pr-check` và 10 phút `main-guard`, gấp ba khi đổi thư viện). `docs/templates/run.md`: thêm dòng "hạn mức Actions còn đủ cho danh sách" ở mục Kiểm tra trước khi duyệt.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục 1, điểm 6 (dev xem hạn mức Actions, cách ước tính số phút CI); `docs/templates/run.md` dòng "Hạn mức Actions" ở mục Kiểm tra trước khi duyệt. Retro 2026-10-27.
 
 ### L-095. Phiên con xóa một test cũ thêm sau khi plan viết, kéo theo phần đối chứng của hành vi vẫn giữ
 
@@ -567,7 +571,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `CollapsibleNativeAdTest.loadingExpanded_placeholderCtaStays36dp` do T-028 thêm sau khi plan T-030 viết, nên không có trong bảng "Test đã có" của plan. Nửa đầu của test kiểm hành vi mà T-030 bỏ (CL-01), nửa đối chứng kiểm CTA 44 dp của khung chờ medium (T-028, vẫn giữ). Phiên con xóa cả test; rà soát độc lập xếp mức chặn (ADR-0029, quyết định 2) và phần đối chứng được giữ lại ở `NativeAdCardTest.mediumPlaceholder_ctaIs44dp`. Sau khi phiên chính thêm vào lời giao việc một dòng về việc này, bốn task sau không lặp lại.
 - **Bằng chứng:** nhật ký plan T-030 (RUN-20261026-04), mục Rà soát độc lập; commit `df7f6f6`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con, phần giao việc chung: "không xóa test cũ nào, kể cả test thêm sau khi plan viết; hành vi cũ bị plan thay thì chỉ bỏ câu khẳng định của hành vi đó, phần còn lại giữ (chuyển file nếu cần, báo là ngoài mục 3.2)".
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục Giao bước 3 đến 5 (không xóa test cũ nào, kể cả test thêm sau khi plan viết) và bước 6 (phiên rà soát nhận danh sách test bị xóa, xóa là mức chặn). Retro 2026-10-27.
 
 ### L-096. Dọn vòng đẩy nền bằng `pkill -f` dù L-082 đã cấm
 
@@ -576,7 +581,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên chính chạy một vòng nền đẩy nhánh task mỗi khi có commit mới của phiên con (L-070). Sau khi merge T-026, phiên dọn vòng đó bằng `pkill -f "Push T-026"`; lệnh thoát 144 vì chuỗi khớp dòng lệnh của chính shell đó. Không mất gì (lệnh gỡ worktree chạy trước trong cùng dòng), nhưng L-082 đã cấm đúng việc này. Từ T-030 phiên dừng vòng nền bằng công cụ dừng tác vụ nền của môi trường.
 - **Bằng chứng:** dòng thời gian 01:54 của `docs/runs/RUN-20261026-04.md`; lệnh `git worktree remove ../task-T-026 && pkill -f "Push T-026"` thoát 144.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9 (đoạn L-082): nói rõ cách dừng vòng nền: công cụ dừng tác vụ nền của phiên, hay một vòng có giới hạn tự hết; không kết thúc vòng nền bằng lệnh tìm theo chuỗi. Mục Giao bước 3 đến 5 có thể nêu mẫu vòng đẩy nền (đọc `git rev-parse <nhánh>` mỗi phút, gọi `save-branch.sh` khi đổi).
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** Cùng L-090: `scripts/push-on-commit.sh` thay vòng đẩy tự viết; `docs/auto-run.md` mục Giao bước 3 đến 5: dừng sớm bằng công cụ dừng tác vụ nền, không `pkill -f`. Retro 2026-10-27.
 
 ### L-097. `auto-run.md` bảo soạn phản hồi kịch bản lỗi mức `nen-sua`, mẫu phản hồi không có mức đó
 
@@ -639,3 +645,67 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` mục 4: rời nhánh task trước việc cuối phiên.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/auto-run.md` mục 4, bước 0: `git checkout --detach origin/main` trước việc cuối phiên; `docs/ops/token-usage.md`. Không đổi `scripts/token-usage.py`; issue #188.
+
+### L-104. Lệnh tải log job của `auto-run.md` bước 8 dùng cờ `--allow-escape-sequences` mà `gh` của môi trường cloud không có
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-05, task T-044 (PR #208)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `docs/auto-run.md` bước 8 ghi `gh api --allow-escape-sequences "repos/{owner}/{repo}/actions/jobs/<job id>/logs" > ci.log`. `gh` 2.89.0 của môi trường cloud trả "unknown flag: --allow-escape-sequences" và in phần trợ giúp vào `ci.log`; `scripts/failure-kind.sh --playbook ci.log` vẫn chạy trên tệp đó và báo `khong-co`, dễ hiểu nhầm là lỗi thật chưa có trong bảng. Bỏ cờ thì tải được log (1185 dòng).
+- **Đề xuất sửa:** `docs/auto-run.md` bước 8 bỏ cờ `--allow-escape-sequences`; `scripts/failure-kind.sh` báo lỗi riêng khi tệp log là phần trợ giúp của `gh` (dòng `Usage:  gh api`).
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` bước 8 tải log bằng `gh run view <id> --log-failed`; `scripts/failure-kind.sh --playbook` in `log-hong` khi tệp là thông báo lỗi hay trợ giúp của `gh` (có test). Thực tế hai chiều: `gh` mới đòi cờ `--allow-escape-sequences`, `gh` 2.89.0 không biết cờ đó. Retro 2026-10-27.
+
+### L-105. Job `ui-test` trên máy của GitHub nhận 403 từ Maven Central khi tải thư viện của test trên emulator
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-05, task T-044 (PR #208, lần chạy 40369736285)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `:app:connectedStagingDebugAndroidTest` đỏ với "Could not GET 'https://repo.maven.apache.org/maven2/.../proto-google-common-protos-2.17.0.pom'. Received status code 403 from server: Forbidden" (thư viện của `com.android.tools.utp`), rồi "Không có test nào chạy trên emulator". `failure-kind.sh --playbook` báo `khong-co`. Chạy lại job đỏ một lần thì xanh. Lỗi tải, không phải lỗi của code.
+- **Đề xuất sửa:** thêm một dòng vào `docs/ops/failure-playbook.md`: mẫu `repo\.maven\.apache\.org.*Received status code 403`, job `ui-test` hay `build-and-test`, loại `chay-lai` (một lần, không tính vào 3 lần sửa), kèm tệp log thật trong `scripts/tests/playbook/`.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/ops/failure-playbook.md` dòng PB-11 (`chay-lai`, một lần), tệp `scripts/tests/playbook/PB-11.log` chép từ lần chạy 40369736285 lần 1. Retro 2026-10-27.
+
+### L-106. Chạy thử của plan dùng khung tạm cao 0 dp nên không thấy test có sẵn mâu thuẫn với bố cục mới
+
+- **Ngày, nguồn:** 2026-10-26, RUN-20261026-05, task T-041 (dừng ở bước 5)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-041 đổi vị trí khung thẻ 250 dp của màn xem thử (đè ở đáy vùng bước thay vì nằm dưới pager). Mục 4.1 chạy thử với khung thẻ cao 0 dp ở bước toàn trang, nên không đo được bố cục ở bước thẻ. Test có sẵn `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` khẳng định thẻ nằm dưới pager về hình học; trong phiên test này đỏ và task phải dừng (điều kiện 3), sau khi đã viết xong code.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan đổi vị trí hay kích thước của một phần tử giao diện có tag thì tìm mọi test đo `bounds` hay vị trí của tag đó (`grep -rn "<TAG>" */src/test*`) và liệt kê ở mục 3.2 từng câu khẳng định sẽ còn đúng hay phải đổi (đặt thành câu hỏi khi phải đổi); chạy thử ở mục 4.1 dựng đúng bố cục mới, không dùng khung tạm.
+- **Trạng thái:** applied (cách khác: anh Nhật chọn 2026-10-27; không bắt chạy thử lúc soạn plan, theo ADR-0029)
+- **Áp dụng:** ADR-0031. Lúc soạn plan: mục 3.5 "Hành vi đã có bị đổi" của mẫu plan, `scripts/existing-tests.py` (trên plan T-041 phiên bản 1, test gây dừng đứng đầu 4 test "Cần xem trước"), quy tắc 13 của `scripts/plan-check.py`, `docs/CLAUDE.md` mục Khi viết plan, `docs/ops/pre-run-review.md`. Trong phiên: câu khẳng định cũ trái điều plan đã duyệt nói rõ được viết lại khi đủ sáu điều (`risk-scoring.md` mục 4, `auto-run.md` bước 4, 6, 10).
+
+
+### L-107. Plan nâng `token_estimate` gần gấp đôi số gợi ý theo một hai task của phiên trước
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-081 của app), issue #204
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** sau một phiên có task dùng nhiều token, plan ở app nâng `token_estimate` gần gấp đôi số `scripts/token-usage.py estimate` gợi ý. Task thật dùng 0,4 đến 0,7 lần số nâng tay, vì mẫu của script đã gồm token của phiên con.
+- **Đề xuất sửa:** `docs/CLAUDE.md` mục Khi viết plan, dòng `token_estimate`: không nâng số gợi ý theo một hai task của một phiên.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md` mục Khi viết plan; issue #204.
+
+### L-108. Điểm nên sửa chỉ đòi thêm test cho code đã đúng, mà luật bắt test viết trước phải thất bại
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-082 của app), issue #204
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** rà soát độc lập xếp mức nên sửa một điểm chỉ đòi thêm test cho hành vi code đã làm đúng. Luật "phải sửa khi có test viết trước thất bại đúng lý do" không áp được, vì test đó không thể thất bại trước; phiên phải đoán nên thêm hay ghi báo cáo.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 6, dòng Nên sửa: thêm test khi test nằm trong file của mục 3.2 và thất bại khi tạm bỏ dòng code đó (đột biến), ghi kết quả vào nhật ký; không thì ghi vào báo cáo.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` bước 6, dòng Nên sửa; issue #204.
+
+### L-109. Phiên con chết giữa bước 3 vì lỗi API 403 `oauth_org_not_allowed`, phiên chính đứng chờ 2 giờ 30 phút
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-084 của app, RUN-20261026-03), issue #204
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phiên con trả "API Error: 403 oauth_org_not_allowed" rồi kết thúc mà không có báo cáo. Phiên `claude --cloud` không biết làm gì tiếp và đứng tới khi người nhắn.
+- **Đề xuất sửa:** `docs/auto-run.md` mục Giao bước 3 đến 5: phiên con kết thúc không báo cáo thì phiên chính đọc worktree và làm tiếp từ phần đã có, không tính là task dừng; bảng tra lỗi thêm dòng cho `oauth_org_not_allowed` (loại `cho`) kèm log thật.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục Giao bước 3 đến 5; `docs/ops/failure-playbook.md` dòng PB-12, tệp `scripts/tests/playbook/PB-12.log` và test; issue #204.
+
+### L-110. PR xuất lại ảnh thiết kế không sinh lại `design/review/`, task sau thấy ảnh so sánh đổi ngoài mục 3.2
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-085 của app), issue #204
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** một PR xuất lại ảnh thiết kế của feature mà không chạy `scripts/design-compare.sh`. Task sau của feature chạy script ở bước 5 và thấy ảnh so sánh, `summary.md` đổi mà không do task, ngoài mục 3.2 của plan.
+- **Đề xuất sửa:** `docs/ops/design-workflow.md`: PR xuất lại ảnh chạy `design-compare.sh` và commit `design/review/` cùng PR. `docs/auto-run.md` bước 5: ảnh so sánh đổi mà ảnh chuẩn của task không đổi thì không commit, ghi vào mô tả PR.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/ops/design-workflow.md`, `docs/auto-run.md` bước 5; issue #204.

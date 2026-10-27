@@ -1,9 +1,16 @@
 ticket: T-024
-criterion: Từ chối đồng ý quảng cáo thì màn loading không chờ quảng cáo mở app (cổng đóng), app vào màn chính
+criterion: Từ chối đồng ý quảng cáo thì màn loading không treo: UMP vẫn cho quảng cáo không cá nhân hóa nên app open lần đầu có thể hiện; đóng nó thì app vào màn chính
 timeout: 180
-# Staging switches the app open keys on; with consent declined the gate is closed, so loading must not hang.
+# "Do not consent" still lets UMP allow limited ads (canRequestAds), so the gate opens and the first-open app open
+# may show over the loading screen (FB-20261025-01, FB-20261026-01; anh Nhật confirmed 2026-10-27). Whether it shows
+# depends on how fast the test ad loads, so every path is handled. The fake Firebase config can time out once and
+# stop loading with a retry button (FB-20261025-03).
 fresh
 consent decline 30
-wait id=sample_screen 60
+wait id=sample_screen | text="Continue to app" | desc="Continue to app" | id=loading_retry 60
+tap_if id=loading_retry
+wait id=sample_screen | text="Continue to app" | desc="Continue to app" 60
+tap_if text="Continue to app" | desc="Continue to app"
+wait id=sample_screen 30
 expect_no id=loading_screen
 shot main

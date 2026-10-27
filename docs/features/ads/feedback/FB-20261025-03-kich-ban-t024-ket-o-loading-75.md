@@ -7,7 +7,7 @@ build: 0.1.0-staging (main 934695d, chưa phát)
 feature: ads
 ticket: T-024
 severity: nang               # mức "nên sửa" của auto-run.md mục 4 (kịch bản theo plan lỗi)
-status: new
+status: fixed
 created: 2026-10-25
 ---
 
@@ -50,7 +50,10 @@ Từ chối đồng ý thì màn loading không chờ quảng cáo mở app, app
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-Đề xuất của AI: xử lý cùng FB-20261025-01 (sửa kịch bản hay cách từ chối đồng ý trên emulator), thêm bước thử lại khi màn loading báo lỗi.
+- **Loại:** lỗi của kịch bản khi Remote Config giả hết giờ, không phải lỗi so với spec (màn loading báo lỗi và có nút thử lại, đúng KB của màn loading)
+- **Xử lý:** kịch bản T-024 chạm `loading_retry` khi màn loading báo lỗi, rồi đi tiếp như FB-20261025-01
+- **Lý do:** gặp một lần (chạy lại 2026-10-26 thì đạt); bước `tap_if` không đổi gì khi màn loading không lỗi
+- **Liên kết:** FB-20261025-01
 
 ## Chạy lại 2026-10-26
 
