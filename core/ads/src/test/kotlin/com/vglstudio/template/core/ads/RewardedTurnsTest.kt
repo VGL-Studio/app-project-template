@@ -544,8 +544,10 @@ class RewardedTurnsTest {
     ) {
         val gates = List(2) { CompletableDeferred<Boolean>() }
         port.switchGates += gates
-        // With no ad, the load round of the first tap reads the switch too (F-07): it answers from its own gate, so
-        // a gate left in the queue afterwards means the second tap never waited for the switch.
+        // Three gates, taken in order by whatever reads the switch: the first tap, then a second tap that reads it
+        // itself (none when it joins the decision, plan T-042), then the load round of a decision with no ad (F-07).
+        // So after a decision with no ad one gate is left when the second tap joined, none when it read the switch;
+        // with an ad two are left.
         port.switchGates += CompletableDeferred(on)
         launch { request(declaration, first) }
         launch { request(declaration, second) }
@@ -701,6 +703,7 @@ class RewardedTurnsTest {
         a.clear()
         b.clear()
         port.opportunities.clear()
+        port.switchGates.clear()
         port.failShowAtOnce = null
         port.ready["rw_allow"] = true
         val joinsBefore = logger.entries.count { it.message.endsWith("tap joins the one being decided") }

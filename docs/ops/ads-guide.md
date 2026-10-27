@@ -63,7 +63,7 @@ Small, medium và đầy đủ trong `:core:ads` (plan T-010, T-027, T-028, số
 
 | Phần | Small | Medium | Đầy đủ (`FULL`) |
 | --- | --- | --- | --- |
-| Khung | cao 80 dp (`NativeAdDimens.BottomSlotHeight`, cùng hằng số cho thẻ, khung chờ và chỗ giữ), rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 410 dp (422 dp với `ctaLarge`) tới cỡ chữ 2.0: chữ lớn thì media co trước, không dưới 120 dp, thẻ chỉ cao thêm khi media đã chạm 120 dp (T-045); như small | cao 418 dp như khung chờ (mô tả ít nhất 2 dòng), như small |
+| Khung | cao 80 dp (`NativeAdDimens.BottomSlotHeight`, cùng hằng số cho thẻ, khung chờ và chỗ giữ), rộng hết vùng nội dung; nền `surfaceContainerLow`, viền 1 dp `outlineVariant`, bo 12 dp | cao 410 dp (422 dp với `ctaLarge`) tới cỡ chữ 2.0: chữ lớn thì media co trước, không dưới 120 dp, thẻ chỉ cao thêm khi media đã chạm 120 dp (T-045); như small | cao 418 dp như khung chờ (mô tả đúng 2 dòng, cao ít nhất 40 dp; không có mô tả thì chỗ trống 40 dp), như small |
 | Chỗ cho AdChoices | lề phải 24 dp, chữ và CTA không đè góc trên phải | lề trên 24 dp | lề trên 24 dp |
 | Icon | 36 dp, bo 8 dp | 40 dp, trong hàng đầu | 40 dp, trong hàng đầu |
 | Chữ | tiêu đề 14 sp, mô tả 12 sp, nhãn "Ad" 10 sp đầu dòng mô tả | tiêu đề 14 sp; hàng đầu cao 56 dp | tiêu đề 14 sp |

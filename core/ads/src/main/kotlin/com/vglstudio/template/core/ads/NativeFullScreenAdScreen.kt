@@ -120,8 +120,7 @@ internal fun NativeFullScreenAdLayout(
                 .testTag(NativeFullScreenAdTestTags.MEDIA),
             content = media,
         )
-        // The head grows with the text, so the "Ad" label is never cut (O-08, plan T-045); the media gives way.
-        NativeFullScreenAdHeader(assets, binder, growWithText = true)
+        NativeFullScreenAdHeader(assets, binder)
         assets.body?.let { body ->
             NativeAdBody(body, binder, maxLines = BODY_MAX_LINES, modifier = Modifier.fillMaxWidth())
         }
@@ -130,20 +129,16 @@ internal fun NativeFullScreenAdLayout(
 }
 
 /**
- * The page of the native full-screen ad and of its placeholder: background, safe area, margins, 16 dp gaps. Without
- * [safeArea] (the page of a flow step) the app's frame handles the safe area.
+ * The page of the native full-screen ad after an interstitial and of its placeholder: background, the safe area of the
+ * window, margins, 16 dp gaps. The page of a flow step has its own frame ([FlowStepPageFrame], plan T-041).
  */
 @Composable
-internal fun NativeFullScreenFrame(
-    modifier: Modifier = Modifier,
-    safeArea: Boolean = true,
-    content: @Composable ColumnScope.() -> Unit,
-) {
+internal fun NativeFullScreenFrame(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .then(if (safeArea) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(start = Spacing.md, top = Spacing.lg, end = Spacing.md, bottom = Spacing.xl),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
         content = content,
@@ -212,19 +207,13 @@ private fun CloseButton(onClose: () -> Unit) {
 }
 
 /**
- * Icon, headline, then the "Ad" label with the advertiser: 48 dp. With [growWithText] (the page of a flow step, plan
- * T-041, and the screen after an interstitial, plan T-045) 48 dp at least, so the headline and the "Ad" label are
- * never cut when the system text is large.
+ * Icon, headline, then the "Ad" label with the advertiser: 48 dp at least, taller with the text, so the headline and
+ * the "Ad" label are never cut when the system text is large (O-08; plans T-041, T-045).
  */
 @Composable
-internal fun NativeFullScreenAdHeader(assets: NativeAdAssets, binder: NativeAdBinder, growWithText: Boolean = false) {
-    val height = if (growWithText) {
-        Modifier.heightIn(min = NativeFullScreenAdDimens.HeaderHeight)
-    } else {
-        Modifier.height(NativeFullScreenAdDimens.HeaderHeight)
-    }
+internal fun NativeFullScreenAdHeader(assets: NativeAdAssets, binder: NativeAdBinder) {
     Row(
-        modifier = Modifier.fillMaxWidth().then(height),
+        modifier = Modifier.fillMaxWidth().heightIn(min = NativeFullScreenAdDimens.HeaderHeight),
         horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
