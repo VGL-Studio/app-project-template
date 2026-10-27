@@ -157,6 +157,14 @@ class AdGalleryScreenScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w640dp-h360dp-xxhdpi")
+    fun flowFullPage_landscape() {
+        setScreen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(stepFullPageReady = true))
+        next()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_flow-full-page_landscape.png")
+    }
+
+    @Test
     fun rewarded_light() {
         setScreen(AdGalleryUiState.Rewarded(GalleryRewarded.ALLOW_AFTER, actionsRun = 3), PreviewAdGallerySlots())
         composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_rewarded_light.png")
