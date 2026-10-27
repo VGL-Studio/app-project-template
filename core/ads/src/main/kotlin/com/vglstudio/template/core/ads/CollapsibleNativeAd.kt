@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -94,8 +94,8 @@ fun rememberCollapsibleAdState(): CollapsibleAdState =
 
 /**
  * The open collapsible layer with fixed content, for screenshots and previews (the app shows real ads in the bottom
- * bar, [BottomAdBarScaffold]): 250 dp high, a 32 dp collapse button in the top end corner, a marker where the SDK
- * pins AdChoices in the top start corner.
+ * bar, [BottomAdBarScaffold]): 250 dp high at the default font scale, a 32 dp collapse button in the top end
+ * corner, a marker where the SDK pins AdChoices in the top start corner.
  */
 @Composable
 fun CollapsibleNativeAdCard(assets: NativeAdAssets, onCollapse: () -> Unit, modifier: Modifier = Modifier) {
@@ -142,9 +142,11 @@ private val CollapseIconTint = Color.White
 
 /**
  * The open layer: media filling the height left, head (32 dp icon, 13 sp headline, "Ad" line), 36 dp call to action
- * as wide as the layer; the collapse button over the top end corner. Each ad part goes through [binder], so a fake
- * ad and a real ad bound to the SDK share it. The collapse button is not an ad asset: a tap on it is not a click on
- * the ad. AdChoices is drawn by the SDK in the top start corner, never in Compose.
+ * as wide as the layer; the collapse button over the top end corner. 250 dp at the default font scale; with larger
+ * text the media shrinks first, never below 120 dp, then the layer grows (272 dp at font scale 2.0;
+ * [MediaShrinksFirstLayout], plan T-045), and the call to action is as high as its line of text. Each ad part goes
+ * through [binder], so a fake ad and a real ad bound to the SDK share it. The collapse button is not an ad asset: a
+ * tap on it is not a click on the ad. AdChoices is drawn by the SDK in the top start corner, never in Compose.
  */
 @Composable
 internal fun CollapsibleNativeAdLayout(
@@ -157,24 +159,26 @@ internal fun CollapsibleNativeAdLayout(
     NativeAdFrame(
         modifier = modifier
             .fillMaxWidth()
-            .height(CollapsibleNativeAdDimens.LayerHeight)
+            // 250 dp; more only when the media reaches its 120 dp floor with large text (plan T-045).
+            .heightIn(min = CollapsibleNativeAdDimens.LayerHeight)
             .testTag(CollapsibleNativeAdTestTags.AD),
     ) {
-        Column(
+        MediaShrinksFirstLayout(
+            innerHeight = CollapsibleNativeAdDimens.LayerHeight - LayerInnerVertical * 2,
+            gap = CollapsibleNativeAdDimens.LayerGap,
+            mediaIndex = 0,
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(
                     start = NativeAdDimens.InnerPadding,
                     top = LayerInnerVertical,
                     end = NativeAdDimens.InnerPadding,
                     bottom = LayerInnerVertical,
                 ),
-            verticalArrangement = Arrangement.spacedBy(CollapsibleNativeAdDimens.LayerGap),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
                     .testTag(CollapsibleNativeAdTestTags.MEDIA),
             ) {
                 NativeAdMediaArea(binder, Modifier.fillMaxSize())
@@ -190,7 +194,7 @@ internal fun CollapsibleNativeAdLayout(
                     height = CollapsibleNativeAdDimens.LayerCallToActionHeight,
                 )
             } else {
-                Box(ctaModifier.height(CollapsibleNativeAdDimens.LayerCallToActionHeight))
+                Box(ctaModifier.heightIn(min = CollapsibleNativeAdDimens.LayerCallToActionHeight))
             }
         }
         if (showAdChoicesMarker) AdChoicesMarker()

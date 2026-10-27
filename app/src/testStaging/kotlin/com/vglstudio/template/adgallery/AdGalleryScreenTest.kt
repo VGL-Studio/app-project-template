@@ -2,9 +2,11 @@ package com.vglstudio.template.adgallery
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -31,6 +33,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -486,9 +489,21 @@ class AdGalleryScreenTest {
         composeRule.onNode(
             hasTestTag(PreviewAdTags.STEP_CARD) and hasAnyAncestor(hasTestTag(AdGalleryTestTags.FLOW_PAGER)),
         ).assertDoesNotExist()
-        // Control: the card is there, below the pager.
+        // Control: the card is there, in its frame at the bottom of the step area, below the text of the step
+        // (plan T-041, question 9: the frame is laid over the bottom of the step area, the card covers no step).
         assertTrue(exists(PreviewAdTags.STEP_CARD))
-        assertTrue(bounds(PreviewAdTags.STEP_CARD).top >= bounds(AdGalleryTestTags.FLOW_PAGER).bottom - TOLERANCE_DP.dp)
+        val frame = bounds(AdGalleryTestTags.FLOW_CARD_FRAME)
+        val card = bounds(PreviewAdTags.STEP_CARD)
+        assertEquals(bounds(AdGalleryTestTags.FLOW_PAGER).bottom.value, frame.bottom.value, TOLERANCE_DP)
+        assertTrue(
+            "card $card inside frame $frame",
+            card.top >= frame.top - TOLERANCE_DP.dp &&
+                card.bottom <= frame.bottom + TOLERANCE_DP.dp &&
+                card.left >= frame.left - TOLERANCE_DP.dp &&
+                card.right <= frame.right + TOLERANCE_DP.dp,
+        )
+        val stepText = composeRule.onNodeWithText("Step 2 of 3").getBoundsInRoot()
+        assertTrue("card $card below the step text $stepText", card.top >= stepText.bottom)
     }
 
     @Test
@@ -613,19 +628,109 @@ class AdGalleryScreenTest {
         }
     }
 
+    /**
+     * KB-20, OB-01 (plan T-045): at font scale 2.0 the step card grows so its media keeps 120 dp; the gallery sets its
+     * frame by `NativeStepAdDefaults.height()`, so the frame is the card's height and Next stays at one place.
+     */
+    @Test
+    fun flowSteps_stepCardFrame_followsCardHeight_atFontScale2() {
+        composeRule.setContent {
+            // The font size setting of the device: the screen density with font scale 2.0 (as WithFontScale of the
+            // ads module's tests, plan T-044).
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 2f)) {
+                AppTheme { Screen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(), GalleryAdStatus.Unknown) }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val frame = bounds(AdGalleryTestTags.FLOW_CARD_FRAME)
+        val card = bounds(PreviewAdTags.STEP_CARD)
+        val media = composeRule.onNodeWithTag(CARD_MEDIA_TAG, useUnmergedTree = true).getBoundsInRoot()
+        assertEquals("frame $frame as high as the card $card", card.height.value, frame.height.value, 0.5f)
+        assertEquals("card height at font scale 2.0", 270f, card.height.value, 0.5f)
+        assertTrue("media of the card is ${media.height} high", media.height.value >= 120f - 0.5f)
+        val onStep1 = bounds(AdGalleryTestTags.FLOW_NEXT)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 2 of 3").assertCountEquals(1)
+        val onStep2 = bounds(AdGalleryTestTags.FLOW_NEXT)
+        assertEquals("Next does not move between steps", onStep1, onStep2)
+    }
+
     @Test
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun flowSteps_smallScreen_nextNotCovered() {
         setScreen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(stepFullPageReady = true))
 
-        listOf("step", "full page").forEachIndexed { index, name ->
-            if (index > 0) click(AdGalleryTestTags.FLOW_NEXT)
-            val next = bounds(AdGalleryTestTags.FLOW_NEXT)
-            val frame = bounds(AdGalleryTestTags.FLOW_CARD_FRAME)
-            assertInsideScreen("Next on $name", next)
-            assertTrue("Next below the card frame on $name", next.top >= frame.bottom - TOLERANCE_DP.dp)
-            assertDp("card frame height", 250.dp, frame.height)
-        }
+        // A step with the card: the 250 dp frame, Next below it.
+        val onStep = bounds(AdGalleryTestTags.FLOW_NEXT)
+        val frame = bounds(AdGalleryTestTags.FLOW_CARD_FRAME)
+        assertInsideScreen("Next on step", onStep)
+        assertTrue("Next below the card frame on step", onStep.top >= frame.bottom - TOLERANCE_DP.dp)
+        assertDp("card frame height", 250.dp, frame.height)
+
+        // The full page (plan T-041): no card frame, the page stops above Next.
+        click(AdGalleryTestTags.FLOW_NEXT)
+        val onFullPage = bounds(AdGalleryTestTags.FLOW_NEXT)
+        val page = bounds(PreviewAdTags.STEP_FULL_PAGE)
+        assertFalse("no card frame on the full page", exists(AdGalleryTestTags.FLOW_CARD_FRAME))
+        assertInsideScreen("Next on full page", onFullPage)
+        assertTrue("page $page stops above Next $onFullPage", page.bottom <= onFullPage.top + TOLERANCE_DP.dp)
+    }
+
+    private fun unmergedBounds(tag: String): DpRect =
+        composeRule.onNodeWithTag(tag, useUnmergedTree = true).getBoundsInRoot()
+
+    private fun unmergedTextBounds(text: String): DpRect =
+        composeRule.onNodeWithText(text, useUnmergedTree = true).getBoundsInRoot()
+
+    private fun assertInside(name: String, part: DpRect, page: DpRect) {
+        assertTrue("$name $part starts above the page $page", part.top.value >= page.top.value - TOLERANCE_DP)
+        assertTrue("$name $part ends below the page $page", part.bottom.value <= page.bottom.value + TOLERANCE_DP)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun flowSteps_fullPage_fillsStepArea_small() {
+        setScreen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(stepFullPageReady = true))
+        click(AdGalleryTestTags.FLOW_NEXT)
+
+        val page = unmergedBounds(PreviewAdTags.STEP_FULL_PAGE)
+        val next = bounds(AdGalleryTestTags.FLOW_NEXT)
+        assertEquals("page top: $page", 72f, page.top.value, 0.5f)
+        assertEquals("page bottom: $page, Next $next", (next.top - 16.dp).value, page.bottom.value, 0.5f)
+        assertEquals("page height: $page", 484f, page.height.value, 0.5f)
+        assertFalse("no card frame on the full page", exists(AdGalleryTestTags.FLOW_CARD_FRAME))
+        val cta = unmergedTextBounds(previewAdAssets.callToAction!!)
+        assertInside("CTA text", cta, page)
+        assertEquals("CTA text height: $cta", 20f, cta.height.value, 0.5f)
+    }
+
+    private fun assertFullPageShowsCta() {
+        setScreen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(stepFullPageReady = true))
+        click(AdGalleryTestTags.FLOW_NEXT)
+
+        val page = unmergedBounds(PreviewAdTags.STEP_FULL_PAGE)
+        assertTrue("page of at least 200 dp: $page", page.height.value >= 200f - 0.5f)
+        assertInside("CTA text", unmergedTextBounds(previewAdAssets.callToAction!!), page)
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h360dp-xxhdpi")
+    fun flowSteps_fullPage_landscape_showsCta() = assertFullPageShowsCta()
+
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun flowSteps_fullPage_landscapeWide_showsCta() = assertFullPageShowsCta()
+
+    @Test
+    fun flowSteps_pagerHeight_sameOnCardAndFullPage() {
+        setScreen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(stepFullPageReady = true))
+        val onCard = bounds(AdGalleryTestTags.FLOW_PAGER)
+        assertTrue(exists(PreviewAdTags.STEP_CARD))
+
+        click(AdGalleryTestTags.FLOW_NEXT)
+        assertTrue(exists(PreviewAdTags.STEP_FULL_PAGE))
+        assertEquals("the pager does not jump between steps", onCard, bounds(AdGalleryTestTags.FLOW_PAGER))
     }
 
     @Test
@@ -711,5 +816,8 @@ class AdGalleryScreenTest {
 
     private companion object {
         const val TOLERANCE_DP = 1f
+
+        /** Test tag of the media of a native card in the ads module (`NativeAdTestTags.MEDIA`, internal there). */
+        const val CARD_MEDIA_TAG = "native_ad_media"
     }
 }

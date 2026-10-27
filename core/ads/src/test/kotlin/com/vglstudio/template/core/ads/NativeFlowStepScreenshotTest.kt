@@ -16,6 +16,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.vglstudio.template.core.designsystem.component.PrimaryButton
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -114,6 +115,28 @@ class NativeFlowStepScreenshotTest {
     fun fullPage_small() {
         captureRoboImage("src/test/screenshots/NativeFlowStep_full-page_small.png") {
             FullPageStep(darkTheme = false, FakeNativeAdAssets.Longest)
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w640dp-h360dp-xxhdpi")
+    fun fullPage_compact_light() {
+        captureRoboImage("src/test/screenshots/NativeFlowStep_full-page-compact_light.png") {
+            FullPageStep(darkTheme = false, FakeNativeAdAssets.Design)
+        }
+    }
+
+    @Test
+    fun fullPage_placeholder_light() {
+        // The placeholder is static (L-048 does not apply): the page waits for an ad that has not come.
+        captureRoboImage("src/test/screenshots/NativeFlowStep_full-page-placeholder_light.png") {
+            Step(darkTheme = false) {
+                NativeFullScreenStepGate(
+                    allowed = true,
+                    states = flowOf(NativeAdState.Unavailable),
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 

@@ -2,7 +2,10 @@ package com.vglstudio.template.core.ads
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -13,9 +16,18 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.AppLogger
+import kotlin.math.max
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -33,19 +45,72 @@ private const val TAG = "Ads"
 internal object NativeFlowStepTestTags {
     /** The root of [NativeFullScreenStepGate]: the area the app gives the page. */
     const val FULL_PAGE = "nativeFlowStepFullPage"
+
+    /** The static placeholder of the page while it waits for an ad (plan T-041). */
+    const val FULL_PAGE_PLACEHOLDER = "nativeFlowStepFullPagePlaceholder"
+}
+
+/** Numbers of the page of a flow step ([NativeFullScreenStep]) for the app (plan T-041). */
+object NativeFullScreenStepDefaults {
+    /**
+     * The least height of the page at font scale 1.0: the page takes no ad in a shorter area. With larger text the
+     * least height grows with the head of the ad.
+     */
+    val MinHeight: Dp = 200.dp
+}
+
+/** Numbers of the card of a flow step ([NativeStepAd]) for the app (plan T-045). */
+object NativeStepAdDefaults {
+    /**
+     * The height of the step card at the current font scale: 250 dp at the default font scale (up to about 1.3);
+     * with larger text the card grows so its media keeps 120 dp and its call to action holds its text (270 dp at
+     * 2.0). The card, its placeholder and the space it keeps all take this height. An app that puts the card in a
+     * fixed frame, so the Next button does not move between steps (OB-01), sets that frame with this function, never
+     * with a fixed 250 dp.
+     */
+    @Composable
+    fun height(): Dp {
+        val measurer = rememberTextMeasurer()
+        val typography = MaterialTheme.typography
+        val density = LocalDensity.current
+        return remember(measurer, typography, density) { stepCardHeight(measurer, typography, density) }
+    }
 }
 
 /**
- * The native card of a flow step (MC-06, OB-01, OB-02; plan T-032): 250 dp, from the pool of its placement
- * (`native_step`, P-02), drawn outside the pager. Pass the key of the step on screen as [step] (for example
- * `pagerState.settledPage`), and call it only on the steps the app's spec chose. Each time [step] changes the card
- * takes another ad of the pool, and gives the old one back only once it has the new one: the pool never hands out an
- * ad in use (P-01), so two steps next to each other never show the same ad (OB-02). Until the new ad comes it shows
- * the 250 dp placeholder (for about one frame when the pool has an ad ready; the height stays, so the Next button
- * does not move), or nothing while the pool is exhausted (P-06), and keeps asking. Like [NativeAdSlot], it takes no
- * space until ads are allowed (consent given, `is_show_<placement>` on, an ad unit), and gives its ad back when it
- * leaves the screen or the placement turns off (L-061). [onAdAvailabilityChange] works as for [NativeAdSlot]. It
- * records no `ad_opportunity` (P-07). Placements of another format are an [IllegalArgumentException].
+ * The height of the step card for one line of each of its texts, measured with [measurer] at [density] (the same
+ * measuring `Text` does, so the non-linear font scale of Android 14 is in it): 12 dp margin, media at its 120 dp
+ * floor, the head (32 dp icon, or the 13 sp headline, 2 dp and the "Ad" line), the call to action (36 dp or one line
+ * of `labelLarge`), 8 dp gaps; never under the 250 dp of the design.
+ */
+internal fun stepCardHeight(measurer: TextMeasurer, typography: Typography, density: Density): Dp = with(density) {
+    fun line(style: TextStyle): Int = measurer.measure(LINE_SAMPLE, style, maxLines = 1, density = density).size.height
+    val headline = line(typography.titleSmall.merge(TextStyle(fontSize = NativeAdDimens.StepHeadlineTextSize)))
+    val badgeLine = max(line(typography.labelSmall), line(typography.bodySmall))
+    val text = headline + NativeAdDimens.HeadlineGap.roundToPx() + badgeLine
+    val head = max(NativeAdDimens.StepIconSize.roundToPx(), text)
+    val callToAction = max(NativeAdDimens.StepCallToActionHeight.roundToPx(), line(typography.labelLarge))
+    val margin = NativeAdDimens.InnerPadding.roundToPx()
+    val gap = Spacing.sm.roundToPx()
+    val card = margin + NativeAdDimens.MinMediaSize.roundToPx() + gap + head + gap + callToAction + margin
+    max(NativeAdDimens.StepHeight.roundToPx(), card).toDp()
+}
+
+/** Text measured for one line; the height of a line depends on the style, not on the text. */
+private const val LINE_SAMPLE = "Ad"
+
+/**
+ * The native card of a flow step (MC-06, OB-01, OB-02; plan T-032): 250 dp at the default font scale, more with
+ * large text ([NativeStepAdDefaults.height], plan T-045), from the pool of its placement (`native_step`, P-02), drawn
+ * outside the pager. Pass the key of the step on screen as [step] (for example `pagerState.settledPage`), and call it
+ * only on the steps the app's spec chose. Each time [step] changes the card takes another ad of the pool, and gives
+ * the old one back only once it has the new one: the pool never hands out an ad in use (P-01), so two steps next to
+ * each other never show the same ad (OB-02). Until the new ad comes it shows the placeholder of the same height (for
+ * about one frame when the pool has an ad ready; the height stays, so the Next button does not move), or nothing
+ * while the pool is exhausted (P-06), and keeps asking. Like [NativeAdSlot], it takes no space until ads are allowed
+ * (consent given, `is_show_<placement>` on, an ad unit), and gives its ad back when it leaves the screen or the
+ * placement turns off (L-061). [onAdAvailabilityChange] works as for [NativeAdSlot]. It records no `ad_opportunity`
+ * (P-07). Placements of another format are an [IllegalArgumentException].
  */
 @Composable
 fun NativeStepAd(
@@ -164,8 +229,13 @@ internal fun stepAdStates(
  * Next button outside that area, where it is on the other steps. Pass [shown] = `pagerState.settledPage == index`:
  * the page takes an ad from the slot only while it is the page on screen, and gives it up (the ad is destroyed and
  * the slot loads again) once it is not; a page built next to the one on screen takes nothing. While it shows its ad,
- * the ads that show by themselves are blocked (G-03, way 2). With no ad it draws nothing, reports false, and shows an
- * ad that comes later. It takes no ad until ads are allowed (consent given, `is_show_<placement>` on, an ad unit), and
+ * the ads that show by themselves are blocked (G-03, way 2). With no ad it draws a static placeholder, reports false,
+ * and shows an ad that comes later. When the activity is built again (rotation, fold, unfold) the page leaves like any
+ * native slot (O-01, T-040): its ad is destroyed, the slot loads again, and the page built again shows the placeholder
+ * until the new ad comes. Its layout follows the height of [modifier] and the font scale (plan T-041): the column of
+ * the design, or a compact row on short areas; under [NativeFullScreenStepDefaults.MinHeight] (at font scale 1.0;
+ * more with larger text) it takes no ad, draws nothing and records no `af_native_ad_eligible`. Give it 360 dp or more
+ * for the column. It takes no ad until ads are allowed (consent given, `is_show_<placement>` on, an ad unit), and
  * gives it up when the placement turns off (L-061). It does not go through the gate of full-screen ads: no
  * `ads_interval`, no mark, no `ad_opportunity` (plan T-032, question 4). Build the list of steps with
  * [rememberNativeFullScreenStepReady], read once, so the page is there only when the slot has an ad. Placements of
@@ -197,10 +267,12 @@ fun NativeFullScreenStep(
 }
 
 /**
- * [NativeFullScreenStep] without an ads controller: collects [states] only while [allowed] and [shown]; draws the ad
- * with no controls and blocks the ads that show by themselves while it has one; draws nothing otherwise. Reports
- * availability like [NativeAdSlotGate]: true on an ad, false on no ad, and false when [allowed] turns false after true
- * was reported (L-061). A page that is only not [shown] reports nothing.
+ * [NativeFullScreenStep] without an ads controller: collects [states] only while [allowed], [shown] and the area is
+ * high enough for the page ([FlowStepMetrics.minHeight] at the font scale; no height bound always is); draws the ad
+ * with no controls and blocks the ads that show by themselves while it has one; draws the static placeholder while it
+ * waits for an ad (plan T-041), nothing otherwise. Reports availability like [NativeAdSlotGate]: true on an ad, false
+ * on no ad, and false when [allowed] turns false or the area gets too short after true was reported (L-061). A page
+ * that is only not [shown] reports nothing. `af_native_ad_eligible` only while the page could take an ad.
  */
 @Composable
 internal fun NativeFullScreenStepGate(
@@ -211,12 +283,15 @@ internal fun NativeFullScreenStepGate(
     onAdAvailabilityChange: (Boolean) -> Unit = {},
     adContent: @Composable (LoadedNativeAd) -> Unit = { FlowStepFullPage(it) },
 ) {
-    // `af_native_ad_eligible` once each time the page comes on screen allowed (plan T-033).
-    ReportNativeEligible(allowed && shown)
     val currentOnChange by rememberUpdatedState(onAdAvailabilityChange)
     val reported = remember { StepAvailability() }
-    Box(modifier = modifier.testTag(NativeFlowStepTestTags.FULL_PAGE)) {
-        if (!allowed) {
+    val metrics = flowStepMetrics(LocalDensity.current, MaterialTheme.typography)
+    BoxWithConstraints(modifier = modifier.testTag(NativeFlowStepTestTags.FULL_PAGE)) {
+        // A page too short for the ad is not a chance to show one (plan T-041, question 6).
+        val fits = !constraints.hasBoundedHeight || maxHeight >= metrics.minHeight
+        // `af_native_ad_eligible` once each time the page comes on screen allowed (plan T-033).
+        ReportNativeEligible(allowed && shown && fits)
+        if (!allowed || !fits) {
             SideEffect {
                 if (reported.available) {
                     reported.available = false
@@ -232,7 +307,11 @@ internal fun NativeFullScreenStepGate(
     }
 }
 
-/** The page while it is allowed and on screen: leaving the composition cancels the collection, which frees the ad. */
+/**
+ * The page while it is allowed, high enough and on screen: leaving the composition cancels the collection, which
+ * frees the ad. While it waits for an ad (Loading, Unavailable), the static placeholder of the page, which blocks no
+ * ad (plan T-041).
+ */
 @Composable
 private fun FullPageOnScreen(
     states: Flow<NativeAdState>,
@@ -253,6 +332,8 @@ private fun FullPageOnScreen(
     if (drawn is NativeAdState.Loaded) {
         SuppressResumeAds(active = true)
         key(drawn.ad) { adContent(drawn.ad) }
+    } else {
+        FlowStepPagePlaceholder(Modifier.fillMaxSize().testTag(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER))
     }
 }
 

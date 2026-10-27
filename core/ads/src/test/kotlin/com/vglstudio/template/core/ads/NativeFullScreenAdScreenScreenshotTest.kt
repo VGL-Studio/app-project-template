@@ -43,6 +43,14 @@ class NativeFullScreenAdScreenScreenshotTest {
         }
     }
 
+    /** At font scale 2.0 (plan T-045): the "Ad" label keeps the height of its text, the media gives way (O-08). */
+    @Test
+    fun fontScale2_light() {
+        captureRoboImage("src/test/screenshots/NativeFullScreenAdScreen_font-scale-2_light.png") {
+            WithFontScale(2f) { Screen(darkTheme = false) }
+        }
+    }
+
     @Test
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun maxContent_small() {

@@ -1,6 +1,8 @@
 package com.vglstudio.template.core.ads
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -142,6 +144,22 @@ class NativeAdCardScreenshotTest {
         captureRoboImage("src/test/screenshots/NativeAdPlaceholder_card_light.png") {
             OnScreen(darkTheme = false) {
                 NativeAdPlaceholder(NativeAdSize.CARD, Modifier.size(CARD_WIDTH, CARD_HEIGHT), animated = false)
+            }
+        }
+    }
+
+    /** Small, medium and the step card at font scale 2.0 (plan T-045): call-to-action text whole, media 120 dp. */
+    @Test
+    fun fontScale2_light() {
+        captureRoboImage("src/test/screenshots/NativeAdCard_font-scale-2_light.png") {
+            WithFontScale(2f) {
+                OnScreen(darkTheme = false) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        NativeAdCard(sampleNativeAdAssets, NativeAdSize.SMALL)
+                        NativeAdCard(sampleNativeAdAssets, NativeAdSize.MEDIUM)
+                        NativeAdCard(sampleNativeAdAssets, NativeAdSize.STEP)
+                    }
+                }
             }
         }
     }
