@@ -486,9 +486,19 @@ class AdGalleryScreenTest {
         composeRule.onNode(
             hasTestTag(PreviewAdTags.STEP_CARD) and hasAnyAncestor(hasTestTag(AdGalleryTestTags.FLOW_PAGER)),
         ).assertDoesNotExist()
-        // Control: the card is there, below the pager.
+        // Control: the card is there, in its frame at the bottom of the step area, below the text of the step
+        // (plan T-041, question 9: the frame is laid over the bottom of the step area, the card covers no step).
         assertTrue(exists(PreviewAdTags.STEP_CARD))
-        assertTrue(bounds(PreviewAdTags.STEP_CARD).top >= bounds(AdGalleryTestTags.FLOW_PAGER).bottom - TOLERANCE_DP.dp)
+        val frame = bounds(AdGalleryTestTags.FLOW_CARD_FRAME)
+        val card = bounds(PreviewAdTags.STEP_CARD)
+        assertEquals(bounds(AdGalleryTestTags.FLOW_PAGER).bottom.value, frame.bottom.value, TOLERANCE_DP)
+        assertTrue(
+            "card $card inside frame $frame",
+            card.top >= frame.top - TOLERANCE_DP.dp && card.bottom <= frame.bottom + TOLERANCE_DP.dp &&
+                card.left >= frame.left - TOLERANCE_DP.dp && card.right <= frame.right + TOLERANCE_DP.dp,
+        )
+        val stepText = composeRule.onNodeWithText("Step 2 of 3").getBoundsInRoot()
+        assertTrue("card $card below the step text $stepText", card.top >= stepText.bottom)
     }
 
     @Test
