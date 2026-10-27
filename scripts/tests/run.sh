@@ -976,6 +976,78 @@ for args in "--package com.vglstudio.template.notes" "--package Notes" "--stagin
     expect "new-app.sh rejects '$args'" rejected rejected
   fi
 done
+if [[ -f scripts/new-app.sh ]]; then
+  expect "new-app.sh records the template commit and package for template-sync.sh" \
+    "base=$(git rev-parse HEAD) package=com.example.notes" \
+    "$(tr '\n' ' ' < "$new_app/docs/template-sync.txt" | sed 's/ $//')"
+  expect "new-app.sh leaves out template-sync.sh" absent \
+    "$([ -e "$new_app/scripts/template-sync.sh" ] && echo present || echo absent)"
+fi
+
+# template-sync.sh brings later template commits into an app made by new-app.sh (ADR-0030). It runs on a scratch
+# copy of the template, so the test can add template commits; like new-app.sh it exists only in the template.
+if [[ ! -f scripts/template-sync.sh ]]; then
+  echo "skip - template-sync.sh: chỉ có ở repo dự án mẫu"
+else
+  (
+    failures=0
+    export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+    tpl="$work/sync-template" app="$work/sync-app"
+    mkdir -p "$tpl"
+    git ls-files -z --cached --others --exclude-standard | xargs -0 tar -cf - 2> /dev/null | tar -xf - -C "$tpl"
+    git -C "$tpl" init --quiet -b main
+    git -C "$tpl" add -A > /dev/null
+    git -C "$tpl" commit --quiet -m "template v1"
+    "$tpl/scripts/new-app.sh" --dest "$app" --package com.example.notes --name "Ghi chú" \
+      --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
+    v1="$(git -C "$tpl" rev-parse HEAD)"
+    logger_kt="core/logging/src/main/kotlin/com/vglstudio/template/core/logging/AppLogger.kt"
+    ads_kt="core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt"
+    echo "# template v2" >> "$tpl/scripts/wait-run.sh"
+    echo "// template v2: com.vglstudio.template.core.logging" >> "$tpl/$logger_kt"
+    echo "// template v2" >> "$tpl/$ads_kt"
+    echo "template v2" >> "$tpl/docs/lessons.md"
+    git -C "$tpl" commit --quiet -am "template v2"
+    v2="$(git -C "$tpl" rev-parse HEAD)"
+    echo "hold=core/ads $v1" >> "$app/docs/template-sync.txt"
+    git -C "$app" commit --quiet -am "hold ads"
+    app_logger="$app/core/logging/src/main/kotlin/com/example/notes/core/logging/AppLogger.kt"
+    app_ads="$app/core/ads/src/main/kotlin/com/example/notes/core/ads/AdUnitIds.kt"
+
+    code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to "$v2" 2>&1)" || code=$?
+    expect "template-sync.sh merges a template commit without conflicts" "0 1" "$code $(grep -c 'Xong, không có xung đột' <<< "$out")"
+    expect "template-sync.sh works on a new branch of the app" "template-sync/${v2:0:7}" "$(git -C "$app" branch --show-current)"
+    expect "template-sync.sh brings a changed script" 1 "$(grep -cx '# template v2' "$app/scripts/wait-run.sh")"
+    expect "template-sync.sh renames the package in moved sources" 1 \
+      "$(grep -cx '// template v2: com.example.notes.core.logging' "$app_logger")"
+    expect "template-sync.sh leaves the template's lessons out" 0 "$(grep -c 'template v2' "$app/docs/lessons.md")"
+    expect "template-sync.sh keeps a held path at its commit" 0 "$(grep -c 'template v2' "$app_ads")"
+    expect "template-sync.sh moves the base in the same commit" "base=$v2" "$(grep '^base=' "$app/docs/template-sync.txt")"
+    expect "template-sync.sh leaves the app clean" "" "$(git -C "$app" status --porcelain)"
+
+    code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to "$v2" 2>&1)" || code=$?
+    expect "template-sync.sh has nothing to do at the base" "0 1" "$code $(grep -c 'Không có gì mới' <<< "$out")"
+
+    code=0; "$tpl/scripts/template-sync.sh" --app "$app" --take core/ads > /dev/null 2>&1 || code=$?
+    expect "template-sync.sh --take brings a held path up to the base" "0 1 0" \
+      "$code $(grep -cx '// template v2' "$app_ads") $(grep -c '^hold=' "$app/docs/template-sync.txt")"
+
+    sed -i.bak '2s/.*/# app change/' "$app/scripts/wait-run.sh" && rm "$app/scripts/wait-run.sh.bak"
+    git -C "$app" commit --quiet -am "app change"
+    sed -i.bak '2s/.*/# template v3/' "$tpl/scripts/wait-run.sh" && rm "$tpl/scripts/wait-run.sh.bak"
+    # new-app.sh put the app's name on the first line of README.md, so a template change there conflicts too.
+    sed -i.bak '1s/.*/# TEMPLATE V3/' "$tpl/README.md" && rm "$tpl/README.md.bak"
+    git -C "$tpl" commit --quiet -am "template v3"
+    code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to HEAD 2>&1)" || code=$?
+    expect "template-sync.sh stops on a conflict and sorts the files" "1 1 1" \
+      "$code $(sed -n '/Phần của dự án mẫu/,/Phần app cũng sửa/p' <<< "$out" | grep -cx '   scripts/wait-run.sh') $(
+        sed -n '/Phần app cũng sửa/,$p' <<< "$out" | grep -cx '   README.md')"
+
+    code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to HEAD 2>&1)" || code=$?
+    expect "template-sync.sh refuses an app with uncommitted changes" "1 1" "$code $(grep -c 'chưa commit' <<< "$out")"
+    exit "$failures"
+  ) || failures=$((failures + $?))
+fi
 
 # cloud-env-check.sh passes only when the environment was built from the current cloud-setup.sh and can run
 # the project's Gradle (L-075, from app lesson L-056 of camera-pose).

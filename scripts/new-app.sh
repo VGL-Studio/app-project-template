@@ -8,7 +8,8 @@
 #   --staging-assets-url  https address of the app's staging folder on R2, ending with '/'
 #
 # Only committed files of the template are copied (git archive), so build outputs and local secrets never
-# reach the new app. This script and the template-only doc docs/ops/new-app.md are left out.
+# reach the new app. The template-only scripts (this one, template-sync.sh) and doc docs/ops/new-app.md are left out.
+# The app records the template commit it was made from in docs/template-sync.txt, the base of its first sync (ADR-0030).
 # :feature:sample is kept: CLAUDE.md tells every feature to follow it.
 # Messages are in Vietnamese for the team; comments are in English.
 
@@ -54,13 +55,14 @@ project_name="$(basename "$dest")"
   echo "CHÚ Ý: dự án mẫu có thay đổi chưa commit; chỉ phần đã commit được chép."
 
 template_commit="$(git rev-parse --short HEAD)"
+template_commit_full="$(git rev-parse HEAD)"
 today="$(date +%Y-%m-%d)"
 
 echo "== Chép dự án mẫu (${template_commit}) sang $dest"
 mkdir -p "$dest"
 git archive --format=tar HEAD | tar -x -C "$dest"
 cd "$dest"
-rm -f scripts/new-app.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
+rm -f scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
 rmdir .github/ISSUE_TEMPLATE 2> /dev/null || true
 
 # Replaces text in every file that contains it; fails when nothing matched, so a renamed template file is noticed.
@@ -115,6 +117,9 @@ find docs/runs -name 'RUN-*.md' -delete
 # Pages generated from the documents must describe the new app, not the template (its lessons, for one).
 python3 -I scripts/status.py > /dev/null
 python3 -I scripts/foundation.py > /dev/null
+
+# The base of the first sync with the template (scripts/template-sync.sh of the template, docs/ops/to-app.md).
+printf 'base=%s\npackage=%s\n' "$template_commit_full" "$package" > docs/template-sync.txt
 
 left="$(grep -rlIF "$TEMPLATE_PACKAGE" . --exclude-dir=.git --exclude-dir=adr || true)"
 [ -z "$left" ] || die "còn tên gói cũ trong: $left"
