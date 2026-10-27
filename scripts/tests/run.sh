@@ -1814,6 +1814,12 @@ expect "token-usage: estimate falls back to the starting value" 1 \
   "$(token_usage estimate --csv docs/metrics/t.csv | grep -c '^| M | 1 | 2k | 15.0M (tạm')"
 expect "token-usage: starting estimates are S 5M, M 15M, L 30M (L-021)" "5.0M 15.0M 30.0M" \
   "$(token_usage estimate --csv docs/metrics/none.csv | sed -n 's/^| [SML] | 0 | - | \([0-9.]*M\) (tạm.*/\1/p' | xargs)"
+# A task continued in a later run is one sample, the sum of its rows (L-111).
+printf 'run,date,task,size,estimate,requests,input,cache_write,cache_read,output,total,credit_usd\n%s\n%s\n%s\n' \
+  'RUN-1,2026-10-01,T-001,M,,1,1,1,1,1,3000,' 'RUN-2,2026-10-02,T-001,M,,1,1,1,1,1,1000,' \
+  'RUN-2,2026-10-02,T-002,M,,1,1,1,1,1,2000,' > "$tokens/docs/metrics/continued.csv"
+expect "token-usage: a task measured in two runs counts once, with the sum" 1 \
+  "$(token_usage estimate --csv docs/metrics/continued.csv | grep -c '^| M | 2 | 3k | 15.0M (tạm')"
 # The cloud session credit of a run goes on its shared row, once, and survives measuring the run again (L-020).
 expect "token-usage: credit needs a measured run" 1 "$(token_usage credit --run RUN-0 --usd 1 --csv docs/metrics/t.csv > /dev/null; echo $?)"
 expect "token-usage: credit must be a number" 2 "$(token_usage credit --run RUN-20261018-01 --usd abc --csv docs/metrics/t.csv > /dev/null; echo $?)"
