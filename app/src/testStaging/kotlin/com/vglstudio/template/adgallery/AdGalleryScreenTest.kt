@@ -494,8 +494,10 @@ class AdGalleryScreenTest {
         assertEquals(bounds(AdGalleryTestTags.FLOW_PAGER).bottom.value, frame.bottom.value, TOLERANCE_DP)
         assertTrue(
             "card $card inside frame $frame",
-            card.top >= frame.top - TOLERANCE_DP.dp && card.bottom <= frame.bottom + TOLERANCE_DP.dp &&
-                card.left >= frame.left - TOLERANCE_DP.dp && card.right <= frame.right + TOLERANCE_DP.dp,
+            card.top >= frame.top - TOLERANCE_DP.dp &&
+                card.bottom <= frame.bottom + TOLERANCE_DP.dp &&
+                card.left >= frame.left - TOLERANCE_DP.dp &&
+                card.right <= frame.right + TOLERANCE_DP.dp,
         )
         val stepText = composeRule.onNodeWithText("Step 2 of 3").getBoundsInRoot()
         assertTrue("card $card below the step text $stepText", card.top >= stepText.bottom)
