@@ -1,11 +1,13 @@
 package com.vglstudio.template.core.ads
 
 import android.app.Activity
+import com.vglstudio.template.core.logging.LogLevel
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -740,6 +742,248 @@ class RewardedTurnsTest {
         assertFalse(port.opportunities.any { it.second == "busy" })
     }
 
+    /** Warn lines of the rewarded turns that contain [text]. */
+    private fun warnings(text: String): Int =
+        logger.entries.count { it.level == LogLevel.WARN && it.tag == "Ads" && it.message.contains(text) }
+
+    @Test
+    fun decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy() = runTest {
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        val other = mutableListOf<RewardedOutcome>()
+        port.ready["rw_get_item"] = true
+        // The switch never answers (plan T-047): the decision ends after RewardedTurns.DECISION_WAIT_MILLIS.
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request { a += it } }
+        runCurrent()
+        launch { request { b += it } }
+        runCurrent()
+        // Control (L-068): another placement is decided at once meanwhile.
+        request(rwAllow) { other += it }
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), other)
+
+        advanceTimeBy(4_999)
+        runCurrent()
+        assertTrue(a.isEmpty())
+        assertTrue(b.isEmpty())
+
+        advanceTimeBy(2)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), a)
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), b)
+        // Nothing is shown after the wait, and no load round is asked for the placement that timed out.
+        assertTrue(port.shows.isEmpty())
+        assertTrue("rw_get_item" !in port.loads)
+        assertEquals(
+            listOf(Triple("rw_get_item", "not_ready", "ready"), Triple("rw_get_item", "busy", "ready")),
+            port.opportunities.filter { it.first == "rw_get_item" },
+        )
+        assertEquals(1, warnings("not done in time"))
+
+        // Control (L-068): the timeout of rw_get_item changes nothing for rw_allow.
+        request(rwAllow) { other += it }
+        assertEquals(RewardedOutcome.NoAd(network = false, granted = true), other.last())
+        assertEquals(2, other.size)
+    }
+
+    @Test
+    fun decisionStuckAtSwitch_noAd_endsAfterWait() = runTest {
+        // One wait for the whole decision: the switch after 3 s leaves 2 s for the load, never 5 s each.
+        val gate = CompletableDeferred<Boolean>()
+        port.switchGates += gate
+        port.loadGates += CompletableDeferred<Unit>()
+        launch { request() }
+        runCurrent()
+
+        advanceTimeBy(3_000)
+        gate.complete(true)
+        runCurrent()
+        advanceTimeBy(1_999)
+        runCurrent()
+        assertTrue(outcomes.isEmpty())
+
+        advanceTimeBy(2)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), outcomes)
+        assertEquals(listOf("rw_get_item"), port.loads)
+        assertEquals(listOf(Triple("rw_get_item", "not_ready", "idle")), port.opportunities)
+    }
+
+    @Test
+    fun decisionStuckAtSwitch_offline_reportsNetwork() = runTest {
+        port.offline = true
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request() }
+        runCurrent()
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = true, granted = false)), outcomes)
+
+        // Control (L-055): online, the same timeout is no network failure.
+        port.offline = false
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request() }
+        runCurrent()
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(2, outcomes.size)
+        assertEquals(RewardedOutcome.NoAd(network = false, granted = false), outcomes.last())
+    }
+
+    @Test
+    fun afterStuckDecision_nextTapShowsAd() = runTest {
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        val c = mutableListOf<RewardedOutcome>()
+        port.ready["rw_get_item"] = true
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request { a += it } }
+        runCurrent()
+        launch { request { b += it } }
+        runCurrent()
+        advanceTimeBy(5_001)
+        runCurrent()
+
+        // A new decision: the switch answers, and the ad the timed-out decision never took out is shown.
+        request { c += it }
+        assertEquals(listOf("rw_get_item"), port.shows)
+        assertTrue(port.showAgains.isEmpty())
+        port.fireShowed()
+        port.fireReward()
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), c)
+
+        // Control (L-055): the taps of the timed-out decision get nothing more.
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), a)
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), b)
+    }
+
+    @Test
+    fun decisionStuckAtLoad_endsAfterWait_policyOnce() = runTest {
+        val first = mutableListOf<RewardedOutcome>()
+        val second = mutableListOf<RewardedOutcome>()
+        port.loadGates += CompletableDeferred<Unit>()
+        launch { request(rwAllow) { first += it } }
+        launch { request(rwAllow) { second += it } }
+        runCurrent()
+
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), first)
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), second)
+        assertEquals(
+            listOf(Triple("rw_allow", "not_ready", "idle"), Triple("rw_allow", "busy", "idle")),
+            port.opportunities,
+        )
+        assertEquals(1, warnings("not done in time"))
+
+        // Control: the load is no longer stuck, the next tap has its outcome at once.
+        val third = mutableListOf<RewardedOutcome>()
+        request(rwAllow) { third += it }
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), third)
+    }
+
+    @Test
+    fun loadRound_switchStuck_releasesAfterWait() = runTest {
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { turns.loadIfNeeded(rwGetItem) }
+        runCurrent()
+        // The round still waiting holds the placement.
+        turns.loadIfNeeded(rwGetItem)
+        assertTrue(port.sends.isEmpty())
+
+        advanceTimeBy(5_001)
+        runCurrent()
+        turns.loadIfNeeded(rwGetItem)
+        assertEquals(listOf("rw_get_item"), port.sends)
+        assertEquals(1, warnings("load round: switch not read in time"))
+    }
+
+    @Test
+    fun stuckDuringDecision_decisionStillEndsAfterWait() = runTest {
+        // Question 2 of plan T-047: onStuck() does not end a running decision; it ends after its own wait.
+        port.ready["rw_get_item"] = true
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request() }
+        runCurrent()
+
+        turns.onStuck()
+        runCurrent()
+        assertTrue(outcomes.isEmpty())
+        assertEquals(0, port.presenceLowered)
+
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), outcomes)
+    }
+
+    @Test
+    fun syncShowedAndReward_oneCaller_onScreenThenGrantOnce() = runTest {
+        port.syncShowedReward = true
+        port.ready["rw_get_item"] = true
+
+        request()
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+        assertEquals(listOf("rw_get_item"), port.rewards)
+
+        // Callbacks the SDK repeats later change nothing.
+        port.fireShowed()
+        port.fireReward()
+        port.fireDismissed()
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+        assertEquals(listOf("rw_get_item"), port.rewards)
+    }
+
+    @Test
+    fun syncShowedAndReward_joinedTap_latestGranted() = runTest {
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        port.syncShowedReward = true
+        port.ready["rw_get_item"] = true
+        val gate = CompletableDeferred<Boolean>()
+        port.switchGates += gate
+        launch { request { a += it } }
+        launch { request { b += it } }
+        runCurrent()
+        gate.complete(true)
+        runCurrent()
+
+        // Like a turn the SDK reports later: every caller's dialog closes, the latest caller is rewarded.
+        assertEquals(listOf(RewardedOutcome.OnScreen), a)
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), b)
+        assertEquals(listOf("rw_get_item"), port.rewards)
+        assertEquals(listOf("rw_get_item"), port.showAgains)
+
+        // One handler for both taps, like a RewardedAction tapped twice: each outcome once, in order.
+        port.fireDismissed()
+        port.ready["rw_get_item"] = true
+        val next = CompletableDeferred<Boolean>()
+        port.switchGates += next
+        launch { request() }
+        launch { request() }
+        runCurrent()
+        next.complete(true)
+        runCurrent()
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+    }
+
+    @Test
+    fun syncShowedRewardDismissed_grantOnce_nextTapShowsAgain() = runTest {
+        // Guard (plan T-047): a turn that ends inside the show call keeps its outcome.
+        port.syncShowedReward = true
+        port.syncDismiss = true
+        port.ready["rw_get_item"] = true
+
+        request()
+        assertEquals(1, outcomes.count { it == RewardedOutcome.Granted })
+        assertEquals(listOf("rw_get_item"), port.rewards)
+
+        port.syncShowedReward = false
+        port.ready["rw_get_item"] = true
+        request()
+        assertEquals(2, port.shows.size)
+        assertTrue(port.showAgains.isEmpty())
+    }
+
     /**
      * The port of [RewardedTurns] without the SDK: switches and states per placement code, every call recorded.
      * [ready] turns false once the ad is taken out to be shown, like the cache of [AdsController].
@@ -769,6 +1013,12 @@ class RewardedTurnsTest {
         val opportunities = mutableListOf<Triple<String, String, String>>()
         val rewards = mutableListOf<String>()
         var failShowAtOnce: Int? = null
+
+        /** The SDK reports "on screen" and the reward inside the show call (a mediation SDK may, plan T-047). */
+        var syncShowedReward = false
+
+        /** With [syncShowedReward], the SDK also reports the close inside the show call. */
+        var syncDismiss = false
         var presenceRaised = 0
         var presenceLowered = 0
         private var lastShown: AdPlacementDeclaration? = null
@@ -832,6 +1082,11 @@ class RewardedTurnsTest {
             shows += declaration.code
             // The show fails inside the call, as AdsController does with no ad or no activity.
             failShowAtOnce?.let { turns.onShowFailed(declaration, it) }
+            if (syncShowedReward) {
+                turns.onShowed(declaration)
+                turns.onReward(declaration)
+                if (syncDismiss) turns.onDismissed(declaration)
+            }
         }
 
         override fun showAgain(declaration: AdPlacementDeclaration, activity: Activity?) {
