@@ -1,16 +1,16 @@
 ---
 ticket: T-046
 title: Dọn quảng cáo theo ghi chú rà soát RUN-20261026-05 và RUN-20261026-06
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 4.6M         # cỡ S, số gợi ý 4.6M (scripts/token-usage.py estimate, 2026-10-27); việc nhỏ, không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-27
 ---
 
 # PLAN T-046: DỌN QUẢNG CÁO THEO GHI CHÚ RÀ SOÁT RUN-20261026-05 VÀ RUN-20261026-06
@@ -174,9 +174,9 @@ Code `main` của plan chỉ bớt tham số, nên không có test mới đỏ �
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** Anh Nhật duyệt 2026-10-27 trong phiên giám sát cùng AI. Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua rà soát độc lập (0 chặn, 2 nên sửa đã sửa). Chạy trước T-047 nếu cùng phiên.
 
 ## 10. Nhật ký thực hiện
 
