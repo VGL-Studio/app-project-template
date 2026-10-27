@@ -673,3 +673,39 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied (cách khác: anh Nhật chọn 2026-10-27; không bắt chạy thử lúc soạn plan, theo ADR-0029)
 - **Áp dụng:** ADR-0031. Lúc soạn plan: mục 3.5 "Hành vi đã có bị đổi" của mẫu plan, `scripts/existing-tests.py` (trên plan T-041 phiên bản 1, test gây dừng đứng đầu 4 test "Cần xem trước"), quy tắc 13 của `scripts/plan-check.py`, `docs/CLAUDE.md` mục Khi viết plan, `docs/ops/pre-run-review.md`. Trong phiên: câu khẳng định cũ trái điều plan đã duyệt nói rõ được viết lại khi đủ sáu điều (`risk-scoring.md` mục 4, `auto-run.md` bước 4, 6, 10).
 
+
+### L-107. Plan nâng `token_estimate` gần gấp đôi số gợi ý theo một hai task của phiên trước
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-081 của app), issue #204
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** sau một phiên có task dùng nhiều token, plan ở app nâng `token_estimate` gần gấp đôi số `scripts/token-usage.py estimate` gợi ý. Task thật dùng 0,4 đến 0,7 lần số nâng tay, vì mẫu của script đã gồm token của phiên con.
+- **Đề xuất sửa:** `docs/CLAUDE.md` mục Khi viết plan, dòng `token_estimate`: không nâng số gợi ý theo một hai task của một phiên.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/CLAUDE.md` mục Khi viết plan; issue #204.
+
+### L-108. Điểm nên sửa chỉ đòi thêm test cho code đã đúng, mà luật bắt test viết trước phải thất bại
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-082 của app), issue #204
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** rà soát độc lập xếp mức nên sửa một điểm chỉ đòi thêm test cho hành vi code đã làm đúng. Luật "phải sửa khi có test viết trước thất bại đúng lý do" không áp được, vì test đó không thể thất bại trước; phiên phải đoán nên thêm hay ghi báo cáo.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 6, dòng Nên sửa: thêm test khi test nằm trong file của mục 3.2 và thất bại khi tạm bỏ dòng code đó (đột biến), ghi kết quả vào nhật ký; không thì ghi vào báo cáo.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` bước 6, dòng Nên sửa; issue #204.
+
+### L-109. Phiên con chết giữa bước 3 vì lỗi API 403 `oauth_org_not_allowed`, phiên chính đứng chờ 2 giờ 30 phút
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-084 của app, RUN-20261026-03), issue #204
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phiên con trả "API Error: 403 oauth_org_not_allowed" rồi kết thúc mà không có báo cáo. Phiên `claude --cloud` không biết làm gì tiếp và đứng tới khi người nhắn.
+- **Đề xuất sửa:** `docs/auto-run.md` mục Giao bước 3 đến 5: phiên con kết thúc không báo cáo thì phiên chính đọc worktree và làm tiếp từ phần đã có, không tính là task dừng; bảng tra lỗi thêm dòng cho `oauth_org_not_allowed` (loại `cho`) kèm log thật.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục Giao bước 3 đến 5; `docs/ops/failure-playbook.md` dòng PB-12, tệp `scripts/tests/playbook/PB-12.log` và test; issue #204.
+
+### L-110. PR xuất lại ảnh thiết kế không sinh lại `design/review/`, task sau thấy ảnh so sánh đổi ngoài mục 3.2
+
+- **Ngày, nguồn:** 2026-10-26, app camera-pose (bài học L-085 của app), issue #204
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** một PR xuất lại ảnh thiết kế của feature mà không chạy `scripts/design-compare.sh`. Task sau của feature chạy script ở bước 5 và thấy ảnh so sánh, `summary.md` đổi mà không do task, ngoài mục 3.2 của plan.
+- **Đề xuất sửa:** `docs/ops/design-workflow.md`: PR xuất lại ảnh chạy `design-compare.sh` và commit `design/review/` cùng PR. `docs/auto-run.md` bước 5: ảnh so sánh đổi mà ảnh chuẩn của task không đổi thì không commit, ghi vào mô tả PR.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/ops/design-workflow.md`, `docs/auto-run.md` bước 5; issue #204.
