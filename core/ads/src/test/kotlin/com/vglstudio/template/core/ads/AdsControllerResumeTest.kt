@@ -90,6 +90,7 @@ class AdsControllerResumeTest {
         assertEquals("resume", opportunities.single().adPlacement)
         assertEquals("not_ready", opportunities.single().result)
         assertEquals("idle", opportunities.single().loadState)
+        assertEquals("APP_OPEN", opportunities.single().adFormat)
         settings.set(AdsSettings.RESUME_AD_TYPE, "inter")
         idle()
         assertEquals(AdPlacement.RESUME_INTER, controller.readResumeGate().placement)

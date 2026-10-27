@@ -703,7 +703,12 @@ class RewardedTurnsTest {
         port.opportunities.clear()
         port.failShowAtOnce = null
         port.ready["rw_allow"] = true
+        val joinsBefore = logger.entries.count { it.message.endsWith("tap joins the one being decided") }
         doubleTapAwaitingSwitch(rwAllow, first = { a += it }, second = { b += it })
+        // The second tap of the control joins the decision too, like the name of the test says.
+        assertEquals(joinsBefore + 1, logger.entries.count { it.message.endsWith("tap joins the one being decided") })
+        // It never read the switch itself, and with an ad no load round takes a gate.
+        assertEquals(2, port.switchGates.size)
         port.fireReward()
         assertTrue(a.isEmpty())
         assertEquals(listOf(RewardedOutcome.Granted), b)
