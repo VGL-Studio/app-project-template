@@ -1,7 +1,7 @@
 ---
 ticket: T-046
 title: Dọn quảng cáo theo ghi chú rà soát RUN-20261026-05 và RUN-20261026-06
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -181,3 +181,16 @@ Code `main` của plan chỉ bớt tham số, nên không có test mới đỏ �
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261028-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #228, commit merge `f0878ab`, 2026-10-27 18:26 UTC).
+- **Nhánh, PR:** `claude/T-046-don-sau-ra-soat` từ nhánh chính `e9d7767`. Commit test `e95d226`, code `b90129f`. Phiên chính tự làm bước 3 đến 5 trong worktree `../task-T-046` (task cỡ S).
+- **Test viết trước:** 2 câu khẳng định mới trong đối chứng của `RewardedTurnsTest.doubleTap_showFailsInsideTheCall_latestGetsPolicy_joinedIsBusy` (số dòng "tap joins", số cổng còn) và 1 câu `adFormat` trong `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing`. Câu số dòng nhập vào đỏ đúng lý do trước khi thêm `clear()`: `expected:<2> but was:<1>` (đối chứng đi nhánh R-06, khớp mục 4.1). Câu `adFormat` qua ngay như plan nêu; đối chứng L-055 với `"INTER"` đỏ `expected:<[INTER]> but was:<[APP_OPEN]>`, rồi đổi về `"APP_OPEN"`: 1 test viết chặt bằng đối chứng. Không chạy test JVM mọi module ở bước 3 vì commit test chỉ đổi hai file test của `:core:ads`; `check.sh` ở bước 5 chạy đủ.
+- **Kiểm tra cục bộ:** `scripts/check.sh` QUA, 1423 test JVM, 0 lỗi, 87 ảnh; không ảnh chuẩn nào đổi.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 2 ghi chú: KDoc của `NativeFullScreenFrame` trỏ `[FlowStepPageFrame]` là hàm `private` (cùng package, theo nguyên văn plan); chú thích hàng cổng của `doubleTapAwaitingSwitch` không nêu trường hợp có quảng cáo mà lần bấm hai tự đọc khóa (không test nào dùng).
+- **Kết quả CI:** `pr-check` xanh ở vòng đầu (lần chạy 40557535307).
+- **Lệch so với plan:** không có. Không dùng phương án dự phòng. Không có câu khẳng định cũ viết lại theo ADR-0031.
+- **Sửa file test sau commit test:** `port.switchGates.clear()` (bước 4 theo plan), chú thích của `doubleTapAwaitingSwitch`, KDoc của `FakeAdChoices`; không câu khẳng định nào đổi.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Cần người xem:** ô "Khung" cột `FULL` của `docs/ops/ads-guide.md`; KDoc của `FakeAdChoices` (mục 4, hai dòng kiểm thủ công). Nhánh `claude/T-046-don-sau-ra-soat` không xóa được sau merge (L-092), người xóa tay.
