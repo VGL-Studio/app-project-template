@@ -1,7 +1,7 @@
 ---
 ticket: T-041
 title: Native toàn trang của luồng giữ CTA trong màn thấp và hiện quảng cáo mới sau khi xoay, gập máy
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
@@ -421,3 +421,16 @@ Phiên bản 2: Duyệt, 2026-10-27. Anh Nhật giao AI xử lý task bị dừn
 - **Ảnh chuẩn:** mới `NativeFlowStep_full-page-compact_light.png`, `NativeFlowStep_full-page-placeholder_light.png` (`core/ads`), `AdGalleryScreen_flow-full-page_landscape.png` (`app`); ghi lại `AdGalleryScreen_flow-full-page_light.png`, `_small.png`. Các ảnh khác giữ nguyên từng byte. Phiên con đã mở xem từng ảnh.
 - **Việc còn lại:** câu hỏi 9 ở mục 8; rồi bước 5 đến 10 trên nhánh cũ.
 - **Cần người xem:** câu hỏi 9; T-045 bị bỏ qua vì phụ thuộc T-041.
+
+### RUN-20261026-06, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #218, commit merge `f100c1c`, 2026-10-27 06:40 UTC).
+- **Nhánh, PR:** tiếp tục `claude/T-041-trang-toan-trang`, gộp nhánh chính `64165f8` (không xung đột, nhánh chính không đổi file nào của plan). Commit test mới `51f6919` (câu hỏi 9), `64c4f69` (định dạng ktlint).
+- **Test viết trước:** chỉ phần câu hỏi 9 (mục 3.1, cách tiếp tục). Ba câu mới qua ngay trên code đã có (plan đã chạy thử); đối chứng: tạm đặt chữ của bước ở đáy vùng bước thì câu "thẻ dưới chữ của bước" đỏ (thẻ từ 557 dp, chữ tới 747 dp). 1 test viết chặt bằng đối chứng.
+- **Kiểm tra cục bộ:** `scripts/check.sh` lần đầu đỏ ở `ktlintTestStagingSourceSetCheck` (điều kiện nhiều dòng của câu mới, `condition-wrapping`), sửa định dạng; lần hai QUA, 1413 test JVM, 0 lỗi, 85 ảnh.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 7 ghi chú: tham số `safeArea` của `NativeFullScreenFrame` không còn nơi gọi với `false` và KDoc còn nhắc trang của bước; ở 400 dp media 124 dp (plan ghi 120 dp); `lineHeightOf` làm tròn lên nên ở 420 dpi tại ngưỡng mô tả có thể bớt một dòng (an toàn); xác nhận câu viết lại đủ sáu điều của ADR-0031, test `NativeFlowStepLayoutTest` đổi trong commit code không bị nới, `flowSteps_smallScreen_nextNotCovered` sửa trong phạm vi plan, ảnh chuẩn hợp lý.
+- **Kết quả CI:** `pr-check` xanh ở vòng đầu (lần chạy 40461138323).
+- **Lệch so với plan:** câu khẳng định cũ viết lại (ADR-0031): `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep`, câu cũ `bounds(STEP_CARD).top >= bounds(FLOW_PAGER).bottom - TOLERANCE_DP.dp`; câu mới: đáy `FLOW_CARD_FRAME` bằng đáy `FLOW_PAGER` (sai số `TOLERANCE_DP`), `STEP_CARD` nằm trọn trong `FLOW_CARD_FRAME`, đỉnh `STEP_CARD` không cao hơn đáy chữ "Step 2 of 3"; câu của plan: mục 3.1 bước 3 và trả lời câu hỏi 9; ý định: thẻ ở ngoài pager (MC-06), theo bước, không che nội dung bước; đối chứng như dòng Test viết trước. Các lệch của phiên bản 1 (mục nhật ký trên) giữ nguyên.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** như nhật ký phiên bản 1; không ảnh nào đổi thêm.
+- **Cần người xem:** câu viết lại theo ADR-0031; kiểm thủ công trên máy thật (xoay, gập máy, lượt hiển thị) ở mục 4.
