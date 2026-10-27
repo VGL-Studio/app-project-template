@@ -1130,8 +1130,11 @@ echo '{}' > "$repo/docs/data/values.json"
 echo 'open("docs/data/values.json")' > "$repo/scripts/reader.py"
 touch "$repo/feature/demo/A.kt" "$repo/core/x/B.kt" "$repo/docs/features/demo/design/screens/DemoScreen_main_light.png"
 write_plan() { # <file> <risk> <status> <rows> [extra text]
-  printf -- '---\nticket: %s\nstatus: %s\nrisk_level: %s\nreviewer: A\ncross_reviewer:\napproved_at: 2026-10-17\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n%b\n\n### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện\n\n- **Quyền truy cập:** %s\n- **Thư viện và SDK:** Không thêm.\n\n%s\n\n## 4. Kiểm thử\n' \
-    "$(basename "$1" | cut -d- -f1-2)" "$3" "$2" "$4" "${PERMISSIONS:-Không thêm.}" "${5:-}" > "$1"
+  printf -- '---\nticket: %s\nstatus: %s\nrisk_level: %s\nreviewer: A\ncross_reviewer:\napproved_at: 2026-10-17\n---\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n%b\n\n### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện\n\n- **Quyền truy cập:** %s\n- **Thư viện và SDK:** Không thêm.\n\n%s\n\n%s\n\n## 4. Kiểm thử\n' \
+    "$(basename "$1" | cut -d- -f1-2)" "$3" "$2" "$4" "${PERMISSIONS:-Không thêm.}" \
+    "${CHANGED_BEHAVIOUR-### 3.5. Hành vi đã có bị đổi
+
+Không có.}" "${5:-}" > "$1"
 }
 plan_check() { if PLAN_CHECK_ROOT="$repo" python3 -I scripts/plan-check.py "$1" > "$work/plan-check.out" 2>&1; then echo pass; else echo stop; fi; }
 # One row of the file list of a plan; the backticks are Markdown, not command substitution.
@@ -1356,6 +1359,87 @@ expect "plan-check: an approved plan with \$TMPDIR only warns" "pass 1" \
 # shellcheck disable=SC2016
 write_plan "$plans/T-949-a.md" medium draft "$(row Sửa feature/demo/A.kt)" 'Ghi vào `${TMPDIR:-/tmp}/out.txt` và `$TMPDIR_OLD`.'
 expect "plan-check: \${TMPDIR:-/tmp} passes" "pass 0" "$(plan_check "$plans/T-949-a.md") $(tmpdir_lines)"
+
+# Rule 13 and scripts/existing-tests.py: a plan that changes Kotlin code says which existing tests check behaviour
+# it changes (ADR-0031, L-106: T-041 stopped on an existing test that measured where the card sits).
+CHANGED_BEHAVIOUR="" write_plan "$plans/T-951-a.md" medium draft "$(row Sửa feature/demo/A.kt)"
+expect "plan-check: a draft plan changing Kotlin code without section 3.5 stops" \
+  "stop 1" "$(plan_check "$plans/T-951-a.md") $(grep -c 'LỖI: quy tắc 13' "$work/plan-check.out" || true)"
+CHANGED_BEHAVIOUR="" write_plan "$plans/T-952-a.md" medium approved "$(row Sửa feature/demo/A.kt)"
+expect "plan-check: an approved plan without section 3.5 passes" \
+  "pass 0" "$(plan_check "$plans/T-952-a.md") $(grep -c 'quy tắc 13' "$work/plan-check.out" || true)"
+CHANGED_BEHAVIOUR="" write_plan "$plans/T-953-a.md" medium draft \
+  "$(row Sửa docs/data/values.json)\n$(row Sửa feature/demo/src/test/kotlin/ATest.kt)" 'scripts/reader.py chỉ đọc khóa a.'
+mkdir -p "$repo/feature/demo/src/test/kotlin" && touch "$repo/feature/demo/src/test/kotlin/ATest.kt"
+expect "plan-check: a plan changing only data and tests needs no section 3.5" pass "$(plan_check "$plans/T-953-a.md")"
+
+trepo="$work/tests-repo"
+mkdir -p "$trepo/feature/demo/src/main/kotlin" "$trepo/feature/demo/src/test/kotlin" "$trepo/docs/plans" \
+  "$trepo/feature/other/src/test/kotlin"
+cat > "$trepo/feature/demo/src/main/kotlin/DemoScreen.kt" <<'KOTLIN'
+object DemoTags {
+    const val PAGER = "demo_pager"
+    const val CARD = "demo_card"
+}
+
+@Composable
+fun DemoScreen(modifier: Modifier) {
+    fun localHelper() = Unit
+    val every = 3
+    Box(modifier.testTag(DemoTags.PAGER)) { Card(Modifier.testTag(DemoTags.CARD)) }
+}
+
+private fun hiddenHelper() = Unit
+KOTLIN
+cat > "$trepo/feature/demo/src/test/kotlin/DemoScreenTest.kt" <<'KOTLIN'
+class DemoScreenTest {
+    @Test
+    fun card_belowPager() {
+        assertTrue(bounds(DemoTags.CARD).top >= bounds(DemoTags.PAGER).bottom)
+    }
+
+    @Test
+    fun card_exists() {
+        assertTrue(exists(DemoTags.CARD))
+    }
+
+    @Test
+    fun alreadyNamed_inPlan() {
+        assertTrue(bounds(DemoTags.CARD).height > 0)
+    }
+
+    @Test
+    fun unrelated() {
+        val every = 3
+        localHelper()
+        hiddenHelper()
+    }
+}
+KOTLIN
+cat > "$trepo/feature/other/src/test/kotlin/OtherTest.kt" <<'KOTLIN'
+class OtherTest {
+    @Test
+    fun otherCard_measured() {
+        assertTrue(bounds(OtherTags.CARD).height > 0)
+    }
+}
+KOTLIN
+# Backticks are Markdown here, not command substitution.
+# shellcheck disable=SC2016
+printf '### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| Sửa | `feature/demo/src/main/kotlin/DemoScreen.kt` | thẻ đè lên `PAGER` |\n| Sửa | `feature/demo/src/test/kotlin/DemoScreenTest.kt` | `alreadyNamed_inPlan` |\n\n## 4. Kiểm thử\n' \
+  > "$trepo/docs/plans/T-1.md"
+EXISTING_TESTS_ROOT="$trepo" python3 -I scripts/existing-tests.py "$trepo/docs/plans/T-1.md" > "$work/existing.out"
+expect "existing-tests: the measuring test of a tag the plan names comes first" 1 \
+  "$(sed -n '/^Cần xem trước/,/^Nên xem/p' "$work/existing.out" | grep -c 'DemoScreenTest.card_belowPager.*| có |')"
+expect "existing-tests: a test the plan already names is only counted" "0 1" \
+  "$(grep -c 'alreadyNamed_inPlan' "$work/existing.out" || true) $(grep -c '^Plan đã nhắc tới 1 test' "$work/existing.out")"
+expect "existing-tests: a test using a tag the plan does not name is only counted" "0 1" \
+  "$(grep -c 'DemoScreenTest.card_exists' "$work/existing.out" || true) $(grep -c '^Còn 1 test' "$work/existing.out")"
+expect "existing-tests: local functions, plain vals, private functions and another object's CARD are not names" 0 \
+  "$(grep -c 'unrelated\|OtherTest' "$work/existing.out" || true)"
+EXISTING_TESTS_ROOT="$trepo" python3 -I scripts/existing-tests.py --all "$trepo/docs/plans/T-1.md" > "$work/existing.out"
+expect "existing-tests: --all lists the test using a tag the plan does not name" 1 \
+  "$(grep -c 'DemoScreenTest.card_exists' "$work/existing.out")"
 
 # The latest run list must not get an error from rule 11 (the plans of a run list are approved, so rule 11 only warns).
 latest_run="$(ls docs/runs/RUN-*.md | sort | tail -n 1)"

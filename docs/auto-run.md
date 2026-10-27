@@ -96,7 +96,7 @@ Task lớn (nhiều file, cỡ L) thì phiên chính giao bước 3 đến 5 cho
 - Tạo và sửa các file trong danh sách file của plan. Phần ngoài danh sách cần để thay đổi của plan chạy đúng thì sửa tiếp, không dừng task (ADR-0029, `risk-scoring.md` mục 4); vẫn dừng với file trong mục "Không được làm" của `CLAUDE.md` và với điều kiện dừng 2 tới 9.
 - Phương án chính không chạy và plan có phương án dự phòng đã duyệt (mục 3.4 của plan): chuyển sang phương án đó theo `risk-scoring.md`, mục 4, thay vì dừng task. Ghi vào nhật ký lúc chuyển, điều kiện chuyển đã gặp và lỗi của phương án chính; báo cáo phiên liệt kê ở mục Cần người kiểm tra.
 - Không sửa test đã viết ở bước 3 để làm cho test qua. Nếu test sai ở chi tiết không làm thay đổi điều nó kiểm tra (ví dụ sai tên một hàm), được sửa và ghi lý do vào nhật ký. Nếu cần thay đổi điều test kiểm tra thì dừng task.
-- Test cũ ngoài mục 3.2: chỉ cập nhật dữ liệu mà phần plan thêm làm thay đổi, và test vẫn kiểm phần mới như phần cũ; không xóa test hay câu khẳng định, không nới phép so sánh, không thêm `@Ignore` (ADR-0029, quyết định 2).
+- Test cũ ngoài mục 3.2: chỉ cập nhật dữ liệu mà phần plan thêm làm thay đổi, và test vẫn kiểm phần mới như phần cũ; không xóa test hay câu khẳng định, không nới phép so sánh, không thêm `@Ignore` (ADR-0029, quyết định 2). Câu khẳng định cũ trái trực tiếp điều plan đã duyệt nói rõ (mục 3.1, 3.5, câu trả lời ở mục 8): viết lại khi đủ sáu điều của ADR-0031 (`risk-scoring.md` mục 4), kèm câu ý định và lần chạy đối chứng; thiếu một điều thì dừng.
 
 ### Bước 5. Kiểm tra cục bộ
 
@@ -131,6 +131,7 @@ Nội dung rà soát:
 - Test có thực sự kiểm tra tiêu chí chấp nhận không, hay chỉ kiểm tra những gì code đang làm.
 - Có tuân thủ mục "Việc AI phải tuân thủ" của các ADR không.
 - Phần ngoài mục 3.2 (ADR-0029, `risk-scoring.md` mục 4): có thật cần cho thay đổi của plan không; có file trong mục "Không được làm" của `CLAUDE.md`, thư viện, quyền hay điểm chặn 1 tới 6, 8, 9 mà plan chưa nêu không; test cũ có bị xóa, nới phép so sánh hay đổi điều nó kiểm về hành vi đã có không. Vi phạm là mức chặn.
+- Câu khẳng định cũ viết lại (ADR-0031): có câu của plan nói điều mới không; câu mới có kiểm đúng ý định đã ghi không; có bị nới không; đối chứng có đỏ khi ý định bị phá không; có quá 3 câu, có chạm ảnh chuẩn, test viết trước hay tiêu chí của spec không. Vi phạm là mức chặn. Phiên rà soát nhận câu cũ, câu mới, câu của plan, câu ý định và lần chạy đối chứng.
 - Có cấu hình production, khóa bí mật, mã quảng cáo thật trong thay đổi không.
 - Code có theo đúng mẫu đã có trong dự án không.
 - Task dịch chữ: nghĩa của từng nhãn đi cùng con số hay phần trăm có đúng chiều không (giá trị lớn nhất nghĩa là gì), kể cả từ lấy lại từ feature khác. Test chữ chỉ kiểm đủ bản dịch và tham số, không kiểm nghĩa (L-100).
@@ -144,7 +145,7 @@ Kết quả rà soát chia ba mức:
 | Nên sửa | Phải sửa (ADR-0029, quyết định 3) khi đủ ba điều: phần sửa chỉ chạm file của mục 3.2 hay phần ngoài mục 3.2 được phép theo ADR-0029; có test viết trước thất bại đúng lý do; không đổi điều mà test của mục 4 của plan kiểm. Điểm nằm ngoài file được phép, hay không viết được test: không sửa, ghi vào báo cáo. Điểm mâu thuẫn với plan, spec hay một test của plan: không sửa, ghi vào báo cáo kèm phương án để người quyết. Sửa xong thì chạy lại bước 5 và giao rà soát độc lập lần nữa cho phần vừa sửa. Giới hạn 3 lần sửa tính riêng cho từng điểm nên sửa (như cho cùng một lỗi), không cộng dồn giữa các điểm; một điểm hết 3 lần thì hoàn tác phần sửa của điểm đó, ghi vào báo cáo, làm tiếp các điểm khác. Mỗi task tối đa 2 vòng rà soát lại vì điểm nên sửa; sau vòng thứ 2, điểm nên sửa còn lại (kể cả điểm mới vòng đó tìm ra) không sửa nữa, ghi vào báo cáo để người quyết. |
 | Ghi chú | Ghi vào báo cáo để người xem. |
 
-Phần ngoài mục 3.2 và từng điểm đã sửa theo rà soát được ghi trong mô tả PR, mục "Ngoài mục 3.2" (kèm `git diff --stat`) và "Đã sửa theo rà soát" (ADR-0029).
+Phần ngoài mục 3.2 và từng điểm đã sửa theo rà soát được ghi trong mô tả PR, mục "Ngoài mục 3.2" (kèm `git diff --stat`) và "Đã sửa theo rà soát" (ADR-0029). Câu khẳng định cũ viết lại được ghi ở mục "Test cũ viết lại (ADR-0031)": test, câu cũ, câu mới, câu của plan nói điều mới, câu ý định, lần chạy đối chứng.
 
 Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không tự chọn bên nào mà dừng task, vì đây là dấu hiệu spec hoặc plan chưa rõ.
 
@@ -225,7 +226,7 @@ Theo ADR-0025, mục 4 (L-049). Phiên chỉ revert commit merge của chính ph
 - Chỉ ghi khi task đã có kết quả cuối: đã merge, hoặc đã dừng. Không ghi trước khi biết kết quả CI.
 - Ghi giờ các khâu của task vào bảng Dòng thời gian của báo cáo (mẫu phiên, mục Số liệu): tạo nhánh, test viết trước xong, đẩy PR, CI xong, merge hoặc dừng. Giờ lấy từ commit, PR và kết quả `wait-run.sh`, ghi tới phút theo UTC.
 - Ghi trên nhánh báo cáo, không ghi trên nhánh của task. Ghi vào mục Nhật ký thực hiện ở cuối plan theo mẫu, cập nhật dòng của task trong báo cáo phiên, rồi đẩy nhánh báo cáo lên. Nhờ vậy nếu phiên dừng đột ngột (hết hạn mức), người vẫn đọc được kết quả các task đã xong trên nhánh báo cáo.
-- Nhật ký ghi cả phần ngoài mục 3.2 (file, vì sao cần, loại: nối chỗ gọi, dữ liệu test, code, tài liệu) và từng điểm đã sửa theo rà soát, với test của nó (ADR-0029). Task đã merge có phần ngoài mục 3.2 thì báo cáo phiên có một dòng `- [ ]` ở mục Cần người kiểm tra, để người xem sau.
+- Nhật ký ghi cả phần ngoài mục 3.2 (file, vì sao cần, loại: nối chỗ gọi, dữ liệu test, code, tài liệu) và từng điểm đã sửa theo rà soát, với test của nó (ADR-0029). Task đã merge có phần ngoài mục 3.2 thì báo cáo phiên có một dòng `- [ ]` ở mục Cần người kiểm tra, để người xem sau. Câu khẳng định cũ viết lại (ADR-0031) ghi ở dòng "Lệch so với plan" của nhật ký và cũng có một dòng `- [ ]` như vậy.
 - Plan chuyển sang `done`, ticket chuyển sang `on-staging`.
 - Task bị dừng: plan và ticket chuyển sang `stopped`, nhánh và PR của task được giữ nguyên, không merge.
 - Task bị dừng: chuẩn bị sẵn cho người, để sáng hôm sau người chỉ cần xem và duyệt (mục Chuẩn bị cho người khi task dừng).

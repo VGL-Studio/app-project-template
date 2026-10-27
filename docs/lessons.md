@@ -662,5 +662,6 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** plan, chung
 - **Chuyện gì:** plan T-041 đổi vị trí khung thẻ 250 dp của màn xem thử (đè ở đáy vùng bước thay vì nằm dưới pager). Mục 4.1 chạy thử với khung thẻ cao 0 dp ở bước toàn trang, nên không đo được bố cục ở bước thẻ. Test có sẵn `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` khẳng định thẻ nằm dưới pager về hình học; trong phiên test này đỏ và task phải dừng (điều kiện 3), sau khi đã viết xong code.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: plan đổi vị trí hay kích thước của một phần tử giao diện có tag thì tìm mọi test đo `bounds` hay vị trí của tag đó (`grep -rn "<TAG>" */src/test*`) và liệt kê ở mục 3.2 từng câu khẳng định sẽ còn đúng hay phải đổi (đặt thành câu hỏi khi phải đổi); chạy thử ở mục 4.1 dựng đúng bố cục mới, không dùng khung tạm.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied (cách khác: anh Nhật chọn 2026-10-27; không bắt chạy thử lúc soạn plan, theo ADR-0029)
+- **Áp dụng:** ADR-0031. Lúc soạn plan: mục 3.5 "Hành vi đã có bị đổi" của mẫu plan, `scripts/existing-tests.py` (trên plan T-041 phiên bản 1, test gây dừng đứng đầu 4 test "Cần xem trước"), quy tắc 13 của `scripts/plan-check.py`, `docs/CLAUDE.md` mục Khi viết plan, `docs/ops/pre-run-review.md`. Trong phiên: câu khẳng định cũ trái điều plan đã duyệt nói rõ được viết lại khi đủ sáu điều (`risk-scoring.md` mục 4, `auto-run.md` bước 4, 6, 10).
 
