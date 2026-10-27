@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-19]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: S
 depends_on: [T-042]
 sprint:
-plan:
+plan: features/ads/plans/T-047-rewarded-quyet-dinh-treo.md
 created: 2026-10-27
 ---
 
