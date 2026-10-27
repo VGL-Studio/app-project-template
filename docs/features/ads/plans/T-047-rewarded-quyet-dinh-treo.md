@@ -2,7 +2,7 @@
 ticket: T-047
 title: "Rewarded: lượt quyết định treo không giữ mãi các lần bấm sau"
 status: approved             # draft | approved | stopped | done
-version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 4.6M         # cỡ S, số gợi ý 4.6M (scripts/token-usage.py estimate, 2026-10-27); giữ nguyên: một file code, hai file test, ba chỗ tài liệu
@@ -18,6 +18,8 @@ approved_at: 2026-10-28
 Phiên bản 2 (2026-10-27): sửa theo rà soát độc lập của bản 1 và theo trả lời mục 8 của anh Nhật. Đổi chính: một hạn chung 5 giây cho cả lần quyết định; lượt nạp cũng đọc khóa có giới hạn; test app ra nền giữa lúc chờ (L-091); phương án dự phòng giữ nguyên test viết trước; T-046 chạy trước.
 
 Sửa trong bản 2 theo rà soát vòng 2 (2026-10-27, chưa duyệt nên giữ số phiên bản): test `decisionStuckAtSwitch_noAd_endsAfterWait` viết lại để phân biệt hạn chung với hai hạn riêng; test L-091 hết hạn khi app đang ở nền; hết hạn đọc cờ mạng (không chờ) để báo kiểm tra kết nối đúng KB-19; dòng mục 11 nói rõ lượt nạp hết giờ không hẹn thử lại; số đo mới ở mục 4 và 4.1.
+
+Bản 3 (2026-10-28, rà soát danh sách RUN-20261028-01): câu `port.loads` rỗng của `decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy` đỏ dù code đúng, vì đối chứng L-068 trước đó nạp `rw_allow`; đổi thành `"rw_get_item" !in port.loads`, cùng ý, không nới.
 
 ## 1. Tóm tắt
 
@@ -144,7 +146,7 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit, nhán
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| Ticket, treo ở khóa: lần bấm nhập vào có kết quả sau hạn chung; hai vị trí không trộn (L-068) | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy`: `port.ready["rw_get_item"] = true`; `port.switchGates += CompletableDeferred<Boolean>()` (không bao giờ xong); `launch { request { a += it } }`, `runCurrent()`, `launch { request { b += it } }`, `runCurrent()`. Đối chứng L-068: `request(rwAllow) { other += it }` ngay lúc này: `other == [NoAd(false, true)]`. `advanceTimeBy(4_999)`, `runCurrent()`: `a`, `b` rỗng. `advanceTimeBy(2)`, `runCurrent()`: `a == [NoAd(false, false)]`, `b == [NoAd(false, false)]` (`block`), `port.shows` rỗng (không hiện sau lúc chờ), `port.loads` rỗng (hết hạn ở khóa thì không gọi lượt nạp), cơ hội của `rw_get_item` `[(rw_get_item, not_ready, ready), (rw_get_item, busy, ready)]`, log có một dòng `warn` chứa `not done in time`. Đối chứng L-068 sau hạn: `request(rwAllow)` lần nữa vẫn `NoAd(false, true)` (`allow` không có bộ đếm; hết hạn của `rw_get_item` không đổi `noAdInARow` của `rw_allow`). Hôm nay đỏ: `[]`, `[]` (đã đo) |
+| Ticket, treo ở khóa: lần bấm nhập vào có kết quả sau hạn chung; hai vị trí không trộn (L-068) | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy`: `port.ready["rw_get_item"] = true`; `port.switchGates += CompletableDeferred<Boolean>()` (không bao giờ xong); `launch { request { a += it } }`, `runCurrent()`, `launch { request { b += it } }`, `runCurrent()`. Đối chứng L-068: `request(rwAllow) { other += it }` ngay lúc này: `other == [NoAd(false, true)]`. `advanceTimeBy(4_999)`, `runCurrent()`: `a`, `b` rỗng. `advanceTimeBy(2)`, `runCurrent()`: `a == [NoAd(false, false)]`, `b == [NoAd(false, false)]` (`block`), `port.shows` rỗng (không hiện sau lúc chờ), `"rw_get_item" !in port.loads` (hết hạn ở khóa thì không gọi lượt nạp của `rw_get_item`; `loads` có `rw_allow` của đối chứng L-068 ở trên), cơ hội của `rw_get_item` `[(rw_get_item, not_ready, ready), (rw_get_item, busy, ready)]`, log có một dòng `warn` chứa `not done in time`. Đối chứng L-068 sau hạn: `request(rwAllow)` lần nữa vẫn `NoAd(false, true)` (`allow` không có bộ đếm; hết hạn của `rw_get_item` không đổi `noAdInARow` của `rw_allow`). Hôm nay đỏ: `[]`, `[]` (đã đo) |
 | Ticket, hạn chung, không quá 5 giây cho khóa và lượt nạp cộng lại | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_noAd_endsAfterWait`: `ready = false`; `val gate = CompletableDeferred<Boolean>()`, `port.switchGates += gate`; `port.loadGates += CompletableDeferred<Unit>()` (không bao giờ xong); `launch { request() }`, `runCurrent()`; `advanceTimeBy(3_000)`, `gate.complete(true)`, `runCurrent()`; `advanceTimeBy(1_999)`, `runCurrent()`: `outcomes` rỗng; `advanceTimeBy(2)`, `runCurrent()`: `outcomes == [NoAd(false, false)]`, `port.loads == [rw_get_item]` (một lần), cơ hội `[(rw_get_item, not_ready, idle)]`. Hai hạn riêng chỉ cho kết quả lúc 8 000 ms nên đỏ. Hôm nay đỏ: `[]` lúc 5 001 ms, đỏ ở câu khẳng định (đã đo) |
 | KB-19 tiêu chí 4, hết hạn khi không có mạng | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_offline_reportsNetwork`: `port.offline = true`; `switchGates += CompletableDeferred<Boolean>()` (không xong); `launch { request() }`, `runCurrent()`, `advanceTimeBy(5_001)`, `runCurrent()`: `outcomes == [NoAd(network = true, granted = false)]`. Đối chứng (L-055): `offline = false`, lần quyết định treo mới, hết hạn: `NoAd(network = false, granted = false)`. Hôm nay đỏ: `[]` (đã đo) |
 | Ticket, lần bấm sau lượt treo là lần quyết định mới | Unit test | `RewardedTurnsTest.afterStuckDecision_nextTapShowsAd`: như dòng đầu tới hết hạn; rồi `request { c += it }` (hàng cổng đã rỗng, khóa bật, quảng cáo vẫn sẵn sàng vì lần quyết định hết hạn không lấy ra): `port.shows == [rw_get_item]`, `port.showAgains` rỗng; `fireShowed()`, `fireReward()`: `c == [OnScreen, Granted]`. Đối chứng (L-055): `a`, `b` không nhận thêm gì. Hôm nay đỏ: `shows = []` (đã đo) |
@@ -216,7 +218,7 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit, nhán
 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
-- **Ghi chú:** Anh Nhật duyệt 2026-10-28 trong phiên giám sát cùng AI, gồm phần đổi luật nghiệp vụ (hạn chờ 5 giây ở mục 11, nửa câu ở R-06 và mục 8.2 của `ads-business-rules.md`). Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua hai vòng rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy sau T-046.
+- **Ghi chú:** Anh Nhật duyệt 2026-10-28 trong phiên giám sát cùng AI, gồm phần đổi luật nghiệp vụ (hạn chờ 5 giây ở mục 11, nửa câu ở R-06 và mục 8.2 của `ads-business-rules.md`). Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua hai vòng rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy sau T-046. Bản 3 (2026-10-28) chỉ sửa một câu khẳng định theo rà soát danh sách RUN-20261028-01; anh Nhật duyệt lại bản 3 cùng ngày.
 
 ## 10. Nhật ký thực hiện
 
