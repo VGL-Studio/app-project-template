@@ -1,16 +1,16 @@
 ---
 ticket: T-041
 title: Native toàn trang của luồng giữ CTA trong màn thấp và hiện quảng cáo mới sau khi xoay, gập máy
-status: stopped                 # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 22M          # cỡ M, số gợi ý 19.6M (scripts/token-usage.py estimate, 2026-10-26); bỏ phần giữ quảng cáo, thêm đo cỡ chữ, khung chờ và test qua AdsController thật, ghi lại ảnh chuẩn ở hai module
 blocking_points: [ads, core, analytics]
-run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+run_order: 1                   # AI điền sau họp đánh giá rủi ro
+reviewer: Nhật                    # người duyệt
+cross_reviewer: Nhật              # bắt buộc khi risk_level là high
+approved_at: 2026-10-27
 ---
 
 # PLAN T-041: NATIVE TOÀN TRANG CỦA LUỒNG GIỮ CTA TRONG MÀN THẤP VÀ HIỆN QUẢNG CÁO MỚI SAU KHI XOAY, GẬP MÁY
@@ -391,6 +391,7 @@ Câu hỏi của phiên bản 2:
 9. **Câu đối chứng "thẻ nằm dưới pager" của `AdGalleryScreenTest.flowSteps_cardOutsidePager_followsStep` mâu thuẫn với khung thẻ đặt đè ở đáy vùng bước (mục 3.1 bước 3).**
    - Đề xuất của AI: đổi câu đối chứng thành "thẻ nằm ở đáy vùng bước": `bounds(STEP_CARD).bottom` bằng `bounds(FLOW_PAGER).bottom` (sai số 1 dp) và thẻ cao 250 dp; giữ phần MC-06 (không có pager là tổ tiên) như cũ. Điều test kiểm về MC-06 không đổi, chỉ đổi vị trí hình học theo bố cục mới.
    - Phương án khác: (b) bỏ test viết trước `flowSteps_pagerHeight_sameOnCardAndFullPage`, cho pager ở bước thẻ thấp hơn 250 dp, thẻ nằm dưới pager như hôm nay (giao diện nhảy khi chuyển giữa bước thẻ và bước toàn trang); (c) giữ cả hai, thêm khoảng đệm 250 dp dưới pager ở mọi bước và cho trang toàn trang tràn xuống phần đệm (trang không còn là con của pager theo chiều cao, phức tạp hơn).
+   - Trả lời (2026-10-27, anh Nhật giao AI xử lý, chọn đề xuất của AI): đổi câu đối chứng theo đề xuất, viết cụ thể như sau. (1) `bounds(FLOW_CARD_FRAME).bottom` bằng `bounds(FLOW_PAGER).bottom` (sai số `TOLERANCE_DP`): khung thẻ ở đáy vùng bước. (2) `STEP_CARD` nằm trọn trong `FLOW_CARD_FRAME`. (3) Đỉnh của `STEP_CARD` không cao hơn đáy của chữ "Step 2 of 3": thẻ không che nội dung của bước, là điều câu cũ giữ. Giữ nguyên phần MC-06 (không có pager là tổ tiên) và phần chuyển bước. Lý do: (b) làm nút Next nhảy chỗ (OB-01, đã duyệt ở câu 1 đến 8); (c) phức tạp hơn mà không thêm gì cho người dùng. Ba câu mới kiểm cùng điều câu cũ kiểm (thẻ ngoài pager, không che bước) trên bố cục đã duyệt, nên không phải nới test (`risk-scoring.md` mục 4, điều kiện 5). Đã chạy thử ba câu này trên nhánh (`4e60b58`, 2026-10-27): `AdGalleryScreenTest` 36 test qua, 0 lỗi.
 
 ## 9. Quyết định duyệt
 
@@ -400,7 +401,7 @@ Câu hỏi của phiên bản 2:
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
 - **Ghi chú:** Anh Nhật duyệt 2026-10-26 trong phiên giám sát cùng AI. Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua rà soát độc lập, sửa theo điểm chặn và điểm nên sửa. Chạy thứ 4 trong RUN-20261026-05. 
 
-Phiên bản 2: <người duyệt điền>
+Phiên bản 2: Duyệt, 2026-10-27. Anh Nhật giao AI xử lý task bị dừng của RUN-20261026-05; câu hỏi 9 theo đề xuất của AI (mục 8). Chạy thứ 1 trong RUN-20261026-06.
 
 ## 10. Nhật ký thực hiện
 
