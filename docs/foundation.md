@@ -187,6 +187,14 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - mô tả PR đồng bộ liệt kê cách gộp từng file xung đột
 - phần giữ lại vì lớn thì đưa vào bằng một task có plan
 
+### [ADR-0031](adr/0031-test-cu-mau-thuan-voi-plan.md): Test có sẵn kiểm hành vi mà plan đổi được tìm từ lúc soạn plan, và phiên tự viết lại câu khẳng định khi plan đã duyệt rõ điều mới
+
+- plan sửa hay xóa code Kotlin ngoài thư mục test có mục 3.5 "Hành vi đã có bị đổi", liệt kê test có sẵn kiểm hành vi plan đổi (bắt đầu từ `scripts/existing-tests.py <plan>`) và câu khẳng định giữ nguyên hay câu mới viết sẵn, chỗ chưa quyết thì đặt câu hỏi ở mục 8
+- trong phiên, câu khẳng định của test JVM có sẵn đỏ vì trái trực tiếp điều plan đã duyệt nói rõ thì viết lại khi đủ sáu điều: có câu của plan nói điều mới, có câu ý định và câu mới kiểm đúng ý định đó, không nới (không bớt câu, không đổi bằng thành khoảng hay chứa, không tăng sai số, không bỏ đối chứng, không `@Ignore`), có đối chứng đỏ khi ý định bị phá, không phải ảnh chuẩn hay test viết trước của plan hay câu kiểm tiêu chí của spec hay luật nghiệp vụ mà plan không đổi, tối đa 3 câu mỗi task
+- thiếu một điều thì dừng như cũ
+- mỗi câu viết lại ghi vào nhật ký plan, mục "Test cũ viết lại (ADR-0031)" của mô tả PR và một dòng `- [ ]` ở mục Cần người kiểm tra
+- rà soát độc lập xét riêng từng câu, vi phạm là mức chặn
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh

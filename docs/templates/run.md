@@ -71,6 +71,7 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 - [ ] Tiêu chí kiểm tra thủ công (máy thật, người): <ticket, tiêu chí, các bước>
 - [ ] Kịch bản emulator lỗi hay bỏ qua: <tệp, kết quả, bước lỗi, phản hồi FB-...>, hoặc "Không có"
 - [ ] Phần ngoài mục 3.2 đã merge (ADR-0029): <ticket, file, vì sao cần, PR>, hoặc "Không có"
+- [ ] Câu khẳng định cũ viết lại (ADR-0031): <ticket, test, câu cũ và câu mới, câu của plan nói điều mới, PR>, hoặc "Không có"
 - [ ] Điểm rà soát mức ghi chú: <ticket, nội dung>
 - [ ] Test chập chờn: <issue `flaky` đang mở, tên test>, hoặc "Không có" (ADR-0025)
 - [ ] Task bị revert: <ticket, issue `main-broken`, PR revert>, hoặc "Không có" (ADR-0025)
