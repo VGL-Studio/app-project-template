@@ -522,6 +522,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian của `docs/runs/RUN-20261026-01.md`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5: ghi cách đẩy khi phiên con không báo giữa chừng (vòng nền có giới hạn theo dõi ref, gọi `save-branch.sh`, bắt đầu sau khi có kết quả `main-guard` của task trước), hoặc thêm script `scripts/push-on-commit.sh <nhánh> --minutes N` có test.
 - **Trạng thái:** applied
+- **Kiểm chứng:** RUN-20261026-06 (T-045): phiên chính chạy nền `push-on-commit.sh` trong lúc phiên con làm bước 3 đến 5 (khoảng 28 phút); hai commit của phiên con được đẩy trong vòng một phút (`737593f` lúc 06:56, `550f9b9` lúc 07:08), không commit nào chỉ nằm trong container. Có hiệu quả.
 - **Áp dụng:** `scripts/push-on-commit.sh` (vòng nền có giới hạn, đẩy khi có commit mới, mã 3 khi không đẩy được; có test), `docs/auto-run.md` mục Giao bước 3 đến 5, `CLAUDE.md` mục Lệnh. Anh Nhật duyệt trong retro 2026-10-27.
 
 ### L-091. Plan có bước chờ trước khi hiện quảng cáo không nêu trường hợp người dùng rời app giữa lúc chờ
@@ -608,6 +609,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `docs/auto-run.md` bước 3 bảo đẩy nhánh task ngay sau mỗi commit; bước 9 bảo trước khi đẩy commit đầu tiên của task sau phải có kết quả `main-guard` của lần merge trước. Phiên làm theo bước 3 và đẩy commit test của T-052, T-050 khi `main-guard` còn chạy. Không gây hại vì `main-guard` đều xanh, nhưng nếu đỏ thì task sau đã bắt đầu trên nhánh chính hỏng.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 ghi ngoại lệ của bước 9.
 - **Trạng thái:** applied
+- **Kiểm chứng:** RUN-20261026-06: T-045 tạo nhánh ngay sau khi T-041 merge nhưng chỉ chạy `push-on-commit.sh` sau khi `main-guard` của T-041 xanh (06:53) và không có issue `main-broken`; commit đầu của T-045 đẩy lúc 06:56. Có hiệu quả.
 - **Áp dụng:** `docs/auto-run.md` bước 3: commit đầu của task sau chỉ đẩy khi có kết quả `main-guard`, trong lúc chờ commit cục bộ; issue #188.
 
 ### L-100. Từ dịch lấy lại từ feature khác đổi nghĩa khi đi cùng con số
@@ -709,3 +711,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/ops/design-workflow.md`: PR xuất lại ảnh chạy `design-compare.sh` và commit `design/review/` cùng PR. `docs/auto-run.md` bước 5: ảnh so sánh đổi mà ảnh chuẩn của task không đổi thì không commit, ghi vào mô tả PR.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/ops/design-workflow.md`, `docs/auto-run.md` bước 5; issue #204.
+
+### L-111. Token của phiên chính làm task trong worktree bị tính vào dòng Chung
+
+- **Ngày, nguồn:** 2026-10-27, RUN-20261026-06
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** T-041 là task tiếp tục, phiên chính tự làm phần còn lại (câu hỏi 9, `check.sh`, mở PR) trong worktree `../task-T-041`, không giao phiên con. Thư mục chính ở trên nhánh báo cáo suốt lúc đó, nên `scripts/token-usage.py` gán các request này vào dòng Chung: T-041 chỉ ghi 2,2M so với ước tính 22M (0,1 lần), dòng Chung 12,8M. Số trong `docs/metrics/token-usage.csv` làm mẫu ước tính của `estimate` vì vậy bị thấp.
+- **Bằng chứng:** bảng Token của báo cáo RUN-20261026-06; nhật ký T-041.
+- **Đề xuất sửa:** `docs/auto-run.md` mục Giao bước 3 đến 5 (hay `docs/ops/token-usage.md`): phiên chính tự làm bước của task thì làm trong thư mục chính trên nhánh task (như trước L-103), chỉ dùng worktree cho phiên con; hoặc `scripts/token-usage.py` gán request theo thư mục làm việc của lệnh (`cwd` của worktree `task-T-NNN`). Ghi chú trong CSV các dòng task tiếp tục để `estimate` bỏ qua.
+- **Trạng thái:** proposed
