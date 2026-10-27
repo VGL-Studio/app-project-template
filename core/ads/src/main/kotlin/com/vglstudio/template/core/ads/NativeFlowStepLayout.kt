@@ -144,7 +144,7 @@ internal fun FlowStepPageLayout(
                 content = media,
             )
         },
-        header = { NativeFullScreenAdHeader(assets, binder, growWithText = true) },
+        header = { NativeFullScreenAdHeader(assets, binder) },
         body = body?.let { text ->
             { lines ->
                 NativeAdBody(
