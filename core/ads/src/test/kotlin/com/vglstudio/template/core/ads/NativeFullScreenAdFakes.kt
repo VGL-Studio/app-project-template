@@ -54,7 +54,11 @@ internal fun BoxScope.FakeMedia() {
     )
 }
 
-/** Stands in for the 16 dp AdChoices icon that the SDK draws in the top right corner. */
+/**
+ * Stands in for the 16 dp AdChoices icon that the SDK draws in the top right corner. At font scale 2.0 the "i" is cut
+ * (plan T-046): kept, as the SDK draws the real AdChoices and a fitted "i" would move every screenshot that draws this
+ * box.
+ */
 @Composable
 internal fun FakeAdChoices() {
     Box(

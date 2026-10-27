@@ -2,6 +2,7 @@ package com.vglstudio.template.core.ads
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
@@ -37,14 +38,19 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.RecordingAppLogger
+import java.time.Duration
 import kotlin.math.abs
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowDialog
@@ -709,6 +715,61 @@ class RewardedActionTest {
         assertEquals(1, adsLines { it.startsWith("Rewarded gallery_rw_action skipped:") })
     }
 
+    @Test
+    fun backgroundWhileDecisionWaits_switchInTime_closesOnce() {
+        // L-091, guard (plan T-047): the switch answers within the wait while the app went to the background.
+        val (controller, flags) = holdingController()
+        composeRule.runOnUiThread { controller.openConsentGateForTest() }
+        setRealContent(controller, override = RewardedNoAdPolicy.Allow)
+        start()
+        assertEquals(1, cards())
+
+        val hold = CompletableDeferred<Unit>()
+        flags.hold = hold
+        tapWatch()
+        assertEquals(1, cards())
+        assertEquals(0, granted)
+
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        composeRule.runOnUiThread { hold.complete(Unit) }
+        composeRule.waitForIdle()
+
+        // No SDK, so no ad: allow runs the action and the dialog closes.
+        assertEquals(0, cards())
+        assertEquals(1, granted)
+    }
+
+    @Test
+    fun backgroundWhileDecisionWaits_timeout_closesOnce() {
+        // L-091 (plan T-047): the decision times out while the app is in the background.
+        val (controller, flags) = holdingController()
+        composeRule.runOnUiThread { controller.openConsentGateForTest() }
+        setRealContent(controller, override = RewardedNoAdPolicy.Allow)
+        start()
+        assertEquals(1, cards())
+
+        val hold = CompletableDeferred<Unit>()
+        flags.hold = hold
+        tapWatch()
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(5_001))
+        // Allow runs the action in the background too, like every rewarded outcome.
+        assertEquals(1, granted)
+        assertEquals(1, adsLines { it.contains("not done in time") })
+
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        composeRule.waitForIdle()
+        assertEquals(0, cards())
+        assertEquals(1, granted)
+
+        // Control: the switch answering late runs nothing more.
+        composeRule.runOnUiThread { hold.complete(Unit) }
+        composeRule.waitForIdle()
+        assertEquals(1, granted)
+    }
+
     /** Two taps on "Watch ad" in the same frame, before the first has an outcome. */
     private fun doubleWatch() {
         composeRule.runOnUiThread {
@@ -732,6 +793,29 @@ class RewardedActionTest {
             flags = DefaultAdsFlags(settings),
             logger = logger,
         )
+    }
+
+    /**
+     * [DefaultAdsFlags] whose placement switches wait while [hold] is set and not complete, so a decision of the
+     * rewarded turns waits for the switch like a slow Remote Config (plan T-047).
+     */
+    private class HoldingFlags(private val delegate: AdsFlags) : AdsFlags by delegate {
+        var hold: CompletableDeferred<Unit>? = null
+
+        override fun placementEnabled(placement: AdPlacement): Flow<Boolean> = flow {
+            hold?.await()
+            emitAll(delegate.placementEnabled(placement))
+        }
+    }
+
+    /** A real controller like [realController], with its switches behind [HoldingFlags]. */
+    private fun holdingController(): Pair<AdsController, HoldingFlags> {
+        val settings = FakeRemoteSettings().apply {
+            set(AdsSettings.placementEnabled(AdPlacement.GALLERY_RW_ACTION), true)
+        }
+        val flags = HoldingFlags(DefaultAdsFlags(settings))
+        val controller = testAdsController(unitIds = AdUnitIds { null }, flags = flags, logger = logger)
+        return controller to flags
     }
 
     private fun setRealContent(controller: AdsController, override: RewardedNoAdPolicy? = null) {
