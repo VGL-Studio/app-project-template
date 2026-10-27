@@ -1,7 +1,7 @@
 ---
 ticket: T-047
 title: "Rewarded: lượt quyết định treo không giữ mãi các lần bấm sau"
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -223,3 +223,16 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit, nhán
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261028-01, phiên bản plan 3
+
+- **Kết quả:** đã merge (PR #229, commit merge `8b11f0c`, 2026-10-27 19:00 UTC).
+- **Nhánh, PR:** `claude/T-047-rewarded-treo` từ nhánh chính `f0878ab` (đã có T-046). Commit test `bd30a6d`, code `0668ae3`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-047` (L-052); phiên chính đẩy bằng `push-on-commit.sh`.
+- **Test viết trước:** 12 test (10 trong `RewardedTurnsTest`, 2 trong `RewardedActionTest`), cùng bản giả `syncShowedReward`, `syncDismiss`, `HoldingFlags`, `holdingController()` trong commit test. 10 đỏ ở câu khẳng định trên code cũ, đúng số đo mục 4 (ví dụ `decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy` `[]` thay vì `[NoAd(false, false)]`; `syncShowedAndReward_oneCaller_onScreenThenGrantOnce` `[Granted]` thay vì `[OnScreen, Granted]`; `backgroundWhileDecisionWaits_timeout_closesOnce` `granted` 0 khi ở nền). `syncShowedAndReward_joinedTap_latestGranted` dừng ở phần một (`a = [Granted]`), phần hai chưa đo riêng trên code cũ. Hai test canh giữ xanh ngay như plan nêu. Test JVM mọi module sau commit test: 1435 test, chỉ 10 test đó đỏ. 0 test viết chặt thêm.
+- **Kiểm tra cục bộ:** `scripts/check.sh` QUA, 1435 test JVM, 0 lỗi, 87 ảnh; không ảnh chuẩn nào đổi. Đối chứng T-046 của `doubleTap_showFailsInsideTheCall_latestGetsPolicy_joinedIsBusy` xanh với `heldOutcomes`.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 5 ghi chú: (1) `loadRound_switchStuck_releasesAfterWait` không khẳng định "không gọi `clearLoading`, `sendBlocked`" khi hết hạn (đột biến `NOT_NEEDED` thành `SWITCHED_OFF` vẫn xanh; plan không đòi); (2) SDK đồng bộ, một bộ xử lý nhập vào từ ba lần bấm trở lên nhận `OnScreen` mỗi lần `showAgain`, KDoc của `showDecided` nói "once"; (3) hết hạn lúc còn chờ khóa mà cổng đồng ý đóng vẫn ghi `not_ready` và áp chính sách (đúng chữ plan, không xảy ra trong app thật hôm nay); (4) KDoc của `decide`: "asks for no load" nên là "asks for no further load"; (5) hẹn giờ trên `Dispatchers.Main` chưa đo trên emulator lúc rà soát: `ui-test` của CI sau đó xanh.
+- **Kết quả CI:** `pr-check` xanh ở vòng đầu (lần chạy 40563401357, gồm `ui-test`). `main-guard` của `8b11f0c` xanh (40565273627).
+- **Lệch so với plan:** tách nhánh hiện quảng cáo và nhánh không có quảng cáo của `decide` thành hai hàm `private` (`showDecided`, `endWithNoAd`), thứ tự ghi số liệu giữ nguyên; `HoldingFlags` giữ mọi lần thu `placementEnabled` bắt đầu khi `hold` đã đặt mà chưa xong (plan: lần thu kế tiếp); nửa câu R-06 và mục 8.2 có thêm "(T-047)"; câu ở `ads-guide.md` mở đầu "Sau "Watch ad"". Rà soát chấp nhận cả bốn. Không dùng phương án dự phòng. Không có câu khẳng định cũ viết lại theo ADR-0031.
+- **Sửa file test sau commit test:** không có.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Cần người xem:** dòng mới của mục 11, R-06, mục 8.2 trong `ads-business-rules.md` và gạch đầu dòng Rewarded của `ads-guide.md` (mục 4, dòng kiểm thủ công); ghi chú 1 đến 4 của rà soát. Nhánh `claude/T-047-rewarded-treo` không xóa được sau merge (L-092), người xóa tay.
