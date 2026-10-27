@@ -30,6 +30,7 @@ staging_build:               # phiên bản bản staging được phát cuối 
 
 - **`scripts/run-check.py`:** <qua, hoặc các lỗi đã sửa>; chú ý: <từng dòng và kết luận>
 - **Rà soát độc lập:** <ngày, số điểm chặn, nên sửa, ghi chú>
+- **Hạn mức Actions:** <số phút CI ước tính của danh sách, số phút còn lại dev đã xem, ngày> (`auto-run.md` mục 1, L-094)
 
 | Mức | Ticket | Vấn đề | Xử lý |
 | --- | --- | --- | --- |

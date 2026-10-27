@@ -528,6 +528,10 @@ expect "playbook: PB-09 library download 429 -> lich-thu-lai" "PB-09 lich-thu-la
 expect "playbook: PB-10 a UI timeout without R2 lines is a real failure" "PB-10 that" "$(pb_head $pb_dir/PB-10.log)"
 expect "playbook: an unknown failure says khong-co" "khong-co" "$(pb_head $pb_dir/none.log)"
 expect "playbook: a missing log says khong-co" "khong-co" "$(pb_head "$work/no-such.log")"
+printf 'unknown flag: --allow-escape-sequences\n\nUsage:  gh api <endpoint> [flags]\n' > "$work/gh-help.log"
+expect "playbook: the help text of a failed gh call says log-hong, not khong-co" "log-hong" "$(pb_head "$work/gh-help.log")"
+printf 'the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\n' > "$work/gh-esc.log"
+expect "playbook: the escape-sequence refusal of gh says log-hong" "log-hong" "$(pb_head "$work/gh-esc.log")"
 expect "playbook: a missing log exits 0" 0 "$(scripts/failure-kind.sh --playbook "$work/no-such.log" > /dev/null 2>&1; echo $?)"
 expect "playbook: the line carries the action and the source" "PB-02 cho: GitHub không cấp máy. Làm theo \`auto-run.md\` mục 4, dòng \"GitHub không chạy job\" (L-064)" \
   "$(playbook $pb_dir/PB-02.log)"
@@ -3004,6 +3008,40 @@ sb_hook_mode reject
 expect "save-branch: refuses a branch outside claude/" 2 "$(sb_run main)"
 expect "save-branch: a branch outside claude/is never pushed" 0 "$(sb_calls_count)"
 expect "save-branch: refuses a branch that does not exist" 2 "$(sb_run claude/T-000-none)"
+
+# push-on-commit.sh pushes a task branch whenever it gets a new commit, for a bounded time (L-090, L-096).
+# A fake push command records its calls, so no remote is needed.
+pc_fake="$work/pc-save.sh"
+printf '#!/bin/sh\necho "$1 $(git rev-parse --short=7 "refs/heads/$1")" >> "%s"\nexit "${PC_SAVE_CODE:-0}"\n' \
+  "$work/pc.calls" > "$pc_fake"
+chmod +x "$pc_fake"
+pc_run() { # <seconds> <args>; runs push-on-commit.sh in the clone, prints the exit code
+  local seconds="$1" code=0
+  shift
+  (cd "$sb_clone" && PUSH_ON_COMMIT_SAVE="$pc_fake" PUSH_ON_COMMIT_SECONDS="$seconds" \
+    "$sb_root/scripts/push-on-commit.sh" "$@") > "$work/pc.out" 2>&1 || code=$?
+  echo "$code"
+}
+pc_calls() { if [ -f "$work/pc.calls" ]; then wc -l < "$work/pc.calls" | tr -d ' '; else echo 0; fi; }
+git -C "$sb_clone" commit -q --allow-empty -m pc-one
+rm -f "$work/pc.calls"
+expect "push-on-commit: a commit the remote does not have is pushed on the first read" "0 1" \
+  "$(pc_run 0 claude/T-999-thu --interval 1) $(pc_calls)"
+git -C "$sb_clone" update-ref refs/remotes/origin/claude/T-999-thu "$(git -C "$sb_clone" rev-parse HEAD)"
+rm -f "$work/pc.calls"
+expect "push-on-commit: nothing new, nothing pushed" "0 0" "$(pc_run 0 claude/T-999-thu --interval 1) $(pc_calls)"
+rm -f "$work/pc.calls"
+( sleep 1; git -C "$sb_clone" commit -q --allow-empty -m three ) &
+expect "push-on-commit: a commit made while it watches is pushed, then it stops when the time is up" "0 1" \
+  "$(pc_run 3 claude/T-999-thu --interval 1) $(pc_calls)"
+wait
+expect "push-on-commit: says when the time is up" 1 "$(grep -c '^HẾT GIỜ' "$work/pc.out")"
+git -C "$sb_clone" commit -q --allow-empty -m four
+rm -f "$work/pc.calls"
+expect "push-on-commit: a failed push (save-branch exit 3) stops it with exit 3" "3 1" \
+  "$(PC_SAVE_CODE=3 pc_run 30 claude/T-999-thu --interval 1) $(pc_calls)"
+expect "push-on-commit: refuses a branch outside claude/" 2 "$(pc_run 0 main)"
+expect "push-on-commit: refuses a bad interval" 2 "$(pc_run 0 claude/T-999-thu --interval x)"
 export GIT_CONFIG_COUNT="${sb_git_config[0]}" GIT_CONFIG_KEY_0="${sb_git_config[1]}" GIT_CONFIG_VALUE_0="${sb_git_config[2]}"
 
 # In-place sed without a backup suffix is GNU only: BSD sed on macOS stops with "invalid command code" (L-088).
