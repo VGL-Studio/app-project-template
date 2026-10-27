@@ -66,8 +66,7 @@ class NativeAdFontScaleTest {
      * Whether the one line of [layout] is cut in height: the laid-out box is lower than the line. Not
      * `didOverflowHeight`, which is also true when a long text is cut with "…" across (`didExceedMaxLines`).
      */
-    private fun cutInHeight(layout: TextLayoutResult): Boolean =
-        layout.size.height < layout.multiParagraph.height
+    private fun cutInHeight(layout: TextLayoutResult): Boolean = layout.size.height < layout.multiParagraph.height
 
     private fun DpRect.h(): Float = (bottom - top).value
 
@@ -186,7 +185,12 @@ class NativeAdFontScaleTest {
                     assertEquals("card, $case", if (large) 422f else 410f, card.h(), TOLERANCE)
                     assertEquals("call to action, $case", if (large) 56f else 44f, cta.h(), TOLERANCE)
                     assertEquals("star row, $case", 16f, stars.h(), TOLERANCE)
-                    assertEquals("call to action to card bottom, $case", 13f, (card.bottom - cta.bottom).value, TOLERANCE)
+                    assertEquals(
+                        "call to action to card bottom, $case",
+                        13f,
+                        (card.bottom - cta.bottom).value,
+                        TOLERANCE,
+                    )
                     assertEquals("body lines, $case", 2, textLayout(texts.body!!).lineCount)
                     assertTrue("media is ${media.h()} high, $case", media.h() >= 120f - TOLERANCE)
                     assertTrue(
@@ -367,8 +371,15 @@ class NativeAdFontScaleTest {
                                 adChoices = { FakeAdChoices() },
                             )
                         }
-                        else -> Box(Modifier.fillMaxWidth().height(if (form == 1) 484.dp else 255.dp).testTag(FRAME)) {
-                            NativeFullScreenStepContent(assets, media = { FakeMedia() }, adChoices = { FakeAdChoices() })
+                        else -> {
+                            val height = if (form == 1) 484.dp else 255.dp
+                            Box(Modifier.fillMaxWidth().height(height).testTag(FRAME)) {
+                                NativeFullScreenStepContent(
+                                    assets,
+                                    media = { FakeMedia() },
+                                    adChoices = { FakeAdChoices() },
+                                )
+                            }
                         }
                     }
                 }

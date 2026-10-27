@@ -44,7 +44,8 @@ import com.vglstudio.template.core.designsystem.theme.Spacing
  * A native ad that covers the whole screen (KB-5), as in design/screens/NativeFullScreenAdScreen_default_*.png: a
  * 36 dp close button (touch area widened to 48 dp) in the top left corner, AdChoices in the top right corner
  * ([adChoices]; the SDK draws it on real ads), a large [media] area, then the head of the ad, the body and a wide call
- * to action. While [secondsLeft] is above 0, a countdown of the same size takes the place of the close button and
+ * to action. The head is 48 dp at font scale 1.0 and grows with larger text, the media giving way (O-08, plan T-045).
+ * While [secondsLeft] is above 0, a countdown of the same size takes the place of the close button and
  * takes no touch (K-03, plan T-026); null or 0 shows the close button. The app shows it with
  * [rememberShowFullScreenAd]; the gallery screen (T-014) and tests draw it with fixed content.
  */
@@ -119,7 +120,8 @@ internal fun NativeFullScreenAdLayout(
                 .testTag(NativeFullScreenAdTestTags.MEDIA),
             content = media,
         )
-        NativeFullScreenAdHeader(assets, binder)
+        // The head grows with the text, so the "Ad" label is never cut (O-08, plan T-045); the media gives way.
+        NativeFullScreenAdHeader(assets, binder, growWithText = true)
         assets.body?.let { body ->
             NativeAdBody(body, binder, maxLines = BODY_MAX_LINES, modifier = Modifier.fillMaxWidth())
         }
@@ -211,7 +213,8 @@ private fun CloseButton(onClose: () -> Unit) {
 
 /**
  * Icon, headline, then the "Ad" label with the advertiser: 48 dp. With [growWithText] (the page of a flow step, plan
- * T-041) 48 dp at least, so the headline and the "Ad" label are never cut when the system text is large.
+ * T-041, and the screen after an interstitial, plan T-045) 48 dp at least, so the headline and the "Ad" label are
+ * never cut when the system text is large.
  */
 @Composable
 internal fun NativeFullScreenAdHeader(assets: NativeAdAssets, binder: NativeAdBinder, growWithText: Boolean = false) {

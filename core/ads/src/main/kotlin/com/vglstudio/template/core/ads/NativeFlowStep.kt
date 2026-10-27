@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -17,10 +18,16 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.AppLogger
+import kotlin.math.max
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -54,22 +61,56 @@ object NativeFullScreenStepDefaults {
 
 /** Numbers of the card of a flow step ([NativeStepAd]) for the app (plan T-045). */
 object NativeStepAdDefaults {
-    /** The height of the step card at the current font scale. Empty skeleton of the test commit (plan T-045). */
+    /**
+     * The height of the step card at the current font scale: 250 dp at the default font scale (up to about 1.3);
+     * with larger text the card grows so its media keeps 120 dp and its call to action holds its text (270 dp at
+     * 2.0). The card, its placeholder and the space it keeps all take this height. An app that puts the card in a
+     * fixed frame, so the Next button does not move between steps (OB-01), sets that frame with this function, never
+     * with a fixed 250 dp.
+     */
     @Composable
-    fun height(): Dp = 250.dp
+    fun height(): Dp {
+        val measurer = rememberTextMeasurer()
+        val typography = MaterialTheme.typography
+        val density = LocalDensity.current
+        return remember(measurer, typography, density) { stepCardHeight(measurer, typography, density) }
+    }
 }
 
 /**
- * The native card of a flow step (MC-06, OB-01, OB-02; plan T-032): 250 dp, from the pool of its placement
- * (`native_step`, P-02), drawn outside the pager. Pass the key of the step on screen as [step] (for example
- * `pagerState.settledPage`), and call it only on the steps the app's spec chose. Each time [step] changes the card
- * takes another ad of the pool, and gives the old one back only once it has the new one: the pool never hands out an
- * ad in use (P-01), so two steps next to each other never show the same ad (OB-02). Until the new ad comes it shows
- * the 250 dp placeholder (for about one frame when the pool has an ad ready; the height stays, so the Next button
- * does not move), or nothing while the pool is exhausted (P-06), and keeps asking. Like [NativeAdSlot], it takes no
- * space until ads are allowed (consent given, `is_show_<placement>` on, an ad unit), and gives its ad back when it
- * leaves the screen or the placement turns off (L-061). [onAdAvailabilityChange] works as for [NativeAdSlot]. It
- * records no `ad_opportunity` (P-07). Placements of another format are an [IllegalArgumentException].
+ * The height of the step card for one line of each of its texts, measured with [measurer] at [density] (the same
+ * measuring `Text` does, so the non-linear font scale of Android 14 is in it): 12 dp margin, media at its 120 dp
+ * floor, the head (32 dp icon, or the 13 sp headline, 2 dp and the "Ad" line), the call to action (36 dp or one line
+ * of `labelLarge`), 8 dp gaps; never under the 250 dp of the design.
+ */
+internal fun stepCardHeight(measurer: TextMeasurer, typography: Typography, density: Density): Dp = with(density) {
+    fun line(style: TextStyle): Int = measurer.measure(LINE_SAMPLE, style, maxLines = 1, density = density).size.height
+    val headline = line(typography.titleSmall.merge(TextStyle(fontSize = NativeAdDimens.StepHeadlineTextSize)))
+    val badgeLine = max(line(typography.labelSmall), line(typography.bodySmall))
+    val text = headline + NativeAdDimens.HeadlineGap.roundToPx() + badgeLine
+    val head = max(NativeAdDimens.StepIconSize.roundToPx(), text)
+    val callToAction = max(NativeAdDimens.StepCallToActionHeight.roundToPx(), line(typography.labelLarge))
+    val margin = NativeAdDimens.InnerPadding.roundToPx()
+    val gap = Spacing.sm.roundToPx()
+    val card = margin + NativeAdDimens.MinMediaSize.roundToPx() + gap + head + gap + callToAction + margin
+    max(NativeAdDimens.StepHeight.roundToPx(), card).toDp()
+}
+
+/** Text measured for one line; the height of a line depends on the style, not on the text. */
+private const val LINE_SAMPLE = "Ad"
+
+/**
+ * The native card of a flow step (MC-06, OB-01, OB-02; plan T-032): 250 dp at the default font scale, more with
+ * large text ([NativeStepAdDefaults.height], plan T-045), from the pool of its placement (`native_step`, P-02), drawn
+ * outside the pager. Pass the key of the step on screen as [step] (for example `pagerState.settledPage`), and call it
+ * only on the steps the app's spec chose. Each time [step] changes the card takes another ad of the pool, and gives
+ * the old one back only once it has the new one: the pool never hands out an ad in use (P-01), so two steps next to
+ * each other never show the same ad (OB-02). Until the new ad comes it shows the placeholder of the same height (for
+ * about one frame when the pool has an ad ready; the height stays, so the Next button does not move), or nothing
+ * while the pool is exhausted (P-06), and keeps asking. Like [NativeAdSlot], it takes no space until ads are allowed
+ * (consent given, `is_show_<placement>` on, an ad unit), and gives its ad back when it leaves the screen or the
+ * placement turns off (L-061). [onAdAvailabilityChange] works as for [NativeAdSlot]. It records no `ad_opportunity`
+ * (P-07). Placements of another format are an [IllegalArgumentException].
  */
 @Composable
 fun NativeStepAd(
