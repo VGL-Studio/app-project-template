@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-2, KB-5, KB-14, KB-19, KB-20]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: S
 depends_on: [T-041, T-042, T-043, T-044, T-045]
 sprint:
-plan:
+plan: features/ads/plans/T-046-don-sau-ra-soat-quang-cao.md
 created: 2026-10-27
 ---
 

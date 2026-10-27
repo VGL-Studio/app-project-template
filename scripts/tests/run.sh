@@ -528,6 +528,7 @@ expect "playbook: PB-09 library download 429 -> lich-thu-lai" "PB-09 lich-thu-la
 expect "playbook: PB-10 a UI timeout without R2 lines is a real failure" "PB-10 that" "$(pb_head $pb_dir/PB-10.log)"
 expect "playbook: PB-11 Maven 403 on a GitHub runner -> chay-lai" "PB-11 chay-lai" "$(pb_head $pb_dir/PB-11.log)"
 expect "playbook: PB-12 Claude org access 403 in a subagent -> cho" "PB-12 cho" "$(pb_head $pb_dir/PB-12.log)"
+expect "playbook: PB-13 an R2 file missing (404) in ui-test -> nguoi, before the rerun of PB-01" "PB-13 nguoi" "$(pb_head $pb_dir/PB-13.log)"
 expect "playbook: an unknown failure says khong-co" "khong-co" "$(pb_head $pb_dir/none.log)"
 expect "playbook: a missing log says khong-co" "khong-co" "$(pb_head "$work/no-such.log")"
 printf 'unknown flag: --allow-escape-sequences\n\nUsage:  gh api <endpoint> [flags]\n' > "$work/gh-help.log"
@@ -1855,6 +1856,91 @@ git -C "$wt_repo" worktree add -q "$work/wt-report" 2> /dev/null
 usage_line k1 claude/RUN-1-report 2026-10-18T02:00:00Z 90 "$work/wt-report" > "$work/worktree.jsonl"
 expect "token-usage: a worktree of the repository is counted" 1 \
   "$(TOKEN_USAGE_ROOT="$wt_repo" python3 -I scripts/token-usage.py report --transcripts "$work/worktree.jsonl" | grep -c '^| Chung (ngoài task) | - | - | 1k | - | 1 |')"
+# The main session marks the task it works on with `scripts/token-usage.py mark T-NNN` and ends it with
+# `mark chung`: its own requests between the two count for the task, even on a detached HEAD (L-083 of camera-pose).
+mark_line() { # <time> <command> [cwd]
+  printf '{"type":"assistant","timestamp":"%s","cwd":"%s","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"%s"}}]}}\n' \
+    "$1" "${3:-$tokens}" "$2"
+}
+mkdir -p "$work/projects-mark/p/s/subagents"
+{
+  usage_line m0 HEAD 2026-10-18T02:59:00Z 90
+  mark_line 2026-10-18T03:00:00Z 'cd /repo && scripts/token-usage.py mark T-031'
+  usage_line m1 HEAD 2026-10-18T03:01:00Z 90
+  usage_line m2 claude/T-032-other 2026-10-18T03:02:00Z 90
+  usage_line m5 HEAD 2026-10-18T03:07:00Z 90
+  mark_line 2026-10-18T03:08:00Z "git commit -m 'chạy scripts/token-usage.py mark T-035'"
+  mark_line 2026-10-18T03:09:00Z "grep -En 'scripts/token-usage.py mark T-033|mark chung' docs/auto-run.md"
+  usage_line m6 HEAD 2026-10-18T03:09:30Z 90
+  mark_line 2026-10-18T03:10:00Z 'git checkout --detach origin/main; scripts/token-usage.py mark chung'
+  usage_line m3 HEAD 2026-10-18T03:11:00Z 90
+} > "$work/projects-mark/p/s.jsonl"
+{
+  mark_line 2026-10-18T03:05:00Z 'scripts/token-usage.py mark T-034'
+  usage_line m4 HEAD 2026-10-18T03:06:00Z 90
+} > "$work/projects-mark/p/s/subagents/agent-1.jsonl"
+TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-mark" python3 -I scripts/token-usage.py report \
+  --since 2026-10-18T00:00:00Z > "$work/tokens-mark.out"
+expect "token-usage: main-session requests after a mark count for the marked task" 1 \
+  "$(grep -c '^| T-031 | M | 2k | 4k | 1.8x | 3 |' "$work/tokens-mark.out")"
+expect "token-usage: before the first mark and after mark chung stay shared" 1 \
+  "$(grep -c '^| Chung (ngoài task) | - | - | 4k | - | 3 |' "$work/tokens-mark.out")"
+expect "token-usage: a request on a task branch keeps its branch's task during a mark" 1 \
+  "$(grep -c '^| T-032 | - | - | 1k | - | 1 |' "$work/tokens-mark.out")"
+expect "token-usage: a mark named in quotes or run by a subagent is not a mark" "0 0 0" \
+  "$(grep -c '^| T-033 |' "$work/tokens-mark.out") $(grep -c '^| T-034 |' "$work/tokens-mark.out") $(grep -c '^| T-035 |' "$work/tokens-mark.out")"
+mkdir -p "$work/projects-mark2/p"
+{
+  mark_line 2026-10-18T01:00:00Z 'scripts/token-usage.py mark T-031'
+  usage_line n1 HEAD 2026-10-18T01:01:00Z 90
+} > "$work/projects-mark2/p/s.jsonl"
+usage_line n2 HEAD 2026-10-18T05:00:00Z 90 > "$work/projects-mark2/p/s2.jsonl"
+TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-mark2" python3 -I scripts/token-usage.py report \
+  --since 2026-10-18T00:30:00Z > "$work/tokens-mark2.out"
+expect "token-usage: a mark in an earlier transcript of the run still counts (resumed session)" "1 0" \
+  "$(grep -c '^| T-031 | M | 2k | 2k | 1.2x | 2 |' "$work/tokens-mark2.out") $(grep -c '^| Chung' "$work/tokens-mark2.out")"
+TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-mark2" python3 -I scripts/token-usage.py report \
+  --since 2026-10-18T04:00:00Z > "$work/tokens-mark3.out"
+expect "token-usage: a mark before --since does not count (left open by an earlier session)" "0 1" \
+  "$(grep -c '^| T-031 |' "$work/tokens-mark3.out") $(grep -c '^| Chung (ngoài task) | - | - | 1k | - | 1 |' "$work/tokens-mark3.out")"
+mkdir -p "$work/projects-mark4/p"
+{
+  mark_line 2026-10-18T00:50:00Z 'scripts/token-usage.py mark T-036' /elsewhere
+  usage_line q0 HEAD 2026-10-18T00:55:00Z 90
+  mark_line 2026-10-18T01:00:00Z 'python3 /home/user/camera-pose/scripts/token-usage.py mark T-031'
+  usage_line q1 HEAD 2026-10-18T01:01:00Z 90
+} > "$work/projects-mark4/p/s.jsonl"
+TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-mark4" python3 -I scripts/token-usage.py report \
+  --since 2026-10-18T00:00:00Z > "$work/tokens-mark4.out"
+expect "token-usage: a mark run by an absolute path counts" 1 \
+  "$(grep -c '^| T-031 | M | 2k | 1k | 0.6x | 1 |' "$work/tokens-mark4.out")"
+expect "token-usage: a mark run in another folder is not a mark" 0 "$(grep -c '^| T-036 |' "$work/tokens-mark4.out")"
+# Transcripts are read in file name order, not in time order: the marks of all of them are sorted by time.
+mkdir -p "$work/projects-mark5/p"
+mark_line 2026-10-18T03:00:00Z 'scripts/token-usage.py mark T-031' > "$work/projects-mark5/p/a.jsonl"
+{
+  mark_line 2026-10-18T02:00:00Z 'scripts/token-usage.py mark chung'
+  usage_line r1 HEAD 2026-10-18T04:00:00Z 90
+} > "$work/projects-mark5/p/b.jsonl"
+TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-mark5" python3 -I scripts/token-usage.py report \
+  --since 2026-10-18T00:00:00Z > "$work/tokens-mark5.out"
+expect "token-usage: the latest mark wins whatever the order of the transcript files" "1 0" \
+  "$(grep -c '^| T-031 | M | 2k | 1k | 0.6x | 1 |' "$work/tokens-mark5.out") $(grep -c '^| Chung' "$work/tokens-mark5.out")"
+expect "token-usage: mark prints the task and exits 0" "0 1" \
+  "$(token_usage mark T-031 > "$work/mark.out"; echo $?) $(grep -c 'T-031' "$work/mark.out")"
+expect "token-usage: mark with a name that is not T-NNN or chung exits 2 and says why" "2 1" \
+  "$(token_usage mark T031 > "$work/mark-bad.out" 2>&1; echo $?) $(grep -c '^LỖI: ' "$work/mark-bad.out")"
+# A line naming the command in an odd shape (not an object, a text message, a text input) is no mark and no failure.
+mkdir -p "$work/projects-mark6/p"
+{
+  echo '["scripts/token-usage.py mark T-031"]'
+  printf '{"type":"assistant","timestamp":"2026-10-18T03:00:00Z","cwd":"%s","message":"scripts/token-usage.py mark T-031"}\n' "$tokens"
+  printf '{"type":"assistant","timestamp":"2026-10-18T03:00:00Z","cwd":"%s","message":{"content":[{"type":"tool_use","name":"Bash","input":"scripts/token-usage.py mark T-031"}]}}\n' "$tokens"
+  usage_line s1 HEAD 2026-10-18T03:01:00Z 90
+} > "$work/projects-mark6/p/s.jsonl"
+expect "token-usage: a mark line of an odd shape is skipped without failing the report" "0 1" \
+  "$(TOKEN_USAGE_ROOT="$tokens" TOKEN_USAGE_PROJECTS_DIR="$work/projects-mark6" python3 -I scripts/token-usage.py report \
+    --since 2026-10-18T00:00:00Z > "$work/tokens-mark6.out" 2>&1; echo $?) $(grep -c '^| Chung (ngoài task) | - | - | 1k | - | 1 |' "$work/tokens-mark6.out")"
 
 # In a git checkout, plan-check.py only searches tracked files for readers: a copy of the repository in an untracked
 # folder such as .claude/worktrees/ is not a reader of the changed file.
@@ -2364,10 +2450,12 @@ ds_run() { # <dump files of the fixtures, in order> <scenario glob> [VAR=value .
   for f in $1; do seq+="$ds_fixtures/$f "; done
   rm -rf "$work/ds-session" "$work/adb-state"
   mkdir -p "$work/ds-session"
+  [[ -n "${ds_logcat:-}" ]] && cp "$ds_logcat" "$work/ds-session/logcat.txt"
   : > "$ds_calls"
   env PATH="$work/bin:$PATH" FAKE_ADB_UI_SEQ="${seq% }" FAKE_ADB_STATE_DIR="$work/adb-state" FAKE_ADB_CALLS="$ds_calls" \
     DEVICE_SCENARIOS_GLOB="$2" DEVICE_SCENARIO_POLL=0.05 DEVICE_SESSION_SLEEP=0 APP_PACKAGE=com.example.app.staging \
-    DEVICE_SCENARIO_CONSENT_GRACE=0.3 FAKE_ADB_RUNTIME_PERMISSIONS="android.permission.CAMERA" "${@:3}" \
+    DEVICE_SCENARIO_CONSENT_GRACE=0.3 FAKE_ADB_RUNTIME_PERMISSIONS="android.permission.CAMERA" \
+    FAKE_ADB_LOGCAT_FILE="$work/ds-session/logcat.txt" "${@:3}" \
     python3 -I scripts/device-scenario.py run --session "$work/ds-session" --package com.example.app.staging \
     > "$work/ds.out" 2>&1 || code=$?
   echo "$code"
@@ -2834,6 +2922,49 @@ expect "device-session: summary lists the plan scenarios" "0 1 1 1 1" \
     "$(cell '| ok.txt | T-900 | Mẫu đạt | đạt |  | 12 | 0 / 0 |')" \
     "$(cell '| fail.txt | T-901 | Mẫu lỗi | lỗi | 2: expect id=x | 3 | 0 / 0 |')" \
     "$(cell '| need.txt | T-902 | Mẫu thiếu | bỏ qua (môi trường) |  | 2 | 0 / 0 |')")"
+# camera-pose T-054: the system kills the app when Google Play services dies (FB-20261025-03): the runner reads logcat.txt
+# of the session after the marker of the run (fake-adb writes the marker, then FAKE_ADB_KILL_LINE) and runs the file
+# once more; killed again, or without the time of a second run, the file is skipped.
+ds_kill_line() { # <process of the app>: the line of the system killing it with Google Play services
+  echo "10-25 19:53:18.629   598   631 I ActivityManager: Killing 9002:$1/u0a192 (adj 0): depends on provider com.google.android.gms/.fonts.provider.FontsProvider in dying proc com.google.android.gms.persistent"
+}
+ds_script killed.txt 'fresh'
+ds_kill_app="$(ds_kill_line com.example.app.staging)"
+expect "device-scenario: an app killed with Google Play services runs the file again, and the second run counts" "0 1 1 0 2 1" \
+  "$(ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$ds_kill_app" FAKE_ADB_DEAD_STARTS=2 DEVICE_SCENARIO_PROCESS_WAIT=0.1) $(ds_count '^plan killed.txt step=1 fresh RETRY app bị hệ thống giết theo Google Play services') $(ds_count '^plan killed.txt result=đạt') $(ds_count ' FAIL') $(ds_count "scenario=plan file=killed.txt" "$ds_calls") $(ds_count '^plan killed.txt note step=1 .*chạy lại tệp từ đầu, mở lại app')"
+expect "device-scenario: an app killed in both runs ends as skipped (environment)" "0 1 1 1 0" \
+  "$(ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$ds_kill_app" FAKE_ADB_DEAD_STARTS=9 DEVICE_SCENARIO_PROCESS_WAIT=0.1) $(ds_count '^plan killed.txt step=1 fresh RETRY ') $(ds_count '^plan killed.txt step=1 fresh SKIP app bị hệ thống giết theo Google Play services') $(ds_count '^plan killed.txt result=bỏ qua (môi trường)') $(ds_count ' FAIL')"
+expect "device-scenario: a process of the app (package:name) killed with Google Play services counts too" "0 1 1" \
+  "$(ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$(ds_kill_line com.example.app.staging:remote)" FAKE_ADB_DEAD_STARTS=2 DEVICE_SCENARIO_PROCESS_WAIT=0.1) $(ds_count '^plan killed.txt step=1 fresh RETRY ') $(ds_count '^plan killed.txt result=đạt')"
+expect "device-scenario: the kill of the first run does not count in the second run" "0 1 1 1" \
+  "$(ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$ds_kill_app" FAKE_ADB_KILL_ONCE=1 FAKE_ADB_DEAD_STARTS=9 DEVICE_SCENARIO_PROCESS_WAIT=0.1) $(ds_count '^plan killed.txt step=1 fresh RETRY ') $(ds_count '^plan killed.txt step=1 fresh FAIL app không chạy sau 2 lần mở') $(ds_count '^plan killed.txt result=lỗi')"
+ds_kill_line com.example.app.staging > "$work/ds-logcat-before.txt"
+expect "device-scenario: control: a kill before the marker of the file or of another app is a plain failure" "0 1 0 1 1" \
+  "$(ds_logcat="$work/ds-logcat-before.txt" ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$(ds_kill_line com.other.app)" FAKE_ADB_DEAD_STARTS=9 DEVICE_SCENARIO_PROCESS_WAIT=0.1) $(ds_count '^plan killed.txt step=1 fresh FAIL app không chạy sau 2 lần mở') $(ds_count 'RETRY') $(ds_count '^plan killed.txt result=lỗi') $(ds_count "scenario=plan file=killed.txt" "$ds_calls")"
+expect "device-scenario: a killed app without time for its resets and evidence is skipped at once" "0 1 0 1 1" \
+  "$(ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$ds_kill_app" FAKE_ADB_DEAD_STARTS=9 DEVICE_SCENARIO_PROCESS_WAIT=0.1 DEVICE_SCENARIOS_BUDGET=60 DEVICE_SCENARIO_RESET_LIMIT=25 DEVICE_SCENARIO_EVIDENCE_RESERVE=20) $(ds_count '^plan killed.txt step=1 fresh SKIP app bị hệ thống giết theo Google Play services.*không còn thời gian chạy lại') $(ds_count 'RETRY') $(ds_count '^plan killed.txt result=bỏ qua (môi trường)') $(ds_count "scenario=plan file=killed.txt" "$ds_calls")"
+expect "device-scenario: a killed app is not run again when what is left is less than the first run took" "0 1 0 1" \
+  "$(ds_run "camera.xml" "$ds_files/killed.txt" FAKE_ADB_KILL_LINE="$ds_kill_app" FAKE_ADB_DEAD_STARTS=9 DEVICE_SCENARIO_PROCESS_WAIT=1 DEVICE_SCENARIOS_BUDGET=12 DEVICE_SCENARIO_RESET_LIMIT=0 DEVICE_SCENARIO_EVIDENCE_RESERVE=0) $(ds_count '^plan killed.txt step=1 fresh SKIP .*không còn thời gian chạy lại') $(ds_count 'RETRY') $(ds_count '^plan killed.txt result=bỏ qua (môi trường)')"
+# camera-pose T-054: str= reads res/values (English), so fresh sets the language of the app to English from Android 13; below
+# 13 a device in another language is skipped (environment).
+ds_script lang.txt 'fresh'
+expect "device-scenario: fresh sets the language of the app to English before it starts the app" "0 1 yes" \
+  "$(ds_run "camera.xml" "$ds_files/lang.txt") $(ds_count '^shell cmd locale set-app-locales com.example.app.staging --locales en$' "$ds_calls") $(ds_in_order "$ds_calls" '^shell pm clear' '^shell cmd locale set-app-locales com.example.app.staging --locales en$' '^shell am start -W')"
+expect "device-scenario: below Android 13 a device in another language is skipped (environment)" "0 1 1 0" \
+  "$(ds_run "camera.xml" "$ds_files/lang.txt" FAKE_ADB_SDK=30 FAKE_ADB_LOCALE=vi-VN) $(ds_count '^plan lang.txt step=1 fresh SKIP máy để ngôn ngữ vi-VN') $(ds_count '^plan lang.txt result=bỏ qua (môi trường)') $(ds_count '^shell am start -W' "$ds_calls")"
+expect "device-scenario: control: below Android 13 a device in English runs without setting the language" "0 1 0" \
+  "$(ds_run "camera.xml" "$ds_files/lang.txt" FAKE_ADB_SDK=30 FAKE_ADB_LOCALE=en-US) $(ds_count '^plan lang.txt result=đạt') $(ds_count 'set-app-locales com.example.app.staging --locales en$' "$ds_calls")"
+expect "device-scenario: a device that refuses to set the language of the app is skipped (environment)" "0 1 1" \
+  "$(ds_run "camera.xml" "$ds_files/lang.txt" FAKE_ADB_LOCALE_FAILS=1) $(ds_count '^plan lang.txt step=1 fresh SKIP không đặt được ngôn ngữ tiếng Anh cho app') $(ds_count '^plan lang.txt result=bỏ qua (môi trường)')"
+# camera-pose T-054 (review notes of T-052): the note gives the real wait, and a device command before fresh also waits.
+printf 'ticket: T-999\ncriterion: Test\ntimeout: 3\nfresh\n' > "$ds_files/settle-short-a.txt"
+cp "$ds_files/settle-short-a.txt" "$ds_files/settle-short-b.txt"
+expect "device-scenario: the note of fresh gives the real wait when the file ends first" "1 0" \
+  "$(ds_run "camera.xml" "$ds_files/settle-short-*.txt" DEVICE_SCENARIO_STOP_SETTLE=10 > /dev/null; ds_count '^plan settle-short-b.txt note step=1 .*fresh: chờ [0-3]\(\.[0-9]\)\{0,1\} giây sau khi dừng app') $(ds_count 'fresh: chờ 10 giây')"
+ds_script devfresh.txt 'device night on' 'fresh'
+expect "device-scenario: fresh after a device command in the same file waits after stopping the app" "0 1" \
+  "$(ds_run "camera.xml" "$ds_files/devfresh.txt" DEVICE_SCENARIO_STOP_SETTLE=2) $(ds_count '^plan devfresh.txt note step=2 .*fresh: chờ 2 giây sau khi dừng app')"
+
 # Notes of the runner about a late consent form or a restarted app are listed under the table (camera-pose T-048).
 mkplan "$work/plan-notes" "$plan_lines
 plan ok.txt note step=1 t=0.4
@@ -2844,6 +2975,18 @@ expect "device-session: summary lists the runner notes about consent and restart
   "$(joined "$notes_code" "$(notes_cell 'Ghi chú của trình chạy:')" \
     "$(notes_cell '- ok.txt, bước 2: hộp thoại đồng ý hiện muộn, đã từ chối')" "$(notes_cell '- ok.txt, bước 1')" \
     "$(cell 'Ghi chú của trình chạy')")"
+# camera-pose T-054: a file run again after the system killed the app: the table has the second result and no failing step,
+# and the note of the run again is listed (it says "mở lại").
+mkplan "$work/plan-retry" 'plan killed.txt ticket=T-022 criterion=Mẫu
+plan killed.txt note step=2 t=30.1 app bị hệ thống giết theo Google Play services (com.google.android.gms.persistent) (logcat.txt); chạy lại tệp từ đầu, mở lại app
+plan killed.txt step=2 consent decline 30 RETRY app bị hệ thống giết theo Google Play services (com.google.android.gms.persistent)
+plan killed.txt note step=1 t=0.1
+plan killed.txt step=1 fresh ok
+plan killed.txt result=đạt seconds=95' "$(cat "$fixtures/logcat-clean.txt")"
+retry_code="$(session /dev/null summary "$work/plan-retry" com.example.app.staging)"
+expect "device-session: control: a file run again shows its second result, no failing step, and the note" "0 1 1" \
+  "$retry_code $(grep -cF '| killed.txt | T-022 | Mẫu | đạt |  | 95 |' "$work/plan-retry/summary.md" || true) $(grep -cF -- '- killed.txt, bước 2: app bị hệ thống giết theo Google Play services' "$work/plan-retry/summary.md" || true)"
+expect "device-session: the runner is called with timeout -k" 1 "$(grep -c 'timeout -k 30' scripts/device-session.sh || true)"
 mkplan "$work/plan-pipe" 'plan ok.txt ticket=T-900 criterion=a | b
 plan ok.txt result=đạt seconds=1' "$(cat "$fixtures/logcat-clean.txt")"
 session /dev/null summary "$work/plan-pipe" com.example.app.staging > /dev/null
