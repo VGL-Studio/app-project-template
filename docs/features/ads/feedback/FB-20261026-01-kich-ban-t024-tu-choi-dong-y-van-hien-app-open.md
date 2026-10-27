@@ -7,7 +7,7 @@ build: 0.1.0-staging (main 04e80c0, trước khi phát bản của RUN-20261026-
 feature: ads
 ticket: T-024
 severity: nang               # mức "nên sửa" của auto-run.md mục 4 (kịch bản theo plan lỗi)
-status: new
+status: fixed
 created: 2026-10-26
 ---
 
@@ -52,7 +52,7 @@ Từ chối đồng ý thì cổng đóng, màn loading không chờ quảng cá
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-- **Loại:** đề xuất của AI: lỗi của kịch bản emulator (cùng FB-20261025-01), không phải lỗi so với spec
-- **Xử lý:**
-- **Lý do:**
+- **Loại:** lỗi của kịch bản emulator (cùng FB-20261025-01), không phải lỗi so với spec
+- **Xử lý:** cùng phần sửa của FB-20261025-01
+- **Lý do:** lần chạm "Do not consent" thật sự là từ chối; UMP vẫn cho quảng cáo không cá nhân hóa, nên app đi đường `GRANTED` đúng luật. Kịch bản lúc đạt lúc lỗi tùy app open thử nạp xong trước hay sau khi qua màn loading
 - **Liên kết:** FB-20261025-01, FB-20261025-03

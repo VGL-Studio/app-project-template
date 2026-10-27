@@ -7,7 +7,7 @@ build: 0.1.0-staging (main 3d4f165)
 feature: ads
 ticket: T-024
 severity: nang               # mức "nên sửa" của auto-run.md mục 4 (kịch bản theo plan lỗi)
-status: new
+status: fixed
 created: 2026-10-25
 ---
 
@@ -50,7 +50,7 @@ Hệ quả phụ: `AppLaunchTest` (emulator, `ui-test`) chờ `sample_screen` t�
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-- **Loại:** đề xuất của AI: lỗi của kịch bản và của giả định trong plan (không phải lỗi của app so với spec)
-- **Xử lý:** đề xuất của AI: sửa kịch bản (thêm bước đóng quảng cáo) trong một plan nhỏ; xét `AppLaunchTest` cùng lúc
-- **Lý do:** <...>
-- **Liên kết:** plan T-024 (nhật ký RUN-20261026-02), PR #170
+- **Loại:** lỗi của kịch bản và của giả định trong plan T-024, không phải lỗi của app so với spec
+- **Xử lý:** sửa `app/src/deviceScenarios/T-024-mo-app-tu-choi-dong-y.txt`: sau khi từ chối, chạm "Continue to app" khi app open thử hiện, rồi chờ màn chính; câu tiêu chí đổi theo
+- **Lý do:** anh Nhật xác nhận 2026-10-27: từ chối đồng ý mà UMP vẫn cho quảng cáo không cá nhân hóa (`canRequestAds`) thì cổng mở, app open lần đầu vẫn hiện (spec KB-13, KB-11 không đổi). `AppLaunchTest` tìm `sample_screen` trong cây ngữ nghĩa của `MainActivity`, nên quảng cáo che màn không làm nó lỗi
+- **Liên kết:** FB-20261026-01, FB-20261025-03, plan T-024 (nhật ký RUN-20261026-02), PR #170
