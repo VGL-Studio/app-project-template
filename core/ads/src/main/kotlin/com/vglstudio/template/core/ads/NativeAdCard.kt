@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -101,6 +102,7 @@ fun NativeAdCard(
 /**
  * The loading state of a native ad: same frame and height as the ad, so nothing moves when the ad arrives (KB-1).
  * [animated] off keeps screenshots independent of time. [ctaLarge] is the medium ad with the large call to action.
+ * The step card's placeholder is [NativeStepAdDefaults.height] high, like the card, at every font scale (plan T-045).
  */
 @Composable
 fun NativeAdPlaceholder(
@@ -111,7 +113,10 @@ fun NativeAdPlaceholder(
 ) {
     NativeAdPlaceholderLayout(
         size = size,
-        height = NativeAdDimens.heightOf(size, ctaLarge),
+        height = when (size) {
+            NativeAdSize.STEP -> NativeStepAdDefaults.height()
+            else -> NativeAdDimens.heightOf(size, ctaLarge)
+        },
         modifier = modifier,
         animated = animated,
         mediumCallToActionHeight = NativeAdDimens.mediumCallToActionHeight(ctaLarge),
@@ -178,7 +183,8 @@ internal object NativeAdDimens {
     val CardHeadlineTextSize = 13.sp
 
     /**
-     * Card of a flow step (5.7, component `Native/Step` of the design, T-035): 250 dp, 32 dp icon, 36 dp call to
+     * Card of a flow step (5.7, component `Native/Step` of the design, T-035): 250 dp at the default font scale
+     * ([NativeStepAdDefaults.height] at others, plan T-045), 32 dp icon, 36 dp call to
      * action, 13 sp headline; the 250 dp layout of design/context/AdGalleryScreen_collapsible-expanded_light.md (12 dp
      * margin, 8 dp gaps, media filling the rest). Its own constants on purpose: `Native/Collapsible` has the same
      * numbers today, but the two components change apart.
@@ -202,6 +208,10 @@ internal object NativeAdDimens {
     val ShortLineWidth = 120.dp
     val CallToActionPlaceholderWidth = CallToActionMinWidth
 
+    /**
+     * The design height of [size], at the default font scale. Medium and full stay this high up to font scale 2.0;
+     * the step card grows with larger text, so composables read [NativeStepAdDefaults.height] for it (plan T-045).
+     */
     fun heightOf(size: NativeAdSize, ctaLarge: Boolean = false): Dp = when (size) {
         NativeAdSize.SMALL -> BottomSlotHeight
         NativeAdSize.MEDIUM -> if (ctaLarge) MediumLargeHeight else MediumHeight
@@ -277,11 +287,14 @@ internal fun NativeAdLayout(
         modifier = modifier
             .fillMaxWidth()
             .then(
-                // The full ad grows past 418 dp only when its media reaches the floor (FullLayout).
-                if (size == NativeAdSize.FULL) {
-                    Modifier.heightIn(min = NativeAdDimens.FullHeight)
-                } else {
-                    Modifier.height(NativeAdDimens.heightOf(size, ctaLarge))
+                when (size) {
+                    // Medium and full grow past their design height only when their media reaches the floor
+                    // (MediaShrinksFirstLayout, plans T-044, T-045).
+                    NativeAdSize.MEDIUM, NativeAdSize.FULL ->
+                        Modifier.heightIn(min = NativeAdDimens.heightOf(size, ctaLarge))
+                    // The step card: 250 dp, more with large text so its media keeps 120 dp (plan T-045).
+                    NativeAdSize.STEP -> Modifier.height(NativeStepAdDefaults.height())
+                    else -> Modifier.height(NativeAdDimens.heightOf(size, ctaLarge))
                 },
             )
             .testTag(NativeAdTestTags.CARD),
@@ -325,29 +338,38 @@ private fun SmallLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
 
 /**
  * Medium (redrawn design, T-035): head with the star row, 196 dp media over a token backdrop, body, call to action of
- * 44 dp (56 dp and 17 sp with [ctaLarge]; the text of the SDK is kept as it is).
+ * 44 dp (56 dp and 17 sp with [ctaLarge]; the text of the SDK is kept as it is). With larger text the media shrinks
+ * first, never below 120 dp, so the card stays 410 dp (422 dp) up to font scale 2.0 ([MediaShrinksFirstLayout], plan
+ * T-045).
  */
 @Composable
 private fun MediumLayout(assets: NativeAdAssets, binder: NativeAdBinder, ctaLarge: Boolean) {
-    Column(
+    val ctaHeight = NativeAdDimens.mediumCallToActionHeight(ctaLarge)
+    MediaShrinksFirstLayout(
+        innerHeight = NativeAdDimens.heightOf(NativeAdSize.MEDIUM, ctaLarge) - MediumInnerTop - MediumInnerBottom,
+        gap = NativeAdDimens.PartGap,
+        mediaIndex = 1,
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom),
-        verticalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
     ) {
         NativeAdHeader(assets, binder, starRow = true)
-        NativeAdMediaArea(binder, Modifier.fillMaxWidth().height(NativeAdDimens.MediaHeight), backdrop = true)
-        val bodyModifier = Modifier.fillMaxWidth().height(NativeAdDimens.BodyHeight)
+        NativeAdMediaArea(binder, Modifier.fillMaxWidth(), backdrop = true)
+        val bodyModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.BodyHeight)
         val body = assets.body
         if (body != null) NativeAdBody(body, binder, maxLines = 2, modifier = bodyModifier) else Spacer(bodyModifier)
-        assets.callToAction?.let {
+        val callToAction = assets.callToAction
+        if (callToAction != null) {
             NativeAdCallToAction(
-                text = it,
+                text = callToAction,
                 binder = binder,
                 modifier = Modifier.fillMaxWidth(),
-                height = NativeAdDimens.mediumCallToActionHeight(ctaLarge),
+                height = ctaHeight,
                 fontSize = if (ctaLarge) NativeAdDimens.LargeCallToActionTextSize else TextUnit.Unspecified,
             )
+        } else {
+            // Keeps the media at its design size when the ad has no call to action.
+            Spacer(Modifier.fillMaxWidth().height(ctaHeight))
         }
     }
 }
@@ -376,7 +398,7 @@ private fun CardLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
                 NativeAdBadgeLine(assets, binder, bodyWhenNoAdvertiser = false)
             }
         }
-        val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight)
+        val ctaModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.CallToActionHeight)
         val callToAction = assets.callToAction
         if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
     }
@@ -385,15 +407,19 @@ private fun CardLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
 /**
  * The card of a flow step (5.7, 250 dp): media fills the top (AdChoices sits on it, top right, O-08), then the 32 dp
  * icon with a one-line 13 sp headline and the "Ad" line, then a 36 dp call to action as wide as the card; 12 dp
- * margin, 8 dp gaps.
+ * margin, 8 dp gaps. With larger text the media shrinks first, never below 120 dp; past that the card grows, to
+ * [NativeStepAdDefaults.height] ([MediaShrinksFirstLayout], plan T-045).
  */
 @Composable
 private fun StepLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
-    Column(
+    MediaShrinksFirstLayout(
+        innerHeight = NativeAdDimens.StepHeight - NativeAdDimens.InnerPadding * 2,
+        gap = Spacing.sm,
+        mediaIndex = 0,
+        // Filling the card: the media takes what the card's height leaves (the card is set by the same numbers).
         modifier = Modifier.fillMaxSize().padding(NativeAdDimens.InnerPadding),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
-        NativeAdMediaArea(binder, Modifier.fillMaxWidth().weight(1f))
+        NativeAdMediaArea(binder, Modifier.fillMaxWidth())
         Row(
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
@@ -407,7 +433,7 @@ private fun StepLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
                 NativeAdBadgeLine(assets, binder, bodyWhenNoAdvertiser = false)
             }
         }
-        val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.StepCallToActionHeight)
+        val ctaModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.StepCallToActionHeight)
         val callToAction = assets.callToAction
         if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
     }
@@ -418,64 +444,84 @@ private fun StepLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
  * apart. At font scale 1.0 the media is 200 dp and the card 418 dp, the height of its placeholder. When the text
  * grows (system font size), the media shrinks first, never below [NativeAdDimens.MinMediaSize] ([fullMediaHeight],
  * plan T-044): the call to action, the star row and the two body lines keep their size, and the card stays 418 dp up
- * to font scale 2.0. Only past the floor (font scales a device does not offer) does the card grow. A `Column` cannot
- * hold this floor (a weighted child gets a fixed constraint), so the parts are measured and placed by hand.
+ * to font scale 2.0. Only past the floor (font scales a device does not offer) does the card grow. The call to action
+ * is 36 dp at least, as high as its line of text with large text (plan T-045).
  */
 @Composable
 private fun FullLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
-    Layout(
-        content = {
-            NativeAdHeader(assets, binder, iconSize = NativeAdDimens.FullIconSize)
-            NativeAdMediaArea(binder, Modifier.fillMaxWidth())
-            val bodyModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.BodyHeight)
-            val body = assets.body
-            if (body != null) {
-                NativeAdBody(
-                    body,
-                    binder,
-                    maxLines = FULL_BODY_LINES,
-                    modifier = bodyModifier,
-                    minLines = FULL_BODY_LINES,
-                )
-            } else {
-                Spacer(bodyModifier)
-            }
-            val ctaModifier = Modifier.fillMaxWidth().height(NativeAdDimens.CallToActionHeight)
-            val callToAction = assets.callToAction
-            if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
-            NativeAdStarRow(assets.starRating, Modifier.fillMaxWidth().height(NativeAdDimens.StarRowHeight))
-        },
+    MediaShrinksFirstLayout(
+        innerHeight = NativeAdDimens.FullHeight - MediumInnerTop - MediumInnerBottom,
+        gap = NativeAdDimens.PartGap,
+        mediaIndex = 1,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = InnerStart, top = MediumInnerTop, end = InnerStart, bottom = MediumInnerBottom),
-    ) { measurables, constraints ->
-        check(measurables.size == FULL_PARTS) { "The full native ad has $FULL_PARTS parts, got ${measurables.size}" }
+    ) {
+        NativeAdHeader(assets, binder, iconSize = NativeAdDimens.FullIconSize)
+        NativeAdMediaArea(binder, Modifier.fillMaxWidth())
+        val bodyModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.BodyHeight)
+        val body = assets.body
+        if (body != null) {
+            NativeAdBody(
+                body,
+                binder,
+                maxLines = FULL_BODY_LINES,
+                modifier = bodyModifier,
+                minLines = FULL_BODY_LINES,
+            )
+        } else {
+            Spacer(bodyModifier)
+        }
+        val ctaModifier = Modifier.fillMaxWidth().heightIn(min = NativeAdDimens.CallToActionHeight)
+        val callToAction = assets.callToAction
+        if (callToAction != null) NativeAdCallToAction(callToAction, binder, ctaModifier) else Spacer(ctaModifier)
+        NativeAdStarRow(assets.starRating, Modifier.fillMaxWidth().height(NativeAdDimens.StarRowHeight))
+    }
+}
+
+private const val FULL_BODY_LINES = 2
+
+/**
+ * Lays out the parts of a native ad from the top, [gap] apart, the part at [mediaIndex] being the media: the media
+ * shrinks first (plans T-044, T-045). Every other part is measured at its own height (the width is fixed); the media
+ * takes what [innerHeight] (or the least height the parent sets, when more) leaves after them
+ * ([fullMediaHeight]), never below [NativeAdDimens.MinMediaSize]. Past that floor the layout grows instead. A `Column`
+ * cannot hold this floor (a weighted child gets a fixed constraint), so the parts are measured and placed by hand.
+ * Each child of [content] is one part.
+ */
+@Composable
+internal fun MediaShrinksFirstLayout(
+    innerHeight: Dp,
+    gap: Dp,
+    mediaIndex: Int,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        check(mediaIndex in measurables.indices) { "No media at $mediaIndex among ${measurables.size} parts" }
         val width = constraints.maxWidth
         val free = Constraints(minWidth = width, maxWidth = width)
-        val header = measurables[0].measure(free)
-        val rest = measurables.drop(2).map { it.measure(free) }
-        val gap = NativeAdDimens.PartGap.roundToPx()
-        val others = header.height + rest.sumOf { it.height } + gap * (FULL_PARTS - 1)
-        val inner = (NativeAdDimens.FullHeight - MediumInnerTop - MediumInnerBottom).roundToPx()
+        val placeables = arrayOfNulls<Placeable>(measurables.size)
+        measurables.forEachIndexed { index, part -> if (index != mediaIndex) placeables[index] = part.measure(free) }
+        val gapPx = gap.roundToPx()
+        val others = placeables.sumOf { it?.height ?: 0 } + gapPx * (measurables.size - 1)
+        val inner = max(innerHeight.roundToPx(), constraints.minHeight)
         val mediaHeight = fullMediaHeight(inner, others, NativeAdDimens.MinMediaSize.roundToPx())
-        val media = measurables[1].measure(Constraints.fixed(width, mediaHeight))
-        val parts = listOf(header, media) + rest
+        placeables[mediaIndex] = measurables[mediaIndex].measure(Constraints.fixed(width, mediaHeight))
         layout(width, constraints.constrainHeight(others + mediaHeight)) {
             var y = 0
-            parts.forEach { part ->
-                part.placeRelative(0, y)
-                y += part.height + gap
+            placeables.forEach { part ->
+                checkNotNull(part).placeRelative(0, y)
+                y += part.height + gapPx
             }
         }
     }
 }
 
-private const val FULL_BODY_LINES = 2
-private const val FULL_PARTS = 5
-
 /**
- * Height of the media of the full native ad: what the [inner] height of the 418 dp card leaves after the [others]
- * (the other parts and their gaps), never below [floor] (120 dp, KB-2). Past the floor the card grows instead.
+ * Height of the media of a native ad whose media shrinks first (full, medium, the step card, the collapsible layer;
+ * plans T-044, T-045): what the [inner] height of the card leaves after the [others] (the other parts and their
+ * gaps), never below [floor] (120 dp, KB-2). Past the floor the card grows instead.
  */
 internal fun fullMediaHeight(inner: Int, others: Int, floor: Int): Int = max(inner - others, floor)
 
@@ -689,9 +735,9 @@ internal fun NativeAdBody(
 }
 
 /**
- * The call to action: tertiary container, [height] high (36 dp, 34 dp on small, 44 dp or 56 dp on medium), 8 dp
- * corners, unlike the app's PrimaryButton. It is a plain box, not a Button, so a touch reaches the SDK's
- * call-to-action view.
+ * The call to action: tertiary container, at least [height] high (36 dp, 34 dp on small, 44 dp or 56 dp on medium);
+ * with large text it is as high as one line of its text (plan T-045). 8 dp corners, unlike the app's PrimaryButton.
+ * It is a plain box, not a Button, so a touch reaches the SDK's call-to-action view.
  */
 @Composable
 internal fun NativeAdCallToAction(
@@ -704,7 +750,7 @@ internal fun NativeAdCallToAction(
     binder.Asset(NativeAdAsset.CALL_TO_ACTION, modifier.testTag(NativeAdTestTags.CTA)) {
         Box(
             modifier = Modifier
-                .height(height)
+                .heightIn(min = height)
                 .widthIn(min = NativeAdDimens.CallToActionMinWidth)
                 .clip(RoundedCornerShape(NativeAdDimens.AssetCorner))
                 .background(MaterialTheme.colorScheme.tertiaryContainer)

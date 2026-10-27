@@ -196,7 +196,12 @@ internal fun NativeAdSlotContent(
             is NativeAdState.Loaded -> Box(contentModifier) { key(state.ad) { adContent(state.ad) } }
             NativeAdState.Unavailable ->
                 if (keepSpaceWhenEmpty) {
-                    Spacer(Modifier.fillMaxWidth().height(NativeAdDimens.heightOf(size, ctaLarge)))
+                    // The step card's height follows the font scale, like the card and its placeholder (plan T-045).
+                    val height = when (size) {
+                        NativeAdSize.STEP -> NativeStepAdDefaults.height()
+                        else -> NativeAdDimens.heightOf(size, ctaLarge)
+                    }
+                    Spacer(Modifier.fillMaxWidth().height(height))
                 }
         }
     }

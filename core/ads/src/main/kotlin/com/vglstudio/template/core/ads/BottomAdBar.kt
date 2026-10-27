@@ -151,8 +151,10 @@ fun BottomAdBarLayout(
  *
  * - The bottom slot is native small (80 dp) with `is_show_native_bottom`, the fixed banner otherwise; with
  *   `is_show_native_collap` too, the 250 dp collapsible layer floats over the slot, opens at its first ad, collapses on
- *   a tap and opens again `time_expand_collap_ad` seconds later (CL-01 to CL-04).
- * - [content] gets the slot's height as bottom padding once the slot has an ad, never for the layer (D-04).
+ *   a tap and opens again `time_expand_collap_ad` seconds later (CL-01 to CL-04). The layer is 250 dp at the default
+ *   font scale and grows with large text, so its media keeps 120 dp (272 dp at font scale 2.0, plan T-045).
+ * - [content] gets the slot's height as bottom padding once the slot has an ad, never for the layer (D-04), so a
+ *   taller layer covers more of the content but moves nothing.
  * - Nothing is drawn, and nothing kept, without consent or with `is_show_<code>` off; tests and previews (no ads
  *   controller) draw only the content. Turning the bar on or off never rebuilds [content].
  */

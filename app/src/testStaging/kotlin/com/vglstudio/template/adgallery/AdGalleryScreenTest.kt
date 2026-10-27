@@ -2,9 +2,11 @@ package com.vglstudio.template.adgallery
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -31,6 +33,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -625,6 +628,34 @@ class AdGalleryScreenTest {
         }
     }
 
+    /**
+     * KB-20, OB-01 (plan T-045): at font scale 2.0 the step card grows so its media keeps 120 dp; the gallery sets its
+     * frame by `NativeStepAdDefaults.height()`, so the frame is the card's height and Next stays at one place.
+     */
+    @Test
+    fun flowSteps_stepCardFrame_followsCardHeight_atFontScale2() {
+        composeRule.setContent {
+            // The font size setting of the device: the screen density with font scale 2.0 (as WithFontScale of the
+            // ads module's tests, plan T-044).
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 2f)) {
+                AppTheme { Screen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(), GalleryAdStatus.Unknown) }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val frame = bounds(AdGalleryTestTags.FLOW_CARD_FRAME)
+        val card = bounds(PreviewAdTags.STEP_CARD)
+        val media = composeRule.onNodeWithTag(CARD_MEDIA_TAG, useUnmergedTree = true).getBoundsInRoot()
+        assertEquals("frame $frame as high as the card $card", card.height.value, frame.height.value, 0.5f)
+        assertEquals("card height at font scale 2.0", 270f, card.height.value, 0.5f)
+        assertTrue("media of the card is ${media.height} high", media.height.value >= 120f - 0.5f)
+        val onStep1 = bounds(AdGalleryTestTags.FLOW_NEXT)
+        click(AdGalleryTestTags.FLOW_NEXT)
+        composeRule.onAllNodesWithText("Step 2 of 3").assertCountEquals(1)
+        val onStep2 = bounds(AdGalleryTestTags.FLOW_NEXT)
+        assertEquals("Next does not move between steps", onStep1, onStep2)
+    }
+
     @Test
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun flowSteps_smallScreen_nextNotCovered() {
@@ -785,5 +816,8 @@ class AdGalleryScreenTest {
 
     private companion object {
         const val TOLERANCE_DP = 1f
+
+        /** Test tag of the media of a native card in the ads module (`NativeAdTestTags.MEDIA`, internal there). */
+        const val CARD_MEDIA_TAG = "native_ad_media"
     }
 }

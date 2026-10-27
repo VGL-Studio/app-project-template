@@ -60,6 +60,7 @@ import com.vglstudio.template.core.ads.NativeAdCell
 import com.vglstudio.template.core.ads.NativeAdSlot
 import com.vglstudio.template.core.ads.NativeFullScreenStep
 import com.vglstudio.template.core.ads.NativeStepAd
+import com.vglstudio.template.core.ads.NativeStepAdDefaults
 import com.vglstudio.template.core.ads.PrivacyOptionsButton
 import com.vglstudio.template.core.ads.RewardedAdDialog
 import com.vglstudio.template.core.ads.RewardedNoAdPolicy
@@ -93,9 +94,6 @@ private const val PAGER_CARD_PAGE = 2
 
 /** Index of the native page of a flow step, after the first step, when the slot has an ad (plan T-032). */
 private const val FLOW_FULL_PAGE = 1
-
-/** The fixed frame of the step card (250 dp, OB-01): the Next button stays at one place on every step. */
-private val StepCardFrame = 250.dp
 
 /** The rewarded policy of `allow_after_<n>` on the gallery: 2 tries in a row. */
 private const val GALLERY_ALLOW_AFTER_TRIES = 2
@@ -742,9 +740,10 @@ private fun PagerPage(pageCount: Int, slots: AdGallerySlots, modifier: Modifier)
 /**
  * The flow page (T-032): steps in a pager moved by the Next button; the native page of a step after the first one
  * when its slot has an ad, decided until the flow starts so the number of pages does not change while it runs. The
- * step card sits outside the pager, in a fixed 250 dp frame laid over the bottom of the step area, built only on the
- * steps with a card: the native page takes the whole step area (one native ad per step; plan T-041). The pager has
- * the same height on every step and Next stays at one place (OB-01).
+ * step card sits outside the pager, in a fixed frame laid over the bottom of the step area, built only on the steps
+ * with a card: the native page takes the whole step area (one native ad per step; plan T-041). The frame is as high
+ * as the card, `NativeStepAdDefaults.height()` (250 dp at the default font scale, more with large text; plan T-045),
+ * never a fixed 250 dp. The pager has the same height on every step and Next stays at one place (OB-01).
  */
 @Composable
 private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modifier) {
@@ -756,6 +755,8 @@ private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modif
     val pagerState = rememberPagerState { pageCount }
     val scope = rememberCoroutineScope()
     val isFullPage = { page: Int -> withFullPage && page == FLOW_FULL_PAGE }
+    // The fixed frame of the step card: the Next button stays at one place on every step (OB-01).
+    val stepCardFrame = NativeStepAdDefaults.height()
     Column(modifier = modifier.testTag(AdGalleryTestTags.FLOW)) {
         PageTitle(stringResource(R.string.ad_gallery_flow_title))
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -770,7 +771,7 @@ private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modif
                     val step = if (withFullPage && page > FLOW_FULL_PAGE) page else page + 1
                     // The bottom of the area is the card's: the text stays in the middle of the part above it.
                     Box(
-                        modifier = Modifier.fillMaxSize().padding(bottom = StepCardFrame),
+                        modifier = Modifier.fillMaxSize().padding(bottom = stepCardFrame),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -787,7 +788,7 @@ private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modif
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(StepCardFrame)
+                        .height(stepCardFrame)
                         .padding(horizontal = Spacing.md)
                         .testTag(AdGalleryTestTags.FLOW_CARD_FRAME),
                 ) {
