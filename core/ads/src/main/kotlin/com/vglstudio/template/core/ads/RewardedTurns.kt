@@ -2,6 +2,7 @@ package com.vglstudio.template.core.ads
 
 import android.app.Activity
 import com.vglstudio.template.core.logging.AppLogger
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * What one caller of a rewarded turn gets (R-02 to R-04): [OnScreen] when the ad covers the screen (the dialog
@@ -120,12 +121,23 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
     /** Rounds between their first check and their decision, so a second call meanwhile sends nothing more. */
     private val deciding = mutableSetOf<AdPlacementDeclaration>()
 
-    /** One load round of [declaration]; sends at most one request. */
+    /**
+     * One load round of [declaration]; sends at most one request. The switch is read for at most
+     * [DECISION_WAIT_MILLIS] (docs/ops/ads-business-rules.md, section 11; plan T-047): not read in time, the round
+     * sends nothing and sets no retry, and the next round may try again.
+     */
     suspend fun loadIfNeeded(declaration: AdPlacementDeclaration) {
         if (declaration in deciding || !port.needsLoad(declaration)) return
         deciding += declaration
         val step = try {
-            rewardedLoadStep(port.needsLoad(declaration), port.enabled(declaration), port.mayRequestNow())
+            val needsLoad = port.needsLoad(declaration)
+            val enabled = withTimeoutOrNull(DECISION_WAIT_MILLIS) { port.enabled(declaration) }
+            if (enabled == null) {
+                logger.warn(TAG, "Rewarded ${declaration.code} load round: switch not read in time")
+                RewardedLoadStep.NOT_NEEDED
+            } else {
+                rewardedLoadStep(needsLoad, enabled, port.mayRequestNow())
+            }
         } finally {
             deciding -= declaration
         }
@@ -163,6 +175,10 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
      * applies; the latest caller gets the outcome, the others a blocked [RewardedOutcome.NoAd] so their dialog closes.
      * A decision that shows the ad shows it again for every tap that joined, recorded as `busy` (R-06); one with no ad
      * records `busy` for every tap that joined.
+     *
+     * A decision waits (the switch, the load if needed) for at most [DECISION_WAIT_MILLIS] in all (section 11 of the
+     * rules, plan T-047); not done in time, it ends like one with no ad and shows nothing, so the next tap is a new
+     * decision.
      */
     suspend fun request(
         declaration: AdPlacementDeclaration,
@@ -194,62 +210,111 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         }
     }
 
+    /** What a decision does once its waits are over. */
+    private enum class DecisionStep { SWITCHED_OFF, CONSENT_CLOSED, NO_AD, SHOW }
+
     /**
      * The decision of [decision]'s first tap. While it waits (the switch, the load if needed) every other tap of
-     * [declaration] joins it, so no turn can start meanwhile.
+     * [declaration] joins it, so no turn can start meanwhile. Every wait together lasts at most
+     * [DECISION_WAIT_MILLIS]; past it the decision goes on as one with no ad (R-03), with the state read at that
+     * moment, and asks for no load.
      */
     private suspend fun decide(declaration: AdPlacementDeclaration, decision: Deciding, policy: RewardedNoAdPolicy) {
         val code = declaration.code
-        if (!port.enabled(declaration)) {
-            logger.info(TAG, "Rewarded $code granted: switched off")
-            endDecision(declaration, decision, RewardedOutcome.Granted)
-            return
+        var notReadyRecorded = false
+        // Whether no ad is the network's fault (R-03), once the reason was read.
+        var networkRead: Boolean? = null
+        val step = withTimeoutOrNull(DECISION_WAIT_MILLIS) {
+            if (!port.enabled(declaration)) return@withTimeoutOrNull DecisionStep.SWITCHED_OFF
+            val reason = noAdReason(
+                consentOpen = port.consentOpen(),
+                ready = port.ready(declaration),
+                offline = port.offline(),
+                lastLoadNetworkError = lastLoadNetworkError[declaration] == true,
+            )
+            networkRead = reason == RewardedNoAdReason.NETWORK
+            when {
+                reason == RewardedNoAdReason.CONSENT_CLOSED -> DecisionStep.CONSENT_CLOSED
+                reason != null || !port.take(declaration) -> {
+                    // No ad (R-03, R-04): `not_ready` with the state before the load, then a load (F-07).
+                    port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
+                    notReadyRecorded = true
+                    port.loadIfNeeded(declaration)
+                    DecisionStep.NO_AD
+                }
+                // take() does not wait, so the wait cannot end once the ad is out of its slot.
+                else -> DecisionStep.SHOW
+            }
         }
-        val reason = noAdReason(
-            consentOpen = port.consentOpen(),
-            ready = port.ready(declaration),
-            offline = port.offline(),
-            lastLoadNetworkError = lastLoadNetworkError[declaration] == true,
-        )
-        when {
-            reason == RewardedNoAdReason.CONSENT_CLOSED -> {
+        when (step) {
+            DecisionStep.SWITCHED_OFF -> {
+                logger.info(TAG, "Rewarded $code granted: switched off")
+                endDecision(declaration, decision, RewardedOutcome.Granted)
+            }
+            DecisionStep.CONSENT_CLOSED -> {
                 // Question 8 of the plan, option (a): a closed consent gate counts as switched off; no opportunity.
                 logger.info(TAG, "Rewarded $code granted: consent gate closed")
                 endDecision(declaration, decision, RewardedOutcome.Granted)
             }
-            reason != null || !port.take(declaration) -> {
-                // No ad (R-03, R-04): `not_ready` with the state before the load, a load (F-07), then the policy
-                // (MC-05), counted once for the decision; every tap that joined is `busy` (section 8.2).
-                val network = reason == RewardedNoAdReason.NETWORK
-                port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
-                port.loadIfNeeded(declaration)
-                val granted = countNoAd(declaration, policy)
-                val label = if (network) "network" else NOT_READY
-                logger.info(TAG, "Rewarded $code skipped: $label (granted $granted)")
-                decision.followers.forEach { port.recordOpportunity(declaration, BUSY, port.loadState(declaration)) }
-                endDecision(declaration, decision, RewardedOutcome.NoAd(network = network, granted = granted))
+            DecisionStep.NO_AD, null -> {
+                if (step == null) logger.warn(TAG, "Rewarded $code decision not done in time")
+                // Timed out while the switch was awaited: both reads wait for nothing (KB-19, criterion 4).
+                val network = networkRead ?: (port.offline() || lastLoadNetworkError[declaration] == true)
+                if (!notReadyRecorded) port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
+                endWithNoAd(declaration, decision, policy, network)
             }
-            else -> {
-                val first = decision.first
-                // Held while the SDK is called: a show that fails inside the call ends like a decision with no ad.
-                var failedAtOnce: RewardedOutcome? = null
-                val held: (RewardedOutcome) -> Unit = { failedAtOnce = it }
-                show(declaration, first.activity, policy, held)
-                val turn = turns[declaration]
-                if (turn == null) {
-                    // Every tap that joined is `busy`, as with no ad (section 8.2).
-                    repeat(decision.followers.size) {
-                        port.recordOpportunity(declaration, BUSY, port.loadState(declaration))
-                    }
-                    val outcome = failedAtOnce ?: RewardedOutcome.NoAd(network = false, granted = false)
-                    endDecision(declaration, decision, outcome)
-                    return
-                }
-                decisions -= declaration
-                turn.callers[turn.callers.indexOf(held)] = first.onOutcome
-                failedAtOnce?.let(first.onOutcome)
-                // R-06: every tap that joined is a second tap of this turn.
-                decision.followers.forEach { showAgain(declaration, turn, it.activity, it.onOutcome) }
+            DecisionStep.SHOW -> showDecided(declaration, decision, policy)
+        }
+    }
+
+    /**
+     * A decision with no ad: the policy (MC-05), counted once for the decision; every tap that joined is `busy`
+     * (section 8.2).
+     */
+    private fun endWithNoAd(
+        declaration: AdPlacementDeclaration,
+        decision: Deciding,
+        policy: RewardedNoAdPolicy,
+        network: Boolean,
+    ) {
+        val granted = countNoAd(declaration, policy)
+        val label = if (network) "network" else NOT_READY
+        logger.info(TAG, "Rewarded ${declaration.code} skipped: $label (granted $granted)")
+        decision.followers.forEach { port.recordOpportunity(declaration, BUSY, port.loadState(declaration)) }
+        endDecision(declaration, decision, RewardedOutcome.NoAd(network = network, granted = granted))
+    }
+
+    /**
+     * Shows the ad taken out for [decision]. What the SDK reports inside the show call is held, then given like the
+     * callbacks of a turn that come later (plan T-047): a show that fails inside the call ends like a decision with no
+     * ad; otherwise every caller gets [RewardedOutcome.OnScreen] once and the latest caller the reward.
+     */
+    private fun showDecided(declaration: AdPlacementDeclaration, decision: Deciding, policy: RewardedNoAdPolicy) {
+        val first = decision.first
+        val heldOutcomes = mutableListOf<RewardedOutcome>()
+        val held: (RewardedOutcome) -> Unit = { heldOutcomes += it }
+        show(declaration, first.activity, policy, held)
+        val turn = turns[declaration]
+        if (turn == null) {
+            // Every tap that joined is `busy`, as with no ad (section 8.2).
+            repeat(decision.followers.size) {
+                port.recordOpportunity(declaration, BUSY, port.loadState(declaration))
+            }
+            val outcome = heldOutcomes.lastOrNull() ?: RewardedOutcome.NoAd(network = false, granted = false)
+            endDecision(declaration, decision, outcome)
+            return
+        }
+        decisions -= declaration
+        turn.callers[turn.callers.indexOf(held)] = first.onOutcome
+        // R-06: every tap that joined is a second tap of this turn.
+        decision.followers.forEach { showAgain(declaration, turn, it.activity, it.onOutcome) }
+        // A handler of a tap that joined already got OnScreen from showAgain.
+        val firstJoinedToo = decision.followers.any { it.onOutcome === first.onOutcome }
+        heldOutcomes.forEach { outcome ->
+            when (outcome) {
+                RewardedOutcome.OnScreen -> if (!firstJoinedToo) first.onOutcome(outcome)
+                RewardedOutcome.Granted -> turn.callers.last()(outcome)
+                is RewardedOutcome.NoAd -> first.onOutcome(outcome)
             }
         }
     }
@@ -348,7 +413,10 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         latest(RewardedOutcome.NoAd(network = false, granted = granted))
     }
 
-    /** Stuck recovery (F-03) or a lost host: every waiting turn ends as if closed, with no outcome. */
+    /**
+     * Stuck recovery (F-03) or a lost host: every waiting turn ends as if closed, with no outcome. A decision still
+     * running is not removed: it ends by itself within [DECISION_WAIT_MILLIS] (question 2 of plan T-047).
+     */
     fun onStuck() {
         if (turns.isEmpty()) return
         turns.forEach { (declaration, turn) ->
@@ -372,5 +440,8 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
         const val READY = "ready"
         const val BUSY = "busy"
         const val NOT_READY = "not_ready"
+
+        /** The longest wait of a decision, and of a load round for the switch (rules, section 11; plan T-047). */
+        const val DECISION_WAIT_MILLIS = 5_000L
     }
 }
