@@ -2264,6 +2264,31 @@ expect "device-session: leaves out other apps' lines" 0 "$(grep -c 'com.android.
 mkdir -p "$work/clean"
 cp "$fixtures/logcat-clean.txt" "$work/clean/logcat.txt"
 expect "device-session: a clean session is not blocking" 0 "$(session /dev/null summary "$work/clean" com.example.app.staging)"
+# An ANR inside the ad SDK's AdActivity (a test ad under monkey) is counted apart and does not block; one in an
+# activity of the app still blocks (FB-20261025-02).
+mkdir -p "$work/ad-anr" "$work/app-anr"
+{
+  cat "$fixtures/logcat-clean.txt"
+  echo "10-27 05:01:37.028   538  7321 E ActivityManager: ANR in com.example.app.staging (com.example.app.staging/com.google.android.gms.ads.AdActivity)"
+  echo "10-27 05:01:37.033  6539  6554 W Monkey  : ANR in com.example.app.staging (com.example.app.staging/com.google.android.gms.ads.AdActivity)"
+} > "$work/ad-anr/logcat.txt"
+printf '%s\n' '// NOT RESPONDING: com.example.app.staging (pid 5828)' \
+  'ANR in com.example.app.staging (com.example.app.staging/com.google.android.gms.ads.AdActivity)' 'Events injected: 1059' \
+  > "$work/ad-anr/monkey.txt"
+expect "device-session: an ANR only inside AdActivity does not block" 0 \
+  "$(session /dev/null summary "$work/ad-anr" com.example.app.staging)"
+expect "device-session: the AdActivity ANRs have their own row, level xem" "1 1 1" \
+  "$(grep -c '^| ANR trong màn quảng cáo của SDK (`AdActivity`, FB-20261025-02) | 2 | xem |' "$work/ad-anr/summary.md") $(grep -c '^| App không phản hồi (ANR) | 0 |  |' "$work/ad-anr/summary.md") $(grep -c '^| Monkey báo crash hay treo | 0 |  |' "$work/ad-anr/summary.md")"
+{
+  cat "$work/ad-anr/logcat.txt"
+  echo "10-27 05:02:01.000   538  7321 E ActivityManager: ANR in com.example.app.staging (com.example.app.staging/com.example.app.MainActivity)"
+} > "$work/app-anr/logcat.txt"
+printf '%s\n' '// NOT RESPONDING: com.example.app.staging (pid 5828)' \
+  'ANR in com.example.app.staging (com.example.app.staging/com.example.app.MainActivity)' > "$work/app-anr/monkey.txt"
+expect "device-session: an ANR in an activity of the app still blocks" 1 \
+  "$(session /dev/null summary "$work/app-anr" com.example.app.staging)"
+expect "device-session: the app ANR and the monkey hang stay blocking" "1 1" \
+  "$(grep -c '^| App không phản hồi (ANR) | 1 | chặn |' "$work/app-anr/summary.md") $(grep -c '^| Monkey báo crash hay treo | 1 | chặn |' "$work/app-anr/summary.md")"
 # The offline scenario turns every radio off and runs only when the device really has no network (L-031).
 # The plan scenarios (scripts/device-scenario.py) get an empty folder here, so these tests keep counting the standard ones.
 export DEVICE_SESSION_SLEEP=0 FAKE_ADB_CALLS="$work/adb-calls.txt" DEVICE_SCENARIOS_GLOB="$work/no-scenarios/*.txt"
