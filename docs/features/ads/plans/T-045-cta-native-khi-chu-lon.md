@@ -1,7 +1,7 @@
 ---
 ticket: T-045
 title: Native giữ trọn CTA, nhãn "Ad" và media 120 dp khi cỡ chữ hệ thống lớn
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -260,3 +260,18 @@ Test viết trước code, đỏ đúng lý do trên code trước phần sửa 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261026-06, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #219, commit merge `868c609`, 2026-10-27 07:30 UTC).
+- **Nhánh, PR:** `claude/T-045-cta-chu-lon` từ nhánh chính `f100c1c` (đã có T-044, T-041). Commit test `72ecdbf`, code `737593f`, ảnh chuẩn `550f9b9`, tài liệu theo rà soát `e4f4368`. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-045` (L-052).
+- **Test viết trước:** 12 test (7 trong `NativeAdFontScaleTest`, `AdGalleryScreenTest.flowSteps_stepCardFrame_followsCardHeight_atFontScale2`, hai câu sửa trong test của T-044, hai screenshot test `fontScale2_light`). 9 đỏ đúng lý do trên khung rỗng (ví dụ chữ CTA small tràn ở 2.0; CTA medium bị ép 32 dp ở 1.3; media thẻ ở bước 117 dp và lớp thu gọn 115 dp ở 1.5; nhãn "Ad" sau inter bị cắt ở 1.3; khung thẻ màn xem thử 250 dp thay vì 270 dp). Qua ngay như plan nêu: test canh `fullScreen_ctaTextFits_fontScales`, hai screenshot test (chưa có ảnh). Test JVM mọi module sau commit test: chỉ 9 test đó đỏ. 0 test viết chặt thêm.
+- **Đối chứng:** chín lần tạm đổi code, mỗi lần test tương ứng đỏ rồi hoàn lại. Hai lần đỏ khác lý do plan dự kiến: media medium cố định 196 dp làm CTA tràn khỏi thẻ (không phải thẻ cao hơn 410 dp); `CallToActionHeight = 36.dp` đỏ ngay ở 1.0 vì test đòi đúng 52 dp. Rà soát xác nhận test vẫn canh đúng điều mục 4 nói.
+- **Kiểm tra cục bộ:** `scripts/check.sh` QUA, 1423 test JVM, 0 lỗi, 87 ảnh; không ảnh chuẩn có sẵn nào đổi.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 7 ghi chú. Nên sửa: README thiết kế và `ads-guide.md` còn ghi "khung chờ 250 dp" ở dòng thẻ ở bước; đã sửa thành "cùng chiều cao với thẻ" (`e4f4368`, tài liệu, không viết được test đỏ trước; hành vi có test canh), rà soát lại đạt. Ghi chú: tham số `growWithText` của đầu toàn màn hình nay mọi nơi gọi đều truyền `true`.
+- **Kết quả CI:** `pr-check` xanh ở vòng đầu (lần chạy 40466109435).
+- **Lệch so với plan:** test kiểm "chữ không tràn" bằng `size.height >= multiParagraph.height` thay cho `didOverflowHeight == false` (thuộc tính này cũng `true` khi chữ dài bị cắt "…" theo chiều ngang), áp cho test mới và hai câu sửa của T-044, sửa trước commit test; `MediaShrinksFirstLayout` lấy chiều cao trong `max(innerHeight, constraints.minHeight)`, chỉ thẻ ở bước truyền `fillMaxSize`; medium không có CTA đặt `Spacer` cao bằng CTA; phần D dùng tham số `growWithText = true` ở nhánh sau inter. Không dùng phương án dự phòng. Không có câu khẳng định cũ viết lại theo ADR-0031.
+- **Sửa file test sau commit test:** chỉ định dạng ktlint trong `NativeAdFontScaleTest.kt`, không đổi điều test kiểm.
+- **Ngoài mục 3.2 (ADR-0029):** không có.
+- **Ảnh chuẩn:** mới `NativeAdCard_font-scale-2_light.png`, `NativeFullScreenAdScreen_font-scale-2_light.png` (`core/ads`); phiên con và rà soát đã mở xem.
+- **Cần người xem:** hai ảnh mới; kiểm thủ công trên máy thật ở cỡ chữ lớn nhất (mục 4, dòng cuối).
