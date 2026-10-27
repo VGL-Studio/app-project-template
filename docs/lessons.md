@@ -719,4 +719,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** T-041 là task tiếp tục, phiên chính tự làm phần còn lại (câu hỏi 9, `check.sh`, mở PR) trong worktree `../task-T-041`, không giao phiên con. Thư mục chính ở trên nhánh báo cáo suốt lúc đó, nên `scripts/token-usage.py` gán các request này vào dòng Chung: T-041 chỉ ghi 2,2M so với ước tính 22M (0,1 lần), dòng Chung 12,8M. Số trong `docs/metrics/token-usage.csv` làm mẫu ước tính của `estimate` vì vậy bị thấp.
 - **Bằng chứng:** bảng Token của báo cáo RUN-20261026-06; nhật ký T-041.
 - **Đề xuất sửa:** `docs/auto-run.md` mục Giao bước 3 đến 5 (hay `docs/ops/token-usage.md`): phiên chính tự làm bước của task thì làm trong thư mục chính trên nhánh task (như trước L-103), chỉ dùng worktree cho phiên con; hoặc `scripts/token-usage.py` gán request theo thư mục làm việc của lệnh (`cwd` của worktree `task-T-NNN`). Ghi chú trong CSV các dòng task tiếp tục để `estimate` bỏ qua.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục Giao bước 3 đến 5 (phiên chính tự làm task thì làm ở thư mục chính trên nhánh task); `scripts/token-usage.py estimate` cộng các dòng của cùng một task qua nhiều phiên thành một mẫu, có test; `docs/ops/token-usage.md`. Không gán theo `cwd` của worktree: transcript của phiên chính ghi nhánh của thư mục chính.
