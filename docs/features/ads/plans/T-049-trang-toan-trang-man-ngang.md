@@ -282,14 +282,18 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
    - (b) Ở màn ngang thay trang bằng thẻ nhỏ của bước (`native_step`, 250 dp): đổi định dạng của vị trí theo hướng màn hình, trang dùng quảng cáo của pool `native_step`; đổi luật MC-06, OB-01 và cách đếm lượt của hai vị trí. Cần người duyệt luật; không đề xuất.
    - (c) Ẩn hẳn vùng trang ở màn ngang và nới nội dung của bước: luồng mất một trang khi xoay, số trang đổi trong lúc luồng chạy (trái T-036); không đề xuất.
    - (d) Giữ khung chờ thay vùng trắng: không có quảng cáo nào tới, khung chờ còn mãi, người dùng tưởng đang tải. Không đề xuất làm cách duy nhất.
+   - **Trả lời (anh Nhật, 2026-10-28):** (a), bố cục hàng gọn, `minHeight()` và dòng giải thích ở màn xem thử, theo đề xuất.
 2. **Ô chừa chỗ AdChoices cạnh đầu quảng cáo ở bố cục hàng gọn.** Hôm nay hàng gọn có hàng trên 36 dp chỉ để chừa chỗ cho AdChoices (anh Nhật duyệt 2026-10-26, T-041). Plan thay hàng đó bằng ô 36 dp bên phải đầu quảng cáo. AdChoices thật vẫn do SDK ghim ở góc trên phải của trang; ô và lề 16 dp giữ góc đó trống, không phần nào của quảng cáo cắt vào (O-08, có test). Bố cục cột giữ hàng trên 36 dp.
    - Đề xuất của AI: đồng ý đổi; ảnh `NativeFlowStep_full-page-compact_light` ghi lại.
    - Phương án khác: giữ hàng trên, chỉ giảm lề hàng gọn từ 16 xuống 8 dp (mức 184 dp ở 1.0; vẫn dưới 186,5 dp nhưng chỉ dư 2,5 dp, và thua ở cỡ chữ 1.15 trở lên).
+   - **Trả lời (anh Nhật, 2026-10-28):** đồng ý đổi bố cục đã duyệt ở T-041: ô chừa chỗ AdChoices cạnh đầu quảng cáo.
 3. **Cỡ chữ 2.0 ở màn ngang của điện thoại vẫn không có quảng cáo** (vùng 168,4 dp, mức 178,2 dp).
    - Đề xuất của AI: chấp nhận, màn xem thử ghi dòng giải thích; `ads-guide.md` khuyên app đọc `minHeight()` để hiện nội dung của mình.
    - Phương án khác: thu tiếp hàng gọn ở cỡ chữ lớn (lề 12 dp và khoảng cách đầu tới CTA 8 dp: mức 162 dp ở 2.0). Lệch thêm khỏi số của thiết kế; không đề xuất trong task này.
+   - **Trả lời (anh Nhật, 2026-10-28):** chấp nhận cỡ chữ 2.0 ở màn ngang không có quảng cáo, có dòng giải thích.
 4. **Ghi `af_native_ad_eligible` ở trang 152 tới 200 dp.** Mức thấp hơn nên trang lấy quảng cáo ở vùng thấp hơn và ghi eligible ở đó (cùng điều kiện `allowed && shown && fits` của T-041).
    - Đề xuất của AI: đồng ý, giữ `analytics` trong `blocking_points`.
+   - **Trả lời (anh Nhật, 2026-10-28):** đồng ý ghi `af_native_ad_eligible` ở trang 152 tới 200 dp.
 
 ## 9. Quyết định duyệt
 
