@@ -38,5 +38,5 @@ Script làm những việc sau:
    - Khẩu hiệu `brand_tagline` trong `res/values/strings.xml`.
    - Phông trong `res/font` và `theme/Type.kt`, nếu app dùng phông khác Inter. Phông mới cần giấy phép cho phép đóng gói vào app; đặt giấy phép vào `third_party/`.
 
-   Sau đó sinh lại `docs/design-system/tokens.json` bằng `./gradlew :core:designsystem:testDebugUnitTest -PdesignTokens.update=true`, ghi lại ảnh chuẩn screenshot bằng `./gradlew recordRoborazziDebug`, xem lại ảnh catalog và các màn hình, rồi chạy lại `scripts/check.sh` (ADR-0008, ADR-0020).
+   Sau đó sinh lại `docs/design-system/tokens.json` bằng `./gradlew :core:designsystem:testDebugUnitTest -PdesignTokens.update=true`, ghi lại ảnh chuẩn screenshot bằng `./gradlew recordRoborazziDebug testDebugUnitTest --rerun :app:recordRoborazziStagingDebug :app:testStagingDebugUnitTest --rerun` (L-114), xem lại ảnh catalog và các màn hình, rồi chạy lại `scripts/check.sh` (ADR-0008, ADR-0020).
 3. Làm tiếp theo `docs/ops/setup-new-app.md` của app mới, từ phần 2.
