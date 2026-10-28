@@ -609,7 +609,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `docs/auto-run.md` bước 3 bảo đẩy nhánh task ngay sau mỗi commit; bước 9 bảo trước khi đẩy commit đầu tiên của task sau phải có kết quả `main-guard` của lần merge trước. Phiên làm theo bước 3 và đẩy commit test của T-052, T-050 khi `main-guard` còn chạy. Không gây hại vì `main-guard` đều xanh, nhưng nếu đỏ thì task sau đã bắt đầu trên nhánh chính hỏng.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 ghi ngoại lệ của bước 9.
 - **Trạng thái:** applied
-- **Kiểm chứng:** RUN-20261026-06: T-045 tạo nhánh ngay sau khi T-041 merge nhưng chỉ chạy `push-on-commit.sh` sau khi `main-guard` của T-041 xanh (06:53) và không có issue `main-broken`; commit đầu của T-045 đẩy lúc 06:56. Có hiệu quả. RUN-20261028-01: nhánh T-047 tạo lúc 18:28 (chưa có commit), `push-on-commit.sh` chỉ chạy sau khi `main-guard` của T-046 xanh (18:43) và không có issue `main-broken`. Có hiệu quả.
+- **Kiểm chứng:** RUN-20261026-06: T-045 tạo nhánh ngay sau khi T-041 merge nhưng chỉ chạy `push-on-commit.sh` sau khi `main-guard` của T-041 xanh (06:53) và không có issue `main-broken`; commit đầu của T-045 đẩy lúc 06:56. Có hiệu quả. RUN-20261028-01: nhánh T-047 tạo lúc 18:28 (chưa có commit), `push-on-commit.sh` chỉ chạy sau khi `main-guard` của T-046 xanh (18:43) và không có issue `main-broken`. Có hiệu quả. RUN-20261028-02: phiên con commit test T-049 lúc 08:23 khi `main-guard` của T-048 còn chạy; `push-on-commit.sh` chỉ chạy sau khi `main-guard` xanh (08:32) và không có issue `main-broken`, commit đẩy lúc đó. Có hiệu quả.
 - **Áp dụng:** `docs/auto-run.md` bước 3: commit đầu của task sau chỉ đẩy khi có kết quả `main-guard`, trong lúc chờ commit cục bộ; issue #188.
 
 ### L-100. Từ dịch lấy lại từ feature khác đổi nghĩa khi đi cùng con số
@@ -741,3 +741,21 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** hỏi lại một lần khi gặp 000, 429, 5xx; với 404, 403 hỏi lại kèm tham số chống bộ nhớ đệm để báo đúng lỗi CDN. `env-canary.yml` kiểm lại sau 90 giây trước khi mở issue. `start-run.yml` đóng `setup-broken` khi kiểm tra xanh. Có chỗ móc cho kiểm tra và test riêng của app. `scripts/tests/run.sh` chạy như runner trên mọi máy.
 - **Trạng thái:** applied
 - **Áp dụng:** `scripts/setup-check.sh`: `http_status` (hỏi lại khi 000, 429, 5xx), `cdn_hint`, nạp `scripts/setup-check-app.sh` của app nếu có (`SETUP_CHECK_APP_CHECKS`). `env-canary.yml`: kiểm lại sau 90 giây, ô `setup_only`, `persist-credentials: false`, `env -u GH_TOKEN`. `start-run.yml`: job `close-setup-broken` riêng (chỉ job này có `issues: write`), chạy trước job kích hoạt routine. `scripts/tests/run.sh`: `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_AUTHOR_*`, `GIT_COMMITTER_*` ở đầu; nạp `scripts/tests/app.sh` của app nếu có. Có test. `docs/ops/to-app.md` mục 6, `docs/ops/staging-and-runs.md`. Phần riêng của camera-pose (catalog tư thế, bí mật Remote Config, thời hạn job dài hơn) ở lại app.
+
+### L-114. `recordRoborazzi*` không ghi lại ảnh khi task test đã cập nhật
+
+- **Ngày, nguồn:** 2026-10-28, RUN-20261028-02 (T-049)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** danh sách chạy và `CLAUDE.md` (mục Lệnh) bảo ghi ảnh chuẩn bằng `./gradlew :core:ads:recordRoborazziDebug` và `:app:recordRoborazziStagingDebug`. Phiên con chạy hai lệnh này sau khi đã chạy test, Gradle coi task test là đã cập nhật nên không chạy lại test, ảnh chuẩn không đổi. Phiên con phải tự đoán và chạy lại với `testDebugUnitTest --rerun` / `testStagingDebugUnitTest --rerun` cùng lệnh ghi ảnh. Không gây lỗi vì phiên con thấy ảnh chưa đổi, nhưng phiên khác có thể tưởng ảnh đã ghi và đi tiếp tới `verifyRoborazzi` đỏ.
+- **Bằng chứng:** báo cáo của phiên con T-049 (nhật ký plan T-049, Lệch so với plan, ý 5); ảnh chỉ đổi sau lần chạy có `--rerun`.
+- **Đề xuất sửa:** `CLAUDE.md` mục Lệnh và `docs/templates/plan.md` (cách ghi ảnh chuẩn): ghi lệnh kèm `--rerun` của task test, ví dụ `./gradlew :core:ads:recordRoborazziDebug :core:ads:testDebugUnitTest --rerun`, rồi `git status --short -- '*/src/test/screenshots/'` để thấy ảnh đã đổi.
+- **Trạng thái:** proposed
+
+### L-115. Dòng KDoc dài hơn 120 ký tự qua ktlint, và điểm nên sửa chỉ về định dạng không sửa được vì không có test thất bại trước
+
+- **Ngày, nguồn:** 2026-10-28, RUN-20261028-02 (T-049)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** rà soát độc lập của T-049 xếp nên sửa một dòng KDoc 163 ký tự ở `NativeFlowStep.kt:258`, quá `max_line_length = 120` của `.editorconfig`; `ktlintCheck` của `check.sh` không báo. Luật Nên sửa của `docs/auto-run.md` bước 6 đòi test viết trước thất bại đúng lý do, mà chú thích không có test, nên phiên không sửa và để người quyết. Một sửa chỉ là xuống dòng chú thích phải chờ một PR riêng.
+- **Bằng chứng:** PR #244, mục Rà soát độc lập; nhật ký plan T-049.
+- **Đề xuất sửa:** (1) xem vì sao `max-line-length` của ktlint bỏ qua dòng này (kiểu `android_studio` có thể bỏ qua chú thích) và bật kiểm cho chú thích nếu được; (2) ADR-0032 thêm một lệch nhỏ: điểm nên sửa chỉ về chú thích hay định dạng, không đổi code chạy, trong file của mục 3.2, thì phiên sửa không cần test, ghi vào mục Quyết định AI đã tự làm.
+- **Trạng thái:** proposed

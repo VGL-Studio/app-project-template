@@ -1,7 +1,7 @@
 ---
 ticket: T-049
 title: Trang toàn trang của luồng không để trống khi xoay ngang trên điện thoại thật
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
@@ -307,3 +307,16 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261028-02, phiên bản plan 1
+
+- **Kết quả:** đã merge (2026-10-28 08:49 UTC, commit `b7aee1d` trên nhánh chính).
+- **Nhánh, PR:** `claude/T-049-trang-toan-trang-man-ngang`, #244. Bước 3 tới 5 do phiên con làm trong worktree `../task-T-049`.
+- **Đã làm:** mục 3.1 bước 1 tới 7: hàng gọn có ô chừa chỗ AdChoices 36 dp bên phải đầu quảng cáo, `topBar` nhận modifier, `rowTextColumnMin = max(36, header) + 16 + 52`; tag `PLACEHOLDER_HEADER`, `PLACEHOLDER_CTA`; `MinHeight` 152 dp, hàm `minHeight()`; màn xem thử hiện dòng "Not enough room for the full-page ad" khi vùng thấp hơn `minHeight()`; `PhoneInsets.kt`; `ads-guide.md`, design README. Bố cục cột, cổng, `fullScreenStepStates`, `releaseStepFullScreenAd`, `AdsController` không đổi.
+- **Test viết trước:** commit `5dbfda4` (gồm khung rỗng của mục 3.2, L-025) trước commit code `b556246`. 13 test mới hay viết lại (9 test mới của mục 4, 4 câu viết sẵn của mục 3.5), thêm 186,5 và 152 dp vào `HEIGHTS`. Trên khung rỗng 12 test đỏ đúng lý do (ví dụ "CTA height expected 52.0 but was 38.545456", "least height at 1.0 expected 152.0 but was 200.0", "one ad taken in 186.5 dp: [] expected 1 but was 0", không có dòng giải thích). Qua ngay: `flowSteps_phoneLandscape_insets_reproducePageArea` (bước tái hiện, plan cho phép; 34,18 / 106,18 / 292,73 dp, cao 186,5 dp; đối chứng không lề 236,7 dp, `left` 0) và `media_neverBelow120dp` ở hai chiều cao mới (media đã từ 120 dp trên code cũ; mục 4 ghi đỏ là quá, phần đỏ trước ở hai chiều cao này do `requiredParts_insidePage_atEveryHeight` mang). 3 test có bước đối chứng (L-055): `fullScreenStep_phoneLandscape_takesAd` (151 dp trước), `compactRow_phoneLandscape_requiredPartsInside` (152 dp và cột 360 dp), `defaults_minHeight_followsFontScale` (hằng `MinHeight`). Test JVM mọi module trên khung rỗng: chỉ 12 test trên đỏ, đều trong file của mục 3.2. Không đổi file test sau commit test.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, ghi chú. Nên sửa: một dòng KDoc của `NativeFullScreenStep` (`NativeFlowStep.kt:258`) dài 163 ký tự, quá `max_line_length = 120` (ktlint không báo, `check.sh` qua). Không sửa: chú thích không có test thất bại trước được (auto-run.md bước 6, ADR-0029 quyết định 3), để người quyết. Ghi chú: dòng 79 của `ads-guide.md` chỉ nói ô AdChoices, phần 152 dp và `minHeight()` nằm ở đoạn dòng 120; screenshot test đặt `safeDrawingPadding()` không có `Surface` bọc ngoài như test giao diện (ảnh vẫn đúng); test cỡ chữ 2.0 dùng `flowSteps_phoneLandscape_pageFitsAd` làm đối chứng cỡ 1.0.
+- **Kết quả CI:** `scripts/check.sh` trong worktree QUA (1455 test JVM, 0 lỗi, 89 ảnh); `pr-check` xanh một vòng (lần chạy 40658111639).
+- **Lệch so với plan:** cách dựng test, không đổi điều test kiểm (rà soát xác nhận): (1) đối chứng eligible ở 186,5 dp là test riêng `fullScreenStep_phoneLandscape_eligible` (khung máy), vì sau khi 152 dp đã báo eligible, đổi sang 186,5 dp không báo lại; (2) `fullScreenStep_phoneLandscape_takesAd` chạy đối chứng 151 dp trước rồi đổi sang 186,5 dp (không gọi `setContent` hai lần được); (3) test cỡ chữ 2.0 không có đối chứng cỡ 1.0 trong cùng test (cỡ chữ đặt theo test bằng `@Config`), `flowSteps_phoneLandscape_pageFitsAd` là đối chứng đó; (4) `PhoneInsets.kt` giữ thêm hằng khung `PHONE_LANDSCAPE`; (5) lần `recordRoborazzi*` đầu không ghi vì task test đã cập nhật, phiên con chạy lại kèm `--rerun`. Bốn câu khẳng định viết lại là câu viết sẵn trong plan, quyết định 1 của ADR-0031 (rà soát xác nhận khớp chữ, không nới). Không có phần ngoài mục 3.2.
+- **Ảnh chuẩn:** chỉ 4 ảnh của mục 3.2 đổi (2 ghi lại, 2 mới), không phải `git checkout` ảnh nào.
+- **Việc còn lại:** dòng KDoc dài (nên sửa của rà soát).
+- **Cần người xem:** 4 ảnh chuẩn; kiểm tra thủ công trên máy thật (mục 4, hai dòng); dòng KDoc dài.

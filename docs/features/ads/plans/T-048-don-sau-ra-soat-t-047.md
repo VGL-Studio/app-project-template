@@ -1,7 +1,7 @@
 ---
 ticket: T-048
 title: Dọn rewarded theo ghi chú rà soát T-047
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -235,3 +235,15 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit trên 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261028-02, phiên bản plan 1
+
+- **Kết quả:** đã merge (2026-10-28 08:15 UTC, commit `c9dfb2b` trên nhánh chính).
+- **Nhánh, PR:** `claude/T-048-don-rewarded`, #242.
+- **Đã làm:** mục 3.1 A tới D đúng chữ của plan: `giveOnScreen` của `showAgain`, tập `screened` trong `showDecided`; `switchRead`, `waited` và nhánh cổng đóng khi hết giờ ở khóa trong `decide`; KDoc của lớp, `showDecided`, `showAgain`, `decide`, `request`; ba chỗ của `ads-business-rules.md` (mục 11, R-06, mục 8.2) và gạch đầu dòng Rewarded của `ads-guide.md` (không thêm dòng).
+- **Test viết trước:** commit `b3f136a` trước commit code. 10 test mới và 2 câu mới trong `loadRound_switchStuck_releasesAfterWait`. Trên code cũ: 5 test đỏ đúng lý do của mục 4 (`syncShowed_oneHandlerThreeTaps_onScreenOnce` và `syncShowed_handlerJoinsTwice_onScreenOnce` `[OnScreen, OnScreen, Granted]`; `decisionStuckAtSwitch_consentClosed_grantsLikeClosedGate` `b = [NoAd(false, false)]`; `decisionStuckAtSwitch_consentClosed_countsNoTry` `[NoAd(false, false), NoAd(false, true)]`; `decisionStuckAtSwitch_consentClosesMeanwhile_grants` `[NoAd(false, false)]`); 5 test canh giữ và 2 câu mới xanh như plan nói. Đối chứng (L-055, L-108): `NOT_NEEDED` thành `SWITCHED_OFF` đỏ ở câu `cleared` (dòng 897), thành `GATE_CLOSED` đỏ ở câu `sendBlocked` (dòng 898); bỏ `!switchRead` làm `decisionStuckAtLoad_consentClosedMeanwhile_staysNoAd` đỏ `but was:<[Granted]>`; đột biến `gateAtStart` làm `decisionStuckAtSwitch_consentClosesMeanwhile_grants` đỏ `but was:<[NoAd(network=false, granted=false)]>` và `decisionStuckAtSwitch_consentOpensMeanwhile_staysNoAd` đỏ `but was:<[Granted]>`. Test JVM mọi module trên khung test: chỉ 5 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 3 ghi chú: (1) chú thích nhánh `CONSENT_CLOSED` của `decide` chỉ dẫn "Question 8 of the plan, option (a)", nay nhánh này cũng phục vụ đường hết giờ của T-048 (KDoc của `decide` đã nói); (2) chú thích nhánh `NO_AD, null` "Timed out while the switch was awaited" vẫn đúng (chỉ còn khi cổng mở) nhưng không nhắc ngoại lệ cổng đóng; (3) ticket và plan đi qua nhánh báo cáo.
+- **Kết quả CI:** `scripts/check.sh` cục bộ QUA (1445 test JVM, 0 lỗi); `pr-check` xanh một vòng (lần chạy 40653652163).
+- **Lệch so với plan:** Không có. Không có phần ngoài mục 3.2, không có câu khẳng định cũ viết lại.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** người đọc luật mới (mục 11, R-06, mục 8.2 của `ads-business-rules.md`; Rewarded của `ads-guide.md`); hai ghi chú chú thích của rà soát.
