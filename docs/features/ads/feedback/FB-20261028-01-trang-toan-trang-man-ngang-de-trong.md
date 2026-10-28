@@ -7,7 +7,7 @@ build: 0.1.0-staging.17
 feature: ads
 ticket: T-049
 severity: nang
-status: triaged
+status: fixed
 created: 2026-10-28
 ---
 
@@ -55,7 +55,7 @@ Chưa đính kèm. Ảnh chụp lúc thử nằm trong máy của AI, không đ�
 ## Phân loại
 
 - **Loại:** lỗi so với spec (tiêu chí kiểm thủ công của T-041); test của plan không tính các thanh hệ thống
-- **Xử lý:** đưa vào backlog, ticket T-049
+- **Xử lý:** đưa vào backlog, ticket T-049; đã sửa ở PR #244 (RUN-20261028-02, bản `0.1.0-staging.18`), Nhật kiểm trên máy thật 2026-10-28
 - **Lý do:** đây không phải lỗi dừng app. Màn ngang ở bước của luồng ít gặp, nhưng vẫn mất quảng cáo và người dùng thấy giao diện trống.
 - **Liên kết:** `features/ads/tickets/T-049-trang-toan-trang-man-ngang.md`
 
