@@ -75,6 +75,7 @@ Lấy bản mẫu thì các giá trị này về giá trị của mẫu. Đặt 
 | Giá trị | File | Ở dự án mẫu |
 | --- | --- | --- |
 | Hạn chót cả lượt kịch bản emulator, `DEVICE_SCENARIOS_BUDGET` | `scripts/device-scenario.py`, `scripts/device-session.sh`, `docs/ops/test-sessions.md` | 600 giây; camera-pose dùng 1300 |
+| Ô của bảng khả năng theo kết quả thử của app (ví dụ `workflow-push` sau khi `scripts/push-probe.sh` qua hai phiên liền), cùng ngày và lần chạy ở cột Ghi chú | `docs/ops/session-capabilities.md` | `thử` ở cả ba cách mở; app tự điền |
 
 Thấy thêm giá trị như vậy thì thêm vào bảng này qua issue `from-app`.
 

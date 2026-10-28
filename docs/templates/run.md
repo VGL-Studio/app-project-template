@@ -6,6 +6,7 @@ approved_by: <dev duyệt danh sách và kích hoạt phiên>
 max_tasks: <số task tối đa>      # dev quyết định theo ước tính; mặc định bằng số task trong danh sách (docs/CLAUDE.md, mục Khi lập danh sách chạy)
 staging_needed_by:           # tùy chọn: thời điểm muốn có bản staging, ví dụ 2026-10-21 08:00
 plan_queue: 2                # số plan soạn sẵn cuối phiên, 0 là tắt (auto-run.md, mục 4, bước 5); tăng lên 3 sau 2 phiên tốt
+open_with:                   # cloud | routine | local: cách mở phiên (docs/ops/session-capabilities.md); run-check.py quy tắc 8
 started_at:
 finished_at:
 staging_build:               # phiên bản bản staging được phát cuối phiên
@@ -30,6 +31,7 @@ staging_build:               # phiên bản bản staging được phát cuối 
 
 - **`scripts/run-check.py`:** <qua, hoặc các lỗi đã sửa>; chú ý: <từng dòng và kết luận>
 - **Rà soát độc lập:** <ngày, số điểm chặn, nên sửa, ghi chú>
+- **Cách mở phiên:** <open_with và lý do>; khả năng mà plan cần (quy tắc 8 của `run-check.py`, `docs/ops/session-capabilities.md`): <từng dòng và cách xử lý, hoặc "Không có">
 - **Hạn mức Actions:** <số phút CI ước tính của danh sách, số phút còn lại dev đã xem, ngày> (`auto-run.md` mục 1, L-094)
 
 | Mức | Ticket | Vấn đề | Xử lý |
@@ -65,6 +67,14 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 | T-NNN | Đã merge | <liên kết> | 8 test, đã thất bại đúng lý do | 0 chặn, 1 ghi chú | Xanh | |
 | T-NNN | Dừng ở bước 8 | <liên kết> | | | Đỏ sau 3 lần sửa | Xem nhật ký plan |
 
+### Quyết định AI đã tự làm
+
+<!-- auto-run.md, mục 5; ADR-0032. Lệch nhỏ L1 tới L10, phần ngoài mục 3.2 (ADR-0029), câu khẳng định cũ viết lại (ADR-0031), phương án dự phòng, task bỏ qua vì lỗi môi trường. Ghi "Không có" nếu không có. -->
+
+| Task | Loại | Quyết định | Lý do | Cách hoàn tác |
+| --- | --- | --- | --- | --- |
+| T-NNN | ADR-0032/L1 | <ví dụ: `DEVICE_SCENARIOS_BUDGET` 600 thành 800> | <tổng theo công thức 730 giây> | <đặt lại 600 ở ba file, PR mới> |
+
 ### Cần người kiểm tra
 
 - [ ] Ảnh chuẩn screenshot mới: <màn hình, đường dẫn ảnh>
@@ -73,6 +83,7 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 - [ ] Kịch bản emulator lỗi hay bỏ qua: <tệp, kết quả, bước lỗi, phản hồi FB-...>, hoặc "Không có"
 - [ ] Phần ngoài mục 3.2 đã merge (ADR-0029): <ticket, file, vì sao cần, PR>, hoặc "Không có"
 - [ ] Câu khẳng định cũ viết lại (ADR-0031): <ticket, test, câu cũ và câu mới, câu của plan nói điều mới, PR>, hoặc "Không có"
+- [ ] Quyết định AI đã tự làm: <N, xem mục trên>, hoặc "Không có"
 - [ ] Điểm rà soát mức ghi chú: <ticket, nội dung>
 - [ ] Test chập chờn: <issue `flaky` đang mở, tên test>, hoặc "Không có" (ADR-0025)
 - [ ] Task bị revert: <ticket, issue `main-broken`, PR revert>, hoặc "Không có" (ADR-0025)
