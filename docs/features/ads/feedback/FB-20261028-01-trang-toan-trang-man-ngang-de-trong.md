@@ -61,5 +61,5 @@ Chưa đính kèm. Ảnh chụp lúc thử nằm trong máy của AI, không đ�
 
 ## Ghi chú thêm từ cùng lần thử
 
-- Ở cỡ chữ 200%, nút "Native full screen" của màn xem thử (chỉ có ở staging) xuống ba dòng và bị cắt chữ "screen". Gộp vào T-049.
+- ~~Ở cỡ chữ 200%, nút "Native full screen" của màn xem thử (chỉ có ở staging) xuống ba dòng và bị cắt chữ "screen". Gộp vào T-049.~~ **Sửa 2026-10-28:** quan sát này nhầm. Lúc thử, `font_scale` đúng là 2.0, cỡ hiển thị không đổi. Xem lại ảnh chụp: nút nằm sát mép dưới màn hình, phần dưới của nút chỉ nằm ngoài vùng đang xem (chưa cuộn tới), chữ không bị cắt. Chạy thử trên Robolectric lúc soạn plan T-049 cũng thấy nút cao theo chữ, ba dòng, không tràn. Bỏ khỏi T-049.
 - Ở cỡ chữ 200%, T-045 đạt: CTA và nhãn "Ad" đọc trọn ở native small, native medium và trang toàn trang. Ở màn dọc, T-041 đạt.
