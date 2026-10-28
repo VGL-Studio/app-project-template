@@ -239,15 +239,19 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
 
-### [ADR-0034](adr/0034-lam-nhanh-co-nguoi-theo-doi.md): Việc nhỏ, rủi ro thấp được làm ngay ban ngày theo đường làm nhanh, AI làm cùng dev, vẫn đủ yêu cầu, ticket, plan, nhật ký, CI và merge-if-green.sh
+### [ADR-0034](adr/0034-lam-nhanh-co-nguoi-theo-doi.md): Việc nhỏ, rủi ro thấp của code app được làm ngay ban ngày theo đường làm nhanh, AI làm cùng dev, vẫn đủ yêu cầu, ticket, plan, nhật ký, CI và merge-if-green.sh
 
-- chỉ đi đường làm nhanh khi dev ngồi cùng suốt task, plan không chạm điểm chặn nào kể cả điểm 7, không thêm quyền, thư viện hay SDK, mức rủi ro Thấp và tiêu chí E dưới 2, ticket cỡ S hoặc M khi dev đồng ý, kịch bản có trong spec `confirmed` hoặc dev ngồi cùng là người xác nhận spec của feature và đã xác nhận phần đổi
-- không đi đường làm nhanh khi có phiên tự chạy đang chạy, và báo dev khi danh sách chạy `approved` sắp chạy sửa cùng file
+- đường làm nhanh chỉ cho code app, chỉ khi dev ngồi cùng suốt task tới khi `main-guard` xanh, plan không chạm điểm chặn nào kể cả điểm 7, không thêm quyền, thư viện hay SDK, mức rủi ro Thấp và tiêu chí E dưới 2, ticket cỡ S hoặc M khi dev đồng ý, kịch bản có trong spec `confirmed` hoặc dev ngồi cùng là người xác nhận spec của feature
+- không bắt đầu khi có phiên tự chạy đang chạy hay issue `main-broken`, `env-broken` đang mở
 - vẫn ghi yêu cầu, ticket, plan đủ mục theo mẫu với `lane: quick`, chạy `scripts/plan-check.py` khi plan còn `draft` và sửa hết lỗi
-- chỉ chuyển plan sang `approved` và ghi mục 9 sau khi dev đồng ý rõ ràng trong chính phiên đó, ghi người duyệt, ngày và lời đồng ý
-- vẫn viết test trước, chạy `scripts/check.sh`, rà soát độc lập bằng agent con ngữ cảnh mới theo bước 6 của `docs/auto-run.md`, chờ CI và merge chỉ bằng `scripts/merge-if-green.sh`, chờ `main-guard`
-- một PR cho cả task trên nhánh `claude/quick-T-NNN-<tu-khoa>`, mô tả ghi "Đường làm nhanh (ADR-0034)", commit cuối trước khi merge ghi nhật ký, plan `done`, ticket `on-staging`
+- chỉ chuyển plan sang `approved`, ghi mục 9, hay chuyển spec sang `confirmed` sau khi dev đồng ý rõ ràng trong chính phiên đó, ghi người duyệt, ngày và lời đồng ý
+- dev nào ngồi cùng cũng duyệt được plan làm nhanh, ghi khi người duyệt không phải `owner` của ticket
+- vẫn viết test trước, chạy `scripts/check.sh`, rà soát độc lập bằng agent con ngữ cảnh mới theo bước 6 của `docs/auto-run.md`, lời giao có dòng `Task: T-NNN`
+- chờ CI và merge chỉ bằng `scripts/merge-if-green.sh`, chờ `main-guard`
+- một PR cho cả task trên nhánh `claude/quick-T-NNN-<tu-khoa>`, mô tả ghi "Đường làm nhanh (ADR-0034)" và những gì đường thường ghi vào báo cáo phiên
+- nhật ký, plan `done`, ticket `on-staging` ghi trong lần đẩy cuối trước CI
+- trước khi merge chạy `scripts/plan-check.py` và `scripts/run-check.py` cho các danh sách chạy chưa chạy trên nhánh làm nhanh và báo dev lỗi mới
 - hỏi dev trước mọi lệch mà phiên tự chạy được tự làm rồi báo, ghi vào nhật ký
-- gặp điều kiện dừng hay điểm chặn thì tăng phiên bản plan, để `draft`, đổi PR thành nháp gắn `needs-human` và chuyển task sang đường thường
-- dev bỏ task thì vẫn đưa yêu cầu, ticket và plan `stopped` lên nhánh chính bằng PR tài liệu
-- đánh dấu token bằng `scripts/token-usage.py mark T-NNN` khi bắt đầu và `mark chung` khi xong
+- dừng hay bỏ task thì đóng PR làm nhanh và đưa yêu cầu, ticket `stopped`, plan có nhật ký lần dừng lên nhánh chính bằng PR tài liệu, làm tiếp thì theo đường thường trên nhánh `claude/T-NNN-<tu-khoa>`
+- nhánh chính đỏ vì commit merge của PR làm nhanh thì revert theo ADR-0025 cùng dev, rồi ticket `stopped` và nhật ký ghi "đã merge rồi revert"
+- đánh dấu token bằng `scripts/token-usage.py mark` và ghi CSV với `--run QUICK-YYYYMMDD-T-NNN`
