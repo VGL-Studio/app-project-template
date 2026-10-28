@@ -238,3 +238,16 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
+
+### [ADR-0034](adr/0034-lam-nhanh-co-nguoi-theo-doi.md): Việc nhỏ, rủi ro thấp được làm ngay ban ngày theo đường làm nhanh, AI làm cùng dev, vẫn đủ yêu cầu, ticket, plan, nhật ký, CI và merge-if-green.sh
+
+- chỉ đi đường làm nhanh khi dev ngồi cùng suốt task, plan không chạm điểm chặn nào kể cả điểm 7, không thêm quyền, thư viện hay SDK, mức rủi ro Thấp và tiêu chí E dưới 2, ticket cỡ S hoặc M khi dev đồng ý, kịch bản có trong spec `confirmed` hoặc dev ngồi cùng là người xác nhận spec của feature và đã xác nhận phần đổi
+- không đi đường làm nhanh khi có phiên tự chạy đang chạy, và báo dev khi danh sách chạy `approved` sắp chạy sửa cùng file
+- vẫn ghi yêu cầu, ticket, plan đủ mục theo mẫu với `lane: quick`, chạy `scripts/plan-check.py` khi plan còn `draft` và sửa hết lỗi
+- chỉ chuyển plan sang `approved` và ghi mục 9 sau khi dev đồng ý rõ ràng trong chính phiên đó, ghi người duyệt, ngày và lời đồng ý
+- vẫn viết test trước, chạy `scripts/check.sh`, rà soát độc lập bằng agent con ngữ cảnh mới theo bước 6 của `docs/auto-run.md`, chờ CI và merge chỉ bằng `scripts/merge-if-green.sh`, chờ `main-guard`
+- một PR cho cả task trên nhánh `claude/quick-T-NNN-<tu-khoa>`, mô tả ghi "Đường làm nhanh (ADR-0034)", commit cuối trước khi merge ghi nhật ký, plan `done`, ticket `on-staging`
+- hỏi dev trước mọi lệch mà phiên tự chạy được tự làm rồi báo, ghi vào nhật ký
+- gặp điều kiện dừng hay điểm chặn thì tăng phiên bản plan, để `draft`, đổi PR thành nháp gắn `needs-human` và chuyển task sang đường thường
+- dev bỏ task thì vẫn đưa yêu cầu, ticket và plan `stopped` lên nhánh chính bằng PR tài liệu
+- đánh dấu token bằng `scripts/token-usage.py mark T-NNN` khi bắt đầu và `mark chung` khi xong
