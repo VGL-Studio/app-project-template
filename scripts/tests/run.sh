@@ -1963,6 +1963,11 @@ expect "run-check: a ticket without spec and scenarios passes" pass "$(run_check
 printf -- '---\nid: T-002\nstatus: approved\nspec:\nscenarios: [KB-1]\ndepends_on: []\n---\n' \
   > "$rr/docs/features/demo/tickets/T-002-x.md"
 expect "run-check: a ticket with scenarios but no spec stops" stop "$(run_check)"
+# A ticket that people do by hand (auto_run: false, for example scripts/release.sh) never goes into a run list.
+printf -- '---\nid: T-002\nstatus: approved\nspec:\nscenarios: []\ndepends_on: []\nauto_run: false               # people do it\n---\n' \
+  > "$rr/docs/features/demo/tickets/T-002-x.md"
+expect "run-check: a ticket with auto_run false stops" stop "$(run_check)"
+expect "run-check: auto_run false names the ticket" 1 "$(grep -c 'T-002: ticket ghi auto_run: false' "$work/run-check.out")"
 write_ticket T-002 ''
 
 # run-check.py reads a plan's order hints and the files of other plans of the list (L-078).
@@ -2201,6 +2206,9 @@ write_pq_ticket T-922 ready '' '' T-921 '' ''
 write_pq_ticket T-923 backlog "$S" KB-1 '' '' ''
 write_pq_ticket T-924 cancelled '' '' '' '' features/demo/plans/T-924-x.md
 write_pq_ticket T-925 backlog '' '' T-924 '' ''
+printf -- '---\nid: T-926\nstatus: backlog\nspec:\nscenarios: []\ndepends_on: []\nsprint:\nplan:\nauto_run: false               # people do it\n---\n' \
+  > "$pq/docs/features/demo/tickets/T-926-x.md"
+write_pq_ticket T-927 backlog '' '' T-926 '' ''
 touch "$pq/README"
 pq_git init -q -b main
 pq_git add -A
@@ -2235,6 +2243,8 @@ expect "plan-queue: a stopped dependency with a plan is skipped" 1 "$(pq_err 'T-
 expect "plan-queue: a cancelled dependency with a plan is skipped" 1 "$(pq_err 'T-925: bỏ qua.*T-924 đang cancelled')"
 expect "plan-queue: a backlog ticket is queued" 1 "$(grep -c 'T-923' <<< "$all_ids" || true)"
 expect "plan-queue: a missing dependency is skipped" 1 "$(pq_err 'T-916: bỏ qua.*T-999 không có ticket')"
+expect "plan-queue: a ticket with auto_run false is skipped" 1 "$(pq_err 'T-926: bỏ qua.*auto_run: false')"
+expect "plan-queue: a ticket waiting for an auto_run false ticket is skipped" 1 "$(pq_err 'T-927: bỏ qua, chờ T-926')"
 expect "plan-queue: a ticket with a plan branch is skipped" 1 "$(pq_err 'T-919: bỏ qua.*đang có plan trên nhánh origin/claude/plan-T-919-x')"
 expect "plan-queue: a ticket in an open PR is skipped" 1 "$(pq_err 'T-920: bỏ qua.*đang có PR mở #77')"
 expect "plan-queue: --max limits the list" "T-901 T-910" "$(pq_ids --max 2)"
@@ -2677,7 +2687,7 @@ expect "status --sync: a second run changes nothing" 0 "$(grep -c ' -> ' "$work/
 # foundation.py builds docs/foundation.md from the rule section of the ADRs.
 fd="$work/foundation-repo/docs/adr"
 mkdir -p "$fd"
-printf -- '---\nid: ADR-0001\ntitle: Mẫu\nstatus: accepted\norigin: template\n---\n\n## Hệ quả\n\n- **Tích cực:** x\n- **Việc AI phải tuân thủ:** làm A; không làm `b; c`.\n' > "$fd/0001-mau.md"
+printf -- '---\nid: ADR-0001\ntitle: Mẫu\nstatus: accepted\norigin: template\n---\n\n## Hệ quả\n\n- **Tích cực:** x\n- **Việc AI phải tuân thủ:** làm A (x; y); không làm `b; c`.\n' > "$fd/0001-mau.md"
 printf -- '---\nid: ADR-0002\ntitle: Cũ\nstatus: superseded\norigin: template\n---\n\n- **Việc AI phải tuân thủ:** quy tắc cũ.\n' > "$fd/0002-cu.md"
 printf -- '---\nid: ADR-1001\ntitle: Riêng\nstatus: accepted\norigin: app\n---\n\n- **Việc AI phải tuân thủ:** quy tắc app.\n' > "$fd/1001-rieng.md"
 printf -- '---\nid: ADR-1002\ntitle: Đề xuất\nstatus: proposed\norigin: app\n---\n\n- **Phải chấp nhận:** y\n' > "$fd/1002-de-xuat.md"
@@ -2685,7 +2695,7 @@ foundation() { FOUNDATION_ROOT="$work/foundation-repo" python3 -I scripts/founda
 expect "foundation: check fails before the page exists" 1 "$(foundation --check > /dev/null; echo $?)"
 foundation > /dev/null
 fpage="$work/foundation-repo/docs/foundation.md"
-expect "foundation: each clause is one rule, semicolons in code kept" 2 "$(grep -cE '^- (làm A|không làm .b; c.)$' "$fpage")"
+expect "foundation: each clause is one rule, semicolons in code and in parentheses kept" 2 "$(grep -cE '^- (làm A \(x; y\)|không làm .b; c.)$' "$fpage")"
 expect "foundation: superseded ADRs are left out" 0 "$(grep -c 'quy tắc cũ' "$fpage")"
 expect "foundation: app ADRs are listed apart" 1 "$(grep -c '^## Quyết định riêng của app' "$fpage")"
 expect "foundation: an ADR without rules points to the full ADR" 1 "$(grep -c 'ADR chưa có mục' "$fpage")"
