@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-19]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: S
 depends_on: [T-047]
 sprint:
-plan:
+plan: features/ads/plans/T-048-don-sau-ra-soat-t-047.md
 created: 2026-10-28
 ---
 
@@ -18,7 +18,7 @@ created: 2026-10-28
 
 ## Mô tả
 
-Gom bốn ghi chú mà rà soát độc lập của T-047 nêu nhưng phiên không sửa. Nguồn: báo cáo RUN-20261028-01, mục Cần người kiểm tra. Người dùng không thấy gì đổi. Test khóa thêm điều plan T-047 đã nói, chú thích nói đúng điều code làm.
+Gom bốn ghi chú mà rà soát độc lập của T-047 nêu nhưng phiên không sửa. Nguồn: báo cáo RUN-20261028-01, mục Cần người kiểm tra. Người dùng không thấy gì đổi ở đường thường; ngoại lệ hiếm: hết giờ chờ khóa khi cổng đồng ý đóng thì hành động chạy, nếu người duyệt chọn đổi luật (plan, câu hỏi 2). Test khóa thêm điều plan T-047 đã nói, chú thích nói đúng điều code làm.
 
 ## Phạm vi
 
