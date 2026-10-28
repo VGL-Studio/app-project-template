@@ -10,6 +10,10 @@ cp scripts/tests/fake-gh "$work/bin/gh"
 chmod +x "$work/bin/gh"
 
 failures=0
+# Every machine runs these tests like a GitHub runner, which has no global git configuration: no user name, no
+# init.defaultBranch. A block that passes only with the developer's ~/.gitconfig fails later in CI (L-113).
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
 # merge-if-green.sh, wait-run.sh and env-canary.sh read owner/repo from the origin remote. A new app has no remote
 # until someone pushes it, so give every git command of the tests a fake one (git reads GIT_CONFIG_* as -c options).
 export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.url GIT_CONFIG_VALUE_0=https://github.com/o/r.git
@@ -162,6 +166,18 @@ expect "start-run: main-guard step runs after the run-file checks and before the
   "$(awk '/main-broken/ && !b { b = NR } /scripts\/main-guard-status.sh/ && !s { s = NR }
      /name: Kiểm tra thiết lập staging, file R2 và DNS/ { e = NR } /name: Kích hoạt routine/ { r = NR }
      END { print ((b && s > b && s < e && e < r) ? "yes" : "no") }' "$start_wf") $(grep -qE '^  checks: read$' "$start_wf" && echo yes || echo no) $(grep -c 'continue-on-error' "$start_wf")"
+# start-run.yml closes an old setup-broken issue once the setup check is green and before the routine starts, in a
+# job of its own: only that job may write issues (L-113). The checks never get a GitHub token in .git/config or env.
+expect "start-run: only close-setup-broken writes issues, between the checks and the routine" "yes 1 1 1" \
+  "$(grep -qE '^  issues: read$' "$start_wf" && echo yes || echo no) $(grep -cE '^      issues: write$' "$start_wf") $(awk '/^  close-setup-broken:$/ { c = 1 } c && /^    needs: check$/ { n++ } END { print n + 0 }' "$start_wf") $(grep -cE '^    needs: \[check, close-setup-broken\]$' "$start_wf")"
+expect "start-run: the setup check runs without a GitHub token" "1 1" \
+  "$(grep -c 'persist-credentials: false' "$start_wf") $(grep -c 'env -u GH_TOKEN -u GITHUB_TOKEN scripts/setup-check.sh --staging' "$start_wf")"
+canary_wf=.github/workflows/env-canary.yml
+# env-canary.yml checks a red setup once more after 90 seconds, and setup_only runs the setup check without the routine.
+expect "env-canary: a red setup check is run again after 90 seconds, without a GitHub token" "1 2 1" \
+  "$(grep -c '^            sleep 90$' "$canary_wf") $(grep -c 'env -u GH_TOKEN -u GITHUB_TOKEN scripts/setup-check.sh --staging' "$canary_wf") $(grep -c 'persist-credentials: false' "$canary_wf")"
+expect "env-canary: setup_only skips the routine" "1 1" \
+  "$(grep -cE '^      setup_only:$' "$canary_wf") $(awk '/^  fire:$/ { f = 1; next } f && /^    if: \$\{\{ !inputs.setup_only \}\}$/ { n++ } f && /^    steps:$/ { f = 0 } END { print n + 0 }' "$canary_wf")"
 guard_wf=.github/workflows/main-guard.yml
 # Run by hand on another branch, the guard would open main-broken, push a revert or close an issue for that branch.
 expect "main-guard: has workflow_dispatch and keeps the push trigger with the same paths-ignore" "1 1 1 1 1" \
@@ -2748,10 +2764,23 @@ expect "java-check: a missing Java stops" 1 \
 mkdir -p "$work/setup-bin" "$work/setup"
 cat > "$work/setup-bin/curl" << 'SH'
 #!/usr/bin/env bash
-# Fake curl: prints the HTTP code listed for the URL (last argument) in $SETUP_FAKE/codes, else 404.
+# Fake curl: prints the HTTP code listed for the URL (last argument) in $SETUP_FAKE/codes, else 404. A list such as
+# "429,200" gives one code per call of that URL (the last one stays). A cache-busting query (?setup-check-nocache=)
+# reads $SETUP_FAKE/nocache instead, else 404. Every call without that query is logged in $SETUP_FAKE/calls.
 url="${*: -1}"
-code="$(awk -v u="$url" '$1 == u {print $2}' "$SETUP_FAKE/codes")"
-printf '%s' "${code:-404}"
+plain="${url%%\?*}"
+if [[ "$url" == *"?setup-check-nocache="* ]]; then
+  code="$(awk -v u="$plain" '$1 == u {print $2}' "$SETUP_FAKE/nocache" 2> /dev/null)"
+  printf '%s' "${code:-404}"
+  exit 0
+fi
+calls="$(grep -cxF -- "$plain" "$SETUP_FAKE/calls" 2> /dev/null || true)"
+echo "$plain" >> "$SETUP_FAKE/calls"
+codes="$(awk -v u="$plain" '$1 == u {print $2}' "$SETUP_FAKE/codes")"
+IFS=',' read -r -a list <<< "${codes:-404}"
+index="${calls:-0}"
+[[ "$index" -lt "${#list[@]}" ]] || index=$((${#list[@]} - 1))
+printf '%s' "${list[$index]}"
 SH
 cat > "$work/setup-bin/dig" << 'SH'
 #!/usr/bin/env bash
@@ -2771,9 +2800,12 @@ base="https://demo.example.com/"
 groups_url="https://firebaseappdistribution.googleapis.com/v1/projects/123/groups"
 setup_check() { # <codes> [args...]; prints the exit code, keeps the output in $work/setup.out
   printf '%b' "$1" > "$work/setup/codes"; shift
+  rm -f "$work/setup/calls"
   local code=0
+  # SETUP_CHECK_APP_CHECKS=none: an app's own scripts/setup-check-app.sh stays out of these tests (scripts/tests/app.sh).
   PATH="$work/setup-bin:$PATH" SETUP_FAKE="$work/setup" SETUP_CHECK_ASSETS_LIST="$work/setup/assets.txt" \
-    SETUP_CHECK_ASSETS_BASE_URL="$base" SETUP_CHECK_PACKAGE=com.demo GITHUB_ACTIONS='' \
+    SETUP_CHECK_ASSETS_BASE_URL="$base" SETUP_CHECK_PACKAGE=com.demo GITHUB_ACTIONS='' SETUP_CHECK_RETRY_SECONDS=0 \
+    SETUP_CHECK_APP_CHECKS="${SETUP_APP_CHECKS:-none}" \
     scripts/setup-check.sh "$@" > "$work/setup.out" 2>&1 || code=$?
   echo "$code"
 }
@@ -2812,6 +2844,36 @@ expect "setup-check --staging: a missing secret stops" 1 \
 expect "setup-check: rejects an unknown argument" 1 "$(setup_check "$all_files" --stagin)"
 expect "setup-check: reads the staging address of this repository" 1 \
   "$(grep -cE '"ASSETS_BASE_URL", *"\\"https://[^"]+/\\""' app/build.gradle.kts)"
+# One passing hiccup of R2 (no connection, 429, 5xx) is asked again; a CDN that keeps an old 404 is named (L-113).
+setup_calls() { grep -cxF -- "$1" "$work/setup/calls" 2> /dev/null || true; }
+expect "setup-check: a 503 that passes on the retry is not a failure" "0 2" \
+  "$(setup_check "${base}test/v1/a.txt 503,200\n${base}test/v1/b.txt 200\n") $(setup_calls "${base}test/v1/a.txt")"
+expect "setup-check: a 429 that passes on the retry is not a failure" 0 \
+  "$(setup_check "${base}test/v1/a.txt 429,200\n${base}test/v1/b.txt 200\n")"
+expect "setup-check: a file that fails to connect once is asked again" "0 2" \
+  "$(setup_check "${base}test/v1/a.txt 000,200\n${base}test/v1/b.txt 200\n") $(setup_calls "${base}test/v1/a.txt")"
+expect "setup-check: a 429 seen twice stops" "1 2" \
+  "$(setup_check "${base}test/v1/a.txt 429,429,200\n${base}test/v1/b.txt 200\n") $(setup_calls "${base}test/v1/a.txt")"
+expect "setup-check: a 404 is not asked again" "1 1" \
+  "$(setup_check "${base}test/v1/a.txt 200\n") $(setup_calls "${base}test/v1/b.txt")"
+expect "setup-check: a file really missing gets no CDN hint" 0 "$(grep -c 'CDN' "$work/setup.out" || true)"
+printf '%s 200\n' "${base}test/v1/b.txt" > "$work/setup/nocache"
+expect "setup-check: a required file the CDN still answers 404 for names the cache" "1 1" \
+  "$(setup_check "${base}test/v1/a.txt 200\n") $(grep -c "^LỖI - ${base}test/v1/b.txt trả '404', cần 200.*CDN còn giữ câu trả lời cũ" "$work/setup.out")"
+expect "setup-check: a 500 gets no CDN hint, even when the file is there" 0 \
+  "$(setup_check "${base}test/v1/a.txt 200\n${base}test/v1/b.txt 500\n" > /dev/null; grep -c 'CDN' "$work/setup.out" || true)"
+rm -f "$work/setup/nocache"
+# An app's own checks (scripts/setup-check-app.sh in the app) are sourced at the end, with the helpers.
+cat > "$work/setup/app-checks.sh" << 'SH'
+ok "app check ran (staging=$STAGING, base=$base_url)"
+[ "$(http_status "${base_url}app/extra.json" -o /dev/null -I)" = "200" ] || problem "app file missing"
+SH
+expect "setup-check: an app's own checks run with the helpers" "0 1" \
+  "$(SETUP_APP_CHECKS="$work/setup/app-checks.sh" setup_check "$all_files${base}app/extra.json 200\n") $(grep -c "^ok   - app check ran (staging=no, base=$base)" "$work/setup.out")"
+expect "setup-check: a problem of an app's own checks stops" "1 1" \
+  "$(SETUP_APP_CHECKS="$work/setup/app-checks.sh" setup_check "$all_files") $(grep -c '^LỖI - app file missing' "$work/setup.out")"
+expect "setup-check: an app without its own checks file still passes" 0 \
+  "$(SETUP_APP_CHECKS="$work/setup/no-such-file.sh" setup_check "$all_files")"
 
 # device-session.sh records a test session and counts crashes and ANRs; adb is replaced by scripts/tests/fake-adb.
 cp scripts/tests/fake-adb "$work/bin/adb"
@@ -4020,6 +4082,13 @@ mkdir -p "$work/sed-guard"
 printf '#!/bin/bash\n%s -i "s/a/b/" f\nsed -i.bak "s/a/b/" f && rm -f f.bak\nsed -n 1p f\n' "se""d" > "$work/sed-guard/bad.sh"
 expect "sed guard: finds in-place sed without a suffix in a sample" 1 "$(gnu_sed_in_place "$work/sed-guard" | grep -c .)"
 expect "sed guard: no script edits in place with sed and no suffix" "" "$(gnu_sed_in_place scripts)"
+
+# An app's own script tests (scripts/tests/app.sh in the app; the template has none) run in this same shell, so they
+# use expect, $work and the fakes above, and count in the same total (docs/ops/to-app.md, section 6).
+if [[ -f scripts/tests/app.sh ]]; then
+  # shellcheck source=/dev/null
+  . scripts/tests/app.sh
+fi
 
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures script test(s) failed"
