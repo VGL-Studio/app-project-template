@@ -195,6 +195,21 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - mỗi câu viết lại ghi vào nhật ký plan, mục "Test cũ viết lại (ADR-0031)" của mô tả PR và một dòng `- [ ]` ở mục Cần người kiểm tra
 - rà soát độc lập xét riêng từng câu, vi phạm là mức chặn
 
+### [ADR-0032](adr/0032-lech-nho-tu-lam-roi-bao.md): Phiên tự chạy tự làm các lệch nhỏ đã liệt kê và tự bỏ qua loại task mà môi trường không làm được, rồi báo người sau
+
+- chỉ tự làm các lệch nhỏ L1 tới L10 của quyết định 1 mà không cần plan phiên bản mới
+- ngân sách kịch bản nâng tới tổng theo công thức làm tròn lên hàng trăm, không quá trần tính từ `timeout-minutes` của `device-session.yml`, trong PR của task làm tổng vượt
+- `need` chỉ đổi thành `wait` khi có bằng chứng emulator đã có thiết bị nhờ task đã merge
+- mốc dời chỗ chỉ khi mọi dòng `-` của plan (khối chỉ có dòng `+`: dòng ngữ cảnh trên, dưới hay tiêu đề mục) có nguyên văn ở chỗ mới, đặt các dòng `+` không đổi chữ, không thì dừng theo điều kiện 3
+- test viết trước qua ngay chỉ được làm tiếp khi test chặt lại hay một đột biến làm nó thất bại, không thì dừng theo điều kiện 8
+- không dùng `@Suppress`, lint baseline hay sửa `.editorconfig` thay cho L5
+- tệp sinh ra chỉ của `scripts/foundation.py`, `scripts/status.py`
+- mã kế tiếp đã có người dùng thì lấy mã sau và sửa mọi chỗ dẫn trong cùng PR
+- lỗi khớp dòng `bo-qua-loai` của bảng tra lỗi thì bỏ qua mọi task còn lại mà lệnh `scripts/plan-check.py --touches` của dòng đó trả mã 0, làm tiếp các task khác, không kết thúc phiên, soạn danh sách chạy nháp cho task bị bỏ qua
+- không tự thêm quyền, thư viện, SDK, quảng cáo, sự kiện phân tích, không chạm production, không đổi spec, thiết kế hay câu trả lời của người, không làm yếu test, không đẩy lại lệnh bị từ chối dưới dạng khác
+- mỗi quyết định tự làm ghi vào mục "Quyết định AI đã tự làm" của báo cáo (task, loại, quyết định, lý do, cách hoàn tác), và mục Cần người kiểm tra luôn có dòng `- [ ] Quyết định AI đã tự làm: <N>`
+- rà soát độc lập xét mỗi lệch L1 tới L7, L10, lệch ngoài danh sách là mức chặn
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
