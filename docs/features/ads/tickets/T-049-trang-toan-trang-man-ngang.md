@@ -28,7 +28,6 @@ FB-20261028-01: trên điện thoại thật, khi xoay ngang, vùng trang toàn 
   - ẩn hẳn vùng trang và nới phần nội dung của bước;
   - giữ khung chờ thay cho vùng trắng.
 - **Test** đo vùng trang ở khung ngang có thanh trạng thái, thanh điều hướng và phần khoét camera, ví dụ khung `873x393 dp` có các phần lề hệ thống tương ứng. Bước đối chứng tái hiện được 187 dp như máy thật (L-029).
-- **Nút "Native full screen" của màn xem thử** không bị cắt chữ ở cỡ chữ 200%.
 
 **Không bao gồm:**
 

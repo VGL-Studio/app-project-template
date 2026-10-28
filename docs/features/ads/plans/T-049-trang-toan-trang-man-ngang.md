@@ -5,7 +5,7 @@ status: draft                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
-token_estimate: 12M          # cỡ S theo ticket, số gợi ý 4.9M (scripts/token-usage.py estimate, 2026-10-28); plan thêm phần màn xem thử (nút ở cỡ chữ lớn, ghi chú khi trang quá thấp), hàm công khai mới, ghi lại 2 ảnh và tạo 3 ảnh ở hai module, nên lấy khoảng nửa số của cỡ M (23.9M)
+token_estimate: 10M          # cỡ S theo ticket, số gợi ý 4.9M (scripts/token-usage.py estimate, 2026-10-28); plan thêm dòng giải thích của màn xem thử khi trang quá thấp, hàm công khai mới, ghi lại 2 ảnh và tạo 2 ảnh ở hai module, nên lấy khoảng 2 lần số của cỡ S
 blocking_points: [ads, core, analytics]
 run_order:                   # AI điền sau họp đánh giá rủi ro
 reviewer:                    # người duyệt
@@ -17,7 +17,7 @@ approved_at:
 
 ## 1. Tóm tắt
 
-Trên Redmi Note 12 xoay ngang, vùng trang toàn trang của màn xem thử chỉ cao 186,5 dp, dưới mức tối thiểu 200 dp của T-041, nên trang không lấy quảng cáo và để trắng. Test Robolectric giả các phần lề hệ thống của máy (thanh trạng thái 94 px, khoét camera 94 px bên trái, thanh điều hướng 44 px ở đáy, khung `w873dp-h393dp-440dpi`) tái hiện đúng từng điểm ảnh vùng trang của máy thật. Đề xuất chính: bố cục hàng ngang gọn bỏ hàng trên 36 dp riêng, đặt ô AdChoices ngay bên phải đầu quảng cáo; mức tối thiểu giảm từ 200 dp xuống 152 dp ở cỡ chữ 1.0, nên trang lấy quảng cáo ở màn ngang của máy này từ cỡ chữ 1.0 tới 1.8 (vùng 173,8 dp, mức 172,4 dp ở 1.8). Trang vẫn thấp hơn mức (cỡ chữ 2.0 ở màn ngang) thì màn xem thử ghi một dòng giải thích thay cho vùng trắng, nhờ hàm công khai mới `NativeFullScreenStepDefaults.minHeight()`. Nút "Native full screen" ở cỡ chữ lớn: hai nút cạnh nhau xếp thành hai hàng khi chữ không vừa hai dòng.
+Trên Redmi Note 12 xoay ngang, vùng trang toàn trang của màn xem thử chỉ cao 186,5 dp, dưới mức tối thiểu 200 dp của T-041, nên trang không lấy quảng cáo và để trắng. Test Robolectric giả các phần lề hệ thống của máy (thanh trạng thái 94 px, khoét camera 94 px bên trái, thanh điều hướng 44 px ở đáy, khung `w873dp-h393dp-440dpi`) tái hiện đúng từng điểm ảnh vùng trang của máy thật. Đề xuất chính: bố cục hàng ngang gọn bỏ hàng trên 36 dp riêng, đặt ô AdChoices ngay bên phải đầu quảng cáo; mức tối thiểu giảm từ 200 dp xuống 152 dp ở cỡ chữ 1.0, nên trang lấy quảng cáo ở màn ngang của máy này từ cỡ chữ 1.0 tới 1.8 (vùng 173,8 dp, mức 172,4 dp ở 1.8). Trang vẫn thấp hơn mức (cỡ chữ 2.0 ở màn ngang) thì màn xem thử ghi một dòng giải thích thay cho vùng trắng, nhờ hàm công khai mới `NativeFullScreenStepDefaults.minHeight()`.
 
 ## 2. Hiểu yêu cầu
 
@@ -28,9 +28,8 @@ Ticket xử lý KB-20 trong `features/ads/spec.md` (spec `confirmed`), luật MC
 | KB-20 | Khi người vận hành bật vị trí native của luồng thì bước mà spec của app chọn có native cao 250 dp hoặc native toàn trang. | Ở màn ngang của điện thoại thường (khoảng 873 x 393 dp, có thanh trạng thái, thanh điều hướng, khoét camera), trang toàn trang lấy quảng cáo và hiện đủ phần bắt buộc ở cỡ chữ 1.0. Đo: vùng trang 186,5 dp; mức tối thiểu mới 152 dp. |
 | KB-20 | Native toàn trang không có nút điều khiển riêng; nút Tiếp của app vẫn ở chỗ quen thuộc và không bị quảng cáo che. | Giữ nguyên (T-032, T-041). Bố cục mới không đổi vùng của trang, nút Next không đổi chỗ. Phần bắt buộc (tiêu đề, nhãn "Ad", AdChoices, CTA 52 dp) nằm trọn trong trang ở mọi chiều cao trang lấy quảng cáo. AdChoices vẫn ở góc trên phải (O-08), không đè tiêu đề hay CTA. |
 | KB-20 | Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống. | Phản hồi gốc: "không nên để một vùng trắng không lời giải thích". Trang thấp hơn mức tối thiểu không lấy quảng cáo như hôm nay. App biết mức đó qua `NativeFullScreenStepDefaults.minHeight()` và tự hiện nội dung của mình. Màn xem thử hiện một dòng giải thích. |
-| Phạm vi ticket | Nút "Native full screen" của màn xem thử không bị cắt chữ ở cỡ chữ 200%. | Chạy thử trên Robolectric không tái hiện được chỗ cắt (mục 4.1): nút cao theo chữ, ba dòng, không tràn. Plan làm nút chắc chắn đọc trọn: hai nút cạnh nhau xếp thành hai hàng, mỗi nút rộng hết, khi một nhãn cần quá hai dòng ở nửa hàng. Ở cỡ 2.0 nhãn còn một dòng. Kiểm lại trên máy thật (mục 4, mục 8 câu 4). |
 
-Thiết kế tham chiếu: `features/ads/design/README.md`, dòng "Trang native ở bước của luồng" (mục 3, biến thể `Flow step` của `Native/FullScreen`) và dòng `NativeFlowStep_full-page-compact_light` của mục 8. Bố cục hàng ngang gọn không có trong Figma (anh Nhật duyệt 2026-10-26, T-041); plan đổi vị trí ô AdChoices trong bố cục này (mục 8, câu 2). Màn xem thử không có ảnh thiết kế cho trang "Flow steps"; trang mặc định có `AdGalleryScreen_default_light`, `_dark` (giữ nguyên ở cỡ chữ 1.0).
+Thiết kế tham chiếu: `features/ads/design/README.md`, dòng "Trang native ở bước của luồng" (mục 3, biến thể `Flow step` của `Native/FullScreen`) và dòng `NativeFlowStep_full-page-compact_light` của mục 8. Bố cục hàng ngang gọn không có trong Figma (anh Nhật duyệt 2026-10-26, T-041); plan đổi vị trí ô AdChoices trong bố cục này (mục 8, câu 2). Màn xem thử không có ảnh thiết kế cho trang "Flow steps"; trang mặc định có `AdGalleryScreen_default_light`, `_dark` (task không chạm).
 
 ADR liên quan: ADR-0013, ADR-0020, ADR-0026, ADR-0029, ADR-0031, ADR-0032.
 
@@ -60,16 +59,11 @@ ADR liên quan: ADR-0013, ADR-0020, ADR-0026, ADR-0029, ADR-0031, ADR-0032.
    - `maxHeight >= NativeFullScreenStepDefaults.minHeight()`: gọi `slots.StepFullPage(...)` như hôm nay.
    - Thấp hơn: không gọi `StepFullPage`; hiện một dòng chữ giữa vùng, `bodyMedium`, màu `onSurfaceVariant`, tag mới `AdGalleryTestTags.FLOW_FULL_PAGE_TOO_SHORT`, chuỗi mới `ad_gallery_flow_full_page_too_short` ("Not enough room for the full-page ad", `translatable="false"` như các chuỗi khác của màn xem thử).
    - Pager, khung thẻ, nút Next không đổi (OB-01).
-6. Hai nút cạnh nhau của trang mặc định: hàm riêng mới `ButtonPair(start, end)` trong `AdGalleryScreen.kt`, dùng cho hàng "Interstitial" / "Native full screen", hàng "In-list ads" / "Collapsible ad" và ba hàng của `PageButtonRow`.
-   - Đo nhãn bằng `rememberTextMeasurer` với kiểu chữ của nút (`labelLarge`, `SemiBold` cho `PrimaryButton`; `labelLarge` cho `OutlinedButton`), bề rộng `(maxWidth - 12 dp) / 2 - 48 dp` (lề trong 24 dp mỗi bên của `ButtonDefaults.ContentPadding`).
-   - Cả hai nhãn vừa trong hai dòng: cạnh nhau như hôm nay (`weight(1f)`, cách 12 dp).
-   - Không vừa: hai hàng, mỗi nút rộng hết, cách nhau 12 dp, thứ tự giữ nguyên.
-   - Ở cỡ chữ 1.0, ở cả `w411dp` và `w360dp`, mọi hàng vẫn cạnh nhau: ảnh `AdGalleryScreen_default_*`, `_default-more_light` không đổi (mục 7).
 
 **Phần 3. Tài liệu.**
 
-7. `docs/ops/ads-guide.md`: dòng trang toàn trang (mục 3, dòng 79) và đoạn "Trang toàn trang" (dòng 120): mức 152 dp ở cỡ chữ 1.0, hàm `minHeight()`, app tự hiện nội dung khi vùng thấp hơn; nhắc màn ngang của điện thoại có thanh hệ thống (vùng khoảng 187 dp ở 873 x 393 dp). Đoạn màn xem thử (dòng 219): dòng giải thích khi trang quá thấp.
-8. `docs/features/ads/design/README.md`: dòng "Trang native ở bước của luồng" (mục 3): hàng gọn từ 152 dp, AdChoices cạnh đầu quảng cáo. Mục 8: sửa dòng `NativeFlowStep_full-page-compact_light`, thêm dòng ba ảnh mới của màn xem thử.
+6. `docs/ops/ads-guide.md`: dòng trang toàn trang (mục 3, dòng 79) và đoạn "Trang toàn trang" (dòng 120): mức 152 dp ở cỡ chữ 1.0, hàm `minHeight()`, app tự hiện nội dung khi vùng thấp hơn; nhắc màn ngang của điện thoại có thanh hệ thống (vùng khoảng 187 dp ở 873 x 393 dp). Đoạn màn xem thử (dòng 219): dòng giải thích khi trang quá thấp.
+7. `docs/features/ads/design/README.md`: dòng "Trang native ở bước của luồng" (mục 3): hàng gọn từ 152 dp, AdChoices cạnh đầu quảng cáo. Mục 8: sửa dòng `NativeFlowStep_full-page-compact_light`, thêm dòng hai ảnh mới của màn xem thử.
 
 Mẫu làm theo:
 - giả lề hệ thống bằng `ViewCompat.dispatchApplyWindowInsets` như `NativeFullScreenAdScreenTest` (dòng 269 tới 280);
@@ -87,18 +81,17 @@ Mẫu làm theo:
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFlowStepTest.kt` | Test mới mục 4; viết lại số của hai test (mục 3.5) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeEligibleReportTest.kt` | Viết lại số của `fullScreenStep_belowMinHeight_noEligible` (mục 3.5) |
 | Sửa | `core/ads/src/test/screenshots/NativeFlowStep_full-page-compact_light.png` | Ghi lại: ô AdChoices cạnh đầu quảng cáo (chạy thử thấy ảnh này đổi) |
-| Sửa | `app/src/staging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreen.kt` | `FlowStepsPage`: dòng giải thích khi vùng thấp hơn `minHeight()`; `ButtonPair`; tag `FLOW_FULL_PAGE_TOO_SHORT`; KDoc |
+| Sửa | `app/src/staging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreen.kt` | `FlowStepsPage`: dòng giải thích khi vùng thấp hơn `minHeight()`; tag `FLOW_FULL_PAGE_TOO_SHORT`; KDoc |
 | Sửa | `app/src/staging/res/values/strings.xml` | Chuỗi `ad_gallery_flow_full_page_too_short` |
 | Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/PhoneInsets.kt` | Hằng lề của máy (94, 94, 44 px; khung `w873dp-h393dp-440dpi`) và hàm phụ `dispatchPhoneLandscapeInsets(rule)` dùng chung cho hai lớp test |
 | Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenTest.kt` | Test mới mục 4; hàm phụ `Screen`, `setScreen` nhận `modifier` (để đặt `safeDrawingPadding()` như `AdGalleryActivity`) |
-| Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenScreenshotTest.kt` | Ba ảnh mới (mục 4); `setScreen` nhận `modifier` |
+| Sửa | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryScreenScreenshotTest.kt` | Hai ảnh mới (mục 4); `setScreen` nhận `modifier` |
 | Sửa | `app/src/test/screenshots/AdGalleryScreen_flow-full-page_landscape.png` | Ghi lại: trang 204 dp ở `w640dp-h360dp` dùng hàng gọn mới (chạy thử thấy ảnh này đổi) |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_flow-full-page_landscape-phone.png` | Ảnh chuẩn mới, khung `w873dp-h393dp-440dpi` có lề của máy, cỡ chữ 1.0: trang 186,5 dp có quảng cáo |
 | Tạo | `app/src/test/screenshots/AdGalleryScreen_flow-full-page_too-short.png` | Ảnh chuẩn mới, cùng khung và lề, `fontScale = 2.0f`: dòng giải thích |
-| Tạo | `app/src/test/screenshots/AdGalleryScreen_default-font-2_small.png` | Ảnh chuẩn mới, khung `w360dp-h640dp-xxhdpi`, `fontScale = 2.0f`, cuộn tới nút "Native full screen": hai nút xếp hai hàng |
-| Sửa | `docs/ops/ads-guide.md` | Mục 3.1, bước 7 |
-| Sửa | `docs/features/ads/design/README.md` | Mục 3.1, bước 8 |
-| Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryPhoneLandscapeTest.kt` | (dự phòng) Các test khung ngang có lề hệ thống của mục 4 và ba ảnh mới, với `createAndroidComposeRule<ComponentActivity>()` (mục 3.4) |
+| Sửa | `docs/ops/ads-guide.md` | Mục 3.1, bước 6 |
+| Sửa | `docs/features/ads/design/README.md` | Mục 3.1, bước 7 |
+| Tạo | `app/src/testStaging/kotlin/com/vglstudio/template/adgallery/AdGalleryPhoneLandscapeTest.kt` | (dự phòng) Các test khung ngang có lề hệ thống của mục 4 và hai ảnh mới, với `createAndroidComposeRule<ComponentActivity>()` (mục 3.4) |
 
 Không ghi lại ảnh nào khác. Ảnh dự kiến giữ nguyên từng byte (chạy thử với phần sửa của Phần 1 áp tạm, mục 4.1): `NativeFlowStep_full-page_light`, `_dark`, `_small`, `_full-page-placeholder_light` (bố cục cột), `AdGalleryScreen_flow-full-page_light`, `_small` (cột), mọi ảnh `NativeFullScreenAdScreen_*`, `AdGalleryScreen_default_*` (cỡ chữ 1.0).
 
@@ -107,7 +100,7 @@ Không ghi lại ảnh nào khác. Ảnh dự kiến giữ nguyên từng byte (
 - hằng `AdGalleryTestTags.FLOW_FULL_PAGE_TOO_SHORT` (chưa gắn vào giao diện) và chuỗi `ad_gallery_flow_full_page_too_short`;
 - `PhoneInsets.kt` đủ (chỉ là phần của test).
 
-Phần sửa thật (bố cục, mức, dòng giải thích, `ButtonPair`) và hai ảnh ghi lại vào commit code của bước 4. Câu viết lại của mục 3.5 vào commit test của bước 3 (chúng đỏ trên khung rỗng vì số mới).
+Phần sửa thật (bố cục, mức, dòng giải thích) và hai ảnh ghi lại vào commit code của bước 4. Câu viết lại của mục 3.5 vào commit test của bước 3 (chúng đỏ trên khung rỗng vì số mới).
 
 **Nơi đọc file bị đổi (L-020):**
 - `FlowStepMetrics.minHeight`: cổng `NativeFullScreenStepGate`, `FlowStepPageFrame`; hàm mới `minHeight()`; test ở mục 3.5.
@@ -122,7 +115,7 @@ Phần sửa thật (bố cục, mức, dòng giải thích, `ButtonPair`) và h
 - Sự kiện phân tích: không thêm. `af_native_ad_eligible` vẫn ghi theo `allowed && shown && fits` (T-041), nhưng `fits` đúng ở nhiều chiều cao hơn (từ 152 dp), nên sự kiện được ghi ở trang 152 tới 200 dp, nơi hôm nay không ghi. Đây là đổi lúc ghi một sự kiện đã có (điểm chặn 4).
 - File R2: Không chạm.
 - **Quyền truy cập:** Không thêm.
-- **Thư viện và SDK:** Không thêm. Code dùng `BoxWithConstraints`, `Row`, `rememberTextMeasurer`, `LocalDensity` (Compose, đã có ở `:core:ads` và `:app`). Test dùng `ViewCompat`, `WindowInsetsCompat`, `Insets` (androidx.core, đã có trên classpath test của `:core:ads` qua `NativeFullScreenAdScreenTest`; trên classpath test của `:app` qua chạy thử ở mục 4.1), `AndroidComposeTestRule` (ui-test-junit4, đã có).
+- **Thư viện và SDK:** Không thêm. Code dùng `BoxWithConstraints`, `Row`, `LocalDensity` (Compose, đã có ở `:core:ads` và `:app`). Test dùng `ViewCompat`, `WindowInsetsCompat`, `Insets` (androidx.core, đã có trên classpath test của `:core:ads` qua `NativeFullScreenAdScreenTest`; trên classpath test của `:app` qua chạy thử ở mục 4.1), `AndroidComposeTestRule` (ui-test-junit4, đã có).
 
 ### 3.4. Phương án dự phòng
 
@@ -132,7 +125,7 @@ Phần sửa thật (bố cục, mức, dòng giải thích, `ButtonPair`) và h
 
 ### 3.5. Hành vi đã có bị đổi
 
-`scripts/existing-tests.py <plan>` liệt kê 149 test dùng tên của ba file; 6 test "Cần xem trước" và 16 test "Nên xem" mà bảng dưới chưa nhắc, xử lý ở dòng cuối của bảng. Đã đọc các test đo trang toàn trang, cổng, eligible, nút của trang mặc định. Chạy thử Phần 1 áp tạm (mục 4.1): chỉ bốn test dưới đây đỏ, đúng như dự đoán, cộng hai ảnh chuẩn ghi lại theo mục 3.2. Phần 2 chưa áp tạm; các test của trang mặc định đọc ở cỡ chữ 1.0, nơi `ButtonPair` giữ hai nút cạnh nhau.
+`scripts/existing-tests.py <plan>` liệt kê 149 test dùng tên của ba file; 6 test "Cần xem trước" và 16 test "Nên xem" mà bảng dưới chưa nhắc, xử lý ở dòng cuối của bảng. Đã đọc các test đo trang toàn trang, cổng, eligible. Chạy thử Phần 1 áp tạm (mục 4.1): chỉ bốn test dưới đây đỏ, đúng như dự đoán, cộng hai ảnh chuẩn ghi lại theo mục 3.2. Phần 2 chưa áp tạm; nó chỉ đổi trang toàn trang của "Flow steps" khi vùng dưới mức.
 
 | Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
@@ -144,7 +137,6 @@ Phần sửa thật (bố cục, mức, dòng giải thích, `ButtonPair`) và h
 | Ảnh hàng gọn | Ô AdChoices cạnh đầu | `NativeFlowStepScreenshotTest.fullPage_compact_light`, `AdGalleryScreenScreenshotTest.flowFullPage_landscape` | Ghi lại hai ảnh (mục 3.2); test giữ nguyên |
 | Trang toàn trang của màn xem thử luôn gọi `StepFullPage` | Dưới `minHeight()` thì hiện dòng giải thích (bước 5) | `AdGalleryScreenTest.flowSteps_fullPage_landscape_showsCta` (204 dp), `_landscapeWide_showsCta` (255 dp), `flowSteps_fullPage_fillsStepArea_small` (484 dp), `flowSteps_fullPage_hidesCard`, `flowSteps_nextBounds_sameOnCardFullPageAndEmptyCard`, `flowSteps_pagerHeight_sameOnCardAndFullPage` | Giữ: mọi khung của các test này cho vùng trên 152 dp ở cỡ chữ 1.0 |
 | Trang ở vùng cao (cột), cổng, khung chờ, dựng lại, eligible qua `AdsController` | Không đổi | Cần xem trước: `NativeFlowStepLayoutTest.unboundedHeight_media120`, `NativeFlowStepTest.nextButton_samePlace_notCovered_withFullPage`, `NativeFlowStepTest.stepCard_doesNotSuppress`, `NativeFullScreenAdScreenTest.flowStep_mediaStartsLikeAfterInter`, `NativeFullScreenAdScreenTest.flowStep_noWindowInsetPadding`, `NativeFullScreenAdScreenTest.flowStep_publicContent_hasNoCloseButton`. Nên xem: `AdGalleryScreenTest.texts_matchDesignTable`, `NativeEligibleReportTest.fullPageStepGate_withController_recordsOnlyWhenShown`, `NativeFlowStepScreenshotTest.fullPage_placeholder_light`, `NativeFlowStepTest.fullPage_notShown_neitherTakesNorSuppresses`, `NativeFlowStepTest.fullPage_suppressesResumeAds_whileShown`, `NativeFlowStepTest.fullScreenStep_allowedTurnsFalse_releasesAndUnsuppresses`, `NativeFlowStepTest.fullScreenStep_drawsOnlyWhenAllowed`, `NativeFlowStepTest.fullScreenStep_hasNoControls`, `NativeFlowStepTest.fullScreenStep_reportsTrueOnAd`, `NativeFlowStepTest.fullScreenStep_unavailable_drawsNothing`, `NativeFlowStepTest.fullScreenStep_waiting_drawsStaticPlaceholder_noSuppress`, `NativeFlowStepTest.fullScreenStep_withoutAdsController_drawsNothing_notReady`, `NativeFullScreenStepRecreateTest.recreate_consentClosed_notTaken`, `NativeFullScreenStepRecreateTest.recreate_newAd_suppressesAgain`, `NativeFullScreenStepRecreateTest.recreate_placementOff_noPlaceholder_noTake`, `NativeFullScreenStepRecreateTest.recreate_thenNewAdArrives_showsNewAd` | Giữ: các test này đặt trang ở vùng cao (`fillMaxSize` ở `w411dp-h891dp`, bố cục cột) hay không đo bố cục; chạy thử với Phần 1 áp tạm, tất cả qua |
-| Hai nút luôn cạnh nhau | Xếp hai hàng khi nhãn cần quá hai dòng (bước 6) | `AdGalleryScreenTest.default_layoutMatchesDesign` (cách 12 dp, cùng rộng, cao 52 dp), `buttons_haveTouchTargetOf48dp`, `moreFormats_buttonsHaveTouchTargetOf48dp`, `default_smallScreen_scrollsToEveryButton`, `buttons_callTheirActions` | Giữ: các test chạy ở cỡ chữ 1.0, hàng vẫn cạnh nhau. Một test ở cỡ chữ lớn đổi thì là lỗi của tiêu chí xếp hàng, không sửa test (mục 7) |
 
 Các câu viết lại theo đủ sáu điều của ADR-0031: câu cũ, câu mới, câu của plan (mục 3.1 bước 2), ý định (dưới mức không lấy, đúng mức thì lấy), đối chứng (đúng mức lấy được), ghi vào nhật ký.
 
@@ -179,8 +171,7 @@ Test viết trước, thất bại đúng lý do trên code hiện tại. Số �
 | Tái hiện vùng trang của máy (L-029) | Compose UI test | `flowSteps_phoneLandscape_insets_reproducePageArea`: sau Next, `STEP_FULL_PAGE` (`useUnmergedTree = true`) có `left` 34,18 dp, `top` 106,18 dp, `bottom` 292,73 dp, cao 186,5 dp (sai số 0,5). Đối chứng: không giả lề thì trang cao 236,7 dp, `left` 0. Qua ngay trên code hiện tại (đây là bước tái hiện, có đối chứng đỏ khi bỏ lề) |
 | KB-20: trang ở màn ngang của máy đủ cao để lấy quảng cáo | Compose UI test | `flowSteps_phoneLandscape_pageFitsAd`: đọc `NativeFullScreenStepDefaults.minHeight()` trong composition; kiểm vùng trang 186,5 dp `>=` mức đó; chữ `Install` nằm trọn trong trang; không có `FLOW_FULL_PAGE_TOO_SHORT`. Hôm nay đỏ: mức 200 dp |
 | Trang quá thấp thì có dòng giải thích, không vùng trắng | Compose UI test | `flowSteps_phoneLandscape_fontScale2_showsTooShortNote`, `@Config(qualifiers = "w873dp-h393dp-440dpi", fontScale = 2.0f)`: vùng trang 168,4 dp, dưới mức 178,2 dp. Kiểm: có `FLOW_FULL_PAGE_TOO_SHORT` với chữ của chuỗi mới, nằm trong vùng giữa tiêu đề và nút Next; không có `STEP_FULL_PAGE`; nút Next cùng chỗ như ở bước 1 (OB-01). Đối chứng: cỡ chữ 1.0 ở cùng khung thì không có dòng giải thích và có `STEP_FULL_PAGE`. Hôm nay đỏ: không có tag |
-| Nút "Native full screen" đọc trọn ở cỡ chữ 2.0 | Compose UI test | `default_fontScale2_buttonsReadWhole`, `@Config(qualifiers = "w393dp-h873dp-440dpi", fontScale = 2.0f)` (máy ở màn dọc) và một bản ở `w360dp-h640dp-xxhdpi`. Với mỗi nút của năm hàng (cuộn tới bằng `performScrollTo`): nhãn có `lineCount == 1` và `hasVisualOverflow == false` (`SemanticsActions.GetTextLayoutResult`), chữ nằm trọn trong nút. Hàng "Interstitial" / "Native full screen": hai nút rộng bằng nhau, bằng chiều rộng trang trừ 32 dp, nút sau nằm dưới nút trước, cách 12 dp. Đối chứng ở cỡ chữ 1.0, cùng khung: hai nút cùng `top`, cách nhau 12 dp (như `default_layoutMatchesDesign`). Hôm nay đỏ: "Native full screen" 3 dòng (mục 4.1) |
-| Thẻ, nút Next không đổi | Compose UI test | `flowSteps_nextBounds_sameOnCardFullPageAndEmptyCard`, `flowSteps_pagerHeight_sameOnCardAndFullPage`, `default_layoutMatchesDesign` (có sẵn, giữ xanh) |
+| Thẻ, nút Next không đổi | Compose UI test | `flowSteps_nextBounds_sameOnCardFullPageAndEmptyCard`, `flowSteps_pagerHeight_sameOnCardAndFullPage` (có sẵn, giữ xanh) |
 
 **Screenshot test:**
 
@@ -188,12 +179,11 @@ Test viết trước, thất bại đúng lý do trên code hiện tại. Số �
 | --- | --- | --- |
 | Màn ngang của máy | Screenshot test khung `w873dp-h393dp-440dpi`, lề giả | `flowFullPage_landscapePhone`: `src/test/screenshots/AdGalleryScreen_flow-full-page_landscape-phone.png` (trang 186,5 dp có quảng cáo xem thử, lề trái 34 dp) |
 | Trang quá thấp | Screenshot test cùng khung, `fontScale = 2.0f` | `flowFullPage_tooShort`: `src/test/screenshots/AdGalleryScreen_flow-full-page_too-short.png` |
-| Màn thấp, chữ lớn (L-028) | Screenshot test khung `w360dp-h640dp-xxhdpi`, `fontScale = 2.0f` | `default_fontScale2_small`: cuộn tới `NATIVE_FULL_SCREEN_BUTTON` rồi chụp `src/test/screenshots/AdGalleryScreen_default-font-2_small.png` |
 | Hàng gọn mới | Screenshot test | Ghi lại `src/test/screenshots/NativeFlowStep_full-page-compact_light.png` (`core/ads`) và `src/test/screenshots/AdGalleryScreen_flow-full-page_landscape.png` (`app`) |
 | Đúng thiết kế (khi có `design/screens/`) | Không chạy so sánh thiết kế: bố cục hàng gọn và trang "Flow steps" không có ảnh thiết kế (README mục 8). Người duyệt PR xem ảnh hàng gọn mới | Xem dòng dưới |
 | | | Ảnh thiết kế của ticket khác (T-027, T-028, T-030): `SampleScreen_ready_light`, `SampleScreen_ready_dark`, `SampleScreen_ad-loading_light`, `AdGalleryScreen_default_light`, `AdGalleryScreen_default_dark`, `AdGalleryScreen_inlist_light`, `AdGalleryScreen_collapsible-expanded_light`, `AdGalleryScreen_collapsible-collapsed_light`, `NativeFullScreenAdScreen_default_light`, `NativeFullScreenAdScreen_default_dark` |
 
-Mọi lệnh `captureRoboImage` ghi thẳng đường dẫn `"src/test/screenshots/<Tên>.png"`. Ba ảnh mới không có hiệu ứng chạy mãi (L-048 không áp dụng).
+Mọi lệnh `captureRoboImage` ghi thẳng đường dẫn `"src/test/screenshots/<Tên>.png"`. Hai ảnh mới không có hiệu ứng chạy mãi (L-048 không áp dụng).
 
 **Kiểm tra thủ công:**
 
@@ -201,7 +191,6 @@ Mọi lệnh `captureRoboImage` ghi thẳng đường dẫn `"src/test/screensho
 | --- | --- | --- |
 | Màn ngang trên máy thật có quảng cáo | Kiểm tra thủ công (máy thật: quảng cáo thật) | Bản staging trên Redmi Note 12 (hay điện thoại thường khác), cỡ chữ 1.0: màn xem thử, "Flow steps", Next tới trang toàn trang, xoay ngang. Thấy khung chờ rồi quảng cáo trong bố cục hàng gọn: media bên trái, CTA thấy trọn và bấm được, AdChoices góc trên phải không đè chữ. Log `VGL.Ads` có `Flow step full page shown: gallery_native_step_full` khi đang ngang |
 | Cỡ chữ lớn ở màn ngang | Kiểm tra thủ công (máy thật: khác, thanh hệ thống và khoét camera thật của máy, cỡ chữ của hãng) | Cỡ chữ 200% ở màn ngang: thấy dòng "Not enough room for the full-page ad", không vùng trắng. Ghi giá trị `font_scale` của máy (`adb shell settings get system font_scale`) vào báo cáo |
-| Nút "Native full screen" ở cỡ chữ 200% | Kiểm tra thủ công (máy thật: khác, chỗ cắt chưa tái hiện được trên Robolectric) | Cỡ chữ 200%, màn dọc, trang mặc định: "Interstitial" và "Native full screen" mỗi nút một hàng, chữ đọc trọn |
 
 Không có tệp kịch bản emulator: lệnh `fresh` của `device-session` mở `MainActivity`, không mở được màn xem thử (như T-041). Ngoài ra `device-session` từ chối đồng ý, nên trang không có quảng cáo để kiểm.
 
@@ -245,8 +234,7 @@ Không bắt buộc theo L-042 (E dưới 2: cách giả lề đã có ở `Nati
   - 178,2 dp, cỡ 2.0: media 146,2 dp, CTA 110,2 tới 162,2 dp, nhãn "Ad" cao 32 dp.
   - Cổng ở 186,5 dp: `takes` 1, báo `[true]`, có CTA.
 - **Kết quả, bộ test với Phần 1 áp tạm:** đỏ đúng bốn test của mục 3.5 (`fontScale_requiredPartsKeepSize` "least height at 1.0 expected 200.0 but was 152.0"; `fullScreenStep_belowMinHeight_takesNothing` "nothing taken in 190 dp"; `fullScreenStep_shrinksBelowMinHeight_releasesAndReportsFalse`; `fullScreenStep_belowMinHeight_noEligible`) và ảnh `NativeFlowStep_full-page-compact_light`. `NativeAdFontScaleTest`, các test còn lại của `NativeFlowStep*`, `NativeFullScreen*` qua. `:app:verifyRoborazziStagingDebug`: 158 test, chỉ `flowFullPage_landscape` đổi ảnh.
-- **Kết quả, nút "Native full screen" ở cỡ chữ 2.0** (`w393dp-h873dp-440dpi`, cả `Density(density, 2f)` lẫn `@Config(fontScale = 2.0f)`): nút cao 128,4 dp, nhãn 3 dòng "Native / full / screen", `hasVisualOverflow` là `false`, chữ "screen" rộng 85 dp trong 126,5 dp. Ở `w370dp` và `w350dp` cũng vậy. Ở cỡ 1.0 nhãn 1 dòng, nút 52 dp. **Không tái hiện được chỗ cắt chữ trên Robolectric.** Font Inter đi kèm app, nên không do font của hãng. Giả thuyết chưa kiểm: cỡ chữ 200% của MIUI lớn hơn `fontScale` 2.0, hay máy đổi cả cỡ hiển thị. Vì vậy plan làm nút đọc trọn với dư nhiều (một dòng ở cả hàng), và kiểm lại trên máy thật (mục 8, câu 4).
-- **Chưa chạy thử:** Phần 2 (dòng giải thích, `ButtonPair`); test với `createComposeRule()` ép kiểu và ảnh chụp sau khi giả lề (mục 3.4).
+- **Chưa chạy thử:** Phần 2 (dòng giải thích); test với `createComposeRule()` ép kiểu và ảnh chụp sau khi giả lề (mục 3.4).
 
 ## 5. Chấm rủi ro
 
@@ -259,11 +247,11 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 2 | Hai module (`:core:ads`, `:app` staging); bốn file code, một chuỗi, một hàm công khai mới; hai ảnh ghi lại, ba ảnh mới |
-| B. Độ rõ của yêu cầu | 2 | Lỗi đo được và tái hiện được; cách xử lý cần người chọn (mục 8, câu 1, 2); chỗ cắt chữ của nút chưa tái hiện được |
+| A. Phạm vi thay đổi | 2 | Hai module (`:core:ads`, `:app` staging); bốn file code, một chuỗi, một hàm công khai mới; hai ảnh ghi lại, hai ảnh mới |
+| B. Độ rõ của yêu cầu | 2 | Lỗi đo được và tái hiện được; cách xử lý cần người chọn (mục 8, câu 1, 2) |
 | C. Khả năng kiểm chứng tự động | 1 | Khung có lề giả tái hiện đúng vùng trang của máy; bố cục, cổng, eligible, màn xem thử có test; quảng cáo thật và cỡ chữ của hãng chỉ kiểm được trên máy thật |
 | D. Ảnh hưởng chéo | 2 | `NativeFlowStepLayout.kt`, `NativeFlowStep.kt` dùng chung cho mọi app; app nào đặt trang toàn trang ở vùng 152 tới 200 dp sẽ bắt đầu có quảng cáo; `ads-guide.md`, design README |
-| E. Độ mới của kỹ thuật | 1 | Giả lề hệ thống theo mẫu `NativeFullScreenAdScreenTest`, lần đầu cho ba loại lề và ở `:app`; đo nhãn bằng `rememberTextMeasurer` như `stepCardHeight` (T-045) |
+| E. Độ mới của kỹ thuật | 1 | Giả lề hệ thống theo mẫu `NativeFullScreenAdScreenTest`, lần đầu cho ba loại lề và ở `:app` |
 | **Tổng** | 8 | **Mức: Cao** (chạm điểm chặn) |
 
 ## 6. Ảnh hưởng chéo
@@ -280,7 +268,6 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 
 - Ảnh chuẩn ngoài hai ảnh ghi lại của mục 3.2 đổi: dừng, không ghi lại. Nhất là `NativeFlowStep_full-page_*`, `NativeFlowStep_full-page-placeholder_light`, `AdGalleryScreen_flow-full-page_light`, `_small` (bố cục cột), `NativeFullScreenAdScreen_*` (màn sau inter), `AdGalleryScreen_default_*`, `_default-more_light` (cỡ chữ 1.0).
 - `columnMinHeight` ở cỡ chữ 1.0 khác 360 dp, hay bố cục cột đổi: dừng (ngoài phạm vi).
-- `ButtonPair` xếp hai hàng ở cỡ chữ 1.0 trên `w360dp` hay `w411dp`: dừng và báo, không đổi ảnh thiết kế `AdGalleryScreen_default_*`.
 - Phần sửa cần đổi `fullScreenStepStates`, `releaseStepFullScreenAd`, `AdsController.kt` hay cách cổng tính `fits` (ngoài số của mức): dừng và hỏi.
 
 ## 8. Câu hỏi cho người duyệt
@@ -296,9 +283,7 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 3. **Cỡ chữ 2.0 ở màn ngang của điện thoại vẫn không có quảng cáo** (vùng 168,4 dp, mức 178,2 dp).
    - Đề xuất của AI: chấp nhận, màn xem thử ghi dòng giải thích; `ads-guide.md` khuyên app đọc `minHeight()` để hiện nội dung của mình.
    - Phương án khác: thu tiếp hàng gọn ở cỡ chữ lớn (lề 12 dp và khoảng cách đầu tới CTA 8 dp: mức 162 dp ở 2.0). Lệch thêm khỏi số của thiết kế; không đề xuất trong task này.
-4. **Nút "Native full screen" bị cắt chữ chưa tái hiện được trên Robolectric** (mục 4.1).
-   - Đề xuất của AI: làm theo mục 3.1 bước 6 (hai nút xếp hai hàng khi nhãn cần quá hai dòng; ở 2.0 nhãn còn một dòng, dư nhiều chỗ). Nhờ anh gửi ảnh chụp lúc cắt và giá trị `adb shell settings get system font_scale` của máy, để biết chỗ cắt do cỡ chữ của hãng hay do cỡ hiển thị. Nếu ảnh cho thấy nguyên nhân khác thì soạn phản hồi mới, không chặn task này.
-5. **Ghi `af_native_ad_eligible` ở trang 152 tới 200 dp.** Mức thấp hơn nên trang lấy quảng cáo ở vùng thấp hơn và ghi eligible ở đó (cùng điều kiện `allowed && shown && fits` của T-041).
+4. **Ghi `af_native_ad_eligible` ở trang 152 tới 200 dp.** Mức thấp hơn nên trang lấy quảng cáo ở vùng thấp hơn và ghi eligible ở đó (cùng điều kiện `allowed && shown && fits` của T-041).
    - Đề xuất của AI: đồng ý, giữ `analytics` trong `blocking_points`.
 
 ## 9. Quyết định duyệt
