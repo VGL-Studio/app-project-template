@@ -4100,6 +4100,147 @@ printf '#!/bin/bash\n%s -i "s/a/b/" f\nsed -i.bak "s/a/b/" f && rm -f f.bak\nsed
 expect "sed guard: finds in-place sed without a suffix in a sample" 1 "$(gnu_sed_in_place "$work/sed-guard" | grep -c .)"
 expect "sed guard: no script edits in place with sed and no suffix" "" "$(gnu_sed_in_place scripts)"
 
+# ads-plan.py writes the ads, Remote Config and events workbook of an app from its code (docs/ops/ads-plan.md).
+# --dump needs no openpyxl, so these run everywhere; the workbook block runs only where openpyxl is installed.
+ap="$work/ads-plan-repo"
+mkdir -p "$ap/core/ads/src/main/kotlin/com/vglstudio/notes/core/ads" "$ap/docs" \
+  "$ap/feature/notes/src/main/kotlin/n" "$ap/feature/notes/build/generated/src/main/kotlin/n" \
+  "$ap/.claude/worktrees/w/feature/old/src/main/kotlin/o"
+echo 'rootProject.name = "notes"' > "$ap/settings.gradle.kts"
+cat > "$ap/core/ads/src/main/kotlin/com/vglstudio/notes/core/ads/AdPlacement.kt" <<'KT'
+enum class AdFormat(val code: String) {
+    INTERSTITIAL("interstitial"),
+    REWARDED("rewarded"),
+    NATIVE_SMALL("native_small"),
+    NATIVE_IN_COLLECTION("native_in_collection"),
+    APP_OPEN("app_open"),
+}
+
+private val SOUNDS = AdIntervalGroup.named("sounds", 30)
+
+enum class AdPlacement(
+    val key: String,
+    val format: AdFormat,
+) {
+    /** Bottom bar of Home. */
+    HOME_BOTTOM("home_bottom", AdFormat.NATIVE_SMALL),
+    OPEN_APP("open_app", AdFormat.APP_OPEN, appWide = true),
+    INTER_SOUNDS("inter_sounds", AdFormat.INTERSTITIAL, intervalGroup = SOUNDS),
+    INTER_SAVE("inter_save", AdFormat.INTERSTITIAL, intervalGroup = AdIntervalGroup.named("save", 60)),
+    RW_EXPORT("rw_export", AdFormat.REWARDED, noAdPolicy = RewardedNoAdPolicy.AllowAfter(3)),
+    HOME_GRID("home_grid", AdFormat.NATIVE_IN_COLLECTION, nativeEvery = 6),
+    GALLERY_BANNER("gallery_banner", AdFormat.NATIVE_SMALL),
+    ;
+}
+KT
+cat > "$ap/docs/remote-config-keys.md" <<'MD'
+| Khóa | Kiểu | Mặc định | Module | Mô tả |
+| --- | --- | --- | --- | --- |
+| `show_open_ads` | boolean | `false` | `:core:ads` | Shows the ad when the app opens. |
+| `is_show_home_bottom` | boolean | `false` | `:core:ads` | Shows ads. Derived key of placement home_bottom (native_small). |
+| `native_every_home_grid` | long | `6` | `:core:ads` | Items between ads. Derived key of placement home_grid (native_in_collection). |
+| `is_log_af_native_ad_displayed` | boolean | `true` | `:core:analytics` | Sends af_native_ad_displayed. |
+| `notes_max_count` | long | `50` | `:feature:notes` | Most notes kept. |
+MD
+echo 'const val EVENT_SAVED = "note_saved"' > "$ap/feature/notes/src/main/kotlin/n/NotesViewModel.kt"
+echo 'const val EVENT_GEN = "generated_event"' > "$ap/feature/notes/build/generated/src/main/kotlin/n/Gen.kt"
+echo 'const val EVENT_OLD = "worktree_event"' > "$ap/.claude/worktrees/w/feature/old/src/main/kotlin/o/Old.kt"
+ads_plan() { ADS_PLAN_ROOT="$ap" python3 -I scripts/ads-plan.py "$@"; }
+ap_get() { # <python expression on d (the dump) and P (placements by code)> [ads-plan.py options]: prints its value
+  local expr="$1"
+  shift
+  ads_plan --dump "$@" | python3 -I -c '
+import json, sys
+d = json.load(sys.stdin)
+P = {p["code"]: p for p in d["placements"]}
+K = {k["key"]: (group, k) for group, keys in d["keys"].items() for k in keys}
+print(eval(sys.argv[1]))' "$expr"
+}
+expect "ads-plan: the app name comes from settings.gradle.kts" notes "$(ap_get 'd["app"]')"
+expect "ads-plan: placements of the code, in order, staging ones left out" \
+  "home_bottom open_app inter_sounds inter_save rw_export home_grid" \
+  "$(ap_get '" ".join(p["code"] for p in d["placements"])' --no-examples)"
+expect "ads-plan: --with-staging lists the gallery_ placements" True "$(ap_get '"gallery_banner" in P' --with-staging)"
+expect "ads-plan: AdPlacement.kt is found under a renamed package" native_small "$(ap_get 'P["home_bottom"]["format"]')"
+expect "ads-plan: an interval group named by a constant" "sounds 30" \
+  "$(ap_get 'P["inter_sounds"]["group"] + " " + str(P["inter_sounds"]["seconds"])')"
+expect "ads-plan: an interval group written on the line" "save 60" \
+  "$(ap_get 'P["inter_save"]["group"] + " " + str(P["inter_save"]["seconds"])')"
+expect "ads-plan: the no-ad policy of a rewarded placement" allow_after_3 "$(ap_get 'P["rw_export"]["policy"]')"
+expect "ads-plan: native every N of a list placement" 6 "$(ap_get 'P["home_grid"]["every"]')"
+expect "ads-plan: an app-wide placement has no launch switch" "Có -" "$(ap_get 'P["open_app"]["wide"] + " " + P["open_app"]["launch"]')"
+expect "ads-plan: a placement of the code is off at launch until the team says so" "Tắt Đã code" \
+  "$(ap_get 'P["home_bottom"]["launch"] + " " + P["home_bottom"]["status"]')"
+expect "ads-plan: the KDoc of a placement becomes its note" "Bottom bar of Home." "$(ap_get 'P["home_bottom"]["note"]')"
+expect "ads-plan: derived keys are not listed twice (they come from the placements sheet)" "False False" \
+  "$(ap_get 'str("is_show_home_bottom" in K) + " " + str("native_every_home_grid" in K)')"
+expect "ads-plan: a shared key goes in its group" "Mở app" "$(ap_get 'K["show_open_ads"][0]')"
+expect "ads-plan: an AppsFlyer switch goes in its group" "Số liệu AppsFlyer" "$(ap_get 'K["is_log_af_native_ad_displayed"][0]')"
+expect "ads-plan: a key of the app goes in the app group with its default" "Khóa của app 50" \
+  "$(ap_get 'K["notes_max_count"][0] + " " + K["notes_max_count"][1]["default"]')"
+expect "ads-plan: events of the main sources, not of build outputs or hidden folders" "note_saved :feature:notes" \
+  "$(ap_get '" ".join(e["Tên sự kiện"] + " " + e["Module"] for e in d["events"])' --no-examples)"
+expect "ads-plan: example rows by default, never twice the code of a real placement" "Ví dụ 1" \
+  "$(ap_get 'P["rw_get_item"]["status"] + " " + str([p["code"] for p in d["placements"]].count("inter_sounds"))')"
+mv "$ap/docs/remote-config-keys.md" "$ap/docs/keys.md.bak"
+expect "ads-plan: a missing key table stops with the command that makes it" "1 1" \
+  "$(ads_plan --dump > /dev/null 2> "$work/ap.err"; echo "$? $(grep -c 'remoteConfigKeys.update=true' "$work/ap.err")")"
+mv "$ap/docs/keys.md.bak" "$ap/docs/remote-config-keys.md"
+cp "$ap/core/ads/src/main/kotlin/com/vglstudio/notes/core/ads/AdPlacement.kt" "$ap/core/ads/src/main/kotlin/Extra.kt"
+mv "$ap/core/ads/src/main/kotlin/Extra.kt" "$ap/core/ads/src/main/kotlin/AdPlacement.kt"
+expect "ads-plan: two AdPlacement.kt stop the script" 1 "$(ads_plan --dump > /dev/null 2>&1; echo $?)"
+rm "$ap/core/ads/src/main/kotlin/AdPlacement.kt"
+# Every enum line of this repo's AdPlacement.kt is a placement the workbook lists: a declaration the script cannot
+# read would be dropped without a word.
+ap_real_file="$(find core/ads/src/main -name AdPlacement.kt)"
+ap_real_lines="$(awk '/^enum class AdPlacement/ {in_enum = 1} in_enum && /^    [A-Z_]+\("/ {n++} in_enum && /^    ;/ {exit} END {print n}' "$ap_real_file")"
+expect "ads-plan: every placement of this repo is read" "$ap_real_lines" \
+  "$(python3 -I scripts/ads-plan.py --dump --with-staging --no-examples | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)["placements"]))')"
+expect "ads-plan: this repo lists its app-wide placements" True \
+  "$(python3 -I scripts/ads-plan.py --dump | python3 -I -c 'import json,sys; c={p["code"] for p in json.load(sys.stdin)["placements"]}; print({"open_app","open_app_inter","resume","resume_inter","native_combo"} <= c)')"
+if python3 -I -c 'import openpyxl' 2> /dev/null; then
+  ads_plan --out "$work/ap-1.xlsx" > /dev/null
+  expect "ads-plan: the workbook has its sheets in order" "Hướng dẫn,Vị trí QC,Remote Config,Sự kiện,Định dạng,Hằng số,Danh mục" \
+    "$(python3 -I -c 'import openpyxl,sys; print(",".join(openpyxl.load_workbook(sys.argv[1]).sheetnames))' "$work/ap-1.xlsx")"
+  # The team fills the workbook: a screen and a launch value of a coded placement, two rows of a planned placement
+  # (same code twice), a launch value of a key, a planned key and a planned event.
+  python3 -I -c '
+import openpyxl, sys
+wb = openpyxl.load_workbook(sys.argv[1])
+ws = wb["Vị trí QC"]
+rows = {ws.cell(r, 2).value: r for r in range(5, ws.max_row + 1) if ws.cell(r, 2).value}
+ws.cell(rows["home_bottom"], 5).value = "Home"
+ws.cell(rows["home_bottom"], 11).value = "Bật"
+free = [r for r in range(5, ws.max_row + 1) if not ws.cell(r, 2).value][:2]
+for r in free:
+    ws.cell(r, 2).value, ws.cell(r, 3).value, ws.cell(r, 18).value = "inter_new", "interstitial", "Đề xuất"
+rc = wb["Remote Config"]
+for r in range(5, rc.max_row + 1):
+    if rc.cell(r, 2).value == "show_open_ads":
+        rc.cell(r, 5).value = "true"
+app_rows = [r for r in range(5, rc.max_row + 1) if rc.cell(r, 1).value == "Khóa của app" and not rc.cell(r, 2).value]
+rc.cell(app_rows[0], 2).value, rc.cell(app_rows[0], 3).value = "notes_sort_order", "string"
+ev = wb["Sự kiện"]
+free = [r for r in range(5, ev.max_row + 1) if ev.cell(r, 2).value == "Sự kiện của app" and not ev.cell(r, 3).value]
+ev.cell(free[0], 3).value, ev.cell(free[0], 4).value = "note_shared", "Chia sẻ xong"
+wb.save(sys.argv[1])' "$work/ap-1.xlsx"
+  keep=(--keep "$work/ap-1.xlsx")
+  expect "ads-plan: --keep keeps what the team filled for a coded placement" "Home Bật Đã code" \
+    "$(ap_get 'P["home_bottom"]["screen"] + " " + P["home_bottom"]["launch"] + " " + P["home_bottom"]["status"]' "${keep[@]}")"
+  expect "ads-plan: --keep keeps a planned placement, twice when the team wrote it twice" 2 \
+    "$(ap_get '[p["code"] for p in d["placements"]].count("inter_new")' "${keep[@]}")"
+  expect "ads-plan: --keep drops the example rows" False "$(ap_get '"rw_get_item" in P' "${keep[@]}")"
+  expect "ads-plan: --keep keeps the launch value of a key" true "$(ap_get 'K["show_open_ads"][1]["launch"]' "${keep[@]}")"
+  expect "ads-plan: --keep keeps a planned key of the app" string "$(ap_get 'K["notes_sort_order"][1]["type"]' "${keep[@]}")"
+  expect "ads-plan: --keep keeps a planned event, an event of the code stays coded" "Đề xuất Đã code" \
+    "$(ap_get '" ".join({e["Tên sự kiện"]: e["Trạng thái"] for e in d["events"]}[n] for n in ("note_shared", "note_saved"))' "${keep[@]}")"
+  ads_plan "${keep[@]}" --out "$work/ap-2.xlsx" > /dev/null
+  expect "ads-plan: a workbook written with --keep opens again" True \
+    "$(python3 -I -c 'import openpyxl,sys; print("Vị trí QC" in openpyxl.load_workbook(sys.argv[1]).sheetnames)' "$work/ap-2.xlsx")"
+else
+  echo "skip - ads-plan: workbook tests need openpyxl (python3 -m pip install --user openpyxl)"
+fi
+
 # An app's own script tests (scripts/tests/app.sh in the app; the template has none) run in this same shell, so they
 # use expect, $work and the fakes above, and count in the same total (docs/ops/to-app.md, section 6).
 if [[ -f scripts/tests/app.sh ]]; then
