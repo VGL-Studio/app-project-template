@@ -36,6 +36,7 @@
     <string name="ad_gallery_flow_title" translatable="false">Flow steps</string>
     <string name="ad_gallery_flow_step" translatable="false">Step %1$d of %2$d</string>
     <string name="ad_gallery_flow_next" translatable="false">Next</string>
+    <string name="ad_gallery_flow_full_page_too_short" translatable="false">Not enough room for the full-page ad</string>
     <string name="ad_gallery_rewarded_title" translatable="false">Rewarded</string>
     <string name="ad_gallery_rewarded_placement" translatable="false">Placement: gallery_rw_action</string>
     <string name="ad_gallery_rewarded_block" translatable="false">If no ad: block</string>

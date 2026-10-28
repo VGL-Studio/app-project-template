@@ -125,6 +125,7 @@ object AdGalleryTestTags {
     const val FLOW_PAGER = "ad_gallery_flow_pager"
     const val FLOW_NEXT = "ad_gallery_flow_next"
     const val FLOW_CARD_FRAME = "ad_gallery_flow_card_frame"
+    const val FLOW_FULL_PAGE_TOO_SHORT = "ad_gallery_flow_full_page_too_short"
     const val REWARDED = "ad_gallery_rewarded"
     const val REWARDED_BLOCK = "ad_gallery_rewarded_block"
     const val REWARDED_ALLOW = "ad_gallery_rewarded_allow"

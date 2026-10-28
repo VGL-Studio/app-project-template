@@ -174,7 +174,10 @@ internal fun FlowStepPagePlaceholder(modifier: Modifier = Modifier) {
         },
         header = { headerHeight ->
             Row(
-                modifier = Modifier.fillMaxWidth().height(headerHeight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeight)
+                    .testTag(NativeFlowStepTestTags.PLACEHOLDER_HEADER),
                 horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -197,7 +200,8 @@ internal fun FlowStepPagePlaceholder(modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .height(NativeFullScreenAdDimens.CallToActionHeight)
                     .clip(MaterialTheme.shapes.small)
-                    .background(block),
+                    .background(block)
+                    .testTag(NativeFlowStepTestTags.PLACEHOLDER_CTA),
             )
         },
     )

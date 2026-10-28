@@ -465,7 +465,7 @@ class NativeFlowStepTest {
     fun fullScreenStep_belowMinHeight_takesNothing() {
         val ad = FakeLoadedNativeAd(FakeNativeAdAssets.Design)
         val takes = mutableListOf<LoadedNativeAd?>()
-        var height by mutableStateOf(190.dp)
+        var height by mutableStateOf(151.dp)
         composeRule.setContent {
             AppTheme {
                 AdsHostContent(suppression, suppressor) {
@@ -480,13 +480,13 @@ class NativeFlowStepTest {
             }
         }
         composeRule.waitForIdle()
-        assertTrue("nothing taken in 190 dp: $takes", takes.isEmpty())
+        assertTrue("nothing taken in 151 dp: $takes", takes.isEmpty())
         assertNoNode(NativeFullScreenAdTestTags.CTA)
         assertNoNode(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER)
         assertFalse(suppressor.suppressed.value)
 
         // Control (L-055): the least height takes the ad and draws it.
-        height = 200.dp
+        height = 152.dp
         composeRule.waitForIdle()
         assertEquals(1, takes.size)
         composeRule.onNodeWithTag(NativeFullScreenAdTestTags.CTA).assertExists()
@@ -516,13 +516,59 @@ class NativeFlowStepTest {
         assertEquals(listOf(true), reports)
         assertTrue(suppressor.suppressed.value)
 
-        height = 190.dp
+        // Control: shrinking to the least height keeps the ad.
+        height = 152.dp
+        composeRule.waitForIdle()
+        assertTrue("kept at 152 dp: $released", released.isEmpty())
+        assertEquals(listOf(true), reports)
+
+        height = 151.dp
         composeRule.waitForIdle()
 
         assertNoNode(NativeFullScreenAdTestTags.CTA)
         assertEquals(listOf<LoadedNativeAd>(ad), released)
         assertEquals(listOf(true, false), reports)
         assertFalse(suppressor.suppressed.value)
+    }
+
+    /**
+     * KB-20 (plan T-049): the page area of a phone in landscape with its system bars and camera cutout (186.5 dp at
+     * 440 dpi, FB-20261028-01) takes the ad and draws it.
+     */
+    @Test
+    @Config(qualifiers = "w873dp-h393dp-440dpi")
+    fun fullScreenStep_phoneLandscape_takesAd() {
+        val ad = FakeLoadedNativeAd(FakeNativeAdAssets.Design)
+        val takes = mutableListOf<LoadedNativeAd?>()
+        val reports = mutableListOf<Boolean>()
+        var height by mutableStateOf(151.dp)
+        composeRule.setContent {
+            AppTheme {
+                AdsHostContent(suppression, suppressor) {
+                    Box(Modifier.fillMaxWidth().height(height)) {
+                        NativeFullScreenStepGate(
+                            allowed = true,
+                            states = remember(height) { fullPageStates(ad, takes) },
+                            modifier = Modifier.fillMaxSize(),
+                            onAdAvailabilityChange = { reports += it },
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        // Control (L-055): just below the least height nothing is taken and nothing drawn.
+        assertTrue("nothing taken in 151 dp: $takes", takes.isEmpty())
+        assertNoNode(NativeFullScreenAdTestTags.CTA)
+        assertNoNode(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER)
+
+        height = 186.5.dp
+        composeRule.waitForIdle()
+        assertEquals("one ad taken in 186.5 dp: $takes", 1, takes.size)
+        composeRule.onNodeWithTag(NativeFullScreenAdTestTags.CTA).assertExists()
+        assertNoNode(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER)
+        assertEquals(listOf(true), reports)
+        assertTrue(suppressor.suppressed.value)
     }
 
     @Test

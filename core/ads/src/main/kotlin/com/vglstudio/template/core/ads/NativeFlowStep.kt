@@ -48,6 +48,12 @@ internal object NativeFlowStepTestTags {
 
     /** The static placeholder of the page while it waits for an ad (plan T-041). */
     const val FULL_PAGE_PLACEHOLDER = "nativeFlowStepFullPagePlaceholder"
+
+    /** The block of the head of the ad in the placeholder of the page (plan T-049). */
+    const val PLACEHOLDER_HEADER = "nativeFlowStepPlaceholderHeader"
+
+    /** The block of the call to action in the placeholder of the page (plan T-049). */
+    const val PLACEHOLDER_CTA = "nativeFlowStepPlaceholderCta"
 }
 
 /** Numbers of the page of a flow step ([NativeFullScreenStep]) for the app (plan T-041). */
@@ -57,6 +63,14 @@ object NativeFullScreenStepDefaults {
      * least height grows with the head of the ad.
      */
     val MinHeight: Dp = 200.dp
+
+    /** The least height of the page at the current font scale. */
+    @Composable
+    fun minHeight(): Dp {
+        val density = LocalDensity.current
+        val typography = MaterialTheme.typography
+        return remember(density, typography) { flowStepMetrics(density, typography).minHeight }
+    }
 }
 
 /** Numbers of the card of a flow step ([NativeStepAd]) for the app (plan T-045). */
