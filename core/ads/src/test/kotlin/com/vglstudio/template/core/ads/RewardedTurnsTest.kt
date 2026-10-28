@@ -893,6 +893,9 @@ class RewardedTurnsTest {
 
         advanceTimeBy(5_001)
         runCurrent()
+        // The round that timed out reads no step (plan T-047): nothing cleared, nothing blocked.
+        assertTrue(port.cleared.isEmpty())
+        assertTrue(port.sendBlocked.isEmpty())
         turns.loadIfNeeded(rwGetItem)
         assertEquals(listOf("rw_get_item"), port.sends)
         assertEquals(1, warnings("load round: switch not read in time"))
@@ -982,6 +985,192 @@ class RewardedTurnsTest {
         request()
         assertEquals(2, port.shows.size)
         assertTrue(port.showAgains.isEmpty())
+    }
+
+    @Test
+    fun syncShowed_oneHandlerThreeTaps_onScreenOnce() = runTest {
+        // Plan T-048: one handler that joined one decision three times gets OnScreen once.
+        port.syncShowedReward = true
+        port.ready["rw_get_item"] = true
+        val gate = CompletableDeferred<Boolean>()
+        port.switchGates += gate
+        repeat(3) { launch { request() } }
+        runCurrent()
+        gate.complete(true)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), outcomes)
+        assertEquals(listOf("rw_get_item", "rw_get_item"), port.showAgains)
+        // R-06 is kept: every tap that joined is still `busy`.
+        assertEquals(listOf("shown", "busy", "busy"), port.opportunities.map { it.second })
+        assertEquals(listOf("rw_get_item"), port.rewards)
+    }
+
+    @Test
+    fun syncShowed_handlerJoinsTwice_onScreenOnce() = runTest {
+        // L-068: two handlers, the second joins twice.
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        val hb: (RewardedOutcome) -> Unit = { b += it }
+        port.syncShowedReward = true
+        port.ready["rw_get_item"] = true
+        val gate = CompletableDeferred<Boolean>()
+        port.switchGates += gate
+        launch { request { a += it } }
+        launch { request(to = hb) }
+        launch { request(to = hb) }
+        runCurrent()
+        gate.complete(true)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.OnScreen), a)
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), b)
+    }
+
+    @Test
+    fun syncShowed_firstHandlerJoinsAgain_onScreenOnce() = runTest {
+        // Guard: the handler of the first tap joins again, so it gets OnScreen from showAgain and not once more.
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        val ha: (RewardedOutcome) -> Unit = { a += it }
+        port.syncShowedReward = true
+        port.ready["rw_get_item"] = true
+        val gate = CompletableDeferred<Boolean>()
+        port.switchGates += gate
+        launch { request(to = ha) }
+        launch { request { b += it } }
+        launch { request(to = ha) }
+        runCurrent()
+        gate.complete(true)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), a)
+        assertEquals(listOf(RewardedOutcome.OnScreen), b)
+    }
+
+    @Test
+    fun tapAfterOnScreen_sameHandler_onScreenAgain() = runTest {
+        // Guard (plan T-048, option (c)): a tap after the ad covered the screen gets OnScreen again at once, so the
+        // dialog of a turn still hanging closes.
+        port.ready["rw_get_item"] = true
+        request()
+        port.fireShowed()
+        request()
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.OnScreen), outcomes)
+
+        port.fireReward()
+        assertEquals(
+            listOf(RewardedOutcome.OnScreen, RewardedOutcome.OnScreen, RewardedOutcome.Granted),
+            outcomes,
+        )
+        assertEquals(listOf("rw_get_item"), port.showAgains)
+        assertEquals(
+            listOf(Triple("rw_get_item", "shown", "ready"), Triple("rw_get_item", "busy", "idle")),
+            port.opportunities,
+        )
+    }
+
+    @Test
+    fun tapAfterOnScreen_otherHandler_onScreenAtOnce() = runTest {
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        port.ready["rw_get_item"] = true
+        request { a += it }
+        port.fireShowed()
+        request { b += it }
+        assertEquals(listOf(RewardedOutcome.OnScreen), b)
+
+        port.fireReward()
+        assertEquals(listOf(RewardedOutcome.OnScreen), a)
+        assertEquals(listOf(RewardedOutcome.OnScreen, RewardedOutcome.Granted), b)
+    }
+
+    @Test
+    fun decisionStuckAtSwitch_consentClosed_grantsLikeClosedGate() = runTest {
+        // MC-05, plan T-048: a closed gate runs the action whether the switch is on or off.
+        val a = mutableListOf<RewardedOutcome>()
+        val b = mutableListOf<RewardedOutcome>()
+        port.consentOpen = false
+        port.ready["rw_get_item"] = true
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request { a += it } }
+        runCurrent()
+        launch { request { b += it } }
+        runCurrent()
+        advanceTimeBy(5_001)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), a)
+        assertEquals(listOf(RewardedOutcome.Granted), b)
+        assertTrue(port.opportunities.isEmpty())
+        assertTrue(port.loads.isEmpty())
+        assertTrue(port.shows.isEmpty())
+        assertEquals(1, warnings("not done in time"))
+        assertEquals(
+            1,
+            logger.entries.count {
+                it.tag == "Ads" && it.message.startsWith("Rewarded rw_get_item granted: consent gate closed")
+            },
+        )
+    }
+
+    @Test
+    fun decisionStuckAtSwitch_consentClosed_countsNoTry() = runTest {
+        port.consentOpen = false
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request(rwExport) }
+        runCurrent()
+        advanceTimeBy(5_001)
+        runCurrent()
+
+        port.consentOpen = true
+        request(rwExport)
+        // The timeout counted no try: this is the first try of allow_after_2.
+        assertEquals(listOf(RewardedOutcome.Granted, RewardedOutcome.NoAd(network = false, granted = false)), outcomes)
+    }
+
+    @Test
+    fun decisionStuckAtLoad_consentClosedMeanwhile_staysNoAd() = runTest {
+        // Guard: past the switch, `not_ready` is recorded while the gate was open; the T-047 path stays.
+        port.loadGates += CompletableDeferred<Unit>()
+        launch { request(rwAllow) }
+        runCurrent()
+        port.consentOpen = false
+        advanceTimeBy(5_001)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = true)), outcomes)
+        assertEquals(listOf(Triple("rw_allow", "not_ready", "idle")), port.opportunities)
+    }
+
+    @Test
+    fun decisionStuckAtSwitch_consentClosesMeanwhile_grants() = runTest {
+        // L-072: the gate is read when the wait ends, not at the tap.
+        port.ready["rw_get_item"] = true
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request() }
+        runCurrent()
+        port.consentOpen = false
+        advanceTimeBy(5_001)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.Granted), outcomes)
+        assertTrue(port.opportunities.isEmpty())
+    }
+
+    @Test
+    fun decisionStuckAtSwitch_consentOpensMeanwhile_staysNoAd() = runTest {
+        port.consentOpen = false
+        port.ready["rw_get_item"] = true
+        port.switchGates += CompletableDeferred<Boolean>()
+        launch { request() }
+        runCurrent()
+        port.consentOpen = true
+        advanceTimeBy(5_001)
+        runCurrent()
+
+        assertEquals(listOf(RewardedOutcome.NoAd(network = false, granted = false)), outcomes)
+        assertEquals(listOf(Triple("rw_get_item", "not_ready", "ready")), port.opportunities)
     }
 
     /**
