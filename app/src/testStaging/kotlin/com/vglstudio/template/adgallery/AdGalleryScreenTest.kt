@@ -1,11 +1,15 @@
 package com.vglstudio.template.adgallery
 
 import android.content.Context
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -15,6 +19,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -43,6 +48,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.R
 import com.vglstudio.template.core.ads.ConsentPath
+import com.vglstudio.template.core.ads.NativeFullScreenStepDefaults
 import com.vglstudio.template.core.ads.R as AdsR
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import org.junit.Assert.assertEquals
@@ -74,18 +80,25 @@ class AdGalleryScreenTest {
         uiState: AdGalleryUiState,
         slots: AdGallerySlots = PreviewAdGallerySlots(),
         status: GalleryAdStatus = GalleryAdStatus.Unknown,
+        modifier: Modifier = Modifier,
     ) {
         composeRule.setContent {
-            AppTheme { Screen(uiState, slots, status) }
+            AppTheme { Screen(uiState, slots, status, modifier) }
         }
         composeRule.waitForIdle()
     }
 
     @Composable
-    private fun Screen(uiState: AdGalleryUiState, slots: AdGallerySlots, status: GalleryAdStatus) {
+    private fun Screen(
+        uiState: AdGalleryUiState,
+        slots: AdGallerySlots,
+        status: GalleryAdStatus,
+        modifier: Modifier = Modifier,
+    ) {
         AdGalleryScreen(
             uiState = uiState,
             slots = slots,
+            modifier = modifier,
             onOpenInList = count("inList"),
             onOpenCollapsible = count("collapsible"),
             onShowInterstitial = count("interstitial"),
@@ -731,6 +744,88 @@ class AdGalleryScreenTest {
         click(AdGalleryTestTags.FLOW_NEXT)
         assertTrue(exists(PreviewAdTags.STEP_FULL_PAGE))
         assertEquals("the pager does not jump between steps", onCard, bounds(AdGalleryTestTags.FLOW_PAGER))
+    }
+
+    /**
+     * The flow page as `AdGalleryActivity` draws it (plan T-049): in a `Surface`, inside `safeDrawingPadding()`, the
+     * least height of the page at the font scale read in [onLeast].
+     */
+    private fun setFlowInSafeArea(onLeast: (Dp) -> Unit = {}) {
+        composeRule.setContent {
+            AppTheme {
+                onLeast(NativeFullScreenStepDefaults.minHeight())
+                Surface(Modifier.fillMaxSize()) {
+                    Screen(
+                        AdGalleryUiState.FlowSteps(3),
+                        PreviewAdGallerySlots(stepFullPageReady = true),
+                        GalleryAdStatus.Unknown,
+                        Modifier.safeDrawingPadding(),
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * L-029 (plan T-049): the phone frame with the insets of the device gives the page area of FB-20261028-01,
+     * `[94,292][2400,805]` px. Passes on the code of today: it checks the reproduction, not the fix.
+     */
+    @Test
+    @Config(qualifiers = PHONE_LANDSCAPE)
+    fun flowSteps_phoneLandscape_insets_reproducePageArea() {
+        setFlowInSafeArea()
+        click(AdGalleryTestTags.FLOW_NEXT)
+        // Control: with no insets the page is higher and starts at the left edge.
+        val noInsets = unmergedBounds(PreviewAdTags.STEP_FULL_PAGE)
+        assertEquals("page height with no insets: $noInsets", 236.7f, noInsets.height.value, 0.5f)
+        assertEquals("page left with no insets: $noInsets", 0f, noInsets.left.value, 0.5f)
+
+        dispatchPhoneLandscapeInsets(composeRule)
+        val page = unmergedBounds(PreviewAdTags.STEP_FULL_PAGE)
+        assertEquals("page left: $page", 34.18f, page.left.value, 0.5f)
+        assertEquals("page top: $page", 106.18f, page.top.value, 0.5f)
+        assertEquals("page bottom: $page", 292.73f, page.bottom.value, 0.5f)
+        assertEquals("page height: $page", 186.5f, page.height.value, 0.5f)
+    }
+
+    /** KB-20 (plan T-049): on the phone in landscape the page is high enough to take an ad. */
+    @Test
+    @Config(qualifiers = PHONE_LANDSCAPE)
+    fun flowSteps_phoneLandscape_pageFitsAd() {
+        var least = 0.dp
+        setFlowInSafeArea { least = it }
+        dispatchPhoneLandscapeInsets(composeRule)
+        click(AdGalleryTestTags.FLOW_NEXT)
+
+        val page = unmergedBounds(PreviewAdTags.STEP_FULL_PAGE)
+        assertTrue("page $page at least the least height $least", page.height.value >= least.value)
+        assertInside("CTA text", unmergedTextBounds(previewAdAssets.callToAction!!), page)
+        assertFalse("no note", exists(AdGalleryTestTags.FLOW_FULL_PAGE_TOO_SHORT))
+    }
+
+    /**
+     * Plan T-049, KB-20: at font scale 2.0 the page area of the phone in landscape (168.4 dp) is below the least
+     * height (178.2 dp): a line says why, in place of an empty area; Next stays where it is. The control at font
+     * scale 1.0 is [flowSteps_phoneLandscape_pageFitsAd].
+     */
+    @Test
+    @Config(qualifiers = PHONE_LANDSCAPE, fontScale = 2.0f)
+    fun flowSteps_phoneLandscape_fontScale2_showsTooShortNote() {
+        setFlowInSafeArea()
+        dispatchPhoneLandscapeInsets(composeRule)
+        val onStep = bounds(AdGalleryTestTags.FLOW_NEXT)
+        click(AdGalleryTestTags.FLOW_NEXT)
+
+        val note = composeRule.onNodeWithTag(AdGalleryTestTags.FLOW_FULL_PAGE_TOO_SHORT)
+        note.assertTextEquals(context.getString(R.string.ad_gallery_flow_full_page_too_short))
+        val noteBounds = note.getBoundsInRoot()
+        val title = bounds(AdGalleryTestTags.TITLE)
+        val next = bounds(AdGalleryTestTags.FLOW_NEXT)
+        assertTrue("note $noteBounds below the title $title", noteBounds.top >= title.bottom)
+        assertTrue("note $noteBounds above Next $next", noteBounds.bottom <= next.top)
+        assertFalse("no page", exists(PreviewAdTags.STEP_FULL_PAGE))
+        assertEquals("Next does not move (OB-01)", onStep, next)
     }
 
     @Test

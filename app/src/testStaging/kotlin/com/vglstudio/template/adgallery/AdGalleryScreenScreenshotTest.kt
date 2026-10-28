@@ -1,5 +1,7 @@
 package com.vglstudio.template.adgallery
 
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -35,12 +37,14 @@ class AdGalleryScreenScreenshotTest {
         slots: AdGallerySlots,
         darkTheme: Boolean = false,
         status: GalleryAdStatus = GalleryAdStatus.Unknown,
+        modifier: Modifier = Modifier,
     ) {
         composeRule.setContent {
             AppTheme(darkTheme = darkTheme) {
                 AdGalleryScreen(
                     uiState = uiState,
                     slots = slots,
+                    modifier = modifier,
                     onOpenInList = {},
                     onOpenCollapsible = {},
                     onShowInterstitial = {},
@@ -162,6 +166,34 @@ class AdGalleryScreenScreenshotTest {
         setScreen(AdGalleryUiState.FlowSteps(3), PreviewAdGallerySlots(stepFullPageReady = true))
         next()
         composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_flow-full-page_landscape.png")
+    }
+
+    /** The flow page on a phone in landscape with its insets (plan T-049): the page of 186.5 dp with its ad. */
+    @Test
+    @Config(qualifiers = PHONE_LANDSCAPE)
+    fun flowFullPage_landscapePhone() {
+        setScreen(
+            AdGalleryUiState.FlowSteps(3),
+            PreviewAdGallerySlots(stepFullPageReady = true),
+            modifier = Modifier.safeDrawingPadding(),
+        )
+        dispatchPhoneLandscapeInsets(composeRule)
+        next()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_flow-full-page_landscape-phone.png")
+    }
+
+    /** The same phone at font scale 2.0 (plan T-049): the page is too short, a line says why. */
+    @Test
+    @Config(qualifiers = PHONE_LANDSCAPE, fontScale = 2.0f)
+    fun flowFullPage_tooShort() {
+        setScreen(
+            AdGalleryUiState.FlowSteps(3),
+            PreviewAdGallerySlots(stepFullPageReady = true),
+            modifier = Modifier.safeDrawingPadding(),
+        )
+        dispatchPhoneLandscapeInsets(composeRule)
+        next()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_flow-full-page_too-short.png")
     }
 
     @Test

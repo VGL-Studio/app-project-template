@@ -246,17 +246,21 @@ class NativeFlowStepLayoutTest {
         setPage()
         show(360.dp, FakeNativeAdAssets.Longest, 1f)
         val atOne = metrics!!
-        assertDp("least height at 1.0", 200f, atOne.minHeight)
+        assertDp("least height at 1.0", 152f, atOne.minHeight)
         assertDp("least column height at 1.0", 360f, atOne.columnMinHeight)
         assertDp("head of the ad at 1.0", 48f, atOne.headerHeight)
 
+        // 154 dp is above the least height at 1.0 (152 dp) and below it at 1.3 and 2.0 (plan T-049, section 3.5).
+        var laidOut = 0
+        var gated = 0
         listOf(1f, 1.3f, 2f).forEach { scale ->
-            listOf(360.dp, 200.dp).forEach { h ->
+            listOf(360.dp, 154.dp).forEach { h ->
                 throughGate = false
                 show(h, FakeNativeAdAssets.Longest, scale)
                 val least = metrics!!.minHeight
                 val name = "font scale $scale at $h (least $least)"
                 if (h >= least) {
+                    laidOut++
                     val page = bounds(PAGE)
                     val badge = bounds(NativeAdTestTags.BADGE)
                     assertDp("Ad label of one line of $badgeLine, $name: $badge", badgeLine.value, badge.height)
@@ -270,6 +274,7 @@ class NativeFlowStepLayoutTest {
                     assertDp("CTA height, $name", 52f, cta.height)
                     assertInside("CTA, $name", cta, page)
                 } else {
+                    gated++
                     takes.clear()
                     throughGate = true
                     composeRule.waitForIdle()
@@ -278,6 +283,9 @@ class NativeFlowStepLayoutTest {
                 }
             }
         }
+        // Both branches ran: 360 dp at the three scales and 154 dp at 1.0 laid out, 154 dp at 1.3 and 2.0 gated.
+        assertEquals("pages laid out", 4, laidOut)
+        assertEquals("pages gated", 2, gated)
         // Control (L-055): the page through the gate at 360 dp and font scale 1.0 takes its ad.
         takes.clear()
         throughGate = true
@@ -285,9 +293,118 @@ class NativeFlowStepLayoutTest {
         assertEquals(1, takes.size)
     }
 
+    /** The top right corner of [page] where the SDK pins the real AdChoices (O-08): 24 x 24 dp. */
+    private fun adChoicesCorner(page: DpRect): DpRect =
+        DpRect(page.right - AD_CHOICES_CORNER, page.top, page.right, page.top + AD_CHOICES_CORNER)
+
+    /** No part of the ad on the page cuts into the corner of the real AdChoices (O-08, plan T-049). */
+    private fun assertCornerFree(name: String, ad: NativeAdAssets) {
+        val page = bounds(PAGE)
+        val corner = adChoicesCorner(page)
+        val parts = buildList {
+            add("media" to bounds(NativeFullScreenAdTestTags.MEDIA))
+            add("headline" to textBounds(ad.headline))
+            add("Ad label" to bounds(NativeAdTestTags.BADGE))
+            if (exists(NativeFullScreenAdTestTags.BODY)) add("body" to bounds(NativeFullScreenAdTestTags.BODY))
+            add("CTA" to bounds(NativeFullScreenAdTestTags.CTA))
+        }
+        parts.forEach { (part, rect) ->
+            assertFalse("$part $rect cuts into the AdChoices corner $corner, $name", overlaps(rect, corner))
+        }
+    }
+
+    /**
+     * KB-20 (plan T-049): the page area of a phone in landscape with its system bars and camera cutout, 186.5 dp
+     * high, holds every required part of the ad in the compact row, and the corner of the real AdChoices stays free.
+     */
+    @Test
+    @Config(qualifiers = "w873dp-h393dp-440dpi")
+    fun compactRow_phoneLandscape_requiredPartsInside() {
+        val ad = FakeNativeAdAssets.Longest
+        setPage()
+        show(186.5.dp, ad)
+        val page = bounds(PAGE)
+        val cta = bounds(NativeFullScreenAdTestTags.CTA)
+        val media = bounds(NativeFullScreenAdTestTags.MEDIA)
+        val headline = textBounds(ad.headline)
+        val badge = bounds(NativeAdTestTags.BADGE)
+        val adChoices = bounds(FAKE_AD_CHOICES_TAG)
+        assertDp("CTA height: $cta", 52f, cta.height)
+        assertDp("CTA 16 dp above the bottom: $cta in $page", 16f, page.bottom - cta.bottom)
+        assertInside("CTA", cta, page)
+        assertDp("media height: $media", 154.5f, media.height)
+        assertDp("media starts at 16 dp: $media in $page", 16f, media.top - page.top)
+        assertInside("headline", headline, page)
+        assertInside("Ad label", badge, page)
+        assertTrue("AdChoices $adChoices right of the headline $headline", adChoices.left >= headline.right)
+        assertFalse("AdChoices $adChoices covers CTA $cta", overlaps(adChoices, cta))
+        assertFalse("AdChoices $adChoices covers headline $headline", overlaps(adChoices, headline))
+        assertDp("body of 1 line", 20f, bounds(NativeFullScreenAdTestTags.BODY).height)
+        assertCornerFree("compact row at 186.5 dp", ad)
+
+        show(152.dp, ad)
+        assertDp("CTA height at 152 dp", 52f, bounds(NativeFullScreenAdTestTags.CTA).height)
+        assertCornerFree("compact row at 152 dp", ad)
+
+        // Control: the column at 360 dp keeps the corner free with its top bar.
+        show(360.dp, ad)
+        assertCornerFree("column at 360 dp", ad)
+    }
+
+    /** The placeholder of the page in the compact row at 186.5 dp (plan T-049): the head left of the 36 dp cell. */
+    @Test
+    @Config(qualifiers = "w873dp-h393dp-440dpi")
+    fun compactRow_placeholder_phoneLandscape() {
+        composeRule.setContent {
+            AppTheme {
+                Box(Modifier.fillMaxWidth().height(186.5.dp)) {
+                    FlowStepPagePlaceholder(Modifier.testTag(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER))
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val page = bounds(NativeFlowStepTestTags.FULL_PAGE_PLACEHOLDER)
+        val header = bounds(NativeFlowStepTestTags.PLACEHOLDER_HEADER)
+        val cta = bounds(NativeFlowStepTestTags.PLACEHOLDER_CTA)
+        assertTrue("head block has a width: $header", header.width.value > 1f)
+        assertTrue(
+            "head block $header left of the 36 dp cell in $page",
+            header.right.value <= (page.right - 16.dp - 36.dp).value + TOLERANCE,
+        )
+        assertDp("CTA block height: $cta", 52f, cta.height)
+        assertInside("CTA block", cta, page)
+    }
+
+    /** The app reads the least height at its font scale (plan T-049): the number the gate uses. */
+    @Test
+    fun defaults_minHeight_followsFontScale() {
+        var scale by mutableFloatStateOf(1f)
+        var fromDefaults = 0.dp
+        var fromMetrics = 0.dp
+        composeRule.setContent {
+            WithFontScale(scale) {
+                AppTheme {
+                    fromDefaults = NativeFullScreenStepDefaults.minHeight()
+                    fromMetrics = flowStepMetrics(LocalDensity.current, MaterialTheme.typography).minHeight
+                }
+            }
+        }
+        val read = listOf(1f, 1.3f, 2f).map { s ->
+            scale = s
+            composeRule.waitForIdle()
+            assertEquals("minHeight() at $s", fromMetrics.value, fromDefaults.value, 0.01f)
+            fromDefaults
+        }
+        assertDp("minHeight() at 1.0", 152f, read[0])
+        assertTrue("grows with the font scale: $read", read[0] < read[1] && read[1] < read[2])
+        // Control: the constant is the number at font scale 1.0.
+        assertEquals(152.dp, NativeFullScreenStepDefaults.MinHeight)
+    }
+
     private companion object {
         const val PAGE = "page"
         const val TOLERANCE = 0.5f
-        val HEIGHTS = listOf(484.dp, 435.dp, 400.dp, 360.dp, 359.dp, 255.dp, 204.dp, 200.dp)
+        val HEIGHTS = listOf(484.dp, 435.dp, 400.dp, 360.dp, 359.dp, 255.dp, 204.dp, 200.dp, 186.5.dp, 152.dp)
+        val AD_CHOICES_CORNER = 24.dp
     }
 }
