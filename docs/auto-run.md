@@ -173,7 +173,11 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân loại lệnh của phiên chặn, L-081), hoặc `scripts/save-branch.sh` của phiên chính trả mã 3. Phiên con không đẩy nên không vào mục này: phiên chính đẩy thay như thường lệ (mục Giao bước 3 đến 5 cho phiên con, L-070).
 
 1. Sau khi lệnh đẩy của chính phiên chính bị từ chối, không đẩy lại dưới dạng khác: không đổi tên nhánh, không gọi API để tạo ref, không giao lần đẩy đó cho phiên con hay phiên khác. Bộ phân loại từ chối lời gọi lệnh nên script không thấy được lần từ chối; chỉ phiên thấy.
-2. Chạy `scripts/save-branch.sh --bundle-only <nhánh>` (nếu chưa có bundle). Bundle nằm ở `$HOME/rescue/`, ngoài worktree. Phần chưa commit thì commit trước (L-069).
+2. Chạy `scripts/save-branch.sh --bundle-only <nhánh>` (nếu chưa có bundle). Bundle nằm ở `$HOME/rescue/`, ngoài worktree, và mất khi máy cloud bị thu hồi. Phần chưa commit thì commit trước (L-069).
+   - Ngoại lệ duy nhất của ý 1: chính GitHub từ chối vì token không có quyền `workflow` (PB-14, ADR-0032). Khi đó `scripts/save-branch.sh` (không có `--bundle-only`) còn ghi các commit thành tệp `docs/runs/patches/<RUN>/<nhánh>.mbox` (hay `.diff` khi nhánh có commit merge) trên nhánh báo cáo, rồi đẩy nhánh báo cáo.
+   - Đây không phải đẩy nhánh task dưới dạng khác. Phiên giao nội dung cho người; người xem patch rồi tự quyết áp hay không.
+   - Script không ghi patch khi chạy `--bundle-only`, với lần từ chối khác, hay khi patch lớn hơn 1 MB, không phải UTF-8 hay có chuỗi giống bí mật. Mọi lỗi của phần patch chỉ thành một dòng ghi chú; bundle vẫn giữ, mã thoát vẫn 3.
+   - Phiên không chạy lại script không có `--bundle-only` chỉ để có patch.
 3. Dừng task theo `risk-scoring.md` mục 4. Plan và ticket giữ `approved`, vì không phải lỗi của plan. Nhật ký plan ghi mã commit.
 4. Chép đoạn "Nhánh chưa đẩy" mà script in ra, cùng nguyên văn lệnh bị từ chối và thông báo, vào báo cáo phiên.
 5. Tra thông báo bị từ chối trong bảng tra lỗi. Chép nguyên văn dòng lỗi mà lệnh đẩy đã in ra (dòng có `[remote rejected]` hay `refusing`) vào một tệp, không chạy lại lệnh đẩy: `printf '%s\n' '<dòng lỗi>' > "${TMPDIR:-/tmp}/push-refused.log"`, rồi `scripts/failure-kind.sh --playbook "${TMPDIR:-/tmp}/push-refused.log"`. Dòng loại `bo-qua-loai` (ví dụ PB-14, thiếu quyền `workflow`): với mỗi task còn lại của danh sách, chạy lệnh `scripts/plan-check.py --touches <tiền tố> <plan>` mà dòng đó nêu. Mã 0 thì bỏ qua task (cùng các task phụ thuộc nó), mã khác 0 thì làm như thường. Soạn danh sách chạy nháp cho các task bị bỏ qua, ghi vào mục Quyết định AI đã tự làm (ADR-0032/L8). Không kết thúc phiên vì lỗi loại này.
@@ -278,6 +282,14 @@ Phiên dùng hạn mức của tài khoản Claude (ADR-0009). Hết hạn mức
 1. Mỗi giờ, `resume-run.yml` chạy `scripts/resume-check.py`: tìm danh sách chạy đang `running` trên nhánh báo cáo mà mọi nhánh của phiên (nhánh báo cáo, nhánh task và nhánh `claude/fix-T-NNN-...` của các ticket trong danh sách) không có commit nào trong 90 phút. Phiên còn sống luôn có commit dày hơn thế: đẩy sau mỗi commit của task (bước 3), đẩy nhánh báo cáo sau mỗi task (bước 10) và trong lúc viết báo cáo (bước 2 bên dưới); lần chờ dài nhất (CI, emulator) dưới 40 phút.
 2. Tìm thấy thì workflow kích hoạt lại routine với cùng danh sách chạy. Hạn mức chưa được làm mới thì phiên mới không làm được gì, không đẩy gì, và giờ sau workflow thử lại. Hạn mức được làm mới thì phiên tiếp tục.
 3. Không tiếp tục khi: phiên bắt đầu hơn 24 giờ trước (người quyết định), nhánh chính đỏ (`main-broken`), môi trường lỗi (`env-broken`).
+
+**Phiên đứng im.** Phiên mở bằng `claude --cloud` không được `resume-run.yml` tiếp tục (L-044). Phiên con chết giữa chừng cũng có thể làm phiên chính đứng chờ hàng giờ (L-109). Vì vậy `run-watchdog.yml` chạy `scripts/run-watchdog.py` mỗi 30 phút:
+
+- Danh sách `running` mà các nhánh của phiên không có commit 60 phút thì workflow mở issue `session-stalled`, có sẵn prompt tiếp tục (`docs/ops/staging-and-runs.md`, mục 2.7). Đang có lần chạy workflow của phiên (CI, `device-session`, `staging`) thì chờ tới 90 phút, vì phiên có thể đang chờ workflow đó.
+- Phiên có commit lại, hay danh sách không còn `running`, thì issue tự đóng ở lần chạy sau.
+- Phiên chính ghi một dòng vào Dòng thời gian và đẩy nhánh báo cáo khi giao bước 3 đến 5 cho phiên con và khi nhận kết quả. Trong lúc chờ phiên con, cứ 50 phút không có commit nào trên các nhánh của phiên (và không có workflow đang chạy) thì đẩy một dòng Dòng thời gian.
+- Phiên không đóng, sửa hay bình luận issue `session-stalled`. Phiên mở bằng routine thì `resume-run.yml` tự tiếp tục sau 90 phút: người không mở thêm phiên tay.
+- Workflow tốn khoảng 1 phút Actions mỗi lần, khoảng 48 phút mỗi ngày. App không cần thì tắt: Actions, `run-watchdog`, Disable workflow. Không có gì khác đọc issue này.
 
 Phiên tiếp tục làm như sau:
 

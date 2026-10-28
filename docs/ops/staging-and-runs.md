@@ -150,6 +150,11 @@ Không cần thiết lập thêm: workflow dùng hai bí mật `ROUTINE_FIRE_URL
 - Mỗi lần kích hoạt lại tính vào giới hạn 30 lần mỗi giờ của routine; một lần mỗi giờ là đủ xa giới hạn.
 - Dừng hẳn một phiên đang chờ: sửa trạng thái danh sách chạy trên nhánh báo cáo sang `finished`, hoặc **Actions > resume-run > Disable workflow**.
 
+**Báo phiên đứng im (`run-watchdog.yml`).** Không cần thiết lập thêm, không dùng bí mật. Mỗi 30 phút, `scripts/run-watchdog.py` tìm phiên `running` mà 60 phút không có commit (90 phút khi đang có workflow của phiên chạy), rồi mở issue `session-stalled` có sẵn prompt tiếp tục của mục 2.7. Phiên có commit lại thì issue tự đóng. Workflow chỉ ghi issue mang nhãn này, không kích hoạt phiên hay routine.
+
+- Tốn khoảng 1 phút Actions mỗi lần, khoảng 48 phút mỗi ngày.
+- App không cần (ví dụ không bao giờ mở phiên bằng `claude --cloud`) thì tắt: **Actions > run-watchdog > Disable workflow**.
+
 ### 2.7. Mở phiên bằng `claude --cloud` khi còn cloud session credits
 
 Routine không dùng được cloud session credits: phiên của routine luôn tính vào hạn mức của tài khoản. Phiên mở bằng `claude --cloud` từ terminal thì trừ vào credit trước (L-020 của camera-pose, [bài hỗ trợ của Anthropic](https://support.claude.com/en/articles/17152539-cloud-sessions-bonus-credit-promotion)). Khi tài khoản còn credit, nhất là khi hạn mức tuần sắp hết, mở phiên tự chạy theo cách này. Còn lại thì dùng `start-run.yml` (mục 2.3): chỉ phiên của routine được `resume-run.yml` tự tiếp tục (`docs/auto-run.md`, mục 1, L-044).
@@ -177,7 +182,7 @@ Worktree riêng cho nhánh báo cáo: thư mục chính luôn ở nhánh của t
 
 **Khi phiên bị ngắt.** Không có `resume-run.yml` cho kiểu phiên này: hết hạn mức, hết credit hay mất kết nối thì phiên dừng hẳn. Phần đã đẩy lên còn nguyên (`docs/auto-run.md`, mục 3, bước 3). Người tiếp tục như sau:
 
-1. Xem nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` trên GitHub: danh sách chạy còn `running` và dòng thời gian cho biết phiên dừng ở task nào. Giờ commit cuối trên các nhánh của phiên là giờ dừng.
+1. Issue `session-stalled` (workflow `run-watchdog.yml`, mỗi 30 phút) báo khi phiên không có commit 60 phút; thân issue có sẵn prompt dưới đây kèm dòng tiếp tục (`docs/auto-run.md`, mục 4, Phiên đứng im). Xem nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` trên GitHub: danh sách chạy còn `running` và dòng thời gian cho biết phiên dừng ở task nào. Giờ commit cuối trên các nhánh của phiên là giờ dừng. Đoạn Nhánh chưa đẩy của báo cáo có dòng Patch trên nhánh báo cáo thì người xem patch rồi tự quyết lấy lại nhánh bằng lệnh in ở đó.
 2. Kiểm lại như phần Trước khi mở (bước 2, 3).
 3. Mở một phiên `claude --cloud` mới với cùng prompt và cùng danh sách chạy, thêm một dòng: "Đây là phiên tiếp tục: nhánh báo cáo đã có, danh sách chạy đang running. Làm theo docs/auto-run.md, mục 4, Tiếp tục phiên sau khi hết hạn mức." Phiên mới đọc nhánh báo cáo và đi tiếp như phiên do `resume-run.yml` kích hoạt lại.
 4. Phiên dừng giữa một lệnh dài (tiến trình bị khởi động lại, lệnh trả mã 137) mà vẫn còn chạy thì không cần làm gì: phiên tự chạy lại lệnh đó.
