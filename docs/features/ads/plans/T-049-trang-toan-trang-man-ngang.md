@@ -1,16 +1,16 @@
 ---
 ticket: T-049
 title: Trang toàn trang của luồng không để trống khi xoay ngang trên điện thoại thật
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, analytics)
 risk_level: high             # low | medium | high
 token_estimate: 10M          # cỡ S theo ticket, số gợi ý 4.9M (scripts/token-usage.py estimate, 2026-10-28); plan thêm dòng giải thích của màn xem thử khi trang quá thấp, hàm công khai mới, ghi lại 2 ảnh và tạo 2 ảnh ở hai module, nên lấy khoảng 2 lần số của cỡ S
 blocking_points: [ads, core, analytics]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-28
 ---
 
 # PLAN T-049: TRANG TOÀN TRANG CỦA LUỒNG KHÔNG ĐỂ TRỐNG KHI XOAY NGANG TRÊN ĐIỆN THOẠI THẬT
@@ -300,9 +300,9 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 
 <!-- Người duyệt điền. AI không điền mục này. -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** Anh Nhật duyệt 2026-10-28 trong phiên giám sát cùng AI, gồm việc đổi bố cục hàng gọn đã duyệt ở T-041 (ô chừa chỗ AdChoices cạnh đầu quảng cáo). Câu hỏi ở mục 8: anh Nhật đã trả lời, ghi ở mục 8. Đã qua hai vòng rà soát độc lập, sửa theo điểm chặn và điểm nên sửa.
 
 ## 10. Nhật ký thực hiện
 
