@@ -17,7 +17,7 @@ Người làm: AI trong phiên có người theo dõi, trên máy có cả repo 
 | Không bao giờ đồng bộ | `scripts/new-app.sh`, `scripts/template-sync.sh`, `docs/ops/new-app.md`, `.github/ISSUE_TEMPLATE/`, `docs/lessons.md`, `docs/runs/`, `docs/features/`, `docs/metrics/`, `docs/inbox/`, `docs/test-sessions/`, `docs/design-system/tokens.json`, `docs/ops/required-assets.txt`, trang sinh ra (`docs/foundation.md`, `docs/STATUS.md`, `docs/remote-config-keys.md`, `docs/remote-config-template.json`) | Không xảy ra: script bỏ các file này ở cả hai phía. Trang sinh ra được sinh lại trong app |
 | Của dự án mẫu, app không sửa | `scripts/`, `.github/`, `build-logic/`, `docs/auto-run.md`, `docs/risk-scoring.md`, `docs/templates/`, `docs/ops/`, ADR `origin: template`, `:core:logging`, `:core:network`, `:core:assets`, `:core:ads` trừ `AdPlacement.kt` | Lấy bản mẫu (`git checkout --theirs -- <file>`), sau khi chắc phần app sửa đã về dự án mẫu (mục 4, bước 1); rồi đặt lại giá trị riêng của app (mục 6) |
 | Cả hai cùng sửa | `CLAUDE.md`, `docs/CLAUDE.md`, `README.md`, `.gitignore`, `:app`, `:core:designsystem`, `:core:config`, `:core:analytics`, `AdPlacement.kt`, `feature/sample`, `feature/loading`, cấu hình build ở gốc | Gộp tay: lấy phần mới của mẫu, giữ phần riêng của app (module, vị trí quảng cáo, cờ, màu) |
-| Chỉ của app | Feature của app, module core riêng của app, ADR từ 1001 | Không xảy ra: dự án mẫu không có các file này |
+| Chỉ của app | Feature của app, module core riêng của app, ADR từ 1001, `scripts/setup-check-app.sh`, `scripts/tests/app.sh` (mục 6) | Không xảy ra: dự án mẫu không có các file này |
 
 Script in danh sách xung đột theo hai nhóm giữa: "Phần của dự án mẫu" và "Phần app cũng sửa".
 
@@ -74,9 +74,17 @@ Lấy bản mẫu thì các giá trị này về giá trị của mẫu. Đặt 
 
 | Giá trị | File | Ở dự án mẫu |
 | --- | --- | --- |
-| Hạn chót cả lượt kịch bản emulator, `DEVICE_SCENARIOS_BUDGET` | `scripts/device-scenario.py`, `scripts/device-session.sh`, `docs/ops/test-sessions.md` | 600 giây; camera-pose dùng 1300 |
+| Hạn chót cả lượt kịch bản emulator, `DEVICE_SCENARIOS_BUDGET` | `scripts/device-scenario.py`, `scripts/device-session.sh`, `docs/ops/test-sessions.md` | 600 giây; camera-pose dùng 1500 |
+| Camera sau của emulator trong `device-session`, `emulator-options` | `.github/workflows/device-session.yml` (bước Kịch bản chuẩn trên emulator), câu về camera ở `docs/ops/test-sessions.md` mục 4 | `-camera-back none`; camera-pose dùng `-camera-back emulated` (kịch bản camera chạy trên CI) |
+| Bí mật Remote Config staging cho kiểm tra thiết lập (`REMOTE_CONFIG_CREDENTIALS: ${{ secrets.STAGING_REMOTE_CONFIG_CREDENTIALS }}` ở bước kiểm tra thiết lập) | `.github/workflows/env-canary.yml`, `.github/workflows/start-run.yml`, `docs/ops/staging-and-runs.md` mục 1 | Không có; camera-pose dùng cho `scripts/setup-check-app.sh` |
+| Thời hạn của job có kiểm tra thiết lập, `timeout-minutes` | `.github/workflows/env-canary.yml` (job `setup-check`), `.github/workflows/start-run.yml` (job `check`) | 5 phút; camera-pose dùng 15 và 10 (kiểm catalog tư thế) |
 
 Thấy thêm giá trị như vậy thì thêm vào bảng này qua issue `from-app`.
+
+Kiểm tra và test riêng của app không đặt trong file của mẫu. Mẫu có hai chỗ móc, gọi file của app nếu có:
+
+- `scripts/setup-check-app.sh`: `scripts/setup-check.sh` nạp file này ở cuối. File dùng được `ok`, `problem`, `note`, `http_status` (hỏi lại khi 000, 429, 5xx), `cdn_hint`, `$STAGING`, `$work`, `$base_url`. Bí mật riêng mà file cần thì thêm vào bước kiểm tra thiết lập của hai workflow (bảng trên).
+- `scripts/tests/app.sh`: `scripts/tests/run.sh` nạp file này trước dòng tổng kết. File dùng `expect`, `$work` và các bản giả của `run.sh`; lỗi tính vào cùng tổng. Test của `setup-check.sh` trong `run.sh` đặt `SETUP_CHECK_APP_CHECKS=none`, nên test của `setup-check-app.sh` nằm trong `app.sh`.
 
 ## 7. Lưu ý
 
