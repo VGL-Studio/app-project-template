@@ -39,10 +39,10 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /**
- * The heights the page of a flow step is laid out by (plan T-041), at the font scale of [flowStepMetrics]: the head
- * of the ad ([headerHeight]), the least height of the column layout ([columnMinHeight], media at its 120 dp floor and
- * no body), the least height of the page ([minHeight], the compact row; the page takes no ad below it), and one line
- * of the body ([bodyLineHeight]).
+ * The heights the page of a flow step is laid out by (plans T-041, T-049), at the font scale of [flowStepMetrics]: the
+ * head of the ad ([headerHeight]), the least height of the column layout ([columnMinHeight], media at its 120 dp
+ * floor and no body), the least height of the page ([minHeight], the compact row: 152 dp at font scale 1.0; the page
+ * takes no ad below it), and one line of the body ([bodyLineHeight]).
  */
 internal data class FlowStepMetrics(
     val headerHeight: Dp,
@@ -70,7 +70,7 @@ private const val BODY_MAX_LINES = 3
 /**
  * The [FlowStepMetrics] of the page at [density] (screen density and font scale, with the non-linear font table of
  * Android 14) and [typography]. The head of the ad holds the headline and the "Ad" line, 48 dp at least (the design's
- * number at font scale 1.0, where the page needs 360 dp for its column and 200 dp in all).
+ * number at font scale 1.0, where the page needs 360 dp for its column and 152 dp in all).
  */
 internal fun flowStepMetrics(density: Density, typography: Typography): FlowStepMetrics = with(density) {
     val badgeLine = max(lineHeightOf(typography.labelSmall), lineHeightOf(typography.bodySmall))
@@ -103,9 +103,12 @@ private fun Density.lineHeightOf(style: TextStyle): Dp {
     return ceil(px).toDp()
 }
 
-/** The right side of the compact row with no body: top bar, head, call to action, 16 dp apart. */
+/**
+ * The right side of the compact row with no body (plan T-049): the line of the head and the 36 dp cell kept for
+ * AdChoices beside it, then the call to action, 16 dp apart.
+ */
 private fun rowTextColumnMin(header: Dp): Dp =
-    NativeFullScreenAdDimens.TopBarHeight + PartGap + header + PartGap + NativeFullScreenAdDimens.CallToActionHeight
+    max(NativeFullScreenAdDimens.TopBarHeight, header) + PartGap + NativeFullScreenAdDimens.CallToActionHeight
 
 /** Lines of the body that fit in [room] (its 16 dp gap included), 3 at most; 0 or less draws no body. */
 private fun bodyLines(room: Dp, line: Dp): Int {
@@ -114,13 +117,17 @@ private fun bodyLines(room: Dp, line: Dp): Int {
 }
 
 /**
- * The page of a flow step (variant `Flow step` of the design, plans T-032 and T-041): no close button, AdChoices alone
- * in the 36 dp top bar (O-08), no padding for the safe area. The layout follows the height the app gives:
+ * The page of a flow step (variant `Flow step` of the design, plans T-032, T-041 and T-049): no close button, a
+ * 36 dp cell kept for AdChoices in the top right corner (O-08), no padding for the safe area. The layout follows the
+ * height the app gives:
  * - no height bound (a scrolling area): the column, media of 200 dp, body of 3 lines;
- * - [FlowStepMetrics.columnMinHeight] or more: the column of the design; the media shrinks first, never under 120 dp
- *   ([NativeAdDimens.MinMediaSize]), then the body loses lines (3, 2, 1, none);
- * - less: the compact row, media on the left, the text and the call to action on the right. Under
- *   [FlowStepMetrics.minHeight] the page takes no ad ([NativeFullScreenStepGate]).
+ * - [FlowStepMetrics.columnMinHeight] or more: the column of the design, AdChoices alone in its 36 dp top bar; the
+ *   media shrinks first, never under 120 dp ([NativeAdDimens.MinMediaSize]), then the body loses lines (3, 2, 1,
+ *   none);
+ * - less: the compact row, media on the left, the text and the call to action on the right; the 36 dp cell of
+ *   AdChoices sits right of the head of the ad, so no part of the ad cuts into the corner where the SDK pins the
+ *   real AdChoices. Under [FlowStepMetrics.minHeight] (152 dp at font scale 1.0) the page takes no ad
+ *   ([NativeFullScreenStepGate]).
  * The head of the ad grows with the font scale, and so do these heights. Each ad part goes through [binder].
  */
 @Composable
@@ -134,7 +141,7 @@ internal fun FlowStepPageLayout(
     val body = assets.body
     FlowStepPageFrame(
         modifier = modifier,
-        topBar = { FlowStepTopBar(adChoices) },
+        topBar = { barModifier -> FlowStepTopBar(adChoices, barModifier) },
         media = { mediaModifier ->
             Box(
                 modifier = mediaModifier
@@ -168,7 +175,7 @@ internal fun FlowStepPagePlaceholder(modifier: Modifier = Modifier) {
     val block = MaterialTheme.colorScheme.surfaceContainer
     FlowStepPageFrame(
         modifier = modifier,
-        topBar = { Spacer(Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight)) },
+        topBar = { barModifier -> Spacer(barModifier) },
         media = { mediaModifier ->
             Box(mediaModifier.clip(MaterialTheme.shapes.large).background(block))
         },
@@ -220,11 +227,14 @@ private fun PlaceholderLine(width: Dp, color: Color) {
     )
 }
 
-/** The 36 dp top bar of the page of a flow step: AdChoices on the right only, no control. */
+/**
+ * The 36 dp top bar of the page of a flow step, sized by [modifier] (the width of the column, or the 36 dp cell
+ * beside the head in the compact row): AdChoices on the right only, no control.
+ */
 @Composable
-private fun FlowStepTopBar(adChoices: @Composable () -> Unit) {
+private fun FlowStepTopBar(adChoices: @Composable () -> Unit, modifier: Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight),
+        modifier = modifier,
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -233,14 +243,14 @@ private fun FlowStepTopBar(adChoices: @Composable () -> Unit) {
 }
 
 /**
- * Picks the layout of the page from the height it gets ([FlowStepPageLayout]) and lays out the parts: [topBar],
- * [media] (sized by the modifier it gets), [header] (given the head height of the font scale), [body] (given the
+ * Picks the layout of the page from the height it gets ([FlowStepPageLayout]) and lays out the parts: [topBar] and
+ * [media] (each sized by the modifier it gets), [header] (given the head height of the font scale), [body] (given the
  * lines that fit; null for none) and [callToAction].
  */
 @Composable
 private fun FlowStepPageFrame(
     modifier: Modifier,
-    topBar: @Composable () -> Unit,
+    topBar: @Composable (Modifier) -> Unit,
     media: @Composable (Modifier) -> Unit,
     header: @Composable (headerHeight: Dp) -> Unit,
     body: (@Composable (lines: Int) -> Unit)?,
@@ -258,7 +268,7 @@ private fun FlowStepPageFrame(
                 }
                 FlowStepColumn(
                     fixedMediaHeight = if (bounded) null else UnboundedMediaHeight,
-                    topBar = topBar,
+                    topBar = { topBar(Modifier.fillMaxWidth().height(NativeFullScreenAdDimens.TopBarHeight)) },
                     media = { media(Modifier.fillMaxSize()) },
                     header = { header(metrics.headerHeight) },
                     body = if (body != null && lines > 0) ({ body(lines) }) else null,
@@ -277,9 +287,11 @@ private fun FlowStepPageFrame(
                 ) {
                     media(Modifier.fillMaxHeight().width(mediaWidth))
                     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                        topBar()
-                        Spacer(Modifier.height(PartGap))
-                        header(metrics.headerHeight)
+                        // The head and, on its right, the cell kept for AdChoices (plan T-049).
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.weight(1f)) { header(metrics.headerHeight) }
+                            topBar(Modifier.size(NativeFullScreenAdDimens.TopBarHeight))
+                        }
                         if (body != null && lines > 0) {
                             Spacer(Modifier.height(PartGap))
                             body(lines)

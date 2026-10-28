@@ -59,12 +59,17 @@ internal object NativeFlowStepTestTags {
 /** Numbers of the page of a flow step ([NativeFullScreenStep]) for the app (plan T-041). */
 object NativeFullScreenStepDefaults {
     /**
-     * The least height of the page at font scale 1.0: the page takes no ad in a shorter area. With larger text the
-     * least height grows with the head of the ad.
+     * The least height of the page at font scale 1.0 (plan T-049): the page takes no ad in a shorter area. With larger
+     * text the least height grows with the head of the ad; read [minHeight] for the number at the current font scale.
      */
-    val MinHeight: Dp = 200.dp
+    val MinHeight: Dp = 152.dp
 
-    /** The least height of the page at the current font scale. */
+    /**
+     * The least height of the page at the current font scale (plan T-049): [MinHeight] at 1.0, more with larger text
+     * (about 178 dp at 2.0). The page takes no ad and draws nothing in a shorter area, so an app that may give it less
+     * (a phone in landscape with its system bars: about 187 dp at 873 x 393 dp) compares its area with this function,
+     * never with the constant, and shows content of its own when the area is shorter.
+     */
     @Composable
     fun minHeight(): Dp {
         val density = LocalDensity.current
@@ -247,9 +252,10 @@ internal fun stepAdStates(
  * and shows an ad that comes later. When the activity is built again (rotation, fold, unfold) the page leaves like any
  * native slot (O-01, T-040): its ad is destroyed, the slot loads again, and the page built again shows the placeholder
  * until the new ad comes. Its layout follows the height of [modifier] and the font scale (plan T-041): the column of
- * the design, or a compact row on short areas; under [NativeFullScreenStepDefaults.MinHeight] (at font scale 1.0;
- * more with larger text) it takes no ad, draws nothing and records no `af_native_ad_eligible`. Give it 360 dp or more
- * for the column. It takes no ad until ads are allowed (consent given, `is_show_<placement>` on, an ad unit), and
+ * the design, or a compact row on short areas; under [NativeFullScreenStepDefaults.MinHeight] (152 dp at font scale
+ * 1.0; more with larger text, [NativeFullScreenStepDefaults.minHeight]) it takes no ad, draws nothing and records no
+ * `af_native_ad_eligible`: an app whose area may be shorter reads [NativeFullScreenStepDefaults.minHeight] and shows
+ * content of its own there. Give it 360 dp or more for the column. It takes no ad until ads are allowed (consent given, `is_show_<placement>` on, an ad unit), and
  * gives it up when the placement turns off (L-061). It does not go through the gate of full-screen ads: no
  * `ads_interval`, no mark, no `ad_opportunity` (plan T-032, question 4). Build the list of steps with
  * [rememberNativeFullScreenStepReady], read once, so the page is there only when the slot has an ad. Placements of
@@ -282,7 +288,8 @@ fun NativeFullScreenStep(
 
 /**
  * [NativeFullScreenStep] without an ads controller: collects [states] only while [allowed], [shown] and the area is
- * high enough for the page ([FlowStepMetrics.minHeight] at the font scale; no height bound always is); draws the ad
+ * high enough for the page ([FlowStepMetrics.minHeight] at the font scale, 152 dp at 1.0, as
+ * [NativeFullScreenStepDefaults.minHeight] gives the app; no height bound always is); draws the ad
  * with no controls and blocks the ads that show by themselves while it has one; draws the static placeholder while it
  * waits for an ad (plan T-041), nothing otherwise. Reports availability like [NativeAdSlotGate]: true on an ad, false
  * on no ad, and false when [allowed] turns false or the area gets too short after true was reported (L-061). A page

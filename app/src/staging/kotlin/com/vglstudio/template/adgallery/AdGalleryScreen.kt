@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -45,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,6 +61,7 @@ import com.vglstudio.template.core.ads.LocalAdsController
 import com.vglstudio.template.core.ads.NativeAdCell
 import com.vglstudio.template.core.ads.NativeAdSlot
 import com.vglstudio.template.core.ads.NativeFullScreenStep
+import com.vglstudio.template.core.ads.NativeFullScreenStepDefaults
 import com.vglstudio.template.core.ads.NativeStepAd
 import com.vglstudio.template.core.ads.NativeStepAdDefaults
 import com.vglstudio.template.core.ads.PrivacyOptionsButton
@@ -744,7 +747,9 @@ private fun PagerPage(pageCount: Int, slots: AdGallerySlots, modifier: Modifier)
  * step card sits outside the pager, in a fixed frame laid over the bottom of the step area, built only on the steps
  * with a card: the native page takes the whole step area (one native ad per step; plan T-041). The frame is as high
  * as the card, `NativeStepAdDefaults.height()` (250 dp at the default font scale, more with large text; plan T-045),
- * never a fixed 250 dp. The pager has the same height on every step and Next stays at one place (OB-01).
+ * never a fixed 250 dp. The pager has the same height on every step and Next stays at one place (OB-01). When the
+ * step area is shorter than the page needs, `NativeFullScreenStepDefaults.minHeight()` (a phone in landscape with
+ * large text; plan T-049), the native page is not built and a line says why, in place of an empty area.
  */
 @Composable
 private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modifier) {
@@ -758,6 +763,8 @@ private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modif
     val isFullPage = { page: Int -> withFullPage && page == FLOW_FULL_PAGE }
     // The fixed frame of the step card: the Next button stays at one place on every step (OB-01).
     val stepCardFrame = NativeStepAdDefaults.height()
+    // The least height of the native page at the font scale: below it the page would take no ad (plan T-049).
+    val fullPageLeast = NativeFullScreenStepDefaults.minHeight()
     Column(modifier = modifier.testTag(AdGalleryTestTags.FLOW)) {
         PageTitle(stringResource(R.string.ad_gallery_flow_title))
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -767,7 +774,25 @@ private fun FlowStepsPage(stepCount: Int, slots: AdGallerySlots, modifier: Modif
                 userScrollEnabled = false,
             ) { page ->
                 if (isFullPage(page)) {
-                    slots.StepFullPage(shown = pagerState.settledPage == page, modifier = Modifier.fillMaxSize())
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        if (maxHeight >= fullPageLeast) {
+                            slots.StepFullPage(
+                                shown = pagerState.settledPage == page,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.ad_gallery_flow_full_page_too_short),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .padding(horizontal = Spacing.md)
+                                    .testTag(AdGalleryTestTags.FLOW_FULL_PAGE_TOO_SHORT),
+                            )
+                        }
+                    }
                 } else {
                     val step = if (withFullPage && page > FLOW_FULL_PAGE) page else page + 1
                     // The bottom of the area is the card's: the text stays in the middle of the part above it.
