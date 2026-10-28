@@ -6,6 +6,7 @@ approved_by: <dev duyệt danh sách và kích hoạt phiên>
 max_tasks: <số task tối đa>      # dev quyết định theo ước tính; mặc định bằng số task trong danh sách (docs/CLAUDE.md, mục Khi lập danh sách chạy)
 staging_needed_by:           # tùy chọn: thời điểm muốn có bản staging, ví dụ 2026-10-21 08:00
 plan_queue: 2                # số plan soạn sẵn cuối phiên, 0 là tắt (auto-run.md, mục 4, bước 5); tăng lên 3 sau 2 phiên tốt
+open_with:                   # cloud | routine | local: cách mở phiên (docs/ops/session-capabilities.md); run-check.py quy tắc 8
 started_at:
 finished_at:
 staging_build:               # phiên bản bản staging được phát cuối phiên
@@ -30,6 +31,7 @@ staging_build:               # phiên bản bản staging được phát cuối 
 
 - **`scripts/run-check.py`:** <qua, hoặc các lỗi đã sửa>; chú ý: <từng dòng và kết luận>
 - **Rà soát độc lập:** <ngày, số điểm chặn, nên sửa, ghi chú>
+- **Cách mở phiên:** <open_with và lý do>; khả năng mà plan cần (quy tắc 8 của `run-check.py`, `docs/ops/session-capabilities.md`): <từng dòng và cách xử lý, hoặc "Không có">
 - **Hạn mức Actions:** <số phút CI ước tính của danh sách, số phút còn lại dev đã xem, ngày> (`auto-run.md` mục 1, L-094)
 
 | Mức | Ticket | Vấn đề | Xử lý |
@@ -56,7 +58,7 @@ Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 
 ### Nhánh chưa đẩy
 
-<Không có. Hoặc chép đoạn "Nhánh chưa đẩy" mà `scripts/save-branch.sh` in ra: nhánh, mã commit, đường dẫn bundle, lệnh lấy lại (auto-run.md, bước 7).>
+<Không có. Hoặc chép đoạn "Nhánh chưa đẩy" mà `scripts/save-branch.sh` in ra: nhánh, mã commit, đường dẫn bundle, lệnh lấy lại từ bundle, và dòng "Patch trên nhánh báo cáo" kèm lệnh lấy lại (khi GitHub từ chối vì quyền `workflow`, PB-14), hay dòng ghi chú vì sao không có patch (auto-run.md, bước 7).>
 
 ### Kết quả từng task
 

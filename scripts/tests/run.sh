@@ -829,6 +829,143 @@ PY
 expect "resume-check: finds a report branch on page 2 of the branches" docs/runs/RUN-20261018-01.md \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z python3 -I scripts/resume-check.py 2> /dev/null)"
 
+# run-watchdog.py opens an issue when a running session has no commit for 60 minutes, so a person can
+# continue a `claude --cloud` session that resume-run.yml does not continue (L-044, L-109).
+wd_time() { python3 -c "import datetime as d; print((d.datetime(2026,10,27,12,0,tzinfo=d.timezone.utc)-d.timedelta(minutes=$1)).strftime('%Y-%m-%dT%H:%M:%SZ'))"; }
+watchdog() { # <run status> <minutes since the last commit> [workflow runs: "min:branch:event:status:name,..." or -] [open issues JSON] [started_at] [errors JSON]
+  local last in_progress="" queued="" code=0 spec min branch event status name entry errors="${6:-}"
+  [ -n "$errors" ] || errors="{}"
+  last="$(wd_time "$2")"
+  if [ "${3:--}" != "-" ]; then
+    IFS=',' read -r -a specs <<< "$3"
+    for spec in "${specs[@]}"; do
+      IFS=':' read -r min branch event status name <<< "$spec"
+      entry="{\"name\": \"$name\", \"head_branch\": \"$branch\", \"event\": \"$event\", \"created_at\": \"$(wd_time "$min")\"}"
+      if [ "$status" = queued ]; then queued="${queued:+$queued, }$entry"; else in_progress="${in_progress:+$in_progress, }$entry"; fi
+    done
+  fi
+  rm -f "$work/wd.json.writes"
+  cat > "$work/wd.json" << JSON
+{"routes": {
+  "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261027-05-report"}, {"name": "claude/T-062-x"}, {"name": "claude/T-099-other"}],
+  "contents/docs/runs/RUN-20261027-05.md?ref=claude/RUN-20261027-05-report": "---\nid: RUN-20261027-05\nstatus: $1\nstarted_at: ${5:-2026-10-27T09:00:00Z}\n---\n\n## 1. Danh sách chạy\n\n| 1 | T-062 | demo |\n",
+  "commits/claude/RUN-20261027-05-report": {"commit": {"committer": {"date": "2026-10-27T09:05:00Z"}}},
+  "commits/claude/T-062-x": {"commit": {"committer": {"date": "$last"}}},
+  "commits/claude/T-099-other": {"commit": {"committer": {"date": "2026-10-27T11:59:00Z"}}},
+  "issues?state=open&labels=session-stalled&per_page=100": ${4:-[]},
+  "actions/runs?status=in_progress&per_page=100": {"workflow_runs": [$in_progress]},
+  "actions/runs?status=queued&per_page=100": {"workflow_runs": [$queued]},
+  "labels/session-stalled": {"name": "session-stalled"}
+}, "errors": $errors}
+JSON
+  PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z \
+    python3 -I scripts/run-watchdog.py > "$work/wd.out" 2>&1 || code=$?
+  echo "$code"
+}
+wd_writes() { if [ -f "$work/wd.json.writes" ]; then paste -sd ';' - < "$work/wd.json.writes"; else echo none; fi; }
+wd_open='[{"number": 41, "title": "session-stalled: RUN-20261027-05 không có commit 50 phút"}]'
+expect "run-watchdog: a running session quiet for 70 minutes exits 0" 0 "$(watchdog running 70)"
+expect "run-watchdog: ... opens one session-stalled issue" "POST issues" "$(wd_writes)"
+expect "run-watchdog: the issue body has the resume line" 1 \
+  "$(grep -c 'Đây là phiên tiếp tục: nhánh báo cáo đã có, danh sách chạy đang running.' "$work/wd.out")"
+expect "run-watchdog: the issue body has the whole prompt of staging-and-runs 2.7" 1 \
+  "$(grep -c '^Danh sách chạy: docs/runs/RUN-20261027-05.md. Danh sách không có trạng thái approved' "$work/wd.out")"
+expect "run-watchdog: the prompt names this run's report branch" 1 "$(grep -c 'git worktree add ../report claude/RUN-20261027-05-report' "$work/wd.out")"
+expect "run-watchdog: the body warns that a routine session is resumed by resume-run" 1 "$(grep -c 'không mở thêm phiên tay' "$work/wd.out")"
+expect "run-watchdog: the quiet time counts the latest commit of any branch of the run" 1 \
+  "$(grep -c 'không có commit nào trong 70 phút' "$work/wd.out")"
+watchdog running 59 > /dev/null
+expect "run-watchdog: 59 minutes is not quiet yet" none "$(wd_writes)"
+watchdog running 60 > /dev/null
+expect "run-watchdog: 60 minutes is quiet" "POST issues" "$(wd_writes)"
+watchdog running 70 "20:claude/T-062-x:pull_request:in_progress:pr-check" > /dev/null
+expect "run-watchdog: CI on a branch of the session means it may be waiting" none "$(wd_writes)"
+expect "run-watchdog: ... and says which workflow" 1 "$(grep -c 'đang có workflow chạy (pr-check)' "$work/wd.out")"
+watchdog running 70 "20:main:workflow_dispatch:queued:device-session" > /dev/null
+expect "run-watchdog: a queued run on main started by hand counts too" none "$(wd_writes)"
+watchdog running 70 "20:claude/T-099-other:pull_request:in_progress:pr-check" > /dev/null
+expect "run-watchdog: CI of a branch outside the session does not count" "POST issues" "$(wd_writes)"
+watchdog running 70 "20:main:schedule:in_progress:env-canary" > /dev/null
+expect "run-watchdog: a scheduled run on main does not count" "POST issues" "$(wd_writes)"
+watchdog running 70 "10:main:workflow_dispatch:in_progress:run-watchdog" > /dev/null
+expect "run-watchdog: its own run does not count" "POST issues" "$(wd_writes)"
+watchdog running 70 "74:claude/T-062-x:pull_request:in_progress:pr-check" > /dev/null
+expect "run-watchdog: a run created 4 minutes before the last commit counts (5 minutes of slack)" none "$(wd_writes)"
+watchdog running 70 "76:claude/T-062-x:pull_request:in_progress:pr-check" > /dev/null
+expect "run-watchdog: a run created 6 minutes before the last commit is not a wait" "POST issues" "$(wd_writes)"
+watchdog running 95 "20:claude/T-062-x:pull_request:in_progress:pr-check" > /dev/null
+expect "run-watchdog: past 90 minutes a running workflow no longer holds the issue back" "POST issues" "$(wd_writes)"
+watchdog running 70 - "$wd_open" > /dev/null
+expect "run-watchdog: an open issue is updated, not opened again" "PATCH issues/41" "$(wd_writes)"
+watchdog running 10 - "$wd_open" > /dev/null
+expect "run-watchdog: a new commit closes the issue with a comment" "PATCH issues/41;POST issues/41/comments" "$(wd_writes)"
+watchdog finished 300 - "$wd_open" > /dev/null
+expect "run-watchdog: a finished run closes its issue" "PATCH issues/41;POST issues/41/comments" "$(wd_writes)"
+watchdog finished 300 > /dev/null
+expect "run-watchdog: a finished run without an issue changes nothing" none "$(wd_writes)"
+watchdog running 70 - '[{"number": 7, "title": "main-broken: abc1234"}, {"number": 8, "title": "session-stalled: RUN-20261027-05 x", "pull_request": {}}]' > /dev/null
+expect "run-watchdog: issues that are not its own are never touched" "POST issues" "$(wd_writes)"
+watchdog running 70 - "[]" 2026-10-26T06:00:00Z > /dev/null
+expect "run-watchdog: a run older than 24 hours is still reported, with a note" 1 "$(grep -c 'hơn 24 giờ trước' "$work/wd.out")"
+expect "run-watchdog: a server error on the run file exits 1" 1 \
+  "$(watchdog running 10 - "$wd_open" "" '{"contents/docs/runs/RUN-20261027-05.md?ref=claude/RUN-20261027-05-report": "HTTP 500: Server Error"}')"
+expect "run-watchdog: ... and changes no issue" none "$(wd_writes)"
+expect "run-watchdog: a server error on the workflow runs exits 1" 1 \
+  "$(watchdog running 70 - "[]" "" '{"actions/runs?status=in_progress&per_page=100": "HTTP 502: Bad Gateway"}')"
+expect "run-watchdog: ... and opens no issue" none "$(wd_writes)"
+watchdog running 70 > /dev/null
+python3 -I - "$work/wd.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+fx["routes"]["branches?per_page=100&page=1"].append({"name": "claude/RUN-20261027-06-report"})
+fx["errors"] = {"contents/docs/runs/RUN-20261027-06.md?ref=claude/RUN-20261027-06-report": "HTTP 500: Server Error"}
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+rm -f "$work/wd.json.writes"
+expect "run-watchdog: a later run that cannot be read exits 1" 1 \
+  "$(PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py > /dev/null 2>&1; echo $?)"
+expect "run-watchdog: ... before anything is written for the first run" none "$(wd_writes)"
+watchdog running 70 > /dev/null
+python3 -I - "$work/wd.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+fx["fail_writes"] = ["POST issues"]
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+expect "run-watchdog: a write that fails exits 1" 1 \
+  "$(PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py 2> "$work/wd.err" > /dev/null; echo $?)"
+expect "run-watchdog: ... and says the write failed" 1 "$(grep -c 'Ghi issue lỗi' "$work/wd.err")"
+watchdog running 10 - "$wd_open" > /dev/null
+python3 -I - "$work/wd.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+fx["fail_writes"] = ["PATCH issues/41"]
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+rm -f "$work/wd.json.writes"
+PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py > /dev/null 2>&1 || true
+expect "run-watchdog: a close that fails adds no comment" "PATCH issues/41" "$(wd_writes)"
+watchdog running 70 > /dev/null
+python3 -I - "$work/wd.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+fx["routes"].pop("labels/session-stalled")
+fx["errors"] = {}
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+rm -f "$work/wd.json.writes"
+PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z \
+  python3 -I scripts/run-watchdog.py > /dev/null 2>&1 || true
+expect "run-watchdog: a missing label is created before the issue" "POST labels;POST issues" "$(wd_writes)"
+python3 -I - "$work/wd.json" << 'PY'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+fx["routes"].pop("branches?per_page=100&page=1")
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+expect "run-watchdog: GitHub that cannot be read exits 1" 1 \
+  "$(PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py > /dev/null 2>&1; echo $?)"
+
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"
 [ -z "${JAVA_HOME:-}" ] || java_cmd="${JAVA_HOME}/bin/java"
@@ -1144,6 +1281,248 @@ expect "cloud-env-check.sh stops when compileSdk cannot be read" stop \
   "$(VERSIONS_TOML="$work/no-compile-sdk.toml" env_check "$setup_version" "$work/gradle-home")"
 expect "cloud-env-check.sh names compileSdk when it cannot be read" 1 \
   "$(grep -c '^LỖI: không đọc được compileSdk' "$work/env-check.out" || true)"
+
+# local-setup.sh installs on a developer machine the JDK and the SDK packages of cloud-setup.sh, checking every
+# download against its published checksum (T-069 of camera-pose). curl, the Adoptium API, Google's package list and
+# sdkmanager are fakes, so no test touches the network; the JDK in the fake archive answers like fake_java above.
+ls_dir="$work/local-setup"
+mkdir -p "$ls_dir/bin" "$ls_dir/build"
+ls_release="$(sed -n 's/^JDK_RELEASE="\(.*\)"$/\1/p' scripts/local-setup.sh)"
+ls_tools="$(sed -nE 's/^CMDLINE_TOOLS_ZIP="commandlinetools-linux-([0-9]+)_latest\.zip"$/\1/p' scripts/cloud-setup.sh)"
+# Fake curl: `curl -fsSL <url> -o <file>`; answers from $ls_dir by the shape of the URL, logs every URL and every
+# argument list.
+cat > "$ls_dir/bin/curl" << 'SH'
+#!/usr/bin/env bash
+echo "$*" >> "$LS_DIR/curl-args.log"
+url="" out=""
+while [ "$#" -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; --proto | --proto-redir | --connect-timeout | --retry) shift 2 ;; -*) shift ;; *) url="$1"; shift ;; esac; done
+echo "$url" >> "$LS_DIR/curl.log"
+case "$url" in
+  *assets/release_name/*) src="$LS_DIR/jdk.json" ;;
+  *repository2-3.xml) src="$LS_DIR/repository.xml" ;;
+  *commandlinetools-mac-*_latest.zip) src="$LS_DIR/tools-mac.zip" ;;
+  *commandlinetools-linux-*_latest.zip) src="$LS_DIR/tools-linux.zip" ;;
+  *.tar.gz) src="$LS_DIR/jdk.tar.gz" ;;
+  *) exit 22 ;;
+esac
+[ -f "$src" ] || exit 22
+cp "$src" "$out"
+SH
+chmod +x "$ls_dir/bin/curl"
+# ls_jdk <mac|linux> <Java major>: writes the fake JDK archive and the Adoptium answer (right checksum).
+ls_jdk() {
+  local home="$ls_dir/build/jdk/$ls_release"
+  rm -rf "$ls_dir/build/jdk"
+  [ "$1" = mac ] && home="$home/Contents/Home"
+  mkdir -p "$home/bin"
+  fake_java "$2"
+  cp "$work/fake-jdk/bin/java" "$home/bin/java"
+  tar -czf "$ls_dir/jdk.tar.gz" -C "$ls_dir/build/jdk" "$ls_release"
+  jq -n --arg sum "$(shasum -a 256 "$ls_dir/jdk.tar.gz" | cut -d' ' -f1)" \
+    '{binaries: [{package: {link: "https://github.com/adoptium/temurin21-binaries/releases/download/fake/jdk.tar.gz", checksum: $sum}}]}' > "$ls_dir/jdk.json"
+}
+# The fake command-line tools: sdkmanager logs its arguments and creates the package directories.
+mkdir -p "$ls_dir/build/tools/cmdline-tools/bin"
+cat > "$ls_dir/build/tools/cmdline-tools/bin/sdkmanager" << 'SH'
+#!/usr/bin/env bash
+echo "$*" >> "$LS_DIR/sdkmanager.log"
+if [ "$1" = --install ]; then shift; for p in "$@"; do mkdir -p "$ANDROID_HOME/${p//;//}"; done; fi
+SH
+chmod +x "$ls_dir/build/tools/cmdline-tools/bin/sdkmanager"
+# Two zips with different content, so each OS has its own SHA-1 in the fake package list.
+for ls_os in mac linux; do
+  (cd "$ls_dir/build/tools" && LS_OS_NAME="$ls_os" python3 -c 'import os, zipfile
+with zipfile.ZipFile("../../tools-" + os.environ["LS_OS_NAME"] + ".zip", "w") as z:
+    i = zipfile.ZipInfo("cmdline-tools/bin/sdkmanager"); i.external_attr = 0o755 << 16
+    z.writestr(i, open("cmdline-tools/bin/sdkmanager").read())
+    z.writestr("cmdline-tools/" + os.environ["LS_OS_NAME"] + ".txt", os.environ["LS_OS_NAME"])')
+done
+ls_repo() { # <sha1 for the mac zip> <sha1 for the linux zip>
+  printf '<sdk>\n  <archive>\n    <complete>\n      <size>1</size>\n      <checksum type="sha1">%s</checksum>\n      <url>commandlinetools-mac-%s_latest.zip</url>\n    </complete>\n  </archive>\n  <archive>\n    <complete>\n      <size>1</size>\n      <checksum type="sha1">%s</checksum>\n      <url>commandlinetools-linux-%s_latest.zip</url>\n    </complete>\n  </archive>\n</sdk>\n' \
+    "$1" "$ls_tools" "${2:-$1}" "$ls_tools" > "$ls_dir/repository.xml"
+}
+ls_calls() { if [ -f "$ls_dir/curl.log" ]; then wc -l < "$ls_dir/curl.log" | tr -d ' '; else echo 0; fi; }
+ls_mac_sha1="$(shasum -a 1 "$ls_dir/tools-mac.zip" | cut -d' ' -f1)"
+ls_linux_sha1="$(shasum -a 1 "$ls_dir/tools-linux.zip" | cut -d' ' -f1)"
+# ls_run <home> [args...]: runs local-setup.sh with the fakes as a Mac on arm64 unless LS_OS, LS_ARCH say otherwise;
+# prints the exit code; output in $ls_dir/out.
+ls_run() {
+  local home="$1"; shift
+  set +e
+  HOME="$home" XDG_DATA_HOME="" LS_DIR="$ls_dir" CURL="$ls_dir/bin/curl" \
+    LOCAL_SETUP_OS="${LS_OS:-Darwin}" LOCAL_SETUP_ARCH="${LS_ARCH:-arm64}" \
+    LOCAL_SETUP_ADOPTIUM_API=https://api.example.test/v3 LOCAL_SETUP_GOOGLE_REPO=https://dl.example.test/repository \
+    scripts/local-setup.sh "$@" > "$ls_dir/out" 2>&1
+  echo $?
+  set -e
+}
+# ls_prefix <home> [script]: the default install dir that local-setup.sh prints for that HOME.
+ls_prefix() {
+  HOME="$1" XDG_DATA_HOME="" "${2:-scripts/local-setup.sh}" --print-versions 2> /dev/null | sed -n 's/^thư mục cài: //p' || true
+}
+ls_jdk mac 21
+ls_repo "$ls_mac_sha1" "$ls_linux_sha1"
+
+expect "local-setup.sh has a JDK release" yes "$([[ "$ls_release" == jdk-* ]] && echo yes || echo no)"
+expect "local-setup.sh reads the command-line tools build from cloud-setup.sh" "command-line tools: $ls_tools" \
+  "$(scripts/local-setup.sh --print-versions | sed -n 's/^command-line tools: /command-line tools: /p')"
+printf 'CMDLINE_TOOLS_ZIP="commandlinetools-linux-42_latest.zip"\n"${SDKMANAGER}" --install \\\n  "platform-tools" \\\n  "platforms;android-99" > /dev/null\n' \
+  > "$ls_dir/cloud-setup-fixture.sh"
+expect "local-setup.sh reads the package list after --install" "gói SDK: platform-tools platforms;android-99" \
+  "$(LOCAL_SETUP_CLOUD_SETUP="$ls_dir/cloud-setup-fixture.sh" scripts/local-setup.sh --print-versions | grep '^gói SDK')"
+printf 'echo nothing here\n' > "$ls_dir/cloud-setup-broken.sh"
+expect "local-setup.sh stops when cloud-setup.sh has no versions" 1 \
+  "$(LOCAL_SETUP_CLOUD_SETUP="$ls_dir/cloud-setup-broken.sh" ls_run "$ls_dir/home-broken" --print-versions)"
+expect "local-setup.sh names cloud-setup.sh when it cannot read the versions" 1 \
+  "$(grep -c '^LỖI: không đọc được phiên bản command-line tools' "$ls_dir/out" || true)"
+expect "local-setup.sh refuses an unknown argument" 2 "$(ls_run "$ls_dir/home-args" --prefx /tmp)"
+expect "local-setup.sh refuses --prefix without a directory" 2 "$(ls_run "$ls_dir/home-args" --prefix)"
+expect "local-setup.sh refuses a --prefix with a line break" 2 "$(ls_run "$ls_dir/home-args" --prefix "$ls_dir/a
+b")"
+
+# The default install dir is named after the repo, never after one app: the origin remote (the tests give every
+# git command the remote https://github.com/o/r.git), else the repo directory, cut down to safe characters.
+expect "local-setup.sh names the default install dir after the origin remote" "$ls_dir/home-mac/.local/share/r" \
+  "$(ls_prefix "$ls_dir/home-mac")"
+expect "local-setup.sh reads an ssh origin remote" "$ls_dir/h/.local/share/my-app" \
+  "$(GIT_CONFIG_VALUE_0=git@github.com:org/my-app.git ls_prefix "$ls_dir/h")"
+expect "local-setup.sh puts the install dir under XDG_DATA_HOME" "$ls_dir/xdg/r" \
+  "$(HOME="$ls_dir/h" XDG_DATA_HOME="$ls_dir/xdg" scripts/local-setup.sh --print-versions | sed -n 's/^thư mục cài: //p')"
+ls_named="$ls_dir/named/My App!"
+mkdir -p "$ls_named/scripts"
+cp scripts/local-setup.sh scripts/cloud-setup.sh "$ls_named/scripts/"
+git init -q -b main "$ls_named"
+expect "local-setup.sh falls back to the repo directory name without an origin remote" "$ls_dir/h/.local/share/My-App-" \
+  "$(GIT_CONFIG_COUNT=0 ls_prefix "$ls_dir/h" "$ls_named/scripts/local-setup.sh")"
+expect "local-setup.sh has no app name in its default install dir" 0 \
+  "$(grep -c '^prefix=.*camera-pose' scripts/local-setup.sh || true)"
+
+ls_mac_prefix="$(ls_prefix "$ls_dir/home-mac")"
+expect "local-setup.sh --check on an empty machine reports missing" 1 "$(ls_run "$ls_dir/home-mac" --check)"
+expect "local-setup.sh --check makes no download" 0 "$(ls_calls)"
+rm -f "$ls_dir/curl.log" "$ls_dir/curl-args.log" "$ls_dir/sdkmanager.log"
+expect "local-setup.sh installs on a Mac" 0 "$(ls_run "$ls_dir/home-mac")"
+expect "local-setup.sh downloads the JDK info, the JDK, the package list and the tools" 4 \
+  "$(ls_calls)"
+expect "local-setup.sh allows only HTTPS, redirects included, on every download" 4 \
+  "$(grep -c -- "--proto =https --proto-redir =https " "$ls_dir/curl-args.log" || true)"
+expect "local-setup.sh asks Adoptium for the mac aarch64 JDK" 1 \
+  "$(grep -c "release_name/eclipse/${ls_release//+/%2B}?architecture=aarch64&image_type=jdk&os=mac" "$ls_dir/curl.log" || true)"
+expect "local-setup.sh downloads the mac command-line tools" 1 \
+  "$(grep -c "/commandlinetools-mac-${ls_tools}_latest.zip$" "$ls_dir/curl.log" || true)"
+expect "local-setup.sh installs the packages of cloud-setup.sh" \
+  "--install $(scripts/local-setup.sh --print-versions | sed -n 's/^gói SDK: //p')" \
+  "$(grep '^--install' "$ls_dir/sdkmanager.log")"
+ls_env="$ls_mac_prefix/env.sh"
+expect "local-setup.sh writes JAVA_HOME to Contents/Home on a Mac" 1 \
+  "$(grep -c "^export JAVA_HOME=\"$ls_mac_prefix/jdk/$ls_release/Contents/Home\"$" "$ls_env" || true)"
+expect "local-setup.sh writes ANDROID_HOME" 1 "$(grep -c "^export ANDROID_HOME=\"$ls_dir/home-mac/android-sdk\"$" "$ls_env" || true)"
+expect "local-setup.sh writes ANDROID_SDK_ROOT" 1 "$(grep -c "^export ANDROID_SDK_ROOT=\"$ls_dir/home-mac/android-sdk\"$" "$ls_env" || true)"
+expect "local-setup.sh puts the JDK and platform-tools on PATH" 1 \
+  "$(grep -cF "/jdk/$ls_release/Contents/Home/bin:$ls_dir/home-mac/android-sdk/platform-tools:\${PATH}\"" "$ls_env" || true)"
+expect "local-setup.sh accepts the SDK licences" 1 "$(grep -c '^--licenses$' "$ls_dir/sdkmanager.log" || true)"
+expect "local-setup.sh leaves no temp dir behind" 0 \
+  "$(find "$ls_dir/home-mac" -name '.tmp.*' 2> /dev/null | wc -l | tr -d ' ')"
+# JAVA_HOME points nowhere before env.sh is sourced, so the Java of the machine running the tests cannot pass
+# this test in place of the JDK that env.sh names (RUN-20261027-02 of camera-pose).
+expect "env.sh gives a Java that java-check.sh accepts" 0 \
+  "$(set +e; (export JAVA_HOME="$ls_dir/no-such-jdk"; . "$ls_env"; scripts/java-check.sh > /dev/null 2>&1); echo $?)"
+cp "$ls_env" "$ls_dir/env-first.sh" 2> /dev/null || : > "$ls_dir/env-first.sh"
+rm -f "$ls_dir/curl.log"
+expect "local-setup.sh runs again without error" 0 "$(ls_run "$ls_dir/home-mac")"
+expect "local-setup.sh downloads nothing the second time" 0 "$(ls_calls)"
+expect "local-setup.sh says both steps were skipped" 2 "$(grep -c '^Bỏ qua:' "$ls_dir/out" || true)"
+expect "local-setup.sh leaves env.sh as it was" same "$(cmp -s "$ls_dir/env-first.sh" "$ls_env" && echo same || echo changed)"
+expect "local-setup.sh --check after the install passes" 0 "$(ls_run "$ls_dir/home-mac" --check)"
+expect "local-setup.sh --check lists every package" 3 "$(grep -c '^QUA: \(platform-tools\|platforms;\|build-tools;\)' "$ls_dir/out" || true)"
+
+ls_pkg="$(scripts/local-setup.sh --print-versions | sed -n 's/^gói SDK: //p' | awk '{print $NF}' || true)"
+mv "$ls_dir/home-mac/android-sdk/${ls_pkg//;//}" "$ls_dir/pkg-aside" 2> /dev/null || true
+expect "local-setup.sh --check fails when one SDK package is missing" 1 "$(ls_run "$ls_dir/home-mac" --check)"
+expect "local-setup.sh --check names the missing package" 1 "$(grep -cxF "THIẾU: $ls_pkg" "$ls_dir/out" || true)"
+mv "$ls_dir/pkg-aside" "$ls_dir/home-mac/android-sdk/${ls_pkg//;//}" 2> /dev/null || true
+# A JDK left half-installed (java does not run) is installed again, not taken as present.
+printf '#!/bin/sh\nexit 1\n' > "$ls_mac_prefix/jdk/$ls_release/Contents/Home/bin/java" 2> /dev/null || true
+rm -f "$ls_dir/curl.log"
+expect "local-setup.sh installs a JDK that does not run again" 0 "$(ls_run "$ls_dir/home-mac")"
+expect "local-setup.sh says the broken JDK is installed again" 1 "$(grep -c 'không chạy được (cài dở?): cài lại' "$ls_dir/out" || true)"
+expect "local-setup.sh downloads only the JDK again" 2 "$(ls_calls)"
+expect "local-setup.sh refuses a relative --prefix" 2 "$(ls_run "$ls_dir/home-args" --prefix relative/dir)"
+expect "local-setup.sh refuses a relative --sdk" 2 "$(ls_run "$ls_dir/home-args" --sdk sdk)"
+mkdir -p "$ls_dir/home-cloud" && echo 3 > "$ls_dir/home-cloud/.cloud-setup-version"
+expect "local-setup.sh refuses to run in a cloud environment" 1 "$(ls_run "$ls_dir/home-cloud")"
+expect "local-setup.sh points a cloud environment at CLAUDE.md" 1 "$(grep -c 'chỉ dành cho máy dev' "$ls_dir/out" || true)"
+expect "local-setup.sh makes no download in a cloud environment" no "$([ -e "$ls_dir/home-cloud/android-sdk" ] && echo yes || echo no)"
+expect "local-setup.sh refuses a machine without a needed tool" 1 \
+  "$(LOCAL_SETUP_TOOLS="curl no-such-tool-t069" ls_run "$ls_dir/home-tools" --check)"
+expect "local-setup.sh names the missing tool" 1 "$(grep -c '^LỖI: máy thiếu công cụ: no-such-tool-t069' "$ls_dir/out" || true)"
+printf 'CMDLINE_TOOLS_ZIP="commandlinetools-linux-42_latest.zip"\n"${SDKMANAGER}" --install \\\n  "platform-tools" \\\n  "platforms;android-99"\n  "systemProp.org.gradle.internal.repository.max.retries=8" \\\n' \
+  > "$ls_dir/cloud-setup-shape.sh"
+expect "local-setup.sh refuses a package name that is not an SDK package" 1 \
+  "$(LOCAL_SETUP_CLOUD_SETUP="$ls_dir/cloud-setup-shape.sh" ls_run "$ls_dir/home-shape" --print-versions)"
+expect "local-setup.sh names the bad package" 1 "$(grep -c 'gói không hợp lệ: systemProp' "$ls_dir/out" || true)"
+# The packages read from cloud-setup.sh are the ones cloud-setup.sh itself passes to sdkmanager: run the real
+# cloud-setup.sh with a temp HOME and a fake sdkmanager already in place (so it downloads nothing).
+mkdir -p "$ls_dir/home-cloudsetup/android-sdk/cmdline-tools/latest/bin"
+printf '#!/bin/sh\n[ "$1" = --install ] && { shift; echo "$*" > "$HOME/install-args"; }\nexit 0\n' \
+  > "$ls_dir/home-cloudsetup/android-sdk/cmdline-tools/latest/bin/sdkmanager"
+chmod +x "$ls_dir/home-cloudsetup/android-sdk/cmdline-tools/latest/bin/sdkmanager"
+HOME="$ls_dir/home-cloudsetup" bash scripts/cloud-setup.sh > /dev/null 2>&1 || true
+expect "local-setup.sh installs exactly what cloud-setup.sh installs" \
+  "$(cat "$ls_dir/home-cloudsetup/install-args" 2> /dev/null || echo 'cloud-setup.sh did not run')" \
+  "$(scripts/local-setup.sh --print-versions 2> /dev/null | sed -n 's/^gói SDK: //p' || true)"
+# A wrong checksum stops before anything is unpacked into place.
+jq '.binaries[0].package.checksum = "0000"' "$ls_dir/jdk.json" > "$ls_dir/jdk.json.new" && mv "$ls_dir/jdk.json.new" "$ls_dir/jdk.json"
+expect "local-setup.sh refuses a JDK with a wrong SHA-256" 1 "$(ls_run "$ls_dir/home-badjdk")"
+expect "local-setup.sh names the SHA-256 mismatch" 1 "$(grep -c '^LỖI: mã SHA-256 của JDK không khớp' "$ls_dir/out" || true)"
+expect "local-setup.sh leaves no JDK after a wrong SHA-256" no \
+  "$([ -e "$(ls_prefix "$ls_dir/home-badjdk")/jdk/$ls_release" ] && echo yes || echo no)"
+ls_jdk mac 21
+jq '.binaries[0].package.link = "https://evil.example.test/jdk.tar.gz"' "$ls_dir/jdk.json" > "$ls_dir/jdk.json.new" && mv "$ls_dir/jdk.json.new" "$ls_dir/jdk.json"
+expect "local-setup.sh refuses a JDK link outside github.com/adoptium" 1 "$(ls_run "$ls_dir/home-badlink")"
+expect "local-setup.sh names the JDK link" 1 "$(grep -c '^LỖI: đường tải JDK không nằm ở https://github.com/adoptium/' "$ls_dir/out" || true)"
+ls_jdk mac 21
+ls_repo 0000000000000000000000000000000000000000 0000000000000000000000000000000000000000
+expect "local-setup.sh refuses command-line tools with a wrong SHA-1" 1 "$(ls_run "$ls_dir/home-badtools")"
+expect "local-setup.sh names the SHA-1 mismatch" 1 "$(grep -c '^LỖI: mã SHA-1 của commandlinetools-mac-' "$ls_dir/out" || true)"
+expect "local-setup.sh leaves no command-line tools after a wrong SHA-1" no \
+  "$([ -e "$ls_dir/home-badtools/android-sdk/cmdline-tools/latest" ] && echo yes || echo no)"
+ls_repo "$ls_mac_sha1" "$ls_linux_sha1"
+printf '<sdk/>\n' > "$ls_dir/repository.xml"
+expect "local-setup.sh stops when Google's list has no checksum for the tools" 1 "$(ls_run "$ls_dir/home-nosum")"
+ls_repo "$ls_mac_sha1" "$ls_linux_sha1"
+
+# Linux x86_64: other URLs, JAVA_HOME at the top of the JDK.
+ls_jdk linux 21
+rm -f "$ls_dir/curl.log"
+expect "local-setup.sh installs on Linux x86_64" 0 "$(LS_OS=Linux LS_ARCH=x86_64 ls_run "$ls_dir/home-linux")"
+expect "local-setup.sh asks Adoptium for the linux x64 JDK" 1 "$(grep -c 'architecture=x64&image_type=jdk&os=linux' "$ls_dir/curl.log" || true)"
+expect "local-setup.sh downloads the linux command-line tools" 1 \
+  "$(grep -c "/commandlinetools-linux-${ls_tools}_latest.zip$" "$ls_dir/curl.log" || true)"
+ls_linux_prefix="$(ls_prefix "$ls_dir/home-linux")"
+expect "local-setup.sh writes JAVA_HOME at the top of the JDK on Linux" 1 \
+  "$(grep -c "^export JAVA_HOME=\"$ls_linux_prefix/jdk/$ls_release\"$" "$ls_linux_prefix/env.sh" || true)"
+expect "local-setup.sh refuses another system" 1 "$(LS_OS=FreeBSD ls_run "$ls_dir/home-bsd")"
+
+# A JDK that java-check.sh does not accept is reported, not left silently in env.sh.
+ls_jdk mac 26
+expect "local-setup.sh stops when java-check.sh refuses the JDK" 1 "$(ls_run "$ls_dir/home-java26")"
+expect "local-setup.sh names java-check.sh and the JDK dir to delete" 1 \
+  "$(grep -c "^LỖI: scripts/java-check.sh không nhận JDK vừa cài. Xem lại JDK_RELEASE, xóa $(ls_prefix "$ls_dir/home-java26")/jdk/$ls_release" "$ls_dir/out" || true)"
+ls_jdk mac 21
+# --prefix and --sdk move the install.
+expect "local-setup.sh honours --prefix and --sdk" 0 "$(ls_run "$ls_dir/home-custom" --prefix "$ls_dir/custom" --sdk "$ls_dir/custom-sdk")"
+expect "local-setup.sh writes env.sh under --prefix" 1 "$(grep -c "^export ANDROID_HOME=\"$ls_dir/custom-sdk\"$" "$ls_dir/custom/env.sh" || true)"
+# A --prefix or --sdk with characters that mean something inside double quotes (" $ ` \) is written to env.sh as
+# it is: sourcing env.sh gives back the same paths and runs nothing.
+ls_odd="$ls_dir/odd \"q\" \$HOME \`touch $ls_dir/ran\` back\\slash"
+expect "local-setup.sh installs under a --prefix with quotes and dollars" 0 \
+  "$(ls_run "$ls_dir/home-odd" --prefix "$ls_odd" --sdk "$ls_odd/sdk")"
+expect "env.sh gives back a JAVA_HOME with quotes and dollars as it is" "$ls_odd/jdk/$ls_release/Contents/Home" \
+  "$(set +e; (. "$ls_odd/env.sh" 2> /dev/null; printf '%s' "${JAVA_HOME:-}"))"
+expect "env.sh gives back an ANDROID_HOME with quotes and dollars as it is" "$ls_odd/sdk" \
+  "$(set +e; (. "$ls_odd/env.sh" 2> /dev/null; printf '%s' "${ANDROID_HOME:-}"))"
+expect "env.sh runs no command hidden in the path" no "$([ -e "$ls_dir/ran" ] && echo yes || echo no)"
 
 # plan-check.py finds, from the plan alone, what would otherwise stop a task during the night (L-020).
 repo="$work/plan-repo"
@@ -1654,6 +2033,84 @@ expect "run-check: a hint with this plan as subject stops" stop "$(run_check)"
 plan3 '- Đề xuất thứ tự chạy: T-003 chạy trước T-002.'
 expect "run-check: a hint with this plan as subject that the list follows passes" pass "$(run_check)"
 rm -f "$rr/docs/features/demo/tickets/T-003-x.md" "$rr/docs/features/demo/plans/T-003-x.md" "$rr/feature/demo/C.kt"
+
+# Rule 8: what the way of opening the session can do (L-112).
+mkdir -p "$rr/docs/ops" "$rr/.github/workflows"
+touch "$rr/.github/workflows/ci.yml"
+cap_table() { # <cloud> <routine> <local>: the value of workflow-push for each way of opening
+  printf -- '# x\n\n| `workflow-push` | `^docs/` | không | không | không | outside the markers |\n\n<!-- capabilities:start -->\n| Khả năng | Mẫu đường dẫn ở mục 3.2 | cloud | routine | local | Ghi chú |\n| --- | --- | --- | --- | --- | --- |\n| `workflow-push` | `^\\.github/workflows/` | %s | %s | %s | x |\n| `r2-network` | - | không | không | có | x |\n<!-- capabilities:end -->\n\n| Khả năng | Mẫu | cloud | routine | local | Ghi chú |\n| --- | --- | --- | --- | --- | --- |\n| `workflow-push` | `^docs/` | không | không | không | another table after the markers |\n' \
+    "$1" "$2" "$3" > "$rr/docs/ops/session-capabilities.md"
+}
+open_with() { # <value>: sets open_with in the front matter of the run list written by write_run
+  perl -0pi -e "s/^status: draft\n/status: draft\nopen_with: $1\n/m" "$rr/docs/runs/RUN-1.md"
+}
+high_risk() { # <id>: a plan that touches .github/ is high risk with a cross reviewer (risk-scoring.md, mục 1)
+  perl -0pi -e 's/^risk_level: medium\n/risk_level: high\nblocking_points: [ci]\ncross_reviewer: B\n/m' "$rr/docs/features/demo/plans/$1-x.md"
+}
+write_ticket T-004 ''
+write_run_plan T-004 .github/workflows/ci.yml '| KB-1 | Unit | `cTest` |'
+high_risk T-004
+cap_table thử thử có
+write_run "$(run_row 1 T-001)$(run_row 2 T-004)"
+open_with cloud
+expect "run-check: a workflow plan in a cloud session that must probe passes" pass "$(run_check)"
+expect "run-check: ... and warns that the session probes at its start" 1 \
+  "$(grep -c "CHÚ Ý: T-004 cần 'workflow-push' (\`.github/workflows/ci.yml\` ở mục 3.2): phiên mở bằng cloud phải thử ở đầu phiên" "$work/run-check.out" || true)"
+cap_table không thử có
+expect "run-check: a workflow plan in a session that cannot push workflows stops" stop "$(run_check)"
+expect "run-check: the error names the task, the capability, the path and the way of opening" 1 \
+  "$(grep -c "LỖI: T-004 cần 'workflow-push' (\`.github/workflows/ci.yml\` ở mục 3.2) mà phiên mở bằng cloud không có" "$work/run-check.out" || true)"
+expect "run-check: a plan without a workflow path gets no capability message" 0 "$(grep -c 'T-001 cần' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-004)"
+open_with local
+expect "run-check: the same plan in a local session passes" pass "$(run_check)"
+expect "run-check: a local session that can push workflows says nothing about it" 0 "$(grep -c 'workflow-push' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-004)"
+open_with cloud
+expect "run-check: RUN_CHECK_OPEN_WITH overrides open_with" pass "$(RUN_CHECK_OPEN_WITH=local run_check)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-004)"
+expect "run-check: a list without open_with whose plan needs a capability passes" pass "$(run_check)"
+expect "run-check: ... and warns that open_with is missing" 1 "$(grep -c "CHÚ Ý: danh sách chưa ghi open_with.*nhận ''.*T-004" "$work/run-check.out" || true)"
+open_with clould
+expect "run-check: an unknown open_with is read as missing" 1 "$(run_check > /dev/null; grep -c "chưa ghi open_with.*nhận 'clould'" "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+expect "run-check: a list without open_with and without such plans has no open_with message" 0 \
+  "$(run_check > /dev/null; grep -c 'open_with' "$work/run-check.out" || true)"
+write_run_plan T-002 .github/workflows/ci.yml '| KB-1 | Unit | `bTest` |'
+high_risk T-002
+write_run "$(run_row 1 T-002)$(run_row 2 T-004)"
+open_with cloud
+expect "run-check: every plan that needs the missing capability is an error" 2 "$(run_check > /dev/null; grep -c "LỖI: T-00[24] cần 'workflow-push'" "$work/run-check.out" || true)"
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa 'Cách làm: xem `.github/workflows/ci.yml`, không sửa.'
+write_run "$(run_row 1 T-001)"
+open_with cloud
+expect "run-check: a workflow path only in the prose of a plan needs nothing" "pass 0" "$(run_check) $(grep -c 'workflow-push' "$work/run-check.out" || true)"
+printf -- '<!-- capabilities:start -->\n| Khả năng | Mẫu đường dẫn ở mục 3.2 | local | routine | cloud |\n| --- | --- | --- | --- | --- |\n| `workflow-push` | `^\\.github/workflows/` | có | có | không |\n| `broken` | `(` | có | có | có |\n<!-- capabilities:end -->\n' > "$rr/docs/ops/session-capabilities.md"
+write_run "$(run_row 1 T-004)"
+open_with cloud
+expect "run-check: columns are read by their header" stop "$(run_check)"
+expect "run-check: a pattern that does not compile is a warning" 1 "$(grep -c "CHÚ Ý: docs/ops/session-capabilities.md: mẫu của 'broken' không đọc được" "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-004)"
+open_with local
+expect "run-check: the same reordered table lets a local session pass" pass "$(run_check)"
+cap_table không thử có
+touch "$rr/docs/x.md"
+write_run_plan T-001 docs/x.md '| KB-1 | Unit | `aTest` |'
+write_run "$(run_row 1 T-001)"
+open_with cloud
+expect "run-check: a row outside the markers and a row without a pattern are not checked" pass "$(run_check)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
+cp docs/ops/session-capabilities.md "$rr/docs/ops/session-capabilities.md" 2> /dev/null || rm -f "$rr/docs/ops/session-capabilities.md"
+write_run "$(run_row 1 T-004)"
+open_with cloud
+expect "run-check: the table of the repository asks a cloud session to probe workflow pushes" 1 \
+  "$(run_check > /dev/null; grep -c "CHÚ Ý: T-004 cần 'workflow-push'.*cloud phải thử" "$work/run-check.out" || true)"
+rm -f "$rr/docs/ops/session-capabilities.md"
+write_run "$(run_row 1 T-004)"
+open_with cloud
+expect "run-check: without the table no capability is checked" "pass 0" "$(run_check) $(grep -c 'workflow-push' "$work/run-check.out" || true)"
+rm -rf "$rr/docs/x.md" "$rr/docs/features/demo/tickets/T-004-x.md" "$rr/docs/features/demo/plans/T-004-x.md" "$rr/.github" "$rr/docs/ops"
 
 # Files of other plans: a plan using a file that a later plan creates (and not in its own section 3.2).
 git init -q "$rr"
@@ -3220,6 +3677,180 @@ sb_hook_mode reject
 expect "save-branch: refuses a branch outside claude/" 2 "$(sb_run main)"
 expect "save-branch: a branch outside claude/is never pushed" 0 "$(sb_calls_count)"
 expect "save-branch: refuses a branch that does not exist" 2 "$(sb_run claude/T-000-none)"
+# A push that GitHub refuses for lack of the workflow scope is also handed off as a patch on the report branch,
+# pushed there for a person to review and apply (PB-14, ADR-0032). Never with --bundle-only, never for another refusal.
+sb_report="$work/sb-report"
+sb_report_branch=claude/RUN-20261027-09-report
+sb_hook_mode none
+git -C "$sb_clone" worktree add -q -b "$sb_report_branch" "$sb_report" main
+git -C "$sb_report" push -q -u origin "$sb_report_branch"
+git -C "$sb_clone" checkout -q -b claude/T-997-patch main
+printf 'one\n' > "$sb_clone/a.txt"
+git -C "$sb_clone" add a.txt && git -C "$sb_clone" commit -q -m "T-997: a"
+mkdir -p "$sb_clone/.github/workflows"
+printf 'name: x\n' > "$sb_clone/.github/workflows/x.yml"
+printf '\x00\x01\x02\xff' > "$sb_clone/b.bin"
+git -C "$sb_clone" add .github/workflows/x.yml b.bin && git -C "$sb_clone" commit -q -m "T-997: workflow and binary"
+sb_patch_head="$(git -C "$sb_clone" rev-parse HEAD)"
+sb_mbox_rel="docs/runs/patches/RUN-20261027-09/claude__T-997-patch.mbox"
+sb_hook_scope() { # <task | all | task-and-deny-report>: GitHub refusing a workflow change without the workflow scope
+  rm -f "$sb_calls" "$sb_calls.count"
+  local task="echo 'remote: refusing to allow an OAuth App to create or update workflow .github/workflows/x.yml without workflow scope' >&2; exit 1"
+  local report=':'
+  case "$1" in
+    all) report="$task" ;;
+    task-and-deny-report) report="echo 'remote: denied' >&2; exit 1" ;;
+  esac
+  printf '#!/bin/sh\nwhile read old new ref; do case "$ref" in refs/heads/claude/T-*) echo x >> "%s"; %s;; refs/heads/claude/RUN-*) %s;; esac; done\nexit 0\n' \
+    "$sb_calls" "$task" "$report" > "$sb_hook"
+  chmod +x "$sb_hook"
+}
+sb_report_has() { git -C "$sb_origin" cat-file -e "refs/heads/$sb_report_branch:$1" 2> /dev/null && echo yes || echo no; }
+sb_report_commits() { git -C "$sb_origin" rev-list --count "main..$sb_report_branch"; }
+sb_report_reset() { git -C "$sb_report" reset -q --hard main && git -C "$sb_report" push -q -f origin "$sb_report_branch"; }
+sb_apply_check() { # <file of printed output> <branch>: runs the printed commands (but git push) in a fresh clone; prints the tree
+  rm -rf "$work/sb-apply"
+  git clone -q "$sb_origin" "$work/sb-apply" 2> /dev/null
+  git -C "$work/sb-apply" config user.email p@example.com
+  git -C "$work/sb-apply" config user.name p
+  local cmds
+  cmds="$(awk '/^- Patch trên nhánh báo cáo/ { on = 1; next } on && /^```$/ { n++; if (n == 2) exit; next } on && n == 1 && !/^git push/' "$1")"
+  (cd "$work/sb-apply" && eval "$cmds") > /dev/null 2>&1 || true
+  git -C "$work/sb-apply" rev-parse -q --verify "$2^{tree}" || echo none
+}
+sb_hook_scope task
+expect "save-branch patch: a workflow-scope refusal still exits 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: the mbox is on the pushed report branch" yes "$(sb_report_has "$sb_mbox_rel")"
+expect "save-branch patch: the report branch got one commit" 1 "$(sb_report_commits)"
+expect "save-branch patch: the rescue section names the patch for a person to review" yes \
+  "$(grep -qF -- "- Patch trên nhánh báo cáo, để người xem rồi tự quyết áp hay không: \`$sb_mbox_rel\`" "$work/sb.out" && echo yes || echo no)"
+expect "save-branch patch: the bundle is still made" ok \
+  "$(git -C "$sb_clone" bundle verify "$work/rescue/claude__T-997-patch.bundle" > /dev/null 2>&1 && echo ok || echo bad)"
+expect "save-branch patch: the printed commands rebuild the same tree" "$(git -C "$sb_clone" rev-parse "$sb_patch_head^{tree}")" \
+  "$(sb_apply_check "$work/sb.out" claude/T-997-patch)"
+expect "save-branch patch: the rebuilt branch keeps both commit messages" "T-997: workflow and binary|T-997: a" \
+  "$(git -C "$work/sb-apply" log --format=%s origin/main..claude/T-997-patch 2> /dev/null | paste -sd '|' -)"
+expect "save-branch patch: the check worktree is removed" 2 "$(git -C "$sb_clone" worktree list | grep -c .)"
+expect "save-branch patch: the same patch again exits 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: ... adds no second commit" 1 "$(sb_report_commits)"
+expect "save-branch patch: ... still prints the commands" 1 "$(grep -c '| git am$' "$work/sb.out")"
+sb_report_reset
+sb_hook_mode reject
+expect "save-branch patch: another refusal exits 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: another refusal writes no patch" no "$(sb_report_has "$sb_mbox_rel")"
+expect "save-branch patch: another refusal says why" 1 "$(grep -c 'chỉ ghi khi GitHub từ chối vì quyền workflow' "$work/sb.out")"
+sb_hook_scope task
+rm -f "$sb_calls"
+expect "save-branch patch: --bundle-only exits 3" 3 "$(sb_run --bundle-only claude/T-997-patch)"
+expect "save-branch patch: --bundle-only never writes the patch" no "$(sb_report_has "$sb_mbox_rel")"
+expect "save-branch patch: --bundle-only leaves the report worktree clean" "" "$(git -C "$sb_report" status --short)"
+expect "save-branch patch: --bundle-only says it does not push in another form" 1 "$(grep -c 'không đẩy lại dưới dạng khác' "$work/sb.out")"
+expect "save-branch patch: --bundle-only never pushes the task branch" 0 "$(sb_calls_count)"
+printf 'session draft\n' > "$sb_report/notes.md"
+git -C "$sb_report" add notes.md
+expect "save-branch patch: other staged changes of the report worktree" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: ... stay staged, not committed" "A  notes.md" "$(git -C "$sb_report" status --short notes.md)"
+git -C "$sb_report" rm -q --cached notes.md && rm -f "$sb_report/notes.md"
+sb_report_reset
+printf '#!/bin/sh\nexit 1\n' > "$sb_clone/.git/hooks/pre-commit" && chmod +x "$sb_clone/.git/hooks/pre-commit"
+expect "save-branch patch: a commit that fails exits 3" 3 "$(sb_run claude/T-997-patch)"
+rm -f "$sb_clone/.git/hooks/pre-commit"
+expect "save-branch patch: a failed commit leaves no file and nothing staged" "" "$(git -C "$sb_report" status --short --untracked-files=all)"
+expect "save-branch patch: a failed commit says so" 1 "$(grep -c 'Không commit được patch' "$work/sb.out")"
+expect "save-branch patch: a patch over the limit is left out" 3 "$(SAVE_BRANCH_PATCH_MAX_BYTES=100 sb_run claude/T-997-patch)"
+expect "save-branch patch: over the limit, no patch on the report branch" no "$(sb_report_has "$sb_mbox_rel")"
+expect "save-branch patch: over the limit says so" 1 "$(grep -c 'lớn hơn giới hạn 100 byte' "$work/sb.out")"
+sb_token="$(printf '%s%s' "gh""p_" "abcdefghijklmnopqrstuvwxyz0123456789")"
+git -C "$sb_clone" checkout -q -b claude/T-996-secret main
+printf 'token=%s\n' "$sb_token" > "$sb_clone/leak.txt"
+git -C "$sb_clone" add leak.txt && git -C "$sb_clone" commit -q -m "T-996: leak"
+expect "save-branch patch: a patch with a secret exits 3" 3 "$(sb_run claude/T-996-secret)"
+expect "save-branch patch: a secret is never on the report branch" no \
+  "$(sb_report_has docs/runs/patches/RUN-20261027-09/claude__T-996-secret.mbox)"
+expect "save-branch patch: a secret is never left in the report worktree" "" "$(git -C "$sb_report" status --short --untracked-files=all)"
+expect "save-branch patch: a secret says secret-scan" 1 "$(grep -c 'secret-scan.py thấy chuỗi giống bí mật' "$work/sb.out")"
+expect "save-branch patch: the secret is not printed" 0 "$(grep -c "$sb_token" "$work/sb.out")"
+git -C "$sb_clone" checkout -q -b claude/T-995-latin main
+printf 'caf\xe9 token=%s\n' "$sb_token" > "$sb_clone/latin.txt"
+git -C "$sb_clone" add latin.txt && git -C "$sb_clone" commit -q -m "T-995: latin-1"
+expect "save-branch patch: a patch that is not UTF-8 exits 3" 3 "$(sb_run claude/T-995-latin)"
+expect "save-branch patch: a patch that is not UTF-8 is never written" "" "$(git -C "$sb_report" status --short --untracked-files=all)"
+expect "save-branch patch: a patch that is not UTF-8 says so" 1 "$(grep -c 'không phải UTF-8' "$work/sb.out")"
+git -C "$sb_clone" checkout -q -b claude/T-994-merge main
+printf 'on branch\n' > "$sb_clone/c.txt"
+git -C "$sb_clone" add c.txt && git -C "$sb_clone" commit -q -m "T-994: c"
+git -C "$sb_clone" checkout -q main
+printf 'main moved\n' > "$sb_clone/m.txt"
+git -C "$sb_clone" add m.txt && git -C "$sb_clone" commit -q -m "main: m"
+git -C "$sb_clone" checkout -q claude/T-994-merge
+# The merge of main also drops main's new file: replaying only the non-merge commits (git am) would keep it.
+git -C "$sb_clone" merge -q --no-commit main > /dev/null 2>&1
+git -C "$sb_clone" rm -q -f m.txt
+git -C "$sb_clone" commit -q -m "merge main, without m.txt"
+git -C "$sb_clone" push -q origin main 2> /dev/null; git -C "$sb_clone" fetch -q origin
+sb_hook_scope task
+expect "save-branch patch: a branch with a merge of main exits 3" 3 "$(sb_run claude/T-994-merge)"
+expect "save-branch patch: a branch with a merge gets one combined diff" yes \
+  "$(sb_report_has docs/runs/patches/RUN-20261027-09/claude__T-994-merge.diff)"
+expect "save-branch patch: the diff commands rebuild the same tree" "$(git -C "$sb_clone" rev-parse 'claude/T-994-merge^{tree}')" \
+  "$(sb_apply_check "$work/sb.out" claude/T-994-merge)"
+git -C "$sb_clone" checkout -q -b claude/T-993-empty main
+git -C "$sb_clone" commit -q --allow-empty -m "T-993: nothing"
+expect "save-branch patch: a branch whose patch cannot rebuild it exits 3" 3 "$(sb_run claude/T-993-empty)"
+expect "save-branch patch: ... writes no patch and says so" 1 "$(grep -c 'Không dựng được patch' "$work/sb.out")"
+git -C "$sb_clone" checkout -q claude/T-997-patch
+sb_report_reset
+sb_hook_scope task-and-deny-report
+expect "save-branch patch: report branch refused too exits 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: report branch refused says the patch is only local" 1 "$(grep -c 'nhánh báo cáo cũng không đẩy được' "$work/sb.out")"
+expect "save-branch patch: report branch refused prints no apply commands" 0 "$(grep -c '| git am' "$work/sb.out")"
+git -C "$sb_report" reset -q --hard main
+git -C "$sb_report" commit -q --allow-empty -m "report: timeline"
+sb_hook_scope all
+expect "save-branch patch: the report branch itself is never patched onto itself" 3 "$(sb_run "$sb_report_branch")"
+expect "save-branch patch: ... and says so" 1 "$(grep -c 'chính nhánh báo cáo' "$work/sb.out")"
+git -C "$sb_clone" worktree remove --force "$sb_report"
+sb_hook_scope task
+sb_report_reset_remote() { git -C "$sb_clone" push -q -f origin "main:$sb_report_branch"; }
+git -C "$sb_clone" branch -q -f "$sb_report_branch" main && sb_report_reset_remote
+expect "save-branch patch: a local report branch without a worktree still gets the patch" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: ... pushed through a temporary worktree" yes "$(sb_report_has "$sb_mbox_rel")"
+expect "save-branch patch: ... which is removed" 1 "$(git -C "$sb_clone" worktree list | grep -c .)"
+git -C "$sb_clone" branch -q -D "$sb_report_branch"
+expect "save-branch patch: no report branch at all still bundles" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: no report branch at all says so" 1 "$(grep -c 'Không có nhánh báo cáo' "$work/sb.out")"
+git -C "$sb_clone" worktree add -q -b "$sb_report_branch" "$sb_report" main && sb_report_reset_remote
+expect "save-branch patch: SAVE_BRANCH_REPORT_DIR picks the worktree" 3 \
+  "$(SAVE_BRANCH_REPORT_DIR="$sb_report" sb_run claude/T-997-patch)"
+expect "save-branch patch: with SAVE_BRANCH_REPORT_DIR the patch is pushed" yes "$(sb_report_has "$sb_mbox_rel")"
+expect "save-branch patch: the commands say how to read the patch after the report PR merges" 1 \
+  "$(grep -c 'thay `origin/claude/RUN-20261027-09-report` bằng `origin/main`' "$work/sb.out")"
+sb_tracked="$(git -C "$sb_report" rev-parse -q --verify "HEAD:$sb_mbox_rel" || echo none)"
+printf 'two\n' > "$sb_clone/a.txt"
+git -C "$sb_clone" checkout -q claude/T-997-patch && git -C "$sb_clone" commit -q -am "T-997: a again"
+printf '#!/bin/sh\nexit 1\n' > "$sb_clone/.git/hooks/pre-commit" && chmod +x "$sb_clone/.git/hooks/pre-commit"
+expect "save-branch patch: a newer patch whose commit fails exits 3" 3 "$(SAVE_BRANCH_REPORT_DIR="$sb_report" sb_run claude/T-997-patch)"
+rm -f "$sb_clone/.git/hooks/pre-commit"
+expect "save-branch patch: ... leaves the report worktree clean" "" "$(git -C "$sb_report" status --short --untracked-files=all)"
+expect "save-branch patch: ... keeps the patch already committed" "$sb_tracked" "$(git -C "$sb_report" hash-object "$sb_mbox_rel" 2> /dev/null || echo gone)"
+git -C "$sb_clone" push -q -f origin "main:$sb_report_branch"
+git -C "$sb_clone" fetch -q origin
+git -C "$sb_origin" update-ref "refs/heads/$sb_report_branch" "$(git -C "$sb_origin" -c user.name=t -c user.email=t@example.com commit-tree -p "refs/heads/$sb_report_branch" -m remote "refs/heads/$sb_report_branch^{tree}")"
+git -C "$sb_report" reset -q --hard main
+git -C "$sb_report" commit -q --allow-empty -m "local timeline"
+expect "save-branch patch: a report branch that diverged from GitHub exits 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: ... writes no patch" "" "$(git -C "$sb_report" status --short --untracked-files=all)"
+expect "save-branch patch: ... says the branches differ" 1 "$(grep -c 'đã khác nhau' "$work/sb.out")"
+git -C "$sb_clone" worktree add -q -b claude/RUN-20261027-10-report "$work/sb-report2" main
+expect "save-branch patch: two report worktrees exit 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: ... pick neither" 1 "$(grep -c 'Có nhiều nhánh báo cáo' "$work/sb.out")"
+git -C "$sb_clone" worktree remove --force "$work/sb-report2"
+git -C "$sb_clone" worktree remove --force "$sb_report"
+expect "save-branch patch: two local report branches without worktrees exit 3" 3 "$(sb_run claude/T-997-patch)"
+expect "save-branch patch: ... pick neither" 1 "$(grep -c 'Có nhiều nhánh báo cáo' "$work/sb.out")"
+expect "save-branch patch: ... and leave no worktree" 1 "$(git -C "$sb_clone" worktree list | grep -c .)"
+git -C "$sb_clone" branch -q -D claude/RUN-20261027-10-report
+git -C "$sb_clone" checkout -q claude/T-999-thu
 
 # push-on-commit.sh pushes a task branch whenever it gets a new commit, for a bounded time (L-090, L-096).
 # A fake push command records its calls, so no remote is needed.
@@ -3255,6 +3886,128 @@ expect "push-on-commit: a failed push (save-branch exit 3) stops it with exit 3"
 expect "push-on-commit: refuses a branch outside claude/" 2 "$(pc_run 0 main)"
 expect "push-on-commit: refuses a bad interval" 2 "$(pc_run 0 claude/T-999-thu --interval x)"
 export GIT_CONFIG_COUNT="${sb_git_config[0]}" GIT_CONFIG_KEY_0="${sb_git_config[1]}" GIT_CONFIG_VALUE_0="${sb_git_config[2]}"
+
+# push-probe.sh tells at the start of a session whether it may push a change to .github/workflows/ (L-112).
+# A bare repository stands in for GitHub; its pre-receive hook answers as GitHub does.
+# The probe branch never runs a workflow: every workflow of the repository that runs on push runs on main only.
+push_on_other_branches() { # <dir>: prints the workflows of <dir> with a push trigger not limited to main
+  python3 -I - "$1" <<'PY'
+import glob, re, sys
+for f in sorted(glob.glob(sys.argv[1] + "/*.yml")):
+    text = open(f, encoding="utf-8").read()
+    on = re.search(r"^on:\n((?:[ #].*\n|\n)*)", text, re.M)
+    push = re.search(r"^  push:\n((?:    .*\n)*)", on.group(1) if on else "", re.M)
+    if push and "branches: [main]" not in push.group(1):
+        print(f.rsplit("/", 1)[-1])
+PY
+}
+mkdir -p "$work/pp-wf"
+printf 'on:\n  push:\n    paths: [x]\n' > "$work/pp-wf/bad.yml"
+printf 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:\n' > "$work/pp-wf/good.yml"
+expect "push-probe: the trigger check finds a push trigger for every branch" bad.yml "$(push_on_other_branches "$work/pp-wf")"
+expect "push-probe: no workflow of the repository runs on a push to another branch than main" "" "$(push_on_other_branches .github/workflows)"
+pp_git_config=("$GIT_CONFIG_COUNT" "$GIT_CONFIG_KEY_0" "$GIT_CONFIG_VALUE_0")
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+pp_root="$PWD"
+pp_origin="$work/pp-origin.git"
+pp_clone="$work/pp-clone"
+git init -q --bare "$pp_origin"
+git init -q -b main "$pp_clone"
+git -C "$pp_clone" config user.email t@example.com
+git -C "$pp_clone" config user.name t
+mkdir -p "$pp_clone/.github/workflows"
+printf 'on:\n  push:\n    branches: [main]\n' > "$pp_clone/.github/workflows/a.yml"
+printf 'on:\n  workflow_dispatch:\n' > "$pp_clone/.github/workflows/b.yml"
+printf 'x\n' > "$pp_clone/README.md"
+git -C "$pp_clone" add -A
+git -C "$pp_clone" commit -q -m base
+git -C "$pp_clone" remote add origin "$pp_origin"
+git -C "$pp_clone" push -q origin main
+git -C "$pp_clone" fetch -q origin
+git -C "$pp_clone" checkout -q -b claude/T-999-task
+# The playbook row of ADR-0032 (PB-14, kind bo-qua-loai) in a table of its own, so the block does not depend on the
+# real table; one test below reads the real table.
+pp_table="$work/pp-playbook.md"
+printf '%s\n' '<!-- playbook:start -->' '| Mã | Mẫu | Thấy ở | Loại | Việc phải làm | Nguồn |' '| --- | --- | --- | --- | --- | --- |' \
+  '| PB-14 | `refusing to allow an? [A-Za-z ]+ to create or update workflow` | lệnh đẩy | `bo-qua-loai` | bỏ qua loại task | L-112 |' \
+  '<!-- playbook:end -->' > "$pp_table"
+pp_hook="$pp_origin/hooks/pre-receive"
+pp_files="$work/pp-pushed.files"
+pp_calls="$work/pp-hook.calls"
+pp_hook_mode() { # record | nodelete | scope | app | other | network | flaky
+  rm -f "$pp_files" "$pp_calls" "$pp_calls.count"
+  local refuse='echo x >> "'"$pp_calls"'"'
+  case "$1" in
+    record) printf '#!/bin/sh\n%s\nwhile read old new ref; do [ "$new" = 0000000000000000000000000000000000000000 ] || git diff-tree --no-commit-id --name-only -r "$new" >> "%s"; done\nexit 0\n' "$refuse" "$pp_files" > "$pp_hook" ;;
+    nodelete) printf '#!/bin/sh\n%s\nwhile read old new ref; do if [ "$new" = 0000000000000000000000000000000000000000 ]; then echo "deletion refused" >&2; exit 1; fi; done\nexit 0\n' "$refuse" > "$pp_hook" ;;
+    scope) printf '#!/bin/sh\n%s\necho %s >&2\nexit 1\n' "$refuse" "'refusing to allow an OAuth App to create or update workflow \`.github/workflows/b.yml\` without \`workflow\` scope'" > "$pp_hook" ;;
+    app) printf '#!/bin/sh\n%s\necho %s >&2\nexit 1\n' "$refuse" "'refusing to allow a GitHub App to create or update workflow \`.github/workflows/b.yml\` without \`workflows\` permission'" > "$pp_hook" ;;
+    other) printf '#!/bin/sh\n%s\necho "protected branch hook declined" >&2\necho "line two" >&2\necho "line three" >&2\necho "line four" >&2\nexit 1\n' "$refuse" > "$pp_hook" ;;
+    network) printf '#!/bin/sh\n%s\necho "fatal: The remote end hung up unexpectedly" >&2\nexit 1\n' "$refuse" > "$pp_hook" ;;
+    flaky) printf '#!/bin/sh\n%s\nif [ -f "%s.count" ]; then exit 0; fi\ntouch "%s.count"\necho "fatal: The remote end hung up unexpectedly" >&2\nexit 1\n' \
+      "$refuse" "$pp_calls" "$pp_calls" > "$pp_hook" ;;
+  esac
+  chmod +x "$pp_hook"
+}
+pp_run() { # <args>; runs push-probe.sh in the clone with the test playbook; output in $work/pp.out, prints the exit code
+  local code=0
+  (cd "$pp_clone/${PP_SUBDIR:-}" && PUSH_PROBE_PLAYBOOK="${PP_TABLE-$pp_table}" PUSH_PROBE_RETRY_SECONDS="${PP_RETRY:-0 0}" \
+    "$pp_root/scripts/push-probe.sh" "$@") > "$work/pp.out" 2>&1 || code=$?
+  echo "$code"
+}
+pp_probe_branches() { git -C "$pp_origin" for-each-ref --format='%(refname)' refs/heads/claude/ | grep -c 'probe-RUN-20261027-02' || true; }
+pp_calls_count() { if [ -f "$pp_calls" ]; then wc -l < "$pp_calls" | tr -d ' '; else echo 0; fi; }
+pp_untouched() { echo "$(git -C "$pp_clone" branch --show-current) $(git -C "$pp_clone" status --porcelain | wc -l | tr -d ' ') $(git -C "$pp_clone" worktree list | wc -l | tr -d ' ')"; }
+
+pp_hook_mode record
+expect "push-probe: a push that goes through exits 0" 0 "$(pp_run RUN-20261027-02)"
+expect "push-probe: says QUA" 1 "$(grep -c '^QUA: phiên đẩy được thay đổi .github/workflows/' "$work/pp.out" || true)"
+expect "push-probe: the probe commit changes only the workflow without a push trigger" ".github/workflows/b.yml" "$(cat "$pp_files")"
+expect "push-probe: the probe branch is deleted again" 0 "$(pp_probe_branches)"
+expect "push-probe: the checkout keeps its branch, files and worktrees" "claude/T-999-task 0 1" "$(pp_untouched)"
+expect "push-probe: main on the remote does not change" "$(git -C "$pp_clone" rev-parse origin/main)" "$(git -C "$pp_origin" rev-parse main)"
+pp_hook_mode nodelete
+expect "push-probe: a refused delete still says the push went through" "0 1" \
+  "$(pp_run RUN-20261027-02) $(grep -c '^CHÚ Ý: không xóa được nhánh claude/probe-RUN-20261027-02-' "$work/pp.out" || true)"
+expect "push-probe: a probe branch left by a refused delete does not block the next probe" "0 2" \
+  "$(pp_run RUN-20261027-02) $(pp_probe_branches)"
+for ref in $(git -C "$pp_origin" for-each-ref --format='%(refname)' refs/heads/claude/); do git -C "$pp_origin" update-ref -d "$ref"; done
+pp_hook_mode scope
+expect "push-probe: a push refused for the workflow scope exits 3" 3 "$(pp_run RUN-20261027-02)"
+expect "push-probe: says TỪ CHỐI with the playbook row and what the session does" "1 1" \
+  "$(grep -c '^TỪ CHỐI: PB-14 bo-qua-loai' "$work/pp.out" || true) $(grep -c 'plan-check.py --touches .github/workflows/' "$work/pp.out" || true)"
+expect "push-probe: quotes GitHub's line" 1 "$(grep -c 'without .workflow. scope' "$work/pp.out" || true)"
+expect "push-probe: a refusal is not retried" 1 "$(pp_calls_count)"
+expect "push-probe: a refused probe leaves no branch" 0 "$(pp_probe_branches)"
+expect "push-probe: a refused probe leaves the checkout as it was" "claude/T-999-task 0 1" "$(pp_untouched)"
+pp_hook_mode app
+expect "push-probe: the GitHub App wording of the same refusal exits 3" 3 "$(pp_run RUN-20261027-02)"
+pp_hook_mode scope
+expect "push-probe: the real playbook (PB-14) classifies the refusal" 3 "$(PP_TABLE='' pp_run RUN-20261027-02)"
+pp_hook_mode other
+expect "push-probe: another refusal exits 4" 4 "$(pp_run RUN-20261027-02)"
+expect "push-probe: another refusal is not called a missing workflow scope" "0 1" \
+  "$(grep -c 'TỪ CHỐI' "$work/pp.out" || true) $(grep -c '^CHƯA RÕ: không đẩy được nhánh thử' "$work/pp.out" || true)"
+expect "push-probe: an unclear refusal shows at most the last 3 git or remote lines" "3 1" \
+  "$(grep -c '^remote:\|^ ! \|^error:\|^fatal:' "$work/pp.out" || true) $(grep -c 'remote: line four' "$work/pp.out" || true)"
+pp_hook_mode network
+expect "push-probe: a network error is retried, then unclear" "4 3" "$(pp_run RUN-20261027-02) $(pp_calls_count)"
+pp_hook_mode flaky
+expect "push-probe: a network error that clears goes through" "0 3" "$(pp_run RUN-20261027-02) $(pp_calls_count)"
+pp_hook_mode record
+expect "push-probe: a call from a subdirectory of the repository finds the workflows" "0 .github/workflows/b.yml" \
+  "$(PP_SUBDIR=.github/workflows pp_run RUN-20261027-02) $(cat "$pp_files" 2> /dev/null)"
+pp_hook_mode record
+expect "push-probe: refuses an argument that is not a run id" 2 "$(pp_run RUN-abc)"
+expect "push-probe: a bad argument pushes nothing" 0 "$(pp_calls_count)"
+git -C "$pp_clone" checkout -q main
+git -C "$pp_clone" rm -q -r .github
+git -C "$pp_clone" commit -q -m "no workflows"
+git -C "$pp_clone" push -q origin main
+git -C "$pp_clone" fetch -q origin
+git -C "$pp_clone" checkout -q claude/T-999-task
+expect "push-probe: a repository without workflows has nothing to probe" 2 "$(pp_run RUN-20261027-02)"
+export GIT_CONFIG_COUNT="${pp_git_config[0]}" GIT_CONFIG_KEY_0="${pp_git_config[1]}" GIT_CONFIG_VALUE_0="${pp_git_config[2]}"
 
 # In-place sed without a backup suffix is GNU only: BSD sed on macOS stops with "invalid command code" (L-088).
 # Scripts write `sed -i.bak ... && rm -f file.bak`, or use perl or python. The pattern is built from two
