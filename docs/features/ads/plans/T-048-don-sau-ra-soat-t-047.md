@@ -24,9 +24,9 @@ Gom bốn ghi chú mà rà soát độc lập của T-047 nêu (báo cáo RUN-20
 - **Test lượt nạp hết giờ đọc khóa:** thêm hai câu khẳng định "không gọi `clearLoading`, `sendBlocked`". Câu mới qua trên code hôm nay; đột biến `NOT_NEEDED` thành `SWITCHED_OFF` hay `GATE_CLOSED` làm nó đỏ, còn test cũ vẫn xanh (đã đo).
 - **`OnScreen` nhiều lần cho một bộ xử lý:** đúng như ghi chú, một bộ xử lý nhập vào một lần quyết định từ ba lần bấm trở lên nhận `OnScreen` mỗi lần `showAgain` khi SDK gọi đồng bộ (đã đo `[OnScreen, OnScreen, Granted]`). Ngoài ra, bộ xử lý bấm lần nữa sau khi quảng cáo đã lên màn cũng nhận `OnScreen` lần nữa (cả SDK không đồng bộ). Lần lặp thứ hai này có ích: nó đóng hộp thoại khi một lượt cũ còn treo (mục 3.5). Plan chỉ bỏ lần lặp trong một lần quyết định, giữ lần thứ hai, và sửa KDoc cho đúng (phương án (c), câu hỏi 1).
 - **KDoc của `decide`:** "asks for no load" thành "asks for no further load".
-- **Hết giờ chờ khóa khi cổng đồng ý đóng:** hôm nay ghi `not_ready` và áp chính sách. Theo MC-05, cổng đóng thì dù khóa bật hay tắt, hành động đều làm thẳng, không ghi cơ hội. Plan đề xuất làm đúng như vậy khi hết giờ lúc còn chờ khóa. Đây là đổi luật mục 11, **cần người duyệt** (câu hỏi 2).
+- **Hết giờ chờ khóa khi cổng đồng ý đóng:** hôm nay ghi `not_ready` và áp chính sách. Theo MC-05, cổng đóng thì dù khóa bật hay tắt, hành động đều làm thẳng, không ghi cơ hội. Plan làm đúng như vậy khi hết giờ lúc còn chờ khóa. Đây là đổi luật mục 11, anh Nhật đã duyệt (câu hỏi 2).
 
-Người dùng không thấy gì đổi ở đường thường: lần `OnScreen` lặp mà plan bỏ đến khi hộp thoại đã đóng (cùng lần quyết định), nên không làm gì. Hai chỗ người dùng có thể thấy khác, đều hiếm: hết giờ chờ khóa khi cổng đồng ý đóng thì hành động chạy (phần D, câu hỏi 2); và nếu người duyệt chọn (a) ở câu hỏi 1, hộp thoại có thể đứng ở trạng thái chờ khi lượt cũ còn treo (mục 3.5).
+Người dùng không thấy gì đổi ở đường thường: lần `OnScreen` lặp mà plan bỏ đến khi hộp thoại đã đóng (cùng lần quyết định), nên không làm gì. Một chỗ người dùng có thể thấy khác, hiếm: hết giờ chờ khóa khi cổng đồng ý đóng thì hành động chạy (phần D, câu hỏi 2). Lượt cũ còn treo vẫn đóng hộp thoại như hôm nay, vì phương án (c) giữ `OnScreen` cho lần bấm đến sau khi đã lên màn (mục 3.5).
 
 ## 2. Hiểu yêu cầu
 
@@ -37,7 +37,7 @@ Ticket xử lý KB-19 trong `features/ads/spec.md` (spec `confirmed`), luật MC
 | KB-19 | 4. Khi quảng cáo chưa sẵn sàng thì hành động theo chính sách của vị trí (...) | Lượt nạp hết giờ đọc khóa không gửi, không gọi `clearLoading` hay `sendBlocked` (đúng chữ plan T-047, mục 3.1 bước 2). Test khóa thêm điều đó |
 | KB-19 | 3. Khi người dùng xem đủ thì nhận thưởng ngay lúc quảng cáo báo thưởng | Trong một lần quyết định, mỗi bộ xử lý nhận `OnScreen` một lần, rồi `Granted` cho người gọi mới nhất; đúng cách hiểu plan T-047 đã duyệt ("mỗi bộ xử lý nhận `OnScreen` một lần, trước `Granted`"). Lần bấm đến sau khi quảng cáo đã lên màn vẫn nhận `OnScreen` ngay, như hôm nay; KDoc của lớp nói rõ ngoại lệ này |
 | KB-19 | 6. Bấm "Xem quảng cáo" lần hai trước khi quảng cáo lên màn thì như AdsKit, ghi `busy` | Giữ nguyên: lần bấm sau vẫn gọi `showAgain`, vẫn ghi `busy`; chỉ bỏ `OnScreen` lặp cho bộ xử lý đã nhận trong cùng lần quyết định |
-| KB-19 | 2. Khi vị trí tắt thì hành động làm ngay, không có hộp thoại | MC-05: cổng đồng ý đóng mà khóa bật cũng coi như vị trí tắt. Hết giờ khi còn chờ khóa mà cổng đóng: khóa bật hay tắt đều cho cùng kết quả, nên làm như cổng đóng (`Granted`, không ghi cơ hội). Chờ câu hỏi 2 |
+| KB-19 | 2. Khi vị trí tắt thì hành động làm ngay, không có hộp thoại | MC-05: cổng đồng ý đóng mà khóa bật cũng coi như vị trí tắt. Hết giờ khi còn chờ khóa mà cổng đóng: khóa bật hay tắt đều cho cùng kết quả, nên làm như cổng đóng (`Granted`, không ghi cơ hội). Đã duyệt (câu hỏi 2) |
 
 Thiết kế tham chiếu: Không có thiết kế riêng (chỉ logic, không đổi giao diện; docs/ops/design-workflow.md).
 
@@ -67,11 +67,11 @@ Không đổi code `main`. Câu khẳng định cũ giữ nguyên.
 
 Thứ tự giao không đổi: lần bấm nhập vào khác bộ xử lý vẫn nhận `OnScreen` trong `showAgain`, trước bộ xử lý của lần bấm đầu, như hôm nay.
 
-Phương án (a), nếu người duyệt chọn ở câu hỏi 1 (AI sửa plan trước khi duyệt): `showAgain` bỏ `OnScreen` cho mọi bộ xử lý đã có trong `turn.callers`, `showDecided` bỏ `firstJoinedToo`. Hai bước phải đi cùng nhau: chỉ làm bước đầu thì `syncShowedAndReward_joinedTap_latestGranted` đỏ `expected:<[OnScreen, Granted]> but was:<[Granted]>` (đã đo). Test `tapAfterOnScreen_sameHandler_onScreenAgain` đổi thành `[OnScreen, Granted]`.
+Phương án (a) không được chọn (câu hỏi 1): không bỏ `OnScreen` cho lần bấm đến sau khi lượt đã lên màn, không bỏ `firstJoinedToo`.
 
 **C. KDoc của `decide` (ghi chú 4).** "and asks for no load" thành "and asks for no further load". Thêm câu của phần D.
 
-**D. Hết giờ chờ khóa khi cổng đồng ý đóng (ghi chú 3, câu hỏi 2, phương án (b), cần người duyệt).** Trong `decide`:
+**D. Hết giờ chờ khóa khi cổng đồng ý đóng (ghi chú 3, câu hỏi 2, phương án (b), anh Nhật đã duyệt đổi luật).** Trong `decide`:
 
 1. Biến cục bộ `var switchRead = false`, gán `true` ngay sau khi `port.enabled(declaration)` trả `true` (trong khối `withTimeoutOrNull`).
 2. Kết quả của khối đặt tên `waited`. Sau khối: `if (waited == null) logger.warn(TAG, "Rewarded $code decision not done in time")` (dời lên từ nhánh `NO_AD, null`; vẫn đúng một dòng mỗi lần hết giờ).
@@ -82,10 +82,8 @@ Phương án (a), nếu người duyệt chọn ở câu hỏi 1 (AI sửa plan 
 7. Tài liệu luật:
    - `docs/ops/ads-business-rules.md`, mục 11, dòng "Chờ của một lần quyết định rewarded": sau "không hiện gì sau lúc chờ;" thêm "hết giờ lúc còn chờ khóa mà cổng đồng ý đóng thì như cổng đóng (MC-05): hành động làm thẳng, không ghi cơ hội (T-048);". Cột cuối "Không có (T-047)" thành "Không có (T-047, T-048)".
    - Dòng R-06, nửa câu "lần quyết định quá 5 giây (mục 11) kết thúc như chưa có quảng cáo, lần bấm sau là lần quyết định mới (T-047)": sau "kết thúc như chưa có quảng cáo" thêm ", trừ khi hết giờ lúc còn chờ khóa mà cổng đồng ý đóng: hành động làm thẳng (MC-05, T-048)".
-   - Mục 8.2, nửa câu "lần quyết định rewarded hết giờ chờ (mục 11) ghi `not_ready` (...) (T-047)": thêm "; hết giờ lúc còn chờ khóa mà cổng đồng ý đóng thì không ghi (MC-05, T-048)" trước dấu chấm phẩy kết thúc nửa câu.
-   - `docs/ops/ads-guide.md`, gạch đầu dòng Rewarded: "quá thì coi như không có quảng cáo (T-047)" thành "quá thì coi như không có quảng cáo (T-047), trừ khi cổng đồng ý đóng: khi đó hành động làm thẳng như MC-05 (T-048)".
-
-Người duyệt chọn (a) ở câu hỏi 2 (giữ nguyên): bỏ phần D bước 1 đến 5 và 7; KDoc của `decide` thêm câu "when the consent gate is closed meanwhile, the timeout still records `not_ready` and applies the policy, as plan T-047 says: the switch was never read (plan T-048)"; bỏ năm test của phần D ở mục 4. AI sửa plan trước khi duyệt.
+   - Mục 8.2, nửa câu "lần quyết định rewarded hết giờ chờ (mục 11) ghi `not_ready` (...) (T-047)": thêm "; hết giờ lúc còn chờ khóa mà cổng đồng ý đóng thì không ghi `not_ready` hay `busy` (MC-05, T-048)" trước dấu chấm phẩy kết thúc nửa câu.
+   - `docs/ops/ads-guide.md`, gạch đầu dòng Rewarded: "quá thì coi như không có quảng cáo (T-047)" thành "quá thì coi như không có quảng cáo (T-047), trừ khi hết giờ lúc còn chờ khóa mà cổng đồng ý đóng: khi đó hành động làm thẳng như MC-05 (T-048)".
 
 Mẫu có sẵn: `doubleTapAwaitingSwitch_off_grantsOnce_noOpportunity`, `consentClosed_grantsAtOnce_noOpportunity` (đường cổng đóng hôm nay); `decisionStuckAtSwitch_*` của T-047 (hết giờ).
 
@@ -105,7 +103,7 @@ Nơi đọc các file này (L-020): `RewardedTurns` chỉ có `AdsController.kt`
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
 - Cờ tính năng: Không có.
-- Quảng cáo: không thêm, bớt hay di chuyển vị trí, không đổi khóa Remote Config. Đổi hành vi rewarded ở hai chỗ hẹp: bộ xử lý đã nhận `OnScreen` trong cùng lần quyết định không nhận lại; hết giờ chờ khóa khi cổng đồng ý đóng thì làm như cổng đóng (chờ câu hỏi 2).
+- Quảng cáo: không thêm, bớt hay di chuyển vị trí, không đổi khóa Remote Config. Đổi hành vi rewarded ở hai chỗ hẹp: bộ xử lý đã nhận `OnScreen` trong cùng lần quyết định không nhận lại; hết giờ chờ khóa khi cổng đồng ý đóng thì làm như cổng đóng (câu hỏi 2, đã duyệt).
 - Sự kiện phân tích: không thêm sự kiện. Phần D bớt `ad_opportunity` `not_ready` và `busy` ở đường hết giờ chờ khóa khi cổng đồng ý đóng, đúng câu "không ghi cơ hội" của MC-05.
 - File R2: Không chạm.
 - **Quyền truy cập:** Không thêm.
@@ -117,7 +115,7 @@ Không có. Bản phác thảo của phần B (phương án (c)) và D đã qua 
 
 ### 3.5. Hành vi đã có bị đổi
 
-`scripts/existing-tests.py docs/features/ads/plans/T-048-don-sau-ra-soat-t-047.md` (2026-10-28): 279 test dùng tên của `RewardedTurns.kt`. Nhóm "Cần xem trước": 0. Nhóm "Nên xem": 121 test; phần liên quan thật là 37 test của `RewardedTurnsTest` (gọi thẳng `RewardedTurns`) và 10 test của `RewardedActionTest` mà script liệt kê (lớp có 36 test; 6 test `realController_*` đi qua `RewardedTurns` thật). Phần còn lại (`AdPreloaderTest`, `NativeAdCardScreenshotTest`, `NativeAdPool*`, `NativeAdSource*`, `BannerLoadsTest`...) chỉ trùng tên chung `request`, `loadIfNeeded`, `show` của lớp khác. Đã đọc các test của `RewardedTurnsTest` có câu khẳng định gần hai hành vi đổi; bản phác thảo qua toàn bộ test này không sửa (mục 4.1).
+`scripts/existing-tests.py docs/features/ads/plans/T-048-don-sau-ra-soat-t-047.md` (2026-10-28): 279 test dùng tên của `RewardedTurns.kt`. Nhóm "Cần xem trước": 6 (chạy lại sau khi sửa plan); sáu test này (`NativeEligibleReportTest.fullScreenStep_belowMinHeight_noEligible` và năm test `NativeFlowStepLayoutTest.*`) chỉ trùng tên chung `show`, không liên quan. Nhóm "Nên xem": 125 test; phần liên quan thật là 37 test của `RewardedTurnsTest` (gọi thẳng `RewardedTurns`) và 10 test của `RewardedActionTest` mà script liệt kê (lớp có 36 test; 6 test `realController_*` đi qua `RewardedTurns` thật). Phần còn lại (`AdPreloaderTest`, `NativeAdCardScreenshotTest`, `NativeAdPool*`, `NativeAdSource*`, `BannerLoadsTest`...) chỉ trùng tên chung `request`, `loadIfNeeded`, `show` của lớp khác. Đã đọc các test của `RewardedTurnsTest` có câu khẳng định gần hai hành vi đổi; bản phác thảo qua toàn bộ test này không sửa (mục 4.1).
 
 | Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
@@ -153,7 +151,7 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit trên 
 | KB-19 tiêu chí 3, bộ xử lý của lần bấm đầu nhập vào lần nữa (canh bước 2 của mục 3.1 B) | Unit test | `RewardedTurnsTest.syncShowed_firstHandlerJoinsAgain_onScreenOnce`: thứ tự `ha`, `{ b += it }`, `ha`: `a == [OnScreen, Granted]`, `b == [OnScreen]`. Canh giữ, xanh hôm nay và với bản phác thảo (c) (đã đo); đỏ nếu `firstJoinedToo` bị bỏ mà `showAgain` vẫn giao `OnScreen` cho bộ xử lý của lần bấm đầu |
 | R-06, lượt cũ còn treo: bấm lần nữa khi quảng cáo đã lên màn vẫn đóng hộp thoại (mục 3.5) | Unit test | `RewardedTurnsTest.tapAfterOnScreen_sameHandler_onScreenAgain`: `ready = true`, `request()`, `port.fireShowed()`, `request()`: ngay lúc đó `outcomes == [OnScreen, OnScreen]`; `port.fireReward()`: `outcomes == [OnScreen, OnScreen, Granted]`, `port.showAgains == [rw_get_item]`, cơ hội `[(rw_get_item, shown, ready), (rw_get_item, busy, idle)]`. Canh giữ, xanh hôm nay và với bản phác thảo (c) (đã đo `[OnScreen, OnScreen, Granted]`) |
 | R-06: bộ xử lý mới bấm khi quảng cáo đã lên màn vẫn đóng hộp thoại ngay (đối chứng của dòng trên) | Unit test | `RewardedTurnsTest.tapAfterOnScreen_otherHandler_onScreenAtOnce`: `request { a += it }`, `fireShowed()`, `request { b += it }`: ngay lúc đó `b == [OnScreen]`; `fireReward()`: `a == [OnScreen]`, `b == [OnScreen, Granted]`. Canh giữ, xanh hôm nay (đã đo); phương án (c) không chạm đường này (`showAgain` gọi từ `request` dùng mặc định) |
-| KB-19 tiêu chí 2 và MC-05: hết giờ chờ khóa khi cổng đồng ý đóng (câu hỏi 2) | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_consentClosed_grantsLikeClosedGate`: `port.consentOpen = false`, `ready = true`, `port.switchGates += CompletableDeferred<Boolean>()` (không xong); `launch { request { a += it } }`, `runCurrent()`, `launch { request { b += it } }`, `runCurrent()`; `advanceTimeBy(5_001)`, `runCurrent()`: `a == [NoAd(false, false)]`, `b == [Granted]`, `port.opportunities` rỗng, `port.loads` rỗng, `port.shows` rỗng, `warnings("not done in time") == 1`, một dòng log `Ads` bắt đầu bằng `Rewarded rw_get_item granted: consent gate closed`. Đối chứng cổng mở là `decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy` có sẵn. Hôm nay đỏ: `b = [NoAd(false, false)]`, cơ hội `not_ready`, `busy` (đã đo) |
+| KB-19 tiêu chí 2 và MC-05: hết giờ chờ khóa khi cổng đồng ý đóng (câu hỏi 2, đã duyệt) | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_consentClosed_grantsLikeClosedGate`: `port.consentOpen = false`, `ready = true`, `port.switchGates += CompletableDeferred<Boolean>()` (không xong); `launch { request { a += it } }`, `runCurrent()`, `launch { request { b += it } }`, `runCurrent()`; `advanceTimeBy(5_001)`, `runCurrent()`: `a == [NoAd(false, false)]`, `b == [Granted]`, `port.opportunities` rỗng, `port.loads` rỗng, `port.shows` rỗng, `warnings("not done in time") == 1`, một dòng log `Ads` bắt đầu bằng `Rewarded rw_get_item granted: consent gate closed`. Đối chứng cổng mở là `decisionStuckAtSwitch_endsAfterWait_noAdPolicy_joinedBusy` có sẵn. Hôm nay đỏ: `b = [NoAd(false, false)]`, cơ hội `not_ready`, `busy` (đã đo) |
 | MC-05: lần hết giờ đó không đếm lần thử của chính sách | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_consentClosed_countsNoTry`: `consentOpen = false`, khóa treo, `launch { request(rwExport) }`, `runCurrent()`, `advanceTimeBy(5_001)`, `runCurrent()`; `consentOpen = true`, `request(rwExport)` (không có quảng cáo): `outcomes == [Granted, NoAd(false, false)]` (lần thử đầu của `allow_after_2`). Hôm nay đỏ: `[NoAd(false, false), NoAd(false, true)]` (đã đo) |
 | R-03: hết giờ khi chờ lượt nạp giữ đường T-047 dù cổng đóng trong lúc chờ | Unit test | `RewardedTurnsTest.decisionStuckAtLoad_consentClosedMeanwhile_staysNoAd`: `port.loadGates += CompletableDeferred<Unit>()` (không xong), `launch { request(rwAllow) }`, `runCurrent()`, `port.consentOpen = false`, `advanceTimeBy(5_001)`, `runCurrent()`: `outcomes == [NoAd(false, true)]`, cơ hội `[(rw_allow, not_ready, idle)]`. Canh giữ, xanh hôm nay. **Đối chứng (L-108):** bản phác thảo bỏ điều kiện `!switchRead` thì đỏ `but was:<[Granted]>` (đã đo); phiên làm lại đột biến này ở bước 4 và ghi vào nhật ký |
 | MC-05 và L-072: cổng đóng trong lúc chờ khóa (cổng đọc lúc hết giờ, không phải lúc bấm) | Unit test | `RewardedTurnsTest.decisionStuckAtSwitch_consentClosesMeanwhile_grants`: `ready = true`, cổng mở, `port.switchGates += CompletableDeferred<Boolean>()` (không xong), `launch { request() }`, `runCurrent()`, `port.consentOpen = false`, `advanceTimeBy(5_001)`, `runCurrent()`: `outcomes == [Granted]`, `port.opportunities` rỗng. Hôm nay đỏ: `[NoAd(false, false)]`, cơ hội `[(rw_get_item, not_ready, ready)]` (đã đo). **Đối chứng (L-108) ở bước 4:** đột biến `gateAtStart` (đọc `port.consentOpen()` trước `withTimeoutOrNull`, dùng giá trị đó khi hết giờ) làm test đỏ `but was:<[NoAd(network=false, granted=false)]>` (đã đo); ghi vào nhật ký |
@@ -209,8 +207,8 @@ Số đo trên code hiện tại (L-029), bằng test tạm không commit trên 
 
 - Cách làm buộc phải đổi câu khẳng định của một test có sẵn về R-06, T-042 hay T-047 (`secondRequestBeforeOnScreen_showsAgain_recordsBusy`, `twoCallersSamePlacement_*`, `doubleTap*`, `secondTapWhileLoading_joinsDecision`, `syncShowedAndReward_*`, `decisionStuck*`, `afterStuckDecision_nextTapShowsAd`): dừng, vì đó là luật đã chốt.
 - Phần B làm một bộ xử lý mất `OnScreen` hẳn (một test có sẵn hay mới nhận `[Granted]` thiếu `OnScreen`) mà không sửa được bằng đúng các bước của mục 3.1 B: dừng, báo số đo.
-- Người duyệt chọn (c) ở câu hỏi 1 mà cách làm buộc phải bỏ `OnScreen` cho lần bấm đến sau khi lượt đã lên màn (`tapAfterOnScreen_sameHandler_onScreenAgain` đỏ): dừng, vì đó là phương án (a) chưa được chọn.
-- Phần D (khi người chọn (b)): muốn cho làm hành động khi hết giờ **sau** khi đã đọc khóa, hay khi cổng mở: dừng, vì trái trả lời câu hỏi 1 của T-047.
+- Cách làm buộc phải bỏ `OnScreen` cho lần bấm đến sau khi lượt đã lên màn (`tapAfterOnScreen_sameHandler_onScreenAgain` đỏ): dừng, vì đó là phương án (a), không được chọn (câu hỏi 1).
+- Phần D: muốn cho làm hành động khi hết giờ **sau** khi đã đọc khóa, hay khi cổng mở: dừng, vì trái trả lời câu hỏi 1 của T-047.
 - Phần D: muốn ghi cơ hội nào (kể cả `busy`) ở đường hết giờ khi cổng đóng: dừng, vì trái MC-05.
 
 ## 8. Câu hỏi cho người duyệt
