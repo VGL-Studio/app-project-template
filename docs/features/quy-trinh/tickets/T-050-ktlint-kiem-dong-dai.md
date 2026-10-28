@@ -27,6 +27,7 @@ Cách đếm lại: `find . -name '*.kt' -not -path '*/build/*' -not -path './bu
 - Tìm vì sao luật `max-line-length` của ktlint (plugin `org.jlleitschuh.gradle.ktlint` 13.0.0, kiểu `android_studio`) không báo: luật bị tắt theo kiểu, bỏ qua chú thích, hay `.editorconfig` không được đọc. Ghi kết quả vào plan.
 - Bật kiểm nếu được, và sửa các dòng đang vượt (xuống dòng chú thích, ngắt dòng code) trong cùng PR hay theo từng module.
 - Không bật được hay chi phí lớn: đề xuất bỏ dòng `max_line_length` hay đặt số khác, kèm lý do.
+- Sửa luôn hai chú thích lỗi thời của `decide` trong `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/RewardedTurns.kt`, ghi chú của rà soát T-048 (báo cáo RUN-20261028-02): chú thích nhánh `CONSENT_CLOSED` chỉ dẫn "Question 8 of the plan, option (a)" mà nhánh này nay cũng phục vụ đường hết giờ chờ khóa của T-048; chú thích nhánh `NO_AD, null` chưa nhắc ngoại lệ cổng đồng ý đóng.
 
 **Không bao gồm:**
 
