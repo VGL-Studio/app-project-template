@@ -23,6 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 /**
  * `af_native_ad_eligible` (section 8.3; plan T-033): once each time a native slot that passed the app's gate comes into
@@ -164,7 +165,7 @@ class NativeEligibleReportTest {
     fun fullScreenStep_belowMinHeight_noEligible() {
         val funnel = RecordingAdFunnel()
         val controller = testAdsController(funnel = funnel)
-        var height by mutableStateOf(190.dp)
+        var height by mutableStateOf(151.dp)
         composeRule.setContent {
             CompositionLocalProvider(LocalAdsController provides controller) {
                 Box(Modifier.fillMaxWidth().height(height)) {
@@ -182,7 +183,29 @@ class NativeEligibleReportTest {
         assertTrue(funnel.events.isEmpty())
 
         // Control (L-055): at the least height, once.
-        height = 200.dp
+        height = 152.dp
+        composeRule.waitForIdle()
+        assertEquals(listOf<AdFunnelEvent>(AdFunnelEvent.Eligible(AdFunnelKind.NATIVE)), funnel.events)
+    }
+
+    /** KB-20 (plan T-049): the page area of a phone in landscape (186.5 dp) is a chance to show the ad. */
+    @Test
+    @Config(qualifiers = "w873dp-h393dp-440dpi")
+    fun fullScreenStep_phoneLandscape_eligible() {
+        val funnel = RecordingAdFunnel()
+        val controller = testAdsController(funnel = funnel)
+        composeRule.setContent {
+            CompositionLocalProvider(LocalAdsController provides controller) {
+                Box(Modifier.fillMaxWidth().height(186.5.dp)) {
+                    NativeFullScreenStepGate(
+                        allowed = true,
+                        states = flowOf(NativeAdState.Loading),
+                        shown = true,
+                        adContent = {},
+                    )
+                }
+            }
+        }
         composeRule.waitForIdle()
         assertEquals(listOf<AdFunnelEvent>(AdFunnelEvent.Eligible(AdFunnelKind.NATIVE)), funnel.events)
     }
