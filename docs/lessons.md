@@ -749,7 +749,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** danh sách chạy và `CLAUDE.md` (mục Lệnh) bảo ghi ảnh chuẩn bằng `./gradlew :core:ads:recordRoborazziDebug` và `:app:recordRoborazziStagingDebug`. Phiên con chạy hai lệnh này sau khi đã chạy test, Gradle coi task test là đã cập nhật nên không chạy lại test, ảnh chuẩn không đổi. Phiên con phải tự đoán và chạy lại với `testDebugUnitTest --rerun` / `testStagingDebugUnitTest --rerun` cùng lệnh ghi ảnh. Không gây lỗi vì phiên con thấy ảnh chưa đổi, nhưng phiên khác có thể tưởng ảnh đã ghi và đi tiếp tới `verifyRoborazzi` đỏ.
 - **Bằng chứng:** báo cáo của phiên con T-049 (nhật ký plan T-049, Lệch so với plan, ý 5); ảnh chỉ đổi sau lần chạy có `--rerun`.
 - **Đề xuất sửa:** `CLAUDE.md` mục Lệnh và `docs/templates/plan.md` (cách ghi ảnh chuẩn): ghi lệnh kèm `--rerun` của task test, ví dụ `./gradlew :core:ads:recordRoborazziDebug :core:ads:testDebugUnitTest --rerun`, rồi `git status --short -- '*/src/test/screenshots/'` để thấy ảnh đã đổi.
-- **Trạng thái:** proposed
+- **Trạng thái:** applied
+- **Áp dụng:** `CLAUDE.md` mục Lệnh, `docs/templates/plan.md` mục 4, `docs/ops/new-app.md`: lệnh ghi ảnh kèm `--rerun` của task test, rồi `git status` thư mục ảnh. Đã thử trên máy dev (2026-10-28): chạy `:core:ads:recordRoborazziDebug` lần hai báo `testDebugUnitTest UP-TO-DATE`, không chạy test; thêm `:core:ads:testDebugUnitTest --rerun` thì test chạy lại.
 
 ### L-115. Dòng KDoc dài hơn 120 ký tự qua ktlint, và điểm nên sửa chỉ về định dạng không sửa được vì không có test thất bại trước
 
