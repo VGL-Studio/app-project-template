@@ -29,7 +29,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 ## Lệnh
 
 - Kiểm tra toàn bộ, giống hệt CI: `scripts/check.sh`.
-- Ghi lại ảnh chuẩn screenshot khi plan cho phép: `./gradlew recordRoborazziDebug`.
+- Ghi lại ảnh chuẩn screenshot khi plan cho phép: `./gradlew :<module>:recordRoborazziDebug :<module>:testDebugUnitTest --rerun` (`:app`: `:app:recordRoborazziStagingDebug :app:testStagingDebugUnitTest --rerun`), rồi `git status --short -- '*/src/test/screenshots/'` để thấy ảnh nào đã đổi. Thiếu `--rerun` thì Gradle có thể coi task test là đã cập nhật, không chạy lại test, và ảnh chuẩn giữ bản cũ (L-114).
 - Xem log của app trên máy thật hoặc emulator: `adb logcat -v threadtime | grep ' VGL\.'` (ADR-0019).
 - Khảo sát app mẫu cho app clone (điều khiển máy có chặn quảng cáo và nút mua): `scripts/app-explore/ax.sh check`, rồi làm theo `docs/ops/clone-study.md` (ADR-0021).
 - Tìm mã quảng cáo thật, khóa hay token lọt vào repo (test của script cũng chạy nó): `scripts/secret-scan.py`.
