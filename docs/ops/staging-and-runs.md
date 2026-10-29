@@ -108,7 +108,7 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 ### 2.3. Bắt đầu một phiên
 
 1. Danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md` có trạng thái `approved` đã được merge vào nhánh chính.
-   Đã tắt các lịch định kỳ (mục 2.8) thì bật lại trước: `gh workflow list --all` thấy `resume-run` và `run-watchdog` ở trạng thái `active` (lệnh không có `--all` ẩn workflow đã tắt).
+   Lịch của `resume-run` và `run-watchdog` tự tắt khi không có phiên; `status-page.yml` bật lại chúng khi danh sách `approved` lên nhánh chính (mục 2.8). GitHub có lúc không phát sự kiện push của một lần merge (L-076), nên kiểm `gh workflow list --all` thấy cả hai ở `active` (lệnh không có `--all` ẩn workflow đã tắt); không thì chạy `scripts/schedule-idle.py --enable` trên máy.
 2. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy.
 3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4), hoặc `main-guard` chưa qua trên commit gần nhất có đổi code của nhánh chính (`scripts/main-guard-status.sh`, L-076). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8; kiểm tra riêng của app (`scripts/setup-check-app.sh`, nếu app có) báo lỗi. Một lần R2 trả 429, 5xx hay không kết nối được thì script hỏi lại một lần. File trả 404 mà hỏi lại kèm tham số chống bộ nhớ đệm thì trả `200`: dòng lỗi nói CDN còn giữ câu trả lời cũ, xóa bộ nhớ đệm của URL đó (L-113). Kiểm tra xanh thì workflow đóng issue `setup-broken` đang mở trước khi kích hoạt routine, để phiên không dừng vì issue cũ. Các lỗi này trước đây chỉ lộ ra ở cuối phiên, khi phát bản staging (L-059). Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
 4. Bị từ chối vì `main-guard` chưa chạy hay chưa có kết quả (`CHƯA KIỂM`, thường vì GitHub không phát sự kiện push sau một lần merge; cũng báo khi lần chạy thất bại mà không có issue `main-broken`, tức lỗi hạ tầng): **Actions > main-guard > Run workflow** trên `main`, **Re-run all jobs** trên lần chạy thất bại, hoặc lệnh mà thông báo in ra,, chờ xanh, rồi chạy lại `start-run`. Đang chạy (`CHỜ`): chờ xong rồi chạy lại.
@@ -149,12 +149,13 @@ Không cần thiết lập thêm: workflow dùng hai bí mật `ROUTINE_FIRE_URL
 
 - Phần tóm tắt của mỗi lần chạy workflow ghi lý do: không có phiên nào, phiên còn sống, hay đã kích hoạt lại.
 - Mỗi lần kích hoạt lại tính vào giới hạn 30 lần mỗi giờ của routine; một lần mỗi giờ là đủ xa giới hạn.
-- Dừng hẳn một phiên đang chờ: sửa trạng thái danh sách chạy trên nhánh báo cáo sang `finished`, hoặc **Actions > resume-run > Disable workflow**.
+- Dừng hẳn một phiên đang chờ: sửa trạng thái danh sách chạy trên nhánh báo cáo sang `finished`. Không tắt workflow để dừng phiên: lần duyệt danh sách hay `start-run` sau sẽ bật lại nó.
+- Lịch tự tắt khi không có phiên (mục 2.8). Muốn chạy tay khi workflow đang tắt thì bật trước (`scripts/schedule-idle.py --enable`, hoặc **Actions > resume-run > Enable workflow**), rồi mới **Run workflow**: workflow đã tắt không nhận lần chạy tay.
 
 **Báo phiên đứng im (`run-watchdog.yml`).** Không cần thiết lập thêm, không dùng bí mật. Mỗi 30 phút, `scripts/run-watchdog.py` tìm phiên `running` mà 60 phút không có commit (90 phút khi đang có workflow của phiên chạy), rồi mở issue `session-stalled` có sẵn prompt tiếp tục của mục 2.7. Phiên có commit lại thì issue tự đóng. Workflow chỉ ghi issue mang nhãn này, không kích hoạt phiên hay routine.
 
-- Tốn khoảng 1 phút Actions mỗi lần, khoảng 48 phút mỗi ngày (mục 2.8).
-- App không cần (ví dụ không bao giờ mở phiên bằng `claude --cloud`) thì tắt: **Actions > run-watchdog > Disable workflow**.
+- Tốn khoảng 2 phút Actions mỗi lần (job `watch` và job `idle`). Lịch tự tắt khi không có phiên, như `resume-run` (mục 2.8).
+- App không cần (ví dụ không bao giờ mở phiên bằng `claude --cloud`) thì xóa file workflow. Tắt tay không đủ: lần duyệt danh sách sau sẽ bật lại.
 
 ### 2.7. Mở phiên bằng `claude --cloud` khi còn cloud session credits
 
@@ -183,7 +184,7 @@ Worktree riêng cho nhánh báo cáo: thư mục chính luôn ở nhánh của t
 
 **Khi phiên bị ngắt.** Không có `resume-run.yml` cho kiểu phiên này: hết hạn mức, hết credit hay mất kết nối thì phiên dừng hẳn. Phần đã đẩy lên còn nguyên (`docs/auto-run.md`, mục 3, bước 3). Người tiếp tục như sau:
 
-1. Issue `session-stalled` (workflow `run-watchdog.yml`, mỗi 30 phút) báo khi phiên không có commit 60 phút; thân issue có sẵn prompt dưới đây kèm dòng tiếp tục (`docs/auto-run.md`, mục 4, Phiên đứng im). Xem nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` trên GitHub: danh sách chạy còn `running` và dòng thời gian cho biết phiên dừng ở task nào. Giờ commit cuối trên các nhánh của phiên là giờ dừng. Đoạn Nhánh chưa đẩy của báo cáo có dòng Patch trên nhánh báo cáo thì người xem patch rồi tự quyết lấy lại nhánh bằng lệnh in ở đó.
+1. Issue `session-stalled` (workflow `run-watchdog.yml`, mỗi 30 phút khi lịch đang bật: danh sách vừa được duyệt, hay phiên đã bật ở đầu phiên) báo khi phiên không có commit 60 phút; thân issue có sẵn prompt dưới đây kèm dòng tiếp tục (`docs/auto-run.md`, mục 4, Phiên đứng im). Xem nhánh báo cáo `claude/RUN-YYYYMMDD-NN-report` trên GitHub: danh sách chạy còn `running` và dòng thời gian cho biết phiên dừng ở task nào. Giờ commit cuối trên các nhánh của phiên là giờ dừng. Đoạn Nhánh chưa đẩy của báo cáo có dòng Patch trên nhánh báo cáo thì người xem patch rồi tự quyết lấy lại nhánh bằng lệnh in ở đó.
 2. Kiểm lại như phần Trước khi mở (bước 2, 3).
 3. Mở một phiên `claude --cloud` mới với cùng prompt và cùng danh sách chạy, thêm một dòng: "Đây là phiên tiếp tục: nhánh báo cáo đã có, danh sách chạy đang running. Làm theo docs/auto-run.md, mục 4, Tiếp tục phiên sau khi hết hạn mức." Phiên mới đọc nhánh báo cáo và đi tiếp như phiên do `resume-run.yml` kích hoạt lại.
 4. Phiên dừng giữa một lệnh dài (tiến trình bị khởi động lại, lệnh trả mã 137) mà vẫn còn chạy thì không cần làm gì: phiên tự chạy lại lệnh đó.
@@ -198,17 +199,24 @@ Lệnh chỉ sửa dòng Chung của phiên; commit file CSV trong PR báo cáo 
 
 ### 2.8. Phút Actions của các lịch định kỳ
 
-Ba workflow chạy theo lịch, cả khi không có phiên nào. Mỗi job tính tối thiểu 1 phút Actions (L-126):
+Mỗi job tính tối thiểu 1 phút Actions (L-126). Trước T-051, ba lịch chạy cả khi không có phiên nào, khoảng 2.200 phút mỗi tháng cho một app, trong khi gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org.
 
-| Workflow | Lịch | Phút mỗi tháng, ước tính | Khi không có phiên |
+| Workflow | Lịch | Phút mỗi tháng, trước T-051 | Sau T-051 |
 | --- | --- | --- | --- |
-| `resume-run.yml` | Mỗi giờ, phút 23 | khoảng 720 | Chỉ ghi "không có phiên nào" |
-| `run-watchdog.yml` | Mỗi 30 phút | khoảng 1.440 | Không mở issue |
-| `env-canary.yml` | 01:00 UTC (08:00 giờ Việt Nam) hằng ngày, 2 job | khoảng 60 | Vẫn kiểm môi trường và file R2 cho phiên sau |
+| `resume-run.yml` | Mỗi giờ, phút 23 | khoảng 720 | Chỉ khi có phiên hay danh sách chờ, cộng vài lần sau đó (job `idle` tự tắt), mỗi lần khoảng 2 phút |
+| `run-watchdog.yml` | Mỗi 30 phút | khoảng 1.440 | Như `resume-run.yml` |
+| `env-canary.yml` | 01:00 UTC (08:00 giờ Việt Nam) hằng ngày, 2 job | khoảng 60 | Không đổi: vẫn kiểm môi trường và file R2 cho phiên sau |
+| `status-page.yml`, job `schedules` | Mỗi lần merge có đổi `docs/` | không có | Khoảng 1 phút mỗi lần |
 
-Một app tốn khoảng 2.200 phút mỗi tháng chỉ cho các lịch này. Gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org, nên từ một app trở lên là vượt. Gói khác thì đối chiếu với hạn mức của org.
+Cách làm (`scripts/schedule-idle.py`, T-051):
 
-Khi app không có phiên tự chạy trong nhiều ngày, tắt các lịch bằng `gh workflow disable resume-run.yml` và `gh workflow disable run-watchdog.yml` (hoặc **Actions > <workflow> > Disable workflow**). Bật lại bằng `gh workflow enable <file>` trước khi bắt đầu phiên kế tiếp (mục 2.3); quên bật thì phiên hết hạn mức không được tiếp tục và phiên đứng im không được báo. `env-canary.yml` rẻ và chặn phiên khi môi trường hỏng, nên giữ; tắt cả nó thì bật lại và chạy tay một lần (**Run workflow**) vào ngày trước phiên. T-051 sẽ làm các lịch tự bỏ qua khi không có phiên `running`; khi đó bỏ bước tắt bật tay này.
+- Sau job chính, job `idle` của `resume-run.yml` và `run-watchdog.yml` tắt chính workflow đó khi: không có danh sách `running` trên nhánh báo cáo nào; không có danh sách `approved` chưa bắt đầu, merge trong 72 giờ qua; workflow không được bật trong 3 giờ qua; `start-run` không chạy trong 3 giờ qua. Tắt xong thì đọc lại; thấy phiên hay danh sách chờ thì bật lại ngay. Job không bao giờ làm workflow đỏ.
+- Bật lại: job `schedules` của `status-page.yml` khi có danh sách chờ hay phiên đang chạy; `start-run.yml` trước khi kích hoạt routine; phiên ở đầu phiên (`docs/auto-run.md`, mục 2); dev bằng `scripts/schedule-idle.py --enable`.
+- Xem trạng thái: `gh workflow list --all` (`active` hay `disabled_manually`). Muốn chạy tay một workflow đang tắt thì bật trước rồi mới **Run workflow**.
+- Chỉ danh sách có ngày trong tên trong 14 ngày qua mới được xét là danh sách chờ. Danh sách soạn từ lâu rồi mới duyệt thì lịch không tự bật: kiểm `gh workflow list --all` sau khi merge (mục 2.3).
+- Danh sách bị bỏ quên ở `running` giữ hai lịch bật: `run-watchdog` báo bằng issue `session-stalled`; sửa danh sách sang `finished`.
+
+`env-canary.yml` rẻ và chặn phiên khi môi trường hỏng, nên giữ; tắt nó thì bật lại và chạy tay một lần (**Run workflow**) vào ngày trước phiên.
 
 ## 3. Việc còn phải kiểm chứng
 
