@@ -10,7 +10,7 @@ risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-055-hien-toan-man-hinh-an-toan.md
 auto_run: 
 created: 2026-10-29
 ---
