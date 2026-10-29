@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-11, KB-32]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: S
 depends_on: []
