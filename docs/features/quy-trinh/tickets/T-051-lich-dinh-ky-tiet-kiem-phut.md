@@ -21,6 +21,8 @@ created: 2026-10-29
 
 `resume-run.yml` (mỗi giờ), `run-watchdog.yml` (mỗi 30 phút) và `env-canary.yml` (hằng ngày) chạy cả khi không có phiên tự chạy, mỗi job tính tối thiểu 1 phút Actions. Với gói GitHub Free (2.000 phút mỗi tháng cho cả org), riêng `resume-run` và `env-canary` của một app đã tốn khoảng 780 phút mỗi tháng, gần 40% hạn mức; từ 2 đến 3 app trở lên thì các lịch rảnh vượt hạn mức (L-126, issue #275). Sau ticket này, các lịch không cấp runner khi không có phiên cần chúng, mà vẫn làm đúng việc khi có phiên.
 
+**Quyết định 2026-10-29 (anh Nhật):** hai lịch tự tắt khi rảnh; `status-page.yml` (khi danh sách `approved` lên nhánh chính), `start-run.yml` và phiên bật lại; không thêm bí mật; làm trong phiên có người. Plan: `plans/T-051-lich-tu-tat.md`.
+
 ## Phạm vi
 
 - Chọn cách nhận biết "có phiên cần lịch" mà không tốn một job: biến repo (`vars.AUTO_RUN_ACTIVE`) do `start-run.yml` bật và PR báo cáo cuối phiên tắt, điều kiện `if:` ở cấp job, hay cách khác. Ghi so sánh vào plan, kể cả trường hợp phiên dừng giữa chừng mà biến vẫn bật.
