@@ -8,7 +8,7 @@ owner: Nhật
 status: backlog
 risk: high
 size: M
-depends_on: [T-054]
+depends_on: [T-054, T-067]
 sprint:
 plan: features/ads/plans/T-062-dinh-dang-banner-mrec.md
 auto_run: 
