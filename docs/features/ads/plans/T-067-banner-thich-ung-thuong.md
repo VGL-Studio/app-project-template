@@ -1,16 +1,16 @@
 ---
 ticket: T-067
 title: Banner cố định dùng cỡ thích ứng neo đáy thường
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 5.4M         # cỡ S theo ticket, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); một hàm mới, một chỗ gọi, không ghi lại ảnh chuẩn, nên giữ đúng số gợi ý
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -202,11 +202,9 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) dùng `getCurrentOrientationAnchoredAdaptiveBannerAdSize` dù bị đánh dấu bỏ, `@Suppress("DEPRECATION")` ở một hàm, KDoc và B-01 ghi lý do; khi nâng SDK mà hàm bị xóa thì quyết lại B-01. (2) banner thu gọn giữ cỡ lớn trong task này. (3) giữ `PreviewBanner` 60 dp, không ghi lại ảnh. (4) bỏ phần "ghi lại ảnh chuẩn có banner" của ticket; ảnh chuẩn đổi là điều kiện dừng.
 
 ## 10. Nhật ký thực hiện
 
