@@ -762,6 +762,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** (2) ADR-0033, lệch nhỏ L12: điểm nên sửa chỉ về chú thích hay định dạng trong file được phép thì phiên sửa không cần test viết trước (`git diff -w` chỉ có chú thích hay khoảng trắng, `scripts/check.sh` qua), ghi vào mục Quyết định AI đã tự làm; `docs/auto-run.md` bước 6, `docs/risk-scoring.md` mục 4, `docs/templates/run.md`. (1) Ticket T-050: ktlint không kiểm dòng dài ở cả repo (145 dòng Kotlin dài hơn 120 ký tự, 129 dòng là chú thích, đếm 2026-10-28), không chỉ dòng này. Không mở PR riêng cho dòng KDoc ở `NativeFlowStep.kt:258`; T-050 sửa cùng các dòng khác.
 
+### L-116. Phiên mở `local` không có bước kiểm môi trường đúng: `cloud-env-check.sh` luôn báo lỗi ở máy dev
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #258, L-089 của app; RUN-20261028-01, RUN-20261028-02)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `docs/auto-run.md` mục 2 chỉ có `scripts/cloud-env-check.sh` để kiểm môi trường đầu phiên. Ở máy dev script này luôn báo lỗi, vì đòi tệp phiên bản của `scripts/cloud-setup.sh` và init script mirror Maven. Theo chữ của bảng, phiên `local` phải kết thúc ngay; hai phiên của app tự quyết không coi đó là điều kiện dừng, không để lại quy tắc.
+- **Bằng chứng:** `cloud-env-check.sh` ở máy dev ngày 2026-10-28: "môi trường dựng từ setup script phiên bản không có ... thiếu ~/.gradle/init.d/maven-central-mirror.gradle"; báo cáo RUN-20261028-01 của camera-pose, mục Quyết định AI đã tự làm; PR VGL-Studio/camera-pose#218.
+- **Đề xuất sửa:** phiên `local` chạy `scripts/local-setup.sh --check` (JDK, SDK có nền tảng `compileSdk`, tệp `env.sh`; thoát khác 0 khi thiếu) thay cho `cloud-env-check.sh`, qua thì `source` tệp `env.sh`; không qua thì kết thúc phiên như dòng cũ, để người chạy `scripts/local-setup.sh`.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục 2 (dòng môi trường của bảng, bước 1 của Kiểm tra build ở chế độ nền), `docs/ops/session-capabilities.md` (dòng `local`). Máy dev từng build bằng JDK, SDK trong thư mục tạm của phiên Claude thì `--check` báo thiếu dù build được: chạy `scripts/local-setup.sh` một lần trước khi mở phiên `local`.
 ### L-117. `ui-test` đỏ vì runner tải gói Android Emulator lỗi, bảng tra lỗi xếp là lỗi thật
 
 - **Ngày, nguồn:** 2026-10-29, camera-pose (issue #259, L-090 của app; RUN-20261028-02, T-071, PR VGL-Studio/camera-pose#216)
