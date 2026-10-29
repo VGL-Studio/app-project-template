@@ -46,7 +46,7 @@ ADR liên quan: ADR-0010 (mục 2 bị thay một phần), ADR-0025 (chạy lạ
 1. Sự kiện (tham số 2, mặc định `push`) khác `push` → `full` ("chạy tay"). Lần chạy thứ (tham số 3, mặc định 1) lớn hơn 1 → `full` ("chạy lại": người bấm Re-run để biết commit có thật xanh không, nhất là để đóng `main-broken` theo ADR-0025 mục 2; lần đó phải chạy `check.sh` thật).
 2. Commit có thay đổi so với commit cha ở một file của `GATE_FILES` → `full`. Danh sách: `.github/workflows/pr-check.yml`, `.github/workflows/main-guard.yml`, `scripts/check.sh`, `scripts/failure-kind.sh`, `scripts/find-breaking-commit.sh`, `scripts/main-guard-verified.sh`, `scripts/tests/run.sh`, `scripts/tests/fake-gh` (mọi file mà job `guard` gọi hay dựa vào). Đọc bằng `git diff --name-only <sha>^ <sha>` (checkout có `fetch-depth: 50`).
 3. Tìm PR: `gh api repos/$REPO/commits/<sha>/pulls`, lấy PR có `merged_at` khác rỗng, `base.ref == "main"` và `merge_commit_sha == <sha>`. GitHub có thể chưa gắn commit với PR vài giây sau lần đẩy: danh sách rỗng thì thử lại tới `PULLS_TRIES` lần, cách `PULLS_WAIT_SECONDS` giây (vòng có giới hạn nằm trong script). Vẫn không có → `full` ("không phải commit merge của PR").
-4. Commit đã kiểm `H` = `head.sha` của PR. Lần `pr-check` mới nhất trên `H`: `gh api "repos/$REPO/actions/workflows/pr-check.yml/runs?head_sha=<H>&per_page=10"` (như `merge-if-green.sh`), run có `created_at` lớn nhất. Không có, hay `conclusion != "success"` → `full`.
+4. Commit đã kiểm `H` = `head.sha` của PR. Lần `pr-check` mới nhất trên `H`: `gh api "repos/$REPO/actions/workflows/pr-check.yml/runs?head_sha=<H>&per_page=10"` (như `scripts/wait-run.sh` dòng 62), run có `created_at` lớn nhất. Không có, hay `conclusion != "success"` → `full`.
 5. Job `GATE_JOB` của run đó (`gh api "repos/$REPO/actions/runs/<id>/jobs?per_page=50"`, như `scripts/wait-run.sh`): bước tên `GATE_STEP` phải có `conclusion == "success"`. Bị bỏ qua (PR không có code, chỉ chạy `scripts/tests/run.sh`), không có job hay không có bước → `full` ("PR chưa chạy check.sh"). Đọc `.steps[].conclusion` là lần đầu trong dự án.
 6. Lấy `H` về máy: có sẵn (`git cat-file -e <H>^{commit}`) thì dùng. Không có (trên GitHub là đường chính: commit merge squash không có `H` làm tổ tiên) thì `git fetch --no-tags --depth=1 origin "refs/pull/<N>/head"`, rồi kiểm `git rev-parse FETCH_HEAD` đúng `H`. Không lấy được, hay ref trỏ commit khác → `full`.
 7. `git diff --name-only <H> <sha>`:
@@ -134,7 +134,7 @@ Không có: plan không sửa code Kotlin. Hành vi đã có của script và wo
 
 ## 4. Kiểm thử
 
-Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3), theo lối có sẵn: `expect "<tên>" "<mong đợi>" "<thực tế>"`, `gh` giả là `scripts/tests/fake-gh` với `FIXTURE` (đường `routes`, `errors`, `__sequence__`). Phần git chạy trong một repo tạm `"$work/mgv"` (`git init`, commit có `app/x.kt`, `docs/a.md`), script gọi từ trong repo đó bằng đường dẫn tuyệt đối, với `GITHUB_REPOSITORY=o/r` và `PULLS_WAIT_SECONDS=0`. `run.sh` dòng 19 đặt `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_0`, `GIT_CONFIG_VALUE_0` (đè `remote.origin.url` thành địa chỉ GitHub) cho mọi lệnh git: khối test này bỏ ba biến đó ở đầu khối và đặt lại ở cuối khối, như khối test của `save-branch.sh`, để `git fetch` đi tới repo bare cục bộ, không ra mạng (L-082). Hàm phụ trợ `mgv <fixture> <sha> [<sự kiện> [<lần chạy thứ>]]` in `<mã thoát> <dòng stdout>`; vào commit test của bước 3 (L-025).
+Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3), theo lối có sẵn: `expect "<tên>" "<mong đợi>" "<thực tế>"`, `gh` giả là `scripts/tests/fake-gh` với `FIXTURE` (đường `routes`, `errors`, `__sequence__`). Phần git chạy trong một repo tạm `"$work/mgv"` (`git init`, commit có `app/x.kt`, `docs/a.md`), script gọi từ trong repo đó bằng đường dẫn tuyệt đối, với `GITHUB_REPOSITORY=o/r` và `PULLS_WAIT_SECONDS=0`. `run.sh` dòng 19 đặt `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_0`, `GIT_CONFIG_VALUE_0` (đè `remote.origin.url` thành địa chỉ GitHub) cho mọi lệnh git: khối test này bỏ ba biến đó ở đầu khối và đặt lại ở cuối khối, như khối test release-check-only (`run.sh` dòng khoảng 1337 và 1413), để `git fetch` đi tới repo bare cục bộ, không ra mạng (L-082). Hàm phụ trợ `mgv <fixture> <sha> [<sự kiện> [<lần chạy thứ>]]` in `<mã thoát> <dòng stdout>`; vào commit test của bước 3 (L-025).
 
 Dữ liệu chung: commit `A` (cha), commit đã kiểm `H` (con của `A`, đổi `app/x.kt`), commit trên main `M` có cây giống `H` (tạo bằng `git commit-tree` với cây của `H`, cha `A`). Đường `commits/M/pulls` trả PR số 7, `merged_at` có giá trị, `base.ref` `main`, `merge_commit_sha` `M`, `head.sha` `H`. Đường `actions/workflows/pr-check.yml/runs?head_sha=H&per_page=10` trả run 91 `success`; `actions/runs/91/jobs?per_page=50` trả job `build-and-test` có bước `Cổng chất lượng (scripts/check.sh)` `success`. Mặc định `H` có sẵn trong repo tạm (bước 6 không fetch); test 10 dựng đường fetch.
 
@@ -175,7 +175,7 @@ Dữ liệu chung: commit `A` (cha), commit đã kiểm `H` (con của `A`, đ�
 
 ### 4.1. Chạy thử
 
-Không cần (E dưới 2): `gh api` với `fake-gh`, `git diff`, `git commit-tree`, repo bare cục bộ và điều kiện `if:` của bước đều đã dùng trong dự án (`main-guard-status.sh`, `merge-if-green.sh`, `wait-run.sh`, test của `save-branch.sh` và `pr-check.yml`). Phần chưa chạy thử được trên máy là quyền của `GITHUB_TOKEN`; mục 3.4 thêm quyền ngay, không chờ lỗi.
+Không cần (E dưới 2): `gh api` với `fake-gh`, `git diff`, `git commit-tree`, repo bare cục bộ và điều kiện `if:` của bước đều đã dùng trong dự án (`main-guard-status.sh`, `merge-if-green.sh`, `wait-run.sh`, test release-check-only, test của `save-branch.sh` và `pr-check.yml`). Phần chưa chạy thử được trên máy là quyền của `GITHUB_TOKEN`; mục 3.4 thêm quyền ngay, không chờ lỗi.
 
 ## 5. Chấm rủi ro
 
@@ -187,7 +187,7 @@ Không cần (E dưới 2): `gh api` với `fake-gh`, `git diff`, `git commit-tr
 | B. Độ rõ của yêu cầu | 1 | Ticket và ADR-0039 nêu rõ ba cách; còn câu hỏi về nghĩa mới của "xanh" với bản production (mục 8) |
 | C. Khả năng kiểm chứng tự động | 2 | Quyết định có test với `gh` giả và repo git tạm; quyền thật của token và log thật chỉ kiểm sau khi merge |
 | D. Ảnh hưởng chéo | 2 | `main-guard` chặn mọi lần merge khi đỏ, quyết định phiên có bắt đầu không, và mở cổng phát hành |
-| E. Độ mới của kỹ thuật | 1 | Lần đầu đọc `.steps[].conclusion` của job; đọc `/jobs` đã có ở `scripts/wait-run.sh`, đọc run của `pr-check` theo `head_sha` và fetch `refs/pull/N/head` đã có ở `merge-if-green.sh` |
+| E. Độ mới của kỹ thuật | 1 | Lần đầu đọc `.steps[].conclusion` của job; đọc `/jobs` đã có ở `scripts/wait-run.sh`, đọc run của `pr-check.yml` theo `head_sha` đã có ở `scripts/wait-run.sh` dòng 62, fetch `refs/pull/N/head` đã có ở `merge-if-green.sh` |
 | **Tổng** | 8 | **Mức: Cao (điểm chặn 7)** |
 
 ## 6. Ảnh hưởng chéo
