@@ -45,7 +45,7 @@ staging_build:               # phiên bản bản staging được phát cuối 
 - [ ] Nhánh chính đang xanh, không có issue hay PR đang mở mang nhãn `main-broken`.
 - [ ] Mọi plan và ticket trong danh sách có trạng thái `approved`.
 - [ ] Các ticket phụ thuộc đã sẵn sàng.
-- [ ] `resume-run` và `run-watchdog` đang bật (`gh workflow list`; `docs/ops/staging-and-runs.md`, mục 2.8).
+- [ ] `resume-run` và `run-watchdog` đang bật (`gh workflow list --all`; `docs/ops/staging-and-runs.md`, mục 2.8).
 
 Task bị bỏ qua: <mã ticket và lý do, hoặc "Không có">
 
