@@ -1,16 +1,16 @@
 ---
 ticket: T-053
 title: Đếm ngược native sau inter và bung lại native thu gọn theo JBase
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 23.9M        # cỡ M (ticket đổi từ S sang M theo rà soát độc lập, 2026-10-29: 36 file, 9 ảnh chuẩn), số gợi ý 23.9M (scripts/token-usage.py estimate, 2026-10-29)
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -262,11 +262,9 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) code 48 dp, ghi ảnh so sánh và ghi chú ở README thiết kế; biến thể `After interstitial` của `Native/FullScreen` vào phạm vi T-064 (ticket T-064 đã ghi, PR #313). (2) trang ở bước của luồng giữ hàng trên 36 dp, media từ y = 76. (3) nhận câu ghi `ads-guide.md`: chỉ đặt `time_close_native` quá 5 giây khi đã kiểm chính sách của AdMob.
 
 ## 10. Nhật ký thực hiện
 
