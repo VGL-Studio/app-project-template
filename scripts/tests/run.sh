@@ -1209,7 +1209,8 @@ for skill in .claude/skills/*/SKILL.md; do
     case "$path" in
       scripts/new-app.sh | scripts/template-sync.sh | docs/ops/new-app.md | *YYYY* | *NNN*) continue ;;
     esac
-    [[ -e "$path" ]] || skill_problems+=" $dir:$path"
+    # Generated pages such as docs/STATUS.md are ignored by git, so a fresh checkout (CI) does not have them.
+    [[ -e "$path" ]] || git check-ignore -q "$path" || skill_problems+=" $dir:$path"
   done
 done
 expect "every skill names its folder, real files and, in the template, has a row in /whatnow" "" "$skill_problems"

@@ -14,6 +14,6 @@ Tham số: `$ARGUMENTS` (tùy chọn: các ticket muốn đưa vào; mặc đị
 4. Ghi `open_with:` và đối chiếu khả năng của cách mở. Plan sửa `.github/workflows/` thì nhắc `scripts/push-probe.sh` ở đầu phiên.
 5. Mục Lý do của thứ tự chạy: tổng `token_estimate` so với vài phiên gần nhất (`docs/metrics/token-usage.csv`), thời gian dự kiến, plan để phiên sau và lý do.
 6. Chạy `python3 scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md`, sửa hết lỗi.
-7. Giao một agent con ngữ cảnh mới, chỉ đọc, rà soát theo mục 2 của `docs/ops/pre-run-review.md`. Chỉ đưa đường dẫn danh sách, plan, spec; không đưa kết luận của mình. Ghi kết quả vào mục Kiểm tra trước khi duyệt.
+7. Giao một agent con ngữ cảnh mới, chỉ đọc, rà soát theo mục 2 của `docs/ops/pre-run-review.md`. Lời giao gồm đường dẫn danh sách chạy, kết quả `run-check.py`, các plan, ticket, spec, thiết kế, ADR liên quan và các file trong mục 3.2 của mỗi plan, cùng nội dung giao việc tối thiểu của mục 2 (trả bảng theo mục 3, trả lời mục 2.3 cho từng plan). Không đưa quá trình viết plan hay kết luận của mình. Ghi kết quả vào mục Kiểm tra trước khi duyệt.
 8. Điểm chặn: soạn plan phiên bản mới hay đề xuất sửa spec, hoặc đề xuất bỏ task; không sửa plan `approved` hay spec `confirmed`.
 9. Danh sách `draft`. Mở PR; báo dev: số task, ước tính, điểm chặn, việc dev phải kiểm trước phiên. Chỉ dev duyệt và kích hoạt phiên.
