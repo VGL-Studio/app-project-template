@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-068-sdk-max-va-khoi-tao.md
 auto_run: 
 created: 2026-10-29
 ---
