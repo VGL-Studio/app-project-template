@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-127 (issue #276), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: cancelled            # tách thành T-079, T-080, T-081 (quyết định 2026-10-29)
 risk: high
 size: L
 depends_on: []
@@ -16,6 +16,14 @@ created: 2026-10-29
 ---
 
 # T-052: NÂNG BỘ CÔNG CỤ BUILD LÊN AGP 9.1, GRADLE 9.3.1, COMPILESDK 37
+
+**Đã tách (2026-10-29, quyết định của anh Nhật):** ticket này được thay bằng ba ticket, làm lần lượt trong phiên có người theo dõi, sau T-051. Mỗi ticket có một plan rủi ro cao:
+
+- [T-079](T-079-moi-truong-sdk-37.md): môi trường;
+- [T-080](T-080-bo-build-agp-9.md): bộ build AGP 9, không đổi ảnh chuẩn;
+- [T-081](T-081-robolectric-roborazzi-anh-chuan.md): Robolectric, Roborazzi, ghi lại ảnh chuẩn.
+
+Lý do tách: biết rõ ảnh chuẩn đổi vì đâu, và lần dán setup script không đi cùng lần đổi build. Nội dung dưới đây giữ nguyên làm lịch sử.
 
 ## Mô tả
 
