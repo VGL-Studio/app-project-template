@@ -19,7 +19,7 @@ created: 2026-10-29
 
 ## Mô tả
 
-Nội dung của màn có thanh đáy chừa chỗ ngay lúc khe đáy đang tải, nên không bị đẩy khi quảng cáo về; nạp lỗi thì co về 0 (ADR-0036, điểm 3, thay luật D-04; anh Nhật chọn 2026-10-29).
+Nội dung của màn có thanh đáy chừa chỗ ngay lúc khe đáy đang tải, nên không bị đẩy khi quảng cáo về; nạp lỗi thì co về 0 (ADR-0036, điểm 2, thay luật D-04; anh Nhật chọn 2026-10-29).
 
 ## Phạm vi
 
