@@ -1,7 +1,7 @@
 ---
 ticket: T-051
 title: Lịch định kỳ không cấp runner khi không có phiên tự chạy
-status: approved
+status: done
 version: 1
 risk_score: 9
 risk_level: high
@@ -231,3 +231,15 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-29):
 - **Ghi chú:** trả lời mục 8: (1) giữ `GRACE_HOURS` 3 và `PENDING_HOURS` 72; (2) phiên không bật được workflow thì ghi vào Cần người kiểm tra để người bật tay; (3) danh sách bị bỏ quên ở `running` giữ lịch bật như hiện nay. Làm trong phiên có người, 2026-10-29.
 
 ## 10. Nhật ký thực hiện
+
+### Phiên có người theo dõi 2026-10-29, phiên bản plan 1
+
+- **Kết quả:** đã merge, PR #291 (commit merge `c29ce2b`). Anh Nhật cho làm trong phiên có người theo dõi, 2026-10-29.
+- **Nhánh, PR:** `claude/T-051-lich-tu-tat`, PR #291. Commit script, test và workflow `554055b`, commit tài liệu `13d7b62`, commit sửa theo rà soát `881007f`.
+- **Đã làm:** `scripts/schedule-idle.py` (ba chế độ như mục 3.1); job `idle` trong `resume-run.yml` và `run-watchdog.yml`; bước bật hai lịch trong job `fire` của `start-run.yml`; job `schedules` trong `status-page.yml`; tài liệu và chú thích theo mục 3.1.
+- **Test viết trước:** 39 test mới trong `scripts/tests/run.sh` (32 cho script, 7 đọc workflow). Trước khi có code, 38 test đỏ đúng lý do. 1 test qua tình cờ (`an unknown workflow is refused`: thiếu file, Python cũng trả mã 2), nay qua đúng lý do. Câu kiểm của test `a failed enable exits 1 and names the workflow` đổi từ đếm số lần tên workflow xuất hiện sang kiểm dòng tóm tắt "Chưa bật được lịch: run-watchdog.yml.", giữ ý định.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa (số phút mỗi lần chạy là khoảng 2 vì có 2 job: đã sửa), 7 ghi chú (đã xử lý 2 trong tài liệu: `CLAUDE.md` dẫn mục 2.3; lọc 14 ngày theo ngày trong tên file ghi ở mục 2.8).
+- **Kết quả CI:** `bash scripts/tests/run.sh` trên máy: 1.148 ok, `All script tests passed`. `actionlint` sạch. `pr-check` xanh (lần chạy 40894464290 và lần sau khi cập nhật nhánh). `main-guard` của commit merge xanh (lần chạy 40896223189); `status-page` xanh cả job `page` và `schedules` (lần chạy 40896223275).
+- **Lệch so với plan:** Không có. Ngoài mục 3.2: không có.
+- **Việc còn lại:** hai dòng Kiểm tra thủ công của mục 4: chạy tay `resume-run` và `run-watchdog` lúc không có phiên, thấy "đã tắt" và `disabled_manually`, rồi `scripts/schedule-idle.py --enable` đưa về `active`; phiên tự chạy đầu tiên ghi kết quả `--enable` vào dòng `workflow-enable` của `docs/ops/session-capabilities.md`.
+- **Cần người xem:** diff của bốn workflow (điểm chặn CI).
