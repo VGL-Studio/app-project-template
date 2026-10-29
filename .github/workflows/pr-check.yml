@@ -1,5 +1,7 @@
 # Quality gate for every PR into main (ADR-0002, ADR-0010).
 # Job names (changes, build-and-test, ui-test) are checked by scripts/merge-if-green.sh: rename in both places.
+# scripts/main-guard-verified.sh reads the job build-and-test and its step "Cổng chất lượng (scripts/check.sh)" (ADR-0039):
+# renaming either means changing GATE_JOB or GATE_STEP there in the same PR.
 # build-and-test has two paths: a PR with code runs scripts/check.sh; a PR without code (docs only, or files outside
 # the code filter) runs only scripts/tests/run.sh, without Gradle or the Android SDK (L-040). The job is never skipped.
 # Changing this file is a high-risk plan and needs cross-review.

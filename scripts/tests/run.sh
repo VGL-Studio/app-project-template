@@ -302,6 +302,8 @@ mgv_fx() { # <M> <H> [<jq filter>]: the GitHub answers for a green PR #7 whose b
 }
 mgv() { # <fixture> <sha> [<event> [<run attempt>]]: prints "<exit code> <stdout>"; stderr goes to $work/mgv.err
   local out code=0
+  # A fixture that is not JSON (a broken jq filter) would make every case full: refuse it instead.
+  jq -e . <<<"$1" > /dev/null 2>&1 || { echo "bad fixture"; return; }
   printf '%s' "$1" > "$work/mgv.json"
   rm -f "$work/mgv.json.seen"
   out="$(cd "$mgv_repo" && PATH="$work/bin:$PATH" FIXTURE="$work/mgv.json" GITHUB_REPOSITORY=o/r PULLS_WAIT_SECONDS=0 \
@@ -344,10 +346,11 @@ runs='.routes["actions/workflows/pr-check.yml/runs?head_sha=" + $h + "&per_page=
 expect "main-guard-verified: a red pr-check run is full" "0 full" \
   "$(mgv "$(mgv_fx "$m" "$mgv_h" "$runs[0].conclusion = \"failure\"")" "$m")"
 expect "main-guard-verified: no pr-check run is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$runs = []")" "$m")"
-expect "main-guard-verified: the newest pr-check run counts (newer red)" "0 full" \
-  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$runs += [{id: 92, created_at: \"2026-10-29T01:00:00Z\", conclusion: \"failure\"}]")" "$m")"
-expect "main-guard-verified: the newest pr-check run counts (older red)" "0 skip" \
-  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$runs = [{id: 90, created_at: \"2026-10-28T00:00:00Z\", conclusion: \"failure\"}] + $runs")" "$m")"
+# Filters with braces are built in variables first: bash 3.2 (macOS) mangles them inside nested "$(...)" .
+newer_red="$runs += [{id: 92, created_at: \"2026-10-29T01:00:00Z\", conclusion: \"failure\"}]"
+older_red="$runs = [{id: 90, created_at: \"2026-10-28T00:00:00Z\", conclusion: \"failure\"}] + $runs"
+expect "main-guard-verified: the newest pr-check run counts (newer red)" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$newer_red")" "$m")"
+expect "main-guard-verified: the newest pr-check run counts (older red)" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$older_red")" "$m")"
 pulls='.routes["commits/" + $m + "/pulls"]'
 expect "main-guard-verified: a commit without a merged PR is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls = []")" "$m")"
 expect "main-guard-verified: a PR merged as another commit is full" "0 full" \
@@ -356,14 +359,14 @@ expect "main-guard-verified: a PR that is not merged is full" "0 full" \
   "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls[0].merged_at = null")" "$m")"
 expect "main-guard-verified: a PR into another branch is full" "0 full" \
   "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls[0].base.ref = \"release\"")" "$m")"
-expect "main-guard-verified: asks again while GitHub has not linked the PR yet" "0 skip" \
-  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls = {__sequence__: [[], $pulls]}")" "$m")"
-expect "main-guard-verified: stops asking after PULLS_TRIES" "0 full" \
-  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls = {__sequence__: [[], [], [], $pulls]}")" "$m")"
-expect "main-guard-verified: an unreadable PR list is full, exit 0" "0 full" \
-  "$(mgv "$(mgv_fx "$m" "$mgv_h" ".errors = {(\"commits/\" + \$m + \"/pulls\"): \"HTTP 403: Resource not accessible by integration\"}")" "$m")"
-expect "main-guard-verified: an unreadable job list is full, exit 0" "0 full" \
-  "$(mgv "$(mgv_fx "$m" "$mgv_h" '.errors = {"actions/runs/91/jobs?per_page=50": "HTTP 500: Server Error"}')" "$m")"
+late_once="$pulls = {__sequence__: [[], $pulls]}"
+late_thrice="$pulls = {__sequence__: [[], [], [], $pulls]}"
+expect "main-guard-verified: asks again while GitHub has not linked the PR yet" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$late_once")" "$m")"
+expect "main-guard-verified: stops asking after PULLS_TRIES" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$late_thrice")" "$m")"
+pulls_403='.errors = {("commits/" + $m + "/pulls"): "HTTP 403: Resource not accessible by integration"}'
+expect "main-guard-verified: an unreadable PR list is full, exit 0" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls_403")" "$m")"
+jobs_500='.errors = {"actions/runs/91/jobs?per_page=50": "HTTP 500: Server Error"}'
+expect "main-guard-verified: an unreadable job list is full, exit 0" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$jobs_500")" "$m")"
 expect "main-guard-verified: a commit unknown to git is full, exit 0" "0 full" \
   "$(mgv "$(mgv_fx "$m" "$mgv_h")" 0123456789abcdef0123456789abcdef01234567)"
 
