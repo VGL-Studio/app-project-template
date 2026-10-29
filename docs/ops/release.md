@@ -79,7 +79,10 @@ Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_nativ
 scripts/release.sh                      # commit mới nhất của main
 scripts/release.sh --commit <sha>       # một commit cũ hơn của main
 scripts/release.sh --config <thư mục>   # thư mục phát hành ở chỗ khác
+scripts/release.sh --check-only         # chỉ kiểm bước 1 tới 3, không hỏi mật khẩu, không build
 ```
+
+Nên chạy `--check-only` một lần trước ngày phát hành: script kiểm thư mục phát hành, commit và đối chiếu cấu hình như lúc phát hành thật, in phần tóm tắt rồi dừng, không tạo tag (L-125). Lệnh không kiểm bước 4: mật khẩu và tên khóa `uploadKeyAlias` trong `upload.jks` chỉ được kiểm lúc phát hành thật. Lệnh vẫn cần mạng, `gh` đã đăng nhập, `jq` và `keytool`.
 
 Script làm theo thứ tự, dừng ngay khi có điều kiện không đạt:
 
