@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: [T-054]
 sprint:
-plan:
+plan: features/ads/plans/T-062-dinh-dang-banner-mrec.md
 auto_run: 
 created: 2026-10-29
 ---
