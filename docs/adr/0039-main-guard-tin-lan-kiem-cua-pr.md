@@ -1,7 +1,7 @@
 ---
 id: ADR-0039
 title: main-guard không chạy lại cổng chất lượng cho commit có nội dung đã được pr-check kiểm đầy đủ, chỉ chạy test của script khi phần khác chỉ là tài liệu
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-29
 deciders: [Nhật]

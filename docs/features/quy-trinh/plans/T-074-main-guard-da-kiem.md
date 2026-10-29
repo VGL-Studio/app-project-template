@@ -1,16 +1,16 @@
 ---
 ticket: T-074
 title: main-guard không chạy lại cổng chất lượng cho nội dung đã kiểm ở PR
-status: draft
+status: approved
 version: 1
 risk_score: 8
 risk_level: high
 token_estimate: 23.9M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-29
 lane:
 ---
 
@@ -213,8 +213,8 @@ Không cần (E dưới 2): `gh api` với `fake-gh`, `git diff`, `git commit-tr
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-29 (lời anh Nhật: "Duyệt."), sau khi xem tóm tắt plan và bốn câu hỏi ở mục 8. Bốn câu theo đề xuất của plan: (1) chấp nhận ADR-0039, ADR ghi `accepted`; (2) chấp nhận mất lần chạy lại bắt test chập chờn ở cách `skip`; (3) cách `tests` đỏ mở `main-broken`; (4) thêm `actions: read`, `pull-requests: read`. Task làm có người (`auto_run: false`), không qua phiên tự chạy.
 
 ## 10. Nhật ký thực hiện
