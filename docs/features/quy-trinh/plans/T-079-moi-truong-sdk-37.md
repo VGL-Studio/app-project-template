@@ -171,13 +171,13 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-29):
 ### Phiên có người theo dõi 2026-10-29, phiên bản plan 1
 
 - **Kết quả:** đã merge, PR #310 (commit merge `21ad19a`). Anh Nhật cho làm trong phiên có người theo dõi, 2026-10-29.
-- **Nhánh, PR:** `claude/T-079-moi-truong-sdk-37`, PR #310. Commit test `2e94ced`, commit code `37ffe9a` (sau khi đưa lên main); PR plan #309.
+- **Nhánh, PR:** `claude/T-079-moi-truong-sdk-37`, PR #310. Commit test `2e94ced`, commit code `37ffe9a`, sau khi rebase lên main (trước đó là `ee5e59b` và `13e4e16`); PR plan #309.
 - **Đã làm:** `scripts/cloud-setup.sh` cài thêm `platforms;android-37.0`, giữ `platforms;android-36`, `SETUP_VERSION=5`. `scripts/cloud-env-check.sh` nhận `platforms/android-<số>` hay `platforms/android-<số>.0`, không nhận số phụ khác; khi thiếu, thông báo nêu hai thư mục; khi qua, dòng in ghi thư mục tìm thấy. `scripts/local-setup.sh` không sửa.
 - **Test viết trước:** 6 test mới, cộng dữ liệu `3` thành `4` của `local-setup.sh --check lists every package` (ADR-0029). Trước khi có code, đúng 5 test đỏ theo lý do của mục 4; hai đối chứng (`android-37`, `android-36.1`) qua.
 - **Rà soát độc lập:** plan: 1 chặn (`env-canary` không chứng minh có gói 37), 4 nên sửa, đã sửa trước khi duyệt. Code: 0 chặn, 0 nên sửa, 3 ghi chú (thông báo giữ chuỗi `platforms;android-<số>` để khớp test cũ; tên test; nhật ký ghi sau khi merge).
-- **Kết quả CI:** `bash scripts/tests/run.sh` trên máy: 1.154 ok, `All script tests passed`. `pr-check` xanh (lần chạy 40910635933, 40913562144). `main-guard` của commit merge xanh (lần chạy 40914384117).
+- **Kết quả CI:** `bash scripts/tests/run.sh` trên máy: 1.154 ok, `All script tests passed`. `pr-check` xanh (lần chạy 40910635933 trên `13e4e16`, 40913562144 trên `37ffe9a`). `main-guard` của commit merge xanh (lần chạy 40914384117).
 - **Kiểm tra thủ công:**
-  - Môi trường cloud có gói 37 (trước khi merge, theo mục 8 câu 1): anh Nhật dán setup script của nhánh; một phiên cloud ở commit `13e4e16` chạy `cloud-env-check.sh` với danh mục giả `compileSdk = "37"`: mã 0, "Môi trường cloud dùng setup script phiên bản 5; Java, Gradle wrapper và SDK (platforms/android-37.0) chạy được." Lần chạy đầu báo không đọc được compileSdk vì dấu ngoặc kép bị mất khi chép lệnh, không phải lỗi của script.
+  - Môi trường cloud có gói 37 (trước khi merge, theo mục 8 câu 1): anh Nhật dán setup script của nhánh; một phiên cloud ở commit `13e4e16` (trước khi rebase, nay là `37ffe9a`, cùng nội dung) chạy `cloud-env-check.sh` với danh mục giả `compileSdk = "37"`: mã 0, "Môi trường cloud dùng setup script phiên bản 5; Java, Gradle wrapper và SDK (platforms/android-37.0) chạy được." Lần chạy đầu báo không đọc được compileSdk vì dấu ngoặc kép bị mất khi chép lệnh, không phải lỗi của script.
   - `env-canary` chạy tay sau khi merge (lần chạy 40915278455): job `fire` và `setup-check` xanh; kết quả của routine kiểm môi trường xem ở issue `env-broken` (không mở là xanh).
 - **Lệch so với plan:** Không có. Ngoài mục 3.2: không có.
 - **Việc còn lại:** `scripts/local-setup.sh` rồi `--check` trên máy dev (mục 4, dòng cuối): `~/android-sdk/platforms` có `android-37.0`.
