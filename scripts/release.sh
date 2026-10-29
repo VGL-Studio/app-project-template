@@ -2,12 +2,14 @@
 # Builds the signed production release (Android App Bundle) on the release owner's machine (ADR-0009, ADR-0017).
 # The person then uploads the bundle in Play Console. Nothing here runs on GitHub.
 #
-# Usage:  scripts/release.sh [--commit <sha>] [--config <folder>]
+# Usage:  scripts/release.sh [--commit <sha>] [--config <folder>] [--check-only]
 #         scripts/release.sh --list-placements <AdPlacement.kt>   (tests: print the keys that need a production ad unit)
 #         scripts/release.sh --fill-test-units <AdPlacement.kt> <adUnits>   (tests: print adUnits with test units added)
 #   --commit  commit of main to release; default: the latest commit of origin/main.
 #   --config  release folder copied from the team's password manager;
 #             default: ~/.vgl-release/<applicationId>.
+#   --check-only  run every check and print the summary, then stop before the passwords and the build (L-125):
+#             the release owner checks the folder before release night, and the tests run the real script.
 #
 # The release folder (never inside the repo, deleted after the release):
 #   google-services.json   Firebase config of the production project
@@ -25,7 +27,7 @@
 # Written during the template phase only. AI never changes this file afterwards (ADR-0009), except when the
 # release owner allows it for one session (2026-10-23: native formats and staging-only placements; 2026-10-24:
 # placements with attributes; 2026-10-26: AppsFlyer dev key, Google test units for placements without a real unit;
-# 2026-10-29: the AppsFlyer dev key only for an app with the AppsFlyer SDK).
+# 2026-10-29: the AppsFlyer dev key only for an app with the AppsFlyer SDK; --check-only).
 # Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
@@ -95,11 +97,13 @@ fi
 
 commit_arg=""
 config_dir=""
+check_only="no"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --commit) [ "$#" -ge 2 ] || die "thiếu giá trị cho --commit."; commit_arg="$2"; shift 2 ;;
     --config) [ "$#" -ge 2 ] || die "thiếu giá trị cho --config."; config_dir="$2"; shift 2 ;;
-    *) die "tham số không hợp lệ: '$1'. Cách dùng: scripts/release.sh [--commit <sha>] [--config <thư mục>]" ;;
+    --check-only) check_only="yes"; shift ;;
+    *) die "tham số không hợp lệ: '$1'. Cách dùng: scripts/release.sh [--commit <sha>] [--config <thư mục>] [--check-only]" ;;
   esac
 done
 
@@ -220,6 +224,11 @@ cat << EOF
    Vị trí quảng cáo: $(tr '\n' ' ' <<< "${placements:-không có}")
    Mã quảng cáo thử (không có doanh thu): ${test_unit_keys:-không có}
 EOF
+
+if [ "$check_only" = "yes" ]; then
+  echo "== Đã kiểm xong, chưa build (--check-only). Chạy lại không có --check-only để build và phát hành."
+  exit 0
+fi
 
 # 4. Passwords, asked for on the terminal only.
 read -r -s -p "Mật khẩu keystore upload.jks: " keystore_password < /dev/tty; echo

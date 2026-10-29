@@ -1144,6 +1144,112 @@ expect "release.sh refuses a placement wrapped over several lines" "1 1" \
   "$(code=0; out="$(scripts/release.sh --list-placements "$work/WrappedAdPlacement.kt" 2>&1)" || code=$?
      echo "$code $(grep -c 'nhiều dòng (dòng 2)' <<< "$out")")"
 
+# Contract between release.sh and the build (L-125): every Gradle property that release.sh passes is read by
+# app/build.gradle.kts, or the bundle would be built without it.
+exported_props="$(grep -oE 'export ORG_GRADLE_PROJECT_[A-Za-z]+' scripts/release.sh | sed 's/.*ORG_GRADLE_PROJECT_//' | sort -u)"
+unread_props=""
+for prop in $exported_props; do
+  grep -q "gradleProperty(\"$prop\")" app/build.gradle.kts || unread_props="$unread_props $prop"
+done
+# The count guards against a grep that finds nothing and so passes: release.sh exports 8 properties today.
+expect "contract: app/build.gradle.kts reads every Gradle property that release.sh exports" "8 none" \
+  "$(wc -w <<< "$exported_props" | tr -d ' ') ${unread_props:-none}"
+# The other way: every property the production build requires is one that release.sh exports, so renaming one
+# in the build file fails here instead of on release night.
+required_props="$(sed -n '/^val missingProductionProperties = mapOf($/,/^)/p' app/build.gradle.kts | grep -oE '"[A-Za-z]+" to' | tr -d '"' | cut -d' ' -f1)
+$(grep -oE 'mapOf\("[A-Za-z]+" to "ADR-0027"\)' app/build.gradle.kts | grep -oE '"[A-Za-z]+"' | head -n 1 | tr -d '"')"
+unexported_props=""
+for prop in $required_props; do
+  grep -qx "$prop" <<< "$exported_props" || unexported_props="$unexported_props $prop"
+done
+expect "contract: release.sh exports every Gradle property that the production build requires" "4 none" \
+  "$(wc -w <<< "$required_props" | tr -d ' ') ${unexported_props:-none}"
+
+# The checks after the release folder (the commit on main and its guard, the folder against the code) need a
+# repository with an origin and gh. They run on the real release.sh with --check-only (L-125), which stops before
+# the passwords, in a temp repository with a local origin, a gh that answers green and a keytool that exists. The
+# repository holds the real app/build.gradle.kts, AdPlacement.kt and the build file that declares the AppsFlyer SDK.
+# The header of this file points every origin at a fake URL, so those variables are unset here and restored below.
+rl="$work/release-check-only"
+rl_git_config=("$GIT_CONFIG_COUNT" "$GIT_CONFIG_KEY_0" "$GIT_CONFIG_VALUE_0")
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+rl_placement=core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt
+mkdir -p "$rl/stubs" "$rl/cfg" "$rl/src/scripts" "$rl/src/app" "$rl/src/core/analytics" "$rl/src/$(dirname "$rl_placement")"
+cp scripts/release.sh "$rl/src/scripts/"
+cp app/build.gradle.kts "$rl/src/app/"
+cp core/analytics/build.gradle.kts "$rl/src/core/analytics/"
+cp "$rl_placement" "$rl/src/$rl_placement"
+(
+  cd "$rl/src"
+  git init -q -b main
+  git add -A
+  git commit -q -m "release candidate"
+  git init -q --bare ../origin-bare
+  git remote add origin ../origin-bare
+  git push -q origin main
+) > /dev/null 2>&1
+cat > "$rl/stubs/gh" << 'SH'
+#!/bin/sh
+# main-guard of the commit answers $GH_GUARD (default success); no main-broken issue is open.
+case "$*" in *"run list"*) echo "${GH_GUARD:-success}" ;; *) echo ;; esac
+SH
+printf '#!/bin/sh\necho "  SHA256: AA:BB:CC"\n' > "$rl/stubs/keytool"
+chmod +x "$rl/stubs/gh" "$rl/stubs/keytool"
+rl_app_id="$(sed -nE 's/^[[:space:]]*applicationId = "([^"]+)"$/\1/p' app/build.gradle.kts | head -n 1)"
+rl_version="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)$/\1/p' app/build.gradle.kts | head -n 1)"
+# Read from the real AdPlacement.kt, so an app with other placements runs the same test: the first placement gets
+# a configured unit, the last one (when it is another) must get a test unit.
+rl_keys="$(scripts/release.sh --list-placements "$rl_placement")"
+rl_first="$(head -n 1 <<< "$rl_keys")" rl_last="$(tail -n 1 <<< "$rl_keys")"
+rl_google_services() { # <package name>
+  printf '{"project_info":{"project_id":"prod-project"},"client":[{"client_info":{"android_client_info":{"package_name":"%s"}}}]}' \
+    "$1" > "$rl/cfg/google-services.json"
+}
+rl_google_services "$rl_app_id"
+touch "$rl/cfg/upload.jks"
+release_dir="$rl/cfg"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" \
+  "${rl_first:+$rl_first=ca-app-pub-1234567890123456/1000000001}" "https://cdn.example.vn/"
+release_check_only() { # [VAR=value ...]; prints the output of release.sh --check-only run in the temp repository
+  (cd "$rl/src" && env PATH="$rl/stubs:$PATH" "$@" bash scripts/release.sh --config "$rl/cfg" --check-only 2>&1 < /dev/null) || true
+}
+rl_out="$(release_check_only)"
+# The main assertion is the "Đã kiểm xong" line: without the stop, the script reads the passwords from /dev/tty,
+# which fails on CI before any prompt is printed.
+expect "release.sh --check-only: runs every check, prints the summary and stops before the passwords" "1 1 0 0" \
+  "$(grep -c "^   App: *$rl_app_id$" <<< "$rl_out" || true) $(grep -c '^== Đã kiểm xong, chưa build (--check-only)' <<< "$rl_out" || true) \
+$(grep -c 'TỪ CHỐI' <<< "$rl_out" || true) $(grep -c 'Mật khẩu' <<< "$rl_out" || true)"
+rl_test_units="$(grep 'Mã quảng cáo thử (không có doanh thu):' <<< "$rl_out" | sed 's/.*doanh thu)://')"
+if [[ -n "$rl_first" ]]; then
+  expect "release.sh --check-only: the configured unit is not replaced by a test unit" 0 \
+    "$(grep -cE "(^| )$rl_first( |$)" <<< "$rl_test_units" || true)"
+fi
+if [[ -n "$rl_last" && "$rl_last" != "$rl_first" ]]; then
+  expect "release.sh --check-only: a placement without a unit gets a test unit" 1 \
+    "$(grep -cE "(^| )$rl_last( |$)" <<< "$rl_test_units" || true)"
+fi
+expect "release.sh --check-only: makes no tag, no worktree and no build" "0 1 0" \
+  "$(git -C "$rl/src" tag | wc -l | tr -d ' ') $(git -C "$rl/src" worktree list | wc -l | tr -d ' ') \
+$(find "$rl/src" -name '*.aab' | wc -l | tr -d ' ')"
+release_check_only_fails() { # <name> <pattern> [VAR=value ...]: the output has TỪ CHỐI and then the pattern
+  local name="$1" pattern="$2"
+  rl_out="$(release_check_only "${@:3}")"
+  if [[ "$rl_out" == *"TỪ CHỐI"*"$pattern"* ]]; then
+    expect "release.sh --check-only refuses: $name" refused refused
+  else
+    expect "release.sh --check-only refuses: $name" "TỪ CHỐI ... '$pattern'" "$rl_out"
+  fi
+}
+release_check_only_fails "a commit that main-guard did not pass" "chưa qua main-guard.yml" GH_GUARD=failure
+rl_google_services "com.example.other"
+release_check_only_fails "google-services.json of another app" "google-services.json không có app $rl_app_id"
+rl_google_services "$rl_app_id"
+git -C "$rl/src" tag "release/$rl_version" > /dev/null 2>&1
+release_check_only_fails "a versionCode already released" "versionCode $rl_version đã được phát hành"
+git -C "$rl/src" tag -d "release/$rl_version" > /dev/null 2>&1
+export GIT_CONFIG_COUNT="${rl_git_config[0]}" GIT_CONFIG_KEY_0="${rl_git_config[1]}" GIT_CONFIG_VALUE_0="${rl_git_config[2]}"
+release_dir="$work/release"
+
 # new-app.sh renames the template into a new repository and leaves out the template's own files.
 # It exists only in the template repository: an app made from it has no new-app.sh, so the app skips these tests.
 new_app="$work/new-app"
@@ -1315,6 +1421,15 @@ env_check() {
     scripts/cloud-env-check.sh > "$work/env-check.out" 2>&1; then echo pass; else echo stop; fi
 }
 expect "cloud-setup.sh has a version" yes "$([[ -n "$setup_version" ]] && echo yes || echo no)"
+# Plugins that only Google's Maven repository hosts (Android, Google services, Crashlytics) must be found before
+# the plugin portal: the portal sends what it does not host to Maven Central, which answers 429 to cloud sessions,
+# and Gradle stops at that error instead of trying Google (L-121).
+init_plugin_repos="$(sed -n '/settings.pluginManagement.repositories {/,/^    }$/p' scripts/cloud-setup.sh)"
+expect "cloud-setup.sh: the init script adds Google to the plugin repositories" 1 \
+  "$(grep -c 'google()' <<< "$init_plugin_repos" || true)"
+expect "cloud-setup.sh: the init script puts Google before the plugin portal" yes \
+  "$(awk '/google\(\)/ && !g {g = NR} /gradlePluginPortal\(\)/ && !p {p = NR}
+    END {print (g && p && g < p) ? "yes" : "no"}' <<< "$init_plugin_repos")"
 expect "cloud-env-check.sh passes on the current version" pass "$(env_check "$setup_version" "$work/gradle-home")"
 expect "cloud-env-check.sh stops on an older version" stop "$(env_check 1 "$work/gradle-home")"
 expect "cloud-env-check.sh stops without the mirror init script" stop \
@@ -3108,6 +3223,9 @@ expect "device-scenario: marks the start of each file in the log" 1 \
 ds_script consent.txt 'consent decline 5'
 expect "device-scenario: consent decline taps Do not consent when shown" "0 1" \
   "$(ds_run "consent.xml" "$ds_files/consent.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls")"
+# The consent form's WebView on some devices (Xiaomi HyperOS) labels its buttons only in content-desc (L-122).
+expect "device-scenario: consent decline taps Do not consent labelled only in content-desc" "0 1" \
+  "$(ds_run "consent-desc.xml" "$ds_files/consent.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls")"
 ds_script late.txt 'consent decline 5' 'wait id=welcome_screen 3'
 expect "device-scenario: consent decline waits for a late consent form" "0 1 1" \
   "$(ds_run "blank.xml blank.xml consent.xml welcome.xml" "$ds_files/late.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls") $(ds_count 'result=đạt')"
