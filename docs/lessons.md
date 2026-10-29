@@ -780,3 +780,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** dòng `lich-thu-lai` trong bảng tra lỗi, chỉ khớp khi log có cả dòng tải gói lỗi và dòng "Không có test nào chạy trên emulator", để lỗi emulator do code (test chạy rồi đỏ) không bị xếp nhầm.
 - **Trạng thái:** applied
 - **Áp dụng:** PB-15 trong `docs/ops/failure-playbook.md`, log thật ở `scripts/tests/playbook/PB-15.log`. Cột Mẫu nhận nhiều mẫu nối bằng "và" (`scripts/failure-kind.sh`: dòng khớp khi log có đủ mọi mẫu), có test cho cả hai phía và lần đột biến chỉ dò mẫu đầu làm test đỏ.
+### L-118. Rà soát độc lập nêu điểm chặn bằng đọc code, test chạy thật không tái hiện được, mà bước 6 không có lối ra
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #250, L-052 của app; RUN-20261023-04, T-015)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** rà soát độc lập của T-015 nêu điểm chặn bằng cách đọc code: vùng chạm của thanh trượt dưới 48 dp. Phiên viết code viết test chạm thật ở cả hai phía (`AdjustPanelTest.adjustSlider_touchHeight48`), test qua, không tái hiện được. Bước 6 chỉ có Chặn, Nên sửa, Ghi chú; mức Chặn luôn quay lại bước 4, nên phiên phải tự quyết tin test, không để lại quy tắc.
+- **Bằng chứng:** báo cáo RUN-20261023-04 của camera-pose, T-015; issue #250.
+- **Đề xuất sửa:** điểm chặn được đổi sang "không tái hiện" khi có test chạy thật kiểm đúng điều rà soát nêu, test qua trên code của task, và test thất bại khi đột biến code theo hướng điểm chặn; test vào commit của task; báo cáo ghi ở Quyết định AI đã tự làm và thêm một dòng Cần người kiểm tra; phần đó qua rà soát lại.
+- **Trạng thái:** applied
+- **Áp dụng:** ADR-0035. `docs/auto-run.md` bước 6 (dòng Chặn của bảng mức, mô tả PR), `docs/templates/run.md` (mục Quyết định AI đã tự làm, dòng mới ở Cần người kiểm tra). Giới hạn thêm so với đề xuất: chỉ cho điểm chặn nói code chạy sai, không cho điểm chặn về quy tắc (lệch plan, file ngoài phạm vi, test bị đổi hay xóa, bí mật, thiết kế, hiểu spec khác nhau); mỗi điểm một lần; rà soát lại tính vào giới hạn 2 vòng.
