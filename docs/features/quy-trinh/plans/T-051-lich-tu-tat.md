@@ -54,7 +54,7 @@ ADR liên quan: ADR-0032 (PB-14, quyền `workflow` khi đẩy file workflow). K
 
 `busy()` trả lý do giữ lịch, hay `None`:
 1. Phiên `running`: nhánh `claude/RUN-YYYYMMDD-NN-report` có `docs/runs/<RUN>.md` với `status: running`. Đọc file trả 404 thì bỏ qua nhánh đó (như `resume-check.py`); lỗi đọc khác thì coi như bận (giữ lịch).
-2. Danh sách chờ: `docs/runs/*.md` trên nhánh chính (`contents/docs/runs?ref=main`) có `status: approved`, chưa có nhánh báo cáo, và commit gần nhất của file trên nhánh chính (`commits?path=docs/runs/<RUN>.md&sha=main&per_page=1`) mới trong `PENDING_HOURS` (72).
+2. Danh sách chờ: trong `contents/docs/runs?ref=main`, chỉ xét file `RUN-YYYYMMDD-NN.md` có ngày trong tên không cũ hơn 14 ngày (để số lần gọi API không tăng theo thời gian); file có `status: approved`, chưa có nhánh báo cáo, và commit gần nhất của file trên nhánh chính (`commits?path=docs/runs/<RUN>.md&sha=main&per_page=1`) mới trong `PENDING_HOURS` (72). Thư mục `docs/runs` trả 404 (app mới, `new-app.sh` không mang danh sách cũ) nghĩa là không có danh sách chờ.
 
 Các chế độ:
 
@@ -63,26 +63,28 @@ Các chế độ:
   2. `updated_at` của workflow mới trong `GRACE_HOURS`: in "giữ: vừa được bật lúc ...", thoát 0. Không đọc được thì coi như cũ.
   3. Lần chạy gần nhất của `start-run.yml` (`actions/workflows/start-run.yml/runs?per_page=1`) mới trong `GRACE_HOURS`: in "giữ: start-run vừa chạy", thoát 0. Không có lần chạy nào (app mới) thì bỏ qua bước này.
   4. `PUT actions/workflows/<tệp>/disable`. Lỗi: in CHÚ Ý, thoát 0.
-  5. Đọc lại `busy()`. Có lý do, hay đọc lỗi: `PUT .../enable`, in "bật lại: <lý do>". Không: in "đã tắt: không có phiên".
+  5. Đọc lại `busy()`. Có lý do, hay đọc lỗi (kể cả câu trả lời không phải JSON): `PUT .../enable`, in "bật lại: <lý do>". Không: in "đã tắt: không có phiên".
   - Không đọc được GitHub ở bước 1 tới 3: không tắt, in "Không đọc được GitHub", thoát 0.
   - Mọi lỗi khác (dữ liệu thiếu trường) được bắt ở `main` như lỗi đọc: không tắt, thoát 0. Workflow không bao giờ đỏ vì script này.
 - `--enable`: `PUT .../enable` cho từng workflow trong `SCHEDULES`, rồi đọc lại `state`. In một dòng mỗi workflow. Thoát 0 khi cả hai `active`, 1 khi có cái lỗi hay không `active` (thông báo nêu tên workflow).
-- `--enable-if-pending`: `busy()` có lý do thì như `--enable`; không thì in "không có phiên hay danh sách chờ", thoát 0.
+- `--enable-if-pending`: `busy()` có lý do, hay không đọc được GitHub (an toàn: bật), thì bật như `--enable`; không thì in "không có phiên hay danh sách chờ". Luôn thoát 0: bật lỗi thì in `::warning::` nêu tên workflow, để job `schedules` không làm `status-page` đỏ.
 - `SCHEDULE_IDLE_NOW` (giờ ISO), `SCHEDULE_IDLE_GRACE_HOURS`, `SCHEDULE_IDLE_PENDING_HOURS` thay mặc định (test).
 
 **Workflow:**
 
-- `resume-run.yml`: `permissions` thêm `actions: write`; checkout thêm `persist-credentials: false` (job không đẩy gì). Bước cuối "Tắt lịch khi không có phiên": `if: always()`, `env: GH_TOKEN: ${{ github.token }}`, chạy `python3 -I scripts/schedule-idle.py --disable-if-idle resume-run.yml | tee -a "${GITHUB_STEP_SUMMARY}"`. Sửa chú thích đầu file.
-- `run-watchdog.yml`: `actions: read` thành `actions: write`. Bước cuối như trên với `run-watchdog.yml`, sau bước của `run-watchdog.py` (issue `session-stalled` của danh sách không còn `running` được đóng trước), `if: always()`, `GH_TOKEN`. Sửa chú thích đầu file (bỏ "48 a day", "Disable workflow"; ghi cách tự tắt).
+- `resume-run.yml`: job mới `idle` (`needs: resume`, `if: always() && github.ref == 'refs/heads/main'`, `permissions: actions: write, contents: read`, checkout `persist-credentials: false`, `env: GH_TOKEN: ${{ github.token }}`) chạy `python3 -I scripts/schedule-idle.py --disable-if-idle resume-run.yml | tee -a "${GITHUB_STEP_SUMMARY}"`. Job `resume` (có bí mật kích hoạt) giữ quyền cũ. Sửa chú thích đầu file.
+- `run-watchdog.yml`: job mới `idle` như trên với `run-watchdog.yml`, `needs: watch`, để issue `session-stalled` của danh sách không còn `running` được đóng trước. Quyền của workflow giữ `actions: read`; chỉ job `idle` có `actions: write`. Sửa chú thích đầu file (bỏ "48 a day", "Disable workflow"; ghi cách tự tắt).
 - `start-run.yml`: job `fire` thêm `permissions: actions: write` và bước "Bật lịch của phiên" trước bước kích hoạt, `env: GH_TOKEN: ${{ github.token }}`: hai lệnh `gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/<tệp>/enable"`, lỗi thì `::warning::` và đi tiếp. Job không checkout nên không gọi script.
 - `status-page.yml`: thêm job `schedules` (độc lập với job `page`, `permissions: actions: write, contents: read`, checkout `persist-credentials: false`), chạy `python3 -I scripts/schedule-idle.py --enable-if-pending` với `GH_TOKEN`. Job `page` giữ nguyên quyền `contents: write`. Sửa chú thích đầu file. `concurrency` có `cancel-in-progress: true`: lần chạy mới cũng bật, nên hủy lần cũ không mất gì.
+
+**Dev, sau khi merge danh sách `approved`:** GitHub có lúc không phát sự kiện push của một lần merge (L-076), khi đó `status-page` không chạy. `docs/auto-run.md` mục 1 (bước kích hoạt) và `docs/ops/staging-and-runs.md` mục 2.3 thêm: kiểm `gh workflow list --all` thấy `resume-run` và `run-watchdog` ở `active`; không thì chạy `scripts/schedule-idle.py --enable` trên máy (`gh` của máy dev đã thử được, mục 4.1). `.claude/skills/run-list/SKILL.md` nhắc bước này khi báo dev danh sách đã sẵn sàng.
 
 **Phiên:** `docs/auto-run.md` mục 2, dòng "`resume-run.yml` và `run-watchdog.yml` đang bật" (thêm ở #283) thay bằng: sau khi đẩy nhánh báo cáo `running`, chạy `scripts/schedule-idle.py --enable`. Mã 0: ghi vào Kiểm tra đầu phiên. Mã 1: ghi vào Kiểm tra đầu phiên và một dòng `- [ ]` ở Cần người kiểm tra, làm tiếp; phiên không tìm cách khác. Mục 4 (Tiếp tục phiên) cũng chạy lại lệnh này.
 
 **Tài liệu:**
 
-- `docs/auto-run.md`: mục 2 như trên; mục 4, đoạn Phiên đứng im (dòng "App không cần thì tắt: ... Disable workflow") thành "lịch tự tắt khi không có phiên; app không cần thì xóa file"; đoạn "Muốn dừng hẳn một phiên đang chờ" bỏ "Hoặc tắt workflow `resume-run`" (lần duyệt hay `start-run` sau sẽ bật lại, và `resume-run` tiếp tục danh sách cũ còn `running`): chỉ sửa danh sách sang `finished`.
-- `docs/ops/staging-and-runs.md`: mục 2.3 bỏ dòng bật tay; mục 2.6 sửa hai câu "Disable workflow" như trên, thêm "workflow đang tắt thì bật trước rồi mới Run workflow"; mục 2.7 ghi issue `session-stalled` có khi lịch đang bật (danh sách duyệt hay phiên đã bật); mục 2.8 thay phần tắt bật tay bằng cách làm mới (bảng phút thêm cột "Sau T-051"), thêm cách kiểm `gh workflow list --all` và "bật trước khi chạy tay".
+- `docs/auto-run.md`: mục 1 bước kích hoạt như trên; mục 2 như trên; mục 4, đoạn Phiên đứng im (dòng "App không cần thì tắt: ... Disable workflow") thành "lịch tự tắt khi không có phiên; app không cần thì xóa file"; đoạn "Muốn dừng hẳn một phiên đang chờ" bỏ "Hoặc tắt workflow `resume-run`" (lần duyệt hay `start-run` sau sẽ bật lại, và `resume-run` tiếp tục danh sách cũ còn `running`): chỉ sửa danh sách sang `finished`.
+- `docs/ops/staging-and-runs.md`: mục 2.3 bỏ dòng bật tay; mục 2.6 sửa hai câu "Disable workflow" như trên, thêm "workflow đang tắt thì bật trước rồi mới Run workflow"; mục 2.7 ghi issue `session-stalled` có khi lịch đang bật (danh sách duyệt hay phiên đã bật); mục 2.8 thay phần tắt bật tay bằng cách làm mới (bảng phút thêm cột "Sau T-051", thêm dòng job `schedules` của `status-page`: khoảng 1 phút mỗi lần merge tài liệu), thêm cách kiểm `gh workflow list --all` và "bật trước khi chạy tay".
 - `docs/ops/session-capabilities.md`: dòng mới `workflow-enable` (không có mẫu đường dẫn; cloud `thử`, routine `thử`, local `có`); ghi chú của `auto-resume` thêm "lịch được `status-page.yml` bật khi danh sách được duyệt (T-051)".
 - `docs/templates/run.md`: mục 2 (Kiểm tra đầu phiên), dòng về hai lịch thành "`scripts/schedule-idle.py --enable`: mã 0".
 - `CLAUDE.md`, mục Lệnh: dòng `run-watchdog.yml` "chạy nó mỗi 30 phút" thêm "khi có phiên hay danh sách chờ (tự tắt khi rảnh, T-051)"; thêm một dòng cho `scripts/schedule-idle.py`.
@@ -93,8 +95,8 @@ Các chế độ:
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
 | Tạo | `scripts/schedule-idle.py` | Script ở mục 3.1 |
-| Sửa | `.github/workflows/resume-run.yml` | Bước tự tắt, `actions: write`, `persist-credentials: false`, chú thích |
-| Sửa | `.github/workflows/run-watchdog.yml` | Bước tự tắt, `actions: write`, chú thích |
+| Sửa | `.github/workflows/resume-run.yml` | Job `idle`, chú thích |
+| Sửa | `.github/workflows/run-watchdog.yml` | Job `idle`, chú thích |
 | Sửa | `.github/workflows/start-run.yml` | Job `fire`: `actions: write`, bước bật hai lịch |
 | Sửa | `.github/workflows/status-page.yml` | Job `schedules`, chú thích |
 | Sửa | `scripts/tests/run.sh` | Test ở mục 4 |
@@ -105,6 +107,7 @@ Các chế độ:
 | Sửa | `docs/ops/session-capabilities.md` | Dòng `workflow-enable`, ghi chú `auto-resume` |
 | Sửa | `docs/templates/run.md` | Mục 2, dòng về hai lịch |
 | Sửa | `CLAUDE.md` | Mục Lệnh |
+| Sửa | `.claude/skills/run-list/SKILL.md` | Nhắc dev kiểm hai lịch sau khi merge danh sách |
 | Sửa | `docs/features/quy-trinh/tickets/T-051-lich-dinh-ky-tiet-kiem-phut.md` | `plan:`, quyết định, trạng thái theo plan |
 | Sửa | `docs/lessons.md` | L-126 sang `applied` sau khi merge |
 
@@ -125,7 +128,7 @@ Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì ch�
 - Quảng cáo: Không chạm
 - Sự kiện phân tích: Không chạm
 - File R2: Không chạm
-- **Quyền truy cập:** Không thêm quyền của app. Quyền của workflow: `actions: write` cho `resume-run.yml`, `run-watchdog.yml`, job `fire` của `start-run.yml` và job `schedules` của `status-page.yml`; không thêm bí mật.
+- **Quyền truy cập:** Không thêm quyền của app. Quyền của workflow: `actions: write` chỉ ở mức job: job `idle` của `resume-run.yml` và `run-watchdog.yml`, job `fire` của `start-run.yml`, job `schedules` của `status-page.yml`; không thêm bí mật.
 - **Thư viện và SDK:** Không thêm
 
 ### 3.4. Phương án dự phòng
@@ -156,7 +159,9 @@ Test trong `scripts/tests/run.sh`, dùng `scripts/tests/fake-gh`: đường đi 
 | `start-run` vừa chạy thì giữ | Test script | `schedule-idle: start-run ran within the grace hours keeps`: 1 giờ: không có dòng ghi; đối chứng 4 giờ: tắt |
 | App mới chưa từng chạy `start-run` | Test script | `schedule-idle: no start-run run at all still disables, exit 0`: `workflow_runs: []` |
 | Phiên hiện ra sau khi tắt | Test script | `schedule-idle: a session that appears after the disable turns the schedule back on`: đường `contents/...` của nhánh báo cáo `__sequence__` `finished` rồi `running`: hai dòng `disable` rồi `enable` theo thứ tự |
-| Đọc lại lỗi thì bật lại | Test script | `schedule-idle: a failed second read turns the schedule back on`: `__sequence__` của `branches?...` trả danh sách rồi lần sau lỗi (`errors` không theo lượt được thì dùng đường khác): `disable` rồi `enable` |
+| Đọc lại lỗi thì bật lại | Test script | `schedule-idle: a failed second read turns the schedule back on`: đường `branches?per_page=100&page=1` là `{"__sequence__": [[...nhánh...], "x"]}`; lần đọc lại nhận chuỗi `x`, không phải JSON, và script coi đó là lỗi đọc: `disable` rồi `enable`. Không dùng chuỗi rỗng: chuỗi rỗng đọc thành danh sách rỗng, tức "rảnh" |
+| App chưa có thư mục `docs/runs` | Test script | `schedule-idle: no docs/runs folder means no pending list`: đường `contents/docs/runs?ref=main` không khai (404): tắt, mã 0 |
+| Chỉ xét danh sách gần đây | Test script | `schedule-idle: an approved run list dated more than 14 days ago is not read`: file `RUN-` có ngày cũ, `status: approved`: tắt, và không có lần đọc nội dung file đó (đường của nó trong `errors`: nếu bị đọc thì giữ lịch, test đỏ) |
 | Danh sách `finished` cũ không giữ lịch | Test script | `schedule-idle: a finished run does not keep the schedule`: tắt |
 | File danh sách không có trên nhánh báo cáo (404) | Test script | `schedule-idle: a report branch without its run file does not keep the schedule`: đường không khai: tắt |
 | Lỗi đọc khác thì giữ | Test script | `schedule-idle: an unreadable run file keeps the schedule, exit 0`: `errors` cho `contents/...` (HTTP 500): không có dòng ghi, mã 0 |
@@ -164,11 +169,11 @@ Test trong `scripts/tests/run.sh`, dùng `scripts/tests/fake-gh`: đường đi 
 | `disable` lỗi không làm đỏ workflow | Test script | `schedule-idle: a failed disable warns and exits 0`: `fail_writes`: mã 0, có "CHÚ Ý" |
 | `--enable` bật cả hai | Test script | `schedule-idle --enable: enables both schedules`: hai dòng `PUT .../resume-run.yml/enable`, `PUT .../run-watchdog.yml/enable`; `state` `active`: mã 0 |
 | `--enable` báo khi không bật được | Test script | `schedule-idle --enable: a failed enable exits 1 and names the workflow`: `fail_writes` cho `run-watchdog.yml/enable`: mã 1, có `run-watchdog.yml`; và `schedule-idle --enable: a schedule still disabled after enable exits 1`: `state` `disabled_manually`: mã 1 |
-| `--enable-if-pending` | Test script | `schedule-idle --enable-if-pending: enables when an approved list waits, nothing otherwise`: có danh sách chờ: hai dòng `enable`; không có: không có dòng ghi, mã 0 |
-| Workflow tự tắt đúng tệp, đủ quyền | Test đọc file | `workflows: resume-run and run-watchdog disable themselves when idle`: mỗi file có `schedule-idle.py --disable-if-idle <chính tên file>`, `actions: write`, `GH_TOKEN`, `if: always()` ở bước đó; trong `run-watchdog.yml` bước tắt nằm sau bước `run-watchdog.py`; `resume-run.yml` có `persist-credentials: false` |
+| `--enable-if-pending` | Test script | `schedule-idle --enable-if-pending: enables when an approved list waits, nothing otherwise`: có danh sách chờ: hai dòng `enable`; không có: không có dòng ghi, mã 0; `fail_writes` cho một `enable`: mã 0, có `::warning::`; không đọc được GitHub: hai dòng `enable` |
+| Workflow tự tắt đúng tệp, đủ quyền | Test đọc file | `workflows: resume-run and run-watchdog disable themselves when idle`: mỗi file có job `idle` với `needs:` job chính, `if: always()`, `actions: write`, `GH_TOKEN`, `persist-credentials: false`, `schedule-idle.py --disable-if-idle <chính tên file>`; quyền mức workflow không có `actions: write` |
 | `start-run.yml` bật trước khi kích hoạt | Test đọc file | `start-run: enables both schedules before firing the routine`: job `fire` có `actions: write`, `GH_TOKEN` và hai lệnh `.../resume-run.yml/enable`, `.../run-watchdog.yml/enable` trước dòng `curl` |
 | `status-page.yml` bật khi có danh sách chờ | Test đọc file | `status-page: a separate job enables the schedules for a pending run list`: job `schedules` có `actions: write`, `--enable-if-pending`; job `page` không có `actions: write` |
-| Lịch tự tắt và được bật trên GitHub thật | Kiểm tra thủ công (người: cần GitHub thật sau khi merge) | Không có phiên: chạy tay `resume-run` và `run-watchdog`; tóm tắt có "đã tắt", `gh workflow list --all` thấy `disabled_manually`. Merge một danh sách `approved` thử (hay chạy tay `status-page` khi có danh sách chờ): hai lịch `active` |
+| Lịch tự tắt và được bật trên GitHub thật | Kiểm tra thủ công (người: cần GitHub thật sau khi merge) | Không có phiên: chạy tay `resume-run` và `run-watchdog`; lần chạy đang dở chạy hết (job `idle` tự tắt chính workflow của nó), tóm tắt có "đã tắt", `gh workflow list --all` thấy `disabled_manually`. Merge một danh sách `approved` thử (hay chạy tay `status-page` khi có danh sách chờ): hai lịch `active` |
 | Phiên bật lại được | Kiểm tra thủ công (người: chỉ thấy ở phiên thật) | Phiên tự chạy đầu tiên sau khi merge: Kiểm tra đầu phiên có dòng của `--enable`; ghi kết quả vào dòng `workflow-enable` của `docs/ops/session-capabilities.md` |
 
 Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085). Mọi test script và test đọc file thất bại trước khi có script và trước khi sửa workflow.
@@ -209,7 +214,7 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085). Mọi test script 
 ## 7. Điều kiện dừng riêng
 
 - Cần thêm bí mật, token cá nhân hay biến repo để làm được: dừng (trái quyết định đã chốt).
-- Sau khi merge, `resume-run`, `run-watchdog`, `start-run` hay `status-page` đỏ (không chỉ CHÚ Ý): revert PR cùng dev.
+- Sau khi merge, `resume-run`, `run-watchdog`, `start-run` hay `status-page` đỏ (không chỉ CHÚ Ý hay `::warning::`): revert PR cùng dev. Đây không phải `main-broken`, nên không theo ADR-0025 (phiên tự revert).
 
 ## 8. Câu hỏi cho người duyệt
 
