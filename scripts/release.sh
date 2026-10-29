@@ -16,7 +16,7 @@
 #                          adUnits=<placement key>=ca-app-pub-<publisher>/<unit>;<placement key>=...
 #                          assetsBaseUrl=https://<production address on R2>/
 #                          uploadKeyAlias=<alias of the upload key>
-#                          appsFlyerDevKey=<AppsFlyer dev key> (ADR-0027)
+#                          appsFlyerDevKey=<AppsFlyer dev key> (ADR-0027), only when the app has the AppsFlyer SDK
 # Passwords of the upload key are asked for when the script runs; they are never stored in the folder.
 #
 # Only commits of main that passed main-guard.yml are built (commits touching docs only reuse the run of
@@ -24,7 +24,8 @@
 #
 # Written during the template phase only. AI never changes this file afterwards (ADR-0009), except when the
 # release owner allows it for one session (2026-10-23: native formats and staging-only placements; 2026-10-24:
-# placements with attributes; 2026-10-26: AppsFlyer dev key, Google test units for placements without a real unit).
+# placements with attributes; 2026-10-26: AppsFlyer dev key, Google test units for placements without a real unit;
+# 2026-10-29: the AppsFlyer dev key only for an app with the AppsFlyer SDK).
 # Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
@@ -153,9 +154,17 @@ fi
 [[ "$assets_base_url" =~ ^https://[^/]+/.*$ ]] && [[ "$assets_base_url" == */ ]] ||
   die "assetsBaseUrl phải là địa chỉ https và kết thúc bằng '/' (ADR-0015)."
 [ -n "$upload_key_alias" ] || die "thiếu uploadKeyAlias trong release.properties."
-# The key itself is never printed.
-[[ "$appsflyer_dev_key" =~ ^[A-Za-z0-9]{16,64}$ ]] ||
-  die "thiếu appsFlyerDevKey trong release.properties, hoặc khóa có ký tự lạ (ADR-0027). Lấy khóa dev trong AppsFlyer > App settings."
+# The key itself is never printed. It is needed only when a module declares the AppsFlyer SDK, read from the build
+# files rather than from release.properties, so an app with the SDK that forgot its key still stops here. The
+# production build checks the same against its real classpath (app/build.gradle.kts).
+if grep -rqsE --include='*.gradle.kts' --exclude-dir=build --exclude-dir=.gradle \
+  'libs\.appsflyer([^.A-Za-z0-9_]|$)|"com\.appsflyer:' .; then
+  [[ "$appsflyer_dev_key" =~ ^[A-Za-z0-9]{16,64}$ ]] ||
+    die "thiếu appsFlyerDevKey trong release.properties, hoặc khóa có ký tự lạ (ADR-0027). Lấy khóa dev trong AppsFlyer > App settings."
+elif [ -n "$appsflyer_dev_key" ]; then
+  echo "CHÚ Ý: app không có SDK AppsFlyer, appsFlyerDevKey trong release.properties không được dùng."
+  appsflyer_dev_key=""
+fi
 
 # 2. The commit: on main, and checked green by main-guard.yml.
 step "Kiểm tra commit phát hành"

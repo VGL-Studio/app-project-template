@@ -789,3 +789,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** điểm chặn được đổi sang "không tái hiện" khi có test chạy thật kiểm đúng điều rà soát nêu, test qua trên code của task, và test thất bại khi đột biến code theo hướng điểm chặn; test vào commit của task; báo cáo ghi ở Quyết định AI đã tự làm và thêm một dòng Cần người kiểm tra; phần đó qua rà soát lại.
 - **Trạng thái:** applied
 - **Áp dụng:** ADR-0035. `docs/auto-run.md` bước 6 (dòng Chặn của bảng mức, mô tả PR), `docs/templates/run.md` (mục Quyết định AI đã tự làm, dòng mới ở Cần người kiểm tra). Giới hạn thêm so với đề xuất: chỉ cho điểm chặn nói code chạy sai, không cho điểm chặn về quy tắc (lệch plan, file ngoài phạm vi, test bị đổi hay xóa, bí mật, thiết kế, hiểu spec khác nhau); mỗi điểm một lần; rà soát lại tính vào giới hạn 2 vòng.
+### L-119. `release.sh` luôn đòi khóa dev AppsFlyer, nên app giữ khung mà chưa bật AppsFlyer không phát hành được
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #261; spec `docs/features/ads/spec.md` của app, câu 3)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** camera-pose lấy khung quảng cáo của dự án mẫu (T-074) nhưng chưa bật AppsFlyer: không có SDK, quyền hay dữ liệu gửi đi. `scripts/release.sh` và build production (`app/build.gradle.kts`) luôn đòi `appsFlyerDevKey`, nên app không phát hành được bằng script mẫu nguyên vẹn; app không được sửa `release.sh`, điền khóa giả thì bước kiểm mất ý nghĩa, giữ `release.sh` cũ (`hold=`) thì app lệch dần khỏi mẫu.
+- **Bằng chứng:** issue #261; ADR-0027, quyết định 2.
+- **Đề xuất sửa:** chỉ đòi khóa khi app có SDK AppsFlyer, nhận biết từ build chứ không từ việc thiếu dòng trong `release.properties`; app có SDK mà thiếu khóa vẫn dừng; không có SDK mà có khóa thì in chú ý; có test cho cả ba trường hợp.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/release.sh` (anh Nhật cho phép sửa trong phiên 2026-10-29) đòi `appsFlyerDevKey` khi một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`, không có SDK mà có khóa thì in CHÚ Ý và không truyền khóa; `app/build.gradle.kts` đòi `-PappsFlyerDevKey` (khác rỗng) khi `com.appsflyer` có trong classpath runtime của biến thể production. Test của `release.sh` trong `scripts/tests/run.sh`; build production thử tay bốn trường hợp. Ghi chú 2026-10-29 ở ADR-0027, `docs/ops/release.md` mục 2.2, 2.3.

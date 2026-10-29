@@ -80,19 +80,30 @@ android {
 
 // Building production without the real configuration fails at once, rather than shipping an app without ads,
 // files or AppsFlyer. Checked when a production variant is built, not at configuration, so other builds and IDE
-// sync work without it.
+// sync work without it. The AppsFlyer key is needed only when the SDK is on the variant's runtime classpath: an app
+// may keep the framework without the SDK (issue #261 of the template); scripts/release.sh checks the same earlier.
 val missingProductionProperties = mapOf(
     "admobAppId" to "ADR-0013",
     "adUnits" to "ADR-0013",
     "assetsBaseUrl" to "ADR-0015",
-    "appsFlyerDevKey" to "ADR-0027",
 ).filterKeys { !providers.gradleProperty(it).isPresent }
 tasks.matching { it.name.startsWith("preProduction") && it.name.endsWith("Build") }.configureEach {
+    val variant = name.removePrefix("pre").removeSuffix("Build").replaceFirstChar { it.lowercase() }
+    val runtimeClasspath = configurations.named("${variant}RuntimeClasspath")
     doFirst {
-        if (missingProductionProperties.isNotEmpty()) {
+        val hasAppsFlyer = runtimeClasspath.get().incoming.resolutionResult.allComponents.any {
+            (it.id as? org.gradle.api.artifacts.component.ModuleComponentIdentifier)?.group == "com.appsflyer"
+        }
+        val missing = missingProductionProperties +
+            if (hasAppsFlyer && providers.gradleProperty("appsFlyerDevKey").orNull.isNullOrBlank()) {
+                mapOf("appsFlyerDevKey" to "ADR-0027")
+            } else {
+                emptyMap()
+            }
+        if (missing.isNotEmpty()) {
             throw GradleException(
                 "Build production cần tham số thật: " +
-                    missingProductionProperties.entries.joinToString { "-P${it.key} (${it.value})" } + ".",
+                    missing.entries.joinToString { "-P${it.key} (${it.value})" } + ".",
             )
         }
     }
