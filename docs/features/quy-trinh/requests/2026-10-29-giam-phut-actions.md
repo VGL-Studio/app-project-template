@@ -40,7 +40,7 @@ Các lịch định kỳ (`run-watchdog`, `resume-run`, `env-canary`, `status-pa
 | 5 | PR nháp không chạy `pr-check`; không bắt chạy lại khi nhánh chính chỉ đổi tài liệu | 10 tới 20% | T-077 |
 | 6 | Đặt giới hạn chi tiêu cho Actions | chặn vượt | người làm, không có ticket |
 
-Cách 2 tới 5 giảm khoảng 35 tới 45% mà không cần máy mới.
+Cách 2 tới 5 giảm khoảng 35 tới 45% mà không cần máy mới; các cách chồng nhau (T-077 bớt lần chạy lại của job mà T-075, T-076 đã cắt; T-074 vẫn chạy test của script) nên tổng nhỏ hơn cộng từng dòng.
 
 ## Những gì chưa cần làm lần này
 
