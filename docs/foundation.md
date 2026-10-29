@@ -245,6 +245,32 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - - đột biến theo hướng điểm chặn làm test thất bại, ghi vào nhật ký plan
 - - test nằm trong file được phép và vào commit của task. - Không áp dụng cho điểm chặn về lệch plan, file ngoài phạm vi, test bị đổi hay xóa, ADR-0031, cấu hình production, bí mật, mã quảng cáo thật, thiết kế hay hiểu spec khác nhau. - Test và lần đột biến đi qua vòng rà soát lại, tính vào giới hạn 2 vòng. Rà soát lại không đồng ý thì điểm là Chặn như cũ. - Mỗi điểm chỉ ghi "không tái hiện" một lần. - Ghi vào mục "Quyết định AI đã tự làm", thêm một dòng `- [ ]` ở "Cần người kiểm tra", và ghi trong mô tả PR
 
+### [ADR-0036](adr/0036-ads-lech-partner-tu-jbase.md): Quảng cáo lệch có chủ đích khỏi PARTNER ở bốn điểm học từ JBase, ghi rõ trong luật nghiệp vụ
+
+- quảng cáo trong màn hình không gửi yêu cầu và không làm mới khi quảng cáo toàn màn hình vẽ trong app đang hiện
+- thanh đáy chừa chỗ đúng chiều cao của khe từ lúc khe đang tải, nạp lỗi thì co về 0
+- `banner_mrec` là một định dạng của danh sách đóng, chỉ dùng khi spec của app khai báo
+- cổng không hiện quảng cáo bật thì mọi định dạng như công tắc tổng tắt và hành động có điều kiện làm thẳng
+- ghi mỗi điểm lệch PARTNER vào `ads-business-rules.md` mục 12 kèm mã ADR
+
+### [ADR-0037](adr/0037-ads-them-max-va-aps.md): Thêm AppLovin MAX làm nền tảng quảng cáo thứ hai bên cạnh AdMob; Amazon APS đi kèm MAX khi có tài khoản
+
+- SDK MAX và APS chỉ nằm trong `:core:ads`
+- MAX và APS khởi tạo sau cổng đồng ý của `:core:ads`, không bao giờ trước, không viết cứng trạng thái đồng ý
+- khóa SDK MAX, mã đơn vị MAX và mã APS không vào repo, tài liệu hay resource của module
+- mọi luồng của MAX đi qua cùng cổng hiện toàn màn hình và cùng mốc `ads_interval` với AdMob
+- native không đi qua MAX
+- adapter của MAX ghi phiên bản cụ thể trong `gradle/libs.versions.toml`, không dùng `+`
+- không tách ticket APS khi chưa có tài khoản Amazon Publisher Services
+
+### [ADR-0038](adr/0038-ads-chuan-nghiep-vu-jbase.md): Nghiệp vụ quảng cáo lấy JBase làm chuẩn; chỗ JBase không có thì giữ PARTNER, chỗ JBase sai thì không theo
+
+- phân xử nghiệp vụ quảng cáo theo thứ tự quyết định của người phụ trách sản phẩm trong spec `ads`, rồi JBase, rồi luật PARTNER đang có
+- không theo JBase ở chỗ trái luật, chính sách hay là lỗi, ghi lý do
+- dẫn chứng JBase bằng đường dẫn và dòng, hoặc lớp và hằng số của bytecode, không theo trí nhớ
+- không chép code hay khóa của JBase
+- ghi mỗi luật đổi theo JBase vào `ads-business-rules.md` kèm mã ADR-0038 và nguồn JBase
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
