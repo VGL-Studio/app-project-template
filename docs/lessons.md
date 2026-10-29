@@ -816,8 +816,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** lần `env-canary` đầu của app đỏ trên máy cloud. Init script của `scripts/cloud-setup.sh` khai báo kho cho `pluginManagement` theo thứ tự: bản sao Maven Central, rồi Plugin Portal. Plugin Portal chuyển các plugin nó không giữ (Android Gradle plugin, Google services, Crashlytics) sang Maven Central; Maven Central trả 429, và Gradle dừng trước khi hỏi kho Google.
 - **Bằng chứng:** issue #270; sau khi sửa, `env-canary` và hai phiên tự chạy của app tải được plugin.
 - **Đề xuất sửa:** init script thêm `google()` ngay sau bản sao Maven Central, trước Plugin Portal; tăng `SETUP_VERSION`; test kiểm thứ tự kho; thêm dòng vào bảng sự cố của `docs/ops/setup-new-app.md`.
-- **Trạng thái:** accepted
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #278: `scripts/cloud-setup.sh` thêm `google()` trước `gradlePluginPortal()`, `SETUP_VERSION` 4; test thứ tự kho trong `scripts/tests/run.sh`; dòng sự cố ở `docs/ops/setup-new-app.md`; ghi chú gộp `SETUP_VERSION` ở `docs/ops/to-app.md` mục 7. Bước vận hành ngoài PR: người dán lại setup script vào môi trường cloud.
 
 ### L-122. Hộp thoại đồng ý trên Xiaomi HyperOS đặt nhãn nút ở `content-desc`, kịch bản không bấm được nút từ chối
 
@@ -826,8 +826,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** trên Xiaomi HyperOS (Android 16), WebView của hộp thoại đồng ý UMP chỉ đặt nhãn nút ở `content-desc`, không ở `text`. `CONSENT_DECLINE` của `scripts/device-scenario.py` chỉ khớp `text`, nên kịch bản trên máy thật kẹt ở hộp thoại.
 - **Bằng chứng:** issue #271; trên máy Xiaomi, kịch bản đi qua hộp thoại sau khi sửa.
 - **Đề xuất sửa:** `CONSENT_DECLINE` khớp cả `desc=Do not consent | desc=Không đồng ý`; fixture cây giao diện có nhãn chỉ ở `content-desc` và test trong `scripts/tests/run.sh`.
-- **Trạng thái:** accepted
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #279: `CONSENT_DECLINE` của `scripts/device-scenario.py` khớp cả `desc=`; fixture `consent-desc.xml` và test.
 
 ### L-123. Commit test viết trước mà chưa định dạng, nên `check.sh` đỏ vì ktlint và tốn một vòng sửa
 
@@ -836,8 +836,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** RUN-20261028-01 của app, T-002: test viết trước được commit sau khi chỉ chạy task test. Ở bước 5, `scripts/check.sh` đỏ ở `ktlintTestSourceSetCheck` vì thứ tự import, phải chạy `ktlintFormat` rồi commit thêm một lần chỉ để sửa định dạng. ADR-0011 chỉ dặn chạy `ktlintFormat` khi ktlint đã báo lỗi.
 - **Bằng chứng:** issue #272; RUN-20261029-01 của app (4 task) không có commit nào chỉ để sửa định dạng (app chưa đánh dấu `verified`).
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 và bước 4: chạy `./gradlew ktlintFormat` trước khi commit test và trước khi commit code; lệnh định dạng mọi file Kotlin nên chỉ commit file của task; lệnh chỉ đổi định dạng nên không tính là sửa test.
-- **Trạng thái:** accepted
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #280: `docs/auto-run.md` bước 3, bước 4 và lời giao cho phiên con; thay đổi định dạng sau commit test là lệch nhỏ L5 (ADR-0032).
 
 ### L-124. Nhánh của task sau tạo từ `origin/main` cũ vì phiên không `git fetch` sau khi merge task trước
 
@@ -847,8 +847,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #273; báo cáo RUN-20261029-01 của app, mục Bài học.
 - **Hậu quả nếu không phát hiện:** task sau làm trên nền thiếu task trước; task phụ thuộc nhau thì build lỗi hay PR xung đột.
 - **Đề xuất sửa:** bước 1 ghi `git fetch origin main` ngay trước khi tạo nhánh `claude/T-NNN-...` từ `origin/main`.
-- **Trạng thái:** accepted
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #281: `docs/auto-run.md` bước 1, việc 0 cuối phiên và mục Tiếp tục trên nhánh cũ có `git fetch origin main`.
 
 ### L-125. `release.sh` chỉ chạy thật vào đêm phát hành, test của nó không đọc file build thật, nên hai bên lệch mà không ai biết
 
@@ -857,8 +857,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** test của `scripts/release.sh` dùng fixture, không dùng `app/build.gradle.kts` thật. Script truyền thêm thuộc tính Gradle hay file build đổi tên thuộc tính đọc thì lỗi chỉ lộ ra lúc phát hành, hoặc bundle build xong mà thiếu giá trị. L-119 và L-120 là hai lần gần đây phần kiểm phát hành và file build lệch nhau.
 - **Bằng chứng:** issue #274; L-119, L-120.
 - **Đề xuất sửa:** `release.sh --check-only` chạy mọi bước kiểm rồi dừng trước bước hỏi mật khẩu và build; test hợp đồng: mọi `ORG_GRADLE_PROJECT_<tên>` mà `release.sh` xuất ra được `app/build.gradle.kts` đọc; test chạy `release.sh --check-only` thật với `app/build.gradle.kts` thật. Phủ mã quảng cáo, `assetsBaseUrl`, khóa AppsFlyer. `release.sh` là file AI không được sửa (ADR-0009): chỉ làm trong phiên có người theo dõi, khi người phụ trách phát hành cho phép; phiên tự chạy không làm (anh Nhật cho phép trong phiên 2026-10-29).
-- **Trạng thái:** accepted
-- **Áp dụng:**
+- **Trạng thái:** applied
+- **Áp dụng:** PR #282: `scripts/release.sh --check-only` (anh Nhật cho phép sửa trong phiên 2026-10-29); test hợp đồng hai chiều và test chạy `release.sh --check-only` thật trong `scripts/tests/run.sh`; `docs/ops/release.md` mục 2.3.
 
 ### L-126. Các lịch định kỳ tốn phút Actions cả khi không có phiên nào
 
@@ -868,7 +868,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #275.
 - **Đề xuất sửa:** trước mắt, một PR tài liệu riêng: `docs/ops/staging-and-runs.md` ghi số phút mỗi tháng của từng lịch, cách tắt và khi nào bật lại. Sau đó, workflow định kỳ không cấp runner khi không có danh sách chạy `running` (T-051, cần plan rủi ro cao vì sửa `.github/`).
 - **Trạng thái:** accepted
-- **Áp dụng:** T-051 (phần workflow).
+- **Áp dụng:** PR #283 (phần tài liệu): `docs/ops/staging-and-runs.md` mục 2.8, đầu phiên kiểm hai lịch đang bật (`docs/auto-run.md` mục 2, `docs/templates/run.md`). Phần workflow: T-051.
 
 ### L-127. Bộ công cụ build AGP 9.1, Gradle 9.3.1, compileSdk 37 đã chạy được ở một app
 
