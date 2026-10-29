@@ -195,6 +195,20 @@ scripts/token-usage.py credit --run RUN-YYYYMMDD-NN --usd 10
 
 Lệnh chỉ sửa dòng Chung của phiên; commit file CSV trong PR báo cáo nếu PR còn mở, hoặc trong một PR tài liệu sau đó. `scripts/token-usage.py estimate` in thêm số USD trung bình cho mỗi 1M token, để ước tính một danh sách chạy tốn bao nhiêu credit.
 
+### 2.8. Phút Actions của các lịch định kỳ
+
+Ba workflow chạy theo lịch, cả khi không có phiên nào. Mỗi job tính tối thiểu 1 phút Actions (L-126):
+
+| Workflow | Lịch | Phút mỗi tháng, ước tính | Khi không có phiên |
+| --- | --- | --- | --- |
+| `resume-run.yml` | Mỗi giờ, phút 23 | khoảng 720 | Chỉ ghi "không có phiên nào" |
+| `run-watchdog.yml` | Mỗi 30 phút | khoảng 1.440 | Không mở issue |
+| `env-canary.yml` | 08:00 hằng ngày, 2 job | khoảng 60 | Vẫn kiểm môi trường và file R2 cho phiên sau |
+
+Một app tốn khoảng 2.200 phút mỗi tháng chỉ cho các lịch này. Gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org, nên từ một app trở lên là vượt. Gói khác thì đối chiếu với hạn mức của org.
+
+Khi app không có phiên tự chạy trong nhiều ngày, tắt các lịch bằng `gh workflow disable resume-run.yml` và `gh workflow disable run-watchdog.yml` (hoặc **Actions > <workflow> > Disable workflow**). Bật lại bằng `gh workflow enable <file>` trước khi bắt đầu phiên kế tiếp (mục 2.3); quên bật thì phiên hết hạn mức không được tiếp tục và phiên đứng im không được báo. `env-canary.yml` rẻ và chặn phiên khi môi trường hỏng, nên giữ; tắt cả nó thì bật lại và chạy tay một lần (**Run workflow**) vào ngày trước phiên. T-051 sẽ làm các lịch tự bỏ qua khi không có phiên `running`; khi đó bỏ bước tắt bật tay này.
+
 ## 3. Việc còn phải kiểm chứng
 
 - `resume-run.yml` kích hoạt lại được một phiên hết hạn mức, và phiên đó tiếp tục đúng task đang làm dở: chờ lần hết hạn mức thật đầu tiên. Phiên kích hoạt lại khi hạn mức chưa được làm mới có làm tốn gì không (chỉ là một phiên dừng ngay) cũng cần xem lần đó.
