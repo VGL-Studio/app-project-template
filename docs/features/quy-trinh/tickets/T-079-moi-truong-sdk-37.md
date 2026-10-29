@@ -10,7 +10,7 @@ risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-079-moi-truong-sdk-37.md
 auto_run: false              # làm trong phiên có người theo dõi (quyết định 2026-10-29); người dán lại setup script
 created: 2026-10-29
 ---
