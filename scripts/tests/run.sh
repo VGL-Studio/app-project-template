@@ -1867,6 +1867,21 @@ expect "cloud-env-check.sh stops when compileSdk cannot be read" stop \
   "$(VERSIONS_TOML="$work/no-compile-sdk.toml" env_check "$setup_version" "$work/gradle-home")"
 expect "cloud-env-check.sh names compileSdk when it cannot be read" 1 \
   "$(grep -c '^LỖI: không đọc được compileSdk' "$work/env-check.out" || true)"
+# The Android 37 package is platforms;android-37.0 and lives in platforms/android-37.0, not android-37 (T-079, L-127).
+# A minor version other than .0 is another platform (android-36.1 is API level 36.1) and does not count.
+expect "cloud-setup.sh installs platforms;android-37.0 next to platforms;android-36" "1 1" \
+  "$(grep -cxF '  "platforms;android-37.0" \' scripts/cloud-setup.sh || true) $(grep -cxF '  "platforms;android-36" \' scripts/cloud-setup.sh || true)"
+printf '[versions]\ncompileSdk = "37"\n' > "$work/v37.toml"
+printf '[versions]\ncompileSdk = "36"\n' > "$work/v36.toml"
+mkdir -p "$work/sdk-37-0/platforms/android-37.0" "$work/sdk-37/platforms/android-37" "$work/sdk-36-1/platforms/android-36.1"
+expect "cloud-env-check.sh passes for compileSdk 37 with platforms/android-37.0" "pass 1" \
+  "$(VERSIONS_TOML="$work/v37.toml" ENV_SDK="$work/sdk-37-0" env_check "$setup_version" "$work/gradle-home") $(grep -c 'platforms/android-37\.0' "$work/env-check.out" || true)"
+expect "cloud-env-check.sh passes for compileSdk 37 with platforms/android-37" pass \
+  "$(VERSIONS_TOML="$work/v37.toml" ENV_SDK="$work/sdk-37" env_check "$setup_version" "$work/gradle-home")"
+expect "cloud-env-check.sh names both directories for a missing compileSdk 37" "stop 1" \
+  "$(VERSIONS_TOML="$work/v37.toml" ENV_SDK="$work/sdk-empty" env_check "$setup_version" "$work/gradle-home") $(grep -c 'platforms/android-37 hay platforms/android-37\.0' "$work/env-check.out" || true)"
+expect "cloud-env-check.sh does not take platforms/android-36.1 for compileSdk 36" stop \
+  "$(VERSIONS_TOML="$work/v36.toml" ENV_SDK="$work/sdk-36-1" env_check "$setup_version" "$work/gradle-home")"
 
 # local-setup.sh installs on a developer machine the JDK and the SDK packages of cloud-setup.sh, checking every
 # download against its published checksum (T-069 of camera-pose). curl, the Adoptium API, Google's package list and
@@ -2020,7 +2035,8 @@ expect "local-setup.sh downloads nothing the second time" 0 "$(ls_calls)"
 expect "local-setup.sh says both steps were skipped" 2 "$(grep -c '^Bỏ qua:' "$ls_dir/out" || true)"
 expect "local-setup.sh leaves env.sh as it was" same "$(cmp -s "$ls_dir/env-first.sh" "$ls_env" && echo same || echo changed)"
 expect "local-setup.sh --check after the install passes" 0 "$(ls_run "$ls_dir/home-mac" --check)"
-expect "local-setup.sh --check lists every package" 3 "$(grep -c '^QUA: \(platform-tools\|platforms;\|build-tools;\)' "$ls_dir/out" || true)"
+expect "local-setup.sh --check lists every package" 4 "$(grep -c '^QUA: \(platform-tools\|platforms;\|build-tools;\)' "$ls_dir/out" || true)"
+expect "local-setup.sh --check finds platforms;android-37.0" 1 "$(grep -cxF 'QUA: platforms;android-37.0' "$ls_dir/out" || true)"
 
 ls_pkg="$(scripts/local-setup.sh --print-versions | sed -n 's/^gói SDK: //p' | awk '{print $NF}' || true)"
 mv "$ls_dir/home-mac/android-sdk/${ls_pkg//;//}" "$ls_dir/pkg-aside" 2> /dev/null || true

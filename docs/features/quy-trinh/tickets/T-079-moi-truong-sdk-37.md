@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-127 (issue #276), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: on-staging
 risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-079-moi-truong-sdk-37.md
 auto_run: false              # làm trong phiên có người theo dõi (quyết định 2026-10-29); người dán lại setup script
 created: 2026-10-29
 ---
@@ -42,6 +42,6 @@ Chạm môi trường của mọi phiên tự chạy (điểm chặn 7, quy trì
 ## Định nghĩa hoàn thành
 
 - [ ] `scripts/tests/run.sh` qua, có test cho tên thư mục gói 37 (`android-37.0`) ở cả `cloud-env-check.sh` và `local-setup.sh --check`, và test cho compileSdk 36 vẫn qua như cũ.
-- [ ] Người dán lại `scripts/cloud-setup.sh` mới vào môi trường cloud; `env-canary` xanh.
+- [ ] Người dán lại `scripts/cloud-setup.sh` mới vào môi trường cloud; trong môi trường đó, `cloud-env-check.sh` với danh mục giả `compileSdk = "37"` qua; `env-canary` xanh.
 - [ ] `scripts/local-setup.sh --check` trên máy dev thấy đủ gói.
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính.
