@@ -2,7 +2,7 @@
 ticket: T-058
 title: Máy thử và log từng mạng ở bản staging
 status: draft                # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 8M           # cỡ S theo ticket, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); nâng lên khoảng 1,5 lần vì task chạm hai module và file build: một khối đọc local.properties trong app/build.gradle.kts, hai kiểu mới của :core:ads, bảy đường tải của AdsController, banner và native, hai module Hilt
@@ -52,14 +52,14 @@ Luật nghiệp vụ liên quan: S-17 (cài đặt gỡ lỗi chỉ ở staging)
 
 Hôm nay không file build nào đọc `local.properties`: Android Gradle Plugin tự đọc `sdk.dir`, `scripts/cloud-setup.sh` ghi `sdk.dir`, `scripts/release.sh` chép tệp vào thư mục build production. Không cần `build-logic/`: cờ `buildConfig = true` đã bật trong `AndroidApplicationConventionPlugin.kt`, khối flavor nằm trong `app/build.gradle.kts`.
 
-**Bước 1, `app/build.gradle.kts`.** Trong khối `named("staging")`, sau dòng `APPSFLYER_DEV_KEY`:
+**Bước 1, `app/build.gradle.kts`.** Dòng đầu của file thêm `import java.util.Properties` (trong khối `android { }`, tên `java` trỏ tới phần mở rộng `java` của Gradle, nên viết đủ `java.util.Properties` không biên dịch được; chạy thử ở mục 4.1). Trong khối `named("staging")`, sau dòng `APPSFLYER_DEV_KEY`:
 
 ```kotlin
 // A developer's own phones as AdMob test devices (T-058, KB-28, question 40 of the ads spec): the key
 // ads.testDeviceIds of local.properties, never in git. Only this flavor reads it; CI has no such key.
 val adsTestDeviceIds = providers.fileContents(rootProject.layout.projectDirectory.file("local.properties"))
     .asText.orNull
-    ?.let { text -> java.util.Properties().apply { load(text.reader()) }.getProperty("ads.testDeviceIds") }
+    ?.let { text -> Properties().apply { load(text.reader()) }.getProperty("ads.testDeviceIds") }
     .orEmpty()
     .split(',')
     .map { it.trim() }
@@ -120,7 +120,7 @@ Không đổi spec, `ads-business-rules.md` (đây là công cụ cho dev, câu 
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Sửa | `app/build.gradle.kts` | Khối `named("staging")` đọc `ads.testDeviceIds` của `local.properties`, lọc ký tự, trường `ADS_TEST_DEVICE_IDS` (bước 1) |
+| Sửa | `app/build.gradle.kts` | `import java.util.Properties` ở đầu file; khối `named("staging")` đọc `ads.testDeviceIds` của `local.properties`, lọc ký tự, trường `ADS_TEST_DEVICE_IDS` (bước 1) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsDebugOptions.kt` | `AdsDebugOptions`, `testDeviceIdsOf`, `requestConfigurationWithTestDevices`, `applyTestDevices` (bước 2) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdNetworkResponses.kt` | `NetworkResponse`, `networkResponsesOf`, `networkResponseLines`, `AdNetworkLog` (bước 3) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | Tham số `debugOptions`, `networkLog`, gọi `applyTestDevices` trong `startSdk`, gọi `networkLog` ở callback tải của interstitial, app open, rewarded, native toàn màn hình, truyền vào bốn chỗ tạo `SdkNativeAdLoader` (bước 4) |
@@ -155,13 +155,14 @@ Nơi đọc các file này (L-020):
 - Sự kiện phân tích: Không chạm. Dòng log mức `info` của staging đi vào Crashlytics và chỉ gửi kèm báo cáo crash (ADR-0019); nội dung là tên lớp adapter, số mili giây, mã lỗi số, khóa vị trí: không có dữ liệu cá nhân, mã đơn vị hay mã máy.
 - File R2: Không chạm.
 - **Quyền truy cập:** Không thêm.
-- **Thư viện và SDK:** Không thêm. `RequestConfiguration`, `ResponseInfo`, `AdapterResponseInfo`, `LoadAdError.responseInfo` thuộc `play-services-ads` (khóa `play-services-ads`, `playServicesAds = "25.5.0"` trong `gradle/libs.versions.toml`), đã là phụ thuộc `implementation` của `:core:ads`; `:app` không gọi lớp nào của SDK. `java.util.Properties` của file build thuộc JDK. Test dùng `mockk` đã có.
+- **Thư viện và SDK:** Không thêm. `RequestConfiguration`, `ResponseInfo`, `AdapterResponseInfo`, `LoadAdError.responseInfo` thuộc `play-services-ads` (khóa `play-services-ads`, `playServicesAds = "25.5.0"` trong `gradle/libs.versions.toml`), đã là phụ thuộc `implementation` của `:core:ads`; `:app` không gọi lớp nào của SDK. `java.util.Properties` của file build thuộc JDK (import ở đầu file, bước 1). Test dùng `mockk` đã có.
 
 ### 3.4. Phương án dự phòng
 
 - **Điểm chưa chắc:** (a) `mockk` có giả được lớp `final` `ResponseInfo` và `AdapterResponseInfo` của SDK trong test Robolectric của `:core:ads` không (dự án hôm nay chỉ giả lớp trừu tượng như `NativeAd`); (b) `RequestConfiguration.Builder` và `toBuilder()` có chạy được trên JVM của Robolectric không; (c) `providers.fileContents(...)` trong khối flavor có chạy với mọi task của `check.sh` không.
 - **Điều kiện chuyển:** (a), (b): test của `AdNetworkResponsesTest` hay `AdsDebugOptionsTest` đỏ vì không tạo được bản giả hay đối tượng của SDK (lỗi `MockKException`, `NoClassDefFoundError`, `RuntimeException("Stub!")`) sau 2 lần sửa; (c): Gradle báo lỗi cấu hình ở khối staging.
 - **Cách làm thay:** (a) test `networkResponseLines` trên danh sách `NetworkResponse` dựng tay, và test `AdNetworkLog.failed` với `LoadAdError(3, ..., null)` thật (`responseInfo` rỗng, cho dòng `none tried`); `networkResponsesOf` (ánh xạ getter) vào ngoại lệ viết test trước, rà soát đọc tay rằng nó không gọi `getCredentials`, `toString`, `message`. (b) `requestConfigurationWithTestDevices` đổi thành hàm thuần trả `List<String>?` (`null` khi rỗng), `applyTestDevices` nhận `set: (List<String>) -> Unit`, phần dựng `RequestConfiguration` nằm trong lambda của `AdsController` và vào ngoại lệ viết test trước; test quét thứ tự trong `startSdk` giữ nguyên. (c) đọc bằng `rootProject.file("local.properties").takeIf { it.isFile }?.reader()`, cùng lọc ký tự; dự án không bật configuration cache (`gradle.properties`). Tiêu chí và tên test ở mục 4 giữ nguyên.
+- **Kết quả chạy thử (2026-10-29, mục 4.1):** cả ba điểm qua, không cần cách làm thay nào. Một lỗi biên dịch không nằm trong ba điểm trên (viết đủ `java.util.Properties` trong khối `android { }`) đã sửa thẳng ở bước 1 bằng `import`, không phải phương án dự phòng.
 
 ### 3.5. Hành vi đã có bị đổi
 
@@ -209,12 +210,12 @@ Test JVM của `:core:ads` chạy bằng Robolectric (`AndroidJUnit4`), như `Sd
 
 ### 4.1. Chạy thử
 
-- **Đã chạy thử:** chưa. Máy soạn plan (2026-10-29) không có JDK và Android SDK; người giao việc yêu cầu không chạy `./gradlew` hay `scripts/check.sh` lúc này. Chạy thử làm sau, khi máy đã cài công cụ (`scripts/local-setup.sh`, rồi `source` tệp `env.sh` nó in ra), trên một nhánh tạm từ nhánh chính, không commit, trước khi duyệt plan. Ba điểm cần chạy thử là ba điểm chưa chắc của mục 3.4:
-  1. Test tạm `TrialSdkObjectsTest` trong `:core:ads` (Robolectric): `mockk<ResponseInfo>()` và `mockk<AdapterResponseInfo>()` trả `adapterResponses`, `adapterClassName`, `latencyMillis`, `adError`; `RequestConfiguration.Builder().setMaxAdContentRating(...).build().toBuilder().setTestDeviceIds(listOf("A")).build().testDeviceIds == listOf("A")`.
-  2. Khối đọc khóa của bước 1 dán tạm vào `app/build.gradle.kts`, `local.properties` của nhánh tạm có `ads.testDeviceIds=33BE2250B43518CCDA7DE426D04EE231, bad"id`: tệp `BuildConfig.java` sinh ở `app/build/generated/source/buildConfig/staging/debug/com/vglstudio/template/BuildConfig.java` có `ADS_TEST_DEVICE_IDS = "33BE2250B43518CCDA7DE426D04EE231"` (mã sai dạng bị bỏ); xóa khóa thì trường rỗng.
-  3. Cả hai cùng lúc qua toàn bộ `scripts/check.sh`.
-- **Lệnh:** `scripts/check.sh` (đủ các bước như phiên tự chạy); trước đó `./gradlew :app:generateStagingDebugBuildConfig` để đọc `BuildConfig.java` của điểm 2. Không cần `:app:assembleStagingRelease` (không thêm thư viện hay module, L-083).
-- **Kết quả:** chưa có. Người chạy ghi kết quả vào mục này (phiên bản plan giữ nguyên nếu chỉ thêm kết quả); điểm nào đỏ thì ghi rõ phương án dự phòng tương ứng ở mục 3.4 đã thử chưa. Plan chưa duyệt được khi mục này còn trống (câu hỏi 6).
+- **Đã chạy thử:** rồi, 2026-10-29, trên máy dev (macOS, JDK 21.0.13 và Android SDK từ `scripts/local-setup.sh`, `source` tệp `env.sh`). Nhánh tạm `claude/trial-T-058-local` tách từ `origin/main` (`9cb0cad`), không commit, không đẩy lên, đã xóa sau khi chạy. Code tạm: khối đọc khóa của bước 1 dán vào khối `named("staging")` của `app/build.gradle.kts`, và test tạm `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/TrialSdkObjectsTest.kt` (Robolectric, ba test). `local.properties` của nhánh tạm có `sdk.dir` và `ads.testDeviceIds=33BE2250B43518CCDA7DE426D04EE231, bad"id`.
+- **Điểm 1, lớp `final` của SDK và `RequestConfiguration`:** test `finalSdkClasses_canBeMocked` dựng `mockk<ResponseInfo>`, hai `mockk<AdapterResponseInfo>`, `mockk<AdError>` (mã 3, `message` chứa mã đơn vị mẫu), đọc `adapterResponses` ra đúng hai bộ (tên lớp, thời gian, mã lỗi), đọc `loadedAdapterResponseInfo?.adapterClassName`, và `verify(exactly = 0)` với `credentials` và `message` qua. Test `realLoadAdError_withoutResponseInfo_hasNoAdapters`: `LoadAdError(3, "No fill", "com.google.android.gms.ads", null, null)` thật dựng được, `responseInfo` là `null`. Test `requestConfiguration_toBuilder_keepsOtherFields`: `RequestConfiguration.Builder().setMaxAdContentRating(MAX_AD_CONTENT_RATING_G).build().toBuilder().setTestDeviceIds(listOf("A", "B")).build()` có `testDeviceIds == ["A", "B"]` và giữ `maxAdContentRating`. Lệnh `./gradlew :core:ads:testDebugUnitTest --tests 'com.vglstudio.template.core.ads.TrialSdkObjectsTest' :app:generateStagingDebugBuildConfig`: `BUILD SUCCESSFUL in 21s`, `tests="3" failures="0" errors="0"`. Không có `MockKException`, `NoClassDefFoundError` hay `RuntimeException("Stub!")`: điểm chưa chắc (a), (b) của mục 3.4 không xảy ra.
+- **Điểm 2, khối đọc khóa của file build:** lần chạy đầu với đúng code của bước 1 (bản version 1 của plan) hỏng lúc biên dịch script: `Line 60: ... java.util.Properties() ... Unresolved reference: util`, kéo theo `Unresolved reference: load` và `it` (4 lỗi, `BUILD FAILED in 3s`). Lý do: trong khối `android { }`, `java` là phần mở rộng `java` của Gradle, không phải gói. Sửa lần 1: thêm `import java.util.Properties` ở đầu file, gọi `Properties()`; bước 1 của mục 3.1 đã ghi theo cách này. Sau khi sửa: `app/build/generated/source/buildConfig/staging/debug/com/vglstudio/template/BuildConfig.java` có `ADS_TEST_DEVICE_IDS = "33BE2250B43518CCDA7DE426D04EE231"` (mã `bad"id` bị bỏ); bỏ khóa khỏi `local.properties` rồi chạy lại `./gradlew :app:generateStagingDebugBuildConfig`: `ADS_TEST_DEVICE_IDS = ""`. Bản production: `./gradlew :app:generateProductionDebugBuildConfig -PadmobAppId=... -PadUnits=x -PassetsBaseUrl=https://example.invalid/ -PappsFlyerDevKey=x` (`BUILD SUCCESSFUL in 1s`): `BuildConfig.java` của production không có `ADS_TEST_DEVICE_IDS`. Không có tham số `-P` thì task này dừng ở `preProductionDebugBuild` với lỗi "Build production cần tham số thật" như hôm nay (khối kiểm của file build, không liên quan tới khóa mới). `providers.fileContents(...)` chạy được với mọi task: điểm chưa chắc (c) không xảy ra.
+- **Điểm 3, toàn bộ `scripts/check.sh`:** lần đầu `exit 1` sau 366 giây, chỉ vì `:core:ads:ktlintTestSourceSetCheck` báo một dòng quá 120 ký tự trong chính test tạm (dòng `assertEquals` của `loadedAdapterResponseInfo`); `:app:ktlintKotlinScriptCheck` của file build đã sửa thì qua. Tách dòng đó rồi chạy lại: `exit 0` sau 308 giây, `Test JVM: 1458 test, 0 lỗi. Ảnh screenshot: 89`, `./core/ads: 1069 test, 0 lỗi` (gồm 3 test tạm, `failures="0"`), `./app: 148 test, 0 lỗi`, dòng cuối `== Cổng chất lượng: QUA`.
+- **Thêm, vì file build đổi:** `./gradlew :app:assembleStagingRelease`: `BUILD SUCCESSFUL in 2m 10s`, ra `app-staging-release-unsigned.apk`; `BuildConfig.java` của staging release có `ADS_TEST_DEVICE_IDS = "33BE2250B43518CCDA7DE426D04EE231"`.
+- **Kết luận:** kỹ thuật dùng được như mục 3.1 (đã sửa bước 1 bằng `import`); không cần phương án dự phòng nào của mục 3.4. Phiên làm task vẫn chạy `scripts/check.sh` như thường; `local.properties` của máy dev có khóa `ads.testDeviceIds` thì `StagingAdsModuleTest` thấy giá trị khác rỗng (mục 4 đã tính).
 
 ## 5. Chấm rủi ro
 
@@ -255,7 +256,7 @@ Plan rủi ro cao chạm quảng cáo: người phụ trách sản phẩm (anh N
 3. **Hộp thoại đồng ý trên máy thật.** Theo tài liệu UMP, vùng giả EEA của staging (S-17) chỉ áp cho emulator và máy khai báo bằng `ConsentDebugSettings.Builder.addTestDeviceHashedId`, nên trên máy thật hôm nay có thể không thấy hộp thoại EEA. Có thể dùng cùng khóa `ads.testDeviceIds` (mã của UMP là mã băm, có thể khác mã của AdMob: chưa kiểm). Đề xuất: không làm trong T-058 (chạm hộp thoại đồng ý, điểm chặn 5); tách ticket mới nếu anh muốn. Anh đồng ý?
 4. **Đọc `local.properties` chung với T-068.** Đề xuất ở mục 6: T-058 đọc ngay trong khối staging; plan nào chạy sau mà cần khóa thứ hai thì tách thành hàm chung ở cấp trên cùng của file build. Anh đồng ý, hay muốn T-058 tạo sẵn hàm chung?
 5. **Mã sai dạng.** Đề xuất bỏ mã sai dạng mà không làm build hỏng (khối staging cấu hình cả ở build production của `release.sh`), dev nhận biết qua `Test devices set: <n>`. Phương án khác: báo lỗi lúc build staging bằng một kiểm tra trong `doFirst` của task `preStaging*Build` (thêm code build). Anh chọn?
-6. **Chạy thử chưa làm.** Mục 4.1 chưa có kết quả vì máy soạn plan chưa có JDK. Đề xuất: chạy thử theo mục 4.1 khi máy có công cụ, ghi kết quả, rồi mới duyệt; nếu điểm 1 đỏ thì plan dùng sẵn phương án dự phòng (a) hay (b) của mục 3.4 và ghi lại phiên bản plan.
+6. **Chạy thử:** đã chạy thử 2026-10-29 (mục 4.1). Ba điểm qua, `scripts/check.sh` qua; code của bước 1 cần thêm `import java.util.Properties` mới biên dịch được, đã sửa ở mục 3.1 (plan version 2). Không dùng phương án dự phòng nào. Không còn câu hỏi ở đây; anh xem lại bước 1 đã sửa.
 
 ## 9. Quyết định duyệt
 
