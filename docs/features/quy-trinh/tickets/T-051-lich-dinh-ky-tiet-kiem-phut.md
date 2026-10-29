@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-051-lich-tu-tat.md
 auto_run:
 created: 2026-10-29
 ---
