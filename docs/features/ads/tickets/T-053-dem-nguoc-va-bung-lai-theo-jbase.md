@@ -10,7 +10,7 @@ risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-053-dem-nguoc-va-bung-lai-theo-jbase.md
 auto_run: 
 created: 2026-10-29
 ---
