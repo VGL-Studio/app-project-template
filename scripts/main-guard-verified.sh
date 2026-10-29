@@ -19,6 +19,7 @@
 #   - the PR head can be fetched (refs/pull/<n>/head): on GitHub the squash commit does not descend from it.
 # Then the trees of the PR head and of the commit are compared: same tree is skip; only docs/** and *.md files differ,
 # none of them a docs file Gradle reads (GRADLE_READ_DOCS), is tests; anything else is full.
+# Both diffs list the old and the new path of a renamed file (--no-renames): code moved into docs/ is still code.
 # The trees match because merge-if-green.sh merges only a PR that is not behind main, pinned to the checked sha.
 # Uses only the GitHub REST API through `gh api`, and git.
 #
@@ -31,7 +32,7 @@ GATE_FILES=(.github/workflows/pr-check.yml .github/workflows/main-guard.yml scri
 GATE_JOB="build-and-test"
 GATE_STEP="Cổng chất lượng (scripts/check.sh)"
 # The docs files that a Gradle test reads (rootProject.file("docs/...") in a *.gradle.kts); scripts/tests/run.sh keeps
-# this list in step with the build files.
+# this list in step with the build files, but only for that form: a build file reading docs/ another way must be added here.
 GRADLE_READ_DOCS=(docs/remote-config-keys.md docs/remote-config-template.json docs/design-system/tokens.json)
 PULLS_TRIES="${PULLS_TRIES:-3}"
 PULLS_WAIT_SECONDS="${PULLS_WAIT_SECONDS:-5}"
@@ -56,7 +57,7 @@ fi
 [[ "$EVENT" == "push" ]] || full "chạy bằng sự kiện $EVENT, không phải push"
 [[ "$ATTEMPT" == "1" ]] || full "lần chạy lại thứ $ATTEMPT"
 
-changed="$(git diff --name-only "$SHA^" "$SHA" 2>/dev/null)" || full "không đọc được thay đổi của ${SHA:0:7} so với commit cha"
+changed="$(git -c core.quotePath=false diff --no-renames --name-only "$SHA^" "$SHA" 2>/dev/null)" || full "không đọc được thay đổi của ${SHA:0:7} so với commit cha"
 for gate in "${GATE_FILES[@]}"; do
   if grep -qxF -- "$gate" <<<"$changed"; then
     full "commit đổi $gate, một file mà job guard chạy hay dựa vào"
@@ -95,7 +96,7 @@ if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
     full "refs/pull/$number/head không trỏ commit đã kiểm ${head:0:7}"
 fi
 
-diff="$(git diff --name-only "$head" "$SHA" 2>/dev/null)" || full "không so được ${head:0:7} với ${SHA:0:7}"
+diff="$(git -c core.quotePath=false diff --no-renames --name-only "$head" "$SHA" 2>/dev/null)" || full "không so được ${head:0:7} với ${SHA:0:7}"
 if [[ -z "$diff" ]]; then
   echo "ĐÃ KIỂM Ở PR #$number (commit ${head:0:7}): cây file giống hệt, không chạy lại check.sh (ADR-0039)." >&2
   echo skip

@@ -275,7 +275,7 @@ mgv_write() { # <path=content>...: writes files in the temporary repo
 mgv_setup() { # [<path=content> changed by the PR too]...: a new repo with A and H; sets mgv_a, mgv_h
   rm -rf "$mgv_repo"
   git init -q -b main "$mgv_repo"
-  mgv_write app/x.kt=a docs/a.md=a
+  mgv_write app/x.kt=a docs/a.md=a scripts/check.sh=gate
   git -C "$mgv_repo" add -A && git -C "$mgv_repo" commit -q -m A
   mgv_a="$(git -C "$mgv_repo" rev-parse HEAD)"
   mgv_write app/x.kt=h "$@"
@@ -333,6 +333,17 @@ expect "main-guard-verified: a docs file Gradle reads is full (tokens.json)" "0 
 m="$(mgv_main app/y.kt=b)"
 expect "main-guard-verified: code differs from the checked PR is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
 expect "main-guard-verified: full says why" 1 "$(grep -c 'KIỂM ĐẦY ĐỦ' "$work/mgv.err")"
+# git diff names only the new path of a renamed file unless renames are off: code moved into docs/ is still code.
+git -C "$mgv_repo" mv app/x.kt docs/x.md
+m="$(mgv_main)"
+expect "main-guard-verified: code renamed into docs/ is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+mgv_setup
+git -C "$mgv_repo" mv scripts/check.sh docs/check.md
+git -C "$mgv_repo" commit -q -m H2
+mgv_h="$(git -C "$mgv_repo" rev-parse HEAD)"
+m="$(mgv_main)"
+expect "main-guard-verified: a commit renaming a gate file is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+mgv_setup
 
 m="$(mgv_main)"
 step='.routes["actions/runs/91/jobs?per_page=50"].jobs[0].steps[1]'
