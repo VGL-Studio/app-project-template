@@ -817,7 +817,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #270; sau khi sửa, `env-canary` và hai phiên tự chạy của app tải được plugin.
 - **Đề xuất sửa:** init script thêm `google()` ngay sau bản sao Maven Central, trước Plugin Portal; tăng `SETUP_VERSION`; test kiểm thứ tự kho; thêm dòng vào bảng sự cố của `docs/ops/setup-new-app.md`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #278: `scripts/cloud-setup.sh` thêm `google()` trước `gradlePluginPortal()`, `SETUP_VERSION` 4; test thứ tự kho trong `scripts/tests/run.sh`; dòng sự cố ở `docs/ops/setup-new-app.md`; ghi chú gộp `SETUP_VERSION` ở `docs/ops/to-app.md` mục 7. Cần người dán lại setup script vào môi trường cloud.
+- **Áp dụng:** PR #278: `scripts/cloud-setup.sh` thêm `google()` trước `gradlePluginPortal()`, `SETUP_VERSION` 4; test thứ tự kho trong `scripts/tests/run.sh`; dòng sự cố ở `docs/ops/setup-new-app.md`; ghi chú gộp `SETUP_VERSION` ở `docs/ops/to-app.md` mục 7. Bước vận hành ngoài PR: người dán lại setup script vào môi trường cloud.
 
 ### L-122. Hộp thoại đồng ý trên Xiaomi HyperOS đặt nhãn nút ở `content-desc`, kịch bản không bấm được nút từ chối
 
