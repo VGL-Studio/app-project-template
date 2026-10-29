@@ -28,12 +28,20 @@ Bước 2 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâ
   - Kotlin giữ 2.2.10;
   - bỏ plugin `kotlin-android`;
   - compileSdk 37, targetSdk giữ 36.
-- `build-logic/`: bỏ `org.jetbrains.kotlin.android` trong `AndroidApplicationConventionPlugin` và `AndroidLibraryConventionPlugin`, cấu hình Kotlin theo AGP 9.
-- `build.gradle.kts` gốc: bỏ alias `kotlin.android`.
-- Kiểm lại các thư viện chỉ mẫu dùng trên bộ mới: Firebase, quảng cáo, mediation, AppsFlyer.
+- `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar` đi theo lần nâng wrapper.
+- `build-logic/`:
+  - bỏ `org.jetbrains.kotlin.android` trong `AndroidApplicationConventionPlugin` và `AndroidLibraryConventionPlugin`;
+  - `KotlinAndroid.kt` cấu hình Kotlin theo AGP 9: `KotlinAndroidProjectExtension` và kiểu `CommonExtension` đổi;
+  - `AndroidComposeConventionPlugin.kt` cũng dùng `CommonExtension`;
+  - `build-logic/convention/build.gradle.kts` (`kotlin.gradlePlugin`).
+- `build.gradle.kts` gốc: bỏ alias `kotlin.android`. File build của từng module (`app/build.gradle.kts`, `core/*/build.gradle.kts`) đổi khi DSL của AGP 9 khác.
+- `gradle.properties`: cờ của AGP 9 nếu cần. KSP 2.3.12 chạy với mặc định; bản cũ hơn cần `android.disallowKotlinSourceSets=false`, dùng làm phương án dự phòng của plan.
+- `scripts/java-check.sh`: bảng giới hạn Java theo bản Gradle chưa có dòng cho Gradle 9.3 (trả rỗng, không có giới hạn trên). Thêm giới hạn của Gradle 9.3, kèm test, để Java quá mới vẫn bị chặn (L-059).
+- Kiểm lại trên bộ mới các thư viện và plugin chỉ mẫu dùng: Firebase, quảng cáo, mediation, AppsFlyer, plugin `googleServices` và `firebaseCrashlyticsGradle`.
 - ktlint bản mới: chạy `ktlintFormat`. Kiểm lại luật dòng dài của T-050. File Kotlin bị định dạng lại thì liệt kê trong plan.
 - `CLAUDE.md`, mục Công nghệ (compileSdk 37, targetSdk 36).
-- `cloud-setup.sh`: bỏ `platforms;android-36` nếu không còn cần.
+- ADR-0011 (`accepted`) ghi Gradle 8.14.3, AGP 8.13, compileSdk 36. Không sửa ADR đó: viết ADR mới thay phần bộ công cụ của ADR-0011, rồi chạy `scripts/foundation.py`.
+- `cloud-setup.sh` không đổi: giữ `platforms;android-36` (vô hại), để lần đổi build không kéo theo một lần dán lại setup script. Bỏ gói đó, nếu muốn, là việc của một lần dán sau.
 - Plan chạy thử trên nhánh nâng cấp (mục 4.1): `scripts/check.sh`, `./gradlew :app:assembleStagingRelease` (R8), so manifest gộp trước và sau.
 
 **Không bao gồm:**
@@ -46,7 +54,7 @@ Bước 2 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâ
 
 Chạm `build-logic/` và `gradle/libs.versions.toml` (file "Không được làm" của `CLAUDE.md`) và mọi module, nên cần plan rủi ro cao được duyệt chéo. Chưa chắc Roborazzi 1.43 và Robolectric 4.15 chạy được trên AGP 9 và Gradle 9. Plan chạy thử điều này trước. Nếu không chạy được, plan ghi phương án dự phòng: gộp phần thư viện test của T-081 vào ticket này, nhưng vẫn không ghi lại ảnh chuẩn. Bản production chưa được kiểm trên bộ mới ở app nào.
 
-Ảnh hưởng chéo: các ticket quảng cáo T-053 tới T-068 đang được soạn plan, có ticket thêm SDK (`libs.versions.toml`). Thứ tự merge với các ticket đó do người quyết khi duyệt.
+Ảnh hưởng chéo: các ticket quảng cáo T-053 tới T-068 đang được soạn plan, có ticket thêm SDK (`libs.versions.toml`); PR #292 (T-074 tới T-078, giảm phút Actions) có thể chạm cùng workflow CI. Thứ tự merge với các ticket đó do người quyết khi duyệt.
 
 ## Định nghĩa hoàn thành
 

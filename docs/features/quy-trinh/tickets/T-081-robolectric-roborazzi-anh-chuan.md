@@ -35,7 +35,7 @@ Bước 3 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâ
 
 ## Rủi ro sơ bộ
 
-Ảnh chuẩn là bằng chứng của giao diện. Ghi lại hàng loạt có thể che một lỗi giao diện thật, nên cần plan rủi ro cao được duyệt chéo, và người xem từng ảnh đổi. Chạm `gradle/libs.versions.toml`. Các app nhận qua `template-sync.sh` phải ghi lại ảnh chuẩn của riêng chúng.
+Ảnh chuẩn là bằng chứng của giao diện. Ghi lại hàng loạt có thể che một lỗi giao diện thật, nên cần plan rủi ro cao được duyệt chéo, và người xem từng ảnh đổi. Chạm `gradle/libs.versions.toml`. Roborazzi còn được cấu hình ở `build-logic/` (`AndroidFeatureConventionPlugin`, `RoborazziExtension`), `app/build.gradle.kts`, `core/ads/build.gradle.kts`, `core/designsystem/build.gradle.kts`, và `scripts/check.sh` dựa vào tên task `recordRoborazzi`, `verifyRoborazzi`. Bản 1.77 đổi DSL hay tên task thì ticket chạm cả `build-logic/` và `check.sh`; plan kiểm điều này trước. Các app nhận qua `template-sync.sh` phải ghi lại ảnh chuẩn của riêng chúng.
 
 ## Định nghĩa hoàn thành
 
