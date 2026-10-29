@@ -1,16 +1,16 @@
 ---
 ticket: T-051
 title: Lịch định kỳ không cấp runner khi không có phiên tự chạy
-status: draft
+status: approved
 version: 1
-risk_score:
+risk_score: 9
 risk_level: high
 token_estimate: 23.9M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-29
 lane:
 ---
 
@@ -224,8 +224,10 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085). Mọi test script 
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:** , **duyệt chéo:**
-- **Ghi chú:**
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-29):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai vòng rà soát độc lập, tổng kết ở PR #286)
+- **Ghi chú:** trả lời mục 8: (1) giữ `GRACE_HOURS` 3 và `PENDING_HOURS` 72; (2) phiên không bật được workflow thì ghi vào Cần người kiểm tra để người bật tay; (3) danh sách bị bỏ quên ở `running` giữ lịch bật như hiện nay. Làm trong phiên có người, 2026-10-29.
 
 ## 10. Nhật ký thực hiện
