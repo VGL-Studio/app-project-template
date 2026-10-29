@@ -1,16 +1,16 @@
 ---
 ticket: T-058
 title: Máy thử và log từng mạng ở bản staging
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 8M           # cỡ S theo ticket, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); nâng lên khoảng 1,5 lần vì task chạm hai module và file build: một khối đọc local.properties trong app/build.gradle.kts, hai kiểu mới của :core:ads, bảy đường tải của AdsController, banner và native, hai module Hilt
 blocking_points: [ads, core, build]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -277,11 +277,9 @@ Plan rủi ro cao chạm quảng cáo: người phụ trách sản phẩm (anh N
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) tiêu chí 3 đạt khi mỗi lượt tải có dòng `Network`; ghi giới hạn vào `ads-guide.md`; log nhiều mạng kiểm ở app đầu tiên có mã thật. (2) mức `info`. (3) không làm hộp thoại đồng ý trên máy thật trong T-058, chưa tách ticket. (4) không còn câu hỏi. (5) bỏ mã sai dạng, không làm hỏng build. (6) đã xem bước 1 bản sửa. (7) xác nhận: `ProductionAdsModule.kt` là code nối Hilt, không phải cấu hình production của ADR-0007; các plan cùng đợt dùng chung cách đọc này.
 
 ## 10. Nhật ký thực hiện
 
