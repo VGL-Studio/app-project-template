@@ -1,16 +1,16 @@
 ---
 ticket: T-079
 title: Môi trường cloud và máy dev có sẵn Android SDK 37, kiểm compileSdk theo đúng tên gói
-status: draft
+status: approved
 version: 1
 risk_score: 4
 risk_level: high
 token_estimate: 5.4M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-29
 lane:
 ---
 
@@ -160,8 +160,10 @@ Không cần (E dưới 2). Đã xem trên máy dev, 2026-10-29, ở SDK của A
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:** , **duyệt chéo:**
-- **Ghi chú:**
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-29):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua một vòng rà soát độc lập, 1 điểm chặn và 4 điểm nên sửa đã xử lý ở commit 4dec5cd)
+- **Ghi chú:** trả lời mục 8: (1) theo đề xuất: dán setup script của nhánh và kiểm compileSdk 37 trong phiên cloud trước khi merge, qua thì merge ngay rồi chạy `env-canary`; (2) giữ `platforms;android-36` sau T-080. Làm trong phiên có người, 2026-10-29.
 
 ## 10. Nhật ký thực hiện
