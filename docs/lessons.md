@@ -762,6 +762,24 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** (2) ADR-0033, lệch nhỏ L12: điểm nên sửa chỉ về chú thích hay định dạng trong file được phép thì phiên sửa không cần test viết trước (`git diff -w` chỉ có chú thích hay khoảng trắng, `scripts/check.sh` qua), ghi vào mục Quyết định AI đã tự làm; `docs/auto-run.md` bước 6, `docs/risk-scoring.md` mục 4, `docs/templates/run.md`. (1) Ticket T-050: ktlint không kiểm dòng dài ở cả repo (145 dòng Kotlin dài hơn 120 ký tự, 129 dòng là chú thích, đếm 2026-10-28), không chỉ dòng này. Không mở PR riêng cho dòng KDoc ở `NativeFlowStep.kt:258`; T-050 sửa cùng các dòng khác.
 
+### L-116. Phiên mở `local` không có bước kiểm môi trường đúng: `cloud-env-check.sh` luôn báo lỗi ở máy dev
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #258, L-089 của app; RUN-20261028-01, RUN-20261028-02)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `docs/auto-run.md` mục 2 chỉ có `scripts/cloud-env-check.sh` để kiểm môi trường đầu phiên. Ở máy dev script này luôn báo lỗi, vì đòi tệp phiên bản của `scripts/cloud-setup.sh` và init script mirror Maven. Theo chữ của bảng, phiên `local` phải kết thúc ngay; hai phiên của app tự quyết không coi đó là điều kiện dừng, không để lại quy tắc.
+- **Bằng chứng:** `cloud-env-check.sh` ở máy dev ngày 2026-10-28: "môi trường dựng từ setup script phiên bản không có ... thiếu ~/.gradle/init.d/maven-central-mirror.gradle"; báo cáo RUN-20261028-01 của camera-pose, mục Quyết định AI đã tự làm; PR VGL-Studio/camera-pose#218.
+- **Đề xuất sửa:** phiên `local` chạy `scripts/local-setup.sh --check` (JDK, SDK có nền tảng `compileSdk`, tệp `env.sh`; thoát khác 0 khi thiếu) thay cho `cloud-env-check.sh`, qua thì `source` tệp `env.sh`; không qua thì kết thúc phiên như dòng cũ, để người chạy `scripts/local-setup.sh`.
+- **Trạng thái:** applied
+- **Áp dụng:** `docs/auto-run.md` mục 2 (dòng môi trường của bảng, bước 1 của Kiểm tra build ở chế độ nền), `docs/ops/session-capabilities.md` (dòng `local`). Máy dev từng build bằng JDK, SDK trong thư mục tạm của phiên Claude thì `--check` báo thiếu dù build được: chạy `scripts/local-setup.sh` một lần trước khi mở phiên `local`.
+### L-117. `ui-test` đỏ vì runner tải gói Android Emulator lỗi, bảng tra lỗi xếp là lỗi thật
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #259, L-090 của app; RUN-20261028-02, T-071, PR VGL-Studio/camera-pose#216)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** sau `merge-if-green.sh --update`, job `ui-test` đỏ sau khoảng 2 phút: `sdkmanager` tải gói Android Emulator lỗi ("Error on ZipFile unknown archive"), emulator không khởi động, không test nào chạy. `failure-kind.sh --playbook` trả `khong-co`, nên theo bước 8 phiên phải coi là lỗi thật dù không có gì để sửa. Lần chạy lại ngay cũng lỗi; phiên tự xếp là hạ tầng, lần sau 2 phút thì xanh.
+- **Bằng chứng:** camera-pose, `ui-test` lần chạy 40734943741, lần thử 1 và 2 (17:23 và 17:36 UTC ngày 2026-10-28) đỏ cùng mẫu, lần thử 3 xanh.
+- **Đề xuất sửa:** dòng `lich-thu-lai` trong bảng tra lỗi, chỉ khớp khi log có cả dòng tải gói lỗi và dòng "Không có test nào chạy trên emulator", để lỗi emulator do code (test chạy rồi đỏ) không bị xếp nhầm.
+- **Trạng thái:** applied
+- **Áp dụng:** PB-15 trong `docs/ops/failure-playbook.md`, log thật ở `scripts/tests/playbook/PB-15.log`. Cột Mẫu nhận nhiều mẫu nối bằng "và" (`scripts/failure-kind.sh`: dòng khớp khi log có đủ mọi mẫu), có test cho cả hai phía và lần đột biến chỉ dò mẫu đầu làm test đỏ.
 ### L-118. Rà soát độc lập nêu điểm chặn bằng đọc code, test chạy thật không tái hiện được, mà bước 6 không có lối ra
 
 - **Ngày, nguồn:** 2026-10-29, camera-pose (issue #250, L-052 của app; RUN-20261023-04, T-015)
