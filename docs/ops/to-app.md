@@ -46,7 +46,7 @@ Chỉ PR đồng bộ được sửa `base=` và `hold=`. Script tự sửa, tro
    ```
 
    Script tạo nhánh `template-sync/<commit>` trong app. Không xung đột thì nó commit luôn. Có xung đột thì nó in danh sách theo mục 2 và dừng giữa chừng.
-4. **Gộp xung đột** theo cột cuối của bảng ở mục 2. Phần của app ghi lại ở bước 1 thì áp lại sau khi lấy bản mẫu (`git show <commit của app> -- <file> | git apply -3`). Xong thì:
+4. **Gộp xung đột** theo cột cuối của bảng ở mục 2. Đợt có đổi `scripts/cloud-setup.sh` thì xem ghi chú về `SETUP_VERSION` ở mục 7. Phần của app ghi lại ở bước 1 thì áp lại sau khi lấy bản mẫu (`git show <commit của app> -- <file> | git apply -3`). Xong thì:
    - chạy `python3 scripts/foundation.py`;
    - `git add` từng file;
    - chạy `git commit` (lời commit đã soạn sẵn).
@@ -91,4 +91,4 @@ Kiểm tra và test riêng của app không đặt trong file của mẫu. Mẫu
 
 - Tài liệu lấy từ dự án mẫu dẫn số bài học của dự án mẫu (`L-0NN`), khác số trong sổ bài học của app. Tra ở `docs/lessons.md` của repo dự án mẫu.
 - Bảng ở mục 2 khớp với `NEVER_SYNCED` và `TEMPLATE_OWNED` trong `scripts/template-sync.sh`. Đổi một chỗ thì đổi cả hai.
-- `SETUP_VERSION` của `scripts/cloud-setup.sh`: app đã tăng số riêng (ví dụ app ở 5, mẫu ở 4) thì khi gộp lấy số lớn hơn của hai bên cộng một, để môi trường cloud của app biết phải dán lại script, rồi dán lại (L-121).
+- `SETUP_VERSION` của `scripts/cloud-setup.sh`: đợt đồng bộ có đổi file này, kể cả khi không xung đột, mà app đã từng tăng số riêng, thì đặt số bằng số lớn nhất app từng dùng cộng một, rồi dán lại script (`docs/ops/staging-and-runs.md`, mục 2.1). Hai bên cùng tăng lên một số với nội dung khác thì git gộp êm, số không đổi, và `cloud-env-check.sh` không báo phải dán lại (L-121).
