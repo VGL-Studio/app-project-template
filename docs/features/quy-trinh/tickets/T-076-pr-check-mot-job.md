@@ -11,7 +11,7 @@ size: S
 depends_on: [T-075]
 sprint:
 plan:
-auto_run: 
+auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
 created: 2026-10-29
 ---
 
@@ -24,7 +24,7 @@ Job `changes` của `pr-check.yml` chỉ chạy 4 giây để lọc đường d�
 ## Phạm vi
 
 - Chuyển bước `dorny/paths-filter` (hay `git diff` theo nhánh gốc) vào đầu `build-and-test`; các bước sau đọc `steps.filter.outputs`.
-- Kiểm `merge-if-green.sh`, `wait-run.sh`, `failure-kind.sh`, `main-guard-status.sh`, `scripts/tests/fake-gh` và `docs/ops/failure-playbook.md` có đọc tên job `changes` không; sửa theo.
+- Sửa chỗ đọc tên job `changes`: `merge-if-green.sh` (`REQUIRED_CHECKS=("changes" "build-and-test")`), chú thích đầu `pr-check.yml`, dữ liệu test ở `scripts/tests/run.sh` (khoảng dòng 319, 416, 704). Plan tìm thêm bằng `grep -rn '"changes"\|changes:' scripts/ .github/ docs/ops/`.
 
 **Không bao gồm:**
 

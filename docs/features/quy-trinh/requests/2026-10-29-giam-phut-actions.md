@@ -15,7 +15,7 @@ Tiếp tục dùng GitHub, nhưng giảm mạnh tiền trả cho GitHub Actions.
 
 Số liệu lấy từ API tính tiền của tổ chức VGL-Studio ngày 2026-10-29:
 
-- Tháng 10 tới ngày 29 dùng khoảng 8.700 phút Linux, vượt 2.000 phút miễn phí của gói Free, phải trả khoảng $40 ($21,5 cho dự án mẫu, $18,5 cho camera-pose). Từ 2026-10-23 mỗi ngày khoảng $5–7, tức khoảng $150–200 mỗi tháng, và tăng theo số app.
+- Tháng 10 tới ngày 29 dùng khoảng 8.700 phút Linux, vượt 2.000 phút miễn phí của gói Free, phải trả khoảng 40 USD (21,5 USD cho dự án mẫu, 18,5 USD cho camera-pose). Từ 2026-10-23 mỗi ngày khoảng 5 tới 7 USD, tức khoảng 150 tới 200 USD mỗi tháng, và tăng theo số app.
 - Phút tính tiền của dự án mẫu từ 2026-10-22 tới 2026-10-29 (179 PR, khoảng 3.540 phút, mỗi job làm tròn lên phút):
 
 | Job | Phút | Tỷ lệ |
@@ -33,14 +33,14 @@ Các lịch định kỳ (`run-watchdog`, `resume-run`, `env-canary`, `status-pa
 
 | # | Cách | Ước giảm | Ticket |
 | --- | --- | --- | --- |
-| 1 | Runner tự host cho các job nặng | 80–95% phần còn lại | T-078 |
-| 2 | `main-guard` không chạy lại cổng chất lượng cho commit có nội dung đã kiểm ở PR | ~20% | T-074 |
-| 3 | Test emulator chạy sau khi merge, không chạy ở từng PR | ~15% | T-075 |
-| 4 | Bỏ job `changes` riêng của `pr-check` | ~9% | T-076 |
-| 5 | PR nháp không chạy `pr-check`; không bắt chạy lại khi nhánh chính chỉ đổi tài liệu | 10–20% | T-077 |
+| 1 | Runner tự host cho các job nặng | 80 tới 95% phần còn lại | T-078 |
+| 2 | `main-guard` không chạy lại cổng chất lượng cho commit có nội dung đã kiểm ở PR | khoảng 20% | T-074 |
+| 3 | Test emulator chạy sau khi merge, không chạy ở từng PR (chỉ bớt phần chạy lại: khoảng 41% của 18%) | khoảng 7 tới 8% | T-075 |
+| 4 | Bỏ job `changes` riêng của `pr-check` | khoảng 9% | T-076 |
+| 5 | PR nháp không chạy `pr-check`; không bắt chạy lại khi nhánh chính chỉ đổi tài liệu | 10 tới 20% | T-077 |
 | 6 | Đặt giới hạn chi tiêu cho Actions | chặn vượt | người làm, không có ticket |
 
-Cách 2 tới 5 giảm khoảng 40–50% mà không cần máy mới.
+Cách 2 tới 5 giảm khoảng 35 tới 45% mà không cần máy mới.
 
 ## Những gì chưa cần làm lần này
 

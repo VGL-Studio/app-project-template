@@ -11,7 +11,7 @@ size: M
 depends_on: [T-074, T-076]
 sprint:
 plan:
-auto_run: 
+auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
 created: 2026-10-29
 ---
 
@@ -23,9 +23,9 @@ created: 2026-10-29
 
 ## Phạm vi
 
-- `pr-check.yml`: thêm loại sự kiện `ready_for_review`, bỏ qua PR nháp ở cấp job. `merge-if-green.sh` đã từ chối PR nháp nên không cần kiểm thêm; plan kiểm PR nháp của phiên (PR plan, PR sửa nguyên nhân) và các chỗ đang chờ CI của PR nháp (`docs/auto-run.md`).
+- `pr-check.yml`: khai báo đủ `types: [opened, synchronize, reopened, ready_for_review]` (khai báo `types` thì bộ mặc định mất, thiếu `synchronize` là không kiểm commit mới), bỏ qua PR nháp ở cấp job. `merge-if-green.sh` đã từ chối PR nháp nên không cần kiểm thêm; plan kiểm PR nháp của phiên (PR plan, PR sửa nguyên nhân) và các chỗ đang chờ CI của PR nháp (`docs/auto-run.md`).
 - `merge-if-green.sh`: khi nhánh chậm hơn nhánh chính và mọi commit của nhánh chính từ điểm tách tới nay chỉ đổi tài liệu (cùng tập đường dẫn `paths-ignore` của `main-guard`), merge mà không cập nhật nhánh. Squash merge với mã commit đã kiểm vẫn giữ. Xung đột thì vẫn cập nhật.
-- `main-guard` của T-074 so nội dung commit merge với commit đã kiểm, phần khác chỉ là tài liệu thì vẫn bỏ qua: plan kiểm hai ticket khớp nhau.
+- `main-guard` của T-074 so nội dung commit merge với commit đã kiểm; phần khác chỉ là tài liệu thì chạy `scripts/tests/run.sh` để kiểm tổ hợp tài liệu của PR với tài liệu mới của nhánh chính. Plan kiểm hai ticket khớp nhau.
 - Sửa ADR-0010 mục 1 ("nhánh của PR đã cập nhật theo nhánh chính mới nhất") bằng ADR mới hay mục mới của ADR của T-074.
 
 **Không bao gồm:**
@@ -34,7 +34,7 @@ created: 2026-10-29
 
 ## Rủi ro sơ bộ
 
-Sửa `scripts/merge-if-green.sh` và `.github/workflows/pr-check.yml`: plan rủi ro cao, duyệt chéo, mỗi kiểm tra của script merge một test (L-058). Sai điều kiện "chỉ tài liệu" thì code chưa kiểm cùng code mới của main vào main mà không chạy lại; `main-guard` vẫn bắt được vì nội dung khác phần đã kiểm.
+Sửa `scripts/merge-if-green.sh` và `.github/workflows/pr-check.yml`: plan rủi ro cao, duyệt chéo, mỗi kiểm tra của script merge một test (L-058). Sai điều kiện "chỉ tài liệu" thì tổ hợp code của PR với code mới của main vào main mà chưa kiểm; `main-guard` bắt được vì nội dung khác phần đã kiểm ngoài tài liệu. Tổ hợp tài liệu (bài học trùng số, `foundation.md` lệch) chỉ bị bắt sau merge bằng `scripts/tests/run.sh` của `main-guard` (T-074), không còn chặn trước merge.
 
 ## Định nghĩa hoàn thành
 

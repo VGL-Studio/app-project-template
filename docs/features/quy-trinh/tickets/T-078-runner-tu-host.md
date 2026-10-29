@@ -7,8 +7,8 @@ scenarios: []
 owner: Nhật
 status: backlog
 risk: high
-size: M
-depends_on: [T-076]
+size: L
+depends_on: [T-076, T-077]
 sprint:
 plan:
 auto_run: false
@@ -27,6 +27,7 @@ Sau T-074 tới T-077, phút còn lại chủ yếu là `build-and-test` của P
 - Các job nặng đọc nhãn runner từ biến tổ chức (ví dụ `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`): máy hỏng hay bảo trì thì xóa biến là quay về runner của GitHub, không sửa workflow. Job nhẹ (lịch định kỳ, `start-run`, `status-page`) giữ runner của GitHub.
 - Bước của workflow giả định máy sạch (giải phóng đĩa, bật KVM bằng `sudo`, cài Java) chạy được trên cả hai loại máy, hoặc bỏ qua trên máy tự host.
 - `scripts/check.sh` không để lại trạng thái giữa hai lần chạy (thư mục `build/`, ảnh screenshot) làm lệch kết quả; mỗi job chạy trong thư mục làm việc sạch.
+- An toàn: runner chạy lâu dùng chung máy cho code của PR (`pr-check`) và job có quyền ghi hay bí mật (`main-guard` có `contents: write`, `issues: write`; `staging` dùng `STAGING_KEYSTORE_*`, `STAGING_APP_DISTRIBUTION_CREDENTIALS`). PR có thể để lại init script trong `~/.gradle` làm sai cổng chất lượng hay đọc bí mật của job sau. Plan chọn: runner chạy một lần (ephemeral), hay dọn `~/.gradle` và thư mục làm việc sau mỗi job, hay tách runner của job có bí mật và quyền ghi; `staging` giữ runner của GitHub nếu không tách được.
 - `docs/ops/failure-playbook.md`: thêm dòng cho lỗi runner tự host (máy tắt, hết đĩa, job chờ runner quá lâu).
 
 **Không bao gồm:**
@@ -35,9 +36,10 @@ Sau T-074 tới T-077, phút còn lại chủ yếu là `build-and-test` của P
 
 ## Câu hỏi cho người
 
-1. Máy nào chạy runner? (a) Máy Linux hay Mac sẵn có ở văn phòng: không tốn tiền thuê, nhưng phụ thuộc điện, mạng và máy bật. (b) Máy chủ thuê có KVM (ví dụ máy chủ riêng 8 nhân, khoảng $40–60 mỗi tháng): chạy được emulator x86 như hiện nay. (c) Chỉ chuyển build và test JVM sang máy tự host, emulator vẫn ở GitHub. AI đề xuất (b), hoặc (a) nếu có máy Linux x86 bật 24/7.
+1. Máy nào chạy runner? (a) Máy Linux hay Mac sẵn có ở văn phòng: không tốn tiền thuê, nhưng phụ thuộc điện, mạng và máy bật. (b) Máy chủ thuê có KVM (ví dụ máy chủ riêng 8 nhân, khoảng 40 tới 60 USD mỗi tháng): chạy được emulator x86 như hiện nay. (c) Chỉ chuyển build và test JVM sang máy tự host, emulator vẫn ở GitHub. AI đề xuất (b), hoặc (a) nếu có máy Linux x86 bật 24/7.
 2. Một máy cho mọi app, hay mỗi app một máy? AI đề xuất một máy cho cả tổ chức, chạy hai job cùng lúc.
 3. Kiểm lại chính sách giá của GitHub cho runner tự host lúc làm ticket (có thời điểm GitHub công bố thu phí nền tảng theo phút rồi hoãn).
+4. Gói GitHub Free có cho tạo nhóm runner (runner group) để giới hạn runner theo repo không? Không có thì runner của tổ chức dùng được cho mọi repo, kể cả repo công khai nếu có.
 
 ## Rủi ro sơ bộ
 

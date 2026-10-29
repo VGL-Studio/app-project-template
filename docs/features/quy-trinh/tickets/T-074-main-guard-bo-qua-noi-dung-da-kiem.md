@@ -11,7 +11,7 @@ size: M
 depends_on: []
 sprint:
 plan:
-auto_run: 
+auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
 created: 2026-10-29
 ---
 
@@ -19,13 +19,16 @@ created: 2026-10-29
 
 ## Mô tả
 
-`main-guard.yml` chạy lại `scripts/check.sh` cho mọi commit code trên nhánh chính, tốn khoảng 21% phút Actions của dự án mẫu (757 phút từ 2026-10-22 tới 2026-10-29). `merge-if-green.sh` đã bắt PR cập nhật theo nhánh chính và xanh trên đúng commit cuối, rồi merge kiểu squash, nên commit merge thường có nội dung giống hệt commit đã kiểm. Sau ticket này, `main-guard` chỉ chạy cổng chất lượng khi commit trên nhánh chính khác phần đã kiểm ở PR ngoài tài liệu (yêu cầu `requests/2026-10-29-giam-phut-actions.md`, cách 2).
+`main-guard.yml` chạy lại `scripts/check.sh` cho mọi commit trên nhánh chính trừ commit chỉ đổi `docs/**` hay `**/*.md` (kể cả commit chỉ đổi `.github/**`, `.claude/**`), tốn khoảng 21% phút Actions của dự án mẫu (757 phút từ 2026-10-22 tới 2026-10-29). `merge-if-green.sh` đã bắt PR cập nhật theo nhánh chính và xanh trên đúng commit cuối, rồi merge kiểu squash, nên commit merge thường có nội dung giống hệt commit đã kiểm. Sau ticket này, `main-guard` chỉ chạy cổng chất lượng khi commit trên nhánh chính khác phần đã kiểm ở PR ngoài tài liệu (yêu cầu `requests/2026-10-29-giam-phut-actions.md`, cách 2).
 
 ## Phạm vi
 
-- `main-guard.yml` tìm PR của commit merge và commit cuối của PR mà `pr-check` đã xanh, rồi so nội dung: `git diff --name-only <commit đã kiểm> <commit trên main>` rỗng, hoặc chỉ gồm đường dẫn mà `paths-ignore` của `main-guard` đã bỏ (`docs/**`, `**/*.md`), thì ghi kết quả xanh "đã kiểm ở PR #N" và không chạy `check.sh`.
-- Mọi trường hợp khác vẫn chạy như cũ: đẩy thẳng lên main, không tìm được PR, `pr-check` của commit đó không xanh, khác nội dung code, chạy tay (`workflow_dispatch`).
-- Kết quả "xanh vì đã kiểm" vẫn phải được `find-breaking-commit.sh`, `main-guard-status.sh` và phần tự đóng issue `main-broken` (ADR-0025) hiểu là xanh. Plan kiểm từng chỗ đọc kết quả của `main-guard` (`grep -rn main-guard scripts/ .github/ docs/ops/`).
+- `main-guard.yml` tìm PR của commit merge và commit cuối của PR có `build-and-test` xanh **đã đi nhánh chạy `check.sh`** (bộ lọc `code` bật; PR chỉ chạy `scripts/tests/run.sh` không tính là đã kiểm), rồi so nội dung bằng `git diff --name-only <commit đã kiểm> <commit trên main>`:
+  - Rỗng: không chạy `check.sh`, ghi "đã kiểm ở PR #N, commit <sha>".
+  - Chỉ gồm `docs/**`, `**/*.md` (nhánh chính có thêm tài liệu sau lần kiểm, T-077): chỉ chạy `scripts/tests/run.sh`, vì nó kiểm cả tài liệu (số bài học, `foundation.md`, danh sách chạy, quét bí mật) và tổ hợp tài liệu của PR với tài liệu mới của nhánh chính chưa ai kiểm.
+- Luôn chạy `check.sh` đầy đủ: đẩy thẳng lên main, không tìm được PR, không có lần kiểm như trên, khác nội dung ngoài tài liệu, chạy tay (`workflow_dispatch`), và commit chạm `.github/workflows/pr-check.yml`, `.github/workflows/main-guard.yml`, `scripts/check.sh`, `scripts/failure-kind.sh`, `scripts/find-breaking-commit.sh` (PR sửa workflow được kiểm bằng chính bản đã sửa; `main-guard` sau merge là lần chạy thật đầu tiên của bản mới).
+- Bỏ qua là một bước bên trong job `guard`, không phải `if:` ở cấp job: `find-breaking-commit.sh` và `main-guard-status.sh` đọc check run tên `guard` (`CHECK_NAME="guard"`), job bị skip thì script đầu chờ như `pending` tới 40 phút và script sau báo "CHƯA KIỂM", phiên tự chạy không bắt đầu được.
+- Chỗ đọc kết quả `main-guard` phải hiểu đúng kết quả mới: `find-breaking-commit.sh`, `main-guard-status.sh`, `start-run.yml`, phần tự đóng issue `main-broken` (ADR-0025), `docs/auto-run.md` bước 9, và `scripts/release.sh` dòng khoảng 187 (chỉ build production từ commit có `main-guard` `success`). `release.sh` không sửa (`CLAUDE.md`); ADR ghi rõ "xanh vì đã kiểm ở PR" cũng là cổng cho bản production và người chấp nhận nghĩa mới này khi duyệt ADR. Plan tìm thêm bằng `grep -rn main-guard scripts/ .github/ docs/`.
 - ADR mới thay một phần mục 2 của ADR-0010 ("chạy lại cổng chất lượng cho từng commit"), sinh lại `docs/foundation.md`.
 - Test trong `scripts/tests/run.sh` cho phần so nội dung (tách thành script, ví dụ `scripts/main-guard-verified.sh`, dùng `fake-gh`).
 
@@ -39,8 +42,8 @@ Sửa `.github/workflows/main-guard.yml` và có thể `scripts/main-guard-statu
 
 ## Định nghĩa hoàn thành
 
-- [ ] Commit merge từ PR đã xanh, cùng nội dung code: `main-guard` xanh trong dưới 1 phút, log ghi số PR và commit đã kiểm.
-- [ ] Đẩy thẳng lên main, hay nội dung code khác: `main-guard` chạy `check.sh` như cũ. Có test cho cả hai phía.
-- [ ] `merge-if-green.sh`, `find-breaking-commit.sh`, tự đóng `main-broken` vẫn đúng với kết quả mới (test).
+- [ ] Commit merge từ PR đã kiểm, cùng nội dung: job `guard` xong trong dưới 1 phút, log ghi số PR và commit đã kiểm. Chỉ khác tài liệu: chỉ chạy `scripts/tests/run.sh`.
+- [ ] Đẩy thẳng lên main, nội dung khác ngoài tài liệu, PR chỉ chạy test của script, hay commit chạm workflow và script của cổng: `main-guard` chạy `check.sh` như cũ. Có test cho từng trường hợp.
+- [ ] `find-breaking-commit.sh`, `main-guard-status.sh`, `start-run.yml`, tự đóng `main-broken` vẫn đúng với kết quả mới (test); `release.sh` không đổi.
 - [ ] ADR mới `accepted`, `foundation.md` sinh lại.
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính.

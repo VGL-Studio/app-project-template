@@ -11,7 +11,7 @@ size: M
 depends_on: [T-074]
 sprint:
 plan:
-auto_run: 
+auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
 created: 2026-10-29
 ---
 
@@ -25,8 +25,10 @@ Job `ui-test` của `pr-check.yml` chạy test emulator (`app/src/androidTest`) 
 
 - Bỏ `ui-test` khỏi `pr-check.yml`; `merge-if-green.sh` không còn chờ hay đòi kết quả `ui-test` (hiện được phép bỏ qua khi PR không chạm code app).
 - Chạy test emulator sau merge: trong `main-guard.yml` (job riêng, chỉ khi commit chạm đường dẫn `ui` hiện có), kể cả khi T-074 bỏ qua `check.sh`. Plan so với cách chạy mỗi đêm một lần cho commit mới nhất có đổi code.
+- Nêu tên job mới và cách các chỗ đọc kết quả nhìn thấy nó: `find-breaking-commit.sh`, `main-guard-status.sh` chỉ đọc check run `guard`, nên emulator đỏ mà `guard` xanh vẫn báo xanh; bước mở `main-broken` và đẩy nhánh revert nằm trong job `guard`. `scripts/release.sh` (không sửa) đọc kết luận của cả workflow `main-guard`: emulator chạy trong `main-guard` thì emulator đỏ chặn phát hành, chạy ở workflow khác thì không. Plan ghi rõ hướng chọn.
 - Test emulator đỏ trên main: xử lý như cổng chất lượng đỏ (issue `main-broken`, tìm commit gây lỗi, nhánh revert, ADR-0010, ADR-0025), hay nhãn riêng nhẹ hơn. Plan đề xuất, người chọn.
-- Cập nhật ADR (ADR mới hay mục mới của ADR của T-074), `docs/auto-run.md` (bước chờ CI, phiên chờ `main-guard` sau merge), `docs/ops/failure-playbook.md` nếu đổi tên job, `CLAUDE.md` (dòng "Test trên emulator chỉ chạy trong CI").
+- Emulator đỏ vì hạ tầng (tải R2 hết giờ chờ, emulator không khởi động) không được mở `main-broken`: một lần chập chờn sẽ chặn mọi lần merge. Viết lại các dòng PB-01, PB-10, PB-11, PB-13, PB-15 của `docs/ops/failure-playbook.md`: cách xử lý hiện nay (chạy lại job, commit rỗng lên nhánh task) không dùng được sau merge.
+- Cập nhật: ADR mới hay mục mới của ADR của T-074, thay ADR-0010 mục 4 ("`main-guard` không chạy test emulator"); `docs/auto-run.md` (bước 8 về `ui-test`, bước 9 chờ `main-guard`, ước tính phút ở mục 2 và mục 4); `scripts/run-check.py` (thông báo L-045 nhắc `ui-test`); `CLAUDE.md` (dòng "Test trên emulator chỉ chạy trong CI").
 - Phiên tự chạy vẫn có `device-session` cuối phiên; plan ghi hai lớp này khác nhau thế nào.
 
 **Không bao gồm:**
