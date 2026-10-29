@@ -5,7 +5,7 @@
 # longer "running". A session opened with `claude --cloud` is not continued by resume-run.yml (L-044), so this
 # issue is how a person learns it must be reopened.
 # Only reads the repository and writes session-stalled issues: never starts a session or a routine, never touches
-# main-broken or any other issue. Needs no secret. About 1 Actions minute a run (the Actions quota once ran out,
+# main-broken or any other issue. Needs no secret. About 2 Actions minutes a run, one per job (the Actions quota once ran out,
 # L-064, L-126): the idle job disables this workflow while no session needs it, and status-page.yml (an approved run
 # list on main), start-run.yml and the session enable it again (scripts/schedule-idle.py, T-051). An app that does
 # not want it: delete this file (nothing else reads its issues).

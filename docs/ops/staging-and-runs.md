@@ -154,7 +154,7 @@ Không cần thiết lập thêm: workflow dùng hai bí mật `ROUTINE_FIRE_URL
 
 **Báo phiên đứng im (`run-watchdog.yml`).** Không cần thiết lập thêm, không dùng bí mật. Mỗi 30 phút, `scripts/run-watchdog.py` tìm phiên `running` mà 60 phút không có commit (90 phút khi đang có workflow của phiên chạy), rồi mở issue `session-stalled` có sẵn prompt tiếp tục của mục 2.7. Phiên có commit lại thì issue tự đóng. Workflow chỉ ghi issue mang nhãn này, không kích hoạt phiên hay routine.
 
-- Tốn khoảng 1 phút Actions mỗi lần. Lịch tự tắt khi không có phiên, như `resume-run` (mục 2.8).
+- Tốn khoảng 2 phút Actions mỗi lần (job `watch` và job `idle`). Lịch tự tắt khi không có phiên, như `resume-run` (mục 2.8).
 - App không cần (ví dụ không bao giờ mở phiên bằng `claude --cloud`) thì xóa file workflow. Tắt tay không đủ: lần duyệt danh sách sau sẽ bật lại.
 
 ### 2.7. Mở phiên bằng `claude --cloud` khi còn cloud session credits
@@ -213,6 +213,7 @@ Cách làm (`scripts/schedule-idle.py`, T-051):
 - Sau job chính, job `idle` của `resume-run.yml` và `run-watchdog.yml` tắt chính workflow đó khi: không có danh sách `running` trên nhánh báo cáo nào; không có danh sách `approved` chưa bắt đầu, merge trong 72 giờ qua; workflow không được bật trong 3 giờ qua; `start-run` không chạy trong 3 giờ qua. Tắt xong thì đọc lại; thấy phiên hay danh sách chờ thì bật lại ngay. Job không bao giờ làm workflow đỏ.
 - Bật lại: job `schedules` của `status-page.yml` khi có danh sách chờ hay phiên đang chạy; `start-run.yml` trước khi kích hoạt routine; phiên ở đầu phiên (`docs/auto-run.md`, mục 2); dev bằng `scripts/schedule-idle.py --enable`.
 - Xem trạng thái: `gh workflow list --all` (`active` hay `disabled_manually`). Muốn chạy tay một workflow đang tắt thì bật trước rồi mới **Run workflow**.
+- Chỉ danh sách có ngày trong tên trong 14 ngày qua mới được xét là danh sách chờ. Danh sách soạn từ lâu rồi mới duyệt thì lịch không tự bật: kiểm `gh workflow list --all` sau khi merge (mục 2.3).
 - Danh sách bị bỏ quên ở `running` giữ hai lịch bật: `run-watchdog` báo bằng issue `session-stalled`; sửa danh sách sang `finished`.
 
 `env-canary.yml` rẻ và chặn phiên khi môi trường hỏng, nên giữ; tắt nó thì bật lại và chạy tay một lần (**Run workflow**) vào ngày trước phiên.

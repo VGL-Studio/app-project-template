@@ -48,7 +48,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Thử ở đầu phiên có plan sửa `.github/workflows/` xem phiên đẩy được thay đổi workflow không: `scripts/push-probe.sh RUN-YYYYMMDD-NN` (`docs/ops/session-capabilities.md`, `docs/auto-run.md` mục 2).
 - Đưa thay đổi của dự án mẫu về một app, chạy trong repo dự án mẫu khi có người theo dõi: `scripts/template-sync.sh --app <thư mục app>` (`docs/ops/to-app.md`, ADR-0030).
 - Xem phiên tự chạy nào đứng im (danh sách `running`, không có commit 60 phút): `scripts/run-watchdog.py`; `run-watchdog.yml` chạy nó mỗi 30 phút khi có phiên hay danh sách chờ (tự tắt khi rảnh, T-051) và mở issue `session-stalled` (`docs/auto-run.md`, mục 4).
-- Bật lịch của `resume-run.yml` và `run-watchdog.yml` (chúng tự tắt khi không có phiên): `scripts/schedule-idle.py --enable`. Phiên chạy ở đầu phiên; dev chạy sau khi merge danh sách chạy mà `gh workflow list --all` chưa thấy cả hai `active` (`docs/ops/staging-and-runs.md`, mục 2.8).
+- Bật lịch của `resume-run.yml` và `run-watchdog.yml` (chúng tự tắt khi không có phiên): `scripts/schedule-idle.py --enable`. Phiên chạy ở đầu phiên; dev chạy sau khi merge danh sách chạy mà `gh workflow list --all` chưa thấy cả hai `active` (`docs/ops/staging-and-runs.md`, mục 2.3 và 2.8).
 - Chọn ticket cho hàng chờ plan cuối phiên: `scripts/plan-queue.py [--max N]` (`docs/auto-run.md`, mục 4).
 - Đếm token AI theo task của một phiên: `scripts/token-usage.py report --since <giờ bắt đầu>`; số gợi ý cho `token_estimate` của plan: `scripts/token-usage.py estimate` (`docs/ops/token-usage.md`).
 - Môi trường cloud chưa có `ANDROID_HOME` thì đặt `export ANDROID_HOME=$HOME/android-sdk` (SDK do `scripts/cloud-setup.sh` cài).

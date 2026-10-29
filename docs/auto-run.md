@@ -296,7 +296,7 @@ Phiên dùng hạn mức của tài khoản Claude (ADR-0009). Hết hạn mức
 - Phiên có commit lại, hay danh sách không còn `running`, thì issue tự đóng ở lần chạy sau.
 - Phiên chính ghi một dòng vào Dòng thời gian và đẩy nhánh báo cáo khi giao bước 3 đến 5 cho phiên con và khi nhận kết quả. Trong lúc chờ phiên con, cứ 50 phút không có commit nào trên các nhánh của phiên (và không có workflow đang chạy) thì đẩy một dòng Dòng thời gian.
 - Phiên không đóng, sửa hay bình luận issue `session-stalled`. Phiên mở bằng routine thì `resume-run.yml` tự tiếp tục sau 90 phút: người không mở thêm phiên tay.
-- Workflow tốn khoảng 1 phút Actions mỗi lần. Lịch tự tắt khi không có phiên và được bật lại khi có (`scripts/schedule-idle.py`, T-051). App không cần thì xóa file. Không có gì khác đọc issue này. Tổng phút của mọi lịch: `docs/ops/staging-and-runs.md`, mục 2.8.
+- Workflow tốn khoảng 2 phút Actions mỗi lần (job `watch` và job `idle`). Lịch tự tắt khi không có phiên và được bật lại khi có (`scripts/schedule-idle.py`, T-051). App không cần thì xóa file. Không có gì khác đọc issue này. Tổng phút của mọi lịch: `docs/ops/staging-and-runs.md`, mục 2.8.
 
 Phiên tiếp tục làm như sau:
 
