@@ -5,9 +5,10 @@ owner: Nhật
 product_owner: Nhật
 requests:
   - requests/2026-10-21-native-va-remote-config.md
+  - requests/2026-10-29-hoc-tu-jbase.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-10-26
+confirmed: 2026-10-29
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -37,6 +38,7 @@ Cũng ngày 2026-10-23 (lượt 2): theo bản đặc tả độc lập của Ad
 - Remote Config: kiểu số thực và chuỗi, bảng khóa sinh tự động, giá trị cục bộ cho bản staging. **Thêm 2026-10-23:** tên khóa quảng cáo giống hệt AdsKit.
 - Một màn hình chỉ có ở bản staging để xem thử mọi loại quảng cáo (câu hỏi 2).
 - **Thêm 2026-10-23:** đồng ý quảng cáo và khởi động sớm theo AdsKit; app open lúc mở app (lần đầu sau khi cài và lần thường) và khi quay lại app; interstitial nối native toàn màn hình; banner làm mới theo AdMob, banner thu gọn; rewarded với hộp thoại; native trên luồng giới thiệu; doanh thu theo vị trí ở Firebase và AppsFlyer; chặn quảng cáo tự hiện khi app mở màn của hệ thống; nạp lại khi lỗi và khi có mạng.
+- **Thêm 2026-10-29 (yêu cầu `requests/2026-10-29-hoc-tu-jbase.md`, ADR-0036):** quảng cáo trong màn hình dừng khi bị quảng cáo toàn màn hình che; quảng cáo toàn màn hình chỉ hiện khi màn hình của app còn dùng được; mã quảng cáo cho mọi lớp của thanh đáy ở production; thử mediation trên máy thật của staging; native trong danh sách thử lại khi lỗi; thanh đáy chừa chỗ lúc đang tải; banner MREC; cổng không hiện quảng cáo cho người đã mua gói bỏ quảng cáo (KB-26 tới KB-30). AppLovin MAX và Amazon APS (ADR-0037, KB-31), tiêu chí chốt sau câu hỏi 41 tới 47.
 
 **Ngoài phạm vi lần này:**
 
@@ -54,10 +56,11 @@ Một màn hình của app có vị trí native small đã bật.
 Tiêu chí chấp nhận:
 
 - [ ] Khi có quảng cáo thì thấy icon, tiêu đề, nút CTA, nhãn "Ad" và biểu tượng AdChoices; vùng quảng cáo có nền hoặc viền tách khỏi nội dung; CTA khác nút chính của app.
-- [ ] ~~Khi đang tải thì vùng quảng cáo giữ đúng chiều cao với hiệu ứng chờ, nội dung bên dưới không nhảy.~~ **Đổi 2026-10-23:** khi native nhỏ ở đáy thì vùng quảng cáo cao 80 dp; khi đang tải thì giữ đúng chiều cao đó với hiệu ứng chờ.
+- [ ] ~~Khi đang tải thì vùng quảng cáo giữ đúng chiều cao với hiệu ứng chờ, nội dung bên dưới không nhảy.~~ **Đổi 2026-10-23:** khi native nhỏ ở đáy thì vùng quảng cáo cao 80 dp; khi đang tải thì giữ đúng chiều cao đó với hiệu ứng chờ. **Đổi 2026-10-29 (ADR-0038, KB-32):** khe native nhỏ ở đáy cao theo bề rộng màn hình như JBase, từ 90 dp tới 200 dp.
 - [ ] ~~Khi không có quảng cáo sau thời gian chờ thì vùng quảng cáo thu lại; nếu vị trí được khai báo là cạnh nút của app thì giữ khoảng trống để nút không dịch.~~ **Đổi 2026-10-23:** khi nạp lỗi thì vùng quảng cáo co về 0 dp, nội dung không chừa khoảng trống cho nó.
 - [ ] ~~Khi app ở chế độ tối thì quảng cáo dùng màu tối của hệ thống thiết kế.~~ **Đổi 2026-10-23:** màu lấy từ hệ thống thiết kế; chữ quảng cáo luôn đọc được trên nền của vùng quảng cáo, kể cả khi máy ở chế độ tối.
 - [ ] **Thêm 2026-10-23:** khi người dùng ở màn hình đủ 60 giây và app ở foreground thì nội dung quảng cáo được thay tại chỗ; nạp lỗi thì giữ quảng cáo cũ.
+- [ ] **Thêm 2026-10-29:** khi máy đặt cỡ chữ 200% thì tiêu đề, nhãn "Ad" và CTA của native nhỏ không bị cắt mất chữ (có thể rút gọn bằng dấu ba chấm), khe vẫn cao 80 dp (D-02). **Đổi 2026-10-29 (ADR-0038):** chiều cao khe theo KB-32.
 
 Trường hợp đặc biệt:
 
@@ -71,6 +74,8 @@ Tiêu chí chấp nhận:
 - [ ] Khi có quảng cáo thì thấy thêm ảnh hoặc video của quảng cáo, vùng ảnh ít nhất 120 x 120 dp, đúng tỷ lệ, không kéo giãn hay cắt.
 - [ ] Các tiêu chí giữ chỗ, không có quảng cáo, chế độ tối như KB-1.
 - [ ] **Thêm 2026-10-23:** khi hai ô medium cùng hiện trên màn thì mỗi ô có một quảng cáo khác nhau.
+- [ ] **Thêm 2026-10-29:** khi quảng cáo có điểm đánh giá thì chạm vào hàng sao được tính là chạm vào quảng cáo, như các phần khác của quảng cáo.
+- **Thêm 2026-10-29 (ADR-0036):** native medium vẫn là lựa chọn mặc định thay MREC; app nào cần banner MREC thật thì dùng định dạng `banner_mrec` (KB-29).
 
 ### KB-3. Native trong danh sách
 
@@ -82,14 +87,15 @@ Tiêu chí chấp nhận:
 - [ ] Khi danh sách ít hơn N mục thì không có quảng cáo.
 - [ ] Mỗi ô quảng cáo có nhãn "Ad" rõ, không thể nhầm với một mục của danh sách.
 - [ ] **Thêm 2026-10-23:** mỗi ô quảng cáo có một quảng cáo riêng; khi không còn quảng cáo nào để lấy thì ô không hiện, không để khung chờ mãi.
+- [ ] **Thêm 2026-10-29:** khi một ô native small trong danh sách tải lỗi thì ô thử lại theo cùng nhịp của native (`ads-business-rules.md`, O-05), chỉ khi app ở foreground và cổng đồng ý mở; có quảng cáo thì ô hiện.
 
 ### KB-4. Native thu gọn được
 
 Tiêu chí chấp nhận:
 
 - [ ] ~~Khi vào màn hình thì quảng cáo ở dạng mở (như medium) ở đáy màn hình, có nút thu gọn ít nhất 48 dp, không cùng góc với AdChoices.~~ **Đổi 2026-10-23:** khi vào màn hình thì quảng cáo mở ở đáy, cao 250 dp, nổi trên thanh đáy, có nút thu gọn 32 dp ở góc trên phải; chỉ lấp chiều rộng, không che thanh điều hướng của app.
-- [ ] ~~Khi người dùng chạm nút thu gọn thì quảng cáo chuyển sang dạng gọn (như small).~~ **Đổi 2026-10-23:** khi người dùng chạm nút thu gọn thì lớp quảng cáo ẩn, lộ thanh đáy (native nhỏ 80 dp) bên dưới.
-- [ ] ~~Khi đã thu gọn thì quảng cáo không tự mở lại trong lúc người dùng còn ở màn hình đó, kể cả khi tải quảng cáo mới.~~ **Đổi 2026-10-23:** khi đã thu gọn thì quảng cáo tự mở lại sau số giây đặt từ xa (mặc định 30 giây, 0 là không mở lại), đếm từ lúc người dùng thu gọn; nội dung được thay mỗi 60 giây mà không đổi trạng thái thu gọn.
+- [ ] ~~Khi người dùng chạm nút thu gọn thì quảng cáo chuyển sang dạng gọn (như small).~~ **Đổi 2026-10-23:** khi người dùng chạm nút thu gọn thì lớp quảng cáo ẩn, lộ thanh đáy (native nhỏ 80 dp) bên dưới. **Đổi 2026-10-29 (ADR-0038):** chiều cao native nhỏ theo KB-32.
+- [ ] ~~Khi đã thu gọn thì quảng cáo không tự mở lại trong lúc người dùng còn ở màn hình đó, kể cả khi tải quảng cáo mới.~~ **Đổi 2026-10-23:** khi đã thu gọn thì quảng cáo tự mở lại sau số giây đặt từ xa (mặc định 30 giây, 0 là không mở lại), đếm từ lúc người dùng thu gọn; nội dung được thay mỗi 60 giây mà không đổi trạng thái thu gọn. **Đổi 2026-10-29 (ADR-0038, KB-32):** mặc định 10 giây như JBase.
 
 ### KB-5. Native toàn màn hình thay interstitial
 
@@ -99,8 +105,8 @@ Một điểm dừng tự nhiên trong app (ví dụ sau khi lưu xong một ả
 
 Tiêu chí chấp nhận:
 
-- [ ] ~~Khi đủ điều kiện tần suất thì quảng cáo hiện toàn màn hình với nút đóng thấy và bấm được ngay, ít nhất 48 dp, ở góc khác AdChoices.~~ **Đổi 2026-10-23:** xem KB-16 (đếm ngược 3 giây, nút đóng 36 dp).
-- [ ] Khi bấm nút đóng hoặc nút quay lại của máy thì quảng cáo đóng và người dùng về đúng chỗ đang làm. **Đổi 2026-10-23:** trong 3 giây đếm ngược nút quay lại không làm gì, sau đó đóng như nút đóng (câu hỏi 17).
+- [ ] ~~Khi đủ điều kiện tần suất thì quảng cáo hiện toàn màn hình với nút đóng thấy và bấm được ngay, ít nhất 48 dp, ở góc khác AdChoices.~~ **Đổi 2026-10-23:** xem KB-16 (đếm ngược 3 giây, nút đóng 36 dp). **Đổi 2026-10-29 (ADR-0038):** đếm ngược và nút đóng theo KB-32 (5 giây, 48 dp).
+- [ ] Khi bấm nút đóng hoặc nút quay lại của máy thì quảng cáo đóng và người dùng về đúng chỗ đang làm. **Đổi 2026-10-23:** trong 3 giây đếm ngược nút quay lại không làm gì, sau đó đóng như nút đóng (câu hỏi 17). **Đổi 2026-10-29 (ADR-0038):** thời gian đếm ngược theo KB-32.
 - [ ] ~~Khi vừa có một quảng cáo toàn màn hình (interstitial hay native) thì không hiện thêm cái nào cho tới hết khoảng cách tối thiểu.~~ **Đổi 2026-10-23:** xem KB-15.
 - [ ] Khi chưa có quảng cáo sẵn thì không hiện gì và không chặn người dùng.
 
@@ -139,6 +145,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi mở Ad Inspector trên staging thì thấy adapter AppLovin đã khởi tạo. ~~**Đổi 2026-10-23:** thấy cả chín adapter đã khởi tạo.~~ **Đổi 2026-10-24 (plan T-034, câu hỏi 1):** khi mở staging thì log trạng thái (và Ad Inspector khi mở được) liệt kê đủ chín adapter; mã app thử của Google không có cấu hình mediation nên trên staging adapter báo `NOT_READY`.
 - [ ] **Thêm 2026-10-24:** khi một app có mã AdMob thật và nhóm mediation đủ chín mạng thì Ad Inspector thấy cả chín adapter đã khởi tạo.
 - [ ] **Thêm 2026-10-23:** khóa SDK của AppLovin không nằm trong repo; bản staging chạy được khi không có khóa đó. **Đổi 2026-10-24 (plan T-034, câu hỏi 2):** khóa cũng không nằm trong app; chỉ nhập trong ánh xạ nguồn quảng cáo "AppLovin (Bidding)" trên AdMob.
+- **Thêm 2026-10-29:** AppLovin MAX và Amazon APS là nguồn quảng cáo thứ hai bên cạnh AdMob (ADR-0037, KB-31). Khi ADR-0037 được chấp nhận, vế "khóa không nằm trong app" ở trên chỉ còn đúng cho adapter AppLovin của AdMob; khóa SDK MAX đi vào app lúc build phát hành (câu hỏi 43).
 
 ### KB-10. Bảng khóa Remote Config
 
@@ -160,7 +167,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi việc hỏi đồng ý lỗi vì mạng và app đang mở trên màn hình thì quảng cáo vẫn được tải; khi mạng về hay app được mở lại thì app hỏi lại đồng ý.
 - [ ] Khi app ở nền thì không có yêu cầu quảng cáo nào dựa trên quyền tạm khi lỗi mạng.
 - [ ] Khi việc hỏi lại cho biết cần hỏi người dùng thì app dừng tải và không hiện quảng cáo đã tải bằng quyền tạm, cho tới khi người dùng trả lời.
-- [ ] Khi app chưa bật quyền tạm (mặc định tắt, cả cấu hình của app lẫn công tắc từ xa) thì quảng cáo chỉ tải khi hộp thoại đồng ý cho phép; lỗi mạng của việc hỏi đồng ý không cho tải.
+- [ ] Khi app chưa bật quyền tạm (mặc định tắt, cả cấu hình của app lẫn công tắc từ xa) thì quảng cáo chỉ tải khi hộp thoại đồng ý cho phép; lỗi mạng của việc hỏi đồng ý không cho tải. **Đổi 2026-10-29 (ADR-0038, KB-32):** khởi động sớm bằng đồng ý thật của lần mở trước (`CACHED_EARLY`) luôn bật như JBase, không cần cấu hình hay công tắc; phần quyền tạm khi lỗi mạng (`ERROR_ALLOWED`) giữ đúng tiêu chí này.
 - [ ] Khi người vận hành tắt quyền tạm từ xa thì quyền tạm khi lỗi mạng bị thu hồi ngay; quyền người dùng đã cho vẫn giữ.
 - [ ] Khi quyền tạm tắt mà hộp thoại đồng ý lỗi sau khi người dùng đã cho phép thì kết quả được giữ cho cả lần mở app, không hỏi lại.
 
@@ -218,7 +225,7 @@ Người dùng bấm một nút có interstitial (ví dụ sang màn sau).
 Tiêu chí chấp nhận:
 
 - [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình.
-- [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở ~~góc trên phải~~ **đổi 2026-10-26:** góc trên trái, theo thiết kế T-035 (góc trên phải dành cho AdChoices; câu hỏi 10 của plan T-027); hết đếm ngược thì vòng đó thành nút đóng.
+- [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở ~~góc trên phải~~ **đổi 2026-10-26:** góc trên trái, theo thiết kế T-035 (góc trên phải dành cho AdChoices; câu hỏi 10 của plan T-027); hết đếm ngược thì vòng đó thành nút đóng. **Đổi 2026-10-29 (ADR-0038, KB-32):** đếm ngược mặc định 5 giây, chỉnh từ xa bằng `time_close_native` (1 tới 30), trong vòng 48 dp, vẫn ở góc trên trái.
 - [ ] Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược.
 - [ ] Khi đóng màn native thì người dùng đi tiếp tới màn đã chọn, và khoảng cách `ads_interval` tính từ lúc này.
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
@@ -229,11 +236,12 @@ Tiêu chí chấp nhận:
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi bật native ở đáy thì đáy màn hình có native nhỏ 80 dp và lớp native thu gọn 250 dp nổi trên (KB-4).
+- [ ] Khi bật native ở đáy thì đáy màn hình có native nhỏ 80 dp và lớp native thu gọn 250 dp nổi trên (KB-4). **Đổi 2026-10-29 (ADR-0038):** chiều cao theo KB-32.
 - [ ] Khi người vận hành tắt riêng lớp thu gọn thì native nhỏ ở đáy vẫn còn.
 - [ ] Khi đang chờ quảng cáo đầu tiên thì khe native nhỏ hiện khung chờ; khi tải lỗi thì khe co về 0.
 - [ ] Khi tắt native ở đáy thì đáy màn hình có banner.
-- [ ] Nội dung của màn hình chừa đúng chiều cao của thanh đáy khi thanh có quảng cáo, không chừa thừa hay thiếu.
+- [ ] ~~Nội dung của màn hình chừa đúng chiều cao của thanh đáy khi thanh có quảng cáo, không chừa thừa hay thiếu.~~ **Đổi 2026-10-29 (ADR-0036, câu hỏi 37):** nội dung của màn hình chừa đúng chiều cao của khe đáy từ lúc khe đang tải và khi khe có quảng cáo, nên nội dung không bị đẩy khi quảng cáo về; khi khe nạp lỗi thì không chừa gì. Không chừa thừa hay thiếu.
+- [ ] **Thêm 2026-10-29:** khi app phát hành bản production có thanh đáy thì khe banner và lớp native thu gọn đều có mã quảng cáo và gửi được yêu cầu, theo mã theo khe (câu hỏi 14).
 - [ ] Doanh thu và lượt bấm của thanh đáy tính cho màn hình đang hiện, không cho màn hình đầu tiên.
 
 ### KB-18. Banner
@@ -246,6 +254,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi chưa có đồng ý thì banner không gửi yêu cầu.
 - [ ] Khi người dùng rút đồng ý lúc banner đang hiện thì khung banner giữ nguyên chiều cao, giao diện không nhảy; đồng ý lại thì banner tải lại trong khung đó.
 - [ ] Banner thu gọn được tải lại sau mỗi 30 giây, không dùng tự làm mới của AdMob.
+- [ ] **Thêm 2026-10-29 (ADR-0038):** banner cố định dùng cỡ thích ứng neo đáy thường như JBase (KB-32).
 
 ### KB-19. Quảng cáo có thưởng trước một hành động có điều kiện
 
@@ -325,6 +334,88 @@ Tiêu chí chấp nhận:
 - [ ] Khi chọn mã vị trí trùng tên AdsKit (`rw_get_item`, `native_onboarding`, nhóm `sounds`) thì khóa trùng đúng chuỗi khóa mà app AdsKit đang dùng trên Firebase.
 - [ ] Doanh thu của vị trí ghi với `ad_placement` bằng mã vị trí.
 
+### KB-26. Quảng cáo toàn màn hình không cũ và không hiện sai lúc
+
+**Thêm 2026-10-29.** Người dùng bấm một nút có interstitial, hoặc quay lại app.
+
+Tiêu chí chấp nhận:
+
+- [ ] ~~Khi interstitial đã tải từ đủ 1 giờ trở lên thì nó không được hiện; app coi như chưa có quảng cáo (người dùng đi tiếp ngay, ghi cơ hội `not_ready`) và tải quảng cáo mới (câu hỏi 35).~~ **Đổi 2026-10-29:** bỏ, theo chuẩn JBase (câu hỏi 35).
+- [ ] ~~Khi interstitial tải chưa tới 1 giờ thì hiện như trước.~~ **Đổi 2026-10-29:** bỏ cùng tiêu chí trên.
+- [ ] Khi màn hình của app không còn dùng được lúc gọi hiện (đang đóng, đã hủy, không ở foreground) thì quảng cáo không được gọi hiện, vẫn giữ trong khe cho lần sau; người dùng đi tiếp ngay và có một sự kiện lỗi hiển thị lý do `app_not_foreground`.
+- [ ] Khi người dùng xoay máy lúc quảng cáo toàn màn hình đang hiện thì hành động sau quảng cáo (sang màn sau, lưu) chỉ chạy khi quảng cáo đóng, đúng một lần.
+
+### KB-27. Quảng cáo trong màn hình dừng khi bị quảng cáo toàn màn hình che
+
+**Thêm 2026-10-29** (ADR-0036, điểm 2). Màn hình có banner hay native làm mới tại chỗ; một native toàn màn hình (sau inter hay độc lập) hiện đè lên.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi native toàn màn hình đang hiện thì banner và native ở màn bên dưới không gửi yêu cầu mới, không làm mới, không thử lại (câu hỏi 36).
+- [ ] Quảng cáo đang có ở màn bên dưới giữ nguyên, không bị hủy.
+- [ ] Khi native toàn màn hình đóng thì banner chạy lại và native làm mới lại theo nhịp của chúng; lượt làm mới tới hạn trong lúc bị che thì bỏ, không dồn.
+
+### KB-28. Thử mediation trên máy thật của bản staging
+
+**Thêm 2026-10-29.** Dev cài bản staging lên máy thật để kiểm mediation.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi dev khai báo máy của mình là máy thử trong cấu hình trên máy dev (không trong repo) thì bản staging gửi yêu cầu như máy thử và Ad Inspector mở được trên máy đó (câu hỏi 40).
+- [ ] Khi không khai báo máy thử thì bản staging chạy như hiện tại; bản production không bao giờ có máy thử.
+- [ ] Mỗi lượt tải quảng cáo ở staging ghi log từng mạng đã thử (tên mạng, thời gian, lỗi), không ghi mã đơn vị.
+
+### KB-29. Banner MREC
+
+**Thêm 2026-10-29** (ADR-0036, điểm 4). Spec của một app khai báo vị trí `banner_mrec` trong màn hình.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi vị trí bật và có quảng cáo thì màn hình có một banner 300 x 250 dp, căn giữa, có nhãn và AdChoices của SDK.
+- [ ] Banner MREC theo cùng luật với banner cố định: chờ cổng đồng ý, làm mới theo cài đặt của đơn vị trên AdMob, tạm dừng khi màn hình không hiện, thử lại khi lỗi, giữ khung khi rút đồng ý (KB-18), dừng khi bị quảng cáo toàn màn hình che (KB-27) (câu hỏi 38).
+- [ ] Khi đang tải thì vùng giữ đúng 250 dp; khi nạp lỗi thì co về 0.
+- [ ] Doanh thu ghi với định dạng riêng của MREC (`ad_format`), vị trí là mã vị trí.
+- [ ] Bản staging có một vị trí MREC trên màn xem thử, dùng mã thử của Google.
+
+### KB-30. Người dùng đã mua gói bỏ quảng cáo
+
+**Thêm 2026-10-29** (ADR-0036, điểm 5). Một app tạo từ dự án mẫu có gói bỏ quảng cáo; app báo cho `:core:ads` người dùng đã mua.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi app báo người dùng đã mua gói bỏ quảng cáo thì không có quảng cáo nào được tải hay hiện, kể cả quảng cáo mở app và khi quay lại app; thanh đáy không chiếm chỗ (câu hỏi 39).
+- [ ] Khi người dùng làm một hành động có điều kiện (KB-19) thì hành động làm thẳng, không có hộp thoại.
+- [ ] Khi trạng thái đổi giữa lúc dùng app (vừa mua xong) thì quảng cáo đang hiện trong màn hình biến mất ngay, không cần mở lại app.
+- [ ] Khi app không nối tín hiệu này (dự án mẫu hôm nay) thì quảng cáo chạy như trước.
+
+### KB-31. AppLovin MAX và Amazon APS
+
+**Thêm 2026-10-29** (ADR-0037). Chi tiết ở câu hỏi 41 tới 47: MAX cho banner, MREC, interstitial, rewarded, app open; native chỉ qua AdMob; thứ tự đặt bằng `ads_mediation_order`, mặc định MAX trước; APS làm sau khi có tài khoản.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi nền tảng thứ nhất theo `ads_mediation_order` (mặc định MAX) chưa có quảng cáo cho một lượt hiện và nền tảng thứ hai có thì người dùng thấy quảng cáo của nền tảng thứ hai; một lượt chỉ ghi một cơ hội.
+- [ ] Khi `ads_mediation_order` là `admob` hay `max` thì chỉ nền tảng đó được nạp và hiện.
+- [ ] Quảng cáo mở app lúc khởi động chỉ là app open của AdMob; app open của MAX dùng khi quay lại app.
+- [ ] Native luôn qua AdMob, kể cả khi thứ tự là `max`.
+- [ ] MAX và APS chỉ khởi động sau khi cổng đồng ý của app mở; không bao giờ gửi yêu cầu khi chưa có đồng ý.
+- [ ] Mọi luật toàn màn hình (không chồng nhau, khoảng cách `ads_interval`, gỡ kẹt, chặn quảng cáo tự hiện) áp như nhau cho quảng cáo của MAX.
+- [ ] Doanh thu của MAX ghi ở Firebase và AppsFlyer với vị trí, không tính hai lần.
+- [ ] Khóa SDK MAX và mã APS không nằm trong repo; bản staging chạy được khi không có chúng.
+- [ ] Khi app có tài khoản Amazon Publisher Services (chưa có ngày 2026-10-29) thì APS trả giá cho banner, MREC, interstitial, rewarded của MAX; chế độ thử của APS chỉ ở staging.
+
+### KB-32. Nghiệp vụ theo chuẩn JBase
+
+**Thêm 2026-10-29** (ADR-0038). Anh Nhật chọn lấy nghiệp vụ của JBase làm chuẩn, kể cả cho luật đã chốt; các luật dưới là những chỗ JBase làm khác PARTNER mà không phải lỗi, anh Nhật chọn đổi theo. Chỗ JBase không có thì giữ luật hiện tại.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi native toàn màn hình sau inter hiện thì đếm ngược mặc định 5 giây trước khi đóng được; người vận hành đổi bằng `time_close_native` (1 tới 30 giây, giá trị khác dùng 5). Vòng đếm ngược và nút đóng 48 dp, ở góc trên trái (K-02, K-03).
+- [ ] Khi người dùng thu gọn native thu gọn thì nó tự bung lại sau 10 giây nếu người vận hành không đổi `time_expand_collap_ad`; 0 vẫn là không bung lại (CL-03).
+- [ ] Khe native nhỏ ở đáy cao theo bề rộng màn hình như JBase: 90 dp ở bề rộng 320 dp trở xuống, 200 dp ở 600 dp trở lên, tăng đều ở giữa; chữ, icon, CTA theo layout của JBase (câu hỏi 48). Native medium và native thu gọn theo kích thước của JBase (câu hỏi 48); các biến thể JBase không có (bước của luồng, thẻ trong tập hợp, native đầy đủ) giữ kích thước hiện tại.
+- [ ] Khi người dùng đã đồng ý ở lần mở app trước thì SDK quảng cáo khởi động ngay lúc mở app, không chờ hộp thoại đồng ý trả lời, không cần cấu hình hay công tắc nào (`CACHED_EARLY`, S-03, S-12).
+- [ ] Banner cố định dùng cỡ thích ứng neo đáy thường, như JBase, thay cỡ thích ứng neo đáy lớn (B-01).
+
 ## 4. Giao diện
 
 - **Thiết kế:** các cỡ native là component của hệ thống thiết kế, dựng theo token có sẵn (màu, chữ, bo góc, khoảng cách) ~~và quy chuẩn ở `docs/ops/ads-guide.md`, mục 4~~. **Đổi 2026-10-23:** kích thước theo AdsKit (`docs/ops/ads-business-rules.md`, mục 5.7), màu theo token. Thiết kế hiện có trong `design/` theo cỡ cũ; vẽ lại ở T-035 (câu hỏi 16). Xem câu hỏi 1 về việc dựng trên Figma trước.
@@ -381,6 +472,8 @@ Tiêu chí chấp nhận:
 - **Thêm 2026-10-26 (đo ở plan T-033, câu hỏi 18):** SDK AppsFlyer `6.18.1` khai báo `INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID` (đã có) và kéo vào hai quyền đọc mã giới thiệu của kho Samsung, Huawei; bỏ cả hai vì app chỉ phát hành trên Google Play. SDK kéo theo thư viện Play Integrity `com.google.android.play:integrity:1.3.0` (thêm hoạt động `com.google.android.play.core.common.PlayCoreDialogWrapperActivity`, không xuất). Manifest gộp thêm `<queries>` dò gói Instagram, Facebook Lite và intent `com.appsflyer.referrer.INSTALL_PROVIDER` (bỏ gói `com.samsung.android.mapsagent`), quy tắc sao lưu của AppsFlyer; sao lưu của app vẫn tắt. AppsFlyer chỉ khởi động khi có câu trả lời đồng ý (kể cả từ chối), hoặc sau 10 giây mà hộp thoại đồng ý không mở; hộp thoại đang mở thì chờ nó đóng (cách hiểu ADR-0027, quyết định 3; plan T-033, câu hỏi 9).
 - **Thêm 2026-10-24 (đo ở plan T-034, câu hỏi 18):** tám adapter (Meta Audience Network `6.22.0.1`, DT Exchange `8.5.0.0`, InMobi `11.5.0.0`, ironSource `9.6.1.0`, Mintegral `17.1.81.1`, Moloco `4.13.0.0`, Pangle `8.3.0.4.0`, Unity Ads `4.21.0.0` kèm SDK Unity Ads `4.21.0`) không thêm quyền nào vào manifest gộp: các quyền chúng khai báo (`INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS`) đã có từ Google Mobile Ads. Không thêm các quyền tùy chọn InMobi gợi ý (vị trí chính xác, trạng thái và đổi Wi-Fi). Mạng nào khởi động SDK lúc mở app thì bỏ phần đó, để mạng chỉ khởi động qua AdMob sau khi có đồng ý: bỏ thành phần khởi động của Meta (cùng cách với AppLovin). Bỏ thành phần nhận sự kiện đổi mạng của Mintegral (app khác gọi được, hệ thống không còn gửi sự kiện này). Giữ các thành phần chỉ theo dõi màn hình đang mở của ironSource, Mintegral, Unity.
 - **Thêm 2026-10-23:** Play Console: An toàn dữ liệu khai đủ chín mạng và AppsFlyer (mã quảng cáo và mã thiết bị, tương tác với app và quảng cáo, chẩn đoán) trước khi phát hành bản có các SDK đó.
+- **Thêm 2026-10-29 (ADR-0037, chờ câu hỏi 41 tới 47):** SDK bên ngoài mới dự kiến: AppLovin MAX và Amazon APS. Quyền chúng kéo vào manifest gộp đo ở plan, ghi vào mục này trước khi duyệt plan, như câu hỏi 18. Play Console: An toàn dữ liệu khai thêm Amazon trước khi phát hành bản có APS.
+- **Thêm 2026-10-29:** cổng không hiện quảng cáo (KB-30) và banner MREC (KB-29) không thêm SDK hay quyền. Không thêm sự kiện phân tích mới; MREC dùng các sự kiện đã có với một mã định dạng mới (câu hỏi 38).
 
 ## 7. File tĩnh trên R2
 
@@ -413,13 +506,14 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | `is_show_native_after_inter` | boolean | tắt | Native toàn màn hình sau interstitial |
 | `is_show_native_bottom` | boolean | tắt | Thanh đáy là native (bật) hay banner (tắt) |
 | `is_show_native_collap` | boolean | bật | Lớp native thu gọn trên thanh đáy khi khe đáy là native (tên do ta đặt) |
-| `time_expand_collap_ad` | long (giây) | 30 | Native thu gọn tự mở lại sau khi người dùng thu gọn; 0 là không (tên do ta đặt) |
+| `time_expand_collap_ad` | long (giây) | ~~30~~ 10 (đổi 2026-10-29, ADR-0038, theo JBase) | Native thu gọn tự mở lại sau khi người dùng thu gọn; 0 là không (tên do ta đặt) |
 | `is_show_rw_get_item` | boolean | tắt | Khóa suy ra của vị trí rewarded `rw_get_item` (nhận vật phẩm), trùng chuỗi AdsKit. Vị trí rewarded khác dùng `is_show_<mã vị trí>`, ví dụ `is_show_rw_export` |
 | `is_show_native_onboarding` | boolean | tắt | Khóa suy ra của vị trí `native_onboarding` (native trên luồng giới thiệu), trùng chuỗi AdsKit |
 | `is_show_<mã vị trí>` | boolean | tắt | Bật một vị trí, thay `ads_<vị trí>_enabled` (suy ra theo mẫu) |
 | `ads_interval_<nhóm>` | long (giây) | theo spec | Khoảng cách của nhóm giãn cách riêng (suy ra theo mẫu) |
 | `<tham số>_<mã vị trí>` | theo tham số | theo spec | Tham số riêng của vị trí (câu hỏi 28) |
-| `is_enable_consent_shortcut` | boolean | tắt (câu hỏi 21) | Quyền tạm khi đồng ý chưa trả lời xong; cần thêm cấu hình của app, cũng mặc định tắt (tên do ta đặt) |
+| `is_enable_consent_shortcut` | boolean | tắt (câu hỏi 21) | Quyền tạm khi đồng ý chưa trả lời xong; cần thêm cấu hình của app, cũng mặc định tắt (tên do ta đặt). **Đổi 2026-10-29 (ADR-0038):** chỉ còn điều khiển `ERROR_ALLOWED`; `CACHED_EARLY` luôn bật |
+| **Thêm 2026-10-29 (ADR-0038):** `time_close_native` | long (giây) | 5 | Đếm ngược trước khi đóng được native toàn màn hình sau inter; nhận 1 tới 30, giá trị khác dùng 5 (tên của JBase) |
 | `is_log_ad_fullscreen_events` | boolean | tắt | Số liệu chi tiết của quảng cáo toàn màn hình |
 | `is_log_ad_slot_events` | boolean | tắt | Số liệu chi tiết của quảng cáo trong màn hình |
 | `is_log_af_*` (11 khóa, `ads-business-rules.md` mục 10.1) | boolean | bật | Công tắc từng sự kiện AppsFlyer (tên do ta đặt) |
@@ -529,6 +623,54 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Đề xuất của AI: dự án mẫu đặt mã vị trí theo hành động: `rw_get_item` cho nhận vật phẩm, `rw_export` cho xuất file (khóa `is_show_rw_export`, tên do ta đặt). App chuyển từ AdsKit mà đang dùng `is_show_rw_get_item` cho việc xuất file trên Firebase thì đặt mã vị trí `rw_get_item` để giữ khóa cũ, ghi lý do trong spec của app.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 
+**Thêm 2026-10-29** (yêu cầu `requests/2026-10-29-hoc-tu-jbase.md`). Câu 35 tới 40 chốt chi tiết của ADR-0036 và các ticket T-054 tới T-063; câu 41 tới 47 cho MAX và APS (ADR-0037), ticket tách sau khi trả lời.
+
+35. **Interstitial hết hạn sau bao lâu, và hết hạn thì làm gì?** AdsKit và JBase không có hạn dùng cho interstitial; app open và rewarded của ta hết hạn sau 1 giờ (A-07).
+    - Đề xuất của AI: 1 giờ, cùng hằng số với app open, đọc lúc quyết định hiện. Hết hạn thì bỏ quảng cáo, coi như chưa có: ghi cơ hội `not_ready` với `load_state` lúc đó, người dùng đi tiếp ngay, tải lại ngay (không chờ 2 giây như sau khi đóng). Áp cho mọi vị trí interstitial, kể cả `open_app_inter`, `resume_inter`.
+    - Trả lời: không làm. Anh Nhật chọn lấy nghiệp vụ JBase làm chuẩn (2026-10-29); interstitial của JBase không có hạn dùng (bộ điều khiển interstitial của `admobadshelper` không giữ thời điểm tải), chỉ app open có. Bỏ điểm 1 của ADR-0036 và ticket hạn dùng interstitial (mã T-053 dùng lại cho KB-32, vì ticket cũ chưa vào nhánh chính). Tiêu chí 1 và 2 của KB-26 không áp dụng.
+36. **Dừng quảng cáo trong màn hình khi bị quảng cáo toàn màn hình che: áp cho những gì?**
+    - Đề xuất của AI: khi native toàn màn hình của `:core:ads` đang hiện (cờ "đang hiện" của cổng chung, F-01), banner tạm dừng như khi màn hình không hiện, native small và lớp thu gọn bỏ nhịp làm mới, mọi lượt tải và thử lại của khe trong màn hình chờ tới khi màn che đóng. Không hủy quảng cáo đang có. Trang native toàn trang ở bước của luồng (`native_step` toàn trang) không tính, vì nó không phải lớp phủ và chiếm chỗ của bước, không đè lên quảng cáo khác.
+    - Trả lời: theo đề xuất của AI, khớp chuẩn JBase: MAX của JBase dừng tự làm mới banner và MREC khi có quảng cáo toàn màn hình (`pauseAutoRefresh: stopped (fullscreen showing)`) và chạy lại khi nó đóng; native banner, MREC bị chặn khi native toàn màn hình đang hiện (anh Nhật, 2026-10-29).
+37. **Thanh đáy chừa chỗ lúc đang tải: bao nhiêu, tới khi nào?** Anh Nhật đã chọn chừa chỗ lúc tải (đổi D-04).
+    - Đề xuất của AI: chừa đúng chiều cao vẽ của khe đáy từ lúc khe bắt đầu chờ quảng cáo đầu tiên: native bằng chiều cao khe cộng lề 16 dp (hôm nay 96 dp; đổi theo KB-32: chiều cao khe tính theo bề rộng màn hình), banner bằng chiều cao của khung adaptive đã biết trước khi tải. Nạp lỗi thì co về 0 như cũ; lần nạp lại sau đó không chừa lại cho tới khi có quảng cáo (tránh nhảy lên xuống mỗi lần thử lại). Lớp thu gọn vẫn không chừa (D-03).
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). JBase không hiện gì khi chưa có quảng cáo (`NativeAdsManager.java:888`); anh Nhật giữ lựa chọn chừa chỗ lúc tải, đứng trên chuẩn JBase.
+38. **Banner MREC dùng khe nào, luật nào?**
+    - Đề xuất của AI: khe mới `banner_mrec`, kích thước `MEDIUM_RECTANGLE` 300 x 250, mã thử MREC của Google ở staging, làm mới theo cài đặt của đơn vị trên AdMob như banner cố định (B-01, B-02, B-04, B-05, B-06). Đặt trong nội dung của màn (như native medium), không vào thanh đáy, không làm ô trong danh sách ở đợt này. Mã định dạng số liệu `BANNER_MREC`; định dạng `banner_mrec` thêm vào bảng định dạng của `ads-plan.py` và `release.sh` (mã thử). Thêm vị trí `gallery_banner_mrec` cho màn xem thử.
+    - Trả lời: theo đề xuất của AI, khớp chuẩn JBase: JBase có MREC cho cả AdMob và MAX (`mrec_admob`, `applovin_mrec_ads_key`), MAX tự làm mới (anh Nhật, 2026-10-29). JBase đặt MREC nổi ở dưới, giữa hay trên màn; dự án mẫu đặt trong nội dung của màn như native medium.
+39. **Cổng không hiện quảng cáo: nhận tín hiệu từ đâu, và tắt những gì?**
+    - Đề xuất của AI: `:core:ads` nhận một tín hiệu đúng sai (luồng dữ liệu) mà `:app` cung cấp qua Hilt, mặc định luôn `false`; dự án mẫu không có mua hàng nên không có nguồn thật. Bật thì như `is_show_ads` tắt: không khởi tạo thêm lượt tải nào, mọi khe trong màn hình biến mất ngay, không quảng cáo mở app hay khi quay lại, hành động có điều kiện làm thẳng, không ghi cơ hội. Không tự lưu trạng thái mua; app sở hữu việc đó. Không thêm khóa Remote Config.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). JBase không có cổng này; anh Nhật giữ lựa chọn, đứng trên chuẩn JBase.
+40. **Khai báo máy thử ở đâu, và log từng mạng ghi gì?**
+    - Đề xuất của AI: khóa `ads.testDeviceIds` trong `local.properties` của máy dev (không vào git), chỉ đọc ở biến thể staging; CI không có khóa nên không có máy thử. Bản production không có đường đọc khóa này. Mỗi lượt tải xong ở staging ghi một dòng log thẻ `Ads` cho từng mạng trong `ResponseInfo` (tên lớp adapter, thời gian, mã lỗi), không ghi mã đơn vị hay mã máy.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). Đây là công cụ cho dev, không phải nghiệp vụ; JBase có log waterfall của MAX ở mỗi lượt doanh thu, không có máy thử.
+41. **MAX dùng cho những định dạng nào?** JBase dùng MAX cho mọi định dạng; phần native của ta viết trên `NativeAdView` của AdMob.
+    - Đề xuất của AI: interstitial, rewarded, app open (cả lúc mở app và khi quay lại). Banner và MREC của MAX để đợt sau nếu số liệu cho thấy thiếu quảng cáo; native giữ AdMob. Lý do: định dạng toàn màn hình có doanh thu cao nhất và không phải viết lại phần vẽ.
+    - Trả lời: theo chuẩn JBase (anh Nhật, 2026-10-29): MAX cho banner, MREC, interstitial, rewarded, app open; native chỉ qua AdMob (cầu nối Unity của JBase không gọi native của MAX). Quảng cáo mở app lúc khởi động chỉ dùng app open của AdMob, như màn loading của JBase; app open của MAX dùng khi quay lại app theo thứ tự của câu 42.
+42. **Thứ tự giữa AdMob và MAX đặt thế nào?** JBase có bốn chế độ: chỉ AdMob, chỉ MAX, AdMob trước, MAX trước.
+    - Đề xuất của AI: khóa Remote Config `ads_mediation_order` (string, tên do ta đặt): `admob` (mặc định, như hôm nay), `max`, `admob_max`, `max_admob`. Mỗi lượt hiện hỏi nền tảng thứ nhất, chưa có thì nền tảng thứ hai, cùng một lượt quyết định và một cơ hội; cả hai đều nạp sẵn khi có trong thứ tự.
+    - Trả lời: theo chuẩn JBase (anh Nhật, 2026-10-29): bốn chế độ như `AdsConfig.Network` của JBase, mặc định MAX trước (`max_admob`, JBase `MaxPrimary`). Đặt bằng khóa `ads_mediation_order` theo cách của dự án mẫu (JBase đặt trong code). Mỗi lượt hiện hỏi nền tảng thứ nhất, chưa có thì nền tảng thứ hai.
+43. **Khóa SDK MAX và mã APS đưa vào app thế nào?** MAX cần khóa SDK trong app, khác adapter AppLovin của AdMob (M-03).
+    - Đề xuất của AI: tham số build lúc phát hành như `-PadUnits` (`-PmaxSdkKey`, `-PapsAppId`, mã đơn vị MAX và slot APS theo khe), `preProduction*Build` báo lỗi khi thiếu lúc thứ tự có `max`; `secret-scan.py` thêm mẫu khóa MAX. Staging không có khóa thì MAX và APS không khởi tạo và thứ tự coi như `admob`; muốn thử MAX ở staging thì dev đặt khóa trong `local.properties` như câu 40.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). Không theo JBase ở điểm này: JBase để khóa thật trong `strings.xml`, trái quy tắc không đưa khóa vào repo (ADR-0026, mục 10).
+44. **Đồng ý của MAX và APS theo cổng nào?**
+    - Đề xuất của AI: theo cổng đồng ý của `:core:ads` (S-01 tới S-19): MAX và APS chỉ khởi tạo khi cổng mở lần đầu, đọc chuỗi đồng ý của UMP; không bật luồng đồng ý riêng của MAX. Rút đồng ý thì cùng đóng như AdMob (S-15).
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). Không theo JBase ở điểm này: JBase khởi tạo MAX khi Remote Config tải xong, không chờ đồng ý, và viết cứng `setHasUserConsent(true)`, `setDoNotSell(false)`; đó là lỗi tuân thủ GDPR, không phải nghiệp vụ.
+45. **AppLovin vừa là mạng con của AdMob vừa là nền tảng MAX: xử lý thế nào để không tự đấu giá với chính mình?**
+    - Đề xuất của AI: ghi vào hướng dẫn phát hành: một app dùng MAX thì nhóm mediation AdMob của các khe toàn màn hình không có AppLovin (Bidding), hoặc người vận hành chấp nhận và theo dõi; code không tự xử lý. Cần anh Nhật hoặc nhóm UA quyết.
+    - Trả lời: theo chuẩn JBase (anh Nhật, 2026-10-29): app dùng MAX thì nhóm mediation AdMob không có AppLovin, còn MAX gọi Google qua adapter Google của MAX (JBase: AdMob không có adapter AppLovin, MAX có `google-adapter` và `google-ad-manager-adapter`). Ghi vào hướng dẫn phát hành.
+46. **Doanh thu của MAX ghi thế nào?**
+    - Đề xuất của AI: cùng sự kiện như AdMob (`ad_impression_placement`, `af_ad_revenue`, mục 8 của luật), `ad_platform` và `mediation_network` là `applovin_max`, `ad_source` là mạng MAX báo; doanh thu MAX đơn vị là đô la, không chia một triệu. Phễu `af_inters_*`, `af_rewarded_*` gửi cho cả hai nền tảng. Báo nhóm UA trước khi phát hành (HD-07).
+    - Trả lời: theo chuẩn JBase cho giá trị (anh Nhật, 2026-10-29): `ad_platform` là `applovin`, `mediation_network` là `applovinmax` (JBase `MediationNetwork.applovinmax`), `ad_source` là mạng MAX báo, giá trị theo đô la. Tên sự kiện giữ của dự án mẫu (`ad_impression_placement`, `af_ad_revenue`): JBase tự ghi `ad_impression` nên doanh thu bị đếm đôi khi AdMob đã liên kết Firebase. Báo nhóm UA trước khi phát hành (HD-07).
+47. **APS cần gì trước khi làm?**
+    - Đề xuất của AI: APS chỉ đi kèm MAX, như JBase, cho các định dạng của câu 41. AI chưa kiểm APS có cách đấu giá qua AdMob không; plan APS tra tài liệu của Amazon và ghi kết quả trước khi duyệt. Cần tài khoản Amazon Publisher Services, mã ứng dụng và slot theo khe; anh Nhật xác nhận nhóm có tài khoản trước khi viết plan APS. Nếu chưa có thì làm MAX trước, APS là ticket sau.
+    - Trả lời: theo chuẩn JBase cho phạm vi (anh Nhật, 2026-10-29): APS chỉ đi với MAX, cho banner, MREC, interstitial, rewarded. Không theo JBase ở chế độ thử: JBase bật `AdRegistration.enableTesting(true)` ở bản phát hành; dự án mẫu chỉ bật ở staging. Nhóm chưa có tài khoản Amazon Publisher Services (anh Nhật, 2026-10-29): làm MAX trước, APS là ticket sau khi có tài khoản, mã ứng dụng và slot.
+48. **Kích thước native theo JBase áp tới đâu?** Layout của JBase: native nhỏ cao 90 tới 200 dp theo bề rộng màn hình, icon 44 dp, tiêu đề 16 sp, mô tả 13 sp, nhãn "Ad" 13 sp trước tiêu đề, CTA cao 44 dp chữ 18 sp; native thu gọn có ảnh 180 dp trên phần nội dung của native nhỏ, vùng thêm 160 tới 200 dp, nút thu gọn 27 dp ở góc trên trái, AdChoices góc trên phải; native medium (MREC native) cao 320 tới 400 dp theo chiều cao màn hình, icon 44 dp, CTA 44 dp chữ 18 sp, không có hàng sao.
+    - Đề xuất của AI: theo JBase cho kích thước của ba biến thể đó; vị trí nút thu gọn và AdChoices của lớp thu gọn cũng theo JBase (nút trái, AdChoices phải, ngược thiết kế T-035 hôm nay); màu vẫn lấy từ token của dự án mẫu (JBase viết cứng màu); giữ hàng sao của native medium (JBase không có, không phải lỗi bỏ được). Vẽ lại trên Figma trước khi code (T-064, như T-035), rồi ghi lại ảnh chuẩn. Kiểm lại câu hỏi 22 (80 dp) và luật D-02, D-04 theo chiều cao mới.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29): kích thước ba biến thể theo JBase; lớp thu gọn đặt nút thu gọn ở góc trên trái, AdChoices ở góc trên phải như JBase, nút vẽ 27 dp với vùng chạm 48 dp; giữ hàng sao của native medium; màu theo token.
+49. **Chừa chỗ lúc tải (câu 37) với khe cao theo bề rộng:** chiều cao chừa tính thế nào khi chưa có quảng cáo?
+    - Đề xuất của AI: dùng cùng hàm tính chiều cao theo bề rộng màn hình của KB-32, nên biết trước khi tải; một hằng số cho cả vẽ và chừa chỗ như câu 22.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29): cùng một hàm tính chiều cao theo bề rộng màn hình cho cả vẽ và chừa chỗ.
+
 ## 10. Lịch sử
 
 | Ngày | Người | Nội dung |
@@ -544,3 +686,8 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-23 | Nhật | Trả lời câu 7 đến 20 và 28 đến 34 theo đề xuất của AI; đồng ý các khóa tên do ta đặt (`is_show_native_collap`, `is_log_af_*`, `is_show_rw_export`) và kế hoạch nạp sẵn mặc định suy từ danh sách vị trí; xác nhận (AI ghi theo lời anh Nhật) |
 | 2026-10-24 | Nhật | Theo trả lời câu hỏi 1, 2, 5 của plan T-034: tách tiêu chí 2 của KB-9 thành hai vế (staging chỉ liệt kê adapter; app thật thấy chín adapter khởi tạo), khóa SDK AppLovin không vào app, thêm kết quả đo quyền của tám adapter vào mục 6. Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-26 | Nhật | Theo trả lời câu hỏi 1 của plan T-026 và T-025: thêm vị trí toàn app `native_combo` và `resume_inter` (mục 5). Theo câu hỏi 10 của plan T-027: vòng đếm ngược của KB-16 ở góc trên trái. Theo câu hỏi 1 và 9 của plan T-033: quyền và manifest của AppsFlyer, lúc AppsFlyer khởi động (mục 6). Xác nhận lại (AI ghi theo lời anh Nhật) |
+| 2026-10-29 | AI | Theo yêu cầu `requests/2026-10-29-hoc-tu-jbase.md` và bốn lựa chọn của anh Nhật trong phiên (thêm MAX và APS, thêm `banner_mrec`, chỉ làm cổng không hiện quảng cáo, chừa chỗ lúc đang tải): thêm phạm vi ở mục 2, tiêu chí mới ở KB-1, KB-2, KB-3, KB-9, đổi một tiêu chí của KB-17 (giữ chữ cũ, gạch ngang), thêm KB-26 tới KB-31, hai dòng ở mục 6, câu hỏi 35 tới 47; ADR-0036, ADR-0037 ở trạng thái `proposed`; tách ticket T-053 tới T-063 (MAX và APS tách sau câu 41 tới 47). Chuyển sang `changed`, chờ xác nhận lại |
+| 2026-10-29 | AI | Theo hướng dẫn của anh Nhật "lấy nghiệp vụ của JBase làm chuẩn để ra quyết định", kể cả luật đã chốt: ghi trả lời câu 35 tới 47 theo chuẩn JBase (bỏ hạn dùng interstitial, câu 35, ticket T-053 cũ); hai agent đối chiếu toàn bộ `ads-business-rules.md` với JBase; anh Nhật chọn đổi theo JBase đếm ngược native sau inter, bung lại native thu gọn, kích thước native, `CACHED_EARLY` luôn bật, cỡ banner (ADR-0038, KB-32, ghi chú `Đổi 2026-10-29` ở KB-1, KB-4, KB-5, KB-11, KB-16, KB-17, KB-18, mục 8), giữ banner thu gọn nạp lại 30 giây và cách ghi doanh thu AppsFlyer; thêm câu 48, 49; tách ticket T-053 (mới), T-064 tới T-067. Vẫn `changed`, chờ xác nhận |
+| 2026-10-29 | Nhật | Trả lời câu 47 (chưa có tài khoản APS), 48 và 49 theo đề xuất của AI (AI ghi theo lời anh Nhật) |
+| 2026-10-29 | AI | Chốt KB-31 theo câu 41 tới 47; tách ticket MAX T-068 tới T-073 (APS chưa tách: chưa có tài khoản) |
+| 2026-10-29 | Nhật | Xác nhận spec; chấp nhận ADR-0036, ADR-0037, ADR-0038 (AI ghi theo lời anh Nhật) |
