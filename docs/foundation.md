@@ -288,3 +288,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
+
+### [ADR-0039](adr/0039-main-guard-tin-lan-kiem-cua-pr.md): main-guard không chạy lại cổng chất lượng cho commit có nội dung đã được pr-check kiểm đầy đủ, chỉ chạy test của script khi phần khác chỉ là tài liệu
+
+- ADR chưa có mục "Việc AI phải tuân thủ": đọc ADR đầy đủ.
