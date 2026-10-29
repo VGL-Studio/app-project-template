@@ -994,6 +994,169 @@ PY
 expect "run-watchdog: GitHub that cannot be read exits 1" 1 \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py > /dev/null 2>&1; echo $?)"
 
+# schedule-idle.py turns resume-run.yml and run-watchdog.yml off when no session runs and no approved run list waits,
+# and status-page.yml, start-run.yml and the session turn them back on (T-051, L-126). Fixed time 2026-10-29 12:00 UTC.
+cat > "$work/si-fixture.py" << 'PY'
+# Builds the fixture of one schedule-idle run from key=value arguments; a JSON argument is merged into it.
+import datetime as d, json, sys
+now = d.datetime(2026, 10, 29, 12, 0, tzinfo=d.timezone.utc)
+ago = lambda hours: (now - d.timedelta(hours=float(hours))).strftime("%Y-%m-%dT%H:%M:%SZ")
+run = lambda status, rid: f"---\nid: {rid}\nstatus: {status}\n---\n"
+o = {"report": "none", "pending": "none", "pending_hours": "10", "pending_report": "none", "updated": "100",
+     "start": "100", "state": "active", "nodocs": "", "old": ""}
+extra = {}
+for arg in sys.argv[2:]:
+    if arg.startswith("{"):
+        extra = json.loads(arg)
+    else:
+        key, value = arg.split("=", 1)
+        o[key] = value
+branches = [{"name": "main"}, {"name": "claude/T-099-other"}]
+routes = {}
+if o["report"] != "none":
+    branches.append({"name": "claude/RUN-20261029-01-report"})
+    if o["report"] != "nofile":
+        statuses = o["report"].split(",")
+        texts = [run(s, "RUN-20261029-01") for s in statuses]
+        routes["contents/docs/runs/RUN-20261029-01.md?ref=claude/RUN-20261029-01-report"] = \
+            texts[0] if len(texts) == 1 else {"__sequence__": texts}
+listing = [{"name": "README.md", "type": "file"}, {"name": "RUN-20261029-01.md", "type": "file"}]
+if o["pending"] != "none":
+    listing.append({"name": "RUN-20261028-01.md", "type": "file"})
+    routes["contents/docs/runs/RUN-20261028-01.md?ref=main"] = run(o["pending"], "RUN-20261028-01")
+    routes["commits?path=docs/runs/RUN-20261028-01.md&sha=main&per_page=1"] = \
+        [{"commit": {"committer": {"date": ago(o["pending_hours"])}}}]
+    if o["pending_report"] != "none":
+        branches.append({"name": "claude/RUN-20261028-01-report"})
+        routes["contents/docs/runs/RUN-20261028-01.md?ref=claude/RUN-20261028-01-report"] = \
+            run(o["pending_report"], "RUN-20261028-01")
+errors = {}
+if o["old"]:
+    listing.append({"name": "RUN-20261001-01.md", "type": "file"})
+    errors["contents/docs/runs/RUN-20261001-01.md?ref=main"] = "HTTP 500: Server Error"
+if not o["nodocs"]:
+    routes["contents/docs/runs?ref=main"] = listing
+routes["branches?per_page=100&page=1"] = branches
+for name in ("resume-run.yml", "run-watchdog.yml"):
+    routes[f"actions/workflows/{name}"] = {"state": o["state"], "updated_at": ago(o["updated"])}
+routes["actions/workflows/start-run.yml/runs?per_page=1"] = \
+    {"workflow_runs": [] if o["start"] == "none" else [{"created_at": ago(o["start"])}]}
+fx = {"routes": routes, "errors": errors}
+for key, value in extra.items():
+    if isinstance(value, dict):
+        fx.setdefault(key, {}).update(value)
+    else:
+        fx[key] = value
+json.dump(fx, open(sys.argv[1], "w"))
+PY
+schedule_idle() { # <mode args...> -- [key=value ...] [extra JSON]; prints the exit code, output in $work/si.out
+  local mode=() code=0
+  while [ "$1" != "--" ]; do mode+=("$1"); shift; done
+  shift
+  rm -f "$work/si.json.writes" "$work/si.json.seen"
+  python3 -I "$work/si-fixture.py" "$work/si.json" "$@"
+  PATH="$work/bin:$PATH" FIXTURE="$work/si.json" GITHUB_REPOSITORY=o/r SCHEDULE_IDLE_NOW=2026-10-29T12:00:00Z \
+    python3 -I scripts/schedule-idle.py "${mode[@]}" > "$work/si.out" 2>&1 || code=$?
+  echo "$code"
+}
+si_writes() { if [ -f "$work/si.json.writes" ]; then paste -sd ';' - < "$work/si.json.writes"; else echo none; fi; }
+si_off="PUT actions/workflows/resume-run.yml/disable"
+si_on="PUT actions/workflows/resume-run.yml/enable"
+si_both="PUT actions/workflows/resume-run.yml/enable;PUT actions/workflows/run-watchdog.yml/enable"
+expect "schedule-idle: a running session keeps the schedule" "0 none" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- report=running) $(si_writes)"
+expect "schedule-idle: no session, no pending list, enabled long ago, no recent start-run: disables" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml --) $(si_writes)"
+expect "schedule-idle: ... and says it turned the schedule off" 1 "$(grep -c 'đã tắt' "$work/si.out")"
+expect "schedule-idle: an approved run list without a report branch keeps the schedule" "0 none" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- pending=approved pending_hours=10) $(si_writes)"
+expect "schedule-idle: ... but not once it was merged more than 72 hours ago" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- pending=approved pending_hours=80) $(si_writes)"
+expect "schedule-idle: ... nor once its report branch is finished" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- pending=approved pending_report=finished) $(si_writes)"
+expect "schedule-idle: a draft run list does not keep the schedule" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- pending=draft) $(si_writes)"
+expect "schedule-idle: enabled within the grace hours keeps" "0 none" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- updated=1) $(si_writes)"
+expect "schedule-idle: ... but not after 4 hours" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- updated=4) $(si_writes)"
+expect "schedule-idle: start-run ran within the grace hours keeps" "0 none" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- start=1) $(si_writes)"
+expect "schedule-idle: ... but not after 4 hours" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- start=4) $(si_writes)"
+expect "schedule-idle: no start-run run at all still disables, exit 0" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- start=none) $(si_writes)"
+expect "schedule-idle: a session that appears after the disable turns the schedule back on" "0 $si_off;$si_on" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- report=finished,running) $(si_writes)"
+expect "schedule-idle: ... and says why" 1 "$(grep -c 'bật lại' "$work/si.out")"
+expect "schedule-idle: a failed second read turns the schedule back on" "0 $si_off;$si_on" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- \
+    '{"routes": {"branches?per_page=100&page=1": {"__sequence__": [[{"name": "main"}], "x"]}}}') $(si_writes)"
+expect "schedule-idle: no docs/runs folder means no pending list" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- nodocs=1) $(si_writes)"
+expect "schedule-idle: an approved run list dated more than 14 days ago is not read" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- old=1) $(si_writes)"
+expect "schedule-idle: a finished run does not keep the schedule" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- report=finished) $(si_writes)"
+expect "schedule-idle: a report branch without its run file does not keep the schedule" "0 $si_off" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- report=nofile) $(si_writes)"
+expect "schedule-idle: an unreadable run file keeps the schedule, exit 0" "0 none" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- report=running \
+    '{"errors": {"contents/docs/runs/RUN-20261029-01.md?ref=claude/RUN-20261029-01-report": "HTTP 500: Server Error"}}') $(si_writes)"
+expect "schedule-idle: GitHub unreadable keeps, exit 0" "0 none 1" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- '{"errors": {"branches?per_page=100&page=1": "HTTP 502: Bad Gateway"}}') $(si_writes) $(grep -c 'Không đọc được GitHub' "$work/si.out")"
+expect "schedule-idle: an unreadable workflow keeps, exit 0" "0 none" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- '{"errors": {"actions/workflows/resume-run.yml": "HTTP 500: Server Error"}}') $(si_writes)"
+expect "schedule-idle: a failed disable warns and exits 0" "0 1" \
+  "$(schedule_idle --disable-if-idle resume-run.yml -- '{"fail_writes": ["PUT actions/workflows/resume-run.yml/disable"]}') $(grep -c 'CHÚ Ý' "$work/si.out")"
+expect "schedule-idle: disables only the workflow it is given" "0 PUT actions/workflows/run-watchdog.yml/disable" \
+  "$(schedule_idle --disable-if-idle run-watchdog.yml --) $(si_writes)"
+expect "schedule-idle: an unknown workflow is refused" "2 none" \
+  "$(schedule_idle --disable-if-idle staging.yml --) $(si_writes)"
+expect "schedule-idle --enable: enables both schedules" "0 $si_both" \
+  "$(schedule_idle --enable --) $(si_writes)"
+expect "schedule-idle --enable: a failed enable exits 1 and names the workflow" "1 1" \
+  "$(schedule_idle --enable -- '{"fail_writes": ["PUT actions/workflows/run-watchdog.yml/enable"]}') $(grep -c 'Chưa bật được lịch: run-watchdog.yml\.' "$work/si.out")"
+expect "schedule-idle --enable: a schedule still disabled after enable exits 1" 1 \
+  "$(schedule_idle --enable -- state=disabled_manually)"
+expect "schedule-idle --enable-if-pending: enables when an approved list waits" "0 $si_both" \
+  "$(schedule_idle --enable-if-pending -- pending=approved) $(si_writes)"
+expect "schedule-idle --enable-if-pending: enables while a session runs" "0 $si_both" \
+  "$(schedule_idle --enable-if-pending -- report=running) $(si_writes)"
+expect "schedule-idle --enable-if-pending: nothing otherwise" "0 none" \
+  "$(schedule_idle --enable-if-pending --) $(si_writes)"
+expect "schedule-idle --enable-if-pending: a failed enable warns and exits 0" "0 1" \
+  "$(schedule_idle --enable-if-pending -- pending=approved '{"fail_writes": ["PUT actions/workflows/resume-run.yml/enable"]}') $(grep -c '::warning::.*resume-run.yml' "$work/si.out")"
+expect "schedule-idle --enable-if-pending: GitHub unreadable enables to be safe" "0 $si_both" \
+  "$(schedule_idle --enable-if-pending -- '{"errors": {"branches?per_page=100&page=1": "HTTP 502: Bad Gateway"}}') $(si_writes)"
+
+# The workflows that call it: each schedule turns itself off in a job of its own, after its main job, and only that
+# job may write Actions; start-run.yml and status-page.yml turn both on.
+wf_job() { # <workflow> <job>; prints the lines of that job
+  awk -v job="  $2:" '$0 == job { f = 1; print; next } f && /^  [^ #]/ { f = 0 } f' "$1"
+}
+wf_level() { awk '/^permissions:$/ { f = 1; next } f && /^[^ ]/ { f = 0 } f' "$1"; }
+si_idle_job() { # <workflow file name> <main job>; "yes" when the idle job is complete
+  local wf=".github/workflows/$1" job
+  job="$(wf_job "$wf" idle)"
+  if grep -qE "^    needs: $2$" <<<"$job" && grep -qE "^    if: always\(\) && github.ref == 'refs/heads/main'$" <<<"$job" &&
+    grep -qE '^      actions: write$' <<<"$job" && grep -qF 'GH_TOKEN: ${{ github.token }}' <<<"$job" &&
+    grep -qF 'persist-credentials: false' <<<"$job" &&
+    grep -qF "python3 -I scripts/schedule-idle.py --disable-if-idle $1" <<<"$job" &&
+    ! grep -q 'actions: write' <<<"$(wf_level "$wf")"; then echo yes; else echo no; fi
+}
+expect "workflows: resume-run and run-watchdog disable themselves when idle" "yes yes" \
+  "$(si_idle_job resume-run.yml resume) $(si_idle_job run-watchdog.yml watch)"
+expect "workflows: the jobs with secrets or issue writes keep their permissions" "0 0" \
+  "$(wf_job .github/workflows/resume-run.yml resume | grep -c 'actions: write') $(wf_job .github/workflows/run-watchdog.yml watch | grep -c 'actions: write')"
+expect "start-run: enables both schedules before firing the routine" "yes" \
+  "$(wf_job .github/workflows/start-run.yml fire | awk '/^      actions: write$/ { p = NR } /GH_TOKEN: \$\{\{ github.token \}\}/ { t = NR }
+     /actions\/workflows\/resume-run.yml\/enable/ { r = NR } /actions\/workflows\/run-watchdog.yml\/enable/ { w = NR }
+     /curl / && !c { c = NR } END { print ((p && t && r && w && c && r < c && w < c) ? "yes" : "no") }')"
+expect "start-run: only the fire job writes Actions" "1" "$(grep -c 'actions: write' .github/workflows/start-run.yml)"
+expect "status-page: a separate job enables the schedules for a pending run list" "yes 0 0" \
+  "$(wf_job .github/workflows/status-page.yml schedules | grep -q '^      actions: write$' && wf_job .github/workflows/status-page.yml schedules | grep -qF 'python3 -I scripts/schedule-idle.py --enable-if-pending' && echo yes || echo no) $(wf_job .github/workflows/status-page.yml page | grep -c 'actions: write') $(wf_level .github/workflows/status-page.yml | grep -c 'actions: write')"
+
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"
 [ -z "${JAVA_HOME:-}" ] || java_cmd="${JAVA_HOME}/bin/java"
