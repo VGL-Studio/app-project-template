@@ -53,7 +53,8 @@ ADR liên quan: ADR-0038 (quyết định 3, Việc AI phải tuân thủ: ghi l
 1. **Tạo `BannerAdSize.kt`** trong `:core:ads`:
    - `internal enum class BannerSizeKind { ANCHORED, LARGE_ANCHORED }`.
    - `internal fun bannerSizeKind(format: AdFormat): BannerSizeKind`: `AdFormat.BANNER` trả `ANCHORED` (B-01, ADR-0038); `AdFormat.BANNER_COLLAPSIBLE` trả `LARGE_ANCHORED` (B-03, giữ như hôm nay); định dạng khác ném `IllegalArgumentException("$format is not a banner format")`, cùng câu với `bannerRefreshOf`. Hàm thuần, theo mẫu `bannerRefreshOf` ở `BannerLoads.kt`.
-   - `internal fun bannerAdSize(context: Context, format: AdFormat, widthDp: Int): AdSize`: theo `bannerSizeKind(format)`, `ANCHORED` gọi `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, widthDp)`, `LARGE_ANCHORED` gọi `AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp)`. Hàm có `@Suppress("DEPRECATION")`; KDoc ghi: cỡ thường theo JBase (`AdLayoutUtils.getAdaptiveBannerSize`), SDK 25.5.0 đánh dấu bỏ hàm này mà không có hàm thay cho cỡ thường, hàm thay của Google là cỡ lớn; khi nâng SDK mà hàm bị xóa thì cần quyết lại B-01.
+   - Ba tên này (`BannerSizeKind`, `bannerSizeKind`, `bannerAdSize`) là hàm cỡ banner dùng chung của `:core:ads`: T-062 mở rộng chúng cho `banner_mrec` (mục 6), không tạo hàm cỡ riêng.
+   - `internal fun bannerAdSize(context: Context, format: AdFormat, widthDp: Int): AdSize`: theo `bannerSizeKind(format)`, `ANCHORED` gọi `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, widthDp)`, `LARGE_ANCHORED` gọi `AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp)`. Hàm có `@Suppress("DEPRECATION")` trên một dòng riêng ngay trên khai báo `internal fun` (ktlint không nhận chú thích đặt trong biểu thức, mục 4.1); KDoc ghi: cỡ thường theo JBase (`AdLayoutUtils.getAdaptiveBannerSize`), SDK 25.5.0 đánh dấu bỏ hàm này mà không có hàm thay cho cỡ thường, hàm thay của Google là cỡ lớn; khi nâng SDK mà hàm bị xóa thì cần quyết lại B-01.
 2. **Sửa `AdSlot.kt`, `BannerSlot`** (dòng 94): `val adSize = remember(widthDp, format) { bannerAdSize(context, format, widthDp) }`. Phần còn lại giữ nguyên: `LaunchedEffect(adSize) { currentOnHeight(adSize.height.dp) }` báo chiều cao mới cho thanh đáy, `key(adSize)` dựng lại khung khi cỡ đổi, `heightDp = adSize.height` đặt chiều cao khung, `setAdSize(adSize)` cho `AdView`. Sửa KDoc của `AdSlot` và `BottomBannerSlot`: banner cố định cỡ thích ứng neo đáy thường (B-01), banner thu gọn cỡ lớn. Bỏ import `AdSize` nếu không còn dùng trong file (ktlint).
 3. **Khung chừa chỗ theo chiều cao mới:** không cần code mới. `BottomAdBarScaffold` nhận chiều cao qua `onHeight` của `BottomBannerSlot` rồi `bottomBarReservation(BANNER, slotHasAd, bannerHeight)`; banner riêng dùng `heightDp` cho `Modifier.height` của khung. Cả hai lấy từ `adSize` của bước 2.
 4. **Sửa `docs/ops/ads-business-rules.md`, B-01:** thêm vào cuối luật: "**Đổi 2026-10-29 (ADR-0038):** cỡ thích ứng neo đáy thường theo hướng màn hình hiện tại (`AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize`), như JBase, thay cỡ neo đáy lớn (`getLargeAnchoredAdaptiveBannerAdSize`). Banner thu gọn (B-03) giữ cỡ lớn. SDK 25.5.0 đánh dấu bỏ hàm cỡ thường và không có hàm thay." Cột nguồn thêm `JBase admobadshelper-release.aar: AdLayoutUtils.getAdaptiveBannerSize (offset 48)`. Giữ chữ cũ của luật.
@@ -92,9 +93,9 @@ Nên mọi ảnh chuẩn giữ nguyên; ảnh nào đổi là dấu hiệu sai (
 
 ### 3.4. Phương án dự phòng
 
-- **Điểm chưa chắc:** cảnh báo hàm bị bỏ có làm đỏ một bước của `scripts/check.sh` không. Đã kiểm cấu hình: Kotlin không bật `allWarningsAsErrors`, lint `warningsAsErrors = false`; chưa chạy `check.sh` (máy không có JDK lúc viết plan, và E dưới 2). Ngoài ra chưa biết Robolectric có tính hai cỡ khác nhau không (mục 4, câu kiểm tiền đề).
-- **Điều kiện chuyển:** `check.sh` đỏ ở biên dịch, ktlint hay lint với lỗi chỉ vào lời gọi hàm bị bỏ hay vào `@Suppress("DEPRECATION")` (ví dụ ktlint đòi đặt chú thích ở chỗ khác).
-- **Cách làm thay:** đặt `@Suppress("DEPRECATION")` ở mức file (`@file:Suppress("DEPRECATION")` đầu `BannerAdSize.kt`, file chỉ chứa ba khai báo của mục 3.1) thay vì ở hàm, hoặc ngược lại, theo điều công cụ đòi. Không đổi sang hàm khác: không có hàm không bị bỏ cho cỡ thường (mục 2), và cỡ inline hay cỡ tự tính bằng `AdSize(width, height)` đổi B-01. Nếu không cách đặt chú thích nào qua thì dừng theo điều kiện 3 (B-01 mới không làm được với công cụ hiện tại). Test của mục 4 giữ nguyên.
+- **Điểm chưa chắc:** cảnh báo hàm bị bỏ có làm đỏ một bước của `scripts/check.sh` không. Đã chạy thử (mục 4.1): biên dịch qua với cảnh báo, ktlint nhận `@Suppress("DEPRECATION")` đặt trên dòng riêng trước một khai báo, không nhận khi đặt trong biểu thức. Lint (`:app:lintStagingDebug`) chưa chạy; cấu hình có `warningsAsErrors = false`. Robolectric tính hai cỡ khác nhau ở mọi khung đã thử (mục 4.1), nên test so cỡ phân biệt được hai cỡ; không còn điểm chưa chắc ở phía test.
+- **Điều kiện chuyển:** `check.sh` đỏ ở lint hay ktlint với lỗi chỉ vào lời gọi hàm bị bỏ hay vào chỗ đặt `@Suppress("DEPRECATION")`.
+- **Cách làm thay:** đặt `@file:Suppress("DEPRECATION")` ở đầu `BannerAdSize.kt` thay vì ở hàm (file chỉ chứa các khai báo của mục 3.1), hoặc thêm `@SuppressLint("Deprecated")` nếu lint báo đúng mã đó. Không đổi sang hàm khác: không có hàm không bị bỏ cho cỡ thường (mục 2), và cỡ inline hay cỡ tự tính bằng `AdSize(width, height)` đổi B-01. Nếu không cách đặt chú thích nào qua thì dừng theo điều kiện 3. Test của mục 4 giữ nguyên.
 
 ### 3.5. Hành vi đã có bị đổi
 
@@ -111,16 +112,16 @@ Nên mọi ảnh chuẩn giữ nguyên; ảnh nào đổi là dấu hiệu sai (
 
 Test viết trước. Bước 3 tạo khung rỗng của `BannerAdSize.kt`: `bannerSizeKind` trả `LARGE_ANCHORED` cho mọi định dạng banner (đúng hành vi hôm nay) và `bannerAdSize` gọi cỡ lớn, `BannerSlot` chưa gọi `bannerAdSize`. Test của dòng KB-18 đỏ vì cỡ, không vì biên dịch.
 
-`BannerAdSizeTest` (`:core:ads`, `@RunWith(AndroidJUnit4::class)`, `@Config(qualifiers = "w411dp-h891dp-xxhdpi")` cho cả lớp, `createAndroidComposeRule<ComponentActivity>()`; `activity` là `composeRule.activity`):
+`BannerAdSizeTest` (`:core:ads`, `@RunWith(AndroidJUnit4::class)`, `@Config(qualifiers = "w411dp-h891dp-xxhdpi")` cho cả lớp, `createAndroidComposeRule<ComponentActivity>()`; `activity` là `composeRule.activity`). Số dp dưới đây đã đo bằng test tạm ở mục 4.1, trên đúng khung này. Hằng `BANNER_FORMATS = setOf(AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE)` ở đầu lớp test là danh sách định dạng có cỡ banner; T-062 thêm `AdFormat.BANNER_MREC` vào đó:
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
 | KB-18, KB-32: banner cố định cỡ neo đáy thường | Unit test | `fixedBanner_kindIsAnchored`: `assertEquals(BannerSizeKind.ANCHORED, bannerSizeKind(AdFormat.BANNER))`. Hôm nay (khung rỗng) đỏ: `LARGE_ANCHORED` |
 | Banner thu gọn giữ cỡ lớn (ngoài phạm vi, B-03) | Unit test | `collapsibleBanner_kindStaysLarge`: `assertEquals(BannerSizeKind.LARGE_ANCHORED, bannerSizeKind(AdFormat.BANNER_COLLAPSIBLE))`. Đối chứng là test dòng trên: hai định dạng khác cỡ |
-| Định dạng không phải banner | Unit test | `nonBannerFormat_throws`: với mọi `AdFormat` khác `BANNER`, `BANNER_COLLAPSIBLE`, `assertThrows(IllegalArgumentException::class.java) { bannerSizeKind(it) }`. Khi T-062 thêm `BANNER_MREC`, task đó thêm nhánh và loại định dạng đó khỏi vòng (mục 6) |
-| Tiền đề của test cỡ: Robolectric tính hai cỡ khác nhau | Unit test (Robolectric) | `sdkSizes_anchoredDiffersFromLarge`: ở bề rộng 360 và 411 dp, `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, w).height != AdSize.getLargeAnchoredAdaptiveBannerAdSize(activity, w).height`, và cỡ thường cao ít nhất 50 dp. Qua cả trên khung rỗng (kiểm SDK, không kiểm code). Đỏ thì các test so cỡ dưới đây không phân biệt được hai cỡ: phiên ghi số đo vào nhật ký và báo người, vẫn dựa vào `fixedBanner_kindIsAnchored` |
-| KB-18: `bannerAdSize` gọi đúng hàm của SDK | Unit test (Robolectric) | `bannerAdSize_fixed_matchesAnchored`: với `w` là 320, 360, 411, 600, `bannerAdSize(activity, AdFormat.BANNER, w)` có `width`, `height` bằng `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, w)`; đối chứng `height` khác cỡ lớn ở 411 dp. `bannerAdSize_collapsible_matchesLarge`: `AdFormat.BANNER_COLLAPSIBLE` bằng `getLargeAnchoredAdaptiveBannerAdSize`. Hôm nay đỏ ở câu đầu |
-| KB-17, KB-18: khung chừa chỗ theo chiều cao mới | Compose UI test | `bottomBannerSlot_reportsAnchoredHeight`: `setContent { CompositionLocalProvider(LocalAdsController provides testAdsController()) { Box(Modifier.width(411.dp)) { BottomBannerSlot(AdPlacement.SAMPLE_NATIVE_SMALL, onAdAvailabilityChange = {}, onHeight = { reported += it }) } } }`, `waitForIdle()`. Kiểm: `reported.last()` bằng `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, 411).height.dp`; đối chứng: khác `getLargeAnchoredAdaptiveBannerAdSize(activity, 411).height.dp`. Chiều cao được báo trước cổng đồng ý (`LaunchedEffect(adSize)` ở `BannerSlot`), nên không cần đồng ý hay quảng cáo; `testAdsController` không có SDK nên không gửi yêu cầu. Hôm nay đỏ: số báo lên là chiều cao cỡ lớn |
+| Định dạng không phải banner | Unit test | `nonBannerFormat_throws`: với mọi `format` trong `AdFormat.entries - BANNER_FORMATS`, `assertThrows(format.name, IllegalArgumentException::class.java) { bannerSizeKind(format) }`; đối chứng: mọi định dạng của `BANNER_FORMATS` không ném. Khi T-062 thêm `BANNER_MREC`, task đó chỉ thêm định dạng vào `BANNER_FORMATS` và một test cho cỡ `MEDIUM_RECTANGLE` (mục 6) |
+| Tiền đề của test cỡ: Robolectric tính hai cỡ khác nhau | Unit test (Robolectric) | `sdkSizes_anchoredAndLarge_measured`: `getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, w)` cao 56 dp ở 360 dp và 64 dp ở 411 dp; `getLargeAnchoredAdaptiveBannerAdSize(activity, w)` cao 113 dp ở 360 dp và 128 dp ở 411 dp (số đo ở mục 4.1). Qua cả trên khung rỗng (kiểm SDK, không kiểm code); nó giữ cho các test dưới phân biệt được hai cỡ. Đổi số chỉ khi nâng SDK, việc đó là ticket riêng |
+| KB-18: `bannerAdSize` gọi đúng hàm của SDK | Unit test (Robolectric) | `bannerAdSize_fixed_matchesAnchored`: với `w` là 320, 360, 411, 600, `bannerAdSize(activity, AdFormat.BANNER, w)` có `width`, `height` bằng `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, w)`; đối chứng: ở 411 dp `bannerAdSize(activity, AdFormat.BANNER, 411).height` là 64, không phải 128. `bannerAdSize_collapsible_matchesLarge`: `AdFormat.BANNER_COLLAPSIBLE` bằng `getLargeAnchoredAdaptiveBannerAdSize`. Hôm nay đỏ ở câu đầu |
+| KB-17, KB-18: khung chừa chỗ theo chiều cao mới | Compose UI test | `bottomBannerSlot_reportsAnchoredHeight`: `setContent { CompositionLocalProvider(LocalAdsController provides testAdsController()) { Box(Modifier.width(411.dp)) { BottomBannerSlot(AdPlacement.SAMPLE_NATIVE_SMALL, onAdAvailabilityChange = {}, onHeight = { reported += it }) } } }`, `waitForIdle()`. Kiểm: `reported.last()` bằng `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, 411).height.dp` (64 dp); đối chứng: khác `getLargeAnchoredAdaptiveBannerAdSize(activity, 411).height.dp` (128 dp). Chiều cao được báo trước cổng đồng ý (`LaunchedEffect(adSize)` ở `BannerSlot`), nên không cần đồng ý hay quảng cáo; `testAdsController` không có SDK nên không gửi yêu cầu. Hôm nay đỏ: số báo lên là chiều cao cỡ lớn |
 | Ảnh chuẩn không đổi | Screenshot test | `scripts/check.sh` (bước verify của Roborazzi) qua mà không ghi lại ảnh nào; `git status --short -- '*/src/test/screenshots/'` trống |
 | Cỡ banner thật trên máy | Kiểm tra thủ công (máy thật: quảng cáo thật) | Bản staging trên điện thoại dọc, đồng ý quảng cáo, mở màn xem thử, trang "Banners": `adb shell uiautomator dump`, đọc `bounds` của `AdView` của banner cố định (dưới tiêu đề); chiều cao (px chia mật độ) nằm trong 50 tới 90 dp, thấp hơn banner thu gọn ở đáy khi chưa bung (cỡ lớn). Tắt `is_show_native_bottom` trên Firebase staging, trang "Collapsible ad": lớp banner của thanh đáy cùng chiều cao đó, nội dung danh sách không bị che (khoảng chừa bằng khung). Ghi hai số vào nhật ký |
 | Tài liệu B-01, `ads-guide.md` | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc ghi chú B-01 và hai dòng của `ads-guide.md` |
@@ -129,11 +130,30 @@ Banner riêng (`AdSlot` của vị trí `banner`) không có test đo chiều ca
 
 Không có tệp kịch bản emulator: `device-session` từ chối đồng ý nên không có banner để đo.
 
-**Ngoại lệ viết test trước:** tài liệu (`ads-business-rules.md`, `ads-guide.md`) và KDoc. `sdkSizes_anchoredDiffersFromLarge` qua ngay trên khung rỗng vì nó kiểm tiền đề của SDK trên Robolectric, không kiểm code của plan.
+**Ngoại lệ viết test trước:** tài liệu (`ads-business-rules.md`, `ads-guide.md`) và KDoc. `sdkSizes_anchoredAndLarge_measured` qua ngay trên khung rỗng vì nó kiểm tiền đề của SDK trên Robolectric, không kiểm code của plan.
 
 ### 4.1. Chạy thử
 
-Không cần (E dưới 2). Đổi một lời gọi `AdSize` sang hàm cùng họ, theo mẫu `bannerRefreshOf`; không thư viện, kỹ thuật hay module mới. Đã đọc bytecode của SDK 25.5.0 (mục 2) để chọn hàm; chưa chạy Gradle.
+Không bắt buộc theo L-042 (E dưới 2: đổi một lời gọi `AdSize` sang hàm cùng họ, theo mẫu `bannerRefreshOf`; không thư viện, kỹ thuật hay module mới). Đã chạy thử theo yêu cầu của rà soát độc lập, để test so cỡ có số thật.
+
+- **Đã chạy thử:** 2026-10-29, worktree của nhánh `claude/plan-T-067-banner-thuong` (nhánh chính `c29ce2b`, chưa có code của plan). Một test tạm không commit, đã xóa: `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/TmpT067DryRunTest.kt`, dựng `ComponentActivity` bằng `Robolectric.buildActivity(...).setup()`, gọi `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize` (với activity và với `applicationContext`) và `AdSize.getLargeAnchoredAdaptiveBannerAdSize` ở bề rộng 320, 360, 411, 600 dp, trên ba khung.
+- **Lệnh:** `./gradlew :core:ads:testDebugUnitTest --tests '*TmpT067DryRunTest*'` (JDK và SDK từ `scripts/local-setup.sh`, `env.sh`): qua. `./gradlew :core:ads:ktlintTestSourceSetCheck` trên cùng file. Không chạy `scripts/check.sh` (E dưới 2).
+- **Kết quả, cỡ đo được (dp, rộng x cao):**
+
+  | Khung | Bề rộng | Cỡ thường | Cỡ lớn |
+  | --- | --- | --- | --- |
+  | `w411dp-h891dp-xxhdpi` | 320 | 320 x 50 | 320 x 100 |
+  | `w411dp-h891dp-xxhdpi` | 360 | 360 x 56 | 360 x 113 |
+  | `w411dp-h891dp-xxhdpi` | 411 | 411 x 64 | 411 x 128 |
+  | `w411dp-h891dp-xxhdpi` | 600 | 600 x 77 | 600 x 150 |
+  | `w360dp-h640dp-xxhdpi` | 360 | 360 x 56 | 360 x 113 |
+  | `w360dp-h640dp-xxhdpi` | 411 | 411 x 64 | 411 x 128 |
+  | `w360dp-h640dp-xxhdpi` | 600 | 600 x 77 | 600 x 128 |
+  | `w891dp-h411dp-xxhdpi` (ngang) | 411 | 411 x 62 | 411 x 82 |
+  | `w891dp-h411dp-xxhdpi` (ngang) | 600 | 600 x 62 | 600 x 82 |
+
+  Cỡ thường thấp bằng khoảng một nửa cỡ lớn ở màn dọc; hai cỡ khác nhau ở mọi khung và mọi bề rộng đã thử. `applicationContext` cho cùng số với activity. Cỡ thường ở 411 dp (64 dp) gần banner giả 60 dp của màn xem thử (câu hỏi 3).
+- **Kết quả, ktlint:** `@Suppress("DEPRECATION")` trên dòng riêng trước một khai báo (`val`) qua; đặt trong biểu thức (`val x = @Suppress("DEPRECATION") AdSize....`) bị `standard:annotation` báo lỗi. Plan đặt chú thích trên dòng riêng trước `internal fun bannerAdSize` (mục 3.1). Biên dịch chỉ có cảnh báo.
 
 ## 5. Chấm rủi ro
 
@@ -157,9 +177,10 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 - File hoặc thành phần dùng chung bị chạm: `AdSlot.kt` (`BannerSlot`, dùng bởi `AdSlot` và `BottomBannerSlot` của `BottomAdBarScaffold`), `docs/ops/ads-business-rules.md`, `docs/ops/ads-guide.md`.
 - Không đổi: `BannerFrame.kt`, `BannerAdView.kt`, `BannerLoads.kt`, `BottomAdBar.kt`, `AdsController.kt`, ảnh chuẩn.
 - App dùng banner hôm nay: màn xem thử staging (`gallery_banner`, `gallery_banner_collapsible`) và lớp banner của thanh đáy (`SampleScreen`, `gallery_native_small`) khi `is_show_native_bottom` tắt.
-- Ticket của đợt 4 cùng vùng: T-062 (banner MREC, thêm `AdFormat.BANNER_MREC`; nên thêm nhánh `MEDIUM_RECTANGLE` vào `bannerSizeKind` hay đi đường riêng, và sửa `nonBannerFormat_throws`), T-054 (banner dừng khi bị che, sửa vòng chạy của banner trong `AdSlot.kt`), T-071 (banner của MAX). T-053, T-064 tới T-066 sửa các dòng khác của `ads-business-rules.md` (K-02, CL-03, D-02, S-12) và `ads-guide.md`. Không file nào hai plan cùng **tạo** (L-054); `BannerAdSize.kt` chỉ plan này tạo.
+- **Hàm cỡ dùng chung với T-062** (người điều phối quyết, 2026-10-29): `BannerAdSize.kt` của plan này là nơi duy nhất chọn cỡ banner. T-062 (banner MREC) dựa vào đúng các tên `BannerSizeKind`, `bannerSizeKind(format)`, `bannerAdSize(context, format, widthDp)`: thêm mục `MEDIUM_RECTANGLE` vào `BannerSizeKind`, nhánh `AdFormat.BANNER_MREC -> MEDIUM_RECTANGLE` vào `bannerSizeKind`, nhánh trả `AdSize.MEDIUM_RECTANGLE` vào `bannerAdSize`, và sửa `BannerAdSizeTest` (thêm `AdFormat.BANNER_MREC` vào `BANNER_FORMATS`, thêm test của cỡ MREC). T-062 không tạo `BannerSize` hay `bannerSizeOf` riêng; plan T-062 (nhánh `claude/plan-T-062-banner-mrec`) cần sửa theo, ghi Sửa `BannerAdSize.kt` (L-054).
+- T-054 (banner dừng khi bị che) sửa `BannerSlotHost` (tham số `covered`) và lời gọi `BannerSlotHost(...)` trong `BannerSlot`, ngay dưới dòng `val adSize = ...` mà plan này đổi. Khác dòng nhưng sát nhau: phiên chạy sau rebase trên nhánh chính và giữ cả hai thay đổi (dòng `adSize` của plan này, tham số `covered` của T-054). T-071 (banner của MAX) sau T-062. T-053, T-064 tới T-066 sửa các dòng khác của `ads-business-rules.md` (K-02, CL-03, D-02, S-12) và `ads-guide.md`. Không file nào hai plan cùng **tạo** (L-054); `BannerAdSize.kt` chỉ plan này tạo.
 - `docs/STATUS.md`: không đưa vào PR.
-- Đề xuất thứ tự chạy: trước T-062 và T-071, để hai task đó dùng `bannerSizeKind` sẵn có; độc lập với T-053, T-064 tới T-066 (chỉ chung tài liệu, khác dòng).
+- Thứ tự chạy (người điều phối quyết): T-054, rồi T-067, rồi T-062; T-071 sau T-062. Độc lập với T-053, T-064 tới T-066 (chỉ chung tài liệu, khác dòng).
 
 ## 7. Điều kiện dừng riêng
 
@@ -175,7 +196,9 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 2. **Banner thu gọn có đổi cỡ không?** JBase dùng cùng một `AdView` và cùng cỡ thường cho banner thường và banner thu gọn (`BannerAdController.lambda$init$1`). ADR-0038, quyết định 3 chỉ nói banner cố định; ticket để banner thu gọn ngoài phạm vi.
    - Đề xuất của AI: giữ cỡ lớn cho banner thu gọn trong task này, đúng phạm vi ticket. Cỡ truyền vào là cỡ lúc thu gọn; phần bung ra do quảng cáo quyết, nên ảnh hưởng nhỏ hơn. Nếu anh muốn theo JBase cả ở đây thì ghi vào ADR-0038 và tách ticket nhỏ: một nhánh của `bannerSizeKind` và một câu test.
 3. **Banner giả 60 dp của màn xem thử trong test.** `PreviewBanner` cao 60 dp, gần cỡ thường trên điện thoại dọc, nên không cần đổi.
-   - Đề xuất của AI: giữ, không ghi lại ảnh. Ảnh chuẩn không vẽ cỡ thật của SDK.
+   - Đề xuất của AI: giữ, không ghi lại ảnh. Ảnh chuẩn không vẽ cỡ thật của SDK; cỡ thường đo được ở 411 dp là 64 dp (mục 4.1).
+4. **Bỏ dòng "ghi lại ảnh chuẩn có banner" của ticket?** Phạm vi của ticket ghi "Ghi lại ảnh chuẩn có banner (liệt kê trong plan)". Mục 3.2 cho thấy không ảnh chuẩn nào vẽ cỡ banner của SDK (test không có `AdsController`; màn xem thử dùng banner giả 60 dp), rà soát độc lập đồng ý.
+   - Đề xuất của AI: anh xác nhận bỏ phần ghi lại ảnh của ticket; plan không ghi lại ảnh nào và coi ảnh đổi là điều kiện dừng (mục 7).
 
 ## 9. Quyết định duyệt
 
