@@ -3108,6 +3108,9 @@ expect "device-scenario: marks the start of each file in the log" 1 \
 ds_script consent.txt 'consent decline 5'
 expect "device-scenario: consent decline taps Do not consent when shown" "0 1" \
   "$(ds_run "consent.xml" "$ds_files/consent.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls")"
+# The consent form's WebView on some devices (Xiaomi HyperOS) labels its buttons only in content-desc (L-122).
+expect "device-scenario: consent decline taps Do not consent labelled only in content-desc" "0 1" \
+  "$(ds_run "consent-desc.xml" "$ds_files/consent.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls")"
 ds_script late.txt 'consent decline 5' 'wait id=welcome_screen 3'
 expect "device-scenario: consent decline waits for a late consent form" "0 1 1" \
   "$(ds_run "blank.xml blank.xml consent.xml welcome.xml" "$ds_files/late.txt") $(ds_count '^shell input tap 540 1970$' "$ds_calls") $(ds_count 'result=đạt')"
