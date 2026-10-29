@@ -1194,6 +1194,27 @@ if [[ -f scripts/new-app.sh ]]; then
     "$([ -e "$new_app/scripts/template-sync.sh" ] && echo present || echo absent)"
 fi
 
+# Workflow commands (.claude/skills/) only point at documents and scripts, so they must name real ones. In the
+# template /whatnow lists every command; an app adds its own commands without changing /whatnow, which shows them
+# from the folder. Files that exist only in the template, or only in an app, are left out.
+skill_problems=""
+for skill in .claude/skills/*/SKILL.md; do
+  dir="$(basename "$(dirname "$skill")")"
+  [[ "$(sed -n '2s/^name: //p' "$skill")" == "$dir" ]] || skill_problems+=" $dir:name"
+  grep -q '^description: .' "$skill" || skill_problems+=" $dir:description"
+  if [[ -f docs/ops/new-app.md ]]; then
+    grep -q "^| \`/$dir[ \`]" .claude/skills/whatnow/SKILL.md || skill_problems+=" $dir:whatnow"
+  fi
+  for path in $(grep -oE '(scripts/[A-Za-z0-9_./-]+\.(sh|py)|docs/[A-Za-z0-9_./-]+\.md)' "$skill" | sort -u); do
+    case "$path" in
+      scripts/new-app.sh | scripts/template-sync.sh | docs/ops/new-app.md | *YYYY* | *NNN*) continue ;;
+    esac
+    # Generated pages such as docs/STATUS.md are ignored by git, so a fresh checkout (CI) does not have them.
+    [[ -e "$path" ]] || git check-ignore -q "$path" || skill_problems+=" $dir:$path"
+  done
+done
+expect "every skill names its folder, real files and, in the template, has a row in /whatnow" "" "$skill_problems"
+
 # template-sync.sh brings later template commits into an app made by new-app.sh (ADR-0030). It runs on a scratch
 # copy of the template, so the test can add template commits; like new-app.sh it exists only in the template.
 if [[ ! -f scripts/template-sync.sh ]]; then
@@ -1243,8 +1264,10 @@ else
       "$code $(grep -cx '// template v2' "$app_ads") $(grep -c '^hold=' "$app/docs/template-sync.txt")"
 
     sed -i.bak '2s/.*/# app change/' "$app/scripts/wait-run.sh" && rm "$app/scripts/wait-run.sh.bak"
+    sed -i.bak '2s/.*/name: app change/' "$app/.claude/skills/whatnow/SKILL.md" && rm "$app/.claude/skills/whatnow/SKILL.md.bak"
     git -C "$app" commit --quiet -am "app change"
     sed -i.bak '2s/.*/# template v3/' "$tpl/scripts/wait-run.sh" && rm "$tpl/scripts/wait-run.sh.bak"
+    sed -i.bak '2s/.*/name: template v3/' "$tpl/.claude/skills/whatnow/SKILL.md" && rm "$tpl/.claude/skills/whatnow/SKILL.md.bak"
     # new-app.sh put the app's name on the first line of README.md, so a template change there conflicts too.
     sed -i.bak '1s/.*/# TEMPLATE V3/' "$tpl/README.md" && rm "$tpl/README.md.bak"
     git -C "$tpl" commit --quiet -am "template v3"
@@ -1252,6 +1275,9 @@ else
     expect "template-sync.sh stops on a conflict and sorts the files" "1 1 1" \
       "$code $(sed -n '/Phần của dự án mẫu/,/Phần app cũng sửa/p' <<< "$out" | grep -cx '   scripts/wait-run.sh') $(
         sed -n '/Phần app cũng sửa/,$p' <<< "$out" | grep -cx '   README.md')"
+    # Workflow commands are the template's (docs/ops/to-app.md, section 2).
+    expect "template-sync.sh sorts a Claude Code skill with the template's files" 1 \
+      "$(sed -n '/Phần của dự án mẫu/,/Phần app cũng sửa/p' <<< "$out" | grep -cx '   .claude/skills/whatnow/SKILL.md')"
 
     code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to HEAD 2>&1)" || code=$?
     expect "template-sync.sh refuses an app with uncommitted changes" "1 1" "$code $(grep -c 'chưa commit' <<< "$out")"

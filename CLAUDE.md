@@ -28,6 +28,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 
 ## Lệnh
 
+- Các việc chính của quy trình có command (skill của Claude Code trong `.claude/skills/`): gõ `/whatnow` để xem tình hình và việc nên làm tiếp, kèm bảng mọi command. Command chỉ dẫn tới tài liệu và script; quy tắc vẫn nằm ở `docs/CLAUDE.md` và `docs/ops/`, sửa quy tắc thì sửa ở đó. Command là của dự án mẫu: app không sửa, cần command riêng thì đặt tên khác (`docs/ops/to-app.md`, mục 2).
 - Kiểm tra toàn bộ, giống hệt CI: `scripts/check.sh`.
 - Ghi lại ảnh chuẩn screenshot khi plan cho phép: `./gradlew :<module>:recordRoborazziDebug :<module>:testDebugUnitTest --rerun` (`:app`: `:app:recordRoborazziStagingDebug :app:testStagingDebugUnitTest --rerun`), rồi `git status --short -- '*/src/test/screenshots/'` để thấy ảnh nào đã đổi. Thiếu `--rerun` thì Gradle có thể coi task test là đã cập nhật, không chạy lại test, và ảnh chuẩn giữ bản cũ (L-114).
 - Xem log của app trên máy thật hoặc emulator: `adb logcat -v threadtime | grep ' VGL\.'` (ADR-0019).
