@@ -16,7 +16,7 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 
 # PLAN T-058: MÁY THỬ VÀ LOG TỪNG MẠNG Ở BẢN STAGING
 
-Bản 3 (2026-10-29, theo rà soát độc lập của PR #303): mục 3.5 theo lần chạy lại `existing-tests.py`; test quét đường tải đếm theo kiểu của AdMob, không theo tên hàm (L-062), để listener của MAX (T-069 tới T-071) không làm nó đỏ; hàm đọc chung `localProperty` ở cấp trên cùng của file build cho T-068 dùng lại (thứ tự đã quyết: T-058 trước T-068); câu hỏi 7 về `ProductionAdsModule`.
+Bản 3 (2026-10-29, theo rà soát độc lập của PR #303): mục 3.5 theo lần chạy lại `existing-tests.py`; test quét đường tải đếm theo kiểu của AdMob, không theo tên hàm (L-062), để listener của MAX (T-069 tới T-071) không làm nó đỏ; giá trị đọc chung `localProperties` ở cấp trên cùng của file build cho T-068 dùng lại (thứ tự đã quyết: T-058 trước T-068); câu hỏi 7 về `ProductionAdsModule`.
 
 ## 1. Tóm tắt
 
@@ -54,15 +54,16 @@ Luật nghiệp vụ liên quan: S-17 (cài đặt gỡ lỗi chỉ ở staging)
 
 Hôm nay không file build nào đọc `local.properties`: Android Gradle Plugin tự đọc `sdk.dir`, `scripts/cloud-setup.sh` ghi `sdk.dir`, `scripts/release.sh` chép tệp vào thư mục build production. Không cần `build-logic/`: cờ `buildConfig = true` đã bật trong `AndroidApplicationConventionPlugin.kt`, khối flavor nằm trong `app/build.gradle.kts`.
 
-**Bước 1, `app/build.gradle.kts`.** Dòng đầu của file thêm `import java.util.Properties` (trong khối `android { }`, tên `java` trỏ tới phần mở rộng `java` của Gradle, nên viết đủ `java.util.Properties` không biên dịch được; chạy thử ở mục 4.1). Ngay sau khối `plugins { }`, trước `android { }`, một hàm đọc chung ở cấp trên cùng, tên `localProperty`, đọc bằng `providers.fileContents` (một API duy nhất cho mọi khóa; không dùng `File.inputStream()`). T-068 dùng lại đúng hàm này cho khóa MAX của staging, không viết cách đọc thứ hai:
+**Bước 1, `app/build.gradle.kts`.** Dòng đầu của file thêm `import java.util.Properties` (trong khối `android { }`, tên `java` trỏ tới phần mở rộng `java` của Gradle, nên viết đủ `java.util.Properties` không biên dịch được; chạy thử ở mục 4.1). Ở cấp trên cùng của file, ngay sau khối `plugins { }` (Gradle không cho câu lệnh nào đứng trước `plugins { }`, chỉ cho `import`), một giá trị đọc chung tên `localProperties`, nạp một lần bằng `providers.fileContents` (một API duy nhất; không dùng `File.inputStream()`), rỗng khi không có tệp. T-068 dùng lại `localProperties` cho khóa MAX của staging, không viết cách đọc thứ hai:
 
 ```kotlin
-// One value of the developer's local.properties (never in git), or null. Read only by the staging flavor (T-058;
-// T-068 reuses it): production never calls it, even though scripts/release.sh copies the file into its build folder.
-fun localProperty(name: String): String? =
+// The developer's local.properties (never in git), read once; empty when the file is absent. Read only by the
+// staging flavor (T-058; T-068 reuses it): production never reads it, though scripts/release.sh copies the file.
+val localProperties: Properties = Properties().apply {
     providers.fileContents(rootProject.layout.projectDirectory.file("local.properties"))
         .asText.orNull
-        ?.let { text -> Properties().apply { load(text.reader()) }.getProperty(name) }
+        ?.let { load(it.reader()) }
+}
 ```
 
 Trong khối `named("staging")`, sau dòng `APPSFLYER_DEV_KEY`:
@@ -70,7 +71,7 @@ Trong khối `named("staging")`, sau dòng `APPSFLYER_DEV_KEY`:
 ```kotlin
 // A developer's own phones as AdMob test devices (T-058, KB-28, question 40 of the ads spec): the key
 // ads.testDeviceIds of local.properties. Only this flavor reads it; CI has no such key.
-val adsTestDeviceIds = localProperty("ads.testDeviceIds")
+val adsTestDeviceIds = localProperties.getProperty("ads.testDeviceIds")
     .orEmpty()
     .split(',')
     .map { it.trim() }
@@ -79,7 +80,7 @@ val adsTestDeviceIds = localProperty("ads.testDeviceIds")
 buildConfigField("String", "ADS_TEST_DEVICE_IDS", "\"$adsTestDeviceIds\"")
 ```
 
-Lần chạy thử ở mục 4.1 dùng cùng các lời gọi (`providers.fileContents`, `Properties().load`, bộ lọc) viết liền trong khối staging; tách thành hàm chỉ dời chỗ, không đổi API. Phiên vẫn chạy `scripts/check.sh` như mọi task.
+Lần chạy thử ở mục 4.1 dùng cùng các lời gọi (`providers.fileContents`, `Properties().load`, bộ lọc) viết liền trong khối staging; tách thành giá trị chung chỉ dời chỗ, không đổi API. Phiên vẫn chạy `scripts/check.sh` như mọi task.
 
 - Lọc theo ký tự để giá trị không phá chuỗi Java của `BuildConfig` (dấu ngoặc kép, dấu `\`). Mã sai dạng bị bỏ, không làm build hỏng: khối flavor cấu hình ở mọi build, kể cả build production của `release.sh`, nên ném lỗi ở đây sẽ chặn bản phát hành vì một dòng của máy dev. Dev thấy số máy đã đặt qua dòng log ở bước 4.
 - Không in giá trị ra log của Gradle.
@@ -133,7 +134,7 @@ Không đổi spec, `ads-business-rules.md` (đây là công cụ cho dev, câu 
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Sửa | `app/build.gradle.kts` | `import java.util.Properties` ở đầu file; hàm chung `localProperty(name)` ở cấp trên cùng; khối `named("staging")` đọc `ads.testDeviceIds` của `local.properties`, lọc ký tự, trường `ADS_TEST_DEVICE_IDS` (bước 1) |
+| Sửa | `app/build.gradle.kts` | `import java.util.Properties` ở đầu file; giá trị chung `localProperties` ở cấp trên cùng; khối `named("staging")` đọc `ads.testDeviceIds` của `local.properties`, lọc ký tự, trường `ADS_TEST_DEVICE_IDS` (bước 1) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsDebugOptions.kt` | `AdsDebugOptions`, `testDeviceIdsOf`, `requestConfigurationWithTestDevices`, `applyTestDevices` (bước 2) |
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdNetworkResponses.kt` | `NetworkResponse`, `networkResponsesOf`, `networkResponseLines`, `AdNetworkLog` (bước 3) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | Tham số `debugOptions`, `networkLog`, gọi `applyTestDevices` trong `startSdk`, gọi `networkLog` ở callback tải của interstitial, app open, rewarded, native toàn màn hình, truyền vào bốn chỗ tạo `SdkNativeAdLoader` (bước 4) |
@@ -206,8 +207,8 @@ Test JVM của `:core:ads` chạy bằng Robolectric (`AndroidJUnit4`), như `Sd
 | KB-28, tiêu chí 1: đặt trước khi khởi tạo SDK | Unit test (quét mã nguồn) | `AdNetworkLogWiringTest.startSdk_setsTestDevicesBeforeInitialize`: trong thân `private fun startSdk()` của `AdsController.kt` (bỏ dòng chú thích), `applyTestDevices(` có mặt và đứng trước `MobileAds.initialize(`; đối chứng: thân hàm tìm được có `MobileAds.initialize(` |
 | KB-28, tiêu chí 1: Ad Inspector mở trên máy thật đã khai báo | Kiểm tra thủ công (máy thật: khác, emulator luôn là máy thử của SDK nên không phân biệt được có khai báo hay không) | Dev ghi mã máy của mình vào `ads.testDeviceIds`, `./gradlew :app:installStagingDebug`, đồng ý quảng cáo: logcat `VGL.Ads` có `Test devices set: 1`; dòng gợi ý `setTestDeviceIds` của SDK (thẻ `Ads` của Google) không còn; màn xem thử, "Open Ad Inspector" mở Ad Inspector, không có thông báo lỗi kèm mã. Đối chứng: xóa khóa, dựng lại: không có `Test devices set`, dòng gợi ý của SDK trở lại, máy chưa đăng ký trên AdMob thì nút báo lỗi kèm mã như trước |
 | KB-28, tiêu chí 2: không khai báo thì như hiện tại | Unit test | `AdsDebugOptionsTest.applyTestDevices_none_callsNothing`: với `NONE` và với `staging("")`, lambda `set` và `current` không được gọi, logger không có mục nào; đối chứng: cùng lambda với `staging("A")` được gọi một lần (cùng test, để test không qua trên khung rỗng) |
-| KB-28, tiêu chí 2: chỉ khối staging đọc khóa | Unit test (quét file build) | `ProductionPropertiesTest.testDeviceIds_readOnlyByStagingFlavor`: khối `staging` (hàm `flavor` có sẵn) chứa `localProperty("ads.testDeviceIds")` và `buildConfigField("String", "ADS_TEST_DEVICE_IDS"`; số lần `ads.testDeviceIds` xuất hiện trong cả file bằng số lần trong khối staging (hàm chung `localProperty` ở cấp trên cùng không nhắc khóa nào); đối chứng: khối đọc được có `ASSETS_BASE_URL` |
-| KB-28, tiêu chí 2: production không có trường | Unit test (quét file build) | `ProductionPropertiesTest.production_hasNoTestDeviceField`: khối `production` không chứa `ADS_TEST_DEVICE_IDS`, `testDeviceIds`, `localProperty(` hay `local.properties`; đối chứng: khối có `AD_UNITS` |
+| KB-28, tiêu chí 2: chỉ khối staging đọc khóa | Unit test (quét file build) | `ProductionPropertiesTest.testDeviceIds_readOnlyByStagingFlavor`: khối `staging` (hàm `flavor` có sẵn) chứa `localProperties.getProperty("ads.testDeviceIds")` và `buildConfigField("String", "ADS_TEST_DEVICE_IDS"`; số lần `ads.testDeviceIds` xuất hiện trong cả file bằng số lần trong khối staging (`localProperties` ở cấp trên cùng không nhắc khóa nào); đối chứng: khối đọc được có `ASSETS_BASE_URL` |
+| KB-28, tiêu chí 2: production không có trường | Unit test (quét file build) | `ProductionPropertiesTest.production_hasNoTestDeviceField`: khối `production` không chứa `ADS_TEST_DEVICE_IDS`, `testDeviceIds` hay `localProperties`; đối chứng: khối có `AD_UNITS` |
 | KB-28, tiêu chí 2: production không có đường đọc | Unit test (quét source set) | `AdsDebugOptionsSourceSetTest.onlyStaging_readsTestDeviceField`: trong `app/src`, trừ `staging`, `test`, `testStaging`, không tệp `.kt` nào có ký hiệu `ADS_TEST_DEVICE_IDS` ở dòng không phải chú thích; đối chứng: `src/staging/.../StagingAdsModule.kt` có ký hiệu đó. `AdsDebugOptionsSourceSetTest.production_providesNone`: `src/production/.../ProductionAdsModule.kt` có `AdsDebugOptions.NONE`, không có `AdsDebugOptions.staging(` |
 | KB-28, tiêu chí 2: staging lấy từ BuildConfig | Unit test (`testStaging`) | `StagingAdsModuleTest.adsDebugOptions_readsBuildConfig_andLogsNetworks`: `StagingAdsModule.adsDebugOptions() == AdsDebugOptions.staging(BuildConfig.ADS_TEST_DEVICE_IDS)`, `logNetworkResponses == true`, và `BuildConfig.ADS_TEST_DEVICE_IDS` chỉ gồm `[0-9A-Za-z,]` (bộ lọc của file build chạy, kể cả trên máy dev có khóa). Không khẳng định giá trị rỗng: trên máy dev có khóa, giá trị khác rỗng là đúng |
 | KB-28, tiêu chí 3: một dòng mỗi mạng, theo thứ tự SDK | Unit test | `AdNetworkResponsesTest.lines_onePerNetwork_inSdkOrder`: ba `NetworkResponse` (`com.google.ads.mediation.admob.AdMobAdapter`, 120, 3), (`com.google.ads.mediation.applovin.AppLovinMediationAdapter`, 80, null), (`com.google.ads.mediation.facebook.FacebookMediationAdapter`, 40, null), mạng được chọn là AppLovin, khóa `gallery_interstitial`: đúng ba dòng `Network gallery_interstitial: com.google.ads.mediation.admob.AdMobAdapter, 120 ms, error 3`, `... AppLovinMediationAdapter, 80 ms, loaded`, `... FacebookMediationAdapter, 40 ms, no error` |
@@ -250,17 +251,17 @@ Plan rủi ro cao chạm quảng cáo: người phụ trách sản phẩm (anh N
 
 - File hoặc thành phần dùng chung bị chạm: `AdsController` (constructor, `startSdk`, bốn callback tải), `SdkNativeAdLoader`, `NativeAdLoadListener`, `SdkBannerAdView`, `AdSlot`, `StagingAdsModule`, `ProductionAdsModule`, khối staging của `app/build.gradle.kts`, `AdsControllerFixtures.kt` (mọi test của controller dùng).
 - Task khác trong đợt có thể xung đột:
-  - T-068 (SDK MAX): cũng đọc `local.properties` ở staging (khóa MAX) và khởi tạo trong `startSdk`. Thứ tự đã quyết: T-058 chạy trước T-068, lần lượt. T-058 tạo `import java.util.Properties` và hàm chung `localProperty(name: String): String?` (đọc bằng `providers.fileContents`, mục 3.1, bước 1); T-068 gọi `localProperty("<khóa MAX>")` trong khối staging, không viết cách đọc thứ hai (plan T-068 đã ghi dùng lại, hoặc tạo khi T-058 chưa merge). Test quét của T-058 đếm chữ `ads.testDeviceIds`, không đếm `localProperty(`, nên lời gọi của T-068 trong khối staging không làm nó đỏ; khối production không được gọi `localProperty(` (test `production_hasNoTestDeviceField`). `applyTestDevices` đặt trước mọi phần khởi tạo của T-068.
+  - T-068 (SDK MAX): cũng đọc `local.properties` ở staging (khóa MAX) và khởi tạo trong `startSdk`. Thứ tự đã quyết: T-058 chạy trước T-068, lần lượt. T-058 tạo `import java.util.Properties` và giá trị chung `val localProperties: Properties` ở cấp trên cùng (nạp một lần bằng `providers.fileContents`, rỗng khi không có tệp; mục 3.1, bước 1). T-068 dùng lại `localProperties`: gọi `localProperties.getProperty("<khóa MAX>")` trong khối staging, không viết cách đọc thứ hai (plan T-068 đã ghi dùng lại, hoặc tạo khi T-058 chưa merge). Test quét của T-058 đếm chữ `ads.testDeviceIds`, không đếm `localProperties`, nên lời gọi của T-068 trong khối staging không làm nó đỏ; khối production không được nhắc `localProperties` (test `production_hasNoTestDeviceField`). `applyTestDevices` đặt trước mọi phần khởi tạo của T-068.
   - T-069, T-070, T-071 (MAX: inter và rewarded, app open, banner và MREC): thêm listener của MAX có hàm cùng tên `onAdLoaded`. `AdNetworkLogWiringTest` chỉ đếm callback có kiểu của AdMob, nên không đỏ vì chúng. Log từng mạng cho MAX (waterfall của `MaxAd`) không thuộc T-058; task MAX nào muốn có thì thêm hàm của nó và mở rộng test quét.
   - T-054, T-055, T-066: sửa `AdsController.kt` (cổng toàn màn hình, đồng ý); xung đột dòng có thể ở callback tải và `startSdk`, không xung đột ý.
   - T-062 (banner MREC): sửa `AdSlot.kt`, `BannerAdView.kt`; banner MREC đi qua `SdkBannerAdView` nên tự có log từng mạng.
   - T-063 (cổng không hiện quảng cáo): thêm một giá trị Hilt cấp từ `:app`, có thể vào cùng hai module `StagingAdsModule`, `ProductionAdsModule` và constructor của `AdsController`, `AdsControllerFixtures.kt`.
   - T-056 (mã theo khe): sửa `ProductionAdsModule` (`ConfiguredAdUnitIds`) nếu đổi chữ ký.
-- Thứ tự chạy: T-058 trước T-068, lần lượt (quyết định của người điều phối, theo rà soát độc lập), để T-068 có sẵn `localProperty` và chỗ đặt `RequestConfiguration`. Với các task khác, T-058 độc lập về ý. Task chạy sau cập nhật dữ liệu của `AdsControllerFixtures.kt` theo ADR-0029.
+- Thứ tự chạy: T-058 trước T-068, lần lượt (quyết định của người điều phối, theo rà soát độc lập), để T-068 có sẵn `localProperties` và chỗ đặt `RequestConfiguration`. Với các task khác, T-058 độc lập về ý. Task chạy sau cập nhật dữ liệu của `AdsControllerFixtures.kt` theo ADR-0029.
 
 ## 7. Điều kiện dừng riêng
 
-- Khối `production` hay mã của `src/production` phải gọi `localProperty(`, đọc `local.properties` hay khóa `ads.testDeviceIds` (hàm chung ở cấp trên cùng được phép, miễn chỉ khối staging gọi), hay phải sửa `scripts/release.sh` để bản production không có máy thử: dừng (điều kiện 7, cấu hình production).
+- Khối `production` hay mã của `src/production` phải đọc `localProperties`, `local.properties` hay khóa `ads.testDeviceIds` (giá trị chung ở cấp trên cùng được phép, miễn chỉ khối staging đọc), hay phải sửa `scripts/release.sh` để bản production không có máy thử: dừng (điều kiện 7, cấu hình production).
 - Một dòng log mới phải có mã đơn vị, mã máy, `getCredentials()` hay thông báo lỗi của SDK thì mới kiểm được tiêu chí: dừng (trái ADR-0019 và `ads-business-rules.md`, mục 8).
 - Đặt máy thử làm đổi thứ tự khởi tạo hay cổng đồng ý (ví dụ phải gọi SDK trước khi cổng mở): dừng (điểm chặn 5, plan không nêu).
 
@@ -269,7 +270,7 @@ Plan rủi ro cao chạm quảng cáo: người phụ trách sản phẩm (anh N
 1. **Tiêu chí 3 trên staging của dự án mẫu.** Staging dùng mã thử của Google, không có nhóm mediation, nên mỗi lượt tải chỉ có một dòng của adapter AdMob; chín mạng chỉ thấy ở app có mã thật (và chỉ khi staging của app đó dùng mã thật, điều ADR-0007 không cho). Đề xuất: coi tiêu chí đạt khi mỗi lượt tải có dòng `Network`, ghi giới hạn này vào `ads-guide.md` như FB-20261023-01; log nhiều mạng kiểm ở app đầu tiên có mã thật, bằng "single ad source testing" của Ad Inspector. Anh muốn thêm gì khác?
 2. **Mức log.** Đề xuất `info` như dòng `Adapter ...` của T-015: thấy trong logcat và trong vệt log đi kèm báo cáo crash của staging. Mỗi lượt tải có 1 tới 10 dòng, nên vệt log của Crashlytics (giữ phần cuối) có thể bị đẩy mất dòng cũ khi màn xem thử tải nhiều. Phương án khác: `debug` (chỉ logcat). Anh chọn?
 3. **Hộp thoại đồng ý trên máy thật.** Theo tài liệu UMP, vùng giả EEA của staging (S-17) chỉ áp cho emulator và máy khai báo bằng `ConsentDebugSettings.Builder.addTestDeviceHashedId`, nên trên máy thật hôm nay có thể không thấy hộp thoại EEA. Có thể dùng cùng khóa `ads.testDeviceIds` (mã của UMP là mã băm, có thể khác mã của AdMob: chưa kiểm). Đề xuất: không làm trong T-058 (chạm hộp thoại đồng ý, điểm chặn 5); tách ticket mới nếu anh muốn. Anh đồng ý?
-4. **Đọc `local.properties` chung với T-068.** Đã quyết (bản 3): T-058 chạy trước T-068 và tạo sẵn hàm chung `localProperty(name)` đọc bằng `providers.fileContents` (mục 3.1, bước 1; mục 6). Anh chỉ xem lại tên hàm.
+4. **Đọc `local.properties` chung với T-068.** Đã quyết (bản 3): T-058 chạy trước T-068 và tạo sẵn giá trị chung `localProperties` (nạp một lần bằng `providers.fileContents`, mục 3.1, bước 1); T-068 dùng lại `localProperties` (mục 6). Không còn câu hỏi ở đây.
 5. **Mã sai dạng.** Đề xuất bỏ mã sai dạng mà không làm build hỏng (khối staging cấu hình cả ở build production của `release.sh`), dev nhận biết qua `Test devices set: <n>`. Phương án khác: báo lỗi lúc build staging bằng một kiểm tra trong `doFirst` của task `preStaging*Build` (thêm code build). Anh chọn?
 6. **Chạy thử:** đã chạy thử 2026-10-29 (mục 4.1). Ba điểm qua, `scripts/check.sh` qua; code của bước 1 cần thêm `import java.util.Properties` mới biên dịch được, đã sửa ở mục 3.1 (plan version 2). Không dùng phương án dự phòng nào. Không còn câu hỏi ở đây; anh xem lại bước 1 đã sửa.
 7. **`ProductionAdsModule.kt` có phải cấu hình production không?** Plan T-066 coi tệp này là cấu hình production. ADR-0007 gọi cấu hình production là giá trị thật (Firebase production, mã quảng cáo thật, khóa R2, khóa ký); tệp này chỉ là code nối Hilt, không có giá trị thật, nên plan sửa nó (thêm `AdsDebugOptions.NONE`) mà không coi là chạm điều kiện dừng 7. Anh xác nhận cách đọc này một lần để các plan cùng đợt dùng chung?
