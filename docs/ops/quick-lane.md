@@ -22,7 +22,7 @@ Việc về script, tài liệu hay quy trình không cần đường này: vẫ
 
 ## 2. Bắt đầu
 
-Mở Claude Code trong repo của app và nói việc cần làm, ví dụ:
+Mở Claude Code trong repo của app, gõ `/quick-lane` kèm việc cần làm (command chỉ chạy khi dev gọi), hoặc nói việc cần làm, ví dụ:
 
 > Làm nhanh: màn hình kết quả của feature `photo-filter` hiện sai chữ "Lưu ảnh" thành "Luu anh".
 

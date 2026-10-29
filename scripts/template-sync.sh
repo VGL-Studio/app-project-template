@@ -34,7 +34,7 @@ NEVER_SYNCED=(
 )
 # Parts the app does not change (docs/ops/to-app.md, section 2): on a conflict the template's side is usually right.
 # AdPlacement.kt lists the app's own placements, so it is shared even inside :core:ads.
-TEMPLATE_OWNED='^(scripts/|\.github/|build-logic/|docs/auto-run\.md|docs/risk-scoring\.md|docs/templates/|docs/ops/|docs/adr/0|core/(logging|network|assets|ads)/)'
+TEMPLATE_OWNED='^(scripts/|\.claude/skills/|\.github/|build-logic/|docs/auto-run\.md|docs/risk-scoring\.md|docs/templates/|docs/ops/|docs/adr/0|core/(logging|network|assets|ads)/)'
 APP_SHARED_INSIDE_OWNED='/AdPlacement\.kt$'
 
 app=""
