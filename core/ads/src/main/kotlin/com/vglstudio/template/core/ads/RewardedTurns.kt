@@ -261,12 +261,14 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
                 endDecision(declaration, decision, RewardedOutcome.Granted)
             }
             DecisionStep.CONSENT_CLOSED -> {
-                // Question 8 of the plan, option (a): a closed consent gate counts as switched off; no opportunity.
+                // A closed consent gate counts as switched off; no opportunity. Reached when the gate was read closed,
+                // and when the wait timed out at the switch while the gate was closed (MC-05, T-048).
                 logger.info(TAG, "Rewarded $code granted: consent gate closed")
                 endDecision(declaration, decision, RewardedOutcome.Granted)
             }
             DecisionStep.NO_AD, null -> {
-                // Timed out while the switch was awaited: both reads wait for nothing (KB-19, criterion 4).
+                // Timed out while the switch was awaited and the consent gate was open (a closed gate ends above,
+                // MC-05): both reads wait for nothing (KB-19, criterion 4).
                 val network = networkRead ?: (port.offline() || lastLoadNetworkError[declaration] == true)
                 if (!notReadyRecorded) port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
                 endWithNoAd(declaration, decision, policy, network)
