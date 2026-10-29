@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-126 (issue #275), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-051-lich-tu-tat.md
 auto_run:
 created: 2026-10-29
 ---
@@ -20,6 +20,8 @@ created: 2026-10-29
 ## Mô tả
 
 `resume-run.yml` (mỗi giờ), `run-watchdog.yml` (mỗi 30 phút) và `env-canary.yml` (hằng ngày) chạy cả khi không có phiên tự chạy, mỗi job tính tối thiểu 1 phút Actions. Với gói GitHub Free (2.000 phút mỗi tháng cho cả org), riêng `resume-run` và `env-canary` của một app đã tốn khoảng 780 phút mỗi tháng, gần 40% hạn mức; từ 2 đến 3 app trở lên thì các lịch rảnh vượt hạn mức (L-126, issue #275). Sau ticket này, các lịch không cấp runner khi không có phiên cần chúng, mà vẫn làm đúng việc khi có phiên.
+
+**Quyết định 2026-10-29 (anh Nhật):** hai lịch tự tắt khi rảnh; `status-page.yml` (khi danh sách `approved` lên nhánh chính), `start-run.yml` và phiên bật lại; không thêm bí mật; làm trong phiên có người. Plan: `plans/T-051-lich-tu-tat.md`.
 
 ## Phạm vi
 
