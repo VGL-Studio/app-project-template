@@ -1144,6 +1144,87 @@ expect "release.sh refuses a placement wrapped over several lines" "1 1" \
   "$(code=0; out="$(scripts/release.sh --list-placements "$work/WrappedAdPlacement.kt" 2>&1)" || code=$?
      echo "$code $(grep -c 'nhiều dòng (dòng 2)' <<< "$out")")"
 
+# Contract between release.sh and the build (L-125): every Gradle property that release.sh passes is read by
+# app/build.gradle.kts, or the bundle would be built without it.
+exported_props="$(grep -oE 'export ORG_GRADLE_PROJECT_[A-Za-z]+' scripts/release.sh | sed 's/.*ORG_GRADLE_PROJECT_//' | sort -u)"
+unread_props=""
+for prop in $exported_props; do
+  grep -q "gradleProperty(\"$prop\")" app/build.gradle.kts || unread_props="$unread_props $prop"
+done
+expect "contract: app/build.gradle.kts reads every Gradle property that release.sh exports" "8 none" \
+  "$(wc -w <<< "$exported_props" | tr -d ' ') ${unread_props:-none}"
+
+# The checks after the release folder (the commit on main and its guard, the folder against the code) need a
+# repository with an origin and gh. They run on the real release.sh with --check-only (L-125), which stops before
+# the passwords, in a temp repository with a local origin, a gh that answers green and a keytool that exists. The
+# repository holds the real app/build.gradle.kts, AdPlacement.kt and the build file that declares the AppsFlyer SDK.
+# The header of this file points every origin at a fake URL, so those variables are unset here and restored below.
+rl="$work/release-check-only"
+rl_git_config=("$GIT_CONFIG_COUNT" "$GIT_CONFIG_KEY_0" "$GIT_CONFIG_VALUE_0")
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+rl_placement=core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt
+mkdir -p "$rl/stubs" "$rl/cfg" "$rl/src/scripts" "$rl/src/app" "$rl/src/core/analytics" "$rl/src/$(dirname "$rl_placement")"
+cp scripts/release.sh "$rl/src/scripts/"
+cp app/build.gradle.kts "$rl/src/app/"
+cp core/analytics/build.gradle.kts "$rl/src/core/analytics/"
+cp "$rl_placement" "$rl/src/$rl_placement"
+(
+  cd "$rl/src"
+  git init -q -b main
+  git add -A
+  git commit -q -m "release candidate"
+  git init -q --bare ../origin-bare
+  git remote add origin ../origin-bare
+  git push -q origin main
+) > /dev/null 2>&1
+cat > "$rl/stubs/gh" << 'SH'
+#!/bin/sh
+# main-guard of the commit answers $GH_GUARD (default success); no main-broken issue is open.
+case "$*" in *"run list"*) echo "${GH_GUARD:-success}" ;; *) echo ;; esac
+SH
+printf '#!/bin/sh\necho "  SHA256: AA:BB:CC"\n' > "$rl/stubs/keytool"
+chmod +x "$rl/stubs/gh" "$rl/stubs/keytool"
+rl_app_id="$(sed -nE 's/^[[:space:]]*applicationId = "([^"]+)"$/\1/p' app/build.gradle.kts | head -n 1)"
+rl_google_services() { # <package name>
+  printf '{"project_info":{"project_id":"prod-project"},"client":[{"client_info":{"android_client_info":{"package_name":"%s"}}}]}' \
+    "$1" > "$rl/cfg/google-services.json"
+}
+rl_google_services "$rl_app_id"
+touch "$rl/cfg/upload.jks"
+release_dir="$rl/cfg"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "open_app=ca-app-pub-1234567890123456/1000000001" \
+  "https://cdn.example.vn/"
+release_check_only() { # [VAR=value ...]; prints the output of release.sh --check-only run in the temp repository
+  (cd "$rl/src" && env PATH="$rl/stubs:$PATH" "$@" bash scripts/release.sh --config "$rl/cfg" --check-only 2>&1 < /dev/null) || true
+}
+rl_out="$(release_check_only)"
+expect "release.sh --check-only: runs every check, prints the summary and stops before the passwords" "1 1 1 0 0" \
+  "$(grep -c "^   App: *$rl_app_id$" <<< "$rl_out" || true) $(grep -c '^== Đã kiểm xong, chưa build (--check-only)' <<< "$rl_out" || true) \
+$(grep -c 'Mã quảng cáo thử (không có doanh thu): .*open_app_inter' <<< "$rl_out" || true) $(grep -c 'TỪ CHỐI' <<< "$rl_out" || true) \
+$(grep -c 'Mật khẩu' <<< "$rl_out" || true)"
+expect "release.sh --check-only: the configured unit is not replaced by a test unit" 0 \
+  "$(grep 'Mã quảng cáo thử (không có doanh thu):' <<< "$rl_out" | grep -cE '(: | )open_app( |$)' || true)"
+expect "release.sh --check-only: makes no tag and no build" "0 0" \
+  "$(git -C "$rl/src" tag | wc -l | tr -d ' ') $(find "$rl/src" -name '*.aab' | wc -l | tr -d ' ')"
+release_check_only_fails() { # <name> <pattern> [VAR=value ...]: the output has TỪ CHỐI and then the pattern
+  local name="$1" pattern="$2"
+  rl_out="$(release_check_only "${@:3}")"
+  if [[ "$rl_out" == *"TỪ CHỐI"*"$pattern"* ]]; then
+    expect "release.sh --check-only refuses: $name" refused refused
+  else
+    expect "release.sh --check-only refuses: $name" "TỪ CHỐI ... '$pattern'" "$rl_out"
+  fi
+}
+release_check_only_fails "a commit that main-guard did not pass" "chưa qua main-guard.yml" GH_GUARD=failure
+rl_google_services "com.example.other"
+release_check_only_fails "google-services.json of another app" "google-services.json không có app $rl_app_id"
+rl_google_services "$rl_app_id"
+git -C "$rl/src" tag release/1 > /dev/null 2>&1
+release_check_only_fails "a versionCode already released" "versionCode 1 đã được phát hành"
+git -C "$rl/src" tag -d release/1 > /dev/null 2>&1
+export GIT_CONFIG_COUNT="${rl_git_config[0]}" GIT_CONFIG_KEY_0="${rl_git_config[1]}" GIT_CONFIG_VALUE_0="${rl_git_config[2]}"
+release_dir="$work/release"
+
 # new-app.sh renames the template into a new repository and leaves out the template's own files.
 # It exists only in the template repository: an app made from it has no new-app.sh, so the app skips these tests.
 new_app="$work/new-app"
