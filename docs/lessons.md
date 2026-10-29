@@ -761,3 +761,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** (1) xem vì sao `max-line-length` của ktlint bỏ qua dòng này (kiểu `android_studio` có thể bỏ qua chú thích) và bật kiểm cho chú thích nếu được; (2) ADR-0032 thêm một lệch nhỏ: điểm nên sửa chỉ về chú thích hay định dạng, không đổi code chạy, trong file của mục 3.2, thì phiên sửa không cần test, ghi vào mục Quyết định AI đã tự làm.
 - **Trạng thái:** applied
 - **Áp dụng:** (2) ADR-0033, lệch nhỏ L12: điểm nên sửa chỉ về chú thích hay định dạng trong file được phép thì phiên sửa không cần test viết trước (`git diff -w` chỉ có chú thích hay khoảng trắng, `scripts/check.sh` qua), ghi vào mục Quyết định AI đã tự làm; `docs/auto-run.md` bước 6, `docs/risk-scoring.md` mục 4, `docs/templates/run.md`. (1) Ticket T-050: ktlint không kiểm dòng dài ở cả repo (145 dòng Kotlin dài hơn 120 ký tự, 129 dòng là chú thích, đếm 2026-10-28), không chỉ dòng này. Không mở PR riêng cho dòng KDoc ở `NativeFlowStep.kt:258`; T-050 sửa cùng các dòng khác.
+
+### L-119. `release.sh` luôn đòi khóa dev AppsFlyer, nên app giữ khung mà chưa bật AppsFlyer không phát hành được
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #261; spec `docs/features/ads/spec.md` của app, câu 3)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** camera-pose lấy khung quảng cáo của dự án mẫu (T-074) nhưng chưa bật AppsFlyer: không có SDK, quyền hay dữ liệu gửi đi. `scripts/release.sh` và build production (`app/build.gradle.kts`) luôn đòi `appsFlyerDevKey`, nên app không phát hành được bằng script mẫu nguyên vẹn; app không được sửa `release.sh`, điền khóa giả thì bước kiểm mất ý nghĩa, giữ `release.sh` cũ (`hold=`) thì app lệch dần khỏi mẫu.
+- **Bằng chứng:** issue #261; ADR-0027, quyết định 2.
+- **Đề xuất sửa:** chỉ đòi khóa khi app có SDK AppsFlyer, nhận biết từ build chứ không từ việc thiếu dòng trong `release.properties`; app có SDK mà thiếu khóa vẫn dừng; không có SDK mà có khóa thì in chú ý; có test cho cả ba trường hợp.
+- **Trạng thái:** applied
+- **Áp dụng:** `scripts/release.sh` (anh Nhật cho phép sửa trong phiên 2026-10-29) đòi `appsFlyerDevKey` khi một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`, không có SDK mà có khóa thì in CHÚ Ý và không truyền khóa; `app/build.gradle.kts` đòi `-PappsFlyerDevKey` (khác rỗng) khi `com.appsflyer` có trong classpath runtime của biến thể production. Test của `release.sh` trong `scripts/tests/run.sh`; build production thử tay bốn trường hợp. Ghi chú 2026-10-29 ở ADR-0027, `docs/ops/release.md` mục 2.2, 2.3.

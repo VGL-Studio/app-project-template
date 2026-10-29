@@ -1082,9 +1082,31 @@ release_fails_with "ad unit given as app id" "admobAppId phải có dạng"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner=ca-app-pub-3940256099942544/9214589741" "http://cdn.example.vn/"
 release_fails_with "a Google test ad unit given by hand passes the ad unit check" "assetsBaseUrl phải"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
-release_fails_with "missing AppsFlyer dev key" "thiếu appsFlyerDevKey"
+release_fails_with "missing AppsFlyer dev key (this repo has the AppsFlyer SDK)" "thiếu appsFlyerDevKey"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "key with spaces"
 release_fails_with "AppsFlyer dev key with odd characters" "thiếu appsFlyerDevKey"
+# An app without the AppsFlyer SDK (no module declares libs.appsflyer or com.appsflyer) releases without the key
+# (issue #261). The script runs from a copy in a repo without the SDK; passing the folder check means it reaches the
+# commit step, which then stops there because the copy has no origin.
+no_af="$work/release-no-appsflyer"
+mkdir -p "$no_af/scripts" "$no_af/core/analytics"
+cp scripts/release.sh "$no_af/scripts/"
+printf '%s\n' 'dependencies {' '    implementation(libs.firebase.analytics)' '}' > "$no_af/core/analytics/build.gradle.kts"
+git -C "$no_af" init -q
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
+no_af_out="$("$no_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null || true)"
+expect "release.sh: an app without the AppsFlyer SDK passes the folder check without a key" 1 \
+  "$(grep -c '^== Kiểm tra commit phát hành' <<< "$no_af_out")"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "SecretKey0123456789"
+no_af_out="$("$no_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null || true)"
+expect "release.sh: an app without the AppsFlyer SDK warns that its key is not used, and goes on" "1 1" \
+  "$(grep -c '^CHÚ Ý: .*appsFlyerDevKey' <<< "$no_af_out") $(grep -c '^== Kiểm tra commit phát hành' <<< "$no_af_out")"
+expect "release.sh: the unused AppsFlyer key is never printed" 0 "$(grep -c 'SecretKey0123456789' <<< "$no_af_out" || true)"
+# The SDK declared directly by its Maven coordinates counts too.
+printf '%s\n' 'dependencies {' '    implementation("com.appsflyer:af-android-sdk:6.18.1")' '}' > "$no_af/core/analytics/build.gradle.kts"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
+expect "release.sh: the SDK given by its Maven coordinates needs the key" 1 \
+  "$("$no_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null | grep -c 'thiếu appsFlyerDevKey' || true)"
 expect "release.sh never prints the AppsFlyer dev key" 0 \
   "$(write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/" "SecretKey0123456789"
      scripts/release.sh --config "$release_dir" 2>&1 < /dev/null | grep -c 'SecretKey0123456789' || true)"
