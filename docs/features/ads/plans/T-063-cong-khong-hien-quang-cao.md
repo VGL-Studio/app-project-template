@@ -1,16 +1,16 @@
 ---
 ticket: T-063
 title: Cổng không hiện quảng cáo cho người đã mua gói bỏ quảng cáo
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, init-order, core)
 risk_level: high             # low | medium | high
 token_estimate: 23.9M        # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-29); không chỉnh
 blocking_points: [ads, init-order, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -252,11 +252,9 @@ Không cần (E dưới 2). Mẫu giao diện ở core và `@Provides` ở `:app
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) `StateFlow<Boolean>`. (2) quảng cáo toàn màn hình đã nạp sẵn không hủy, như `is_show_ads` tắt. (3) giữ, ghi một câu trong MC-11. (4) không thêm công tắc trên màn xem thử trong ticket này. (5) giữ `[ads, init-order, core]`, mức Cao. (6) phương án (c): ticket này giữ (a), đồng ý, SDK và AppsFlyer như hôm nay; câu hỏi 50 và tiêu chí mới của KB-30 đã ghi vào spec (PR #313); bỏ hộp thoại và không khởi động SDK khi đã mua là ticket sau.
 
 ## 10. Nhật ký thực hiện
 
