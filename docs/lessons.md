@@ -771,3 +771,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** phiên `local` chạy `scripts/local-setup.sh --check` (JDK, SDK có nền tảng `compileSdk`, tệp `env.sh`; thoát khác 0 khi thiếu) thay cho `cloud-env-check.sh`, qua thì `source` tệp `env.sh`; không qua thì kết thúc phiên như dòng cũ, để người chạy `scripts/local-setup.sh`.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/auto-run.md` mục 2 (dòng môi trường của bảng, bước 1 của Kiểm tra build ở chế độ nền), `docs/ops/session-capabilities.md` (dòng `local`). Máy dev từng build bằng JDK, SDK trong thư mục tạm của phiên Claude thì `--check` báo thiếu dù build được: chạy `scripts/local-setup.sh` một lần trước khi mở phiên `local`.
+### L-117. `ui-test` đỏ vì runner tải gói Android Emulator lỗi, bảng tra lỗi xếp là lỗi thật
+
+- **Ngày, nguồn:** 2026-10-29, camera-pose (issue #259, L-090 của app; RUN-20261028-02, T-071, PR VGL-Studio/camera-pose#216)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** sau `merge-if-green.sh --update`, job `ui-test` đỏ sau khoảng 2 phút: `sdkmanager` tải gói Android Emulator lỗi ("Error on ZipFile unknown archive"), emulator không khởi động, không test nào chạy. `failure-kind.sh --playbook` trả `khong-co`, nên theo bước 8 phiên phải coi là lỗi thật dù không có gì để sửa. Lần chạy lại ngay cũng lỗi; phiên tự xếp là hạ tầng, lần sau 2 phút thì xanh.
+- **Bằng chứng:** camera-pose, `ui-test` lần chạy 40734943741, lần thử 1 và 2 (17:23 và 17:36 UTC ngày 2026-10-28) đỏ cùng mẫu, lần thử 3 xanh.
+- **Đề xuất sửa:** dòng `lich-thu-lai` trong bảng tra lỗi, chỉ khớp khi log có cả dòng tải gói lỗi và dòng "Không có test nào chạy trên emulator", để lỗi emulator do code (test chạy rồi đỏ) không bị xếp nhầm.
+- **Trạng thái:** applied
+- **Áp dụng:** PB-15 trong `docs/ops/failure-playbook.md`, log thật ở `scripts/tests/playbook/PB-15.log`. Cột Mẫu nhận nhiều mẫu nối bằng "và" (`scripts/failure-kind.sh`: dòng khớp khi log có đủ mọi mẫu), có test cho cả hai phía và lần đột biến chỉ dò mẫu đầu làm test đỏ.
