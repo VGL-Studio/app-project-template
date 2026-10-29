@@ -6,9 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The AppsFlyer dev key in app/build.gradle.kts (ADR-0027, decision 2; plan T-033): production cannot be built
- * without it, staging has none and reads no parameter. Production is not built on CI (ADR-0007), so this reads the
- * build file. The working directory of a unit test is the module directory.
+ * The AppsFlyer dev key in app/build.gradle.kts (ADR-0027, decision 2; plan T-033): production with the AppsFlyer
+ * SDK cannot be built without it (note of 2026-10-29 on ADR-0027: an app without the SDK needs no key), staging has
+ * none and reads no parameter. Production is not built on CI (ADR-0007), so this reads the build file, which the
+ * test task declares as an input. The working directory of a unit test is the module directory.
  */
 class ProductionPropertiesTest {
     private val build: String by lazy {
@@ -28,9 +29,19 @@ class ProductionPropertiesTest {
     }
 
     @Test
-    fun appsFlyerDevKey_isRequiredForProduction() {
-        val required = build.substringAfter("val missingProductionProperties = mapOf(").substringBefore(")")
-        assertTrue(required, "\"appsFlyerDevKey\" to \"ADR-0027\"" in required)
+    fun appsFlyerDevKey_isRequiredForProductionWithTheSdk() {
+        // The check of the production pre-build task: the key is missing when the SDK is on the runtime classpath
+        // and the parameter is absent or blank.
+        val check = build
+            .substringAfter("val missingProductionProperties = mapOf(")
+            .substringBefore("throw GradleException(")
+        assertTrue(check, "?.group == \"com.appsflyer\"" in check)
+        assertTrue(
+            check,
+            "if (hasAppsFlyer && providers.gradleProperty(\"appsFlyerDevKey\").orNull.isNullOrBlank())" in check,
+        )
+        assertTrue(check, "mapOf(\"appsFlyerDevKey\" to \"ADR-0027\")" in check)
+        assertTrue(check, "if (missing.isNotEmpty())" in check)
         val production = flavor("production")
         assertTrue(production, "\"APPSFLYER_DEV_KEY\"" in production)
         assertTrue(production, "gradleProperty(\"appsFlyerDevKey\")" in production)

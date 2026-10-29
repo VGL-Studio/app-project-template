@@ -124,6 +124,8 @@ tasks.withType<Test>().configureEach {
     systemProperty("remoteConfigKeys.markdown", remoteConfigKeysMarkdown.absolutePath)
     systemProperty("remoteConfigKeys.template", remoteConfigKeysTemplate.absolutePath)
     inputs.files(remoteConfigKeysMarkdown, remoteConfigKeysTemplate).withPropertyName("remoteConfigKeysDocs")
+    // ProductionPropertiesTest reads this file: without it as an input, a cached result hides a change here.
+    inputs.file("build.gradle.kts").withPropertyName("appBuildFile")
 }
 
 // Screenshot tests of the app shell, such as the network dialog over a screen (ADR-0020).
