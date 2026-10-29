@@ -878,4 +878,4 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #276.
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
-- **Áp dụng:** T-052.
+- **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
