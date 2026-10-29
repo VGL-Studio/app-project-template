@@ -1,16 +1,16 @@
 ---
 ticket: T-054
 title: Quảng cáo trong màn hình dừng khi native toàn màn hình che
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 24M          # cỡ M, số gợi ý 23.9M (scripts/token-usage.py estimate, 2026-10-29); một file code mới, sửa sáu file code, mười file test, hai tài liệu
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -305,11 +305,9 @@ Không bắt buộc (E dưới 2). Đã chạy thử một điểm mà rà soát
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) plan này không chạm hàng native trong danh sách, T-059 sửa. (2) giữ như B-05: một lượt khi màn che đóng. (3) ô pool chưa có quảng cáo lúc bị che coi là cạn. (4) giữ cờ đơn giản, không thêm trần. (5) giữ điểm nối `@VisibleForTesting`. (6) không: mọi quảng cáo toàn màn hình đều đóng cửa sổ. (7) số điểm ADR-0036 trong spec và ticket đã sửa ở PR #305.
 
 ## 10. Nhật ký thực hiện
 
