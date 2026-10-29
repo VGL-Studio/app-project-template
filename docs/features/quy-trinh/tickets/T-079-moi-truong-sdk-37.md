@@ -42,6 +42,6 @@ Chạm môi trường của mọi phiên tự chạy (điểm chặn 7, quy trì
 ## Định nghĩa hoàn thành
 
 - [ ] `scripts/tests/run.sh` qua, có test cho tên thư mục gói 37 (`android-37.0`) ở cả `cloud-env-check.sh` và `local-setup.sh --check`, và test cho compileSdk 36 vẫn qua như cũ.
-- [ ] Người dán lại `scripts/cloud-setup.sh` mới vào môi trường cloud; `env-canary` xanh.
+- [ ] Người dán lại `scripts/cloud-setup.sh` mới vào môi trường cloud; trong môi trường đó, `cloud-env-check.sh` với danh mục giả `compileSdk = "37"` qua; `env-canary` xanh.
 - [ ] `scripts/local-setup.sh --check` trên máy dev thấy đủ gói.
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính.

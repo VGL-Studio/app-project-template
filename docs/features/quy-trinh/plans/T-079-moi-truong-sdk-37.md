@@ -27,7 +27,7 @@ Ticket quy trình, không có spec nghiệp vụ. Yêu cầu là bài học L-12
 | Yêu cầu | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
 | Định nghĩa hoàn thành 1 | `scripts/tests/run.sh` qua, có test cho tên thư mục gói 37 ở `cloud-env-check.sh` và `local-setup.sh --check`, và compileSdk 36 vẫn qua như cũ | Test với một danh mục phiên bản giả ghi `compileSdk = "37"` và SDK giả có `platforms/android-37.0`; test `--check` thấy gói `platforms;android-37.0` |
-| Định nghĩa hoàn thành 2 | Người dán lại setup script mới, `env-canary` xanh | Kiểm tay sau khi merge (mục 4) |
+| Định nghĩa hoàn thành 2 | Người dán lại setup script mới, `env-canary` xanh | Kiểm tay (mục 4). `env-canary` chỉ kiểm compileSdk 36 của nhánh chính, nên thêm một lần chạy `cloud-env-check.sh` trong môi trường cloud với danh mục giả `compileSdk = "37"`: chỉ lần này chứng minh môi trường có gói 37 |
 | Định nghĩa hoàn thành 3 | `scripts/local-setup.sh --check` trên máy dev thấy đủ gói | Kiểm tay trên máy dev sau khi merge (mục 4) |
 | Định nghĩa hoàn thành 4 | CI qua, đã merge | Như mọi PR |
 
@@ -51,7 +51,9 @@ ADR liên quan: ADR-0009 (môi trường phiên tự chạy), ADR-0011 (bộ cô
 if [ ! -d "${ANDROID_HOME:-}/platforms/android-${compile_sdk}" ]; then
 ```
 
-bằng kiểm hai thư mục, `android-${compile_sdk}` hoặc `android-${compile_sdk}.0`. Không nhận dạng có số phụ khác `.0`: `android-36.1` là một nền tảng khác (`AndroidVersion.ApiLevel=36.1`) và không thay được `android-36`. Thông báo khi thiếu ghi cả hai tên gói: "Android SDK thiếu platforms;android-37 (hay platforms;android-37.0) (ANDROID_HOME=...)". Dòng in khi qua ghi tên thư mục tìm thấy. Chú thích đầu file thêm một câu về hai dạng tên.
+bằng kiểm hai thư mục, `android-${compile_sdk}` hoặc `android-${compile_sdk}.0`, viết `[ -d a ] || [ -d b ]` để chạy được trên bash 3.2 dưới `set -u` (L-075). Không nhận dạng có số phụ khác `.0`: `android-36.1` là một nền tảng khác (`AndroidVersion.ApiLevel=36.1`) và không thay được `android-36`. Câu kiểm thư mục chỉ gần đúng (AGP đọc `package.xml`), như trước; Photune dùng đúng câu kiểm này với AGP 9.1.
+
+Thông báo khi thiếu nêu hai thư mục, không nêu tên gói, vì chỉ một trong hai tên gói có thật (không có gói `platforms;android-37` hay `platforms;android-36.0`): "Android SDK thiếu nền tảng compileSdk <số> (platforms;android-<số>: không có thư mục platforms/android-<số> hay platforms/android-<số>.0, ANDROID_HOME=...)". Dòng giữ chuỗi `platforms;android-<số>` để test có sẵn vẫn khớp (mục 3.5). Dòng in khi qua ghi tên thư mục tìm thấy, ví dụ "SDK (platforms/android-37.0)". Chú thích đầu file thêm một câu về hai dạng tên.
 
 **`scripts/local-setup.sh`:** không sửa. `--check` đổi `platforms;android-37.0` thành `platforms/android-37.0` (`${package//;//}`), và `PACKAGE_PATTERN` đã nhận dấu chấm; test ở mục 4 khẳng định điều này.
 
@@ -86,8 +88,8 @@ Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì ch�
 ### 3.4. Phương án dự phòng
 
 - **Điểm chưa chắc:** môi trường cloud tải được gói `platforms;android-37.0` qua proxy (cùng máy chủ `dl.google.com` với các gói hiện có), và gói cài vào `platforms/android-37.0` trên Linux như trên máy dev (mục 4.1).
-- **Điều kiện chuyển:** `env-canary` sau khi dán script mới đỏ vì `sdkmanager` không cài được gói, hay gói nằm ở thư mục khác hai dạng tên.
-- **Cách làm thay:** gỡ dòng gói khỏi `cloud-setup.sh` trong một PR mới, tăng `SETUP_VERSION`, dán lại; ghi tên thư mục thật vào ticket để T-080 xử lý cùng lần đổi build. Tiêu chí và test ở mục 4 không đổi.
+- **Điều kiện chuyển:** sau khi dán script, kiểm compileSdk 37 trong môi trường cloud (mục 4) không qua: `sdkmanager` không cài được gói, hay gói nằm ở thư mục khác hai dạng tên.
+- **Cách làm thay:** chưa merge thì sửa trên nhánh (tên thư mục thật vào câu kiểm, hay gỡ gói), dán lại. Đã merge thì gỡ dòng gói khỏi `cloud-setup.sh` trong một PR mới, tăng `SETUP_VERSION`, dán lại; ghi tên thư mục thật vào ticket để T-080 xử lý cùng lần đổi build. Tiêu chí và test ở mục 4 không đổi.
 
 ### 3.5. Hành vi đã có bị đổi
 
@@ -96,7 +98,8 @@ Không có code Kotlin. Hành vi của script bị đổi:
 | Hành vi cũ | Hành vi mới | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
 | `cloud-env-check.sh` chỉ nhận `platforms/android-<số>` | Nhận thêm `platforms/android-<số>.0` | `cloud-env-check.sh stops without the compileSdk platform`, `names the missing platform` (grep `platforms;android-$compile_sdk`), `passes with the compileSdk platform` | Giữ cả ba: thông báo mới vẫn chứa `platforms;android-<số>` trên một dòng |
-| `cloud-setup.sh` cài 3 gói | Cài 4 gói | `local-setup.sh --check lists every package`: mong `3` dòng `QUA:` của gói | Dữ liệu của test đổi `3` thành `4` vì danh sách có gói plan thêm (ADR-0029); test vẫn kiểm mọi gói, kể cả gói mới |
+| `cloud-env-check.sh` in "SDK (android-<số>)" khi qua | In tên thư mục tìm thấy, ví dụ "SDK (platforms/android-37.0)" | Không test nào so dòng này (chỉ so `pass` hay `stop`) | Thêm câu kiểm ở mục 4 |
+| `cloud-setup.sh` cài 3 gói | Cài 4 gói | `local-setup.sh --check lists every package`: mong `3` dòng `QUA:` của gói | Dữ liệu của test đổi `3` thành `4` vì danh sách có gói plan thêm (ADR-0029); test vẫn kiểm mọi gói, kể cả gói mới. Đổi này vào commit test của bước 3 (L-025), cùng lúc với dòng gói mới chưa có, để test đỏ đúng lý do |
 | `SETUP_VERSION` là 4 | Là 5 | `cloud-env-check.sh passes on the current version` đọc số từ file, không viết cứng | Giữ |
 
 ## 4. Kiểm thử
@@ -106,15 +109,16 @@ Test trong `scripts/tests/run.sh`, khối `cloud-env-check.sh` (dùng `env_check
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
 | Setup script cài gói 37 và giữ gói 36 | Test đọc file | `cloud-setup.sh installs platforms;android-37.0 next to platforms;android-36`: cả hai dòng có trong danh sách `--install` |
-| compileSdk 37 qua với thư mục `android-37.0` | Test script | `cloud-env-check.sh passes for compileSdk 37 with platforms/android-37.0`: danh mục giả `compileSdk = "37"`, SDK giả chỉ có `platforms/android-37.0`: `pass`. Trước khi sửa: `stop` |
+| compileSdk 37 qua với thư mục `android-37.0` | Test script | `cloud-env-check.sh passes for compileSdk 37 with platforms/android-37.0`: danh mục giả `compileSdk = "37"`, SDK giả chỉ có `platforms/android-37.0`: `pass`, và `$work/env-check.out` có `platforms/android-37.0`. Trước khi sửa: `stop` |
 | compileSdk 37 qua với thư mục `android-37` | Test script | `cloud-env-check.sh passes for compileSdk 37 with platforms/android-37`: `pass` (đối chứng, qua cả trước khi sửa) |
 | compileSdk 37 thiếu gói thì dừng, nêu hai tên | Test script | `cloud-env-check.sh names both package names for a missing compileSdk 37`: SDK rỗng: `stop`, có dòng chứa `platforms;android-37.0`. Trước khi sửa: không có dòng đó |
-| Số phụ khác `.0` không thay được | Test script | `cloud-env-check.sh does not take platforms/android-36.1 for compileSdk 36`: SDK giả chỉ có `android-36.1`: `stop` (đối chứng, giữ hành vi cũ) |
+| Số phụ khác `.0` không thay được | Test script | `cloud-env-check.sh does not take platforms/android-36.1 for compileSdk 36`: danh mục giả `compileSdk = "36"` (không dùng compileSdk của repo, để tên test vẫn đúng sau T-080), SDK giả chỉ có `android-36.1`: `stop` (đối chứng, giữ hành vi cũ) |
 | compileSdk 36 vẫn qua như cũ | Test script | Các test có sẵn của khối (mục 3.5), không đổi |
-| `local-setup.sh --check` thấy gói 37 | Test script | `local-setup.sh --check finds platforms;android-37.0`: sau khi cài giả, có dòng `QUA: platforms;android-37.0`. Trước khi sửa: không có, vì gói chưa có trong `cloud-setup.sh` |
+| `local-setup.sh --check` thấy gói 37 | Test script | `local-setup.sh --check finds platforms;android-37.0`: sau khi cài giả, có dòng `QUA: platforms;android-37.0`. Trước khi sửa: không có, vì gói chưa có trong `cloud-setup.sh`. sdkmanager giả tạo thư mục bằng cùng phép đổi mà `--check` dùng, nên test này chỉ chứng minh danh sách gói được đọc; tên thư mục thật chứng minh ở bước tay trên máy dev |
 | `--check` liệt kê mọi gói | Test script | `local-setup.sh --check lists every package`: `4` (mục 3.5) |
-| Môi trường cloud dựng được từ script mới | Kiểm tra thủ công (người: dán setup script vào môi trường cloud trên claude.ai) | Sau khi merge, người dán toàn bộ `scripts/cloud-setup.sh` vào Setup script của môi trường (`docs/ops/staging-and-runs.md`, mục 2.1), rồi chạy tay **Actions > env-canary > Run workflow**: xanh, không mở issue `env-broken` |
-| Máy dev có đủ gói | Kiểm tra thủ công (người: máy dev của anh Nhật) | `scripts/local-setup.sh` rồi `scripts/local-setup.sh --check`: mọi dòng `QUA:`, mã 0 |
+| Môi trường cloud có gói 37 | Kiểm tra thủ công (người: dán setup script vào môi trường cloud trên claude.ai, rồi một phiên cloud có người) | Người dán toàn bộ `scripts/cloud-setup.sh` của nhánh vào Setup script của môi trường (`docs/ops/staging-and-runs.md`, mục 2.1). Trong một phiên cloud mới của môi trường đó, chạy `printf 'compileSdk = "37"\n' > "${TMPDIR:-/tmp}/v37.toml" && VERSIONS_TOML="${TMPDIR:-/tmp}/v37.toml" scripts/cloud-env-check.sh` và `ls "$ANDROID_HOME/platforms"`: mã 0, dòng qua có `platforms/android-37.0` |
+| Môi trường cloud dựng được từ script mới | Kiểm tra thủ công (người: GitHub Actions sau khi merge) | Chạy tay **Actions > env-canary > Run workflow**: xanh, không mở issue `env-broken` |
+| Máy dev có đủ gói | Kiểm tra thủ công (người: máy dev của anh Nhật) | `scripts/local-setup.sh` rồi `scripts/local-setup.sh --check` (SDK mặc định `~/android-sdk`, hiện chỉ có `android-36`): mọi dòng `QUA:`, mã 0, và `ls ~/android-sdk/platforms` có `android-37.0` |
 
 Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085). Các test script mới không phải đối chứng thất bại trước khi sửa script, đúng lý do ghi ở cột cuối.
 
@@ -122,7 +126,7 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085). Các test script m
 
 ### 4.1. Chạy thử
 
-Không cần (E dưới 2). Đã xem trên máy dev, 2026-10-29: gói nền Android 37 đã cài ở `~/Library/Android/sdk/platforms/android-37.0`, `package.xml` ghi `path="platforms;android-37.0"`, `source.properties` ghi `AndroidVersion.ApiLevel=37.0`. Cùng thư mục có `android-36` (`ApiLevel=36`) và `android-36.1` (`ApiLevel=36.1`), nên số phụ `.1` là nền tảng khác và không được nhận thay cho `android-36`. Môi trường cloud chỉ kiểm được sau khi dán script (mục 3.4, mục 4).
+Không cần (E dưới 2). Đã xem trên máy dev, 2026-10-29, ở SDK của Android Studio (không phải `~/android-sdk` của `local-setup.sh`): gói nền Android 37 đã cài ở `~/Library/Android/sdk/platforms/android-37.0`, `package.xml` ghi `path="platforms;android-37.0"`, `source.properties` ghi `AndroidVersion.ApiLevel=37.0`. Cùng thư mục có `android-36` (`ApiLevel=36`) và `android-36.1` (`ApiLevel=36.1`), nên số phụ `.1` là nền tảng khác và không được nhận thay cho `android-36`. Môi trường cloud (Linux, qua proxy) chỉ kiểm được khi dán script; mục 8, câu 1 đề xuất làm việc này trước khi merge.
 
 ## 5. Chấm rủi ro
 
@@ -142,7 +146,8 @@ Không cần (E dưới 2). Đã xem trên máy dev, 2026-10-29: gói nền Andr
 - File dùng chung bị chạm: `scripts/cloud-setup.sh` (môi trường của mọi phiên), `scripts/cloud-env-check.sh` (kiểm tra đầu phiên, `env-canary`).
 - Task khác có thể xung đột: PR #292 (T-074 tới T-078, giảm phút Actions) và các plan quảng cáo T-053 tới T-068 không chạm hai file này. T-080 phụ thuộc ticket này.
 - Các app nhận qua `scripts/template-sync.sh`: `SETUP_VERSION` theo ghi chú ở `docs/ops/to-app.md`, mục 7; app dán lại script.
-- Đề xuất thứ tự: làm trong phiên có người, trước T-080. Sau khi merge, dán script và chạy `env-canary` trước khi bắt đầu phiên tự chạy kế tiếp (đầu phiên báo phiên bản setup cũ và dừng nếu chưa dán).
+- Đề xuất thứ tự: làm trong phiên có người, trước T-080.
+- Cho T-080: CI không cài gói nền (`setup-android` cài `platforms;android-34`, AGP tự tải phần còn lại), nên T-079 không đổi CI. Fixture `sdk-ok/platforms/android-$compile_sdk` của `run.sh` sau T-080 sẽ là `android-37`, khác thư mục thật `android-37.0`; plan T-080 có thể đổi fixture sang dạng `.0`. Sau khi merge, dán script và chạy `env-canary` trước khi bắt đầu phiên tự chạy kế tiếp (đầu phiên báo phiên bản setup cũ và dừng nếu chưa dán).
 
 ## 7. Điều kiện dừng riêng
 
@@ -150,7 +155,7 @@ Không cần (E dưới 2). Đã xem trên máy dev, 2026-10-29: gói nền Andr
 
 ## 8. Câu hỏi cho người duyệt
 
-1. Merge xong thì phiên tự chạy kế tiếp dừng ở đầu phiên cho tới khi người dán script mới (phiên bản 5). Đề xuất: anh dán và chạy `env-canary` ngay sau khi merge, trong phiên có người hôm nay.
+1. Thứ tự kiểm môi trường cloud. Đề xuất: sau khi CI của PR code xanh, trước khi merge, anh dán `scripts/cloud-setup.sh` của nhánh vào môi trường và chạy kiểm compileSdk 37 trong một phiên cloud (mục 4). Qua thì merge ngay, rồi chạy `env-canary`. Không qua thì chưa merge, sửa trên nhánh, khỏi phải làm PR gỡ gói. Trong khe giữa lúc dán và lúc merge, môi trường báo phiên bản 5 còn nhánh chính ở 4, nên phiên nào mở trong khe đó sẽ dừng ở đầu phiên. Hiện không có phiên hay danh sách chờ nào, và khe chỉ vài phút. Nếu anh muốn dán sau khi merge: phiên tự chạy kế tiếp dừng ở đầu phiên cho tới khi dán, và gói lỗi thì cần một PR gỡ (mục 3.4).
 2. Giữ `platforms;android-36` trong setup script sau T-080 (vô hại, môi trường lớn hơn khoảng 100 MB). Bỏ nó là việc của một lần sửa setup script sau, không phải của T-080. Đề xuất giữ.
 
 ## 9. Quyết định duyệt
