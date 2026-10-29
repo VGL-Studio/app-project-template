@@ -808,3 +808,74 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** test đọc file của repo khai báo file đó làm đầu vào của task test (`inputs.file(...)`), như `remoteConfigKeysDocs`. Sửa file build thì chạy unit test của module đó với `--rerun`.
 - **Trạng thái:** applied
 - **Áp dụng:** `app/build.gradle.kts` khai báo `build.gradle.kts` làm đầu vào của mọi task test của `:app`. `ProductionPropertiesTest` viết lại câu khẳng định theo hành vi mới của #265 (ghi chú 2026-10-29 ở ADR-0027), giữ ý định: production có SDK thì không build được khi thiếu khóa. Đột biến bỏ `hasAppsFlyer &&`, chạy không kèm `--rerun`: test đỏ, tức vừa bắt được đột biến vừa chứng minh file build đã là đầu vào.
+
+### L-121. Init script của máy cloud hỏi Plugin Portal trước kho Google, nên Maven Central giới hạn tần suất là dừng build
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #270; PR #9 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** lần `env-canary` đầu của app đỏ trên máy cloud. Init script của `scripts/cloud-setup.sh` khai báo kho cho `pluginManagement` theo thứ tự: bản sao Maven Central, rồi Plugin Portal. Plugin Portal chuyển các plugin nó không giữ (Android Gradle plugin, Google services, Crashlytics) sang Maven Central; Maven Central trả 429, và Gradle dừng trước khi hỏi kho Google.
+- **Bằng chứng:** issue #270; sau khi sửa, `env-canary` và hai phiên tự chạy của app tải được plugin.
+- **Đề xuất sửa:** init script thêm `google()` ngay sau bản sao Maven Central, trước Plugin Portal; tăng `SETUP_VERSION`; test kiểm thứ tự kho; thêm dòng vào bảng sự cố của `docs/ops/setup-new-app.md`.
+- **Trạng thái:** accepted
+- **Áp dụng:**
+
+### L-122. Hộp thoại đồng ý trên Xiaomi HyperOS đặt nhãn nút ở `content-desc`, kịch bản không bấm được nút từ chối
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #271; commit 1e98ea3 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** trên Xiaomi HyperOS (Android 16), WebView của hộp thoại đồng ý UMP chỉ đặt nhãn nút ở `content-desc`, không ở `text`. `CONSENT_DECLINE` của `scripts/device-scenario.py` chỉ khớp `text`, nên kịch bản trên máy thật kẹt ở hộp thoại.
+- **Bằng chứng:** issue #271; trên máy Xiaomi, kịch bản đi qua hộp thoại sau khi sửa.
+- **Đề xuất sửa:** `CONSENT_DECLINE` khớp cả `desc=Do not consent | desc=Không đồng ý`; fixture cây giao diện có nhãn chỉ ở `content-desc` và test trong `scripts/tests/run.sh`.
+- **Trạng thái:** accepted
+- **Áp dụng:**
+
+### L-123. Commit test viết trước mà chưa định dạng, nên `check.sh` đỏ vì ktlint và tốn một vòng sửa
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #272; L-001 của app; PR #11, #17 của app)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** RUN-20261028-01 của app, T-002: test viết trước được commit sau khi chỉ chạy task test. Ở bước 5, `scripts/check.sh` đỏ ở `ktlintTestSourceSetCheck` vì thứ tự import, phải chạy `ktlintFormat` rồi commit thêm một lần chỉ để sửa định dạng. ADR-0011 chỉ dặn chạy `ktlintFormat` khi ktlint đã báo lỗi.
+- **Bằng chứng:** issue #272; RUN-20261029-01 của app (4 task) không có commit nào chỉ để sửa định dạng (app chưa đánh dấu `verified`).
+- **Đề xuất sửa:** `docs/auto-run.md` bước 3 và bước 4: chạy `./gradlew ktlintFormat` trước khi commit test và trước khi commit code; lệnh định dạng mọi file Kotlin nên chỉ commit file của task; lệnh chỉ đổi định dạng nên không tính là sửa test.
+- **Trạng thái:** accepted
+- **Áp dụng:**
+
+### L-124. Nhánh của task sau tạo từ `origin/main` cũ vì phiên không `git fetch` sau khi merge task trước
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #273; L-003 của app; PR #22 của app)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** RUN-20261029-01 của app: nhánh của T-008 được tạo từ `origin/main` chưa có commit merge của T-007. Phiên phát hiện khi đối chiếu `git log origin/main` và tạo lại nhánh. Bước 1 của `docs/auto-run.md` chỉ ghi "từ nhánh chính mới nhất", không ghi cách lấy.
+- **Bằng chứng:** issue #273; báo cáo RUN-20261029-01 của app, mục Bài học.
+- **Hậu quả nếu không phát hiện:** task sau làm trên nền thiếu task trước; task phụ thuộc nhau thì build lỗi hay PR xung đột.
+- **Đề xuất sửa:** bước 1 ghi `git fetch origin main` ngay trước khi tạo nhánh `claude/T-NNN-...` từ `origin/main`.
+- **Trạng thái:** accepted
+- **Áp dụng:**
+
+### L-125. `release.sh` chỉ chạy thật vào đêm phát hành, test của nó không đọc file build thật, nên hai bên lệch mà không ai biết
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #274; commit 1e98ea3 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** test của `scripts/release.sh` dùng fixture, không dùng `app/build.gradle.kts` thật. Script truyền thêm thuộc tính Gradle hay file build đổi tên thuộc tính đọc thì lỗi chỉ lộ ra lúc phát hành, hoặc bundle build xong mà thiếu giá trị. L-119 và L-120 là hai lần gần đây phần kiểm phát hành và file build lệch nhau.
+- **Bằng chứng:** issue #274; L-119, L-120.
+- **Đề xuất sửa:** `release.sh --check-only` chạy mọi bước kiểm rồi dừng trước bước hỏi mật khẩu và build; test hợp đồng: mọi `ORG_GRADLE_PROJECT_<tên>` mà `release.sh` xuất ra được `app/build.gradle.kts` đọc; test chạy `release.sh --check-only` thật với `app/build.gradle.kts` thật. Phủ mã quảng cáo, `assetsBaseUrl`, khóa AppsFlyer. `release.sh` là file AI không được sửa (ADR-0009): chỉ làm trong phiên có người theo dõi, khi người phụ trách phát hành cho phép; phiên tự chạy không làm (anh Nhật cho phép trong phiên 2026-10-29).
+- **Trạng thái:** accepted
+- **Áp dụng:**
+
+### L-126. Các lịch định kỳ tốn phút Actions cả khi không có phiên nào
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #275)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** org dùng gói GitHub Free (2.000 phút mỗi tháng cho mọi repo private, mỗi job tính tối thiểu 1 phút). `resume-run.yml` mỗi giờ (khoảng 720 phút mỗi tháng), `run-watchdog.yml` mỗi 30 phút (khoảng 1.440 phút mỗi tháng) và `env-canary.yml` hằng ngày chạy cả khi không có phiên. Dev của app phải tắt tay `resume-run` và `env-canary` bằng `gh workflow disable`.
+- **Bằng chứng:** issue #275.
+- **Đề xuất sửa:** trước mắt, một PR tài liệu riêng: `docs/ops/staging-and-runs.md` ghi số phút mỗi tháng của từng lịch, cách tắt và khi nào bật lại. Sau đó, workflow định kỳ không cấp runner khi không có danh sách chạy `running` (T-051, cần plan rủi ro cao vì sửa `.github/`).
+- **Trạng thái:** accepted
+- **Áp dụng:** T-051 (phần workflow).
+
+### L-127. Bộ công cụ build AGP 9.1, Gradle 9.3.1, compileSdk 37 đã chạy được ở một app
+
+- **Ngày, nguồn:** 2026-10-29, Photune (issue #276; ADR 1004 của app; CI từ PR #9 tới PR #25 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** dự án mẫu ở AGP 8.13.0, Gradle 8.14.3, compileSdk 36. Photune build và test bằng AGP 9.1.0 (Kotlin dựng sẵn), Gradle 9.3.1, Kotlin 2.2.10, compileSdk 37, KSP 2.3.12, Hilt 2.59.2, Robolectric 4.17, Roborazzi 1.77.0, ktlint-gradle 14.2.0; `pr-check`, `main-guard`, `staging` xanh qua 2 phiên và khoảng 15 PR. Kotlin giữ 2.2.10 như mẫu, nhưng plugin `kotlin-android` bỏ vì AGP 9 có Kotlin dựng sẵn; KSP 2.3.2 thì cần `android.disallowKotlinSourceSets=false`; build-tools 36.0.0 vẫn là mặc định của AGP 9.1; Navigation Compose 2.9.8. Hai chỗ script phải sửa: gói nền tên `platforms;android-37.0` trong `cloud-setup.sh`; `cloud-env-check.sh` đọc `compileSdk` từ đúng một dòng của `libs.versions.toml`. App chưa phát hành bản production nào.
+- **Bằng chứng:** issue #276.
+- **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
+- **Trạng thái:** accepted
+- **Áp dụng:** T-052.
