@@ -347,7 +347,7 @@ Tiêu chí chấp nhận:
 
 ### KB-27. Quảng cáo trong màn hình dừng khi bị quảng cáo toàn màn hình che
 
-**Thêm 2026-10-29** (ADR-0036, điểm 2). Màn hình có banner hay native làm mới tại chỗ; một native toàn màn hình (sau inter hay độc lập) hiện đè lên.
+**Thêm 2026-10-29** (ADR-0036, điểm 1). Màn hình có banner hay native làm mới tại chỗ; một native toàn màn hình (sau inter hay độc lập) hiện đè lên.
 
 Tiêu chí chấp nhận:
 
@@ -367,7 +367,7 @@ Tiêu chí chấp nhận:
 
 ### KB-29. Banner MREC
 
-**Thêm 2026-10-29** (ADR-0036, điểm 4). Spec của một app khai báo vị trí `banner_mrec` trong màn hình.
+**Thêm 2026-10-29** (ADR-0036, điểm 3). Spec của một app khai báo vị trí `banner_mrec` trong màn hình.
 
 Tiêu chí chấp nhận:
 
@@ -379,7 +379,7 @@ Tiêu chí chấp nhận:
 
 ### KB-30. Người dùng đã mua gói bỏ quảng cáo
 
-**Thêm 2026-10-29** (ADR-0036, điểm 5). Một app tạo từ dự án mẫu có gói bỏ quảng cáo; app báo cho `:core:ads` người dùng đã mua.
+**Thêm 2026-10-29** (ADR-0036, điểm 4). Một app tạo từ dự án mẫu có gói bỏ quảng cáo; app báo cho `:core:ads` người dùng đã mua.
 
 Tiêu chí chấp nhận:
 
@@ -691,3 +691,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-29 | Nhật | Trả lời câu 47 (chưa có tài khoản APS), 48 và 49 theo đề xuất của AI (AI ghi theo lời anh Nhật) |
 | 2026-10-29 | AI | Chốt KB-31 theo câu 41 tới 47; tách ticket MAX T-068 tới T-073 (APS chưa tách: chưa có tài khoản) |
 | 2026-10-29 | Nhật | Xác nhận spec; chấp nhận ADR-0036, ADR-0037, ADR-0038 (AI ghi theo lời anh Nhật) |
+| 2026-10-29 | AI | Sửa số điểm khi dẫn ADR-0036 ở KB-27, KB-29, KB-30 cho khớp ADR sau khi bỏ điểm hạn dùng interstitial (điểm 2, 4, 5 thành 1, 3, 4); không đổi nội dung (rà soát plan T-054, T-062) |
