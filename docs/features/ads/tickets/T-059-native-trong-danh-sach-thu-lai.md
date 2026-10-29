@@ -8,7 +8,7 @@ owner: Nhật
 status: backlog
 risk: high
 size: S
-depends_on: []
+depends_on: [T-054]
 sprint:
 plan: features/ads/plans/T-059-native-trong-danh-sach-thu-lai.md
 auto_run: 
