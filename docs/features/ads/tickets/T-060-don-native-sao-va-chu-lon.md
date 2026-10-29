@@ -10,7 +10,7 @@ risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-060-don-native-sao-va-chu-lon.md
 auto_run: 
 created: 2026-10-29
 ---
