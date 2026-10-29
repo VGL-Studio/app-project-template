@@ -28,6 +28,7 @@ Phần phát hành của câu hỏi 14: `scripts/release.sh` đọc, kiểm và 
 - Tùy chọn: báo khóa lạ trong `adUnits`; test của `scripts/tests/run.sh` và dữ liệu mẫu đi cùng.
 - T-057 là điều kiện trước bản production đầu tiên cần lớp của thanh đáy; trước đó app chỉ ghi cảnh báo `missing` trong log (plan T-056).
 - Hướng dẫn điền `release.properties` ở `docs/ops/release.md`.
+- Luật M-05 của `docs/ops/ads-business-rules.md`: lớp của thanh đáy lấy mã theo khe `banner`, `native_collap`, định dạng chính theo vị trí (câu hỏi 3 của plan T-056).
 
 **Không bao gồm:**
 
