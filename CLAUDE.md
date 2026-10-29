@@ -86,7 +86,7 @@ Làm theo đúng mẫu `:feature:sample`:
 - Chữ hiển thị cho người dùng đặt trong `res/values/strings.xml`, không viết cứng trong code.
 - Màu, chữ, khoảng cách lấy từ `:core:designsystem` (`AppTheme`, `MaterialTheme`, `Spacing`). Không viết cứng mã màu hay cỡ chữ.
 - Feature không gọi trực tiếp SDK quảng cáo, phân tích, Remote Config, tải file từ R2 hay `android.util.Log`; luôn đi qua `:core:ads`, `:core:analytics`, `:core:config`, `:core:assets`, `:core:logging`.
-- Định dạng code theo ktlint (kiểu Android Studio, xem `.editorconfig`).
+- Định dạng code theo ktlint (kiểu Android Studio, xem `.editorconfig`). Giới hạn 120 ký tự chỉ áp cho dòng có code; dòng chỉ có chú thích thì ktlint không kiểm và không bị giới hạn (T-050).
 - Commit: chỉ `git add` theo đường dẫn các file đã sửa, không dùng `git add -A` hay `git add .`; xem `git status --short` hoặc danh sách file của PR trước khi đẩy.
 
 ## Không được làm

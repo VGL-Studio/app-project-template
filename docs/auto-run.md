@@ -139,7 +139,7 @@ Nội dung rà soát:
 - Phần ngoài mục 3.2 (ADR-0029, `risk-scoring.md` mục 4): có thật cần cho thay đổi của plan không; có file trong mục "Không được làm" của `CLAUDE.md`, thư viện, quyền hay điểm chặn 1 tới 6, 8, 9 mà plan chưa nêu không; test cũ có bị xóa, nới phép so sánh hay đổi điều nó kiểm về hành vi đã có không. Vi phạm là mức chặn.
 - Câu khẳng định cũ viết lại (ADR-0031): có câu của plan nói điều mới không; câu mới có kiểm đúng ý định đã ghi không; có bị nới không; đối chứng có đỏ khi ý định bị phá không; có quá 3 câu, có chạm ảnh chuẩn, test viết trước hay tiêu chí của spec không. Vi phạm là mức chặn. Phiên rà soát nhận câu cũ, câu mới, câu của plan, câu ý định và lần chạy đối chứng.
 - Có cấu hình production, khóa bí mật, mã quảng cáo thật trong thay đổi không.
-- Code có theo đúng mẫu đã có trong dự án không.
+- Code có theo đúng mẫu đã có trong dự án không. Độ dài dòng do ktlint kiểm; dòng chỉ có chú thích không bị giới hạn 120 ký tự, không nêu thành điểm rà soát (T-050).
 - Task dịch chữ: nghĩa của từng nhãn đi cùng con số hay phần trăm có đúng chiều không (giá trị lớn nhất nghĩa là gì), kể cả từ lấy lại từ feature khác. Test chữ chỉ kiểm đủ bản dịch và tham số, không kiểm nghĩa (L-100).
 - Feature có thiết kế: giao diện có đúng thiết kế không. Xem từng ảnh ghép trong `design/review/` theo mục 7 của mẫu thiết kế; chữ sai, thiếu trạng thái, sai thứ tự hay vai trò màu là mức chặn; lệch nhỏ về khoảng cách là mức ghi chú. Tỷ lệ điểm ảnh khác chỉ để tham khảo.
 

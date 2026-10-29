@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-115, không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: on-staging
 risk: high
 size: M
 depends_on: []
@@ -40,7 +40,30 @@ Có thể sửa `.editorconfig`, cấu hình ktlint trong `build-logic/` hay `gr
 
 ## Định nghĩa hoàn thành
 
-- [ ] Plan ghi rõ vì sao ktlint hiện không báo dòng dài.
-- [ ] Dòng Kotlin dài hơn 120 ký tự làm `scripts/check.sh` đỏ, có một kiểm tra chứng minh (hay quyết định không kiểm được ghi trong plan và `.editorconfig` khớp quyết định đó).
-- [ ] Không còn dòng vượt giới hạn đã chốt.
+- [x] Ghi rõ vì sao ktlint hiện không báo dòng dài (mục Kết quả; không cần plan vì không chạm file "Không được làm").
+- [x] Dòng Kotlin dài hơn 120 ký tự làm `scripts/check.sh` đỏ, có một kiểm tra chứng minh (hay quyết định không kiểm được ghi trong plan và `.editorconfig` khớp quyết định đó). Dòng code: ktlint báo (đã thử); dòng chỉ có chú thích: quyết định không kiểm, ghi trong `.editorconfig`.
+- [x] Không còn dòng vượt giới hạn đã chốt (giới hạn chỉ áp cho code; không dòng code nào vượt).
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính.
+
+## Kết quả (2026-10-29)
+
+**Vì sao ktlint không báo.** Plugin 13.0.0 dùng ktlint 1.5.0. Luật `standard:max-line-length` có bật và đọc `max_line_length = 120` của `.editorconfig`. Nhưng luật bỏ qua dòng chỉ có chú thích, và không có tùy chọn bật lại. Thử với `core/network` (dòng giả, đã bỏ sau khi thử):
+
+| Dòng dài hơn 120 ký tự | ktlint báo |
+| --- | --- |
+| Dòng code | có |
+| Code kèm chú thích cuối dòng | có |
+| Chú thích `//` | không |
+| KDoc `* ...` | không |
+| Chú thích khối `/* ... */` | không |
+
+**Số dòng.** Đếm theo ký tự ngày 2026-10-29 có 17 dòng dài hơn 120, đều là chú thích (15 ở `core/ads`, 1 ở `core/network`, 1 ở `core/analytics`). Con số 145 của mô tả đếm bằng `awk` của macOS, mà `awk` này đếm theo byte.
+
+**Quyết định của anh Nhật.** Bỏ giới hạn cho chú thích. Không thêm kiểm riêng, không sửa các dòng chú thích dài. Giới hạn 120 chỉ áp cho dòng có code, và ktlint đã kiểm phần đó. Rà soát độc lập không nêu chú thích dài thành điểm rà soát.
+
+**Đã đổi:**
+- `.editorconfig`: ghi chú trên dòng `max_line_length`.
+- `CLAUDE.md`: mục Quy ước code.
+- `docs/auto-run.md`: bước 6, nội dung rà soát.
+- `docs/lessons.md`: L-115 có thêm phần cập nhật.
+- Hai chú thích lỗi thời của `decide` trong `RewardedTurns.kt`, ghi chú của rà soát T-048: nhánh `CONSENT_CLOSED` nay nói cả đường hết giờ chờ khóa khi cổng đồng ý đóng; nhánh `NO_AD, null` nói cổng đồng ý mở.
