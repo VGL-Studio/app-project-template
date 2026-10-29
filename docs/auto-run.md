@@ -9,6 +9,8 @@ Bốn nguyên tắc của phiên tự chạy:
 3. **Rà soát độc lập.** Một phiên AI khác, không tham gia viết code, rà soát thay đổi trước khi đẩy lên CI.
 4. **Không cố định giờ.** Người quyết định lúc bắt đầu; thời điểm muốn có bản staging (nếu cần) ghi trong danh sách chạy.
 
+Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày thì không cần phiên tự chạy: dev làm cùng AI theo đường làm nhanh ([ops/quick-lane.md](ops/quick-lane.md), ADR-0034), vẫn theo các bước 3 tới 9 của mục 3, trừ phần ADR-0034 ghi khác.
+
 ## 1. Kích hoạt phiên
 
 1. Sau họp đánh giá rủi ro, AI lập danh sách chạy `runs/RUN-YYYYMMDD-NN.md` theo [mẫu phiên tự chạy](templates/run.md): các plan đã duyệt, thứ tự chạy, số task tối đa, thời điểm muốn có bản staging (nếu có).
