@@ -5,7 +5,7 @@ status: draft                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
-token_estimate: 5.4M         # cỡ S theo ticket, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); nếu người duyệt đổi ticket sang cỡ M (câu hỏi 4) thì 23.9M
+token_estimate: 23.9M        # cỡ M (ticket đổi từ S sang M theo rà soát độc lập, 2026-10-29: 36 file, 9 ảnh chuẩn), số gợi ý 23.9M (scripts/token-usage.py estimate, 2026-10-29)
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
 reviewer:                    # người duyệt
@@ -31,7 +31,7 @@ Ticket xử lý các kịch bản sau trong `features/ads/spec.md`:
 | KB-16, tiêu chí 2 | Màn native có đếm ngược trong vòng ở góc trên trái; hết đếm ngược thì vòng đó thành nút đóng. Đổi 2026-10-29: mặc định 5 giây, `time_close_native`, vòng 48 dp | Như KB-32. Vòng đếm ngược và nút đóng cùng khung 48 x 48 dp tại (16, 24) dp; hàng trên của màn sau inter cao 48 dp, nên media bắt đầu ở y = 88 thay 76 |
 | KB-16, tiêu chí 3 | Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược | Giữ nguyên (K-04); "hết đếm ngược" nay là hết số giây của lượt đó |
 | KB-16, tiêu chí 4 tới 7 | Đi tiếp đúng màn, mốc `ads_interval`, khóa tắt, inter bị chặn, inter không lên màn | Không đổi. Phần chờ inter rời màn tối đa 2 giây (kiểm mỗi 200 ms) giữ nguyên (ADR-0038, quyết định 3; L-A10) |
-| KB-5, tiêu chí 1 và 2 | Đổi 2026-10-29: đếm ngược và nút đóng theo KB-32 (5 giây, 48 dp); nút quay lại theo thời gian đếm ngược của KB-32 | Lượt native toàn màn hình độc lập dùng cùng khóa `time_close_native` và cùng nút 48 dp (câu hỏi 3). Nút quay lại của máy không làm gì trong lúc đếm, sau đó đóng như nút đóng (K-08, câu hỏi 17 của spec); chỉ độ dài đổi |
+| KB-5, tiêu chí 1 và 2 | Đổi 2026-10-29: đếm ngược và nút đóng theo KB-32 (5 giây, 48 dp); nút quay lại theo thời gian đếm ngược của KB-32 | Lượt native toàn màn hình độc lập dùng cùng khóa `time_close_native` và cùng nút 48 dp (KB-5, dòng 108 của spec: "đếm ngược và nút đóng theo KB-32 (5 giây, 48 dp)"). Nút quay lại của máy không làm gì trong lúc đếm, sau đó đóng như nút đóng (K-08, câu hỏi 17 của spec); chỉ độ dài đổi |
 | KB-4, tiêu chí 3 | Đổi 2026-10-29: mặc định 10 giây như JBase | Như KB-32, tiêu chí 2 |
 
 Thiết kế tham chiếu: `features/ads/design/README.md`, các ảnh trong `design/screens/`: `NativeFullScreenAdScreen_default_light`, `NativeFullScreenAdScreen_default_dark` (vẽ nút đóng 36 dp, trước ADR-0038). Spec đã xác nhận ngày 2026-10-29 đứng trên ảnh thiết kế cũ (ADR-0038, quyết định 1: quyết định của người phụ trách sản phẩm trước). Task không viết cứng giá trị nào để giảm tỷ lệ khác biệt (ADR-0020); ảnh so sánh mới và tỷ lệ khác ghi vào `design/review/`, README thiết kế ghi rõ ảnh còn vẽ 36 dp. Vẽ lại trên Figma là câu hỏi 1.
@@ -77,9 +77,9 @@ Làm theo mẫu có sẵn: khóa chung trong `AdsSettings` đọc qua `AdsFlags`
    - Hệ quả trên màn sau inter (khung 411 x 891): nút ở (16, 24, 64, 72), media bắt đầu ở y = 24 + 48 + 16 = 88, media ở cỡ chữ 1.0 thấp hơn 12 dp (583 dp thay 595 dp). Trang ở bước của luồng: media vẫn ở y = 76.
 7. **Tài liệu.**
    - `docs/ops/ads-business-rules.md`: K-02 (đếm ngược `time_close_native`, mặc định 5, 1 tới 30, đọc lúc màn mở; chữ cũ "3 giây" gạch ngang, ghi "Đổi 2026-10-29 (ADR-0038)" và nguồn `NativeFullscreenTemplate.java:53,101-106`; giữ vế chờ inter rời màn 2 giây kèm câu "JBase không có, giữ để chống kẹt (L-A10)"); K-03 (vòng và nút 48 dp tại (16, 24), nguồn `NativeFullscreenTemplate.java:315,325`); K-04 ("vẫn đóng được sau 3 giây" thành "sau khi hết đếm ngược"); CL-03 (mặc định 10, nguồn `NativeBannerTemplate.java:34`; giữ "0 hay âm là không bung lại" kèm lý do của ADR-0038); mục 10.1 (dòng `time_close_native` sau `is_show_native_after_inter`, nguồn tên "JBase"; `time_expand_collap_ad` mặc định 10); mục 11 (dòng "Đếm ngược native sau inter; chờ inter rời màn" thành "`time_close_native` (mặc định 5 giây, không còn là hằng số); 2 giây", dòng "Nút đóng native sau inter" thành 48 dp); mục 12, dòng L-A10 (ghi thêm: JBase không chờ, ta giữ, ADR-0038).
-   - `docs/ops/ads-guide.md`: dòng 44 (đếm ngược `time_close_native`, mặc định 5 giây), dòng 55 (nút đóng 48 dp ở góc trên trái, thay "36 dp ở góc trên phải"), dòng nói thời gian bung lại nếu có. Thêm một câu ở mục phát hành: app đã đặt `time_expand_collap_ad` trên Firebase thì giữ giá trị đó; chỉ app chưa đặt mới đổi từ 30 sang 10 giây.
+   - `docs/ops/ads-guide.md`: dòng 44 (đếm ngược `time_close_native`, mặc định 5 giây), dòng 55 (nút đóng 48 dp ở góc trên trái, thay "36 dp ở góc trên phải"), dòng 127 (mục Thanh đáy: "mặc định 30, 0 là không mở lại" thành "mặc định 10, 0 là không mở lại"), dòng 141 (ví dụ log `Collapsible <mã> re-expanded after 30 s` thành `after 10 s`). Thêm một câu ở mục phát hành: app đã đặt `time_expand_collap_ad` trên Firebase thì giữ giá trị đó; chỉ app chưa đặt mới đổi từ 30 sang 10 giây. Chỉ khi người duyệt nhận câu hỏi 3: thêm câu khuyến cáo chính sách của câu đó vào cùng mục phát hành.
    - `docs/ops/remote-config.md`, mục 2 và mục 3: khóa mang tên JBase (ADR-0038) ghi nguồn "JBase" trong bảng khóa, mô tả kết thúc bằng `Name from JBase, not an AdsKit key.`.
-   - `docs/features/ads/design/README.md`: dòng `Native/FullScreen` (biến thể `After interstitial`), dòng "Nút đóng toàn màn hình" của bảng ánh xạ (48 dp, vùng chạm bằng khung vẽ) và một ghi chú: ảnh `NativeFullScreenAdScreen_default_*` còn vẽ 36 dp, ADR-0038 đứng trên ảnh, chờ vẽ lại (câu hỏi 1). Thêm đoạn kết quả so sánh của T-053.
+   - `docs/features/ads/design/README.md`: dòng `Native/FullScreen` (biến thể `After interstitial`), dòng "Nút đóng toàn màn hình" của bảng ánh xạ (48 dp, vùng chạm bằng khung vẽ) dòng 84 (trang ở bước của luồng: "media bắt đầu ở y = 76 như bản sau inter" thành "media bắt đầu ở y = 76; bản sau inter ở y = 88 vì hàng nút 48 dp", theo câu hỏi 2), dòng 93 ("mặc định 30" thành "mặc định 10") và một ghi chú: ảnh `NativeFullScreenAdScreen_default_*` còn vẽ 36 dp, ADR-0038 đứng trên ảnh, chờ vẽ lại (câu hỏi 1). Thêm đoạn kết quả so sánh của T-053.
    - `docs/features/ads/design/review/`: ghi lại `NativeFullScreenAdScreen_default_light_compare.png`, `_dark_compare.png` bằng `scripts/design-compare/DesignCompare.java` cho `core/ads` như T-027 (script so sánh của feature tìm ảnh chuẩn ở `feature/ads/`, không thấy ảnh của `:core:ads`, nhật ký T-026). `review/summary.md` không đổi, như T-027; tỷ lệ khác và nhận xét ghi vào đoạn kết quả so sánh của README thiết kế.
    - `docs/remote-config-keys.md`, `docs/remote-config-template.json`: sinh lại bằng `./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true` (`RemoteConfigKeysTest`), không sửa tay. Chỉ hai dòng đổi: thêm `time_close_native`, `time_expand_collap_ad` mặc định `10`.
    - `scripts/ads-plan.py`, `KNOWN_KEYS`: thêm `time_close_native` (nhóm "Interstitial", giá trị phát hành đề xuất `5`, "giây, 1 tới 30; giá trị khác dùng 5", nguồn "JBase"); `time_expand_collap_ad` giá trị phát hành đề xuất `10`; câu của `is_show_native_after_inter` "đếm ngược 3 giây" thành "đếm ngược theo time_close_native".
@@ -120,9 +120,9 @@ Thứ tự commit (L-025): commit test của bước 3 gồm mọi test ở mụ
 | Sửa | `docs/remote-config-keys.md` | Sinh lại bằng `RemoteConfigKeysTest` (bước 7) |
 | Sửa | `docs/remote-config-template.json` | Sinh lại bằng `RemoteConfigKeysTest` (bước 7) |
 | Sửa | `docs/ops/ads-business-rules.md` | K-02, K-03, K-04, CL-03, mục 10.1, 11, dòng L-A10 của mục 12 (bước 7) |
-| Sửa | `docs/ops/ads-guide.md` | Dòng 44, 55, câu về giá trị đã đặt trên Firebase (bước 7) |
+| Sửa | `docs/ops/ads-guide.md` | Dòng 44, 55, 127, 141, câu về giá trị đã đặt trên Firebase, câu khuyến cáo chính sách nếu câu hỏi 3 được nhận (bước 7) |
 | Sửa | `docs/ops/remote-config.md` | Khóa mang tên JBase (bước 7) |
-| Sửa | `docs/features/ads/design/README.md` | Nút đóng 48 dp, ghi chú ảnh thiết kế cũ, kết quả so sánh (bước 7) |
+| Sửa | `docs/features/ads/design/README.md` | Dòng `Native/FullScreen`, nút đóng 48 dp, dòng 84, 93, ghi chú ảnh thiết kế cũ, kết quả so sánh (bước 7) |
 | Ghi lại | `docs/features/ads/design/review/NativeFullScreenAdScreen_default_light_compare.png` | Ảnh so sánh mới |
 | Ghi lại | `docs/features/ads/design/review/NativeFullScreenAdScreen_default_dark_compare.png` | Ảnh so sánh mới |
 | Sửa | `scripts/ads-plan.py` | `KNOWN_KEYS`: `time_close_native`, `time_expand_collap_ad` 10, chữ của `is_show_native_after_inter` (bước 7) |
@@ -224,9 +224,9 @@ Không cần (E dưới 2).
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
 | A. Phạm vi thay đổi | 2 | Một module code (`:core:ads`, 7 file), đổi giao diện công khai (`AdsGlobalFlags` thêm trường, `AdsSettings.TIME_CLOSE_NATIVE`); thêm một test dữ liệu ở `:app`, hai file sinh, 9 ảnh chuẩn, năm tài liệu và một script |
-| B. Độ rõ của yêu cầu | 2 | Spec đã xác nhận, số đo rõ (5 giây, 1 tới 30, 48 dp, 10 giây). Còn câu hỏi ảnh hưởng tới cách làm: ảnh thiết kế còn 36 dp (câu 1), hàng trên của trang ở bước của luồng (câu 2), lượt độc lập dùng cùng khóa (câu 3) |
+| B. Độ rõ của yêu cầu | 2 | Spec đã xác nhận, số đo rõ (5 giây, 1 tới 30, 48 dp, 10 giây). Còn câu hỏi ảnh hưởng tới cách làm: ảnh thiết kế còn 36 dp (câu 1), hàng trên của trang ở bước của luồng (câu 2) |
 | C. Khả năng kiểm chứng tự động | 1 | Mọi luật có test JVM với đồng hồ giả và test Compose đo kích thước; còn lại kiểm bằng mắt trên máy thật với quảng cáo thật và Remote Config |
-| D. Ảnh hưởng chéo | 2 | Sửa `AdsController.kt`, `AdsSettings.kt`, `AdsFlags.kt`, `ads-business-rules.md` mà T-054, T-065, T-066 cũng sửa (mục 6) |
+| D. Ảnh hưởng chéo | 2 | Sửa `AdsController.kt`, `AdsSettings.kt`, `AdsFlags.kt`, `ads-business-rules.md` mà T-054, T-065, T-066, T-068 cũng sửa (mục 6) |
 | E. Độ mới của kỹ thuật | 1 | Biến thể nhỏ của mẫu đã có: khóa của T-019, bộ điều phối và đồng hồ của T-026, kích thước của T-027 |
 | **Tổng** | 8 | **Mức: Cao** (chạm điểm chặn 1 và 7) |
 
@@ -235,17 +235,20 @@ Không cần (E dưới 2).
 - File hoặc thành phần dùng chung bị chạm: `AdsSettings` và `AdsGlobalFlags` (public, `:app` đọc qua `AppRemoteKeys`), `AdsController` (port của `NativeFullScreenTurns`), `NativeFullScreenAdScreen` (màn sau inter và khung chờ; trang ở bước của luồng không đổi), bảng khóa sinh tự động, `ads-business-rules.md` mục 10, 11.
 - Task khác trong sprint có thể xung đột:
   - T-066 (`CACHED_EARLY` luôn bật): sửa mô tả `IS_ENABLE_CONSENT_SHORTCUT` trong `AdsSettings.kt`, mục 10.1 của `ads-business-rules.md` và hai file sinh. Cùng file, khác dòng; task sau rebase và sinh lại hai file.
+  - T-068 (SDK MAX, plan trên nhánh `claude/plan-T-068-sdk-max`, bước 8): cũng thêm một khóa chung vào cuối `combine` của `DefaultAdsFlags` (chỉ số 14) và đổi `AdsSettingsTest.globalKeys_matchAdsKitTable` thành `assertEquals(15, ...)`. Luật: task chạy sau lấy chỉ số kế tiếp (15, rồi 16) và cộng thêm một vào số khóa của test (16, rồi 17), thêm `Triple` của mình vào bảng mong đợi; đó là dữ liệu test theo khóa mà plan kia thêm (ADR-0029), không phải viết lại câu khẳng định. Các câu viết sẵn của plan này ("chỉ số 14", `assertEquals(15, expected.size)`) đúng khi T-053 chạy trước T-068; chạy sau thì theo luật trên.
   - T-065 (kích thước native theo JBase): sửa mục 11 của `ads-business-rules.md` (dòng chiều cao) và có thể `NativeAdCard.kt`; không chạm `NativeFullScreenAdScreen.kt` nếu giữ phạm vi ticket.
   - T-054 (dừng quảng cáo khi bị che): sửa `AdsController.kt` và mục 12 của luật; khác hàm.
   - T-055 (hiện toàn màn hình an toàn): sửa `AdsController.kt` ở đường hiện inter, app open, rewarded; không chạm `NativeFullScreenTurns`.
   - T-064 (vẽ lại trên Figma, `auto_run: false`): nếu người duyệt nhận câu hỏi 1, frame `Native/FullScreen` biến thể `After interstitial` vẽ lại ở T-064 và ảnh `NativeFullScreenAdScreen_default_*` trong `design/screens/` thay sau task này.
-- Đề xuất thứ tự chạy: không phụ thuộc task nào. Chạy trước T-065 và T-066 trong cùng danh sách, vì task này thêm dòng vào bảng khóa và mục 11; hai task kia chỉ rebase.
+- Đề xuất thứ tự chạy: không phụ thuộc task nào. Thứ tự dự định: T-053, rồi T-066, rồi T-068; T-065 cũng sau T-053. Task này thêm dòng vào bảng khóa, `combine` và mục 11; các task sau rebase và lấy chỉ số kế tiếp như trên.
 
 ## 7. Điều kiện dừng riêng
 
 - Bảng khóa sinh tự động (`docs/remote-config-keys.md`, `docs/remote-config-template.json`) đổi ở dòng khác ngoài `time_close_native` và `time_expand_collap_ad`: dừng.
 - Muốn đổi phần chờ inter rời màn (2 giây, kiểm mỗi 200 ms) hay ý nghĩa "0 là không bung lại" để test qua: dừng (ADR-0038 giữ hai luật này).
 - Đổi 48 dp làm đổi ảnh chuẩn của trang ở bước của luồng (`NativeFlowStep_*`, `AdGalleryScreen_flow-full-page_*`): dừng, vì câu hỏi 2 chưa được trả lời theo hướng đó.
+
+- Điều kiện dừng 6 (phần việc lớn hơn rõ rệt so với ước lượng) đo theo mục 3.2 của plan này và cỡ M của ticket (đổi từ S theo rà soát độc lập, 2026-10-29), không theo cỡ S cũ.
 
 ## 8. Câu hỏi cho người duyệt
 
@@ -255,11 +258,7 @@ Không cần (E dưới 2).
 2. **Hàng trên của trang ở bước của luồng.** Hôm nay trang này giữ hàng trên 36 dp chỉ để media bắt đầu ngang màn sau inter (y = 76; test `flowStep_mediaStartsLikeAfterInter`, README thiết kế dòng 84). Với nút 48 dp, hai trang không còn ngang nhau.
    - Đề xuất của AI: giữ trang ở bước của luồng như cũ (36 dp, y = 76): ticket không nói tới nó, trang không có nút đóng, và giữ được 7 ảnh chuẩn cùng phép tính của T-049. Màn sau inter có hàng 48 dp, media từ y = 88.
    - Phương án khác: cả hai trang dùng 48 dp; thêm ảnh chuẩn `NativeFlowStep_full-page_*`, `AdGalleryScreen_flow-full-page_*` vào mục 3.2 và kiểm lại phép tính hàng gọn của T-049.
-3. **Lượt native toàn màn hình độc lập (KB-5) dùng cùng khóa `time_close_native`?** KB-5 ghi "đếm ngược và nút đóng theo KB-32 (5 giây, 48 dp)"; KB-32 chỉ nói "sau inter". JBase chỉ có một màn native toàn màn hình.
-   - Đề xuất của AI: dùng cùng khóa và cùng nút cho cả hai lượt, như hôm nay chúng dùng chung hằng số 3 giây.
-4. **Cỡ của ticket.** Ticket ghi cỡ S. Mục 3.2 có 7 file code, 10 file test, 9 ảnh chuẩn, 2 file sinh, 6 tài liệu và 1 script. Phần việc lớn hơn rõ rệt so với ước lượng là điều kiện dừng 6 của `risk-scoring.md`.
-   - Đề xuất của AI: người duyệt đổi ticket sang cỡ M trước khi duyệt; `token_estimate` khi đó là 23.9M (số gợi ý cỡ M của `scripts/token-usage.py estimate`, 2026-10-29). Plan này ghi 5.4M theo cỡ S hiện tại.
-5. **Rủi ro chính sách.** ADR-0038 ghi đếm ngược dài hơn 2 giây làm tăng rủi ro chính sách của quảng cáo toàn màn hình khó đóng; khóa cho phép tới 30 giây. Code không chặn thêm. Đề xuất của AI: ghi vào `ads-guide.md`, mục phát hành, rằng người vận hành chỉ nên đặt quá 5 giây khi đã kiểm chính sách của AdMob; không thêm giới hạn nào khác ngoài 1 tới 30 của JBase.
+3. **Rủi ro chính sách.** ADR-0038 ghi đếm ngược dài hơn 2 giây làm tăng rủi ro chính sách của quảng cáo toàn màn hình khó đóng; khóa cho phép tới 30 giây. Code không chặn thêm. Đề xuất của AI: ghi vào `ads-guide.md`, mục phát hành, rằng người vận hành chỉ nên đặt quá 5 giây khi đã kiểm chính sách của AdMob; không thêm giới hạn nào khác ngoài 1 tới 30 của JBase. Câu này đã có trong mục 3.1, bước 7 và mục 3.2 (`ads-guide.md`), chỉ làm khi người duyệt nhận.
 
 ## 9. Quyết định duyệt
 
