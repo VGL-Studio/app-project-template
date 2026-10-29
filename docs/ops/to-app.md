@@ -91,3 +91,4 @@ Kiểm tra và test riêng của app không đặt trong file của mẫu. Mẫu
 
 - Tài liệu lấy từ dự án mẫu dẫn số bài học của dự án mẫu (`L-0NN`), khác số trong sổ bài học của app. Tra ở `docs/lessons.md` của repo dự án mẫu.
 - Bảng ở mục 2 khớp với `NEVER_SYNCED` và `TEMPLATE_OWNED` trong `scripts/template-sync.sh`. Đổi một chỗ thì đổi cả hai.
+- `SETUP_VERSION` của `scripts/cloud-setup.sh`: app đã tăng số riêng (ví dụ app ở 5, mẫu ở 4) thì khi gộp lấy số lớn hơn của hai bên cộng một, để môi trường cloud của app biết phải dán lại script, rồi dán lại (L-121).
