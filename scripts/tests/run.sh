@@ -1315,6 +1315,15 @@ env_check() {
     scripts/cloud-env-check.sh > "$work/env-check.out" 2>&1; then echo pass; else echo stop; fi
 }
 expect "cloud-setup.sh has a version" yes "$([[ -n "$setup_version" ]] && echo yes || echo no)"
+# Plugins that only Google's Maven repository hosts (Android, Google services, Crashlytics) must be found before
+# the plugin portal: the portal sends what it does not host to Maven Central, which answers 429 to cloud sessions,
+# and Gradle stops at that error instead of trying Google (L-121).
+init_plugin_repos="$(sed -n '/settings.pluginManagement.repositories {/,/^    }$/p' scripts/cloud-setup.sh)"
+expect "cloud-setup.sh: the init script adds Google to the plugin repositories" 1 \
+  "$(grep -c 'google()' <<< "$init_plugin_repos" || true)"
+expect "cloud-setup.sh: the init script puts Google before the plugin portal" yes \
+  "$(awk '/google\(\)/ && !g {g = NR} /gradlePluginPortal\(\)/ && !p {p = NR}
+    END {print (g && p && g < p) ? "yes" : "no"}' <<< "$init_plugin_repos")"
 expect "cloud-env-check.sh passes on the current version" pass "$(env_check "$setup_version" "$work/gradle-home")"
 expect "cloud-env-check.sh stops on an older version" stop "$(env_check 1 "$work/gradle-home")"
 expect "cloud-env-check.sh stops without the mirror init script" stop \
