@@ -10,7 +10,7 @@ risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-058-may-thu-va-log-tung-mang.md
 auto_run: 
 created: 2026-10-29
 ---
