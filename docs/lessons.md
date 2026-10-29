@@ -798,3 +798,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** chỉ đòi khóa khi app có SDK AppsFlyer, nhận biết từ build chứ không từ việc thiếu dòng trong `release.properties`; app có SDK mà thiếu khóa vẫn dừng; không có SDK mà có khóa thì in chú ý; có test cho cả ba trường hợp.
 - **Trạng thái:** applied
 - **Áp dụng:** `scripts/release.sh` (anh Nhật cho phép sửa trong phiên 2026-10-29) đòi `appsFlyerDevKey` khi một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`, không có SDK mà có khóa thì in CHÚ Ý và không truyền khóa; `app/build.gradle.kts` đòi `-PappsFlyerDevKey` (khác rỗng) khi `com.appsflyer` có trong classpath runtime của biến thể production. Test của `release.sh` trong `scripts/tests/run.sh`; build production thử tay bốn trường hợp. Ghi chú 2026-10-29 ở ADR-0027, `docs/ops/release.md` mục 2.2, 2.3.
+
+### L-120. Test đọc file build không khai báo file đó làm đầu vào, nên bộ nhớ đệm của Gradle giấu một lần làm nhánh chính đỏ
+
+- **Ngày, nguồn:** 2026-10-29, dự án mẫu (PR #265, phát hiện ở CI của PR #266)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** #265 đổi phần kiểm khóa AppsFlyer trong `app/build.gradle.kts`. `ProductionPropertiesTest` đọc chữ của file này và vẫn đòi dạng cũ, nên đáng lẽ phải đỏ. Nhưng CI của #265 và `main-guard` trên commit merge đều xanh, vì file build không phải đầu vào của task test: Gradle trả kết quả cũ trong bộ nhớ đệm, không chạy lại test. CI của #266 đổi `core/ads`, task test của `:app` chạy lại, và lỗi mới lộ ra. Lúc làm #265, em chỉ chạy `scripts/tests/run.sh` và build production bằng tay, không chạy unit test của `:app`.
+- **Bằng chứng:** CI của #266, lần chạy 40821119792 (`ProductionPropertiesTest > appsFlyerDevKey_isRequiredForProduction FAILED`); main sạch tại 47782ec với `--rerun` cũng đỏ.
+- **Đề xuất sửa:** test đọc file của repo khai báo file đó làm đầu vào của task test (`inputs.file(...)`), như `remoteConfigKeysDocs`. Sửa file build thì chạy unit test của module đó với `--rerun`.
+- **Trạng thái:** applied
+- **Áp dụng:** `app/build.gradle.kts` khai báo `build.gradle.kts` làm đầu vào của mọi task test của `:app`. `ProductionPropertiesTest` viết lại câu khẳng định theo hành vi mới của #265 (ghi chú 2026-10-29 ở ADR-0027), giữ ý định: production có SDK thì không build được khi thiếu khóa. Đột biến bỏ `hasAppsFlyer &&`, chạy không kèm `--rerun`: test đỏ, tức vừa bắt được đột biến vừa chứng minh file build đã là đầu vào.
