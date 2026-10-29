@@ -25,12 +25,12 @@ created: 2026-10-29
 
 - `release.properties`: khóa SDK MAX, mã đơn vị MAX; `--check-only` báo thiếu.
 - Chuyển từ T-068 (rà soát plan T-068, 2026-10-29): `preProduction*Build` bắt buộc `maxSdkKey` khi nhóm `com.applovin.mediation` có trên classpath; `release.sh` truyền `maxSdkKey` vào Gradle; mở rộng test hợp đồng L-125 trong `scripts/tests/run.sh` (hôm nay chỉ đọc mục `"ADR-0027"`) để có khóa của ADR-0037; viết lại câu khẳng định `ProductionPropertiesTest.maxSdkKey_isOptionalUntilReleaseShPassesIt` của T-068 theo ADR-0031.
-- Thêm mẫu mã đơn vị MAX vào `scripts/secret-scan.py` nếu T-068 chưa làm (plan T-068, câu hỏi 7).
+- Thêm mẫu mã đơn vị MAX vào `scripts/secret-scan.py` nếu T-068 chưa làm (plan T-068, câu hỏi 5).
 - `docs/ops/release.md`: cấu hình MAX và nhóm mediation AdMob.
 
 **Không bao gồm:**
 
-- Code (T-068).
+- Code khởi tạo và hiện quảng cáo MAX (T-068 tới T-072); ticket này chỉ nhận phần build phát hành và test hợp đồng nêu ở trên.
 
 ## Rủi ro sơ bộ
 
