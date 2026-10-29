@@ -62,7 +62,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 
 | Bước | Việc làm | Kết quả |
 | --- | --- | --- |
-| 1. Tạo nhánh | Phiên chính chạy `scripts/token-usage.py mark T-NNN` khi bắt đầu task, kể cả khi tiếp tục trên nhánh có sẵn (mục Tiếp tục task đã dừng), trước khi tạo hay checkout nhánh, để token của phiên chính cho task tính vào task cả khi thư mục chính ở HEAD tách rời (camera-pose L-083). Tạo nhánh `claude/T-NNN-<tu-khoa>` từ nhánh chính mới nhất. Không dùng nhánh mặc định mà routine tạo cho phiên. Đẩy ngay bằng `scripts/save-branch.sh <nhánh>`, trước khi viết dòng test nào, để lệnh đẩy bị từ chối lộ ra trước khi tốn công viết code | Nhánh riêng của task, đã có trên GitHub |
+| 1. Tạo nhánh | Phiên chính chạy `scripts/token-usage.py mark T-NNN` khi bắt đầu task, kể cả khi tiếp tục trên nhánh có sẵn (mục Tiếp tục task đã dừng), trước khi tạo hay checkout nhánh, để token của phiên chính cho task tính vào task cả khi thư mục chính ở HEAD tách rời (camera-pose L-083). Chạy `git fetch origin main` ngay trước khi tạo nhánh, rồi tạo nhánh `claude/T-NNN-<tu-khoa>` từ `origin/main`: sau khi merge task trước, `origin/main` trên máy vẫn là bản cũ tới khi fetch, nên nhánh của task sau thiếu commit merge đó (L-124). Không dùng nhánh mặc định mà routine tạo cho phiên. Đẩy ngay bằng `scripts/save-branch.sh <nhánh>`, trước khi viết dòng test nào, để lệnh đẩy bị từ chối lộ ra trước khi tốn công viết code | Nhánh riêng của task, đã có trên GitHub |
 | 2. Đọc tài liệu | Đọc theo thứ tự trong [CLAUDE.md](CLAUDE.md) | Đủ ngữ cảnh |
 | 3. Viết test trước | Viết test theo mục Kiểm thử của plan, chạy và xác nhận test thất bại đúng lý do | Commit chứa test |
 | 4. Viết code | Viết code cho đến khi test qua, theo danh sách file của plan; phần ngoài danh sách cần cho task thì sửa tiếp và ghi lại (ADR-0029, `risk-scoring.md` mục 4). Test chỉ đỏ vì máy chạy thiếu hay đặt khác cấu hình chung (ví dụ git toàn cục, `JAVA_HOME`, `ANDROID_HOME`, `TMPDIR`, múi giờ, ngôn ngữ): sửa phần dựng của chính test đó cho nó tự đặt cấu hình, không sửa phần dùng chung của `scripts/tests/run.sh`, không đổi câu khẳng định (ADR-0033/L11) | Code chạy được |
@@ -260,7 +260,7 @@ Ba thứ này đi qua PR báo cáo (trừ PR sửa nguyên nhân) và được l
 Task bị dừng không được chạy lại với cùng phiên bản plan. Task chưa xong vì hết hạn mức hay lỗi hạ tầng thì không bị coi là dừng. Hết hạn mức thì chính phiên đó tiếp tục khi hạn mức được làm mới (mục 4). Lỗi hạ tầng, hoặc phiên không được tiếp tục (quá 24 giờ, người dừng hẳn): plan không cần sửa, đưa cùng phiên bản vào danh sách chạy mới, ghi trong danh sách chạy tên nhánh để phiên tiếp tục trên đó.
 
 1. Nhóm trả lời "vì sao plan chưa đủ tốt" (risk-scoring.md, mục 4), AI sửa plan, tăng `version`, ghi rõ cách tiếp tục trong mục 3.1 của plan. Thường phiên đã soạn sẵn bản này (mục Chuẩn bị cho người khi task dừng); người xem, sửa nếu cần, merge PR sửa nguyên nhân (gỡ nhãn `needs-human` trước), rồi duyệt:
-   - **Tiếp tục trên nhánh cũ:** ghi tên nhánh và số PR. Phiên cập nhật nhánh theo nhánh chính, chỉ làm phần plan thay đổi, bước 3 chỉ áp dụng cho test mới hoặc test đổi điều kiểm tra.
+   - **Tiếp tục trên nhánh cũ:** ghi tên nhánh và số PR. Phiên cập nhật nhánh theo nhánh chính (sau `git fetch origin main`), chỉ làm phần plan thay đổi, bước 3 chỉ áp dụng cho test mới hoặc test đổi điều kiểm tra.
    - **Làm lại từ đầu:** người đóng PR cũ trước khi chạy. Phiên làm đủ 10 bước trên nhánh mới.
 2. Plan phiên bản mới được duyệt như plan mới, ticket chuyển lại `approved`.
 3. Plan được đưa vào một danh sách chạy mới.
@@ -309,7 +309,7 @@ Muốn dừng hẳn một phiên đang chờ (ví dụ để merge việc gấp)
 
 Sau đó AI:
 
-0. Chuyển thư mục chính khỏi nhánh task vừa merge, trước mọi việc cuối phiên: `git checkout --detach origin/main` và `scripts/token-usage.py mark chung` (camera-pose L-083) (thư mục chính đã sạch vì phiên con làm trong worktree). `scripts/token-usage.py` gán request của phiên chính theo nhánh của thư mục chính; để trên nhánh task thì token của `device-session`, staging và báo cáo tính vào task đó (L-103).
+0. Chuyển thư mục chính khỏi nhánh task vừa merge, trước mọi việc cuối phiên: `git fetch origin main`, `git checkout --detach origin/main` (L-124) và `scripts/token-usage.py mark chung` (camera-pose L-083) (thư mục chính đã sạch vì phiên con làm trong worktree). `scripts/token-usage.py` gán request của phiên chính theo nhánh của thư mục chính; để trên nhánh task thì token của `device-session`, staging và báo cáo tính vào task đó (L-103).
 1. Nếu trong phiên có ít nhất một task được merge, chạy kịch bản chuẩn trên emulator trước khi phát (`docs/ops/test-sessions.md`, mục 4; `docs/ops/staging-and-runs.md`, mục 2.5):
    - Ghi giờ hiện tại (UTC), khởi động `device-session.yml` trên nhánh chính (`reason` là mã phiên), rồi chờ bằng `scripts/wait-run.sh --workflow device-session.yml --since <giờ vừa ghi>` ở chế độ nền (khoảng 12 phút). **Trong lúc chờ, làm bước 2.** Xong thì tải artifact `device-session`.
    - Không tải được artifact (thường do mạng của môi trường chặn nơi lưu artifact, L-030): đọc bản tóm tắt trong cuối log của job, ghi vào báo cáo "chưa phân tích được" kèm lỗi tải, và vẫn quyết định phát hay không theo crash và ANR của bản tóm tắt. Người tải artifact và nhờ AI phân tích sau, trong phiên có người theo dõi.
