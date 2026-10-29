@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-056-ma-theo-khe-trong-code.md
 auto_run: 
 created: 2026-10-29
 ---
