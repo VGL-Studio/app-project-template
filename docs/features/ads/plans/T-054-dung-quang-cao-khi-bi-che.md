@@ -5,7 +5,7 @@ status: draft                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
-token_estimate: 24M          # cỡ M, số gợi ý 23.9M (scripts/token-usage.py estimate, 2026-10-29); một file code mới, sửa năm file code, bảy file test, hai tài liệu
+token_estimate: 24M          # cỡ M, số gợi ý 23.9M (scripts/token-usage.py estimate, 2026-10-29); một file code mới, sửa sáu file code, mười file test, hai tài liệu
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
 reviewer:                    # người duyệt
@@ -18,7 +18,7 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 
 ## 1. Tóm tắt
 
-Khi native toàn màn hình của `:core:ads` đang hiện (sau inter hay độc lập), banner và native của màn bên dưới không gửi yêu cầu, không làm mới, không thử lại, quảng cáo đang có giữ nguyên; màn che đóng thì chạy lại theo nhịp của chúng (KB-27, câu hỏi 36, ADR-0036 quyết định 1). Cách làm: một hàm thuần `inScreenAdsMayRun(shown, covered)` cho điều kiện "quảng cáo trong màn được chạy lúc này", dựng thành một cửa sổ (`StateFlow`) từ foreground và cờ "đang hiện" của cổng toàn màn hình (F-01); mọi đường gửi của banner, native một quảng cáo và pool đọc cửa sổ này thay cho foreground (L-072). Kiểm chứng bằng unit test của hàm thuần, một test cho mỗi đường gửi (lượt đầu, thử lại, nạp tiếp, nạp lại tay, làm mới, nạp bù pool) trên đồng hồ ảo, và test của `AdsController` cho cửa sổ và cổng gửi nó giao đi.
+Khi native toàn màn hình của `:core:ads` đang hiện (sau inter hay độc lập), banner và native của màn bên dưới không gửi yêu cầu, không làm mới, không thử lại, quảng cáo đang có giữ nguyên; màn che đóng thì chạy lại theo nhịp của chúng (KB-27, câu hỏi 36, ADR-0036 quyết định 1). Cách làm: một hàm thuần `inScreenAdsMayRun(shown, covered)` cho điều kiện "quảng cáo trong màn được chạy lúc này", dựng thành một cửa sổ (`StateFlow` đặt đồng bộ) từ foreground và cờ "đang hiện" của cổng toàn màn hình (F-01), cờ này bàn giao liền mạch khi inter nối sang native; mọi đường gửi của banner, native một quảng cáo và pool đọc cửa sổ này thay cho foreground (L-072). Kiểm chứng bằng unit test của hàm thuần, một test cho mỗi đường gửi (lượt đầu, thử lại, nạp tiếp, nạp lại tay, làm mới, nạp bù pool) trên đồng hồ ảo, và test của `AdsController` thật (với loader native giả) cho cửa sổ, cổng gửi, nhịp làm mới, `canLoadNow` của pool và lúc inter nối sang native.
 
 ## 2. Hiểu yêu cầu
 
@@ -56,26 +56,47 @@ internal fun inScreenAdsMayRun(shown: Boolean, covered: Boolean): Boolean = show
 internal fun inScreenAdWindow(visible: Flow<Boolean>, covered: Flow<Boolean>): Flow<Boolean> =
     combine(visible, covered, ::inScreenAdsMayRun).distinctUntilChanged()
 
-/** [inScreenAdsMayRun] of the app [foreground] and [covered], kept as a state in [scope] (one per process). */
-internal fun inScreenAdWindow(
-    foreground: StateFlow<Boolean>,
-    covered: StateFlow<Boolean>,
-    scope: CoroutineScope,
-): StateFlow<Boolean> = combine(foreground, covered, ::inScreenAdsMayRun)
-    .stateIn(scope, SharingStarted.Eagerly, inScreenAdsMayRun(foreground.value, covered.value))
+/**
+ * The window of the in-screen ads of the process: [open] is [inScreenAdsMayRun] of the last [onForeground] and
+ * [onCovered], set on the calling stack (no coroutine between a flag and the window). Logs when a cover pauses or
+ * resumes the in-screen ads. Main thread only.
+ */
+internal class InScreenAdWindow(private val logger: AppLogger) {
+    private var foreground = false
+    private var covered = false
+    private val _open = MutableStateFlow(false)
+    val open: StateFlow<Boolean> = _open.asStateFlow()
+
+    fun onForeground(value: Boolean) { foreground = value; update() }
+
+    fun onCovered(value: Boolean) {
+        if (value == covered) return
+        covered = value
+        logger.info(TAG, if (value) "In-screen ads paused (full-screen ad on screen)" else "In-screen ads resumed (full-screen ad closed)")
+        update()
+    }
+
+    private fun update() { _open.value = inScreenAdsMayRun(foreground, covered) }
+}
 ```
 
-`scope` của `AdsController` chạy trên `Dispatchers.Main.immediate`, như `canRequestAds`, nên cửa sổ đổi ngay trong cùng lượt khi cờ đổi trên luồng chính.
+Vì sao không dùng `stateIn`: đã chạy thử bằng một test Robolectric tạm (không commit, đã xóa, 2026-10-29, `./gradlew :core:ads:testDebugUnitTest --tests '*TmpWindowTrialTest*'`, `BUILD SUCCESSFUL`). Cửa sổ `combine(...).stateIn(scope trên Dispatchers.Main.immediate)`: hạ cờ thì cửa sổ thành `true` ngay và một lượt chờ `window.first { it }` chạy ngay trên cùng ngăn xếp (`sends=1`); bật lại cờ ngay sau đó thì cửa sổ **vẫn đọc `true`** cho tới khi luồng chính chạy hết việc chờ (`window=true` rồi mới `false` sau `idle()`). Tức là vừa có khoảng hở gửi được, vừa có lúc đọc giá trị cũ. Bản `MutableStateFlow` đặt đồng bộ: cả hai chiều đổi ngay (`window=true` rồi `false`, không cần `idle()`), và khi cờ được đổi trong một khối rồi chỉ công bố một lần ở cuối thì không có giá trị `true` nào lọt ra (`sends=0`, chuỗi giá trị `[false]`). Plan dùng bản đồng bộ.
 
-**B. Native và pool (`AdsController.kt`).** Hôm nay mọi đường gửi native đi qua `awaitSendAllowed(foregroundState, ::mayRequestNow)` (T-040, T-028), nhịp làm mới đọc `foreground.value`, và `canLoadNow` của pool đọc `foregroundState.value`. Plan thêm:
+**B. Bàn giao cờ khi inter nối sang native (`FullScreenAdPresence.kt`, `AdsController.kt`).** Hôm nay `endTurn` (dòng 1284 tới 1290) gọi `presence.onClosed()` (cờ thành `false`) rồi `turn.complete(reason)`; với lượt inter có combo, `complete` chạy `NativeFullScreenTurns.afterInterstitial` ngay trên cùng ngăn xếp, và `beginPresence()` (dòng 105, 106 của `NativeFullScreenTurns.kt`) bật cờ lại. Trên `Dispatchers.Main.immediate` một lượt đang chờ trong `awaitSendAllowed` có thể chạy ngay trong khoảng `false` đó và gửi yêu cầu dưới màn che, và log "paused, resumed" ghi ở mỗi lần đóng inter. Sửa:
 
-- `internal val inScreenAdWindow: StateFlow<Boolean> = inScreenAdWindow(foregroundState, presence.showing, scope)`.
+- `FullScreenAdPresence` nhận tham số `onPublished: (Boolean) -> Unit = {}` và thêm `fun <T> publishAfter(block: () -> T): T`: trong `block`, `tryBegin`, `onClosed` đổi trạng thái bên trong (`isBusy`, `current` vẫn đúng ngay, F-01 không đổi), còn `showing` và `onPublished` chỉ đổi **một lần** ở cuối khối, theo giá trị cuối. Ngoài khối, mọi hàm công bố ngay như hôm nay. Gọi lồng nhau thì chỉ khối ngoài cùng công bố.
+- `endTurn` bọc cả hai lời gọi: `presence.publishAfter { if (currentTurn === turn) { currentTurn = null; presence.onClosed() }; turn.complete(reason) }`. Lượt inter có combo: cờ đọc từ ngoài đi thẳng từ `true` sang `true`, không có `false` nào. Lượt không có combo (hay combo tắt khóa ngay ở cổng): cuối khối công bố `false` như hôm nay. Combo tắt khóa sau khi đọc `comboEnabled()` (trong coroutine): `endPresence()` hạ cờ sau đó, như hôm nay.
+- `AdsController` dựng `inScreenWindow = InScreenAdWindow(logger)` trước `presence`, rồi `presence = FullScreenAdPresence(onPublished = inScreenWindow::onCovered)`; `onForegroundChanged` (dòng 524 tới 527) gọi thêm `inScreenWindow.onForeground(foreground)`.
+
+**C. Native và pool (`AdsController.kt`).** Hôm nay mọi đường gửi native đi qua `awaitSendAllowed(foregroundState, ::mayRequestNow)` (T-040, T-028), nhịp làm mới đọc `foreground.value`, và `canLoadNow` của pool đọc `foregroundState.value`. Plan thêm:
+
+- `internal val inScreenAdWindow: StateFlow<Boolean> = inScreenWindow.open`.
 - `internal val inScreenSendGate: suspend () -> Boolean = { awaitSendAllowed(inScreenAdWindow, ::mayRequestNow) }`: cổng gửi duy nhất của khe trong màn.
-- Thay ở đúng năm chỗ: `sendGate` của `NativeAdSources` (dòng 1361) và của `NativeAdPool` (dòng 1386) thành `inScreenSendGate`; `canLoadNow` của pool (dòng 1387) thành `_sdkReady.value && inScreenAdWindow.value && mayRequestNow()`; tham số `foreground` của `singleAdSlotStates` (dòng 1474) và của `retryingNativeAdStates` (dòng 1496) thành `inScreenAdWindow`.
+- `internal fun poolCanLoadNow(): Boolean = _sdkReady.value && inScreenAdWindow.value && mayRequestNow()` (tách khỏi lambda để test được).
+- Thay ở đúng năm chỗ: `sendGate` của `NativeAdSources` (dòng 1361) và của `NativeAdPool` (dòng 1386) thành `inScreenSendGate`; `canLoadNow` của pool (dòng 1387) thành `::poolCanLoadNow`; tham số `foreground` của `singleAdSlotStates` (dòng 1474) và của `retryingNativeAdStates` (dòng 1496) thành `inScreenAdWindow`.
+- Điểm nối cho test (L-072, rà soát độc lập điểm 3): `@VisibleForTesting internal var nativeLoaderForTest: NativeAdLoader? = null` và hàm riêng `newNativeLoader(events, options)` trả nó nếu có, không thì `SdkNativeAdLoader(context, adRequest(), events, options)`; dùng ở ba chỗ dựng loader của khe trong màn (dòng 1417 pool, 1489 nhánh không có nguồn, 1518 nguồn một quảng cáo). Dòng 1561 (`loadNativeAd`, hàng trong danh sách) để T-059. Thêm `@VisibleForTesting internal fun setAppForegroundForTest(foreground: Boolean)` (đặt `foregroundState` và gọi `inScreenWindow.onForeground`) và `@VisibleForTesting internal fun markSdkReadyForTest()` (đặt `_sdkReady`), như `openConsentGateForTest` của T-026. Test không có `AdsActivityTracker` hay SDK.
 - **Giữ** `foregroundState` ở `FullScreenReloads` (dòng 303) và `preloadNativeFullScreen` (dòng 1683, 1684): lượt nạp của chính native toàn màn hình không chờ cửa sổ, vì màn che sau inter mở trước khi quảng cáo của nó về và chờ chính lượt nạp đó (K-04, `nativeLoadResults`). Ghi KDoc ở hai chỗ này để phiên sau không "sửa" nhầm.
-- Log (ADR-0019) khi cửa sổ đóng hay mở vì bị che, không vì nền (để kiểm trên máy): một coroutine trong `scope` thu `presence.showing.drop(1)` và ghi `In-screen ads paused (full-screen ad on screen)` hay `In-screen ads resumed (full-screen ad closed)`, giống `pauseAutoRefresh: stopped (fullscreen showing)` của JBase.
-- `@VisibleForTesting internal fun setAppForegroundForTest(foreground: Boolean)`: test không có `AdsActivityTracker`, như `openConsentGateForTest` của T-026.
-- KDoc của `fullScreenAdShowing` (dòng 252 tới 257): thêm "quảng cáo trong màn đọc cờ này qua `inScreenAdWindow` (KB-27)".
+- KDoc của `fullScreenAdShowing` (dòng 252 tới 257): thêm "quảng cáo trong màn đọc cờ này qua `inScreenAdWindow` (KB-27); inter nối sang native giữ cờ liền mạch (`publishAfter`)".
 
 Các hàm `retryingNativeAdStates`, `refreshingNativeAdStates`, `singleAdSlotStates`, `NativeAdSource`, `NativeAdPool` **không đổi chữ ký**: tham số `foreground` của chúng giờ nhận cửa sổ. Hệ quả có sẵn, đúng tiêu chí, không cần code mới:
 
@@ -84,16 +105,15 @@ Các hàm `retryingNativeAdStates`, `refreshingNativeAdStates`, `singleAdSlotSta
 - Pool: `settled()` và `exhausted` đọc `canLoadNow`, nên lúc bị che pool coi như "không gửi được lúc này" như ở nền: kế hoạch nạp sẵn đi tiếp (S-22) thay vì đứng chờ một pool không gửi được, và ô chưa có quảng cáo theo P-06 như ở nền (câu hỏi 3 ở mục 8).
 - Chỗ hẹp đã biết: nhịp làm mới qua kiểm cửa sổ ngay trước khi màn che bật, rồi chờ quảng cáo tối đa 10 giây (`claimWithin`): lượt gửi của nguồn chờ cửa sổ nên không có yêu cầu nào đi trong lúc bị che, nhưng hết 10 giây thì nhịp đó tính là một lần lỗi và hẹn thử lại 2 giây (thử lại lại chờ cửa sổ). Không gửi gì sai luật; chỉ thừa một lần đếm lỗi. Test `refreshClaimWhileCovered_sendsNothingUntilUncovered` ghim phần không gửi.
 - Log `Native <mã> refresh: skipped (background)` giữ nguyên chữ (test có sẵn khẳng định); lúc bị che, log của cửa sổ ở trên cho biết lý do.
+**D. Banner (`AdSlot.kt`).** `BannerSlotHost` thêm tham số bắt buộc `covered: Flow<Boolean>` (không có mặc định, để mọi nơi gọi phải truyền; hai test gọi thẳng `BannerSlotHost` là `BannerSlotHostTest` và `BottomAdBarTest` truyền `covered = MutableStateFlow(false)` trong commit test của bước 3). Bên trong, `val window = remember(visible, covered) { inScreenAdWindow(visible, covered) }` và truyền `window` vào `BannerFrameContent` thay cho `visible`. Từ đó cả hai chỗ dùng đều đọc cửa sổ: `bannerShouldRun(window, frame)` (`pause()` khi bị che, `resume()` khi đóng, `AdView` không bị hủy) và `runBannerLoads(visible = window, ...)` (lượt đầu, thử lại, nạp lại tay chờ cửa sổ). `bannerShouldRun` và `runBannerLoads` không đổi. `BannerSlot` truyền `covered = ads.fullScreenAdShowing` (cờ đã công bố, nên không thấy khoảng `false` lúc inter nối sang native, mục B). Banner MREC (T-062) dùng lại đúng `BannerSlotHost` này.
 
-**C. Banner (`AdSlot.kt`).** `BannerSlotHost` thêm tham số bắt buộc `covered: Flow<Boolean>` (không có mặc định, để mọi nơi gọi phải truyền). Bên trong, `val window = remember(visible, covered) { inScreenAdWindow(visible, covered) }` và truyền `window` vào `BannerFrameContent` thay cho `visible`. Từ đó cả hai chỗ dùng đều đọc cửa sổ: `bannerShouldRun(window, frame)` (`pause()` khi bị che, `resume()` khi đóng, `AdView` không bị hủy) và `runBannerLoads(visible = window, ...)` (lượt đầu, thử lại, nạp lại tay chờ cửa sổ). `bannerShouldRun` và `runBannerLoads` không đổi. `BannerSlot` truyền `covered = ads.fullScreenAdShowing`. Banner MREC (T-062) dùng lại đúng `BannerSlotHost` này.
+**E. Không đổi:**
 
-**D. Không đổi:**
-
-- `loadNativeAd` của hàng native nhỏ trong danh sách (`InListAds`): T-059 chuyển hàng này sang `retryingNativeAdStates` hay nguồn một quảng cáo, khi đó nó nhận cửa sổ qua đường B. Hôm nay hàng chỉ nạp một lần khi được dựng (câu hỏi 1 ở mục 8).
+- `loadNativeAd` của hàng native nhỏ trong danh sách (`InListAds`): T-059 chạy sau T-054 và thêm chỗ gọi thứ sáu (`inListRowStates`), truyền `inScreenAdWindow` của plan này ở đó. Hôm nay hàng chỉ nạp một lần khi được dựng (câu hỏi 1 ở mục 8).
 - Hẹn giờ bung lại của lớp thu gọn (CL-03): không phải lượt gửi; bung lại dưới màn che không gửi gì.
 - `fullScreenStep` (trang toàn trang của bước luồng): không bật cờ, đúng trả lời câu 36.
 
-**E. Tài liệu.** `ads-business-rules.md`: thêm B-07 (mục 5.5), D-06 (mục 5.6), O-10 (mục 5.7, luật chung của native), câu "Bị che thì bỏ nhịp như ở nền" ở CL-02 (mục 5.8) và "đang bị che" vào danh sách "không nạp được" của P-05 (mục 5.9), cột AdsKit ghi "Không có (ADR-0036, JBase `pauseAutoRefresh`)"; mục 12 thêm điểm lệch có chủ đích vào đoạn "Chỗ ta lệch có chủ đích" kèm ADR-0036. `ads-guide.md`: đoạn banner và native ở mục 3 (dòng 141), mục "Native không nạp ở nền" (dòng 156), thêm câu về màn che và hai dòng log mới.
+**F. Tài liệu.** `ads-business-rules.md`: thêm B-07 (mục 5.5; T-062 lấy B-08), D-06 (mục 5.6), O-10 (mục 5.7, luật chung của native), câu "Bị che thì bỏ nhịp như ở nền" ở CL-02 (mục 5.8) và "đang bị che" vào danh sách "không nạp được" của P-05 (mục 5.9), cột AdsKit ghi "Không có (ADR-0036, JBase `pauseAutoRefresh`)"; mục 12 thêm điểm lệch có chủ đích vào đoạn "Chỗ ta lệch có chủ đích" kèm ADR-0036. `ads-guide.md`: đoạn banner và native ở mục 3 (dòng 141), mục "Native không nạp ở nền" (dòng 156), thêm câu về màn che và hai dòng log mới.
 
 Mẫu làm theo: cổng gửi chung `awaitSendAllowed` của T-040, cách kiểm "ở nền" của từng đường trong `NativeAdRetryTest`, `NativeAdRefreshTest`, `NativeAdSourceTest`, `NativeAdPoolTest`, `BannerSlotHostTest.hiddenScreen_pausesView_visibleAgain_resumes`; test controller dùng `beginStandaloneNativeTurn`, `beginInterstitialTurn` như `AdsControllerNativeComboTest`.
 
@@ -101,14 +121,18 @@ Mẫu làm theo: cổng gửi chung `awaitSendAllowed` của T-040, cách kiểm
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InScreenAdWindow.kt` | `inScreenAdsMayRun`, hai dạng `inScreenAdWindow` (mục 3.1 A) |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `inScreenAdWindow`, `inScreenSendGate`, năm chỗ thay ở mục 3.1 B, log bị che và hết che, `setAppForegroundForTest`, KDoc của `fullScreenAdShowing`, `FullScreenReloads` và `preloadNativeFullScreen` |
+| Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InScreenAdWindow.kt` | `inScreenAdsMayRun`, `inScreenAdWindow` cho banner, lớp `InScreenAdWindow` (mục 3.1 A) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | `onPublished`, `publishAfter` (mục 3.1 B) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `inScreenWindow`, `presence` với `onPublished`, `endTurn` bọc trong `publishAfter`, `onForegroundChanged` (mục 3.1 B); `inScreenAdWindow`, `inScreenSendGate`, `poolCanLoadNow`, năm chỗ thay, `newNativeLoader` và `nativeLoaderForTest`, `setAppForegroundForTest`, `markSdkReadyForTest` (mục 3.1 C); KDoc của `fullScreenAdShowing`, `FullScreenReloads` và `preloadNativeFullScreen` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdSlot.kt` | `BannerSlotHost(covered)`, cửa sổ truyền vào `BannerFrameContent`, `BannerSlot` truyền `ads.fullScreenAdShowing`; KDoc |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeSendGate.kt` | Chỉ KDoc: tham số `foreground` là cửa sổ của khe trong màn (foreground và không bị che); thêm đường "nạp bù pool" vào danh sách đường gửi |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRefresh.kt` | Chỉ KDoc: nhịp rơi lúc ở nền hay bị che thì bỏ (KB-27) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdPool.kt` | Chỉ KDoc của `canLoadNow` và P-05: "foreground và không bị che" |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InScreenAdWindowTest.kt` | Bảng của hàm thuần, hai dạng cửa sổ |
-| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerInScreenWindowTest.kt` | Cửa sổ và `inScreenSendGate` của controller thật (Robolectric) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenTurns.kt` | (dự phòng, mục 3.4) `afterInterstitial` gọi `handOver` thay `beginPresence` khi cờ do lượt inter đó giữ |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InScreenAdWindowTest.kt` | Bảng của hàm thuần, lớp cửa sổ, cửa sổ của banner |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresenceTest.kt` | Ba test của `publishAfter` |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerInScreenWindowTest.kt` | Controller thật (Robolectric) với `nativeLoaderForTest = FakeNativeAdLoader()`: cửa sổ, cổng gửi, nhịp làm mới, nạp bù pool, `poolCanLoadNow`, inter nối sang native |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/BottomAdBarTest.kt` | Chỉ lời gọi `BannerSlotHost` ở dòng 125 truyền `covered = MutableStateFlow(false)` (commit test của bước 3); câu khẳng định giữ |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/BannerSlotHostTest.kt` | Hàm `setHost` truyền `covered` (commit test của bước 3, cùng lúc với tham số mới); bốn test mới ở mục 4 |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdRetryTest.kt` | Hai test bị che |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdRefreshTest.kt` | Bốn test bị che |
@@ -122,7 +146,7 @@ Không sửa, kèm lý do:
 - `BannerFrame.kt` (`bannerShouldRun`), `BannerLoads.kt` (`runBannerLoads`): nhận cửa sổ qua tham số `visible` có sẵn; luật của chúng không đổi. `BannerLoadsTest`, `BannerFrameTest` giữ nguyên.
 - `NativeAdRetry.kt`, `NativeAdSource.kt`, `NativeAdSources.kt`, `NativePoolCell.kt`, `NativeAdPools.kt`: chữ ký không đổi, nhận cửa sổ từ `AdsController`. `NativeAdSourcesTest`, `NativePoolCellTest`, `NativeAdPoolsTest` giữ nguyên.
 - `CollapsibleNativeAd.kt`, `BottomAdBar.kt`, `NativeAdSlot.kt`, `NativeAdCell.kt`, `NativeFlowStep.kt`, `InListAds.kt`: gọi `ads.nativeAd`, `ads.pooledCell`, `ads.stepAd`, `BottomBannerSlot` như cũ. T-061, T-065 sửa `BottomAdBar.kt`, `NativeAdSlot.kt`; plan này không chạm.
-- `FullScreenAdPresence.kt`, `NativeFullScreenOverlay.kt`, `NativeFullScreenTurns.kt`: cờ "đang hiện" đã bật và hạ đúng lúc (T-026, T-044); plan chỉ đọc nó.
+- `NativeFullScreenOverlay.kt`, và `NativeFullScreenTurns.kt` ở phương án chính: cờ "đang hiện" bật và hạ đúng lúc (T-026, T-044); khoảng hạ rồi bật lại khi inter nối sang native được bịt ở `endTurn` (mục 3.1 B).
 - `app/src/main/kotlin/com/vglstudio/template/MainActivity.kt`: đọc `fullScreenAdShowing` cho hộp thoại mạng; cờ không đổi.
 - `scripts/ads-plan.py`: bảng định dạng chép tay ghi "Tự làm mới theo đơn vị trên AdMob", "Nạp lại tay mỗi 30 giây"; vẫn đúng.
 - `docs/features/ads/spec.md`: KB-27 đã có tiêu chí; ô đánh dấu do người tick khi nghiệm thu.
@@ -135,17 +159,17 @@ Không sửa, kèm lý do:
 - Sự kiện phân tích: Không chạm. Không có sự kiện mới; lượt không gửi lúc bị che không ghi gì, như lượt không gửi lúc ở nền.
 - File R2: Không chạm.
 - **Quyền truy cập:** Không thêm.
-- **Thư viện và SDK:** Không thêm. Dùng `kotlinx-coroutines` (`combine`, `stateIn`, `distinctUntilChanged`, `drop`) đã có trên classpath biên dịch của `:core:ads` (các file `AdsController.kt`, `BannerFrame.kt` đã import).
+- **Thư viện và SDK:** Không thêm. Dùng `kotlinx-coroutines` (`combine`, `distinctUntilChanged`, `MutableStateFlow`) đã có trên classpath biên dịch của `:core:ads` (các file `AdsController.kt`, `BannerFrame.kt` đã import).
 
 ### 3.4. Phương án dự phòng
 
-- **Điểm chưa chắc:** cửa sổ dựng bằng `stateIn` trong `scope` của controller. Trong test Robolectric, giá trị của `stateIn` chỉ đổi sau khi luồng chính chạy hết việc đang chờ; test controller có thể đọc giá trị cũ ngay sau `beginStandaloneNativeTurn`.
-- **Điều kiện chuyển:** test `AdsControllerInScreenWindowTest` viết trước vẫn thất bại vì đọc giá trị cũ của cửa sổ sau hai lần sửa (thêm `shadowOf(Looper.getMainLooper()).idle()` trước khi đọc không đủ).
-- **Cách làm thay:** `AdsController` giữ một `MutableStateFlow` cửa sổ và tự đặt `inScreenAdsMayRun(foregroundState.value, presence.showing.value)` ở cả hai chỗ đổi: trong `onForegroundChanged` (dòng 524 tới 527) và trong một hàm bọc `tryBegin` và `onClosed` của `presence`; không dùng `stateIn`. File đã có trong mục 3.2 (`AdsController.kt`, dự phòng). Hàm thuần, test viết trước và tiêu chí giữ nguyên.
+- **Điểm chưa chắc:** `publishAfter` bọc `turn.complete(reason)`, mà hàm này chạy `onFinished` của nơi gọi (điều hướng, lưu) trên cùng ngăn xếp; trong khối, `fullScreenAdShowing` còn đọc giá trị cũ (`true`). Nơi đọc cờ trong lúc đó hôm nay: hộp thoại mạng của `MainActivity` (chờ cờ hạ, chỉ trễ tới cuối khối), `ConsentCoordinator` (`fullScreenShowing`), `preloader.onActivityResumed`. Nếu một test có sẵn của các nơi này đỏ vì đọc giá trị cũ thì cách bàn giao chung không dùng được.
+- **Điều kiện chuyển:** một test có sẵn (ngoài các test mới của plan) đỏ vì `fullScreenAdShowing` còn `true` trong `onFinished`, sau hai lần sửa.
+- **Cách làm thay:** chỉ bàn giao cho lượt inter có combo: `endTurn` không gọi `presence.onClosed()` khi lượt đó sẽ mở combo (khóa `is_show_native_after_inter` không đọc được đồng bộ, nên dùng cách `NativeFullScreenTurns` báo lại: `FullScreenAdPresence.handOver(placement)` đổi `current` sang `NATIVE_AFTER_INTER` mà không hạ `showing`, gọi từ `afterInterstitial` thay cho `beginPresence()` khi cờ đang do lượt inter đó giữ). File đã có trong mục 3.2 (`FullScreenAdPresence.kt`, `AdsController.kt`, dự phòng) và thêm `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeFullScreenTurns.kt` (dự phòng). Hàm thuần, test viết trước (nhất là `comboTurn_noOpenWindowAcrossInterClose`) và tiêu chí giữ nguyên.
 
 ### 3.5. Hành vi đã có bị đổi
 
-Chạy `python3 -I scripts/existing-tests.py docs/features/ads/plans/T-054-dung-quang-cao-khi-bi-che.md` (2026-10-29): 279 test dùng tên hay tag của các file plan sửa; "Cần xem trước" 1 test, "Nên xem" 87 test, 191 test chỉ dùng tên plan không nêu. Đã đọc nhóm "Cần xem trước" và các nhóm của "Nên xem" (theo file test). Hành vi plan đổi và test có sẵn:
+Chạy `python3 -I scripts/existing-tests.py docs/features/ads/plans/T-054-dung-quang-cao-khi-bi-che.md` (2026-10-29, lần 2, sau rà soát độc lập): 306 test dùng tên hay tag của các file plan sửa; "Cần xem trước" 1 test (`NativeFullScreenOverlayTest.smallScreen_countdownAndCtaInside`), "Nên xem" 78 test plan chưa nhắc tới, plan đã nhắc 28 test trong số đó; 199 test chỉ dùng tên plan không nêu. Đã đọc test "Cần xem trước" và các nhóm của "Nên xem" (theo file test). Hành vi plan đổi và test có sẵn:
 
 | Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
@@ -154,13 +178,17 @@ Chạy `python3 -I scripts/existing-tests.py docs/features/ads/plans/T-054-dung-
 | Banner dừng (`pause`) và chờ gửi chỉ khi màn không `RESUMED` | Thêm: dừng và chờ khi bị che; `BannerSlotHost` có tham số bắt buộc `covered` | `BannerSlotHostTest.hiddenScreen_pausesView_visibleAgain_resumes` và mọi test của `BannerSlotHostTest` gọi `setHost` | Giữ mọi câu khẳng định; chỉ `setHost` truyền thêm `covered = MutableStateFlow(false)` (commit test của bước 3). `BannerLoadsTest.retryDueWhileHidden_waitsForNextVisible`, `manualReloadDueWhileHidden_waitsForNextVisible`, `firstSend_waitsUntilVisible`: giữ, `runBannerLoads` không đổi |
 | Cổng gửi của nguồn và pool trong controller là `awaitSendAllowed(foregroundState, ...)` | `inScreenSendGate` = `awaitSendAllowed(inScreenAdWindow, ...)` | `NativeSendGateTest.foreground_openGate_returnsTrue`, `waitsForForeground_thenReadsGate`, `gateClosed_returnsFalse`; `NativeAdSourcesTest.everySend_callsSendGate`; `NativeAdPoolsTest.everySend_goesThroughSendGate` | Giữ: `awaitSendAllowed` không đổi; hai test "mọi lượt gửi qua cổng" dựng cổng của riêng test |
 | Lượt nạp và màn của native toàn màn hình (sau inter, độc lập, trang toàn trang của bước luồng) | Không đổi: vẫn đọc `foregroundState`, không chờ cửa sổ | `AdsControllerNativeComboTest` (mọi test, ví dụ `closed_opensCombo`, `standalone_withAd_throughShow_opensTurn`, `standalone_noCurrentTurn_presenceUntilClose`), `AdsControllerFunnelTest.combo_recordsNativeEligibleAfterInter`, `standalone_recordsEligible_onlyWithAd`, `NativeFullScreenStepRecreateTest.recreate_consentClosed_notTaken` | Giữ; đỏ thì dừng (mục 7) |
-| Rewarded, resume, đồng ý: đọc `presence`, `mayRequestNow`, `openConsentGateForTest` | Không đổi | `RewardedActionTest.backgroundWhileDecisionWaits_timeout_closesOnce` (nhóm "Cần xem trước": đo thời gian chờ quyết định, không đo vị trí giao diện quảng cáo trong màn), các test `realController_*` của `RewardedActionTest`, `RewardedTurnsTest.decisionStuckAtSwitch_consentOpensMeanwhile_staysNoAd`, `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing`, `ConsentGateTest`, `ConsentCoordinatorTest.privacyFormWithdrawn_closesEveryGate` | Giữ: plan không chạm đường của rewarded, resume hay đồng ý |
+| Rewarded, resume, đồng ý: đọc `presence`, `mayRequestNow`, `openConsentGateForTest` | Không đổi | `RewardedActionTest.backgroundWhileDecisionWaits_timeout_closesOnce`, `backgroundWhileDecisionWaits_switchInTime_closesOnce`, các test `realController_*` của `RewardedActionTest`, `RewardedTurnsTest.decisionStuckAtSwitch_consentOpensMeanwhile_staysNoAd`, `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing`, `ConsentGateTest`, `ConsentCoordinatorTest.privacyFormWithdrawn_closesEveryGate` | Giữ: plan không chạm đường của rewarded, resume hay đồng ý |
+| Cờ `fullScreenAdShowing` hạ ngay trong `endTurn` rồi `turn.complete` mới chạy; với combo, cờ có một khoảng `false` trên cùng ngăn xếp | `endTurn` trong `publishAfter`: cờ công bố một lần ở cuối, combo không có khoảng `false`; lượt không combo vẫn công bố `false`, chỉ sau `onFinished` thay vì trước | `AdsControllerNativeComboTest.closed_opensCombo`, `showFailed_opensCombo`, `adLost_opensCombo`, `stuckRecovered_opensCombo`, `hostDestroyed_opensCombo` (khẳng định "No gap": cờ đúng ngay sau khi đóng inter), `capExpired_reachesCombo_busyFinishesAtOnce`, `onFinished_runsOnMainThread`, `startupTurn_neverOpensCombo`, `blockedAtGate_noAd_finishesOnce_noView`; `AdsControllerFunnelTest.comboOff_recordsInterEligibleOnly`, `interTurn_recordsEligibleOnce` | Giữ: các test này đọc cờ sau khi lời gọi trả về (giá trị cuối không đổi), hay đọc trong combo (vẫn đúng). Không test nào đọc cờ bên trong `onFinished` của lượt không combo; nếu có test đỏ vì thế thì theo mục 3.4 |
+| `FullScreenAdPresence()` không tham số, công bố ngay | Thêm `onPublished` (mặc định không làm gì) và `publishAfter`; ngoài khối công bố ngay như cũ | `FullScreenAdPresenceTest.startsHidden`, `onShowing_setsTrue`, `onClosed_setsFalse`, `closedTwice_staysFalse`, `showingFlow_emitsShowAndClose`, `secondShowWhileShowing_isDropped`, `showingFlag_expiresAfterTenMinutes`, `current_followsTheAdOnScreen`; `NativeFullScreenTurnsTest.noGap_presenceAndHoldTakenBeforeAnySuspension`, `comboWhileStandaloneOpen_presenceFree_skipsBusy`, `comboOff_finishesAtOnce_noView_noLoad`, `holdsResumeAds_fromStartUntilClose`, `secondTurn_whilePresenceBusy_finishesAtOnce`, `standalone_opensAtOnce_withCountdown_marksOwnPlacement` (dựng `FullScreenAdPresence()` riêng) | Giữ |
+| `BannerSlotHost` không có `covered` | Tham số bắt buộc `covered` | `BottomAdBarTest` (lời gọi ở dòng 125, mọi test của lớp dựng thanh đáy có lớp banner) | Giữ mọi câu khẳng định; lời gọi truyền `covered = MutableStateFlow(false)` (commit test của bước 3) |
+| Màn native sau inter vẽ như cũ | Không đổi (chỉ phương án dự phòng chạm `NativeFullScreenTurns.kt`, không chạm phần vẽ) | `NativeFullScreenOverlayTest.smallScreen_countdownAndCtaInside` (nhóm "Cần xem trước": đo vị trí đếm ngược và CTA) | Giữ |
 | Log `Native <mã> refresh: skipped (background)` | Giữ chữ; lúc bị che có thêm log của cửa sổ | `NativeAdRefreshTest.tickInBackground_isSkipped_nextTickAt120s` (dòng 183) | Giữ |
 | Các test quét mã nguồn | Không đổi | `NativeEligibleCoverageTest.everyFileDrawingANativeAd_reportsEligible` (file mới `InScreenAdWindow.kt` không vẽ native), `RemovedPacingRulesTest.adsController_readsRemoteConfigOnlyThroughAdsFlags` (plan không đọc Remote Config) | Giữ |
 
 ## 4. Kiểm thử
 
-Các đường gửi của khe trong màn (L-072) và test của mỗi đường. Mọi test native dùng `window = inScreenAdWindow(foreground, covered, backgroundScope)`, đúng hàm controller dùng, với `foreground = MutableStateFlow(true)`, `covered = MutableStateFlow(false)`; nguồn và pool giả nhận `sendGate = { awaitSendAllowed(window) { mayRequest } }`. Mỗi test "không gửi lúc bị che" có bước đối chứng (L-055): hạ `covered` thì gửi đúng một lượt.
+Các đường gửi của khe trong màn (L-072) và test của mỗi đường. Test mức hàm (đường 1 tới 12) dùng `InScreenAdWindow(logger)`, đúng lớp controller dùng, với `onForeground(true)`, rồi `onCovered(true)` hay `onCovered(false)`, và truyền `window.open`; nguồn và pool giả nhận `sendGate = { awaitSendAllowed(window.open) { mayRequest } }`. Vì các hàm đó đã tôn trọng một `foreground` bất kỳ, test mức hàm chỉ chứng minh đường gửi chờ đúng cửa sổ; phần controller có nối đúng cửa sổ vào từng đường được test riêng ở các đường (14) tới (17), với `AdsController` thật và `nativeLoaderForTest = FakeNativeAdLoader()` (rà soát độc lập, điểm 3). Mỗi test "không gửi lúc bị che" có bước đối chứng (L-055): hạ `covered` thì gửi đúng một lượt.
 
 | Đường | Nơi gửi | Test |
 | --- | --- | --- |
@@ -177,11 +205,16 @@ Các đường gửi của khe trong màn (L-072) và test của mỗi đường
 | (11) Pool, nạp bù (sau khi lấy, sau lượt hiển thị, sau hết hạn: cùng `sendNext`) | `NativeAdPool.sendNext` | `NativeAdPoolTest.refillAfterClaim_whileCovered_waitsUntilUncovered` |
 | (12) Pool, thử lại sau lỗi | như (11) | `NativeAdPoolTest.retry_whileCovered_waitsUntilUncovered` |
 | (13) Cổng mà controller giao cho nguồn và pool | `AdsController.inScreenSendGate` | `AdsControllerInScreenWindowTest.inScreenSendGate_waitsWhileCovered_thenSends` |
+| (14) Controller, native nhỏ: lượt đầu và nhịp làm mới (dòng 1474) | `nativeAd(SAMPLE_NATIVE_SMALL)` qua nguồn | `AdsControllerInScreenWindowTest.realController_smallSlot_refreshTickWhileCovered_isSkipped` |
+| (15) Controller, nhánh không có nguồn (dòng 1496) | `nativeAd` của định dạng không dùng nguồn hay pool | `AdsControllerInScreenWindowTest.realController_retryingSlot_firstLoadWaitsWhileCovered` |
+| (16) Controller, pool: nạp bù và `canLoadNow` (dòng 1386, 1387) | `pooledCell(GALLERY_NATIVE_MEDIUM)`, `poolCanLoadNow` | `AdsControllerInScreenWindowTest.realController_poolRefillWhileCovered_waits`, `poolCanLoadNow_followsWindow` |
+| (17) Controller, inter nối sang native | `endTurn` trong `publishAfter` | `AdsControllerInScreenWindowTest.comboTurn_noOpenWindowAcrossInterClose` |
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
 | Hàm thuần | Unit test | `InScreenAdWindowTest.mayRun_table`: (hiện, không che) đúng; (hiện, che), (không hiện, không che), (không hiện, che) sai |
-| Cửa sổ của controller theo foreground và cờ | Unit test | `InScreenAdWindowTest.stateWindow_followsForegroundAndCover`: foreground đúng, che sai: đúng; che: sai; hết che: đúng; ra nền khi đang che rồi hết che: vẫn sai tới khi về foreground (L-091); giá trị đầu lấy từ hai cờ lúc dựng (dựng khi đang che thì sai ngay, không qua một giá trị đúng) |
+| Lớp cửa sổ theo foreground và cờ | Unit test | `InScreenAdWindowTest.window_followsForegroundAndCover_synchronously`: mới dựng: sai; `onForeground(true)`: đúng ngay (đọc `open.value` không chạy dispatcher); `onCovered(true)`: sai ngay; `onCovered(false)`: đúng; ra nền khi đang che rồi hết che: vẫn sai tới khi `onForeground(true)` (L-091); log `In-screen ads paused (full-screen ad on screen)` một lần khi che, `In-screen ads resumed (full-screen ad closed)` một lần khi hết che, không log khi chỉ foreground đổi hay `onCovered` lặp cùng giá trị |
+| Bàn giao cờ trong một khối | Unit test | `FullScreenAdPresenceTest.publishAfter_closeThenBegin_publishesNoFalse`: cờ đang bật, trong `publishAfter { onClosed(); tryBegin(...) }`: chuỗi giá trị của `showing` thu được là `[true]`, `onPublished` không được gọi; `publishAfter_closeOnly_publishesFalseOnceAtEnd`: trong khối `showing.value` còn `true`, `isBusy` đã sai; cuối khối `false` một lần; `publishAfter_nested_outerPublishes` (đối chứng L-055: ngoài khối, `onClosed()` công bố `false` ngay) |
 | Cửa sổ của banner | Unit test | `InScreenAdWindowTest.flowWindow_combinesVisibleAndCover_distinct`: chuỗi giá trị thu được là `[true, false, true]` khi che rồi hết che, không lặp giá trị khi `visible` phát lại cùng giá trị |
 | KB-27 tiêu chí 1, đường (1) | Compose UI test (Robolectric) | `BannerSlotHostTest.coveredAtStart_sendsNothing_untilUncovered`: `covered = true` lúc dựng, đi 60 giây: `FakeBannerAdView.sends == 0`, view bị `pause` (không `resume`); hạ `covered`: `sends == 1` |
 | KB-27 tiêu chí 1, đường (2) | Compose UI test | `BannerSlotHostTest.retryDueWhileCovered_sendsOnceWhenUncovered`: lượt đầu lỗi (thử lại sau 2 giây), che ở 1 giây, đi tới 30 giây: vẫn 1 lượt gửi; hết che: đúng 2 lượt gửi, không thêm lượt nào trong 1 giây kế |
@@ -202,7 +235,10 @@ Các đường gửi của khe trong màn (L-072) và test của mỗi đường
 | Cờ tắt giữa chừng (L-061) | Unit test | `NativeAdRefreshTest.consentWithdrawnWhileCovered_destroysAd_noSendAfterUncover`: che, rồi nguồn bị đóng (rút đồng ý): quảng cáo hủy, `Unavailable`; hết che: không lượt gửi nào |
 | Hai khe dưới một màn che (L-068) | Unit test | `NativeAdSourceTest.twoSlotsCovered_neitherSends_bothResumeOnce`: hai khe cùng vị trí, che: không khe nào gửi; hết che: mỗi lượt chờ đi đúng một lần, tổng số lượt bằng số lượt đang chờ |
 | Cửa sổ của controller theo cờ chung | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.standaloneNativeTurn_closesWindow_closeOpensIt`: `setAppForegroundForTest(true)`: cửa sổ đúng; `beginStandaloneNativeTurn`: sai; `closeNativeFullScreen`: đúng; log `In-screen ads paused (full-screen ad on screen)` rồi `In-screen ads resumed (full-screen ad closed)` |
-| Màn native sau inter | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.comboTurn_windowClosedFromInterUntilNativeClose`: `beginInterstitialTurn(combo = true)`, đóng inter, đi 2,1 giây (màn native mở): cửa sổ sai suốt, không có khoảng hở; đóng màn native: đúng |
+| Màn native sau inter, không khoảng hở | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.comboTurn_noOpenWindowAcrossInterClose`: khóa combo bật, `openConsentGateForTest`, `setAppForegroundForTest(true)`; thu mọi giá trị của `inScreenAdWindow` và `fullScreenAdShowing` vào danh sách bằng coroutine trên `Dispatchers.Main.immediate`, và chờ `inScreenSendGate()` trong một `async`; `beginInterstitialTurn(combo = true)`, `onInterstitialClosed`, đi 2,1 giây (màn native mở): danh sách của cửa sổ là `[true, false]`, của cờ là `[false, true]` (không có `true` của cửa sổ hay `false` của cờ sau lúc bật), `async` chưa xong, log "paused" đúng một lần và chưa có "resumed"; `closeNativeFullScreen`: cửa sổ thêm `true`, `async` trả đúng, log "resumed" một lần. Đối chứng: lượt inter không combo (khóa tắt ở cổng) thì cửa sổ mở lại khi inter đóng |
+| Cổng nối đúng vào nhịp làm mới (đường 14) | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.realController_smallSlot_refreshTickWhileCovered_isSkipped`: `FakeRemoteSettings` bật `is_show_sample_native_small`, mở cổng, `setAppForegroundForTest(true)`, `nativeLoaderForTest` giả; thu `nativeAd(SAMPLE_NATIVE_SMALL)`, trả quảng cáo cho lượt đầu (và lượt nạp tiếp); che ở 50 giây (`beginStandaloneNativeTurn`), đi tới 70 giây: số yêu cầu của loader giả không tăng sau lúc che, quảng cáo đầu không bị hủy; đóng ở 70 giây, đi tới 119 giây: không tăng; 120 giây: một lượt lấy mới. Nếu dòng 1474 hay 1361 còn `foregroundState`, nhịp 60 giây chạy dưới màn che và test đỏ |
+| Cổng nối đúng vào nhánh không có nguồn (đường 15) | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.realController_retryingSlot_firstLoadWaitsWhileCovered`: hôm nay không composable nào gọi nhánh này (định dạng của mọi lời gọi `nativeAd` đi qua nguồn hay pool); test gọi thẳng `nativeAd(AdPlacement.SAMPLE_NATIVE_SMALL, AdFormat.NATIVE_MEDIUM)`, định dạng khác định dạng của vị trí nên đi nhánh `retryingNativeAdStates`. Che trước khi thu: không yêu cầu nào tới khi hết che; hết che: một yêu cầu |
+| Cổng nối đúng vào pool (đường 16) | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.realController_poolRefillWhileCovered_waits`: bật `is_show_gallery_native_medium`, che, thu `pooledCell(GALLERY_NATIVE_MEDIUM)`: loader giả không nhận yêu cầu trong 60 giây; hết che: có yêu cầu. `poolCanLoadNow_followsWindow`: `markSdkReadyForTest`, mở cổng, foreground đúng: `poolCanLoadNow()` đúng; mở lượt native độc lập: sai; đóng: đúng |
 | Trang toàn trang của bước luồng không tính | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.flowStepFullPage_keepsWindowOpen`: `openConsentGateForTest`, `putPreloadedNativeFullScreenForTest`, thu `fullScreenStep(placement)` tới `Loaded`: cửa sổ vẫn đúng, `fullScreenAdShowing` sai |
 | App ở nền (giữ KB-18, KB-24) | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.background_closesWindow_withoutCover`: `setAppForegroundForTest(false)`: cửa sổ sai, không có log "paused (full-screen ad on screen)" |
 | Đường (13), cổng controller giao đi | Unit test (Robolectric) | `AdsControllerInScreenWindowTest.inScreenSendGate_waitsWhileCovered_thenSends`: `openConsentGateForTest`, foreground đúng, mở lượt native độc lập, gọi `inScreenSendGate()` trong `async`: chưa xong sau 60 giây; đóng lượt: trả đúng. Đối chứng: không che thì trả đúng ngay |
@@ -213,13 +249,17 @@ Các đường gửi của khe trong màn (L-072) và test của mỗi đường
 
 - `docs/ops/ads-business-rules.md`, `docs/ops/ads-guide.md`: tài liệu.
 - KDoc của `NativeSendGate.kt`, `NativeAdRefresh.kt`, `NativeAdPool.kt`: chỉ chú thích.
-- Ba dòng nối trong `AdsController.kt` truyền `inScreenAdWindow` (tham số `foreground` của `singleAdSlotStates`, `retryingNativeAdStates`, `canLoadNow` của pool) và dòng `covered = ads.fullScreenAdShowing` trong `BannerSlot`: hàm nhận đã có test mỗi đường ở trên với đúng cửa sổ đó; `sendGate` của nguồn và pool đi qua `inScreenSendGate` có test (13). Test ở mức controller cho từng đường cần nạp native giả trong `AdsController` (hôm nay `SdkNativeAdLoader` dựng cứng); xem câu hỏi 5 ở mục 8.
+- Dòng `covered = ads.fullScreenAdShowing` trong `BannerSlot`: `BannerSlot` cần `AdsController` thật và `AdView` của SDK; cùng lý do T-029 để `BannerSlot` ngoài test. `BannerSlotHost` có test mỗi đường banner, và cờ nó đọc (`fullScreenAdShowing`) có test không khoảng hở (đường 17). Các dòng nối của native và pool có test ở đường (14) tới (16).
 
-Commit test của bước 3 gồm cả phần sửa `setHost` của `BannerSlotHostTest` (truyền `covered`), để test viết trước biên dịch được khi phiên thêm tham số ở bước 4 cùng lúc; nếu tham số chưa có thì test thất bại vì biên dịch, đúng lý do (L-025).
+Commit test của bước 3 gồm cả phần sửa `setHost` của `BannerSlotHostTest` và lời gọi `BannerSlotHost` của `BottomAdBarTest` (truyền `covered`), để test viết trước biên dịch được khi phiên thêm tham số ở bước 4 cùng lúc; nếu tham số chưa có thì test thất bại vì biên dịch, đúng lý do (L-025).
 
 ### 4.1. Chạy thử
 
-Không cần (E dưới 2). Mẫu đã có: cổng gửi chung `awaitSendAllowed` (T-040), `combine` và `stateIn` trong `scope` của controller (`canRequestAds`), `pause` và `resume` của banner theo cờ (T-029). Máy dev hôm nay chưa có JDK trong phiên viết plan nên không chạy test; phiên chạy toàn bộ test JVM ở bước 3 như mọi task.
+Không bắt buộc (E dưới 2). Đã chạy thử một điểm mà rà soát độc lập hỏi: cửa sổ dựng bằng `stateIn` hay đặt đồng bộ.
+
+- **Đã chạy thử:** test Robolectric tạm `TmpWindowTrialTest` trong `core/ads/src/test` (không commit, đã xóa), 2026-10-29, trên nhánh `claude/plan-T-054-dung-khi-bi-che` (gốc `c29ce2b`, chưa có code của task). Hai trường hợp: `combine(...).stateIn(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate), Eagerly, false)` với một lượt chờ `window.first { it }`; và `MutableStateFlow` đặt đồng bộ, có công bố một lần ở cuối khối.
+- **Lệnh:** `./gradlew :core:ads:testDebugUnitTest --tests '*TmpWindowTrialTest*' -i` sau `source` tệp `env.sh` của `scripts/local-setup.sh`. Không chạy `scripts/check.sh`: không bắt buộc vì E dưới 2, và test tạm chỉ đo thứ tự giá trị.
+- **Kết quả:** `BUILD SUCCESSFUL`. Bản `stateIn`: hạ cờ rồi bật lại ngay trên cùng ngăn xếp thì lượt chờ đã chạy (`sends=1`) và cửa sổ còn đọc `true` sau khi bật lại, tới khi `idle()` mới thành `false` (chuỗi `[false, true, false]`). Bản đồng bộ: `open.value` đổi ngay cả hai chiều không cần `idle()`; đổi cờ nhiều lần trong một khối rồi công bố một lần thì lượt chờ không chạy (`sends=0`, chuỗi `[false]`). Kết luận: plan dùng bản đồng bộ (mục 3.1 A) và bàn giao cờ trong một khối (mục 3.1 B); phương án `stateIn` cũ bỏ.
 
 ## 5. Chấm rủi ro
 
@@ -227,28 +267,29 @@ Không cần (E dưới 2). Mẫu đã có: cổng gửi chung `awaitSendAllowed
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 2 | Một module (`:core:ads`), một file mới, sửa năm file code (ba chỉ đổi KDoc); đổi chữ ký nội bộ `BannerSlotHost`; API công khai cho feature không đổi |
+| A. Phạm vi thay đổi | 2 | Một module (`:core:ads`), một file mới, sửa sáu file code (ba chỉ đổi KDoc); đổi chữ ký nội bộ `BannerSlotHost` và cách công bố cờ của `FullScreenAdPresence`; API công khai cho feature không đổi |
 | B. Độ rõ của yêu cầu | 1 | Spec `confirmed`, câu hỏi 36 đã trả lời, ADR-0036 đã chấp nhận; còn vài chi tiết AI tự đề xuất (mục 8: hàng trong danh sách, nạp lại tay của banner thu gọn, ô pool chưa có quảng cáo, trần 10 phút) |
 | C. Khả năng kiểm chứng tự động | 1 | Mọi đường gửi có unit test trên đồng hồ ảo, cửa sổ của controller có test Robolectric; dừng thật của SDK dưới màn che chỉ thấy trên máy (log) |
 | D. Ảnh hưởng chéo | 3 | Đổi hành vi của mọi banner và native trong màn mà `:feature:sample`, màn xem thử và mọi app dựa vào; `AdsController.kt` cũng được T-055, T-059, T-063 sửa; `AdSlot.kt` được T-062, T-067 sửa |
-| E. Độ mới của kỹ thuật | 1 | Biến thể nhỏ của mẫu đã có (cổng gửi T-040, `stateIn` của `canRequestAds`, cờ `visible` của banner T-029) |
+| E. Độ mới của kỹ thuật | 1 | Biến thể nhỏ của mẫu đã có (cổng gửi T-040, cờ `visible` của banner T-029, các hàm `...ForTest` của T-026, T-044); cách bàn giao cờ trong một khối là mới nhưng nhỏ, đã chạy thử (mục 4.1) |
 | **Tổng** | 8 | **Mức: Cao** (chạm điểm chặn; cần duyệt chéo; người phụ trách sản phẩm biết trước vì đổi lúc gửi quảng cáo) |
 
 ## 6. Ảnh hưởng chéo
 
-- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (năm dòng nối, hai thuộc tính mới, một hàm cho test), `AdSlot.kt` (`BannerSlotHost`), `ads-business-rules.md`, `ads-guide.md`.
+- File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (năm dòng nối, `endTurn`, cửa sổ, cổng, điểm nối loader và ba hàm cho test), `FullScreenAdPresence.kt` (cờ mà hộp thoại mạng của `MainActivity` và `ConsentCoordinator` cũng đọc: chỉ trễ tới cuối khối, không đổi giá trị cuối), `AdSlot.kt` (`BannerSlotHost`), `ads-business-rules.md`, `ads-guide.md`.
 - Task khác trong sprint có thể xung đột:
   - T-062 (banner MREC, `depends_on: [T-054]`): dùng `BannerSlotHost(covered)` của plan này; chạy sau.
-  - T-059 (hàng native nhỏ trong danh sách thử lại): đưa `loadNativeAd` qua `retryingNativeAdStates` hay nguồn; nếu chạy sau T-054 thì hàng nhận cửa sổ qua đường B, chỉ cần truyền `inScreenAdWindow` thay `foregroundState`. Cùng sửa `AdsController.kt` (khác vùng).
+  - T-059 (hàng native nhỏ trong danh sách thử lại): chạy sau T-054 và thêm chỗ gọi thứ sáu `inListRowStates`; plan của T-059 truyền `inScreenAdWindow` (hay `inScreenSendGate`) của plan này ở đó, và có thể dùng `nativeLoaderForTest` cho test mức controller. Cùng sửa `AdsController.kt` (khác vùng).
   - T-055 (kiểm màn hình trước khi hiện toàn màn hình), T-063 (cổng không hiện quảng cáo), T-066 (`CACHED_EARLY`): cùng sửa `AdsController.kt`, khác vùng; T-063 có thể đổi `mayRequestNow`, mà `inScreenSendGate` gọi.
-  - T-067 (banner cỡ thích ứng thường): sửa `BannerSlot` trong `AdSlot.kt` (dòng `AdSize`), khác dòng với plan này.
+  - T-067 (banner cỡ thích ứng thường): sửa `BannerSlot` trong `AdSlot.kt` gần dòng `adSize`; plan này thêm `covered = ads.fullScreenAdShowing` vào lời gọi `BannerSlotHost` ngay bên dưới, nên có thể có xung đột chữ nhỏ khi gộp.
+  - T-062: lấy luật B-08 ở mục 5.5; plan này giữ B-07.
   - T-053 (đếm ngược 5 giây): sửa màn native sau inter; không đổi cờ "đang hiện".
-- Đề xuất thứ tự chạy: trước T-062 và T-059; độc lập với T-053, T-055, T-063, T-067 (xung đột chỉ là gộp dòng trong cùng file).
+- Thứ tự chạy (đã thống nhất giữa các plan): T-054, rồi T-067, rồi T-062; T-054 chạy trước T-059 và T-055. Độc lập với T-053, T-063 (xung đột chỉ là gộp dòng trong cùng file).
 
 ## 7. Điều kiện dừng riêng
 
-- Một test có sẵn của `AdsControllerNativeComboTest`, `NativeFullScreenTurnsTest` hay `NativeFullScreenStepRecreateTest` đỏ sau khi nối cửa sổ: có thể lượt nạp của chính native toàn màn hình đã bị chặn bởi cửa sổ (trái mục 3.1 B). Dừng, không đổi câu khẳng định của các test đó.
-- Phải đổi cách cờ `FullScreenAdPresence.showing` bật hay hạ (thời điểm, trần 10 phút) để test qua: ngoài phạm vi, dừng.
+- Một test có sẵn của `AdsControllerNativeComboTest`, `NativeFullScreenTurnsTest` hay `NativeFullScreenStepRecreateTest` đỏ sau khi nối cửa sổ: có thể lượt nạp của chính native toàn màn hình đã bị chặn bởi cửa sổ (trái mục 3.1 C). Dừng, không đổi câu khẳng định của các test đó.
+- Phải đổi cách cờ `FullScreenAdPresence.showing` bật hay hạ ngoài phần `publishAfter` của mục 3.1 B (thời điểm bật, trần 10 phút, hồi phục khi kẹt) để test qua: ngoài phạm vi, dừng.
 
 ## 8. Câu hỏi cho người duyệt
 
@@ -256,7 +297,7 @@ Không cần (E dưới 2). Mẫu đã có: cổng gửi chung `awaitSendAllowed
 2. **Banner thu gọn nạp lại tay 30 giây tới hạn lúc bị che** (và lượt thử lại của banner): plan theo trả lời câu 36 "tạm dừng như khi màn hình không hiện", nên gửi đúng một lượt khi màn che đóng (B-05). KB-27 tiêu chí 3 nói "lượt làm mới tới hạn trong lúc bị che thì bỏ"; một lượt khi đóng không dồn, nhưng không "bỏ" hẳn. Đề xuất giữ như B-05 (một luật cho "không hiện" và "bị che"); nếu cần bỏ hẳn thì `runBannerLoads` phải phân biệt hai lý do, thêm một tham số và hai test.
 3. **Ô pool chưa có quảng cáo lúc bị che** coi là "cạn" như ở nền (P-05), nên ô ẩn hay hiện khung tĩnh dưới màn che, rồi hiện lại khi quảng cáo về sau lúc đóng. Lý do: để kế hoạch nạp sẵn đi tiếp, không đứng chờ pool. Người dùng không thấy vì ô bị che. Đề xuất giữ.
 4. **Cờ kẹt:** cửa sổ đọc `presence.showing`, không đọc trần 10 phút của F-02 (`isBusy`). Nếu cờ kẹt mà không có pause và resume của Activity (F-03 không chạy, ví dụ màn native bị mất callback đóng), quảng cáo trong màn dừng tới khi cờ hạ. Màn native do `:core:ads` vẽ và hạ cờ khi Dialog đóng hay Activity bị hủy (T-026, T-044), nên rủi ro thấp. Đề xuất giữ cờ đơn giản; nếu muốn có trần thì `FullScreenAdPresence` cần một `StateFlow` tự hạ sau 10 phút (thêm file vào mục 3.2).
-5. **Test ở mức controller cho từng đường:** plan test mỗi đường ở mức hàm với đúng cửa sổ controller dùng, và test cổng `inScreenSendGate` mà controller giao cho nguồn và pool; ba dòng truyền `inScreenAdWindow` còn lại nằm ở ngoại lệ (mục 4). Muốn test controller gửi thật qua từng đường thì cần cho `AdsController` nhận một nhà máy `NativeAdLoader` giả (thêm tham số vào `AdsControllerFixtures.kt` và controller). Đề xuất không làm trong ticket này.
+5. **Điểm nối cho test trong `AdsController`:** plan thêm `nativeLoaderForTest`, `setAppForegroundForTest`, `markSdkReadyForTest` (`@VisibleForTesting`, như `openConsentGateForTest`) để test mức controller chứng minh từng dòng nối (rà soát độc lập, điểm 3). Cách khác là tham số mới của constructor, nhưng controller dựng bằng Hilt nên tham số có giá trị mặc định không dùng được. Đề xuất giữ cách `@VisibleForTesting`.
 6. **Inter, app open, rewarded** cũng bật cờ chung; plan để chúng đóng cửa sổ luôn (màn bên dưới đã dừng theo vòng đời nên không đổi gì thấy được, và khớp "cờ đang hiện của cổng chung" trong trả lời câu 36). Có cần chỉ tính native toàn màn hình không? Đề xuất: không.
 7. Spec và ticket ghi "ADR-0036, điểm 2", nhưng ADR-0036 hiện đánh số luật này là quyết định 1 (sau khi bỏ hạn dùng interstitial). Plan ghi "ADR-0036, quyết định 1" trong tài liệu mới; sửa chữ của spec và ticket là việc của người.
 
