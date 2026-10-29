@@ -834,7 +834,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Ngày, nguồn:** 2026-10-29, Photune (issue #272; L-001 của app; PR #11, #17 của app)
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** RUN-20261028-01 của app, T-002: test viết trước được commit sau khi chỉ chạy task test. Ở bước 5, `scripts/check.sh` đỏ ở `ktlintTestSourceSetCheck` vì thứ tự import, phải chạy `ktlintFormat` rồi commit thêm một lần chỉ để sửa định dạng. ADR-0011 chỉ dặn chạy `ktlintFormat` khi ktlint đã báo lỗi.
-- **Bằng chứng:** issue #272; RUN-20261029-01 của app (4 task) không có commit nào chỉ để sửa định dạng.
+- **Bằng chứng:** issue #272; RUN-20261029-01 của app (4 task) không có commit nào chỉ để sửa định dạng (app chưa đánh dấu `verified`).
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 và bước 4: chạy `./gradlew ktlintFormat` trước khi commit test và trước khi commit code; lệnh định dạng mọi file Kotlin nên chỉ commit file của task; lệnh chỉ đổi định dạng nên không tính là sửa test.
 - **Trạng thái:** accepted
 - **Áp dụng:**
@@ -845,6 +845,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** RUN-20261029-01 của app: nhánh của T-008 được tạo từ `origin/main` chưa có commit merge của T-007. Phiên phát hiện khi đối chiếu `git log origin/main` và tạo lại nhánh. Bước 1 của `docs/auto-run.md` chỉ ghi "từ nhánh chính mới nhất", không ghi cách lấy.
 - **Bằng chứng:** issue #273; báo cáo RUN-20261029-01 của app, mục Bài học.
+- **Hậu quả nếu không phát hiện:** task sau làm trên nền thiếu task trước; task phụ thuộc nhau thì build lỗi hay PR xung đột.
 - **Đề xuất sửa:** bước 1 ghi `git fetch origin main` ngay trước khi tạo nhánh `claude/T-NNN-...` từ `origin/main`.
 - **Trạng thái:** accepted
 - **Áp dụng:**
@@ -855,7 +856,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** test của `scripts/release.sh` dùng fixture, không dùng `app/build.gradle.kts` thật. Script truyền thêm thuộc tính Gradle hay file build đổi tên thuộc tính đọc thì lỗi chỉ lộ ra lúc phát hành, hoặc bundle build xong mà thiếu giá trị. L-119 và L-120 là hai lần gần đây phần kiểm phát hành và file build lệch nhau.
 - **Bằng chứng:** issue #274; L-119, L-120.
-- **Đề xuất sửa:** `release.sh --check-only` chạy mọi bước kiểm rồi dừng trước bước hỏi mật khẩu và build; test hợp đồng: mọi `ORG_GRADLE_PROJECT_<tên>` mà `release.sh` xuất ra được `app/build.gradle.kts` đọc; test chạy `release.sh --check-only` thật với `app/build.gradle.kts` thật. Phủ mã quảng cáo, `assetsBaseUrl`, khóa AppsFlyer.
+- **Đề xuất sửa:** `release.sh --check-only` chạy mọi bước kiểm rồi dừng trước bước hỏi mật khẩu và build; test hợp đồng: mọi `ORG_GRADLE_PROJECT_<tên>` mà `release.sh` xuất ra được `app/build.gradle.kts` đọc; test chạy `release.sh --check-only` thật với `app/build.gradle.kts` thật. Phủ mã quảng cáo, `assetsBaseUrl`, khóa AppsFlyer. `release.sh` là file AI không được sửa (ADR-0009): chỉ làm trong phiên có người theo dõi, khi người phụ trách phát hành cho phép; phiên tự chạy không làm (anh Nhật cho phép trong phiên 2026-10-29).
 - **Trạng thái:** accepted
 - **Áp dụng:**
 
@@ -865,7 +866,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** org dùng gói GitHub Free (2.000 phút mỗi tháng cho mọi repo private, mỗi job tính tối thiểu 1 phút). `resume-run.yml` mỗi giờ (khoảng 720 phút mỗi tháng), `run-watchdog.yml` mỗi 30 phút (khoảng 1.440 phút mỗi tháng) và `env-canary.yml` hằng ngày chạy cả khi không có phiên. Dev của app phải tắt tay `resume-run` và `env-canary` bằng `gh workflow disable`.
 - **Bằng chứng:** issue #275.
-- **Đề xuất sửa:** trước mắt, `docs/ops/staging-and-runs.md` ghi số phút mỗi tháng của từng lịch, cách tắt và khi nào bật lại. Sau đó, workflow định kỳ không cấp runner khi không có danh sách chạy `running` (T-051, cần plan rủi ro cao vì sửa `.github/`).
+- **Đề xuất sửa:** trước mắt, một PR tài liệu riêng: `docs/ops/staging-and-runs.md` ghi số phút mỗi tháng của từng lịch, cách tắt và khi nào bật lại. Sau đó, workflow định kỳ không cấp runner khi không có danh sách chạy `running` (T-051, cần plan rủi ro cao vì sửa `.github/`).
 - **Trạng thái:** accepted
 - **Áp dụng:** T-051 (phần workflow).
 
@@ -873,7 +874,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 - **Ngày, nguồn:** 2026-10-29, Photune (issue #276; ADR 1004 của app; CI từ PR #9 tới PR #25 của app)
 - **Loại, phạm vi:** môi trường, chung
-- **Chuyện gì:** dự án mẫu ở AGP 8.13.0, Gradle 8.14.3, compileSdk 36. Photune build và test bằng AGP 9.1.0 (Kotlin dựng sẵn), Gradle 9.3.1, Kotlin 2.2.10, compileSdk 37, KSP 2.3.12, Hilt 2.59.2, Robolectric 4.17, Roborazzi 1.77.0, ktlint-gradle 14.2.0; `pr-check`, `main-guard`, `staging` xanh qua 2 phiên và khoảng 15 PR. Hai chỗ script phải sửa: gói nền tên `platforms;android-37.0` trong `cloud-setup.sh`; `cloud-env-check.sh` đọc `compileSdk` từ đúng một dòng của `libs.versions.toml`. App chưa phát hành bản production nào.
+- **Chuyện gì:** dự án mẫu ở AGP 8.13.0, Gradle 8.14.3, compileSdk 36. Photune build và test bằng AGP 9.1.0 (Kotlin dựng sẵn), Gradle 9.3.1, Kotlin 2.2.10, compileSdk 37, KSP 2.3.12, Hilt 2.59.2, Robolectric 4.17, Roborazzi 1.77.0, ktlint-gradle 14.2.0; `pr-check`, `main-guard`, `staging` xanh qua 2 phiên và khoảng 15 PR. Kotlin giữ 2.2.10 như mẫu, nhưng plugin `kotlin-android` bỏ vì AGP 9 có Kotlin dựng sẵn; KSP 2.3.2 thì cần `android.disallowKotlinSourceSets=false`; build-tools 36.0.0 vẫn là mặc định của AGP 9.1; Navigation Compose 2.9.8. Hai chỗ script phải sửa: gói nền tên `platforms;android-37.0` trong `cloud-setup.sh`; `cloud-env-check.sh` đọc `compileSdk` từ đúng một dòng của `libs.versions.toml`. App chưa phát hành bản production nào.
 - **Bằng chứng:** issue #276.
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
