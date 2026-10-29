@@ -108,6 +108,7 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 ### 2.3. Bắt đầu một phiên
 
 1. Danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md` có trạng thái `approved` đã được merge vào nhánh chính.
+   Đã tắt các lịch định kỳ (mục 2.8) thì bật lại trước: `gh workflow list --all` thấy `resume-run` và `run-watchdog` ở trạng thái `active` (lệnh không có `--all` ẩn workflow đã tắt).
 2. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy.
 3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4), hoặc `main-guard` chưa qua trên commit gần nhất có đổi code của nhánh chính (`scripts/main-guard-status.sh`, L-076). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8; kiểm tra riêng của app (`scripts/setup-check-app.sh`, nếu app có) báo lỗi. Một lần R2 trả 429, 5xx hay không kết nối được thì script hỏi lại một lần. File trả 404 mà hỏi lại kèm tham số chống bộ nhớ đệm thì trả `200`: dòng lỗi nói CDN còn giữ câu trả lời cũ, xóa bộ nhớ đệm của URL đó (L-113). Kiểm tra xanh thì workflow đóng issue `setup-broken` đang mở trước khi kích hoạt routine, để phiên không dừng vì issue cũ. Các lỗi này trước đây chỉ lộ ra ở cuối phiên, khi phát bản staging (L-059). Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
 4. Bị từ chối vì `main-guard` chưa chạy hay chưa có kết quả (`CHƯA KIỂM`, thường vì GitHub không phát sự kiện push sau một lần merge; cũng báo khi lần chạy thất bại mà không có issue `main-broken`, tức lỗi hạ tầng): **Actions > main-guard > Run workflow** trên `main`, **Re-run all jobs** trên lần chạy thất bại, hoặc lệnh mà thông báo in ra,, chờ xanh, rồi chạy lại `start-run`. Đang chạy (`CHỜ`): chờ xong rồi chạy lại.
@@ -152,7 +153,7 @@ Không cần thiết lập thêm: workflow dùng hai bí mật `ROUTINE_FIRE_URL
 
 **Báo phiên đứng im (`run-watchdog.yml`).** Không cần thiết lập thêm, không dùng bí mật. Mỗi 30 phút, `scripts/run-watchdog.py` tìm phiên `running` mà 60 phút không có commit (90 phút khi đang có workflow của phiên chạy), rồi mở issue `session-stalled` có sẵn prompt tiếp tục của mục 2.7. Phiên có commit lại thì issue tự đóng. Workflow chỉ ghi issue mang nhãn này, không kích hoạt phiên hay routine.
 
-- Tốn khoảng 1 phút Actions mỗi lần, khoảng 48 phút mỗi ngày.
+- Tốn khoảng 1 phút Actions mỗi lần, khoảng 48 phút mỗi ngày (mục 2.8).
 - App không cần (ví dụ không bao giờ mở phiên bằng `claude --cloud`) thì tắt: **Actions > run-watchdog > Disable workflow**.
 
 ### 2.7. Mở phiên bằng `claude --cloud` khi còn cloud session credits
@@ -194,6 +195,20 @@ scripts/token-usage.py credit --run RUN-YYYYMMDD-NN --usd 10
 ```
 
 Lệnh chỉ sửa dòng Chung của phiên; commit file CSV trong PR báo cáo nếu PR còn mở, hoặc trong một PR tài liệu sau đó. `scripts/token-usage.py estimate` in thêm số USD trung bình cho mỗi 1M token, để ước tính một danh sách chạy tốn bao nhiêu credit.
+
+### 2.8. Phút Actions của các lịch định kỳ
+
+Ba workflow chạy theo lịch, cả khi không có phiên nào. Mỗi job tính tối thiểu 1 phút Actions (L-126):
+
+| Workflow | Lịch | Phút mỗi tháng, ước tính | Khi không có phiên |
+| --- | --- | --- | --- |
+| `resume-run.yml` | Mỗi giờ, phút 23 | khoảng 720 | Chỉ ghi "không có phiên nào" |
+| `run-watchdog.yml` | Mỗi 30 phút | khoảng 1.440 | Không mở issue |
+| `env-canary.yml` | 01:00 UTC (08:00 giờ Việt Nam) hằng ngày, 2 job | khoảng 60 | Vẫn kiểm môi trường và file R2 cho phiên sau |
+
+Một app tốn khoảng 2.200 phút mỗi tháng chỉ cho các lịch này. Gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org, nên từ một app trở lên là vượt. Gói khác thì đối chiếu với hạn mức của org.
+
+Khi app không có phiên tự chạy trong nhiều ngày, tắt các lịch bằng `gh workflow disable resume-run.yml` và `gh workflow disable run-watchdog.yml` (hoặc **Actions > <workflow> > Disable workflow**). Bật lại bằng `gh workflow enable <file>` trước khi bắt đầu phiên kế tiếp (mục 2.3); quên bật thì phiên hết hạn mức không được tiếp tục và phiên đứng im không được báo. `env-canary.yml` rẻ và chặn phiên khi môi trường hỏng, nên giữ; tắt cả nó thì bật lại và chạy tay một lần (**Run workflow**) vào ngày trước phiên. T-051 sẽ làm các lịch tự bỏ qua khi không có phiên `running`; khi đó bỏ bước tắt bật tay này.
 
 ## 3. Việc còn phải kiểm chứng
 
