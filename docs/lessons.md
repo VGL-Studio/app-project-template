@@ -15,7 +15,7 @@ Sổ này ghi những điều nhóm và AI học được khi làm việc, và �
 - Phạm vi: `chung` (đúng với mọi app, làm trong repo dự án mẫu trước), `app` (chỉ app này).
 - Chỉ người chuyển trạng thái sang `accepted`, `rejected` hay `verified`. AI chỉ ghi `proposed`, và ghi `applied` khi PR cải tiến đã merge.
 
-Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue `from-app` (`docs/ops/from-app.md`). Ở dự án mẫu, bài học từ app ghi nguồn là app và số issue. Các app đã tạo trước đó đọc sổ của dự án mẫu để chép những cải tiến cần thiết về (chưa có cách đồng bộ tự động).
+Bài học `chung` ghi ở app thì được đưa về dự án mẫu qua issue `from-app` (`docs/ops/from-app.md`). Ở dự án mẫu, bài học từ app ghi nguồn là app và số issue. Chiều ngược lại, các app đã tạo trước đó nhận cải tiến của dự án mẫu qua PR đồng bộ dựng bằng `scripts/template-sync.sh` (`docs/ops/to-app.md`, ADR-0030).
 
 ## Bài học
 
