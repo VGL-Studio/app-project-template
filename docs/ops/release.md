@@ -82,7 +82,7 @@ scripts/release.sh --config <thư mục>   # thư mục phát hành ở chỗ kh
 scripts/release.sh --check-only         # chỉ kiểm bước 1 tới 3, không hỏi mật khẩu, không build
 ```
 
-Nên chạy `--check-only` một lần trước ngày phát hành: script kiểm thư mục phát hành, commit và đối chiếu cấu hình như lúc phát hành thật, in phần tóm tắt rồi dừng, không tạo tag (L-125).
+Nên chạy `--check-only` một lần trước ngày phát hành: script kiểm thư mục phát hành, commit và đối chiếu cấu hình như lúc phát hành thật, in phần tóm tắt rồi dừng, không tạo tag (L-125). Lệnh không kiểm bước 4: mật khẩu và tên khóa `uploadKeyAlias` trong `upload.jks` chỉ được kiểm lúc phát hành thật. Lệnh vẫn cần mạng, `gh` đã đăng nhập và `keytool`.
 
 Script làm theo thứ tự, dừng ngay khi có điều kiện không đạt:
 
