@@ -117,6 +117,7 @@ Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì ch�
 - `scripts/status.py` đọc trạng thái bài học trong `docs/lessons.md`, mục Cần người kiểm tra của báo cáo phiên, và mẫu của `docs/auto-run.md`: plan chỉ đổi trạng thái L-126 sang `applied` đúng khuôn, và dòng của `docs/templates/run.md` nằm ở mục 2, không ở Cần người kiểm tra;
 - `scripts/new-app.sh` và `.github/ISSUE_TEMPLATE/from-app.yml` chỉ nhắc tên `docs/lessons.md`; `scripts/new-app.sh` thay đoạn đầu của `CLAUDE.md`, không chạm mục Lệnh;
 - `.github/workflows/pr-check.yml` và `scripts/local-setup.sh` chạy hay nhắc `scripts/tests/run.sh`, không phụ thuộc test mới.
+- `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt` và `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenOverlayScreenshotTest.kt` chỉ dẫn quy tắc test của `CLAUDE.md` trong chú thích; plan chỉ đổi mục Lệnh.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
 
