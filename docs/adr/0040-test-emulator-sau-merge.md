@@ -1,7 +1,7 @@
 ---
 id: ADR-0040
 title: Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-30
 deciders: [Nhật]

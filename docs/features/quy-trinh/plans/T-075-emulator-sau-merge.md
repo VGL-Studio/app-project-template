@@ -1,16 +1,16 @@
 ---
 ticket: T-075
 title: Test emulator chạy sau khi merge, không chạy ở từng PR
-status: draft
+status: approved
 version: 1
 risk_score: 11
 risk_level: high
 token_estimate: 23.9M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -334,8 +334,8 @@ Không cần (E dưới 2): `android-emulator-runner`, job có `needs` và `outp
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:**, **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "T-075: theo đề xuất của AI. Thứ tự duyệt: Theo đề xuất của AI."), sau khi xem tóm tắt plan và các câu hỏi ở mục 8. Chín câu theo đề xuất của plan: (1) job `ui-test` trong `main-guard`, ADR-0040 ghi `accepted`; (2) đỏ thật mở `main-broken`; (3) chạy lại một lần trong job; (4) phạm vi `infra` như câu 4; (5) hai issue; (6) giữ `main-guard-status.sh`; (7) không thêm ngoại lệ; (8) đồng ý cách bù; (9) vẫn làm: repo công khai chỉ là tạm thời (anh Nhật, 2026-10-30), coi như private. Các điểm còn lại sau vòng rà soát lại thứ 2 (mô tả PR plan #318): task sửa trong file của mục 3.2 theo đề xuất ở đó, như điểm nên sửa (ADR-0029): nhãn cố định cho các nhánh `infra` không có mã PB (`EMULATOR HẠ TẦNG (thiết bị)`, `EMULATOR HẠ TẦNG (không có log)`), bước 9 chạy lại riêng job theo lịch của PB-15, không revert, thêm một ca vào test 26; `applicationId` rỗng thì in cảnh báo và chỉ dùng tín hiệu của Gradle, thoát dấu `.` trong regex. Thứ tự duyệt: T-075 trước; plan T-076, T-077 đối chiếu lại sau khi T-075 merge. Task làm có người (`auto_run: false`), không qua phiên tự chạy.
 
 ## 10. Nhật ký thực hiện

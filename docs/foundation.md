@@ -278,6 +278,17 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - commit đổi một file mà job `guard` gọi hay dựa vào, lần chạy tay và lần chạy lại luôn dùng `full`
 - đổi tên bước cổng chất lượng hay tên job `build-and-test` của `pr-check.yml`, hay thêm file trong `docs/` mà Gradle đọc, thì sửa `main-guard-verified.sh` và test của nó cùng PR
 
+### [ADR-0040](adr/0040-test-emulator-sau-merge.md): Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
+
+- test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`
+- `merge-if-green.sh` không đòi hay chờ `ui-test`
+- chỉ kết luận `red` của `scripts/ui-test-verdict.sh` mở `main-broken`
+- `infra` chỉ cho danh sách trắng PB của script và thiết bị hỏng, app dừng luôn là `red`
+- `find-breaking-commit.sh --check ui-test` không đổ lỗi cho commit có annotation `EMULATOR HẠ TẦNG (`, không chờ commit có `ui-test` bị hủy hay hết giờ
+- issue `main-broken` của emulator có dòng `<!-- check:ui-test -->`, và mỗi job chỉ bình luận, chỉ tự đóng issue của chính nó
+- emulator đỏ vì hạ tầng sau merge thì chạy lại riêng job đỏ theo `docs/ops/failure-playbook.md`, không mở `main-broken`, không đẩy commit rỗng lên nhánh chính
+- thêm đường dẫn code app hay script mà job `ui-test` gọi thì sửa danh sách của `scripts/ui-test-needed.sh` và test của nó cùng PR
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
@@ -295,14 +306,3 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
-
-### [ADR-0040](adr/0040-test-emulator-sau-merge.md): Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
-
-- test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`
-- `merge-if-green.sh` không đòi hay chờ `ui-test`
-- chỉ kết luận `red` của `scripts/ui-test-verdict.sh` mở `main-broken`
-- `infra` chỉ cho danh sách trắng PB của script và thiết bị hỏng, app dừng luôn là `red`
-- `find-breaking-commit.sh --check ui-test` không đổ lỗi cho commit có annotation `EMULATOR HẠ TẦNG (`, không chờ commit có `ui-test` bị hủy hay hết giờ
-- issue `main-broken` của emulator có dòng `<!-- check:ui-test -->`, và mỗi job chỉ bình luận, chỉ tự đóng issue của chính nó
-- emulator đỏ vì hạ tầng sau merge thì chạy lại riêng job đỏ theo `docs/ops/failure-playbook.md`, không mở `main-broken`, không đẩy commit rỗng lên nhánh chính
-- thêm đường dẫn code app hay script mà job `ui-test` gọi thì sửa danh sách của `scripts/ui-test-needed.sh` và test của nó cùng PR
