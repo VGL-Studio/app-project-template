@@ -2268,6 +2268,7 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.APP_OPEN -> null
     AdFormat.REWARDED -> null
     AdFormat.BANNER_COLLAPSIBLE -> null
+    AdFormat.BANNER_MREC -> null
     AdFormat.NATIVE_STEP -> NativeAdSize.STEP
     AdFormat.NATIVE_IN_COLLECTION -> NativeAdSize.CARD
 }
