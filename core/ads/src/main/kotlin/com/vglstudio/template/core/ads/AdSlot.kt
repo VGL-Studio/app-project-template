@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.flow.Flow
@@ -45,10 +44,11 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
 /**
  * Shows the banner of [placement] in a screen. Features call this, never an ads SDK directly.
  *
- * - [AdFormat.BANNER]: a fixed banner, refreshed by the SDK at the rate of its ad unit in AdMob; the app only retries
- *   after a failure (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a collapsible banner, loaded again by :core:ads 30 s after
- *   each load, each time as a new expanded banner (B-03); place it at the bottom of the screen. Any other format
- *   throws [IllegalArgumentException].
+ * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0038), refreshed by the SDK at the
+ *   rate of its ad unit in AdMob; the app only retries after a failure (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a
+ *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads 30 s after each load, each time
+ *   as a new expanded banner (B-03); place it at the bottom of the screen. Any other format throws
+ *   [IllegalArgumentException]. The size comes from [bannerAdSize].
  * - It takes no space until ads are allowed (consent given, placement switched on remotely, a unit id; B-01, B-04).
  *   The height is reserved before the ad loads, so the screen does not jump when it appears.
  * - Requests are sent only while the screen shows (resumed), no full-screen ad is drawn over the app (KB-27, B-07)
@@ -92,7 +92,7 @@ private fun BannerSlot(
         val context = LocalContext.current
         val screenWidthDp = LocalConfiguration.current.screenWidthDp
         val widthDp = if (constraints.hasBoundedWidth) maxWidth.value.toInt() else screenWidthDp
-        val adSize = remember(widthDp) { AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp) }
+        val adSize = remember(widthDp, format) { bannerAdSize(context, format, widthDp) }
         LaunchedEffect(adSize) { currentOnHeight(adSize.height.dp) }
         key(adSize) {
             BannerSlotHost(
@@ -243,8 +243,8 @@ private fun BannerFrameContent(
 }
 
 /**
- * The banner slot of a bottom bar ([BottomAdBarScaffold], D-01): the fixed banner (refreshed by the SDK, B-01, B-02)
- * as a layer of the bar's [placement], with the unit of [AdFormat.BANNER] for it; no unit (production today) sends
+ * The banner slot of a bottom bar ([BottomAdBarScaffold], D-01): the fixed banner at the anchored adaptive size
+ * (refreshed by the SDK, B-01, B-02, ADR-0038) as a layer of the bar's [placement], with the unit of [AdFormat.BANNER] for it; no unit (production today) sends
  * nothing and takes no space (B-04). [onHeight] gets the frame's height for the space the bar keeps.
  */
 @Composable
