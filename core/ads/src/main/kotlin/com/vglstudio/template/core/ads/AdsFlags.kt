@@ -62,6 +62,8 @@ data class AdsGlobalFlags(
     val logSlotEvents: Boolean,
     /** time_close_native, 1 to 30, any other value read as 5. */
     val closeNativeCountdownSeconds: Long,
+    /** ads_mediation_order, read as written; [AdsController.mediationOrder] applies the SDK key. */
+    val mediationOrder: MediationOrder = MediationOrder.DEFAULT,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */

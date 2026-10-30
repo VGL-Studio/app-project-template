@@ -52,12 +52,25 @@ class AdsSettingsTest {
             Triple("is_enable_consent_shortcut", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_fullscreen_events", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_slot_events", RemoteKey.Type.BOOLEAN, false),
+            Triple("ads_mediation_order", RemoteKey.Type.STRING, "max_admob"),
         )
         val global = AdsSettings.all().filterNot { isDerived(it.name) }
             .map { Triple(it.name, it.type, it.default) }
-        assertEquals(15, expected.size)
+        assertEquals(16, expected.size)
         assertEquals(expected, global.toSet())
         assertEquals(global.size, global.toSet().size)
+    }
+
+    @Test
+    fun mediationOrder_isStringDefaultMaxAdmob() {
+        // Plan T-068, ADR-0037: the order of the two ad platforms, a name set by the template.
+        assertKey(AdsSettings.ADS_MEDIATION_ORDER, "ads_mediation_order", RemoteKey.Type.STRING, "max_admob")
+        assertEquals(MediationOrder.DEFAULT.code, AdsSettings.ADS_MEDIATION_ORDER.default)
+        assertTrue(AdsSettings.ADS_MEDIATION_ORDER in AdsSettings.all())
+        assertTrue(
+            AdsSettings.ADS_MEDIATION_ORDER.description,
+            AdsSettings.ADS_MEDIATION_ORDER.description.endsWith("Name set by the template, not an AdsKit key."),
+        )
     }
 
     @Test

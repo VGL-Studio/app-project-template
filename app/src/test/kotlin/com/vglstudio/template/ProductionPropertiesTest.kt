@@ -81,10 +81,58 @@ class ProductionPropertiesTest {
         FORBIDDEN_IN_PRODUCTION.forEach { assertFalse("$it in production:\n$production", it in production) }
     }
 
+    @Test
+    fun maxSdkKey_isOptionalUntilReleaseShPassesIt() {
+        // Plan T-068, question 6: production reads -PmaxSdkKey but does not require it yet. T-073 changes this test
+        // together with the export in scripts/release.sh and the L-125 contract test of scripts/tests/run.sh (the
+        // "8 none" and "4 none" lines), so no release breaks after the passwords are typed.
+        val production = flavor("production")
+        // Control: the block read is the production flavor.
+        assertTrue(production, "appsFlyerDevKey" in production)
+        assertTrue(production, "\"MAX_SDK_KEY\"" in production)
+        assertTrue(production, "gradleProperty(\"maxSdkKey\")" in production)
+        val check = build
+            .substringAfter("val missingProductionProperties = mapOf(")
+            .substringBefore("throw GradleException(")
+        listOf("maxSdkKey", "com.applovin", "ADR-0037").forEach { assertFalse("$it in:\n$check", it in check) }
+    }
+
+    @Test
+    fun stagingMaxKey_readsLocalPropertiesOnly() {
+        // Plan T-068, question 43 of the ads spec: CI has no such key, so its staging builds never start MAX.
+        val staging = flavor("staging")
+        assertTrue(staging, "\"MAX_SDK_KEY\"" in staging)
+        assertTrue(staging, "local.properties" in staging)
+        assertTrue(staging, "\"$MAX_KEY\"" in staging)
+        assertFalse(staging, "gradleProperty(\"maxSdkKey\")" in staging)
+        // Control: production never reads the developer's key.
+        assertFalse(flavor("production"), MAX_KEY in flavor("production"))
+    }
+
+    @Test
+    fun stagingMaxKey_isFilteredBeforeBuildConfig() {
+        // A quote or backslash in local.properties would break the Java string of BuildConfig (plan T-068).
+        val staging = flavor("staging")
+        assertTrue(staging, "getProperty(\"$MAX_KEY\")" in staging)
+        assertTrue(staging, ".trim()" in staging)
+        assertTrue(staging, "Regex(\"[A-Za-z0-9_-]+\")" in staging)
+        assertTrue(staging, "matches" in staging)
+        val field = staging.lines().single { "buildConfigField(\"String\", \"MAX_SDK_KEY\"" in it }
+        assertTrue(field, "\$maxSdkKey" in field)
+        assertFalse(field, "getProperty(" in field)
+        val warning = staging.lines().single { "logger.warn(" in it }
+        assertTrue(warning, MAX_KEY in warning)
+        assertFalse("The warning prints a value: $warning", "$" in warning)
+        // Control (L-054): local.properties is read once, in the one variable shared with T-058.
+        assertEquals(1, build.occurrences("val localProperties"))
+        assertEquals(1, build.occurrences("import java.util.Properties"))
+    }
+
     private fun String.occurrences(part: String): Int = split(part).size - 1
 
     private companion object {
         const val TEST_DEVICES_KEY = "ads.testDeviceIds"
+        const val MAX_KEY = "ads.maxSdkKey"
         val FORBIDDEN_IN_PRODUCTION = listOf("ADS_TEST_DEVICE_IDS", "testDeviceIds", "localProperties")
     }
 }

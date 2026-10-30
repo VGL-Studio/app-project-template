@@ -131,6 +131,8 @@ class AdsController @Inject internal constructor(
     private val interDisplayCounter: InterDisplayCounter,
     private val attribution: AppsFlyerStartup,
     funnel: AdFunnel,
+    private val maxConfig: MaxConfig,
+    maxPlatform: MaxPlatform,
 ) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -228,6 +230,13 @@ class AdsController @Inject internal constructor(
         .map { it ?: DEFAULT_GLOBAL_FLAGS }
         .stateIn(scope, SharingStarted.Eagerly, latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS)
     private val online = MutableStateFlow(true)
+
+    // Skeleton of plan T-068, step 3: fixed values until step 4.
+    private val maxStarter = MaxSdkStarter(maxConfig, maxPlatform, logger)
+
+    internal val mediationOrder: StateFlow<MediationOrder> = MutableStateFlow(MediationOrder.DEFAULT)
+
+    internal val maxReady: StateFlow<Boolean> = maxStarter.ready
 
     /** Blocks the ads that show by themselves while a consent form is open (S-16, G-01); read by T-022, T-025. */
     internal val foregroundAdSuppressor = ForegroundAdSuppressor()

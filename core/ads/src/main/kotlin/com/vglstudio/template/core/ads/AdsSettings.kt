@@ -145,6 +145,13 @@ object AdsSettings {
         description = "Logs the Firebase lifecycle events of ad slots (banner, native).",
     )
 
+    /** Skeleton of plan T-068, step 3: declared, not yet one of the global keys. */
+    val ADS_MEDIATION_ORDER = stringKey(
+        name = "ads_mediation_order",
+        default = MediationOrder.DEFAULT.code,
+        description = "Order of the two ad platforms.",
+    )
+
     /** The switch `is_show_<code>` of [placement], off by default (ADR-0014, MC-03). */
     fun placementEnabled(placement: AdPlacement): RemoteKey<Boolean> = placementEnabled(placement.declaration)
 
