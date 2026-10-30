@@ -3,7 +3,7 @@ ticket: T-081
 title: Robolectric 4.17, không ảnh chuẩn nào đổi
 status: draft
 version: 1
-risk_score: 6
+risk_score: 7
 risk_level: high
 token_estimate: 5.4M
 blocking_points: [build, sdk]
@@ -42,9 +42,9 @@ ADR liên quan: ADR-0011 (cổng chất lượng, ảnh chuẩn không cập nh�
 ### 3.1. Cách làm
 
 1. `gradle/libs.versions.toml` (file được bảo vệ; plan nêu rõ để phiên được sửa): đổi `robolectric = "4.15.1"` thành `robolectric = "4.17"`. Không đổi gì khác. Thư viện `robolectric` chỉ được thêm ở `build-logic/convention/src/main/kotlin/AndroidComposeConventionPlugin.kt` (`testImplementation`), nên không cần sửa file build nào.
-2. Không ghi lại ảnh chuẩn. Lệnh ghi ảnh ở mục 4 chỉ để đo, không commit. Sau lệnh đó, `git checkout -- '*/src/test/screenshots/'` đưa ảnh về như cũ.
+2. Không ghi lại ảnh chuẩn. Lệnh ghi ảnh ở mục 4 chỉ để đo, không commit. Sau lệnh đó, `git checkout -- '*/src/test/screenshots/*'` đưa ảnh về như cũ. Pathspec phải có `*` ở cuối: `'*/src/test/screenshots/'` (dấu `/` cuối, không `*`) không khớp file nào, nên `git status` và `git checkout` với nó không làm gì mà vẫn không báo lỗi (mục 4.1, kết quả 7).
 3. `robolectric.properties` của các module giữ `sdk=35`. Robolectric 4.17 tải `android-all-instrumented` bản mới cho SDK 35 lúc test chạy lần đầu. Trên máy dev lần thử đã tải được. Phiên cloud tải qua mirror Maven Central mà `cloud-setup.sh` đặt (`robolectric.dependency.repo.url`); CI tải từ Maven Central.
-4. Ticket `T-081-robolectric-roborazzi-anh-chuan.md`: `plan:`, trạng thái theo plan, cỡ `size: S` (lần thử cho thấy không có ảnh nào phải ghi lại).
+4. Ticket `T-081-robolectric-roborazzi-anh-chuan.md`: `plan:`, trạng thái theo plan, cỡ `size: S` (lần thử cho thấy không có ảnh nào phải ghi lại); tiêu đề và Mô tả theo kết quả: "Robolectric 4.17, không ảnh chuẩn nào đổi", bỏ câu "ghi lại các ảnh chuẩn screenshot đổi theo cách vẽ mới"; định nghĩa hoàn thành 1 và 2 ghi "không ảnh nào đổi, đo bằng lệnh của plan mục 4".
 
 **Ảnh lệch có sẵn** (không thuộc plan, ghi để người biết): `core/designsystem/src/test/screenshots/DesignSystem_spacing_components_light.png`, ghi từ 2026-10-17 (T-004, commit `050997e`). Mọi bộ build đã thử trên máy dev đều vẽ nó khác bản trong repo ở 501 điểm ảnh (0,0152%), mỗi điểm lệch đúng 1 mức màu trên 255. Roborazzi so ảnh có ngưỡng, nên `check.sh` và CI vẫn qua. Ghi lại ảnh này là việc riêng, không do Robolectric; plan không đụng (mục 8, câu 2).
 
@@ -83,14 +83,52 @@ Không có: plan không sửa code Kotlin nào. Mọi test JVM có sẵn là tes
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| Robolectric 4.17 có trên classpath test | Lệnh | `./gradlew -q :feature:sample:dependencies --configuration debugUnitTestRuntimeClasspath \| grep -o 'org.robolectric:robolectric:[0-9.]*' \| sort -u` in đúng `org.robolectric:robolectric:4.17` |
-| Mọi test qua, không ảnh nào đổi | Cổng chất lượng | `scripts/check.sh`: `== Cổng chất lượng: QUA`; dòng `Test JVM:` có số test không ít hơn lần `main-guard` gần nhất, 0 lỗi; `git status --short -- '*/src/test/screenshots/'` rỗng |
-| Robolectric 4.17 không làm đổi ảnh nào | Lệnh đo, không commit | Lệnh ghi ảnh của `CLAUDE.md` (mục Lệnh, có `--rerun`) cho cả năm module có ảnh: `./gradlew :app:recordRoborazziStagingDebug :app:testStagingDebugUnitTest --rerun :core:ads:recordRoborazziDebug :core:ads:testDebugUnitTest --rerun :core:designsystem:recordRoborazziDebug :core:designsystem:testDebugUnitTest --rerun :feature:loading:recordRoborazziDebug :feature:loading:testDebugUnitTest --rerun :feature:sample:recordRoborazziDebug :feature:sample:testDebugUnitTest --rerun`; rồi `git status --short -- '*/src/test/screenshots/'` chỉ có `DesignSystem_spacing_components_light.png`, hay rỗng; ảnh mới thêm từ phiên quảng cáo cũng phải giống từng byte. Rồi `git checkout -- '*/src/test/screenshots/'` |
-| So ảnh vẫn bắt được lệch nhỏ | Đối chứng, không commit | Đảo màu một khối 4 x 4 điểm ảnh ở giữa `feature/sample/src/test/screenshots/SampleScreen_ad-loading_light.png`, chạy `./gradlew :feature:sample:verifyRoborazziDebug :feature:sample:testDebugUnitTest --rerun`: đỏ, 1 test lỗi; trả ảnh về bằng `git checkout --` |
+| Robolectric 4.17 có trên classpath test | Lệnh | Lệnh 1 của khối dưới bảng in đúng một dòng `org.robolectric:robolectric:4.17` |
+| Mọi test qua, không ảnh nào đổi | Cổng chất lượng | `scripts/check.sh`: `== Cổng chất lượng: QUA`; dòng `Test JVM:` có số test không ít hơn lần `main-guard` gần nhất, 0 lỗi; lệnh 2 của khối dưới bảng in `0` |
+| Robolectric 4.17 không làm đổi ảnh nào | Lệnh đo, không commit | Lệnh 3 của khối dưới bảng, chạy trên main mới nhất: lần ghi bằng 4.15.1 (trước khi sửa) và lần ghi bằng 4.17 (sau khi sửa) cho cùng một danh sách ảnh đổi, và từng ảnh trong đó giống từng byte giữa hai lần (`cmp`). Lúc viết plan danh sách là đúng một ảnh, `DesignSystem_spacing_components_light.png` (lệch có sẵn, mục 3.1); ảnh mới của phiên quảng cáo cũng phải nằm ngoài danh sách hay giống từng byte giữa hai lần |
+| So ảnh vẫn bắt được lệch màu rõ trên vùng nhỏ | Đối chứng, không commit | Lệnh 4 của khối dưới bảng: đỏ, 1 test lỗi; ảnh được trả về. Lệch rất nhỏ (1 mức màu) nằm dưới ngưỡng so của Roborazzi; lệnh 3 so từng byte nên bắt được nó |
 | Bản release dựng được | Build | `pr-check` của PR (PR đổi `gradle/libs.versions.toml` nên chạy build release); trên máy không cần, vì Robolectric không vào APK |
-| CI dựng và test được | Kiểm tra thủ công (người: GitHub Actions) | `pr-check` xanh, gồm `ui-test` |
+| CI dựng và test được | Kiểm tra thủ công (người: GitHub Actions) | `pr-check` của PR xanh; sau merge, `main-guard` xanh, gồm job `ui-test` trên emulator (T-075, ADR-0043) |
 | Phiên cloud tải được Robolectric bản mới | Kiểm tra thủ công (người: phiên cloud có người, sau khi merge) | Trong một phiên cloud mới trên nhánh chính: `scripts/check.sh` QUA |
 | Ảnh lệch có sẵn | Kiểm tra thủ công (người: xem ảnh) | Người duyệt mở `DesignSystem_spacing_components_light.png` ở repo và bản ghi lại (mục 4.1), thấy không khác bằng mắt, và trả lời mục 8, câu 2 |
+
+Lệnh của mục 4 (chạy ở gốc repo; pathspec ảnh luôn có `*` ở cuối):
+
+```sh
+# 1. Robolectric on the test classpath.
+./gradlew -q :feature:sample:dependencies --configuration debugUnitTestRuntimeClasspath \
+  | grep -o 'org.robolectric:robolectric:[0-9.]*' | sort -u
+# 2. Reference images changed in the working tree (must print 0 after check.sh).
+git status --short -- '*/src/test/screenshots/*' | wc -l
+# 3. Record every module that has reference images, list the changed ones, keep a copy, put the images back.
+#    Run once before the version change (4.15.1) and once after (4.17), with a different label.
+label=4.17   # 4.15.1 for the first run
+mods=$(git ls-files -- '*/src/test/screenshots/*.png' | sed 's|/src/test/screenshots/.*||' | sort -u)
+args=()
+for m in $mods; do
+  g=":${m//\//:}"
+  if [ "$m" = app ]; then args+=("$g:recordRoborazziStagingDebug" "$g:testStagingDebugUnitTest" --rerun)
+  else args+=("$g:recordRoborazziDebug" "$g:testDebugUnitTest" --rerun); fi
+done
+./gradlew "${args[@]}"
+out="${TMPDIR:-/tmp}/t081-$label"; mkdir -p "$out"
+git status --short -- '*/src/test/screenshots/*' | tee "$out/changed.txt"
+for f in $(awk '{print $2}' "$out/changed.txt"); do cp "$f" "$out/$(basename "$f")"; done
+git checkout -- '*/src/test/screenshots/*'
+# After both runs: same list, and every changed image identical between the runs.
+diff "${TMPDIR:-/tmp}/t081-4.15.1/changed.txt" "${TMPDIR:-/tmp}/t081-4.17/changed.txt" \
+  && for f in "${TMPDIR:-/tmp}"/t081-4.17/*.png; do cmp "$f" "${TMPDIR:-/tmp}/t081-4.15.1/$(basename "$f")"; done
+# 4. Control: invert a 4 x 4 block of one image; the comparison must fail, then put the image back.
+img=feature/sample/src/test/screenshots/SampleScreen_ad-loading_light.png
+python3 -c "import sys; from PIL import Image; im=Image.open(sys.argv[1]).convert('RGBA'); px=im.load(); w,h=im.size
+for y in range(h//2,h//2+4):
+    for x in range(w//2,w//2+4): r,g,b,a=px[x,y]; px[x,y]=(255-r,255-g,255-b,a)
+im.save(sys.argv[1])" "$img"
+./gradlew :feature:sample:verifyRoborazziDebug :feature:sample:testDebugUnitTest --rerun; echo "exit $? (must be 1)"
+git checkout -- "$img"
+```
+
+Lệnh 4 cần Pillow (`python3 -c "import PIL"`); thiếu thì đổi màu khối đó bằng cách khác, miễn ảnh lệch rõ trên vùng nhỏ.
 
 Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 
@@ -98,15 +136,16 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 
 ### 4.1. Chạy thử
 
-- **Đã chạy thử:** 2026-10-30, máy dev (macOS, JDK 21.0.13), nhánh thử `claude/trial-T-081` từ main `661dbfa` (có T-080 và T-067), chưa đẩy. Log ở thư mục tạm của phiên.
-- **Lệnh:** `scripts/check.sh` (với ảnh cũ); lệnh ghi ảnh của mục 4 cho năm module; so điểm ảnh từng ảnh với bản ở `HEAD` (Pillow); `scripts/check.sh` lần nữa; đối chứng 4 x 4 điểm ảnh; `dependencies --configuration debugUnitTestRuntimeClasspath`.
+- **Đã chạy thử:** 2026-10-30, máy dev (macOS, JDK 21.0.13), nhánh thử `claude/trial-T-081`, chưa đẩy. Lần đầu trên main `661dbfa`, lần đo lại trên main `dfab197` (có T-080, T-067, T-075). Log ở thư mục tạm của phiên.
+- **Lệnh:** `scripts/check.sh`; lệnh 1 tới 4 của mục 4 (lần đo lại dùng đúng các lệnh đó, chạy bằng script); `cmp` và so điểm ảnh bằng Pillow.
 - **Kết quả:**
-  1. `check.sh` với Robolectric 4.17 và ảnh cũ: QUA, `Test JVM: 1498 test, 0 lỗi. Ảnh screenshot: 89`, không test nào đỏ.
-  2. Classpath test của `:feature:sample` có `org.robolectric:robolectric:4.17`.
-  3. Lệnh ghi ảnh chạy thật 10 task (5 task test, 5 task ghi ảnh) và ghi lại cả 89 ảnh (30 của `:app`, 41 của `:core:ads`, 6 của mỗi module `:core:designsystem`, `:feature:loading`, `:feature:sample`). 88 ảnh giống bản cũ từng byte. Ảnh thứ 89, `DesignSystem_spacing_components_light.png`, lệch 501 điểm ảnh (0,0152%), mỗi điểm lệch tối đa 1 mức màu.
-  4. Ảnh đó không lệch vì Robolectric. Ghi lại `:core:designsystem` hai lần bằng Robolectric 4.15.1 trên cùng main: cả hai lần ra đúng ảnh lệch, giống từng byte bản của 4.17. Ghi lại trên bộ build trước T-080 (AGP 8.13, Roborazzi 1.43, Robolectric 4.15.1; nhánh `claude/plan-T-080-agp-9`, `883c2c7`): cũng ra đúng ảnh đó. Ảnh trong repo là bản ghi ngày 2026-10-17 (T-004), có lẽ trên một máy khác; lệch nằm dưới ngưỡng so của Roborazzi, nên `check.sh` và CI vẫn qua.
-  5. `check.sh` lần hai (sau khi ghi): QUA, 1498 test, 89 ảnh.
-  6. Đối chứng với Robolectric 4.17: đảo màu khối 4 x 4 điểm ảnh của `SampleScreen_ad-loading_light.png` thì `:feature:sample:testDebugUnitTest` đỏ, "27 tests completed, 1 failed"; trả ảnh về thì `git status` sạch.
+  1. `check.sh` với Robolectric 4.17 và ảnh cũ: QUA, `Test JVM: 1498 test, 0 lỗi. Ảnh screenshot: 89`, không test nào đỏ (cả hai lần). Sau `check.sh`, lệnh 2 in `0`.
+  2. Classpath test của `:feature:sample` có `org.robolectric:robolectric:4.17`. Robolectric 4.17 tải `android-all-instrumented` bản `15-robolectric-13954326-i7` (bản cũ `12650502-i7`) lúc test chạy lần đầu.
+  3. Lần đo lại, trên `dfab197`: lệnh 3 chạy 5 task ghi ảnh (năm module có ảnh: `:app` 30 ảnh, `:core:ads` 41, `:core:designsystem`, `:feature:loading`, `:feature:sample` mỗi module 6). Với Robolectric 4.15.1: đúng một ảnh khác bản trong repo, `DesignSystem_spacing_components_light.png`, 501 điểm ảnh (0,0152%), lệch tối đa 1 mức màu. Với Robolectric 4.17: cùng một ảnh đó, cùng số đo. 88 ảnh còn lại giống bản trong repo từng byte ở cả hai bản.
+  4. Ảnh lệch giống nhau từng byte giữa các lần ghi: 4.17 (lần đầu, ghi chung năm module), 4.15.1 (ghi riêng `:core:designsystem`, hai lần) và bộ build trước T-080 (AGP 8.13, Roborazzi 1.43, Robolectric 4.15.1; `883c2c7`). Cả bốn bản cùng mã băm md5 `36ee2cae…`, 60.577 byte; bản trong repo là `c4c9a9a8…`, 60.397 byte, ghi ngày 2026-10-17 (T-004, commit `050997e`). Lệch này nằm dưới ngưỡng so của Roborazzi, nên `check.sh` và CI vẫn qua.
+  5. Đối chứng (lệnh 4) với Robolectric 4.17: `:feature:sample:testDebugUnitTest` đỏ, "27 tests completed, 1 failed"; trả ảnh về thì `git status` sạch. Ngưỡng của Roborazzi là theo độ lệch màu từng điểm, nên lệch 1 mức màu (kết quả 3) không làm test đỏ; chỉ lệnh 3 (so byte sau khi ghi) bắt được lệch đó.
+  6. Sau lần đo lại, nhánh thử sạch (`git status` rỗng).
+  7. Lần thử đầu báo "0 ảnh đổi" sai, vì dùng pathspec `'*/src/test/screenshots/'`. Pathspec glob có dấu `/` cuối mà không có `*` không khớp file nào (`git ls-files -- '*/src/test/screenshots/'` in 0 file; `'*/src/test/screenshots/*'` in 90). Lệnh `git status` không lọc mới cho thấy ảnh spacing đã đổi. Lần đo lại dùng pathspec có `*`. Pathspec sai này có sẵn ở `CLAUDE.md` (mục Lệnh), `docs/templates/plan.md`, L-114 và plan T-080 (mục 8, câu 4).
 - **Chưa thử:** CI Linux và phiên cloud (kiểm tay ở mục 4).
 
 ## 5. Chấm rủi ro
@@ -118,9 +157,9 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 | A. Phạm vi thay đổi | 3 | Một dòng, nhưng đổi môi trường chạy test giao diện của mọi module có Compose |
 | B. Độ rõ của yêu cầu | 0 | Ticket rõ; lần thử trả lời câu hỏi chính (ảnh có đổi không) |
 | C. Khả năng kiểm chứng tự động | 1 | Cổng chất lượng, lệnh đo ảnh và đối chứng kiểm hết; CI Linux và phiên cloud kiểm tay |
-| D. Ảnh hưởng chéo | 1 | Các task quảng cáo của RUN-20261030-01 thêm test chạy trên Robolectric; T-068 cũng sửa `gradle/libs.versions.toml`, ở dòng khác |
+| D. Ảnh hưởng chéo | 2 | T-068 (cùng danh sách RUN-20261030-01) cũng sửa `gradle/libs.versions.toml`, ở dòng khác; các task quảng cáo thêm test chạy trên Robolectric |
 | E. Độ mới của kỹ thuật | 1 | Nâng bản phụ của thư viện đã dùng |
-| **Tổng** | 6 | **Mức: Cao (điểm chặn 2, 7)** |
+| **Tổng** | 7 | **Mức: Cao (điểm chặn 2, 7)** |
 
 ## 6. Ảnh hưởng chéo
 
@@ -141,6 +180,7 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 1. Ticket T-081 dự kiến ghi lại ảnh chuẩn, nhưng lần thử cho thấy không ảnh nào đổi do Robolectric 4.17. Đề xuất: không ghi lại ảnh nào, và chuyển cỡ ticket từ M sang S.
 2. Ảnh lệch có sẵn `DesignSystem_spacing_components_light.png` (501 điểm ảnh, lệch 1 mức màu, dưới ngưỡng so). Đề xuất: không đụng trong plan này. Nếu anh muốn ảnh trong repo khớp đúng cách vẽ hiện tại, đó là một ticket nhỏ riêng: ghi lại một ảnh, có người xem.
 3. Thứ tự. Đề xuất: làm sau khi phiên RUN-20261030-01 kết thúc, vì task quảng cáo có thể thêm ảnh, và vì `merge-if-green.sh` không chặn nhánh `claude/T-*` khi có phiên đang chạy.
+4. Pathspec `'*/src/test/screenshots/'` (không có `*` cuối) của `CLAUDE.md` mục Lệnh, `docs/templates/plan.md` và L-114 không khớp file nào, nên lệnh "xem ảnh nào đã đổi" luôn in rỗng (mục 4.1, kết quả 7). Plan T-080 dùng nó cho câu "không ảnh chuẩn nào đổi"; câu đó vẫn đúng ở mức `check.sh` so ảnh qua (dưới ngưỡng), và lần đo lại ở đây xác nhận ở mức byte: bộ build mới không đổi ảnh nào ngoài ảnh spacing có sẵn. Đề xuất: ghi một bài học mới và sửa ba chỗ đó trong một PR riêng, không gộp vào plan này.
 
 ## 9. Quyết định duyệt
 
