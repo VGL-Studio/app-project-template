@@ -1173,6 +1173,29 @@ class AdsController @Inject internal constructor(
         sdkStarted.value = true
     }
 
+    // Skeleton of plan T-054 (step 3): the window follows foreground only.
+    internal val inScreenAdWindow: StateFlow<Boolean> = foregroundState
+
+    internal val inScreenSendGate: suspend () -> Boolean = { awaitSendAllowed(inScreenAdWindow, ::mayRequestNow) }
+
+    internal fun poolCanLoadNow(): Boolean = _sdkReady.value && inScreenAdWindow.value && mayRequestNow()
+
+    @VisibleForTesting
+    internal var nativeLoaderForTest: NativeAdLoader? = null
+
+    private fun newNativeLoader(events: NativeAdEvents?, options: NativeRequestOptions? = null): NativeAdLoader =
+        nativeLoaderForTest ?: SdkNativeAdLoader(context, adRequest(), events, options)
+
+    @VisibleForTesting
+    internal fun setAppForegroundForTest(foreground: Boolean) {
+        foregroundState.value = foreground
+    }
+
+    @VisibleForTesting
+    internal fun markSdkReadyForTest() {
+        _sdkReady.value = true
+    }
+
     /** Tests only: puts [ad] in the preloaded native full-screen slot of [placement], as a load would (plan T-044). */
     @VisibleForTesting
     internal fun putPreloadedNativeFullScreenForTest(placement: AdPlacement, ad: LoadedNativeAd) {
@@ -1384,7 +1407,7 @@ class AdsController @Inject internal constructor(
                     capacity = requireNotNull(key.format.poolCapacity()),
                     load = { poolLoad(key, placement) },
                     sendGate = { awaitSendAllowed(foregroundState, ::mayRequestNow) },
-                    canLoadNow = { _sdkReady.value && foregroundState.value && mayRequestNow() },
+                    canLoadNow = ::poolCanLoadNow,
                     canShowNow = { canRequestAds.value },
                     retryResets = preloader.nativeRetryResets,
                     clock = clock,
@@ -1414,7 +1437,7 @@ class AdsController @Inject internal constructor(
                     placement = { holder.value },
                 )
             },
-            newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
+            newLoader = { events -> newNativeLoader(events) },
             unitId = key.unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1486,7 +1509,7 @@ class AdsController @Inject internal constructor(
                 retryingNativeAdStates(
                     load = nativeLoadOnce(
                         newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD, format) },
-                        newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events) },
+                        newLoader = { events -> newNativeLoader(events) },
                         unitId = unitId,
                         size = size,
                         timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1515,7 +1538,7 @@ class AdsController @Inject internal constructor(
         val options = if (format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
         return nativeLoadOnce(
             newEvents = { nativeAdMetrics(placement, unitId, use, format) },
-            newLoader = { events -> SdkNativeAdLoader(context, adRequest(), events, options) },
+            newLoader = { events -> newNativeLoader(events, options) },
             unitId = unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,

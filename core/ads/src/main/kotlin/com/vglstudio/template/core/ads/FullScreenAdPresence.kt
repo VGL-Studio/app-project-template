@@ -10,11 +10,16 @@ import kotlinx.coroutines.flow.asStateFlow
  * callbacks, stuck recovery and forced completion; after [SHOWING_CAP_MILLIS] a new turn may start anyway (F-02).
  * Main thread only.
  */
-internal class FullScreenAdPresence {
+internal class FullScreenAdPresence(private val onPublished: (Boolean) -> Unit = {}) {
     private val _showing = MutableStateFlow(false)
     private var startedAt = 0L
 
     val showing: StateFlow<Boolean> = _showing.asStateFlow()
+
+    // Skeleton of plan T-054 (step 3).
+    val showingNow: Boolean get() = _showing.value
+
+    fun <T> publishAfter(block: () -> T): T = block()
 
     /** The ad on screen, or null. */
     var current: Shown? = null
@@ -42,12 +47,14 @@ internal class FullScreenAdPresence {
     fun onClosed() {
         current = null
         _showing.value = false
+        onPublished(false)
     }
 
     private fun begin(shown: Shown?, now: Long) {
         current = shown
         startedAt = now
         _showing.value = true
+        onPublished(true)
     }
 
     companion object {
