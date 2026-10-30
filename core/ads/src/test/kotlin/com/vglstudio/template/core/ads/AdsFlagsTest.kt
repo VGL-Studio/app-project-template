@@ -2,6 +2,8 @@ package com.vglstudio.template.core.ads
 
 import app.cash.turbine.test
 import com.vglstudio.template.core.config.RemoteKey
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -36,6 +38,10 @@ class AdsFlagsTest {
     private fun FakeRemoteSettings.set(name: String, value: Long) = set(long(name), value)
 
     private fun FakeRemoteSettings.set(name: String, value: String) = set(string(name), value)
+
+    private fun adFreeStatus(flow: StateFlow<Boolean>): AdFreeStatus = object : AdFreeStatus {
+        override val adFree = flow
+    }
 
     @Test
     fun masterSwitchOff_turnsEveryPlacementOff() = runTest {
@@ -320,5 +326,102 @@ class AdsFlagsTest {
         settings.set("ads_interval", 60L)
         assertEquals(90L, flags.intervalSeconds(sounds.intervalGroup).first())
         assertEquals(60L, flags.intervalSeconds(AdIntervalGroup.DEFAULT).first())
+    }
+
+    @Test
+    fun adFree_turnsEveryPlacementOff() = runTest {
+        // KB-30: the ad-free signal works like is_show_ads off, mid session too (L-061). Control: back off, back on.
+        val adFree = MutableStateFlow(false)
+        val adFreeFlags = DefaultAdsFlags(settings, adFreeStatus(adFree))
+        val placements = AdPlacement.entries.filterNot { it.appWide }
+        assertTrue(AdPlacement.SAMPLE_NATIVE_SMALL in placements)
+        settings.set("is_show_ads", true)
+        placements.forEach { placement ->
+            settings.set("is_show_${placement.key}", true)
+            adFreeFlags.placementEnabled(placement).test {
+                assertEquals(placement.key, true, awaitItem())
+                adFree.value = true
+                assertEquals(placement.key, false, awaitItem())
+                adFree.value = false
+                assertEquals(placement.key, true, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+    }
+
+    @Test
+    fun adFree_turnsAppOpenResumeAndComboOff() = runTest {
+        val adFree = MutableStateFlow(false)
+        val adFreeFlags = DefaultAdsFlags(settings, adFreeStatus(adFree))
+        listOf("show_open_ads", "show_open_ads_first_open", "show_resum_ads", "is_show_native_after_inter")
+            .forEach { settings.set(it, true) }
+        settings.set("is_show_native_bottom", true)
+        settings.set("is_enable_consent_shortcut", true)
+        adFreeFlags.global.test {
+            val on = awaitItem()
+            assertTrue(on.adsEnabled)
+            assertTrue(on.showOpenAds)
+            assertTrue(on.showOpenAdsFirstOpen)
+            assertTrue(on.showResumeAds)
+            assertTrue(on.showNativeAfterInter)
+            adFree.value = true
+            val off = awaitItem()
+            assertFalse(off.adsEnabled)
+            assertFalse(off.showOpenAds)
+            assertFalse(off.showOpenAdsFirstOpen)
+            assertFalse(off.showResumeAds)
+            assertFalse(off.showNativeAfterInter)
+            // Keys that turn no ad on by themselves keep their remote value (plan T-063, section 3.1 B).
+            assertTrue(off.showNativeBottom)
+            assertTrue(off.consentShortcutEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun adFree_andMasterSwitch_bothMustAllow() = runTest {
+        val placement = AdPlacement.SAMPLE_NATIVE_SMALL
+        settings.set("is_show_${placement.key}", true)
+        mapOf(
+            (true to false) to true,
+            (true to true) to false,
+            (false to false) to false,
+            (false to true) to false,
+        ).forEach { (inputs, expected) ->
+            val (showAds, adFree) = inputs
+            settings.set("is_show_ads", showAds)
+            val adFreeFlags = DefaultAdsFlags(settings, adFreeStatus(MutableStateFlow(adFree)))
+            val label = "is_show_ads=$showAds adFree=$adFree"
+            assertEquals(label, expected, adFreeFlags.placementEnabled(placement).first())
+            assertEquals(label, expected, adFreeFlags.global.first().adsEnabled)
+        }
+    }
+
+    @Test
+    fun adFreeNone_sameFlagsAsBefore() = runTest {
+        // KB-30, criterion 4: an app that wires no signal gets the flags of before.
+        assertFalse(AdFreeStatus.NONE.adFree.value)
+        val placements = AdPlacement.entries.filterNot { it.appWide }
+        listOf("show_open_ads", "show_open_ads_first_open", "show_resum_ads", "is_show_native_after_inter")
+            .forEach { settings.set(it, true) }
+        placements.forEach { settings.set("is_show_${it.key}", true) }
+        listOf(true, false).forEach { showAds ->
+            settings.set("is_show_ads", showAds)
+            val before = DefaultAdsFlags(settings)
+            val none = DefaultAdsFlags(settings, AdFreeStatus.NONE)
+            assertEquals("is_show_ads=$showAds", before.global.first(), none.global.first())
+            placements.forEach { placement ->
+                assertEquals(
+                    "${placement.key} is_show_ads=$showAds",
+                    before.placementEnabled(placement).first(),
+                    none.placementEnabled(placement).first(),
+                )
+            }
+        }
+        // Control (L-055): the same keys with the signal on differ from NONE, so the checks above compare real flags.
+        settings.set("is_show_ads", true)
+        val adFreeOn = DefaultAdsFlags(settings, adFreeStatus(MutableStateFlow(true)))
+        assertFalse(adFreeOn.global.first().adsEnabled)
+        assertTrue(DefaultAdsFlags(settings, AdFreeStatus.NONE).global.first().adsEnabled)
     }
 }

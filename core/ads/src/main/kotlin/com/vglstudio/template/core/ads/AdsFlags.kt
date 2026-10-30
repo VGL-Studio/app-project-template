@@ -73,7 +73,11 @@ enum class OpenAdType {
     }
 }
 
-internal class DefaultAdsFlags @Inject constructor(private val settings: RemoteSettings) : AdsFlags {
+internal class DefaultAdsFlags @Inject constructor(
+    private val settings: RemoteSettings,
+    // T-063 step 3 frame: not read yet.
+    @Suppress("unused") private val adFreeStatus: AdFreeStatus = AdFreeStatus.NONE,
+) : AdsFlags {
     override val global: Flow<AdsGlobalFlags> = combine(
         listOf(
             settings.value(AdsSettings.IS_SHOW_ADS),
