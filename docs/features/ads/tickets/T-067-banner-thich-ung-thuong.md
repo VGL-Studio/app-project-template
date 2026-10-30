@@ -24,7 +24,7 @@ Banner cố định đổi từ `getLargeAnchoredAdaptiveBannerAdSize` sang cỡ
 ## Phạm vi
 
 - Đổi `AdSlot.kt` (dòng 92-94); khung chừa chỗ theo chiều cao mới.
-- Ghi lại ảnh chuẩn có banner (liệt kê trong plan); test so chiều cao khung với cỡ mới.
+- ~~Ghi lại ảnh chuẩn có banner (liệt kê trong plan);~~ **Đổi 2026-10-30:** không ảnh chuẩn nào vẽ cỡ banner của SDK, nên không ghi lại ảnh (câu hỏi 4 của plan T-067); test so chiều cao khung với cỡ mới.
 - Sửa `ads-business-rules.md` B-01 kèm ADR-0038.
 
 **Không bao gồm:**

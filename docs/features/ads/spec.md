@@ -230,7 +230,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi đóng màn native thì người dùng đi tiếp tới màn đã chọn, và khoảng cách `ads_interval` tính từ lúc này.
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
 - [ ] Khi interstitial bị chặn ngay từ đầu (chưa có, chưa qua khoảng cách, đang có quảng cáo khác) thì người dùng đi tiếp ngay, không có native.
-- [ ] Khi interstitial đã được phép hiện nhưng không lên được màn (mất quảng cáo, lỗi hiển thị) và native sau inter đang bật thì vẫn có màn native toàn màn hình.
+- [ ] Khi interstitial đã được phép hiện nhưng không lên được màn (mất quảng cáo, lỗi hiển thị) và native sau inter đang bật thì vẫn có màn native toàn màn hình. **Đổi 2026-10-30:** trừ khi interstitial không được gọi hiện vì màn hình của app không còn dùng được (KB-26 tiêu chí 3): khi đó không có native, người dùng đi tiếp ngay (câu hỏi 2 của plan T-055).
 
 ### KB-17. Thanh quảng cáo ở đáy màn hình
 
@@ -564,7 +564,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 14. **Mã đơn vị quảng cáo theo khe (như AdsKit) hay theo vị trí (như hiện tại)?**
     - Đề xuất của AI: theo khe như AdsKit (`ads-business-rules.md` M-05, tên khe theo bản đặc tả độc lập để mỗi tên một nghĩa: `banner` là tự làm mới, `banner_collapsible` là nạp tay); vị trí chỉ để bật tắt và ghi doanh thu. Ít mã phải tạo hơn, và pool, nạp sẵn dùng chung một khe. Cần sửa `scripts/release.sh` và `release.properties` (việc của người hoặc plan rủi ro cao được duyệt chéo).
-    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23). **Đổi 2026-10-30:** phần làm hôm nay chỉ áp mã theo khe cho hai lớp của thanh đáy (`banner`, `native_collap`); định dạng chính vẫn lấy mã theo vị trí, vì `release.sh` điền mã thử cho mọi khóa vị trí thiếu. Đổi hẳn sang theo khe cho mọi định dạng là ticket riêng sau T-057 (anh Nhật, câu hỏi 1 của plan T-056).
 15. **Khóa dev AppsFlyer xử lý thế nào?**
     - Đề xuất của AI: như ADR-0027: production qua tham số build lúc phát hành; staging và CI không có khóa nên không gửi. Chưa cần app AppsFlyer riêng cho staging; khi cần thì thêm bí mật vào `staging.yml` bằng plan rủi ro cao.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
@@ -699,3 +699,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-29 | Nhật | Xác nhận spec; chấp nhận ADR-0036, ADR-0037, ADR-0038 (AI ghi theo lời anh Nhật) |
 | 2026-10-29 | AI | Sửa số điểm khi dẫn ADR-0036 ở KB-27, KB-29, KB-30 cho khớp ADR sau khi bỏ điểm hạn dùng interstitial (điểm 2, 4, 5 thành 1, 3, 4); không đổi nội dung (rà soát plan T-054, T-062) |
 | 2026-10-30 | Nhật | Duyệt 12 plan đợt 4 (T-053 tới T-060, T-062, T-063, T-066 tới T-068) theo đề xuất của AI: thêm kết quả đo quyền của MAX vào mục 6 và khóa `ads_mediation_order` vào mục 8 (câu hỏi 1 của plan T-068); thêm câu hỏi 50 và một tiêu chí của KB-30 (câu hỏi 6 của plan T-063). Xác nhận lại (AI ghi theo lời anh Nhật) |
+| 2026-10-30 | Nhật | Theo rà soát độc lập danh sách chạy RUN-20261030-01: thêm ngoại lệ vào KB-16 tiêu chí 7 (câu hỏi 2 của plan T-055) và ghi phạm vi hôm nay của câu 14 (câu hỏi 1 của plan T-056). Xác nhận lại (AI ghi theo lời anh Nhật) |
