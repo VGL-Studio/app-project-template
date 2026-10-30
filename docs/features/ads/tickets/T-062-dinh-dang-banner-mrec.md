@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-29]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
-depends_on: [T-054]
+depends_on: [T-054, T-067]
 sprint:
-plan:
+plan: features/ads/plans/T-062-dinh-dang-banner-mrec.md
 auto_run: 
 created: 2026-10-29
 ---
