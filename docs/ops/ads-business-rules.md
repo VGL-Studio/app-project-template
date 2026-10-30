@@ -141,9 +141,9 @@ Bằng chứng ở repo AdsKit, đường dẫn tính từ `M/`.
 | # | Luật | Chủ | AdsKit |
 | --- | --- | --- | --- |
 | K-01 | Combo chạy khi `is_show_native_after_inter` bật. Giá trị đọc **lúc inter hoàn tất**. Inter đã qua cổng thì khi hoàn tất mở màn native toàn màn hình, **kể cả khi inter không lên được màn** (mất quảng cáo giữa chừng, hiện lỗi) (A 03:113, đã chốt). Inter bị chặn ngay ở cổng (chưa sẵn sàng, giãn cách, bận, đồng ý) thì không có native. Khóa tắt thì đi tiếp như inter thường | ads | `M/AdsKit.kt:1084-1115`, `T/controller/ResumeAdShowPlanTest.kt:154` |
-| K-02 | Đếm ngược **3 giây**, bắt đầu khi inter đã rời màn hẳn; chờ inter rời màn tối đa 2 giây (kiểm mỗi 200 ms) để không kẹt khi cờ inter kẹt. Mốc kết thúc là thời điểm tuyệt đối, giữ qua lúc Activity bị tạo lại | ads | `M/compose/NativeAfterInterScreen.kt:34-48,99-106,142-158` |
-| K-03 | Nút đóng ở góc ~~**trên phải**, cách mép 12 dp~~ **đổi 2026-10-26:** **trên trái**, tại (16, 24) dp theo thiết kế T-035 (góc trên phải dành cho AdChoices; KB-16 của spec), vòng tròn **36 dp**, biểu tượng X 20 dp. Trong lúc đếm, chỗ đó là vòng 36 dp chứa số giây (16 sp, đậm). Nút dùng được khi đếm xong **hoặc** khi nạp lỗi | ads | `M/compose/NativeAfterInterScreen.kt:116-121,183-195` |
-| K-04 | Nạp lỗi thì tự đóng khi hết đếm ngược. Quảng cáo chưa về thì hiện khung chờ toàn màn hình và vẫn đóng được sau 3 giây. Bấm đóng chỉ ăn một lần | ads | `M/compose/NativeAfterInterScreen.kt:115,133-140,168-170`, commit `4362a78` |
+| K-02 | Đếm ngược ~~**3 giây**~~ **đổi 2026-10-29 (ADR-0038):** theo `time_close_native`, mặc định **5 giây**; nhận 1 tới 30, giá trị khác dùng 5; đọc một lần lúc màn native mở (đổi khóa giữa lúc đếm chỉ áp cho lượt sau). Áp cho combo và lượt native toàn màn hình độc lập (KB-5). Bắt đầu khi inter đã rời màn hẳn; chờ inter rời màn tối đa 2 giây (kiểm mỗi 200 ms) để không kẹt khi cờ inter kẹt: JBase không có, giữ để chống kẹt (L-A10). Mốc kết thúc là thời điểm tuyệt đối, giữ qua lúc Activity bị tạo lại | ads | `M/compose/NativeAfterInterScreen.kt:34-48,99-106,142-158`; JBase `NativeFullscreenTemplate.java:53,101-106` |
+| K-03 | Nút đóng ở góc ~~**trên phải**, cách mép 12 dp~~ **đổi 2026-10-26:** **trên trái**, tại (16, 24) dp theo thiết kế T-035 (góc trên phải dành cho AdChoices; KB-16 của spec), vòng tròn ~~**36 dp**~~ **48 dp** (đổi 2026-10-29, ADR-0038; vẽ và chạm đúng 48 dp, hàng trên của màn sau inter cao 48 dp), biểu tượng X 20 dp. Trong lúc đếm, chỗ đó là vòng ~~36 dp~~ 48 dp chứa số giây (16 sp, đậm). Nút dùng được khi đếm xong **hoặc** khi nạp lỗi | ads | `M/compose/NativeAfterInterScreen.kt:116-121,183-195`; JBase `NativeFullscreenTemplate.java:315,325` |
+| K-04 | Nạp lỗi thì tự đóng khi hết đếm ngược. Quảng cáo chưa về thì hiện khung chờ toàn màn hình và vẫn đóng được ~~sau 3 giây~~ sau khi hết đếm ngược (K-02). Bấm đóng chỉ ăn một lần | ads | `M/compose/NativeAfterInterScreen.kt:115,133-140,168-170`, commit `4362a78` |
 | K-05 | Đóng màn native thì đẩy mốc `ads_interval` về lúc đóng cả cụm. Trong lúc màn native hiện, quảng cáo khi quay lại app bị chặn (mục 6). Màn native không tự bật chặn: bộ điều phối combo của `:core:ads` (bên mở màn) giữ một suất của bộ đếm chặn khi màn đang hiện và nhả khi đóng (A 03:124, A 04:151) | ads | `M/AdsKit.kt:1021-1052`, `M/compose/NativeAfterInterScreen.kt:78-84` |
 | K-06 | Mỗi lần hiện sở hữu một quảng cáo native riêng, hủy khi rời màn, rồi nạp sẵn cho lần sau | ads | `M/compose/NativeAfterInterScreen.kt:92-95,159-167` |
 | K-07 | Mỗi lần hiện ghi đúng một kết quả cơ hội: `shown` nếu có quảng cáo; `not_ready` nếu nạp lỗi hay người dùng đóng khi quảng cáo chưa về | ads | `M/compose/NativeAfterInterScreen.kt:55-65`, commit `80e82a8` |
@@ -234,7 +234,7 @@ Luật chung của native:
 | --- | --- | --- | --- |
 | CL-01 | Quảng cáo đầu tiên mở rộng, trừ khi người dùng đã thu gọn. Lần nạp đầu chờ tối đa 10 giây (kiểm mỗi 200 ms); quá thời gian thì không vẽ | ads | `M/compose/NativeAdCollap.kt:69-93`, `M/compose/NativeAdCollapReloadPolicy.kt:29` |
 | CL-02 | Làm mới mỗi 60 giây: nạp quảng cáo chờ, đợi tối đa 10 giây, rồi đổi vào và hủy cái cũ. Làm mới **chỉ đổi nội dung**, giữ nguyên trạng thái thu gọn. Lỗi thì giữ quảng cáo và trạng thái cũ. Ở nền thì bỏ nhịp. Bị che thì bỏ nhịp như ở nền (O-10); nhịp sau tính 60 giây từ nhịp bị bỏ, đóng màn che không làm mới ngay | ads | `M/compose/NativeAdCollap.kt:97-188`, `M/manager/NativePolicyDecisions.kt:76-81` |
-| CL-03 | **Bung lại:** hẹn giờ riêng, đếm từ lúc người dùng bấm thu gọn, kéo dài `time_expand_collap_ad` giây (mặc định 30). Giá trị 0 hay âm là không bao giờ bung lại. Làm mới không đặt lại hẹn giờ. Chỉ bung khi đang có quảng cáo | ads | `M/compose/NativeAdCollap.kt:190-217`, commit `28f6941`, `5e5deba` |
+| CL-03 | **Bung lại:** hẹn giờ riêng, đếm từ lúc người dùng bấm thu gọn, kéo dài `time_expand_collap_ad` giây (mặc định ~~30~~ **10**, đổi 2026-10-29 theo JBase `NativeBannerTemplate.java:34`, ADR-0038). Giá trị 0 hay âm là không bao giờ bung lại: JBase coi 0 là bung ngay, ta giữ nghĩa cũ vì đó là lỗi của JBase (ADR-0038). Làm mới không đặt lại hẹn giờ. Chỉ bung khi đang có quảng cáo | ads | `M/compose/NativeAdCollap.kt:190-217`, commit `28f6941`, `5e5deba` |
 | CL-04 | Vòng làm mới đọc trạng thái thu gọn **hiện tại**, không dùng giá trị chụp lúc bắt đầu | ads | `M/compose/NativeAdCollap.kt:55-58`, commit `70d52db` |
 
 ### 5.9 Pool native (ô lưới, medium, giới thiệu)
@@ -386,9 +386,10 @@ Cột "Nguồn tên": **AdsKit** là tên có trong bảng khóa chính thức c
 | `resume_ad_type` | string | `aoa` | Chỉ đúng `inter` mới là interstitial; giá trị khác là app open | ads | AdsKit | `M/AdFeatureFlags.kt:8`, `DG:175` |
 | `ads_interval` | long (giây) | 45 | Khoảng tối thiểu từ lúc inter gần nhất của nhóm mặc định rời màn tới inter sau | ads | AdsKit | `M/AdFeatureFlags.kt:10`, `DG:176` |
 | `is_show_native_after_inter` | boolean | false | Combo inter rồi native toàn màn hình | ads | AdsKit | `M/AdFeatureFlags.kt:11`, `DG:177` |
+| `time_close_native` | long (giây) | 5 | Đếm ngược trước khi đóng được native toàn màn hình (combo và lượt độc lập); 1 tới 30, giá trị khác dùng 5 (K-02) | ads | JBase | JBase `NativeFullscreenTemplate.java:101-106` |
 | `is_show_native_bottom` | boolean | false | Khe đáy của mọi thanh đáy: native nhỏ (true) hay banner (false) | ads | AdsKit | `M/AdFeatureFlags.kt:12`, `DG:178` |
 | `is_show_native_collap` | boolean | true | Lớp native thu gọn trên thanh đáy khi khe đáy là native (D-01). Hiệu lực = `is_show_native_bottom` và khóa này | ads | tên do ta đặt | A 05:56 |
-| `time_expand_collap_ad` | long (giây) | 30 | Bung lại native thu gọn sau khi người dùng thu gọn; 0 là không bung lại | ads | tên do ta đặt (suy từ trường `timeExpandCollapAd`) | `M/AdFeatureFlags.kt:16-23`, A 01:42 |
+| `time_expand_collap_ad` | long (giây) | 10 | Bung lại native thu gọn sau khi người dùng thu gọn; 0 là không bung lại | ads | tên do ta đặt (suy từ trường `timeExpandCollapAd`) | `M/AdFeatureFlags.kt:16-23`, A 01:42 |
 | `is_enable_consent_shortcut` | boolean | **false** | Công tắc từ xa của nhánh rút gọn `CACHED_EARLY`, `ERROR_ALLOWED` (S-12). Cần thêm cấu hình lúc build của `:app`, mặc định cũng tắt. Tắt thì thu hồi ngay `ERROR_ALLOWED` | ads | tên do ta đặt | A 02:24-26, `M/AdsKit.kt:876-879` |
 | `is_log_ad_fullscreen_events` | boolean | false | Số liệu vòng đời Firebase của nhóm toàn màn hình (mục 8.2) | ads | tên do ta đặt | `M/analytics/FirebaseAdEventConfig.kt:13-21` |
 | `is_log_ad_slot_events` | boolean | false | Số liệu vòng đời Firebase của nhóm khe | ads | tên do ta đặt | như trên |
@@ -424,8 +425,8 @@ Khóa của AdsKit **không** khai báo:
 | Hạn dùng native | 55 phút | `M/behavior/PartnerAdsConstants.kt:48` |
 | Làm mới native tại chỗ (đáy, thu gọn) | 60 giây; native đáy trễ 500 ms sau lớp thu gọn | `M/behavior/PartnerAdsConstants.kt:59`, `M/compose/NativeAdSmall.kt:39` |
 | Chờ lần nạp đầu và lần làm mới của native thu gọn | 10 giây, kiểm mỗi 200 ms | `M/compose/NativeAdCollap.kt:77,147` |
-| Đếm ngược native sau inter; chờ inter rời màn | 3 giây; 2 giây | `M/compose/NativeAfterInterScreen.kt:34,42` |
-| Nút đóng native sau inter; nút thu gọn | 36 dp, X 20 dp, cách mép 12 dp; 32 dp, biểu tượng 20 dp, cách mép 4 dp | `M/compose/NativeAfterInterScreen.kt:183-193`, `M/compose/NativeAdCollap.kt:242-244` |
+| Đếm ngược native sau inter; chờ inter rời màn | `time_close_native` (mặc định 5 giây, không còn là hằng số); 2 giây | `M/compose/NativeAfterInterScreen.kt:34,42` |
+| Nút đóng native sau inter; nút thu gọn | 48 dp tại (16, 24) dp, X 20 dp;  32 dp, biểu tượng 20 dp, cách mép 4 dp | `M/compose/NativeAfterInterScreen.kt:183-193`, `M/compose/NativeAdCollap.kt:242-244` |
 | Chiều cao native thu gọn, thẻ ở bước của luồng, khe đáy (vẽ và chừa chỗ) | 250 dp, 250 dp, 80 dp | `M/compose/NativeAdCollap.kt:221`, `M/compose/NativeAdOnboarding.kt:70`, A 05:68, A 08:44 |
 | Nhịp nạp lại tay của banner thu gọn | 30 giây | A 08:40 |
 | Số sao tối đa của native | 5 | A 08:46 |
@@ -453,7 +454,7 @@ Lỗi AdsKit đã sửa (mỗi dòng nên có test tương ứng trong plan):
 | L-A07 | Vòng làm mới native nhỏ mất bộ ghi doanh thu | Luôn gắn bộ ghi tổng hợp | `51897f2` |
 | L-A08 | Pager giới thiệu hiện hai trang kề nhau cùng một quảng cáo | Dùng pool (OB-02) | `bb15e59` |
 | L-A09 | Pool không có quảng cáo thì khung chờ hiện mãi | Có trạng thái cạn, ẩn ô, vẫn thử lấy (P-05, P-06) | `a4b33ca` |
-| L-A10 | Đồng hồ native sau inter chờ cờ inter không có trần, nút đóng không bao giờ hiện | Chờ tối đa 2 giây (K-02) | `4362a78` |
+| L-A10 | Đồng hồ native sau inter chờ cờ inter không có trần, nút đóng không bao giờ hiện | Chờ tối đa 2 giây (K-02). JBase không chờ; ta giữ phần chờ này (ADR-0038) | `4362a78` |
 | L-A11 | Màn native sau inter tự chặn bằng cờ đúng sai, tạo lại Activity thì cờ bị hạ | Chặn bằng bộ đếm, nơi gọi sở hữu (G-01, K-05) | `4362a78`, `c7f90b1` |
 | L-A12 | Vòng làm mới native thu gọn xóa thao tác thu gọn của người dùng | Đọc trạng thái hiện tại; bung lại có hẹn giờ riêng (CL-03, CL-04) | `70d52db`, `28f6941` |
 | L-A13 | Lớp nổi lấp cả màn, đẩy thanh điều hướng ra ngoài, chạm rơi vào quảng cáo | Chỉ lấp chiều rộng (D-03) | `b4781fa` |

@@ -222,6 +222,8 @@ class AdsControllerNativeComboTest {
     @Test
     fun standalone_timeCloseNative_fromRemote() {
         val placement = AdPlacement.GALLERY_NATIVE_FULL_SCREEN
+        // Remote values reach the controller once it is started, as the app does in onCreate.
+        controller.start(activity.application, AppActivityFilter { true })
         settings.set(AdsSettings.TIME_CLOSE_NATIVE, 12L)
         idle()
         assertTrue(controller.beginStandaloneNativeTurn(placement, { FakeLoadedNativeAd() }, onFinished))

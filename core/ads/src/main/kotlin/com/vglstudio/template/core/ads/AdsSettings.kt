@@ -40,8 +40,14 @@ object AdsSettings {
     private fun stringKey(name: String, default: String, description: String) =
         RemoteKey.string(name, default, nameNote(name, description))
 
-    private fun nameNote(name: String, description: String) =
-        if (name in ADSKIT_KEY_NAMES) description else "$description $TEMPLATE_NAME"
+    /** Names taken from JBase, not from AdsKit (ADR-0038): their description says so instead of [TEMPLATE_NAME]. */
+    internal val JBASE_KEY_NAMES: Set<String> = setOf("time_close_native")
+
+    private fun nameNote(name: String, description: String) = when (name) {
+        in ADSKIT_KEY_NAMES -> description
+        in JBASE_KEY_NAMES -> "$description $JBASE_NAME"
+        else -> "$description $TEMPLATE_NAME"
+    }
 
     val IS_SHOW_ADS = booleanKey(
         name = "is_show_ads",
@@ -93,10 +99,9 @@ object AdsSettings {
         description = "Shows a full-screen native ad right after an interstitial (combo).",
     )
 
-    // Scaffold of plan T-053 (step 3): the default and the table come with the code.
     val TIME_CLOSE_NATIVE = longKey(
         name = "time_close_native",
-        default = 0L,
+        default = 5L,
         description = "Countdown before the full-screen native ad can be closed, in seconds; 1 to 30, " +
             "any other value uses 5.",
     )
@@ -115,7 +120,7 @@ object AdsSettings {
 
     val TIME_EXPAND_COLLAP_AD = longKey(
         name = "time_expand_collap_ad",
-        default = 30L,
+        default = 10L,
         description = "Time after the user collapses the collapsible native ad before it expands again, in seconds; " +
             "0 means never.",
     )
@@ -214,6 +219,7 @@ object AdsSettings {
         RESUME_AD_TYPE,
         ADS_INTERVAL,
         IS_SHOW_NATIVE_AFTER_INTER,
+        TIME_CLOSE_NATIVE,
         IS_SHOW_NATIVE_BOTTOM,
         IS_SHOW_NATIVE_COLLAP,
         TIME_EXPAND_COLLAP_AD,
@@ -228,3 +234,6 @@ object AdsSettings {
 
 /** End of the description of a key whose name is not in the official AdsKit key table. */
 private const val TEMPLATE_NAME = "Name set by the template, not an AdsKit key."
+
+/** End of the description of a key whose name comes from JBase (ADR-0038). */
+private const val JBASE_NAME = "Name from JBase, not an AdsKit key."

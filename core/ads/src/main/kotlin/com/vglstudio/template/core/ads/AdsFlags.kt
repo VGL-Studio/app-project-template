@@ -90,6 +90,7 @@ internal class DefaultAdsFlags @Inject constructor(private val settings: RemoteS
             settings.value(AdsSettings.IS_ENABLE_CONSENT_SHORTCUT),
             settings.value(AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS),
             settings.value(AdsSettings.IS_LOG_AD_SLOT_EVENTS),
+            settings.value(AdsSettings.TIME_CLOSE_NATIVE),
         ),
     ) { values ->
         val adsEnabled = values[0] as Boolean
@@ -109,8 +110,7 @@ internal class DefaultAdsFlags @Inject constructor(private val settings: RemoteS
             consentShortcutEnabled = values[11] as Boolean,
             logFullScreenEvents = values[12] as Boolean,
             logSlotEvents = values[13] as Boolean,
-            // Scaffold of plan T-053 (step 3): the key is read with the code.
-            closeNativeCountdownSeconds = 0L,
+            closeNativeCountdownSeconds = nativeCloseCountdownSeconds(values[14] as Long),
         )
     }.distinctUntilChanged()
 

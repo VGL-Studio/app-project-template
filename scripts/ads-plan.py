@@ -165,7 +165,7 @@ APP_WIDE_TEXT = {
     "resume_inter": ("Mọi màn", "Như resume khi resume_ad_type = inter. Không bị ads_interval chặn, vẫn đẩy mốc; nối "
                      "native combo nếu bật", "Khóa chung: show_resum_ads, resume_ad_type = inter"),
     "native_combo": ("Sau inter", "Ngay sau mọi inter của feature đã qua cổng (kể cả khi inter không lên màn). Đếm "
-                     "ngược 3 giây rồi mới đóng được", "Khóa chung: is_show_native_after_inter"),
+                     "ngược time_close_native giây (mặc định 5) rồi mới đóng được", "Khóa chung: is_show_native_after_inter"),
 }
 KNOWN_PLACEMENTS = {"sample_native_small": ("Màn mẫu (:feature:sample)", "Thanh đáy của màn mẫu")}
 
@@ -206,14 +206,18 @@ KNOWN_KEYS = {
                      "Khoảng tối thiểu từ lúc inter gần nhất (nhóm mặc định) rời màn tới inter sau.",
                      "Inter đầu tiên của process không bị chặn. App open và rewarded không đẩy mốc.", "AdsKit"),
     "is_show_native_after_inter": ("Interstitial", "false", "true / false",
-                                   "Combo: native toàn màn hình (vị trí native_combo) ngay sau inter, đếm ngược 3 giây.",
+                                   "Combo: native toàn màn hình (vị trí native_combo) ngay sau inter, đếm ngược theo "
+                                   "time_close_native.",
                                    "Đọc lúc inter kết thúc. Áp cho mọi inter của feature và resume_inter.", "AdsKit"),
+    "time_close_native": ("Interstitial", "5", "giây, 1 tới 30; giá trị khác dùng 5",
+                          "Đếm ngược trước khi đóng được native toàn màn hình (combo và lượt độc lập).",
+                          "Đọc lúc màn native mở. Chỉ đặt quá 5 giây khi đã kiểm chính sách của AdMob.", "JBase"),
     "is_show_native_bottom": ("Thanh đáy", "true", "true / false",
                               "Khe đáy của mọi thanh đáy: true là native nhỏ 80 dp, false là banner.",
                               "Từng màn có thanh đáy vẫn cần is_show_<mã vị trí> bật.", "AdsKit"),
     "is_show_native_collap": ("Thanh đáy", "true", "true / false", "Lớp native thu gọn 250 dp nổi trên khe đáy.",
                               "Chỉ có tác dụng khi is_show_native_bottom = true. Tắt lớp này không mất khe đáy.", "ta đặt"),
-    "time_expand_collap_ad": ("Thanh đáy", "30", "giây; 0 = không bung lại",
+    "time_expand_collap_ad": ("Thanh đáy", "10", "giây; 0 = không bung lại",
                               "Thời gian từ lúc người dùng thu gọn tới lúc lớp native thu gọn tự bung lại.",
                               "Làm mới nội dung (60 giây, hằng số) không đặt lại hẹn giờ này.", "ta đặt"),
     "is_enable_consent_shortcut": ("Đồng ý quảng cáo", "false", "true / false",

@@ -93,7 +93,8 @@ import kotlinx.coroutines.withContext
  * A-09) or the interstitial of `open_app_inter`. App-wide placements are switched by [placementSwitch].
  *
  * When `is_show_native_after_inter` is on as an interstitial turn ends (plan T-026, KB-16, K-01 to K-08), a native
- * full-screen ad of `native_combo` follows it with a countdown of 3 s ([NativeFullScreenTurns]), drawn by
+ * full-screen ad of `native_combo` follows it with a countdown of `time_close_native`, 5 s by default
+ * ([NativeFullScreenTurns]), drawn by
  * [FullScreenAdHost]; the completion of the interstitial then runs when that ad closes. The startup interstitial never
  * opens the combo. Every interstitial shown is counted since install ([InterDisplayCounter], N-05).
  *
@@ -1089,7 +1090,8 @@ class AdsController @Inject internal constructor(
      * Shows the preloaded native full-screen ad of [placement] through [FullScreenAdHost], with the same gate as
      * interstitials ([decideFullScreenTurn]); it reads and writes the `ads_interval` mark like one (question 2 of plan
      * T-022). Returns at once, showing nothing, when the gate says no; never waits for an ad to load (KB-5). The ad
-     * can be closed after the countdown of 3 s ([NativeFullScreenTurns], question 3 of plan T-026). It is drawn by the
+     * can be closed after the countdown of `time_close_native`, 5 s by default ([NativeFullScreenTurns], question 3 of
+     * plan T-026). It is drawn by the
      * composition, not by an activity of its own, so it has no host activity for stuck recovery.
      */
     private suspend fun showNativeFullScreen(placement: AdPlacement, onFinished: () -> Unit): Boolean =
