@@ -2,6 +2,7 @@ package com.vglstudio.template.di
 
 import com.vglstudio.template.BuildConfig
 import com.vglstudio.template.core.ads.AdUnitIds
+import com.vglstudio.template.core.ads.AdsDebugOptions
 import com.vglstudio.template.core.ads.ConfiguredAdUnitIds
 import com.vglstudio.template.core.ads.ConsentDebugOptions
 import com.vglstudio.template.core.ads.ConsentShortcutConfig
@@ -23,4 +24,8 @@ object ProductionAdsModule {
     /** The consent shortcut is off in production builds (S-12). */
     @Provides
     fun consentShortcutConfig(): ConsentShortcutConfig = ConsentShortcutConfig.OFF
+
+    /** No test device and no per-network log in production builds (plan T-058, KB-28). */
+    @Provides
+    fun adsDebugOptions(): AdsDebugOptions = AdsDebugOptions.NONE
 }

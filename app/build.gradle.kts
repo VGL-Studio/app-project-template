@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.template.android.application)
     alias(libs.plugins.template.android.compose)
@@ -7,6 +9,14 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.roborazzi)
+}
+
+// The developer's local.properties (never in git), read once; empty when the file is absent. Read only by the
+// staging flavor (T-058; T-068 reuses it): production never reads it, though scripts/release.sh copies the file.
+val localProperties: Properties = Properties().apply {
+    providers.fileContents(rootProject.layout.projectDirectory.file("local.properties"))
+        .asText.orNull
+        ?.let { load(it.reader()) }
 }
 
 android {
@@ -53,6 +63,15 @@ android {
             buildConfigField("String", "ASSETS_BASE_URL", "\"https://app-project-template.vgl.io.vn/\"")
             // No AppsFlyer key in staging, never read from a parameter: AppsFlyer never starts (ADR-0027, ADR-0012).
             buildConfigField("String", "APPSFLYER_DEV_KEY", "\"\"")
+            // A developer's own phones as AdMob test devices (T-058, KB-28, question 40 of the ads spec): the key
+            // ads.testDeviceIds of local.properties. Only this flavor reads it; CI has no such key.
+            val adsTestDeviceIds = localProperties.getProperty("ads.testDeviceIds")
+                .orEmpty()
+                .split(',')
+                .map { it.trim() }
+                .filter { it.matches(Regex("[0-9A-Za-z]+")) }
+                .joinToString(",")
+            buildConfigField("String", "ADS_TEST_DEVICE_IDS", "\"$adsTestDeviceIds\"")
             // Builds sent to the team by staging.yml carry the run number, so testers can tell them apart.
             providers.gradleProperty("stagingBuildNumber").orNull?.toInt()?.let { buildNumber ->
                 versionCode = buildNumber

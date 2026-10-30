@@ -122,6 +122,7 @@ private fun BannerSlot(
                         telemetry = ads.telemetry,
                         now = ads::metricsNowMillis,
                         format = format,
+                        networkLog = ads.networkLog,
                     )
                 },
                 onAdAvailabilityChange = onAdAvailabilityChange,
