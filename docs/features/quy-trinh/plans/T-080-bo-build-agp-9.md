@@ -3,9 +3,9 @@ ticket: T-080
 title: Bộ build AGP 9.1, Gradle 9.3.1, compileSdk 37, không đổi ảnh chuẩn
 status: draft
 version: 1
-risk_score: 9
+risk_score: 11
 risk_level: high
-token_estimate: 23.9M
+token_estimate: 30.0M
 blocking_points: [build, sdk]
 run_order:
 reviewer:
@@ -30,8 +30,8 @@ Ticket quy trình, không có spec nghiệp vụ. Yêu cầu là bài học L-12
 | Định nghĩa hoàn thành 2 | `./gradlew :app:assembleStagingRelease` qua, manifest gộp không thêm quyền | So `uses-permission` của manifest gộp `stagingDebug` và `stagingRelease` trước và sau. Bản production không dựng được khi không có tham số thật (ADR-0013), nên không so |
 | Định nghĩa hoàn thành 3 | File Kotlin bị ktlint mới định dạng lại được liệt kê, người duyệt đã xem | Lần thử: ktlint 14.2.0 không định dạng lại file nào (mục 4.1). Phiên chạy lại `./gradlew ktlintFormat` và liệt kê file đổi, nếu có |
 | Định nghĩa hoàn thành 4 | CI qua, đã merge; `main-guard` và `staging` xanh | Như mọi PR, cộng một lần chạy `staging.yml` sau khi merge |
-| Phạm vi: `java-check.sh` | Java quá mới vẫn bị chặn với Gradle 9.3 (L-059) | Gradle 9.1 tới 9.3 chạy trên Java 17 tới 25; Java 26 chưa được hỗ trợ (bảng tương thích của Gradle 9.3.1, tra 2026-10-30) |
-| Phạm vi: ADR | Viết ADR mới thay phần bộ công cụ của ADR-0011, không sửa ADR-0011 | ADR-0040, `supersedes: ADR-0011` chỉ phần Phiên bản, như ADR-0025 thay một phần ADR-0010 |
+| Phạm vi: `java-check.sh` | Java quá mới vẫn bị chặn với Gradle 9.3 (L-059) | Bảng tương thích của Gradle 9.3.1 (tra 2026-10-30): Gradle 9.1 trở lên chạy trên Java 25, Java 26 chưa được hỗ trợ. Giới hạn của 9.1 tới 9.3 là Java 25; bản mới hơn bảng thì `java-check.sh` không đặt giới hạn |
+| Phạm vi: ADR | Viết ADR mới thay phần bộ công cụ của ADR-0011, không sửa ADR-0011 | ADR-0040 viết trong PR plan này ở trạng thái `proposed`, `supersedes: ADR-0011` chỉ phần Phiên bản, như ADR-0025 thay một phần ADR-0010 và như ADR-0039 được viết trong PR plan T-074; người ghi `accepted` khi duyệt plan. Phiên thêm một dòng ghi chú dưới tiêu đề ADR-0011, không đổi nội dung (mục 8, câu 6) |
 
 Có một chỗ lệch với ticket: Roborazzi. Ticket để Roborazzi cho T-081, và ghi phương án dự phòng là đưa thư viện test của T-081 vào ticket này nếu bản cũ không chạy trên AGP 9. Lần thử cho thấy Roborazzi 1.43 chỉ chạy được khi tắt DSL mới của AGP 9 (`android.newDsl=false`). Cờ này AGP báo là sắp bỏ và sẽ bị gỡ ở AGP 10. Plan chọn nâng Roborazzi lên 1.77.0 ngay ở đây (phương án B của mục 4.1): 89 ảnh chuẩn vẫn khớp, và đối chứng cho thấy ảnh lệch vẫn bị bắt. Cách giữ ticket như cũ (phương án A, `android.newDsl=false`) cũng đã thử và qua; nó là phương án dự phòng ở mục 3.4. Người duyệt chọn ở mục 8, câu 1. Theo phương án chính, T-081 còn Robolectric 4.17 và việc ghi lại ảnh chuẩn; plan sửa phạm vi của ticket T-081 cho khớp.
 
@@ -91,7 +91,7 @@ Mọi bước đã chạy trên nhánh thử `claude/trial-T-080` (chỉ có tr�
      dependencies {
 ```
 
-  Khối `extensions.configure<KotlinAndroidProjectExtension> { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }` giữ nguyên. Phần `failOnNoDiscoveredTests`: Gradle 9 cho task test đỏ khi có "nguồn test" mà không tìm thấy test nào. `:core:data` không có thư mục `src/test`, nhưng Hilt và KSP vẫn sinh lớp cho source set unit test của nó, nên `:core:data:testDebugUnitTest` đỏ (lần thử thứ 2, mục 4.1). Plan chỉ tắt kiểm tra này ở module không có `src/test`. Module có `src/test` mà không chạy được test nào vẫn đỏ như Gradle 9 muốn.
+  Khối `extensions.configure<KotlinAndroidProjectExtension> { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }` giữ nguyên. Phần `failOnNoDiscoveredTests`: Gradle 9 cho task test đỏ khi có "nguồn test" mà không tìm thấy test nào. `:core:data` không có thư mục `src/test`, vậy mà `:core:data:testDebugUnitTest` đỏ với thông báo "There are test sources present ... did not discover any tests" (lần thử thứ 2, mục 4.1). Giả thuyết: lớp do Hilt sinh cho source set unit test (log có `hiltSyncDebugUnitTest`, `hiltAggregateDepsDebugUnitTest`) được Gradle tính là nguồn test; bằng chứng chắc chỉ là thông báo lỗi. Plan chỉ tắt kiểm tra này ở module không có `src/test`. Module có `src/test` mà không chạy được test nào vẫn đỏ như Gradle 9 muốn.
 - `AndroidComposeConventionPlugin.kt` dùng `extensions.getByType(CommonExtension::class.java)` và `extension.buildFeatures.compose = true`: biên dịch được trên AGP 9 mà không sửa (lần thử). Ticket ghi file này trong phạm vi; plan không sửa nó.
 - `AndroidFeatureConventionPlugin.kt` (`RoborazziExtension.outputDir`), `HiltConventionPlugin.kt`, `ProjectExtensions.kt`, `build-logic/convention/build.gradle.kts`, `build-logic/settings.gradle.kts`: không sửa. `kotlin-dsl` và `JvmTarget.JVM_17` của `build-logic` chạy trên Gradle 9.3.1 (lần thử).
 
@@ -107,22 +107,24 @@ Mọi bước đã chạy trên nhánh thử `claude/trial-T-080` (chỉ có tr�
       fi ;;
 ```
 
-Gradle 9.0 chạy tới Java 24, Gradle 9.1 tới 9.3 chạy tới Java 25, Java 26 chưa có bản Gradle nào hỗ trợ (bảng tương thích của Gradle 9.3.1). Gradle mới hơn bảng thì không có giới hạn trên, như chú thích đầu file đã ghi. Không có dòng này thì 5 test có sẵn đỏ ngay khi wrapper lên 9.3.1, vì Java 26 lọt qua (mục 3.5).
+Theo bảng tương thích của Gradle 9.3.1: Gradle 9.0 chạy tới Java 24, Gradle 9.1 trở lên chạy tới Java 25, Java 26 chưa được hỗ trợ. Gradle mới hơn bảng thì không có giới hạn trên, như chú thích đầu file đã ghi. Không có dòng này thì 5 test có sẵn đỏ ngay khi wrapper lên 9.3.1, vì Java 26 lọt qua (mục 3.5).
 
 **7. `CLAUDE.md`, mục Công nghệ:** "minSdk 26, compileSdk 37, targetSdk 36. Phiên bản thư viện nằm ở `gradle/libs.versions.toml`; bộ công cụ build ở ADR-0040."
 
-**8. ADR-0040** `docs/adr/0040-bo-build-agp-9.md`, `status: accepted` khi plan được duyệt (người duyệt plan là người quyết định), `origin: template`, `supersedes: ADR-0011` kèm chú thích "chỉ thay phần Phiên bản; ADR-0011 vẫn còn hiệu lực", như cách ADR-0025 ghi với ADR-0010. Nội dung:
-- Bối cảnh: ADR-0011 chốt Gradle 8.14.3, AGP 8.13, compileSdk 36, và hoãn AGP 9. Photune chạy bộ mới qua 2 phiên, khoảng 15 PR (L-127).
-- Quyết định: Gradle 9.3.1, AGP 9.1.0 với Kotlin dựng sẵn (không áp dụng plugin `kotlin-android`), Kotlin 2.2.10, JDK 17 cho mã build, Java chạy Gradle từ 17 tới 25. minSdk 26, compileSdk 37, targetSdk 36. DSL mới của AGP 9 (không đặt `android.newDsl=false`). Module không có `src/test` được chạy task test mà không có test nào. Nâng targetSdk là một plan riêng. AGP 9.1.0 chỉ được Google kiểm tới compileSdk 36.1 và in cảnh báo khi build với 37; giữ cảnh báo, không đặt `android.suppressUnsupportedCompileSdk` (mục 8, câu 2).
-- Việc AI phải tuân thủ: không áp dụng plugin `org.jetbrains.kotlin.android`; cấu hình Android trong `build-logic` qua thuộc tính của `CommonExtension` (AGP 9); giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`; nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh`.
-- Rồi chạy `scripts/foundation.py` để sinh lại `docs/foundation.md`.
+**8. ADR:** ADR-0040 (`docs/adr/0040-bo-build-agp-9.md`) đã viết trong PR plan này, trạng thái `proposed`, cùng `docs/foundation.md` sinh lại. Người duyệt plan ghi `accepted` và chạy lại `scripts/foundation.py` khi duyệt. Phiên không sửa ADR-0040. Phiên thêm vào `docs/adr/0011-toolchain-and-code-checks.md`, ngay dưới tiêu đề, một dòng ghi chú như ADR-0010 có với ADR-0025 (mục 8, câu 6), không đổi nội dung nào khác:
+
+```markdown
+> Ghi chú 2026-10-30: [ADR-0040](0040-bo-build-agp-9.md) thay phần Phiên bản (Gradle 9.3.1, AGP 9.1.0 với Kotlin dựng sẵn, compileSdk 37, targetSdk 36). Các quyết định còn lại của ADR-0011 giữ nguyên.
+```
+
+Ngày trong dòng là ngày phiên làm task. Rồi chạy `scripts/foundation.py`: dòng ghi chú không nằm trong mục Việc AI phải tuân thủ nên `docs/foundation.md` không đổi; đổi thì commit cùng PR.
 
 **9. `scripts/tests/run.sh`:**
 - Test mới ở mục 4, ngay sau khối `java-check` có sẵn. Hàm `java_check_gradle` chép `java-check.sh` vào một thư mục tạm có wrapper giả, nên test không phụ thuộc phiên bản Gradle của repo và đỏ được ngay trong commit test, khi wrapper vẫn là 8.14.3.
 - Fixture `sdk-ok` của khối `cloud-env-check.sh` giữ `platforms/android-$compile_sdk` (T-079 đã cho `cloud-env-check.sh` nhận cả `android-37` lẫn `android-37.0`; test `passes for compileSdk 37 with platforms/android-37.0` của T-079 đã kiểm dạng `.0`). Không sửa.
 - Test có sẵn `java-check: Java 26 is too new for Gradle 8.14` chỉ chạy khi wrapper là Gradle 8.14 trở lên của nhánh 8, nên sẽ không chạy sau khi nâng. Test mới `Java 26 is too new for Gradle 9.3.1` kiểm cùng ý định cho bản mới. Không xóa test cũ.
 
-**10. Ticket:** `T-080-bo-build-agp-9.md` (`plan:`, trạng thái theo plan). `T-081-robolectric-roborazzi-anh-chuan.md`: theo phương án chính, phần Phạm vi bỏ Roborazzi (đã lên 1.77.0 ở T-080), còn Robolectric 4.17 và ghi lại ảnh chuẩn; tiêu đề đổi thành "Robolectric 4.17 và ghi lại ảnh chuẩn screenshot". Theo phương án dự phòng, T-081 thêm việc gỡ `android.newDsl=false` khi nâng Roborazzi.
+**10. Ticket:** `T-080-bo-build-agp-9.md`: `plan:`, trạng thái theo plan, và theo phương án chính sửa Mô tả ("Robolectric và Roborazzi giữ bản cũ" thành "Robolectric giữ bản cũ; Roborazzi lên 1.77.0 vì bản 1.43 cần DSL cũ của AGP") và dòng Không bao gồm ("Robolectric và ghi lại ảnh chuẩn (T-081)"). Theo phương án dự phòng, chỉ đổi `plan:` và trạng thái. `T-081-robolectric-roborazzi-anh-chuan.md`: theo phương án chính, phần Phạm vi bỏ Roborazzi (đã lên 1.77.0 ở T-080), còn Robolectric 4.17 và ghi lại ảnh chuẩn; tiêu đề đổi thành "Robolectric 4.17 và ghi lại ảnh chuẩn screenshot". Theo phương án dự phòng, T-081 thêm việc gỡ `android.newDsl=false` khi nâng Roborazzi.
 
 Không đổi: `scripts/cloud-setup.sh` (giữ `platforms;android-36` và `platforms;android-37.0`, `SETUP_VERSION=5`; init script `maven-central-mirror.gradle` chạy được trên Gradle 9.3.1, mục 4.1), `scripts/cloud-env-check.sh`, `scripts/local-setup.sh`, `.github/workflows/`, `scripts/check.sh`, file build của từng module (`app/build.gradle.kts`, `core/*/build.gradle.kts`, `feature/*/build.gradle.kts`: biên dịch được trên AGP 9 với DSL mới, không cảnh báo, mục 4.1), `settings.gradle.kts`, `robolectric.properties` (`sdk=35`), ảnh chuẩn.
 
@@ -143,8 +145,8 @@ Không đổi: `scripts/cloud-setup.sh` (giữ `platforms;android-36` và `platf
 | Sửa | `scripts/java-check.sh` | Giới hạn Java của Gradle 9.0 và 9.1 tới 9.3 (mục 3.1, bước 6) |
 | Sửa | `scripts/tests/run.sh` | Hàm `java_check_gradle` và 5 test ở mục 4 |
 | Sửa | `CLAUDE.md` | Mục Công nghệ: compileSdk 37, targetSdk 36, dẫn ADR-0040 |
-| Tạo | `docs/adr/0040-bo-build-agp-9.md` | ADR thay phần Phiên bản của ADR-0011 (mục 3.1, bước 8) |
-| Sửa | `docs/foundation.md` | Sinh lại bằng `scripts/foundation.py` |
+| Sửa | `docs/adr/0011-toolchain-and-code-checks.md` | Một dòng ghi chú dưới tiêu đề, dẫn ADR-0040 (mục 3.1, bước 8). Không đổi nội dung |
+| Sửa | `docs/foundation.md` | Chỉ khi `scripts/foundation.py` sinh ra khác (mục 3.1, bước 8) |
 | Sửa | `docs/features/quy-trinh/tickets/T-080-bo-build-agp-9.md` | `plan:`, trạng thái theo plan |
 | Sửa | `docs/features/quy-trinh/tickets/T-081-robolectric-roborazzi-anh-chuan.md` | Phạm vi và tiêu đề theo phương án được chọn (mục 3.1, bước 10) |
 
@@ -171,8 +173,8 @@ Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì ch�
 
 ### 3.4. Phương án dự phòng
 
-- **Điểm chưa chắc:** Roborazzi 1.77.0 trên runner CI (lần thử chỉ chạy trên máy dev macOS). CI chạy trên Linux; nếu cách vẽ hay cách so của bản 1.77 khác ở đó, `pr-check` sẽ báo ảnh lệch.
-- **Điều kiện chuyển:** `scripts/check.sh` hay `pr-check` báo ảnh chuẩn lệch, hay Roborazzi 1.77 lỗi, sau 2 lần sửa cho cùng một lỗi.
+- **Điểm chưa chắc:** Roborazzi 1.77.0 trên runner CI. Lần thử chỉ chạy trên máy dev macOS với JDK 21; CI chạy Linux với Java 17 (`setup-java` của `pr-check`, `main-guard`, `staging`, `device-session`). Nếu cách vẽ hay cách so của bản 1.77 khác ở đó, `pr-check` sẽ báo ảnh lệch.
+- **Điều kiện chuyển:** (a) lần đầu `scripts/check.sh` hay `pr-check` báo một ảnh chuẩn lệch ở phương án chính: chuyển ngay, không sửa gì, vì ảnh lệch không có gì để sửa ngoài ghi lại ảnh, mà plan cấm; (b) Roborazzi 1.77 lỗi cấu hình hay lỗi chạy (không phải ảnh lệch) sau 2 lần sửa cho cùng một lỗi. Phương án dự phòng cũng báo ảnh lệch thì dừng theo mục 7.
 - **Cách làm thay (phương án A của mục 4.1):** giữ `roborazzi = "1.43.0"`, thêm vào `gradle.properties`:
 
   ```properties
@@ -212,14 +214,15 @@ Bộ build không có test đơn vị riêng: bằng chứng là toàn bộ cổ
 | Bản release dựng được với R8 | Build | `./gradlew :app:assembleStagingRelease`: `BUILD SUCCESSFUL` |
 | Manifest gộp không thêm quyền | So tệp | Trên nhánh chính (trước bước 1) và sau khi nâng: `./gradlew :app:processStagingDebugMainManifest :app:processStagingReleaseMainManifest`, chép `app/build/intermediates/merged_manifest/<biến thể>/*/AndroidManifest.xml` ra `${TMPDIR:-/tmp}/t080-before-<biến thể>.xml` và `t080-after-<biến thể>.xml`; `diff <(grep -o 'uses-permission[^>]*' before | sort) <(grep -o 'uses-permission[^>]*' after | sort)` rỗng cho cả hai biến thể |
 | ktlint mới không làm đổi code ngoài ý muốn | Lệnh | `./gradlew ktlintFormat` rồi `git status --short -- '*.kt' '*.kts'`: chỉ còn file của mục 3.2. File nào khác đổi thì liệt kê trong nhật ký và mô tả PR (định nghĩa hoàn thành 3) |
-| Init script của môi trường cloud chạy trên Gradle 9.3.1 | Lệnh | Tách khối `maven-central-mirror.gradle` từ `scripts/cloud-setup.sh` ra `${TMPDIR:-/tmp}/mirror.gradle`, rồi `./gradlew -I "${TMPDIR:-/tmp}/mirror.gradle" :core:logging:testDebugUnitTest --rerun`: `BUILD SUCCESSFUL` |
+| Luật dòng dài của T-050 giữ trên ktlint mới | Cổng chất lượng | `ktlintCheck` trong `check.sh` qua, trong khi repo có sẵn các dòng chỉ có chú thích dài hơn 120 ký tự trong `.kt` và `.kts` (đếm bằng `grep -rnE '^\s*(//\|\*).{117,}' --include='*.kt' --include='*.kts' .`, khác 0): ktlint mới vẫn không kiểm độ dài dòng chú thích |
+| Init script của môi trường cloud chạy trên Gradle 9.3.1 | Lệnh | `sed -n "/^cat > .*maven-central-mirror.gradle.*<< 'GRADLE'\$/,/^GRADLE\$/p" scripts/cloud-setup.sh \| sed '1d;\$d' > "${TMPDIR:-/tmp}/mirror.gradle"`, rồi `./gradlew -I "${TMPDIR:-/tmp}/mirror.gradle" :core:logging:testDebugUnitTest --rerun`: `BUILD SUCCESSFUL` |
 | CI dựng được trên bộ mới | Kiểm tra thủ công (người: GitHub Actions) | `pr-check` của PR xanh, gồm build release và test trên emulator |
 | Môi trường cloud chạy được bộ mới | Kiểm tra thủ công (người: phiên cloud có người, sau khi merge) | Mở một phiên cloud mới trên nhánh chính, chạy `scripts/cloud-env-check.sh`: mã 0, dòng qua có `platforms/android-37.0`. Rồi `scripts/check.sh`: QUA. Đây là lần đầu Gradle 9.3.1 được tải qua proxy của môi trường (Photune đã tải được qua môi trường của nó) |
 | Bản staging chạy được | Kiểm tra thủ công (máy thật: khác, bản staging mới cài từ Firebase App Distribution) | Sau khi merge, chạy tay **Actions > staging > Run workflow**: xanh. Cài bản staging lên máy thật: app mở, qua màn hình loading, hộp thoại đồng ý quảng cáo hiện, màn hình sample hiện |
 
 Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 
-**Ngoại lệ viết test trước:** nâng phiên bản trong `gradle/libs.versions.toml`, wrapper, `build.gradle.kts`, `build-logic/`, `CLAUDE.md`, ADR-0040 và `docs/foundation.md`. Chúng không có test riêng có thể đỏ trước; bằng chứng là cổng chất lượng ở trên. Test viết trước là 5 test `java-check` mới; 2 test đỏ trước khi sửa, 3 test đối chứng qua, đi trong commit test của bước 3 khi wrapper còn là 8.14.3.
+**Ngoại lệ viết test trước:** nâng phiên bản trong `gradle/libs.versions.toml`, wrapper, `build.gradle.kts`, `build-logic/`, `CLAUDE.md`, dòng ghi chú của ADR-0011 và ticket. Chúng không có test riêng có thể đỏ trước; bằng chứng là cổng chất lượng ở trên. Test viết trước là 5 test `java-check` mới; 2 test đỏ trước khi sửa, 3 test đối chứng qua, đi trong commit test của bước 3 khi wrapper còn là 8.14.3.
 
 ### 4.1. Chạy thử
 
@@ -232,11 +235,12 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
   4. `check.sh` lần 2: `:core:data:testDebugUnitTest` đỏ, "There are test sources present and no filters are applied, but the test task did not discover any tests to execute". `:core:data` không có `src/test`. Thêm `failOnNoDiscoveredTests` cho module không có `src/test`.
   5. `check.sh` lần 3 (phương án A): QUA. `Test JVM: 1455 test, 0 lỗi. Ảnh screenshot: 89`, bằng đúng `main-guard` xanh gần nhất trên main (lần chạy 40914384117). Không ảnh nào đổi. Có 11 cảnh báo Kotlin `'fun Project.android(...)' is deprecated` (mỗi file build module một cảnh báo) và cảnh báo của AGP về `android.newDsl=false`.
   6. `assembleStagingRelease` (phương án A): `BUILD SUCCESSFUL`. Manifest gộp `stagingDebug` và `stagingRelease` giống hệt bản của main, từng byte (`diff` rỗng).
-  7. Phương án B (Roborazzi 1.77.0, bỏ `android.newDsl=false`): `check.sh` QUA, 1455 test, 89 ảnh, không ảnh nào đổi. Không còn cảnh báo DSL nào; chỉ còn 2 cảnh báo cũ ở `AppsFlyerEventsTest.kt` (`Locale` kiểu cũ, có trên main). `assembleStagingRelease` qua, manifest gộp giống hệt. Đối chứng: thay `feature/sample/src/test/screenshots/SampleScreen_ad-loading_light.png` bằng ảnh một màu cùng cỡ: `:feature:sample:testDebugUnitTest` đỏ, "27 tests completed, 1 failed"; trả ảnh về thì qua.
-  8. Init script `maven-central-mirror.gradle` của `cloud-setup.sh` chạy trên Gradle 9.3.1: `BUILD SUCCESSFUL` ở cả hai phương án. `./gradlew help --warning-mode all` (phương án B): không có cảnh báo sắp bỏ nào của Gradle.
-  9. `./gradlew ktlintFormat` với ktlint-gradle 14.2.0: không đổi file nào.
+  7. Phương án B (Roborazzi 1.77.0, bỏ `android.newDsl=false`), chạy lại trọn một lần trên `HEAD` của nhánh thử (`5b76e98`, gồm cả commit test) với log lưu riêng từng bước, 2026-10-30 00:48 tới 00:55 UTC: `check.sh` QUA, `Test JVM: 1455 test, 0 lỗi. Ảnh screenshot: 89`, `git status --short -- '*/src/test/screenshots/'` rỗng; `assembleStagingRelease` `BUILD SUCCESSFUL`; manifest gộp `stagingDebug` và `stagingRelease` giống hệt bản của main từng byte (`cmp`); không log nào có `newDsl`; chỉ còn 2 cảnh báo cũ ở `AppsFlyerEventsTest.kt` (`Locale` kiểu cũ, có trên main).
+  8. Init script `maven-central-mirror.gradle` của `cloud-setup.sh` (tách bằng lệnh `sed` của mục 4) chạy trên Gradle 9.3.1 ở cả hai phương án: `./gradlew -I <tệp> --warning-mode all :core:logging:testDebugUnitTest --rerun` `BUILD SUCCESSFUL`. `./gradlew help --warning-mode all` ở phương án B: 0 dòng `deprecat`.
+  9. `./gradlew ktlintFormat` với ktlint-gradle 14.2.0: không đổi file nào. Cấu hình `ktlint` của `:core:logging` phân giải ra engine ktlint 1.5.0, đúng bản mà luật dòng dài của T-050 dựa vào (`.editorconfig`).
   10. Cảnh báo của AGP còn lại ở cả hai phương án: "We recommend using a newer Android Gradle plugin to use compile SDK version 37.0 ... This Android Gradle plugin (9.1.0) was tested up to compile SDK version 36.1" (mục 8, câu 2).
   11. Test `java_check_gradle` (mục 4) chạy trên `java-check.sh` của main: `Java 26 is too new for Gradle 9.3.1` và `names Gradle 9.3.1 and Java 17 to 25` đỏ, ba đối chứng qua; trên `java-check.sh` mới thì cả 5 qua.
+  12. Đối chứng ảnh lệch nhỏ, cả hai bản Roborazzi, bằng đúng task mà `check.sh` dùng (`:feature:sample:verifyRoborazziDebug :feature:sample:testDebugUnitTest --rerun`): đảo màu một khối 4 x 4 (16 điểm ảnh, 0,0005% của ảnh 3.295.809 điểm) hay 181 x 181 (32.761 điểm ảnh, khoảng 1%) giữa `SampleScreen_ad-loading_light.png`. Roborazzi 1.77.0 (`5b76e98`) và 1.43.0 (`dd9be5f`): cả bốn lần đều đỏ, "27 tests completed, 1 failed"; trả ảnh về thì `git status` rỗng. Hai bản có cùng độ nhạy ở mức này. Chỉ chạy `testDebugUnitTest` (không có task `verify`) thì cả bốn lần qua, vì khi đó Roborazzi không so ảnh: đó là lý do lệnh đối chứng phải gồm `verifyRoborazziDebug`.
 - **Chưa thử:** runner Linux của CI và môi trường cloud (mục 4, kiểm tay); bản production (cần tham số thật, ADR-0013).
 
 ## 5. Chấm rủi ro
@@ -246,11 +250,11 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
 | A. Phạm vi thay đổi | 3 | Mọi module qua `build-logic` và catalog |
-| B. Độ rõ của yêu cầu | 1 | Ticket chốt các bản; AI phải quyết vài chi tiết (Roborazzi ở ticket nào, `failOnNoDiscoveredTests`, cảnh báo compileSdk 37), đưa vào mục 8 |
+| B. Độ rõ của yêu cầu | 2 | Ticket chốt các bản, nhưng mục 8 còn câu hỏi mở đổi cách làm: câu 1 (Roborazzi ở ticket nào: khác file và phiên bản) và câu 2 (AGP 9.1 hay 9.5) |
 | C. Khả năng kiểm chứng tự động | 1 | Cổng chất lượng, build release và test script kiểm phần lớn; CI Linux, môi trường cloud và bản staging trên máy kiểm tay |
-| D. Ảnh hưởng chéo | 2 | Sửa `gradle/libs.versions.toml`, file mà plan T-068 (đã duyệt) cũng sửa; mọi plan sau dựng trên bộ mới |
+| D. Ảnh hưởng chéo | 3 | Đổi bộ build mà mọi module và mọi plan dựa vào; các plan quảng cáo đã duyệt chạy thử trên AGP 8.13; T-068 cũng sửa `gradle/libs.versions.toml` |
 | E. Độ mới của kỹ thuật | 2 | AGP 9 có Kotlin dựng sẵn, DSL mới: chưa có trong dự án, đã chạy ở Photune (một module) |
-| **Tổng** | 9 | **Mức: Cao (điểm chặn 7)** |
+| **Tổng** | 11 | **Mức: Cao (điểm chặn 2, 7)** |
 
 ## 6. Ảnh hưởng chéo
 
@@ -259,7 +263,8 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
   - T-068 (SDK AppLovin MAX, plan đã duyệt, PR #307 chưa merge) thêm hai phiên bản và hai thư viện vào nhóm `# Ads` của `gradle/libs.versions.toml`, ở dòng khác với plan này: git gộp được. Nhưng phần chạy thử của T-068 làm trên AGP 8.13. Chạy T-068 sau T-080 thì SDK MAX được kiểm trên bộ mới ngay trong task của nó.
   - T-058 (máy thử, plan đã duyệt, PR #303) sửa `app/build.gradle.kts`; plan này không sửa file đó.
   - Các plan quảng cáo khác đã duyệt (T-055, T-059, T-060, T-062, T-063) chỉ nhắc `gradle/libs.versions.toml` để ghi thư viện đã có, không sửa nó.
-  - PR #312 (T-074) sửa `.github/workflows/`; plan này không sửa workflow.
+  - Phần chạy thử (`check.sh`, Roborazzi 1.43) của mọi plan quảng cáo đã duyệt (T-053, T-054, T-055, T-058, T-059, T-060, T-062, T-063, T-066, T-067, T-068) làm trên AGP 8.13. Chạy sau T-080 thì mỗi task tự kiểm lại trên bộ mới ở bước 5 của nó.
+  - PR #312 (T-074) sửa `.github/workflows/`; plan này không sửa workflow. Sau khi T-074 merge, `main-guard` có thể không chạy lại `check.sh` cho commit merge của T-080 (ADR-0039, cách `skip`): khi đó `main-guard` xanh không thêm bằng chứng nào ngoài `pr-check`.
 - Các app nhận qua `scripts/template-sync.sh`: nhận cả bộ build mới. App có module hay thư viện riêng phải tự dựng lại; camera-pose do phiên khác lo. Photune đã ở AGP 9.1, Gradle 9.3.1 nên gần mẫu hơn.
 - Đề xuất thứ tự chạy: làm trong phiên có người theo dõi, trước khi có danh sách chạy gồm các plan quảng cáo, nhất là T-068. Sau đó tới T-081.
 
@@ -277,6 +282,7 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 3. `failOnNoDiscoveredTests` chỉ cho module không có `src/test` (hiện chỉ `:core:data`). Đề xuất như mục 3.1. Cách khác: thêm một test thật cho `:core:data`; việc đó ngoài phạm vi ticket.
 4. Thứ tự với các plan quảng cáo đã duyệt (mục 6). Đề xuất: merge T-080 trước khi lập danh sách chạy có T-068.
 5. Bản production chưa được dựng trên bộ mới, vì cần tham số thật (ADR-0013) và plan không chạm cấu hình production. Bản release đầu tiên của một app dựng trên bộ mới sẽ là lần kiểm đầu tiên. Đề xuất: chấp nhận, và ghi việc này vào mục Cần người kiểm tra của nhật ký.
+6. Ticket ghi "Không sửa ADR-0011". Đề xuất: không đổi nội dung, chỉ thêm một dòng ghi chú dưới tiêu đề dẫn tới ADR-0040, như ADR-0010 có dòng dẫn ADR-0025, để người đọc ADR-0011 không gặp thông tin cũ ("Chưa dùng AGP 9") mà không biết đã có ADR thay. Không đồng ý thì bỏ dòng ADR-0011 khỏi mục 3.2 và bước 8.
 
 ## 9. Quyết định duyệt
 
