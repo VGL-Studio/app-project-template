@@ -180,6 +180,27 @@ class AdsControllerInScreenWindowTest {
     }
 
     @Test
+    fun realController_smallSlot_nextLoadAfterClaimWhileCovered_waits() {
+        settings.set(AdsSettings.placementEnabled(AdPlacement.SAMPLE_NATIVE_SMALL), true)
+        openAndForeground()
+        val states = collect(controller.nativeAd(AdPlacement.SAMPLE_NATIVE_SMALL))
+        assertEquals(1, loader.requests.size)
+        cover()
+        val first = FakeLoadedNativeAd()
+        loader.deliver(first)
+        idle()
+        assertSame(first, states.lastAd())
+        // The next load after the claim goes through the send gate of the source: it waits under the cover.
+        idleFor(30_000)
+        assertEquals(1, loader.requests.size)
+
+        // Control (L-055): the cover goes, the next load is sent once.
+        uncover()
+        idle()
+        assertEquals(2, loader.requests.size)
+    }
+
+    @Test
     fun realController_retryingSlot_firstLoadWaitsWhileCovered() {
         settings.set(AdsSettings.placementEnabled(AdPlacement.SAMPLE_NATIVE_SMALL), true)
         openAndForeground()
