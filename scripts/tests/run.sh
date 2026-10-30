@@ -3844,6 +3844,25 @@ expect "java-check: names Android Studio's JDK" 1 "$(grep -c 'JDK đi kèm Andro
 if [[ "$(sed -n 's/^distributionUrl=.*gradle-\([0-9]*\)\..*/\1/p' gradle/wrapper/gradle-wrapper.properties)" == 8 && "$gradle_minor" -ge 14 ]]; then
   expect "java-check: Java 26 is too new for Gradle 8.14" 1 "$(java_check 26)"
 fi
+# The Java bounds per Gradle version, on a copy of the script with a given wrapper (not the repo's Gradle).
+java_check_gradle() { # <Gradle version> <Java version>; prints the exit code
+  local dir="$work/java-gradle-$1"
+  mkdir -p "$dir/scripts" "$dir/gradle/wrapper" "$dir/build-logic"
+  cp scripts/java-check.sh "$dir/scripts/"
+  printf 'distributionUrl=https\\://services.gradle.org/distributions/gradle-%s-bin.zip\n' "$1" \
+    > "$dir/gradle/wrapper/gradle-wrapper.properties"
+  printf 'val java = JavaVersion.VERSION_17\n' > "$dir/build-logic/KotlinAndroid.kt"
+  java_check "$2" > /dev/null
+  local code=0
+  JAVA_HOME="$work/jdk-$2" "$dir/scripts/java-check.sh" > "$work/java.out" 2>&1 || code=$?
+  echo "$code"
+}
+expect "java-check: Gradle 9.3.1 runs on Java 25" 0 "$(java_check_gradle 9.3.1 25)"
+expect "java-check: Java 26 is too new for Gradle 9.3.1" 1 "$(java_check_gradle 9.3.1 26)"
+expect "java-check: names Gradle 9.3.1 and Java 17 to 25" 1 \
+  "$(grep -c '^LỖI: Java 26 quá mới .*Gradle 9.3.1 chỉ chạy trên Java 17 đến 25.$' "$work/java.out" || true)"
+expect "java-check: Java 25 is too new for Gradle 9.0" 1 "$(java_check_gradle 9.0.0 25)"
+expect "java-check: a Gradle newer than the table has no upper bound" 0 "$(java_check_gradle 9.4.0 26)"
 expect "java-check: a missing Java stops" 1 \
   "$(JAVA_HOME="$work/no-jdk" scripts/java-check.sh > /dev/null 2>&1; echo $?)"
 
