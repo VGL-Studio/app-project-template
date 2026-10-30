@@ -45,7 +45,7 @@ Thiếu dòng của một mạng thì doanh thu của mạng đó giảm đáng 
 ### 2.1. Trước khi chạy script
 
 1. Tăng `versionCode` và `versionName` trong `defaultConfig` của `app/build.gradle.kts` bằng một PR thường, merge bằng `scripts/merge-if-green.sh`. Script từ chối `versionCode` đã phát hành.
-2. Chờ `main-guard.yml` của commit đó xanh.
+2. Chờ `main-guard.yml` của commit đó xanh. Workflow này gồm cả job `ui-test` (test trên emulator, ADR-0043); PR tăng `versionCode` đổi `app/build.gradle.kts` nên emulator chạy trên chính commit phát hành. `ui-test` đỏ vì hạ tầng (`EMULATOR HẠ TẦNG`) thì chạy lại riêng job đỏ tới khi xanh rồi mới phát hành.
 3. Bật khóa quảng cáo trên Remote Config của project production cho các định dạng và vị trí muốn hiện quảng cáo (tên khóa ở `docs/ops/ads-business-rules.md`, mục 10; mặc định tắt, ADR-0014, ADR-0026).
 
 ### 2.2. Thư mục phát hành

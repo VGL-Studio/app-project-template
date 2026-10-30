@@ -6,7 +6,7 @@ Hướng dẫn cho dev muốn làm ngay một việc nhỏ của code app trong 
 
 Dùng đường làm nhanh khi đủ mọi điều sau:
 
-- Dev ngồi cùng AI tới khi xong và trả lời được ngay. Thời gian chờ gồm CI của PR (khoảng 10 đến 15 phút) và `main-guard` sau khi merge (khoảng 5 đến 12 phút, khoảng 1 phút khi đã kiểm ở PR theo ADR-0039, gấp đôi khi nó chạy lại test thất bại).
+- Dev ngồi cùng AI tới khi xong và trả lời được ngay. Thời gian chờ gồm CI của PR (khoảng 10 đến 15 phút) và `main-guard` sau khi merge (khoảng 5 đến 12 phút, khoảng 1 phút khi đã kiểm ở PR theo ADR-0039, gấp đôi khi nó chạy lại test thất bại; thêm khoảng 5 phút job `ui-test` khi việc đổi code app, ADR-0043).
 - Việc nhỏ: cỡ S, hoặc M nếu dev thấy ổn; rủi ro Thấp (tổng 0 đến 4) theo [risk-scoring.md](../risk-scoring.md), và không dùng kỹ thuật mới cần chạy thử (tiêu chí E dưới 2).
 - Không chạm điểm chặn nào ở [mục 1 của risk-scoring.md](../risk-scoring.md), kể cả điểm 7. Ví dụ: quảng cáo; SDK mới hay nâng major SDK có sẵn; quyền mới; sự kiện phân tích, thuộc tính người dùng, dữ liệu gửi ra ngoài; hộp thoại đồng ý, thứ tự khởi tạo SDK; liên kết ra ngoài app, quảng bá chéo; module `:core:*`, cấu hình build, CI, quy trình phiên tự chạy; đường dẫn R2; bảng Room hay khóa DataStore cần chuyển dữ liệu cũ. Cũng không thêm thư viện.
 - Việc đã có trong spec đã chốt, hoặc dev ngồi cùng là người xác nhận spec của feature đó.
