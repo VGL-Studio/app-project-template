@@ -1,16 +1,16 @@
 ---
 ticket: T-058
 title: Máy thử và log từng mạng ở bản staging
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 4                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
 token_estimate: 8M           # cỡ S theo ticket, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); nâng lên khoảng 1,5 lần vì task chạm hai module và file build: một khối đọc local.properties trong app/build.gradle.kts, hai kiểu mới của :core:ads, bảy đường tải của AdsController, banner và native, hai module Hilt
 blocking_points: [ads, core, build]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -294,9 +294,9 @@ Plan rủi ro cao chạm quảng cáo: người phụ trách sản phẩm (anh N
 
 Phiên bản 4:
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt lại trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt."), cùng năm plan khác sửa theo rà soát độc lập danh sách chạy RUN-20261030-01, sau khi xem tóm tắt các điểm đã sửa và câu hỏi AI gửi trong phiên. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Các trả lời ở mục 9 của bản trước giữ nguyên. Đồng ý bản 4 đổi chữ ký `newNativeLoader` của T-054 thành `newNativeLoader(events, options, logKey)`; T-058 chạy sau T-054 (ticket `depends_on: [T-054]`). Câu hỏi 8 đã xử lý.
 
 Phiên bản 3:
 

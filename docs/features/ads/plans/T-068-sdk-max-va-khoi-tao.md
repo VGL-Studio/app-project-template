@@ -1,16 +1,16 @@
 ---
 ticket: T-068
 title: SDK AppLovin MAX và khởi tạo sau cổng đồng ý
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 23.9M        # cỡ M, số gợi ý của scripts/token-usage.py estimate (2026-10-29, trung vị 14 task M); chạy thử không cho thấy việc lớn hơn cỡ M (mục 4.1)
 blocking_points: [ads, sdk, consent, init-order, core, build-config]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-30
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -352,9 +352,11 @@ Rủi ro riêng: nếu MAX không đọc được đồng ý từ chuỗi TCF, M
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <...>
+Phiên bản 2:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt lại trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt."), cùng năm plan khác sửa theo rà soát độc lập danh sách chạy RUN-20261030-01, sau khi xem tóm tắt các điểm đã sửa và câu hỏi AI gửi trong phiên. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Các trả lời ở mục 9 của bản trước giữ nguyên. Đồng ý kiểm tải thư viện MAX ngay đầu task, hỏng thì dừng sớm; test quét thân `startSdk`; điều kiện dừng 4 chỉ kiểm bằng `javap` hay chữ ký API.
 
 Phiên bản 1:
 
