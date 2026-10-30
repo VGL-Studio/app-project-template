@@ -329,7 +329,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh label create flaky --color FBCA04 --description "Test thất bại rồi qua khi chạy lại trên cùng commit" --force
-          tests="$(grep -E ' > .+ FAILED$' ui-test-first.log | grep -vF '> Task ' | sed -E 's/ FAILED$//' | sort -u || true)"
+          tests="$(sed $'s/\033\\[[0-9;]*m//g' ui-test-first.log | grep -E ' > .+ FAILED[[:space:]]*$' | grep -vF '> Task ' | sed -E 's/[[:space:]]*FAILED[[:space:]]*$//' | sort -u || true)"
           first_test="$(head -n 1 <<< "${tests}")"
           {
             echo "Test trên emulator thất bại ở lần chạy đầu của main-guard trên commit ${GITHUB_SHA}, rồi qua khi chạy lại trên cùng emulator (ADR-0043)."
@@ -413,6 +413,9 @@ jobs:
 
       - name: Đóng issue main-broken của emulator khi xanh trở lại
         if: success()
+        # A GitHub error here must not turn a green ui-test red without annotation, which
+        # find-breaking-commit.sh --check ui-test would blame.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

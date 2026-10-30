@@ -74,7 +74,7 @@ ui_test_state() {
     end' <<<"$runs")"
   if [[ "$latest" == failure* ]]; then
     # The check step of an infra verdict prints "EMULATOR HẠ TẦNG (...)" as an error annotation.
-    infra="$(gh api "repos/$REPO/check-runs/${latest#failure }/annotations" \
+    infra="$(gh api "repos/$REPO/check-runs/${latest#failure }/annotations?per_page=100" \
       --jq '[.[] | select(.message | startswith("EMULATOR HẠ TẦNG ("))] | length' 2> /dev/null || echo 0)"
     if [[ "$infra" =~ ^[1-9][0-9]*$ ]]; then echo skip; else echo failure; fi
     return 0

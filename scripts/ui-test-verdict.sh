@@ -39,8 +39,11 @@ set -uo pipefail
 INFRA_PB=(PB-01 PB-11 PB-13 PB-15)
 # The emulator or the device is broken.
 DEVICE_RE='No connected devices|device offline|could not connect to TCP port'
-# A test that failed, in the Gradle log; lines with "> Task " are failed Gradle tasks, not tests.
-TEST_FAILED_RE=' > .+ FAILED$'
+# A test that failed, in the Gradle log once its colour codes are removed: AGP prints
+# "<class> > <test>[<device>] \e[31mFAILED \e[0m". Lines with "> Task " are failed Gradle tasks, not tests.
+TEST_FAILED_RE=' > .+ FAILED[[:space:]]*$'
+# The summary line AGP prints for the device when some tests failed.
+TESTS_FAILED_RE='Tests on .* failed: There (was|were) [0-9]+ failure'
 # The process of the app stopped, in the Gradle log. The device log adds a line "AndroidRuntime: Process: <id>" for the
 # applicationId read from app/build.gradle.kts, so that a crash of a system process (gms) does not count.
 GRADLE_CRASH_RE='Instrumentation run failed|Process crashed'
@@ -134,15 +137,20 @@ infra_row() { # <playbook line>: its PB-NN when that row is in INFRA_PB, else no
   done
 }
 
-real_failure() { # <log>: true when the app crashed or a test failed
-  grep -qE -- "$CRASH_RE" "$1" && return 0
-  [[ "$(grep -vF '> Task ' "$1" | grep -cE -- "$TEST_FAILED_RE")" != 0 ]]
+real_failure() { # <log>: true when the app crashed or a test failed (colour codes removed first)
+  local plain
+  plain="$(sed $'s/\033\\[[0-9;]*m//g' "$1")"
+  grep -qE -- "$CRASH_RE" <<<"$plain" && return 0
+  grep -qE -- "$TESTS_FAILED_RE" <<<"$plain" && return 0
+  [[ "$(grep -vF '> Task ' <<<"$plain" | grep -cE -- "$TEST_FAILED_RE")" != 0 ]]
 }
 
-own_job_changed() { # true when the checked-out commit changes the job's own scripts or main-guard.yml
+# True when the checked-out commit changes the scripts the ui-test job runs or main-guard.yml. Not ui-test-needed.sh:
+# it runs in guard. A commit changing main-guard.yml whose emulator does not start (PB-15) is red: accepted risk.
+own_job_changed() {
   local changed
   changed="$(git -C "$DIR" -c core.quotePath=false diff --no-renames --name-only HEAD^ HEAD 2> /dev/null)" || return 1
-  grep -qE '^(scripts/ui-test-[^/]*\.sh|\.github/workflows/main-guard\.yml)$' <<<"$changed"
+  grep -qE '^(scripts/ui-test-(on-emulator|verdict)\.sh|\.github/workflows/main-guard\.yml)$' <<<"$changed"
 }
 
 tests_run() { # the number of tests in ui-summary.log, 0 without one
