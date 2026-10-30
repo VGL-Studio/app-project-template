@@ -472,6 +472,11 @@ class AdsController @Inject internal constructor(
 
             override fun recordReward(declaration: AdPlacementDeclaration) =
                 telemetry.rewardEarned(declaration.placement())
+
+            override fun hostUsable(activity: Activity?): Boolean = isHostUsable(activity)
+
+            override fun recordShowFailed(declaration: AdPlacementDeclaration, code: Int) =
+                telemetry.showFailed(AdFormat.REWARDED, declaration.placement(), code)
         },
         logger = logger,
     )
@@ -645,7 +650,8 @@ class AdsController @Inject internal constructor(
      * Shows [turn] ([rememberShowStartupAd]) in the scope of this controller, so a recreated activity does not cancel
      * it: `open_app` through the app open slot, `open_app_inter` as an interstitial that skips the `ads_interval` gate
      * and moves its mark when it closes (A-02). [onFinished] runs once on the main thread, with true only when the
-     * interstitial was shown.
+     * interstitial was shown. An [activity] that is no longer usable is checked by those two paths, after their gate
+     * (F-08, plan T-055): a turn the gate lets show records `shown` and `ad_show_fail` `app_not_foreground`.
      */
     internal fun showStartupAd(activity: Activity, turn: StartupAdTurn, onFinished: (interShown: Boolean) -> Unit) {
         scope.launch {
@@ -655,11 +661,6 @@ class AdsController @Inject internal constructor(
                     startupFinished.value = true
                     onFinished(interShown)
                 }
-            }
-            if (activity.isFinishing || activity.isDestroyed) {
-                logger.info(TAG, "Startup ad ${turn.placement.key} skipped: activity gone")
-                completion.complete("activity_gone")
-                return@launch
             }
             val finish = { completion.complete("startup_ad") }
             when (turn.placement.format) {
@@ -755,8 +756,15 @@ class AdsController @Inject internal constructor(
         resumeAds.onProcessForegroundChanged(foreground)
     }
 
-    /** An activity of the app was resumed ([AdsActivityTracker]): the steps of G-06, then S-25. */
+    /**
+     * An activity of the app was resumed ([AdsActivityTracker]): a turn whose host was recreated for a configuration
+     * change becomes this activity's (plan T-055), then the steps of G-06, then S-25. The pause mark of the old host is
+     * not moved, so the first resume of the new activity never recovers the turn (F-03).
+     */
     internal fun onAppActivityResumed(activity: Activity) {
+        if (presence.rehostIfAwaiting(System.identityHashCode(activity))) {
+            logger.info(TAG, "Full-screen ${presence.current?.placement?.key}: new host resumed")
+        }
         resumeSteps.onResumed(activity)
         // S-25, after the steps of G-06.
         preloader.onActivityResumed(presence.showing.value)
@@ -769,14 +777,29 @@ class AdsController @Inject internal constructor(
 
     /**
      * N-04, HD-03: the activity that showed the full-screen ad is destroyed before the ad reported its close. Lowers
-     * the flag and runs the waiting completion once (forced completion).
+     * the flag and runs the waiting completion once (forced completion). A destruction for a configuration change
+     * (rotation, `isChangingConfigurations`) is not the loss of the host (KB-26, criterion 4; plan T-055): the turn is
+     * kept, the next resumed activity of the app takes it ([onAppActivityResumed]), and the real callback ends it.
      */
     internal fun onAppActivityDestroyed(activity: Activity) {
         val shown = presence.current ?: return
-        if (shown.hostActivityId != System.identityHashCode(activity)) return
-        logger.warn(TAG, "Full-screen ${shown.placement.key}: host destroyed before close")
-        endCurrentTurn("host_destroyed")
-        if (shown.placement.format == AdFormat.REWARDED) rewardedTurns.onStuck()
+        val action = hostDestroyedAction(
+            System.identityHashCode(activity),
+            shown.hostActivityId,
+            activity.isChangingConfigurations,
+        )
+        when (action) {
+            HostDestroyedAction.IGNORE -> Unit
+            HostDestroyedAction.HAND_OVER -> {
+                logger.info(TAG, "Full-screen ${shown.placement.key}: host recreated, turn kept")
+                presence.handOver()
+            }
+            HostDestroyedAction.FORCE_COMPLETE -> {
+                logger.warn(TAG, "Full-screen ${shown.placement.key}: host destroyed before close")
+                endCurrentTurn("host_destroyed")
+                if (shown.placement.format == AdFormat.REWARDED) rewardedTurns.onStuck()
+            }
+        }
     }
 
     /** The consent gate opened: the first time starts the SDK, later times preload again (S-10, S-14). */
@@ -857,9 +880,12 @@ class AdsController @Inject internal constructor(
     /**
      * Shows the interstitial of [placement] if the full-screen gate allows it, and returns whether it was shown.
      * [onFinished] runs exactly once, on the main thread: at once when the turn is blocked or no ad is loaded (N-02,
-     * F-07); else when the ad closes, fails to show, is found stuck or loses its activity (N-04), or, when
-     * `is_show_native_after_inter` is on at that moment, when the native full-screen ad that follows it closes (KB-16,
-     * K-01). Call it at a natural break (end of a level, after saving), never when the app opens or closes.
+     * F-07) or [activity] is not usable (F-08: finishing, destroyed or not the resumed activity of the app; the ad
+     * stays in its slot, `shown` then `ad_show_fail` `app_not_foreground`, no native ad after it); else when the ad
+     * closes, fails to show, is found stuck or loses its activity (N-04; a recreation for a configuration change keeps
+     * the turn, plan T-055), or, when `is_show_native_after_inter` is on at that moment, when the native full-screen ad
+     * that follows it closes (KB-16, K-01). Call it at a natural break (end of a level, after saving), never when the
+     * app opens or closes.
      */
     suspend fun showInterstitial(activity: Activity, placement: AdPlacement, onFinished: () -> Unit = {}): Boolean =
         showInterstitialTurn(activity, placement, combo = true, onFinished)
@@ -877,6 +903,8 @@ class AdsController @Inject internal constructor(
         if (decision != FullScreenShowDecision.SHOW) {
             return@withContext skipTurn(placement, decision, loadState, onFinished)
         }
+        // F-08: before the turn opens, so no `af_inters_ad_eligible` and no combo.
+        if (!isHostUsable(activity)) return@withContext skipHostGone(placement, onFinished)
         val turn = beginInterstitialTurn(placement, System.identityHashCode(activity), combo, onFinished)
             ?: return@withContext skipTurn(placement, FullScreenShowDecision.BUSY, loadState, onFinished)
         val ad = loadedInterstitials.remove(placement)
@@ -990,6 +1018,8 @@ class AdsController @Inject internal constructor(
             if (decision != FullScreenShowDecision.SHOW) {
                 return@withContext skipTurn(placement, decision, loadState, onFinished)
             }
+            // F-08: before the flag rises and before the ad leaves its slot.
+            if (!isHostUsable(activity)) return@withContext skipHostGone(placement, onFinished)
             if (!presence.tryBegin(placement, System.identityHashCode(activity), now)) {
                 return@withContext skipTurn(placement, FullScreenShowDecision.BUSY, loadState, onFinished)
             }
@@ -1238,6 +1268,24 @@ class AdsController @Inject internal constructor(
         preloadedNativeFullScreen.put(placement, ad, clock.nowMillis())
     }
 
+    /** Tests only: puts [ad] in the interstitial slot of [placement], as a load would (plan T-055). */
+    @VisibleForTesting
+    internal fun putLoadedInterstitialForTest(placement: AdPlacement, ad: InterstitialAd) {
+        loadedInterstitials[placement] = ad
+    }
+
+    /** Tests only: puts [ad] in the app open slot of [placement], loaded now, as a load would (plan T-055). */
+    @VisibleForTesting
+    internal fun putLoadedAppOpenForTest(placement: AdPlacement, ad: AppOpenAd) {
+        loadedAppOpens.put(placement, ad, clock.nowMillis())
+    }
+
+    /** Tests only: puts [ad] in the rewarded slot of [placement], loaded now, as a load would (plan T-055). */
+    @VisibleForTesting
+    internal fun putLoadedRewardedForTest(placement: AdPlacement, ad: RewardedAd) {
+        loadedRewardeds.put(placement, ad, clock.nowMillis())
+    }
+
     /**
      * The full-screen gate of [placement], shared by every full-screen format, in the order of [decideFullScreenShow]:
      * consent (S-11), the placement switches, another full-screen ad on screen (F-01, F-02), a loaded ad (F-04), then
@@ -1375,6 +1423,29 @@ class AdsController @Inject internal constructor(
         telemetry.opportunity(placement.format, placement, decision.opportunityResult(), loadState)
         if (decision == FullScreenShowDecision.NOT_READY) loadFullScreenAdIfNeeded(placement)
         FullScreenCompletion(logger).apply { set(onFinished) }.complete(decision.name.lowercase())
+        return false
+    }
+
+    /**
+     * F-08 (KB-26, criterion 3; plan T-055): whether a full-screen ad of the SDK may be shown on [activity] now
+     * ([fullScreenHostUsable]): not finishing, not destroyed, and the resumed activity of the tracker. The tracker sets
+     * it before it reports the resume, so the resume ad shown from [onAppActivityResumed] passes; `Lifecycle` reaches
+     * `RESUMED` only after that on API 29 and up. False before [start]. Every path that calls `show` of an SDK asks it
+     * first: interstitial, app open, rewarded, and the MAX formats of T-069.
+     */
+    internal fun isHostUsable(activity: Activity?): Boolean = activity != null &&
+        fullScreenHostUsable(activity.isFinishing, activity.isDestroyed, activity === tracker?.resumedActivity)
+
+    /**
+     * A turn that passed the gate on an activity that is not usable (F-08): the ad stays in its slot, `shown` then
+     * `ad_show_fail` `app_not_foreground` (question 1 of plan T-055), and [onFinished] runs once at once. No flag, no
+     * `ads_interval` mark, no load, no native ad after an interstitial.
+     */
+    private fun skipHostGone(placement: AdPlacement, onFinished: () -> Unit): Boolean {
+        logger.info(TAG, "Full-screen ${placement.key} skipped: host not usable")
+        recordShownOpportunity(placement)
+        telemetry.showFailed(placement.format, placement, SHOW_FAILED_APP_NOT_FOREGROUND)
+        FullScreenCompletion(logger).apply { set(onFinished) }.complete("host_not_usable")
         return false
     }
 
