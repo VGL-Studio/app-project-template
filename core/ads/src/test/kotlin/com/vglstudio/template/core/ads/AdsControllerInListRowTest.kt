@@ -1,7 +1,11 @@
 package com.vglstudio.template.core.ads
 
+import android.app.Application
 import android.os.Looper
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -114,25 +118,56 @@ class AdsControllerInListRowTest {
     }
 
     @Test
-    fun inListRow_failedThenRetriesAt5s_rowLogKey() {
-        openGate()
-        controller.setAppForegroundForTest(true)
+    fun inListRow_failedThenRetriesAt5s_listRowMetrics() {
+        // The slot metrics on and the controller started, so each load of the row reports to the metrics.
+        val settings = FakeRemoteSettings().apply { set(AdsSettings.IS_LOG_AD_SLOT_EVENTS, true) }
+        val metrics = RecordingAdMetrics()
+        val throwing = ThrowingNativeAdLoader()
+        val started = testAdsController(
+            unitIds = InScreenOnlyUnitIds,
+            flags = DefaultAdsFlags(settings),
+            metrics = metrics,
+            logger = logger,
+        ).also { it.nativeLoaderForTest = throwing }
+        started.start(ApplicationProvider.getApplicationContext<Application>(), AppActivityFilter { true })
+        started.openConsentGateForTest()
+        started.setAppForegroundForTest(true)
         idle()
 
-        val states = collect(row(0))
-        assertEquals(1, loader.requests.size)
-        loader.fail(3)
-        idle()
+        val states = collect(started.inListRowStates(AdPlacement.GALLERY_INLIST_SMALL, 0, MutableStateFlow(true)))
+        assertEquals(1, throwing.calls)
         assertEquals(NativeAdState.Unavailable, states.last())
 
         idleFor(4_999)
-        assertEquals(1, loader.requests.size)
+        assertEquals(1, throwing.calls)
         idleFor(1)
-        assertEquals(2, loader.requests.size)
+        assertEquals(2, throwing.calls)
+
+        // Each load of the row has its own report: two load failures, no load_attempt, the placement of the row.
+        val fails = metrics.events.filterIsInstance<AdMetricEvent.LoadFail>()
+        assertEquals(metrics.events.toString(), 2, fails.size)
+        assertEquals(listOf<Int?>(null, null), fails.map { it.loadAttempt })
+        assertEquals(listOf("gallery_inlist_small", "gallery_inlist_small"), fails.map { it.adPlacement })
         assertTrue(
             logger.entries.map { it.message }.toString(),
             logger.entries.any { it.message == "Native gallery_inlist_small#0 retry in 5000 ms (failures 1)" },
         )
+    }
+
+    /** A loader whose request cannot be built: every load throws before anything is sent (O-09). */
+    private class ThrowingNativeAdLoader : NativeAdLoader {
+        var calls = 0
+            private set
+
+        override fun load(
+            unitId: String,
+            size: NativeAdSize,
+            onLoaded: (LoadedNativeAd) -> Unit,
+            onFailed: (code: Int) -> Unit,
+        ) {
+            calls++
+            throw IllegalStateException("request not built")
+        }
     }
 
     /** Test units for the in-screen native formats only: no full-screen ad or banner of this test sends anything. */
