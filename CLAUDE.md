@@ -6,7 +6,7 @@
 
 - Kotlin, Jetpack Compose, một Activity, Navigation Compose với đích điều hướng kiểu `@Serializable`.
 - ViewModel với `StateFlow`, luồng dữ liệu một chiều. Hilt cho tiêm phụ thuộc. DataStore cho lưu trữ cục bộ.
-- minSdk 26, compileSdk và targetSdk 36. Phiên bản thư viện nằm ở `gradle/libs.versions.toml`.
+- minSdk 26, compileSdk 37, targetSdk 36. Phiên bản thư viện nằm ở `gradle/libs.versions.toml`; bộ công cụ build ở ADR-0040.
 
 ## Cấu trúc module
 
