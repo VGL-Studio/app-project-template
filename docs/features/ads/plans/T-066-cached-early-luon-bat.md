@@ -1,7 +1,7 @@
 ---
 ticket: T-066
 title: Khởi động sớm bằng đồng ý của lần mở trước luôn bật
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn 5 (đồng ý, thứ tự khởi tạo SDK) và 7 (module core)
 risk_level: high             # low | medium | high
@@ -258,3 +258,15 @@ Không cần (E dưới 2).
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (commit 2ae55e9, 2026-10-30 09:26 UTC).
+- **Nhánh, PR:** `claude/T-066-cached-early-luon-bat`, #339.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `ConsentGate`: `CACHED_EARLY` không theo công tắc, giữ qua lỗi khi UMP vẫn cho phép (`cachedKeptAfterFailure`), `regatherDue` gồm `CACHED_EARLY`, nhánh `else` không chốt; `ConsentShortcutConfig`, `AdsSettings`, `StagingAdsModule` mô tả công tắc chỉ cho `ERROR_ALLOWED`; sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json` (chỉ dòng `is_enable_consent_shortcut`); S-03, S-06, S-09, S-12, mục 10 của `ads-business-rules.md`; `ads-guide.md` ba chỗ. Không chạm `app/src/production/`. Không dùng phương án dự phòng.
+- **Test viết trước:** commit efd0bb5, 15 test đỏ đúng lý do trên code cũ; khối thêm của `reset_backToInitialKeepsShortcut` qua ngay (ngoại lệ 1). Test JVM mọi module sau bước 3: chỉ 15 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 12 ghi chú (cách đặt lại cờ theo trạng thái tương đương mục 3.1; thứ tự nhánh và luật chốt đúng; dòng `env.platform.canRequest = true` thừa trong `cachedConsent_updateFails_regathersOnInternetBackAndForeground`).
+- **Kết quả CI:** `pr-check` xanh trên 2ae55e9 (lần chạy 41032008068).
+- **Lệch so với plan:** không có file ngoài mục 3.2. Câu khẳng định viết lại (ADR-0031), đúng mục 3.5 và mục 9: (1) `ConsentCoordinatorTest.cachedConsent_shortcutOff_waitsForUpdate` thành `cachedConsent_shortcutOff_opensBeforeUpdateReturns`, đối chứng đặt lại vế `shortcut &&` thì 7 test đỏ; (2) dữ liệu khối đầu của `ConsentGateTest.shortcutOff_networkFailureGivesNothing`; (3) `networkFailure_afterCachedEarly_keepsCachedEarly` thêm `assertTrue(regatherDue)`, đối chứng bỏ vế `CACHED_EARLY` thì đỏ; (4) `reset_backToInitialKeepsShortcut` thêm khối công tắc. L4 (ADR-0032): thêm câu `allowed`, `CACHED_EARLY` vào hàm dựng `cachedKeptAfterFailure()` (trong commit test) để ba test đỏ đúng chỗ plan nêu. Cờ `cachedKeptAfterFailure` đặt lại sau `onFailure` theo trạng thái mới thay vì liệt kê từng chỗ (tương đương).
+- **Việc còn lại:** Không có.
+- **Cần người xem:** đánh đổi của câu hỏi 5 (đóng vì lỗi lúc UMP không cho phép thì không hỏi lại trong phiên); production không còn công tắc tắt khẩn từ xa cho `CACHED_EARLY`.
