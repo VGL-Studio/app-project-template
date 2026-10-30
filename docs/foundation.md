@@ -302,7 +302,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - `merge-if-green.sh` không đòi hay chờ `ui-test`
 - chỉ kết luận `red` của `scripts/ui-test-verdict.sh` mở `main-broken`
 - `infra` chỉ cho danh sách trắng PB của script và thiết bị hỏng, app dừng luôn là `red`
-- `find-breaking-commit.sh --check ui-test` không đổ lỗi cho commit có annotation `HẠ TẦNG:`
+- `find-breaking-commit.sh --check ui-test` không đổ lỗi cho commit có annotation `EMULATOR HẠ TẦNG (`, không chờ commit có `ui-test` bị hủy hay hết giờ
 - issue `main-broken` của emulator có dòng `<!-- check:ui-test -->`, và mỗi job chỉ bình luận, chỉ tự đóng issue của chính nó
 - emulator đỏ vì hạ tầng sau merge thì chạy lại riêng job đỏ theo `docs/ops/failure-playbook.md`, không mở `main-broken`, không đẩy commit rỗng lên nhánh chính
 - thêm đường dẫn code app hay script mà job `ui-test` gọi thì sửa danh sách của `scripts/ui-test-needed.sh` và test của nó cùng PR
