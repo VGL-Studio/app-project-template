@@ -867,8 +867,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** org dùng gói GitHub Free (2.000 phút mỗi tháng cho mọi repo private, mỗi job tính tối thiểu 1 phút). `resume-run.yml` mỗi giờ (khoảng 720 phút mỗi tháng), `run-watchdog.yml` mỗi 30 phút (khoảng 1.440 phút mỗi tháng) và `env-canary.yml` hằng ngày chạy cả khi không có phiên. Dev của app phải tắt tay `resume-run` và `env-canary` bằng `gh workflow disable`.
 - **Bằng chứng:** issue #275.
 - **Đề xuất sửa:** trước mắt, một PR tài liệu riêng: `docs/ops/staging-and-runs.md` ghi số phút mỗi tháng của từng lịch, cách tắt và khi nào bật lại. Sau đó, workflow định kỳ không cấp runner khi không có danh sách chạy `running` (T-051, cần plan rủi ro cao vì sửa `.github/`).
-- **Trạng thái:** accepted
-- **Áp dụng:** PR #283 (phần tài liệu): `docs/ops/staging-and-runs.md` mục 2.8, đầu phiên kiểm hai lịch đang bật (`docs/auto-run.md` mục 2, `docs/templates/run.md`). Phần workflow: T-051.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #283 (phần tài liệu): `docs/ops/staging-and-runs.md` mục 2.8. Phần workflow: T-051, PR #291: `resume-run.yml` và `run-watchdog.yml` tự tắt khi không có phiên hay danh sách chờ; `status-page.yml`, `start-run.yml` và phiên bật lại (`scripts/schedule-idle.py`). `env-canary.yml` giữ lịch hằng ngày.
 
 ### L-127. Bộ công cụ build AGP 9.1, Gradle 9.3.1, compileSdk 37 đã chạy được ở một app
 
@@ -878,4 +878,4 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #276.
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
-- **Áp dụng:** T-052.
+- **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
