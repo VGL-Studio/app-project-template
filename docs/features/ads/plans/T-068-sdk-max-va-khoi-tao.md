@@ -386,7 +386,7 @@ Phiên bản 1:
 
 ### RUN-20261030-01, phiên bản plan 2
 
-- **Kết quả:** dừng ở bước 6 (rà soát độc lập), 2026-10-30 11:50 UTC: phiên rà soát và plan hiểu KB-31 khác nhau (`docs/auto-run.md` bước 6), chạm điểm chặn đồng ý.
+- **Kết quả:** dừng ở bước 6 (rà soát độc lập), 2026-10-30 11:47 UTC: phiên rà soát và plan hiểu KB-31 khác nhau (`docs/auto-run.md` bước 6), chạm điểm chặn đồng ý.
 - **Nhánh, PR:** `claude/T-068-sdk-max-va-khoi-tao` (đã đẩy, commit `b0680b7`), chưa mở PR.
 - **Đã làm:** bước 3 đến 5 giao phiên con. Việc đầu tiên theo mục 3.4: tải `com.applovin:applovin-sdk:13.6.4` và `com.applovin.mediation:google-adapter:25.5.0.0` được. Plan chạy thử trước #320 (T-080, AGP 9.1, Gradle 9.3.1, compileSdk 37, người merge giữa phiên), nên điều kiện dừng 1 so trên nhánh chính lúc chạy: classpath `stagingReleaseRuntimeClasspath` của `:app` 287 tọa độ trước, 288 sau, chỉ thêm `google-adapter:25.5.0.0`, không thư viện nào đổi phiên bản. L3: dòng ngữ cảnh của `libs.versions.toml` và `core/ads/build.gradle.kts` còn nguyên văn. `javap` đúng chữ ký API. Manifest gộp `stagingDebug` giống hệt (11 `uses-permission`). `:app:assembleStagingRelease` qua, không cảnh báo từ `com.applovin`. `scripts/check.sh` qua (1661 test JVM).
 - **Test viết trước:** 26 test JVM và 2 test script (commit `0a6c1ba`), đỏ đúng lý do trên khung; câu sửa theo mục 3.5: `AdsSettingsTest.globalKeys_matchAdsKitTable` (16 khóa), `AdsFlagsTest.global_followsEveryRemoteValue`.
