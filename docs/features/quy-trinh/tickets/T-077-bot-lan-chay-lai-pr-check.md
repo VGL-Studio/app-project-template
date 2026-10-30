@@ -8,7 +8,7 @@ owner: Nhật
 status: planned
 risk: high
 size: M
-depends_on: [T-074, T-076]
+depends_on: [T-074, T-075, T-076]
 sprint:
 plan: features/quy-trinh/plans/T-077-bot-chay-lai-pr-check.md
 auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
