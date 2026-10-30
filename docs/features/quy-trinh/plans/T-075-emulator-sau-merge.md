@@ -1,7 +1,7 @@
 ---
 ticket: T-075
 title: Test emulator chạy sau khi merge, không chạy ở từng PR
-status: approved
+status: done
 version: 1
 risk_score: 11
 risk_level: high
@@ -352,7 +352,14 @@ Không cần (E dưới 2): `android-emulator-runner`, job có `needs` và `outp
   - Nên sửa 3: `find-breaking-commit.sh` đọc annotations với `?per_page=100`; fixture chỉ trả lời đúng đường có `per_page=100`.
   - Ghi chú 5: bước đóng issue của `ui-test` thêm `continue-on-error: true` (lỗi API ở đó làm job đỏ mà không có annotation, `find-breaking-commit.sh` sẽ đổ lỗi), có test tĩnh.
   - Ghi chú 4, 6, 7: không sửa, ghi ở Ghi chú để người xem.
-- **Ghi chú để người xem:** các ghi chú 4, 6, 7 của rà soát độc lập vòng 1 (nội dung ở báo cáo rà soát của vòng 1, không sửa trong task).
+- **Rà soát lại (vòng 2):** 0 chặn, 0 nên sửa; xác nhận bản chép của dc00a06 đỏ đúng 5 test trước e387eb5, merge 15ccc0b không làm mất dòng nào của main.
+- **Ghi chú để người xem:**
+  - (vòng 1, 4) `ui-test` `skipped` vì `guard` của commit đó đỏ: `find-breaking-commit.sh --check ui-test` coi là chưa biết và đi tiếp, nên lỗi emulator của commit B (guard đỏ) có thể bị đổ cho commit C sau nó. Plan đã chấp nhận (mục 8, câu 4); người duyệt nhánh revert xem lại commit trước đó.
+  - (vòng 1, 6) Job hết giờ 60 phút trong bước emulator (test treo thật) cho kết quả `cancelled`, kết luận `infra (kết quả lạ)`, không mở `main-broken`; bù bằng chạy lại theo lịch PB-15 và giới hạn hai lần `infra` liên tiếp (bước 9 của `docs/auto-run.md`).
+  - (vòng 1, 7) `guard` và `ui-test` cùng đổ lỗi cho một commit: hai issue và cùng tên nhánh `revert/<short>`; job đẩy sau bị từ chối và ghi "Không tự revert được". Hành vi đúng (mục 8, câu 5), chỉ thông báo dễ hiểu nhầm.
+  - (vòng 2, A) `first_real_failure` không loại `DEVICE_RE`: thiết bị rớt giữa lần đầu mà AGP vẫn in dòng `Tests on ... failed: There was N failure(s)` thì lần đầu bị tính là đỏ thật; chưa xác minh AGP in dòng đó khi thiết bị rớt. Việc sau: loại `DEVICE_RE` kèm một test.
+  - (vòng 2, B) Lần đầu chỉ đỏ theo dòng tóm tắt, không có dòng `FAILED`: issue chập chờn ghi "Không đọc được tên test từ log."
+  - (vòng 2, C) `docs/auto-run.md` (lệnh đọc annotation cho người) và `scripts/wait-run.sh` chưa có `?per_page=100`; ngoài phạm vi.
 - **Kết quả CI:** chưa có (PR chưa mở). Trên máy, sau khi sửa theo rà soát vòng 1 (đã merge `origin/main`): `scripts/tests/run.sh` qua; `scripts/check.sh` qua (1.455 test JVM, 0 lỗi); `actionlint` qua; `shellcheck` qua với các script đã sửa (run.sh thêm 2 ghi chú SC2016 cùng loại 77 ghi chú có sẵn); `scripts/secret-scan.py` qua; `scripts/plan-check.py` qua (3 dòng CHÚ Ý "plan ghi Tạo nhưng file đã có" vì chạy sau khi tạo).
 - **Lệch so với plan:**
   - ADR-0031: viết lại 2 câu khẳng định của `pr_missing_jobs` (`names=3` thành `names=2`, cả bản đổi tên) theo mục 3.5. Ý định: mỗi tên kiểm tra mà `merge-if-green.sh` đòi là một job của `pr-check.yml`, đổi tên job thì test báo. Đối chứng: bản đổi tên `build-and-test` vẫn ra `missing= build-and-test`.
@@ -363,7 +370,7 @@ Không cần (E dưới 2): `android-emulator-runner`, job có `needs` và `outp
   - Theo rà soát vòng 1 (ADR-0029): thêm tín hiệu `Tests on ... failed: There was N failure(s)` và bỏ mã màu ANSI ở `ui-test-verdict.sh` và bước ghi test chập chờn; bước đóng issue của `ui-test` có `continue-on-error`.
   - Thay đổi ở file test sau commit test 35ebec2 (commit dc00a06, viết trước phần sửa, 5 test thất bại đúng lý do: `0 green 0 infra 0 infra`, tên test rỗng, `0 red`, `ccccc03`, `no`): thêm test "a failed test in Gradle's coloured format is a real first failure (flaky, red, summary line)", "the flaky step of ui-test reads the name of a test in Gradle's coloured format", "no log after a commit changing only ui-test-needed.sh is infra", "the close step of ui-test cannot turn the job red"; dữ liệu của các test `find-breaking-commit --check ui-test` đổi đường annotations thành `check-runs/<id>/annotations?per_page=100` (cùng câu khẳng định). Không test nào bị nới hay xóa.
   - File ngoài mục 3.2: không có. Ticket để nguyên (người chuyển).
-- **Token:**
+- **Token:** 32.3M (ước tính 23.9M, 1,4 lần), `scripts/token-usage.py report --since 2026-10-30T03:17:53Z`; gồm hai vòng sửa theo rà soát và lần kiểm tay trên emulator.
 - **Việc còn lại:**
   - Kiểm tra thủ công của mục 4 (anh Nhật chạy, 2026-10-30): emulator Xiaomi_Mi_9 (AVD, API 37), thêm tạm một test luôn thất bại, chạy `scripts/ui-test-on-emulator.sh`: hai lần gọi Gradle, in "Lần đầu đỏ, chạy lại...", cả hai lần đỏ vì test (AssertionError), không vì cài đặt; có `ui-test-first.log`, `logcat-first.txt`, `ui-test-first-results`; `test-summary.sh android` in "2 test, 2 lỗi"; `ui-test-verdict.sh failure` ra `red`. Không chạy được phần "bỏ test tạm, mong xanh": trên API 37 `AppLaunchTest` đỏ vì Espresso (`NoSuchMethodException InputManager.getInstance`, môi trường); AVD API 36.1 có khóa màn hình chưa mở nên app dừng vì SharedPreferences ở vùng lưu trữ mã hóa. Phần này kiểm sau merge trên CI (API 34). Lần chạy thật này lộ ra điểm chặn 1 (định dạng có mã màu của AGP).
   - Sau merge: lần `main-guard` của commit merge có job `ui-test` xanh; PR chỉ đổi script thì `ui-test` `skipped`, `main-guard-status.sh` in `XANH`; lần chạy lại riêng job đỏ đầu tiên vẫn nhận output `ui` của `guard`.
