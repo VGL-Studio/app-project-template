@@ -1,7 +1,7 @@
 ---
 ticket: T-063
 title: Cổng không hiện quảng cáo cho người đã mua gói bỏ quảng cáo
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, init-order, core)
 risk_level: high             # low | medium | high
@@ -272,3 +272,15 @@ Phiên bản 1:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (commit 3dde3fb, 2026-10-30 10:02 UTC).
+- **Nhánh, PR:** `claude/T-063-cong-khong-hien-quang-cao`, #340.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `AdFreeStatus.kt` mới (mặc định `NONE`); `DefaultAdsFlags` dùng `masterSwitch = is_show_ads && !adFree` (`distinctUntilChanged`) ở `global` và `placementEnabled`; `AdFreeModule` của `:app` cấp `NONE`; KDoc `AdsFlags`, `AdsGlobalFlags`, `AdsController.isEnabled`; `ads-guide.md` mục 5.1 và mục 9; MC-11 và mục 12 của `ads-business-rules.md`. `ConsentCoordinator.kt`, `MainActivity.kt`, `core/ads/build.gradle.kts` không đổi. Không dùng phương án dự phòng 3.4.
+- **Test viết trước:** 17 test (commit 2b20216, 16 ở `:core:ads`, 1 ở `:app`), đỏ ở câu khẳng định trên khung rỗng. Đối chứng thêm ngoài plan: rewarded kiểm có `RewardDialog` khi hộp thoại mở; thanh đáy: tín hiệu về `false` thì thanh hiện lại, rồi tắt `is_show_<mã>` thì thanh mất. Test JVM mọi module sau bước 3: chỉ 17 test mới đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 5 ghi chú (test đồng ý và SDK không chứng minh `MobileAds.initialize` vẫn chạy, giữ bằng diff rỗng như ngoại lệ (4); một coroutine đối chứng không hủy trong `adFree_awaitStartupAd_nullAtOnce`; hộp thoại rewarded đang mở không tự đóng khi tín hiệu bật, đúng mục 2; câu cuối mục 12 dẫn ADR-0036 hai lần).
+- **Kết quả CI:** `pr-check` xanh trên 3dde3fb (lần chạy 41036639355).
+- **Lệch so với plan:** không có file ngoài mục 3.2. L4 (ADR-0032): khung `AdFreeModule` ở bước 3 trả một object mới thay vì "chưa có lớp", để `:app` biên dịch mà test đỏ ở câu khẳng định. Phần dựng test: `RewardedActionTest.realController()` thêm tham số có mặc định `logFullScreenEvents = false`, hai test mới gọi `controller.start(...)`; `BottomAdBarTest.Bar()` nhận `enabledFlow`. Không viết lại câu khẳng định cũ nào.
+- **Việc còn lại:** Không có (app cấp `AdFreeStatus` thật khi có gói bỏ quảng cáo).
+- **Cần người xem:** Không có.
