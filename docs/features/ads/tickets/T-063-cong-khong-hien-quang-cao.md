@@ -19,7 +19,7 @@ created: 2026-10-29
 
 ## Mô tả
 
-`:core:ads` nhận tín hiệu "người dùng đã mua gói bỏ quảng cáo" từ app; bật thì mọi định dạng như công tắc tổng tắt, hành động có điều kiện làm thẳng (ADR-0036, điểm 5; anh Nhật chọn chỉ làm cổng, chưa làm mua hàng).
+`:core:ads` nhận tín hiệu "người dùng đã mua gói bỏ quảng cáo" từ app; bật thì mọi định dạng như công tắc tổng tắt, hành động có điều kiện làm thẳng (ADR-0036, điểm 4; anh Nhật chọn chỉ làm cổng, chưa làm mua hàng).
 
 ## Phạm vi
 
