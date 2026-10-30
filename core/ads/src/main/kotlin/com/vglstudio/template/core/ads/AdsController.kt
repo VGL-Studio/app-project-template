@@ -528,6 +528,7 @@ class AdsController @Inject internal constructor(
             return
         }
         logger.info(TAG, "Ads started")
+        missingUnitsWarning(unitIds)?.let { logger.warn(TAG, it) }
         startedAtMillis = clock.nowMillis()
         // AppsFlyer starts once consent allows it (ADR-0027, decision 3; plan T-033).
         scope.launch {
