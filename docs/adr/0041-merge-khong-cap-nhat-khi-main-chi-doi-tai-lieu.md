@@ -1,7 +1,7 @@
 ---
 id: ADR-0041
 title: merge-if-green.sh merge PR code mà không cập nhật nhánh khi nhánh chính chỉ đổi tài liệu từ điểm tách, và PR nháp không chạy pr-check
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-30
 deciders: [Nhật]

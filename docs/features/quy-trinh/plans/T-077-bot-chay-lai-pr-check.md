@@ -1,16 +1,16 @@
 ---
 ticket: T-077
 title: Bớt lần chạy lại pr-check: PR nháp và nhánh chính chỉ đổi tài liệu
-status: draft
+status: approved
 version: 1
 risk_score: 9
 risk_level: high
 token_estimate: 23.9M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -153,7 +153,7 @@ Nơi đọc file bị đổi (L-020), tìm bằng `grep -rln -e main-guard-verif
 
 Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì chỉ dẫn tên hay đường dẫn trong chú thích, thông báo hay liên kết, không đọc nội dung của mục bị đổi, và plan không đổi tên hay xóa mục nào, chỉ thêm câu vào các dòng nêu ở mục 3.1 E:
 
-- dẫn `docs/auto-run.md` (số mục trong chú thích hay lời giao phiên): `.github/workflows/resume-run.yml`, `.github/workflows/start-run.yml`, `scripts/cloud-env-check.sh`, `scripts/cloud-setup.sh`, `scripts/failure-kind.sh`, `scripts/push-on-commit.sh`, `scripts/push-probe.sh`, `scripts/resume-check.py`, `scripts/run-check.py`, `scripts/run-watchdog.py`, `scripts/save-branch.sh`, `scripts/schedule-idle.py`, `scripts/status.py`, `scripts/token-usage.py`;
+- dẫn `docs/auto-run.md` (số mục trong chú thích hay lời giao phiên): `.github/workflows/resume-run.yml`, `.github/workflows/start-run.yml`, `scripts/cloud-env-check.sh`, `scripts/cloud-setup.sh`, `scripts/failure-kind.sh`, `scripts/push-on-commit.sh`, `scripts/push-probe.sh`, `scripts/resume-check.py`, `scripts/run-check.py`, `scripts/run-watchdog.py`, `scripts/save-branch.sh`, `scripts/schedule-idle.py`, `scripts/status.py`, `scripts/token-usage.py`, `scripts/ui-test-verdict.sh` (T-075, thêm sau khi soạn plan);
 - dẫn `CLAUDE.md` (quy ước chung, mục Lệnh): `.github/ISSUE_TEMPLATE/from-app.yml`, `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenOverlayScreenshotTest.kt`, `scripts/local-setup.sh`, `scripts/new-app.sh`, `scripts/run-watchdog.py`; plan chỉ thêm nửa câu vào một dòng của mục Lệnh;
 - dẫn `docs/ops/setup-new-app.md`: `.github/workflows/env-canary.yml`, `.github/workflows/start-run.yml`, `scripts/java-check.sh`, `scripts/new-app.sh`, `scripts/setup-check.sh`; plan chỉ thêm ý vào hai dòng của bảng lỗi;
 - `scripts/local-setup.sh` chỉ nhắc `scripts/tests/run.sh` (lệnh chạy sau khi cài), không phụ thuộc test mới.
@@ -285,7 +285,7 @@ Không cần (E dưới 2): `gh api` với `fake-gh`, `compare`, `pulls/N/files`
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **ADR-0041.** Đồng ý thì khi duyệt plan ghi ADR-0041 `status: accepted`, chạy `scripts/foundation.py`, commit cùng lần duyệt (`docs/CLAUDE.md`, mục Khi viết ADR). Số 0041 đã giữ chỗ (T-075 dùng 0040, T-078 dùng 0042). Chọn ADR mới thay vì thêm mục vào ADR-0039 vì: ADR-0039 đã `accepted` (không sửa nội dung, `docs/CLAUDE.md`), và quyết định này thay luật merge của ADR-0010 mục 1 và mục 4, không phải luật của `main-guard`.
+1. **ADR-0041.** Đồng ý thì khi duyệt plan ghi ADR-0041 `status: accepted`, chạy `scripts/foundation.py`, commit cùng lần duyệt (`docs/CLAUDE.md`, mục Khi viết ADR). Số 0041 đã giữ chỗ (T-075 dùng 0043 vì 0040 thuộc T-080, T-078 dùng 0042). Chọn ADR mới thay vì thêm mục vào ADR-0039 vì: ADR-0039 đã `accepted` (không sửa nội dung, `docs/CLAUDE.md`), và quyết định này thay luật merge của ADR-0010 mục 1 và mục 4, không phải luật của `main-guard`.
 2. **Điều "không file nào đổi ở cả hai bên"** chặt hơn ticket: PR code cùng sửa `docs/lessons.md`, `docs/foundation.md` hay cùng một plan với nhánh chính thì vẫn cập nhật. Đề xuất giữ, để bài học trùng số và `foundation.md` lệch được bắt trước merge trong ca hay gặp nhất. Bỏ thì bớt thêm lần chạy nhưng `main-broken` dễ xảy ra hơn.
 3. **Tổ hợp tài liệu ở file khác nhau chỉ bị bắt sau merge** (ví dụ PR thêm ADR mới cùng số với ADR vừa vào nhánh chính ở tên file khác): `main-guard` cách `tests` đỏ, mở `main-broken`, chặn mọi lần merge tới khi người xử lý. Ticket đã nêu; đề xuất chấp nhận.
 4. **PR chỉ đổi script** (bước cổng `check.sh` có chạy vì `scripts/**` thuộc bộ lọc code): được merge không cập nhật như PR code. PR chỉ tài liệu luôn cập nhật. Đề xuất đồng ý.
@@ -295,8 +295,8 @@ Không cần (E dưới 2): `gh api` với `fake-gh`, `compare`, `pulls/N/files`
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:**, **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30, sau khi T-075 merge (PR #324) và plan T-076 được duyệt (PR #315). Bảy câu ở mục 8 theo đề xuất của plan: (1) ADR-0041 ghi `accepted`, `docs/foundation.md` sinh lại cùng lần duyệt; (2) giữ điều "không file nào đổi ở cả hai bên"; (3) chấp nhận tổ hợp tài liệu ở file khác nhau chỉ bị bắt sau merge; (4) PR chỉ đổi script được merge không cập nhật như PR code; (5) đồng ý mã 6 của `wait-run.sh` và mã 2 của `merge-if-green.sh` khi chậm vì tài liệu mà CI chưa xong; (6) chỉ bắt đầu task sau khi T-076 merge; (7) `main-guard` đỏ ở cách `tests` chỉ vì tổ hợp tài liệu thì sửa bằng PR tài liệu, không revert; đổi `docs/auto-run.md` bước 9 là ticket riêng. Đối chiếu lúc duyệt: trạng thái sau T-075 khớp mục 2 (không còn `SKIPPABLE_CHECKS`, tên job và bước cổng giữ, regex lấy repo ở dòng 90 của `merge-if-green.sh`); trạng thái sau T-076 lấy theo plan T-076 đã duyệt. Task sửa trong file của mục 3.2, như điểm nên sửa (ADR-0029), bốn điều sau: (a) test M3 của T-076 (`merge-if-green: a skipped build-and-test is refused in the one-job shape`, mong mã 1) cũng khẳng định hành vi cũ "kiểm tra bắt buộc `skipped` bị từ chối": viết lại cùng lúc và cùng cách với câu `a skipped build-and-test is refused` ở mục 3.5 (mong `2 1 0`, không lệnh ghi), không tính vào giới hạn 3 câu của ADR-0031 vì là test viết trước của plan; (b) đối chứng phá ý định của câu `skipped` không dựa vào dòng `allow_skip` (T-075 đã bỏ): bản sao `$work/mgi-skip-green.sh` dùng `sed` thay chính dòng `pending "... bị bỏ qua (lần chạy lúc PR còn nháp) ..."` bằng `return 0`, kèm `! cmp -s` với bản gốc để chắc bản sao đã khác; (c) `merged_on_main` bước 3: merge-base lỗi hay rỗng thì đi bước 4 (từ chối, người xem), lệnh `git diff` có ngoặc kép quanh merge-base; thêm điều không file nào trong tập khác nhau giữa `HEAD_SHA` và commit thuộc `diff --name-only <merge-base> HEAD_SHA` (PR và nhánh chính cùng đổi một file tài liệu thì không nhận là đã merge); test 27 thêm hai ca đối chứng, merge-base rỗng (mong `1`) và (d) H1 sửa `docs/lessons-2.md` mà `D` cũng đổi (mong `1`, không có `ĐÃ MERGE TRƯỚC ĐÓ`), ca (c) cập nhật route `git/commits/<H1>`; (e) test 27 ghi dòng 90 (không phải 91) cho regex lấy repo. Task làm có người (`auto_run: false`).
 
 ## 10. Nhật ký thực hiện
