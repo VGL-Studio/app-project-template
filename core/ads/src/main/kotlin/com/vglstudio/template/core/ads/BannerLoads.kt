@@ -22,9 +22,12 @@ internal enum class BannerRefresh {
     MANUAL,
 }
 
-/** [AdFormat.BANNER] is refreshed by its ad unit, [AdFormat.BANNER_COLLAPSIBLE] by hand; other formats throw. */
+/**
+ * [AdFormat.BANNER] and [AdFormat.BANNER_MREC] are refreshed by their ad unit, [AdFormat.BANNER_COLLAPSIBLE] by hand;
+ * other formats throw.
+ */
 internal fun bannerRefreshOf(format: AdFormat): BannerRefresh = when (format) {
-    AdFormat.BANNER -> BannerRefresh.BY_AD_UNIT
+    AdFormat.BANNER, AdFormat.BANNER_MREC -> BannerRefresh.BY_AD_UNIT
     AdFormat.BANNER_COLLAPSIBLE -> BannerRefresh.MANUAL
     else -> throw IllegalArgumentException("$format is not a banner format")
 }
@@ -50,8 +53,9 @@ internal const val COLLAPSIBLE_BANNER_RELOAD_MILLIS = 30_000L
  * - Loaded: the failure count goes back to 0 and [onLoaded] runs. [BannerRefresh.BY_AD_UNIT] sends nothing more (the
  *   SDK refreshes, its results come through [BannerAdView.results] too); [BannerRefresh.MANUAL] sends again
  *   [COLLAPSIBLE_BANNER_RELOAD_MILLIS] later.
- * - Failed: retry after min(n x 2 s, 10 s) for the n-th failure in a row (B-02), cut short when [retryResets] changes
- *   (S-24). The count belongs to this loop, so two slots of one placement count apart (L-068).
+ * - Failed: [onFailed] runs, then a retry after min(n x 2 s, 10 s) for the n-th failure in a row (B-02), cut short
+ *   when [retryResets] changes (S-24). The count belongs to this loop, so two slots of one placement count apart
+ *   (L-068).
  * - Waits are coroutine delays: a monotonic clock, not the wall clock (AR-01). No unit id is logged.
  */
 internal suspend fun runBannerLoads(
@@ -98,6 +102,7 @@ internal suspend fun runBannerLoads(
 
                 is BannerLoadResult.Failed -> {
                     failures++
+                    onFailed()
                     val generation = retryResets.value
                     val wait = AdRetryPolicy.fullScreenDelayMillis(failures)
                     logger.info(

@@ -42,7 +42,8 @@ object GoogleTestAdUnitIds : AdUnitIds {
         // Native video, like the other native cards with media.
         AdFormat.NATIVE_STEP -> "ca-app-pub-3940256099942544/1044960115"
         AdFormat.NATIVE_IN_COLLECTION -> "ca-app-pub-3940256099942544/1044960115"
-        AdFormat.BANNER_MREC -> "ca-app-pub-3940256099942544/9214589741"
+        // Google's fixed-size banner unit, for every fixed size, 300 x 250 too (plan T-062, question 1).
+        AdFormat.BANNER_MREC -> "ca-app-pub-3940256099942544/6300978111"
     }
 }
 

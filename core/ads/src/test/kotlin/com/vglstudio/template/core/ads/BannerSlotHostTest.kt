@@ -544,11 +544,14 @@ class BannerSlotHostTest {
         assertSlotHeight(0)
 
         timedUpdate { gateOpen = false }
+        // With the clock stopped, a value written from the test is composed one frame later.
+        frame()
         assertSlotHeight(0)
         assertEquals(1, first.destroyCount)
 
         // A new frame starts with no failure: 250 dp while its first load runs.
         timedUpdate { gateOpen = true }
+        frame()
         assertEquals(2, views.createdCount)
         assertEquals(1, views.last.sendCount)
         assertSlotHeight(MREC_HEIGHT_DP)
