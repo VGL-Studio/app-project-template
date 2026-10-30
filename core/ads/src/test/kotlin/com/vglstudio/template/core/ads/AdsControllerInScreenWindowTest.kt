@@ -72,7 +72,9 @@ class AdsControllerInScreenWindowTest {
 
     /** Closes the standalone turn of [cover], once its countdown is over (K-03). */
     private fun uncover() {
-        if (controller.nativeFullScreenView.value?.closeEnabled != true) idleFor(NATIVE_AFTER_INTER_COUNTDOWN_MILLIS)
+        if (controller.nativeFullScreenView.value?.closeEnabled != true) {
+            idleFor(NATIVE_CLOSE_COUNTDOWN_DEFAULT_SECONDS * 1_000)
+        }
         controller.closeNativeFullScreen()
         assertFalse(controller.fullScreenAdShowing.value)
     }

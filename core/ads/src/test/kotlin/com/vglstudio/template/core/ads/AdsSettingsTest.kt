@@ -45,18 +45,34 @@ class AdsSettingsTest {
             Triple("resume_ad_type", RemoteKey.Type.STRING, "aoa"),
             Triple("ads_interval", RemoteKey.Type.LONG, 45L),
             Triple("is_show_native_after_inter", RemoteKey.Type.BOOLEAN, false),
+            Triple("time_close_native", RemoteKey.Type.LONG, 5L),
             Triple("is_show_native_bottom", RemoteKey.Type.BOOLEAN, false),
             Triple("is_show_native_collap", RemoteKey.Type.BOOLEAN, true),
-            Triple("time_expand_collap_ad", RemoteKey.Type.LONG, 30L),
+            Triple("time_expand_collap_ad", RemoteKey.Type.LONG, 10L),
             Triple("is_enable_consent_shortcut", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_fullscreen_events", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_slot_events", RemoteKey.Type.BOOLEAN, false),
         )
         val global = AdsSettings.all().filterNot { isDerived(it.name) }
             .map { Triple(it.name, it.type, it.default) }
-        assertEquals(14, expected.size)
+        assertEquals(15, expected.size)
         assertEquals(expected, global.toSet())
         assertEquals(global.size, global.toSet().size)
+    }
+
+    @Test
+    fun timeCloseNative_isJBaseName() {
+        assertKey(AdsSettings.TIME_CLOSE_NATIVE, "time_close_native", RemoteKey.Type.LONG, 5L)
+        assertTrue(AdsSettings.TIME_CLOSE_NATIVE in AdsSettings.all())
+        assertTrue(
+            AdsSettings.TIME_CLOSE_NATIVE.description,
+            AdsSettings.TIME_CLOSE_NATIVE.description.endsWith("Name from JBase, not an AdsKit key."),
+        )
+        // Control: a key named by the template keeps its own note.
+        assertTrue(
+            AdsSettings.TIME_EXPAND_COLLAP_AD.description,
+            AdsSettings.TIME_EXPAND_COLLAP_AD.description.endsWith("Name set by the template, not an AdsKit key."),
+        )
     }
 
     @Test
