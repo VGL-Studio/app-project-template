@@ -1,16 +1,16 @@
 ---
 ticket: T-076
 title: pr-check bỏ job changes riêng
-status: draft
+status: approved
 version: 1
 risk_score: 7
 risk_level: high
 token_estimate: 5.4M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -24,7 +24,7 @@ Bước lọc đường dẫn `dorny/paths-filter` chuyển từ job `changes` v
 
 Ticket quy trình, không có spec nghiệp vụ. Yêu cầu: `features/quy-trinh/requests/2026-10-29-giam-phut-actions.md`, cách 4. Quyết định của anh Nhật ngày 2026-10-29: áp dụng cả sáu cách; T-074 tới T-077 làm có người (`auto_run: false`).
 
-**Giả định về T-075 (phụ thuộc; plan draft ở PR #318, chưa duyệt).** Plan này viết cho trạng thái sau khi T-075 merge, khớp mục 3.1 "Trạng thái sau T-075" của plan T-075 bản draft ngày 2026-10-30: `pr-check.yml` còn hai job, `changes` (bộ lọc, ra `code` và `release`) và `build-and-test` (`needs: changes`, các bước đọc `needs.changes.outputs.code` và `needs.changes.outputs.release` như hôm nay); không còn job `ui-test` và bộ lọc `ui`; chú thích đầu file có thêm dòng về job `ui-test` của `main-guard.yml` (ADR-0043); `merge-if-green.sh` có `REQUIRED_CHECKS=("changes" "build-and-test")`, không còn `SKIPPABLE_CHECKS`; `scripts/tests/run.sh` có `pr_missing_jobs` mong `names=2`, dữ liệu `code_runs` (`changes`, `build-and-test` xanh) và test 21 tới 23 của T-075 (`merge-if-green: a code PR without ui-test is ready`, `... a running ui-test is not waited for`, `... a red ui-test left from before is still refused`); `green_runs` và `mig_run` giữ dòng `ui-test` `skipped`. Mọi diff và số đếm ở mục 3.1 và mục 4 tính từ trạng thái đó. T-075 merge với hình dạng khác (plan T-075 đổi sau rà soát, còn bộ lọc `ui`, còn `SKIPPABLE_CHECKS`, đổi tên bước hay tên test) thì plan phải đối chiếu lại trước khi duyệt (mục 8, câu 1).
+**Giả định về T-075 (phụ thuộc; đã merge ở PR #324 ngày 2026-10-30, đối chiếu lúc duyệt: khớp, mục 9).** Plan này viết cho trạng thái sau khi T-075 merge, khớp mục 3.1 "Trạng thái sau T-075" của plan T-075 bản draft ngày 2026-10-30: `pr-check.yml` còn hai job, `changes` (bộ lọc, ra `code` và `release`) và `build-and-test` (`needs: changes`, các bước đọc `needs.changes.outputs.code` và `needs.changes.outputs.release` như hôm nay); không còn job `ui-test` và bộ lọc `ui`; chú thích đầu file có thêm dòng về job `ui-test` của `main-guard.yml` (ADR-0043); `merge-if-green.sh` có `REQUIRED_CHECKS=("changes" "build-and-test")`, không còn `SKIPPABLE_CHECKS`; `scripts/tests/run.sh` có `pr_missing_jobs` mong `names=2`, dữ liệu `code_runs` (`changes`, `build-and-test` xanh) và test 21 tới 23 của T-075 (`merge-if-green: a code PR without ui-test is ready`, `... a running ui-test is not waited for`, `... a red ui-test left from before is still refused`); `green_runs` và `mig_run` giữ dòng `ui-test` `skipped`. Mọi diff và số đếm ở mục 3.1 và mục 4 tính từ trạng thái đó. T-075 merge với hình dạng khác (plan T-075 đổi sau rà soát, còn bộ lọc `ui`, còn `SKIPPABLE_CHECKS`, đổi tên bước hay tên test) thì plan phải đối chiếu lại trước khi duyệt (mục 8, câu 1).
 
 **Giữ cho T-077.** Sau ticket này `pr-check` chỉ có một job `build-and-test`, bước lọc nằm trong job với `id: filter`, các bước đọc `steps.filter.outputs.code` và `steps.filter.outputs.release`. Tên job `build-and-test` và tên bước `Cổng chất lượng (scripts/check.sh)` giữ nguyên (`scripts/main-guard-verified.sh` đọc, ADR-0039).
 
@@ -288,14 +288,14 @@ Không cần (E dưới 2): `dorny/paths-filter@v3` đã dùng ở job `changes`
 2. **Bộ lọc không còn ai đọc.** Plan T-075 bỏ bộ lọc `ui`; nếu bản merge vẫn để lại, T-076 bỏ nó (test P4 đòi mỗi bộ lọc khai báo đều có bước đọc). Đề xuất đồng ý; test emulator sau merge (T-075) có danh sách riêng (`scripts/ui-test-needed.sh`).
 3. **Bước kiểm kết quả lọc.** Thêm một bước vài giây sau bộ lọc, dừng job khi `code` hay `release` rỗng hoặc không phải `true`/`false`, để lỗi nối (đổi `id`, action đổi output) không làm PR code xanh mà chưa chạy `check.sh`. Bước này không bắt file code mà không mẫu nào khớp; phần đó chỉ test PR mẫu P6 giữ, với các đường dẫn mẫu đã liệt kê. Đề xuất giữ.
 4. **Merge PR của chính T-076 bằng `merge-if-green.sh` của nhánh task**, vì bản trên nhánh chính lúc đó còn chờ check `changes` (mục 3.1, Chuyển tiếp); chỉ merge khi không có phiên tự chạy `running` hay tạm dừng; sau merge báo anh Nhật và Tuấn kéo nhánh chính. Đề xuất đồng ý; ghi vào nhật ký.
-5. **Không viết ADR mới, không ghi chú vào ADR có sẵn.** Không ADR nào nêu job `changes`; ADR-0010 mục 1 ("toàn bộ kiểm tra của `pr-check.yml`") và ADR-0039 (tên job, tên bước) vẫn đúng. Cấu trúc một job ghi ở chú thích đầu `pr-check.yml`. Đề xuất đồng ý; nếu người duyệt muốn ghi lại, thêm một dòng ghi chú vào ADR-0010 (không lấy số 0040 tới 0042 đã giữ cho T-075, T-077, T-078).
+5. **Không viết ADR mới, không ghi chú vào ADR có sẵn.** Không ADR nào nêu job `changes`; ADR-0010 mục 1 ("toàn bộ kiểm tra của `pr-check.yml`") và ADR-0039 (tên job, tên bước) vẫn đúng. Cấu trúc một job ghi ở chú thích đầu `pr-check.yml`. Đề xuất đồng ý; nếu người duyệt muốn ghi lại, thêm một dòng ghi chú vào ADR-0010 (không lấy số 0041, 0042 đã giữ cho T-077, T-078; T-075 dùng ADR-0043).
 6. **Chi phí chuyển tiếp.** PR đang mở lúc T-076 merge phải cập nhật nhánh và chạy lại `pr-check` một lần (việc này vẫn xảy ra với mọi commit mới của nhánh chính). Đề xuất chấp nhận.
 7. **Bản `merge-if-green.sh` cũ chờ check `changes` mãi.** Sau khi T-076 merge, bản script cũ (worktree cũ, thư mục chưa kéo, nhánh chính của app trước đợt đồng bộ) trả mã 2 `chưa thấy kiểm tra 'changes'` mãi, và skill `merge-pr` dạy gọi lại sau. Plan xử lý bằng thứ tự chuyển tiếp (mục 3.1). Đề xuất thêm, ngoài phạm vi T-076 (cần mẫu log và test của `failure-kind.sh`, và một câu trong `docs/ops/to-app.md`): một dòng bảng tra lỗi cho mẫu `chưa thấy kiểm tra 'changes'` với cách xử lý "kéo nhánh chính, chạy lại bằng script mới; PR đồng bộ của app thì chạy script của nhánh đồng bộ". Người chọn: làm ở một PR quy trình riêng sau T-076, hay gộp vào T-076 (khi đó mục 3.2 thêm `docs/ops/failure-playbook.md`, `scripts/tests/playbook/` và `docs/ops/to-app.md`).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:** , **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30, sau khi T-075 merge (PR #324, bb7f7fc). Câu 1: AI đối chiếu `pr-check.yml`, `merge-if-green.sh` và `scripts/tests/run.sh` của nhánh chính lúc duyệt với mục 3.1, 3.5, 4: khớp (hai job `changes`, `build-and-test`, không còn bộ lọc `ui`; `REQUIRED_CHECKS=("changes" "build-and-test")`, không còn `SKIPPABLE_CHECKS`; `pr_missing_jobs` mong `names=2`; `code_runs` và test 21 tới 23 đúng tên; `green_runs`, `mig_run`, `MIG_CHANGES` như mục 3.5). Lệch nhỏ, không đổi cách làm: dữ liệu job của test `wait-run: a red PR check names the failed job` trên nhánh chính là `ui-test` đỏ cạnh `changes` xanh; task vẫn thay bằng một job `build-and-test` đỏ như mục 3.5. Không cần phiên bản 2. Câu 2 tới 6 theo đề xuất của plan: bỏ bộ lọc không ai đọc (T-075 đã bỏ `ui`, không còn việc); giữ bước kiểm kết quả lọc; merge PR task bằng `merge-if-green.sh` của nhánh task, chỉ khi không có phiên tự chạy `running` hay tạm dừng (lúc duyệt RUN-20261030-01 đang chạy: làm task được, merge chờ phiên xong), sau merge báo anh Nhật và Tuấn kéo nhánh chính; không ADR mới; chấp nhận chi phí chuyển tiếp. Câu 7: dòng bảng tra lỗi cho `chưa thấy kiểm tra 'changes'` làm ở một PR quy trình riêng ngay sau khi T-076 merge, không gộp vào T-076; ghi vào mục Việc còn lại của nhật ký. Task làm có người (`auto_run: false`).
 
 ## 10. Nhật ký thực hiện
