@@ -120,6 +120,7 @@ class AdsController @Inject internal constructor(
     @param:ApplicationContext private val context: Context,
     private val unitIds: AdUnitIds,
     consentDebug: ConsentDebugOptions,
+    private val debugOptions: AdsDebugOptions,
     private val flags: AdsFlags,
     private val connectivity: InternetConnectivity,
     private val shortcutConfig: ConsentShortcutConfig,
@@ -131,6 +132,9 @@ class AdsController @Inject internal constructor(
     funnel: AdFunnel,
 ) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** One log line per network of every load the SDK answers, at staging only (plan T-058, KB-28). */
+    internal val networkLog = AdNetworkLog(debugOptions.logNetworkResponses, logger)
 
     // Touched on the main thread only.
     private val clock: MonotonicClock = SystemMonotonicClock
@@ -793,6 +797,13 @@ class AdsController @Inject internal constructor(
             updateSdkReady("35 s cap")
         }
         scope.launch {
+            // The developer's test devices of a staging build, before the SDK starts and sends anything (T-058).
+            applyTestDevices(
+                debugOptions,
+                MobileAds::getRequestConfiguration,
+                MobileAds::setRequestConfiguration,
+                logger,
+            )
             // Google recommends starting the SDK off the main thread.
             withContext(Dispatchers.IO) {
                 // The listener runs once every adapter is initialized or timed out (KB-9).
@@ -1197,9 +1208,16 @@ class AdsController @Inject internal constructor(
     @VisibleForTesting
     internal var nativeLoaderForTest: NativeAdLoader? = null
 
-    /** The loader of one in-screen native load: [nativeLoaderForTest] when set, else the SDK's. */
-    private fun newNativeLoader(events: NativeAdEvents?, options: NativeRequestOptions? = null): NativeAdLoader =
-        nativeLoaderForTest ?: SdkNativeAdLoader(context, adRequest(), events, options)
+    /**
+     * The loader of one in-screen native load: [nativeLoaderForTest] when set, else the SDK's, which logs its networks
+     * under [logKey], the key the load logs under (plan T-058).
+     */
+    private fun newNativeLoader(
+        events: NativeAdEvents?,
+        options: NativeRequestOptions?,
+        logKey: String,
+    ): NativeAdLoader = nativeLoaderForTest
+        ?: SdkNativeAdLoader(context, adRequest(), events, options, networkLog = networkLog, logKey = logKey)
 
     /** Tests only: the app comes to foreground or goes to background, as [AdsActivityTracker] reports it. */
     @VisibleForTesting
@@ -1461,7 +1479,7 @@ class AdsController @Inject internal constructor(
                     placement = { holder.value },
                 )
             },
-            newLoader = { events -> newNativeLoader(events) },
+            newLoader = { events -> newNativeLoader(events, null, POOL_LOG_KEY) },
             unitId = key.unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1533,7 +1551,7 @@ class AdsController @Inject internal constructor(
                 retryingNativeAdStates(
                     load = nativeLoadOnce(
                         newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.SINGLE_AD, format) },
-                        newLoader = { events -> newNativeLoader(events) },
+                        newLoader = { events -> newNativeLoader(events, null, placement.key) },
                         unitId = unitId,
                         size = size,
                         timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1562,7 +1580,7 @@ class AdsController @Inject internal constructor(
         val options = if (format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
         return nativeLoadOnce(
             newEvents = { nativeAdMetrics(placement, unitId, use, format) },
-            newLoader = { events -> newNativeLoader(events, options) },
+            newLoader = { events -> newNativeLoader(events, options, nativeSlotKey(placement, format)) },
             unitId = unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1605,7 +1623,13 @@ class AdsController @Inject internal constructor(
             return NativeAdState.Unavailable
         }
         return loadOneNativeAd(
-            SdkNativeAdLoader(context, adRequest(), nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW)),
+            SdkNativeAdLoader(
+                context,
+                adRequest(),
+                nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW),
+                networkLog = networkLog,
+                logKey = placement.key,
+            ),
             unitId,
             size,
             NATIVE_LOAD_TIMEOUT_MILLIS,
@@ -1760,6 +1784,7 @@ class AdsController @Inject internal constructor(
                 val options = fullScreenNativeRequestOptions().toNativeAdOptions()
                 val loader = AdLoader.Builder(context, unitId)
                     .forNativeAd { ad ->
+                        networkLog.loaded(placement.key, ad.responseInfo)
                         loadStates -= placement
                         lastLoadErrors -= placement
                         ad.setOnPaidEventListener { events.onPaid(it) }
@@ -1773,6 +1798,7 @@ class AdsController @Inject internal constructor(
                     .withAdListener(
                         object : AdListener() {
                             override fun onAdFailedToLoad(error: LoadAdError) {
+                                networkLog.failed(placement.key, error)
                                 logger.warn(TAG, "Native full-screen ${placement.key} failed to load: ${error.code}")
                                 onNativeFullScreenLoadFailed(placement, events, error.code, error.message)
                             }
@@ -1834,6 +1860,7 @@ class AdsController @Inject internal constructor(
             val loadPlacement = loadPlacementOf(AdFormat.INTERSTITIAL, placement)
             val callback = object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
+                    networkLog.loaded(placement.key, ad.responseInfo)
                     loadStates -= placement
                     lastLoadErrors -= placement
                     telemetry.loadSucceeded(AdFormat.INTERSTITIAL, slot, loadPlacement, clock.nowMillis())
@@ -1856,6 +1883,7 @@ class AdsController @Inject internal constructor(
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
+                    networkLog.failed(placement.key, error)
                     logger.warn(TAG, "Interstitial ${placement.key} failed to load: ${error.code}")
                     onInterstitialLoadFailed(placement, slot, loadPlacement, error.code, error.message)
                 }
@@ -1897,6 +1925,7 @@ class AdsController @Inject internal constructor(
             val loadPlacement = loadPlacementOf(AdFormat.APP_OPEN, placement)
             val callback = object : AppOpenAd.AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {
+                    networkLog.loaded(placement.key, ad.responseInfo)
                     loadStates -= placement
                     lastLoadErrors -= placement
                     telemetry.loadSucceeded(AdFormat.APP_OPEN, slot, loadPlacement, clock.nowMillis())
@@ -1918,6 +1947,7 @@ class AdsController @Inject internal constructor(
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
+                    networkLog.failed(placement.key, error)
                     logger.warn(TAG, "App open ${placement.key} failed to load: ${error.code}")
                     onFullScreenLoadFailed(AdFormat.APP_OPEN, placement, slot, loadPlacement, error.code, error.message)
                 }
@@ -1946,6 +1976,7 @@ class AdsController @Inject internal constructor(
         val loadPlacement = loadPlacementOf(AdFormat.REWARDED, placement)
         val callback = object : RewardedAdLoadCallback() {
             override fun onAdLoaded(ad: RewardedAd) {
+                networkLog.loaded(placement.key, ad.responseInfo)
                 loadStates -= placement
                 lastLoadErrors -= placement
                 telemetry.loadSucceeded(AdFormat.REWARDED, slot, loadPlacement, clock.nowMillis())
@@ -1968,6 +1999,7 @@ class AdsController @Inject internal constructor(
             }
 
             override fun onAdFailedToLoad(error: LoadAdError) {
+                networkLog.failed(placement.key, error)
                 logger.warn(TAG, "Rewarded ${placement.key} failed to load: ${error.code}")
                 onRewardedLoadFailed(placement, slot, loadPlacement, error.code, error.message)
             }
