@@ -154,6 +154,8 @@ internal fun BannerSlotHost(
     newView: () -> BannerAdView,
     modifier: Modifier = Modifier,
     onAdAvailabilityChange: (Boolean) -> Unit = {},
+    kind: BannerSizeKind = BannerSizeKind.ANCHORED,
+    fits: Boolean = true,
 ) {
     var hadAd by remember { mutableStateOf(false) }
     val currentOnAvailability by rememberUpdatedState(onAdAvailabilityChange)

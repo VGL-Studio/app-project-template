@@ -17,6 +17,7 @@ internal fun AdFormat.metricCode(): String = when (this) {
     AdFormat.APP_OPEN -> "APP_OPEN"
     AdFormat.BANNER -> "BANNER"
     AdFormat.BANNER_COLLAPSIBLE -> "BANNER"
+    AdFormat.BANNER_MREC -> "BANNER"
     AdFormat.NATIVE_FULL_SCREEN -> "NATIVE_FULL"
     AdFormat.NATIVE_COLLAPSIBLE -> "NATIVE_COLLAP"
     AdFormat.NATIVE_SMALL -> "NATIVE_SMALL"
@@ -39,7 +40,7 @@ internal fun AdFormat.funnelKind(): AdFunnelKind? = when (this) {
     AdFormat.NATIVE_IN_COLLECTION,
     AdFormat.NATIVE_MEDIUM,
     -> AdFunnelKind.NATIVE
-    AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE -> null
+    AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE, AdFormat.BANNER_MREC -> null
 }
 
 /** Full screen: `INTER`, `REWARDED`, `APP_OPEN`, `NATIVE_FULL`; every other format is a slot (section 8.2). */
@@ -95,6 +96,7 @@ internal fun loadPlacementOf(format: AdFormat, screenPlacement: AdPlacement?): S
     AdFormat.NATIVE_SMALL, AdFormat.NATIVE_COLLAPSIBLE -> screenPlacement?.key ?: PRELOAD
     AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_STEP, AdFormat.NATIVE_IN_COLLECTION -> POOL
     AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE -> screenPlacement?.key
+    AdFormat.BANNER_MREC -> null
 }
 
 /** `opportunity_result` of a full-screen turn; a closed consent gate or a switched-off placement is no opportunity. */

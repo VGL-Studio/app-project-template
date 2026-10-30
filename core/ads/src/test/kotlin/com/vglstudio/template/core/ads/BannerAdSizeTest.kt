@@ -50,6 +50,42 @@ class BannerAdSizeTest {
     }
 
     @Test
+    fun mrec_kindIsMediumRectangle() {
+        // Control: the other banner formats keep their kinds.
+        assertEquals(BannerSizeKind.ANCHORED, bannerSizeKind(AdFormat.BANNER))
+        assertEquals(BannerSizeKind.LARGE_ANCHORED, bannerSizeKind(AdFormat.BANNER_COLLAPSIBLE))
+        assertEquals(BannerSizeKind.MEDIUM_RECTANGLE, bannerSizeKind(AdFormat.BANNER_MREC))
+    }
+
+    @Test
+    fun bannerAdSize_mrec_isMediumRectangle() {
+        assertEquals(AdSize.MEDIUM_RECTANGLE.width, MEDIUM_RECTANGLE_WIDTH_DP)
+        assertEquals(AdSize.MEDIUM_RECTANGLE.height, MEDIUM_RECTANGLE_HEIGHT_DP)
+        listOf(320, 411).forEach { width ->
+            val actual = bannerAdSize(activity, AdFormat.BANNER_MREC, width)
+            assertEquals("width at $width dp", 300, actual.width)
+            assertEquals("height at $width dp", 250, actual.height)
+            assertEquals("at $width dp", AdSize.MEDIUM_RECTANGLE, actual)
+        }
+    }
+
+    @Test
+    fun fitsWidth_mrecNeeds300() {
+        // Control: an anchored banner fits any width.
+        assertEquals(true, bannerFitsWidth(BannerSizeKind.ANCHORED, 200))
+        assertEquals(false, bannerFitsWidth(BannerSizeKind.MEDIUM_RECTANGLE, 299))
+        assertEquals(true, bannerFitsWidth(BannerSizeKind.MEDIUM_RECTANGLE, 300))
+        assertEquals(true, bannerFitsWidth(BannerSizeKind.MEDIUM_RECTANGLE, 411))
+    }
+
+    @Test
+    fun frameWidth_mrec300_othersFill() {
+        assertEquals(300, bannerFrameWidthDp(BannerSizeKind.MEDIUM_RECTANGLE))
+        assertEquals(null, bannerFrameWidthDp(BannerSizeKind.ANCHORED))
+        assertEquals(null, bannerFrameWidthDp(BannerSizeKind.LARGE_ANCHORED))
+    }
+
+    @Test
     fun sdkSizes_anchoredAndLarge_measured() {
         assertEquals(56, anchoredSize(360).height)
         assertEquals(64, anchoredSize(411).height)
@@ -107,7 +143,7 @@ class BannerAdSizeTest {
 
     private companion object {
         /** The formats drawn at a banner size; T-062 adds AdFormat.BANNER_MREC here. */
-        val BANNER_FORMATS = setOf(AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE)
+        val BANNER_FORMATS = setOf(AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE, AdFormat.BANNER_MREC)
 
         val WIDTHS_DP = listOf(320, 360, 411, 600)
     }

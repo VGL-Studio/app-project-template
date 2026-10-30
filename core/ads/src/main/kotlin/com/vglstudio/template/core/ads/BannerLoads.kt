@@ -63,6 +63,7 @@ internal suspend fun runBannerLoads(
     onLoaded: () -> Unit,
     logger: AppLogger,
     placementKey: String,
+    onFailed: () -> Unit = {},
 ): Unit = coroutineScope {
     val inbox = Channel<BannerLoadResult>(Channel.UNLIMITED)
     // Undispatched: the collector subscribes before the first send, so a result given during send() is not lost.

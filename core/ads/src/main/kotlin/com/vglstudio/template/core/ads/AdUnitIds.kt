@@ -42,6 +42,7 @@ object GoogleTestAdUnitIds : AdUnitIds {
         // Native video, like the other native cards with media.
         AdFormat.NATIVE_STEP -> "ca-app-pub-3940256099942544/1044960115"
         AdFormat.NATIVE_IN_COLLECTION -> "ca-app-pub-3940256099942544/1044960115"
+        AdFormat.BANNER_MREC -> "ca-app-pub-3940256099942544/9214589741"
     }
 }
 

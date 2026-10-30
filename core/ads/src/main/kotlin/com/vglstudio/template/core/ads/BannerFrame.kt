@@ -29,6 +29,14 @@ internal fun bannerFrame(gateOpen: Boolean, enabled: Boolean, unitId: String?, h
     else -> BannerFrame.NONE
 }
 
+/** Skeleton (plan T-062, test commit): the frame height of a regular banner. */
+internal fun bannerSlotHeightDp(
+    frame: BannerFrame,
+    kind: BannerSizeKind,
+    frameHeightDp: Int,
+    failedBeforeAd: Boolean,
+): Int = if (frame == BannerFrame.NONE) 0 else frameHeightDp
+
 /** The ad view runs (resumed) only on a visible screen with an active frame; it is paused otherwise. */
 internal fun bannerShouldRun(visible: Boolean, frame: BannerFrame): Boolean = visible && frame == BannerFrame.ACTIVE
 

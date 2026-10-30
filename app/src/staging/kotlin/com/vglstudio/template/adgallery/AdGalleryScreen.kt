@@ -170,6 +170,10 @@ interface AdGallerySlots {
     @Composable
     fun CollapsibleBanner(modifier: Modifier)
 
+    /** The MREC banner of the banners page (KB-29). */
+    @Composable
+    fun MediumRectangleBanner(modifier: Modifier)
+
     /** N of the grid page, or null while its ads are off. Called on the grid page, before its grid. */
     @Composable
     fun gridEvery(): Int?
@@ -252,6 +256,12 @@ internal class SdkAdGallerySlots : AdGallerySlots {
     @Composable
     override fun CollapsibleBanner(modifier: Modifier) {
         AdSlot(AdPlacement.GALLERY_BANNER_COLLAPSIBLE, modifier)
+    }
+
+    // Skeleton (plan T-062, test commit): draws nothing yet.
+    @Composable
+    override fun MediumRectangleBanner(modifier: Modifier) {
+        Box(modifier)
     }
 
     @Composable

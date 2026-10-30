@@ -10,7 +10,22 @@ internal enum class BannerSizeKind {
 
     /** The large anchored adaptive size (B-03). */
     LARGE_ANCHORED,
+
+    /** The fixed 300 x 250 dp size of [AdFormat.BANNER_MREC] (B-08). */
+    MEDIUM_RECTANGLE,
 }
+
+/** Width of [BannerSizeKind.MEDIUM_RECTANGLE], the width of `AdSize.MEDIUM_RECTANGLE`. */
+internal const val MEDIUM_RECTANGLE_WIDTH_DP = 300
+
+/** Height of [BannerSizeKind.MEDIUM_RECTANGLE], the height of `AdSize.MEDIUM_RECTANGLE`. */
+internal const val MEDIUM_RECTANGLE_HEIGHT_DP = 250
+
+/** Skeleton (plan T-062, test commit): every kind fits. */
+internal fun bannerFitsWidth(kind: BannerSizeKind, availableWidthDp: Int): Boolean = true
+
+/** Skeleton (plan T-062, test commit): every kind fills the width. */
+internal fun bannerFrameWidthDp(kind: BannerSizeKind): Int? = null
 
 /**
  * [AdFormat.BANNER] is drawn at the anchored adaptive size (B-01, ADR-0038), [AdFormat.BANNER_COLLAPSIBLE] at the
@@ -33,4 +48,5 @@ internal fun bannerSizeKind(format: AdFormat): BannerSizeKind = when (format) {
 internal fun bannerAdSize(context: Context, format: AdFormat, widthDp: Int): AdSize = when (bannerSizeKind(format)) {
     BannerSizeKind.ANCHORED -> AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, widthDp)
     BannerSizeKind.LARGE_ANCHORED -> AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp)
+    BannerSizeKind.MEDIUM_RECTANGLE -> AdSize.getLargeAnchoredAdaptiveBannerAdSize(context, widthDp)
 }
