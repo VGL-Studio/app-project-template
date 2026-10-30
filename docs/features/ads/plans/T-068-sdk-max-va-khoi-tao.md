@@ -1,7 +1,7 @@
 ---
 ticket: T-068
 title: SDK AppLovin MAX và khởi tạo sau cổng đồng ý
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 4                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -406,3 +406,15 @@ Phiên bản 1:
 - **Lệch so với plan:** không có file ngoài mục 3.2. L12: docstring của `scripts/secret-scan.py` thêm vế "or as a build parameter". Khung bước 3: `MaxConfigModule` tạm cấp `MaxConfig.NONE`.
 - **Việc còn lại:** người duyệt phiên bản 3 (mục 1, mục 3.1, mục 4, câu hỏi 9); phiên sau tiếp tục trên nhánh cũ theo mục 3.1.
 - **Cần người xem:** câu hỏi 9 (cách hiểu KB-31); ghi chú của rà soát về `ERROR_ALLOWED` và Mediation Debugger (kiểm thủ công 2).
+
+### RUN-20261030-02, phiên bản plan 4
+
+- **Kết quả:** đã merge, PR #347, commit `05df6aa` lên nhánh chính 2026-10-30 16:51 UTC.
+- **Nhánh, PR:** `claude/T-068-sdk-max-va-khoi-tao`, tiếp tục từ `b0680b7`, gộp nhánh chính `5cca21e` (commit `234b795`, không xung đột), PR #347.
+- **Đã làm:** theo đoạn "Cách tiếp tục" của mục 3.1, chỉ phần bản 3 và bản 4: `gateAllowed` của `MaxSdkStarter` (kiểm ngay trước `platform.initialize`), `onGateOpened(firstTime = false)` gọi `maxStarter.onOrderChanged`, ba hàm test của `AdsController`, KDoc, M-08 của `ads-business-rules.md` và tiểu mục MAX của `ads-guide.md`. Bước 3 đến 5 giao phiên con. Commit: test `f31b1b4`, code `74fb6dd`, tài liệu `8b16afe`, sửa theo rà soát `8a89888` (test), `05df6aa` (code).
+- **Test viết trước:** 4 test mới (`MaxSdkStarterTest.notStarted_whileGateClosed`, `notStarted_whenGateClosedBeforeAdmobReady`, `AdsControllerMaxTest.gateReopened_startsMaxIfNotStarted`, `gateClosedWhileWaitingForAdmob_maxNotStarted`), đỏ ở câu khẳng định trên khung (`gateAllowed` chưa dùng, ba hàm test thân rỗng). 1 test viết chặt bằng bước đối chứng (L-055): `gateClosedWhileWaitingForAdmob_maxNotStarted` thêm `reopenConsentGateForTest()` thì phải đúng 1 lần, vì câu "0 lần" qua ngay trên khung. Đột biến: bỏ `maxStarter.onOrderChanged(...)` trong `onGateOpened` thì cả hai test của `AdsControllerMaxTest` đỏ. Test JVM của mọi module trên khung: 1267 test, chỉ đúng 4 test mới đỏ.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 5 ghi chú. Nên sửa: `gateAllowed: () -> Boolean = { true }` còn mặc định "cổng luôn mở" trong code chính, trái chữ ký ở bước 4 và ADR-0037. Đã sửa: test viết trước `MaxSdkStarterTest.gateAllowed_hasNoDefault` (phản chiếu, có đối chứng `FakeMaxPlatform`), đỏ trước khi sửa; bỏ mặc định. Rà soát lại vòng 1: 0 chặn, 0 nên sửa. Ghi chú: (1) `AdsSdkStartTest.startSdk_wiresAdmobThenMax` chưa buộc `onAdmobReady` nằm sau `awaitAdmobReady`; (2) cổng của MAX là `gate.state.value.allowed`, không `mayRequestNow(foreground)`: với `ERROR_ALLOWED` (S-08, mặc định tắt) MAX có thể khởi tạo khi app ở nền; (3) lỗi ném từ `startMax` làm mất lượt nạp sẵn đầu của AdMob; (4) `mediationOrder` dùng mặc định `MAX_ADMOB` tới khi cờ từ xa về; (5) `MaxConfig.toString` in 4 ký tự đầu của khóa (đúng plan).
+- **Kết quả CI:** `pr-check` xanh trên `05df6aa` (lần chạy 41089417568). `scripts/check.sh` cục bộ: 1666 test JVM, 0 lỗi.
+- **Lệch so với plan:** không có file ngoài mục 3.2. Thay đổi ở file test sau commit test: `MaxSdkStarterTest.kt`, ba chỗ dựng `MaxSdkStarter` (hàm `starter`, `noKey_neverStarts`, đối chứng của `alreadyInitializedByAdmob_warnsAndStarts`) truyền `{ true }` rõ ràng khi bỏ mặc định; chỉ phần dựng, không đổi câu khẳng định. Câu khẳng định cũ viết lại (ADR-0031): hai câu của mục 3.5 (`AdsSettingsTest.globalKeys_matchAdsKitTable` 16 khóa, `AdsFlagsTest.global_followsEveryRemoteValue`), viết ở lần chạy trước.
+- **Việc còn lại:** kiểm thủ công 1 và 2 của mục 4 (máy có khóa thật); T-069 tới T-071 (nạp, hiện MAX), T-073 (bắt buộc và lọc khóa production).
+- **Cần người xem:** ghi chú 1 và 2 của rà soát (đề xuất thêm câu khẳng định cho test quét; quyết khởi tạo MAX có là "yêu cầu" theo S-08 không).
