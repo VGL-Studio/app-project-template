@@ -25,7 +25,7 @@ Thêm SDK AppLovin MAX vào `:core:ads`, khởi tạo khi cổng đồng ý mở
 
 - SDK MAX và adapter Google của MAX trong `gradle/libs.versions.toml`, phiên bản cụ thể (không `+`); kho Maven nếu cần (`settings.gradle.kts`, chạy thử tải trong môi trường cloud, L-067).
 - Khởi tạo trong cùng chỗ với `startSdk` của `AdsController`, sau cổng đồng ý; rút đồng ý thì đóng như AdMob; không viết cứng trạng thái đồng ý.
-- Tham số build `-PmaxSdkKey`; `preProduction*Build` báo lỗi khi thiếu mà thứ tự mặc định có MAX; đọc `local.properties` ở staging; thêm mẫu khóa MAX vào `scripts/secret-scan.py`.
+- Tham số build `-PmaxSdkKey`, ở production là tùy chọn; ~~`preProduction*Build` báo lỗi khi thiếu mà thứ tự mặc định có MAX~~ **đổi 2026-10-30:** bắt buộc khóa dời sang T-073 (câu hỏi 6 của plan T-068); đọc `local.properties` ở staging; thêm mẫu khóa MAX vào `scripts/secret-scan.py`.
 - Đo quyền mà SDK kéo vào manifest gộp, ghi vào spec mục 6 trước khi duyệt plan; chạy `:app:assembleStagingRelease` (R8, L-083).
 - Khóa `ads_mediation_order` (mặc định `max_admob`) trong `AdsSettings`, bảng khóa, `remote-config-template.json`.
 
