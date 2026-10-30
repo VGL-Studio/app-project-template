@@ -879,3 +879,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
 - **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
+
+### L-129. Chữ mặc định của các module mẫu là tiếng Việt, nên app giao diện tiếng Anh phải ghi đè từng chuỗi của mẫu
+
+- **Ngày, nguồn:** 2026-10-30, Photune (issue #288; ADR 1007 của app, quyết định 10; plan T-022, PR #27 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** Photune có giao diện tiếng Anh. Khi chuyển sang khung của mẫu (T-022 của app), màn loading, `brand_tagline` và popup mất mạng hiện tiếng Việt, trừ khi app ghi đè từng chuỗi; mỗi đợt `template-sync.sh` lại phải kiểm chuỗi mới. Ở mẫu, 12 chuỗi mặc định là tiếng Việt: `:feature:loading` 7, `:core:designsystem` 1 (`brand_tagline`), `:app` 4 (popup mất mạng, đã có bản tiếng Anh ở `values-en/`). Chuỗi của `:core:ads`, `:feature:sample` và bản staging đã là tiếng Anh, khác điều issue ghi. `scripts/device-scenario.py` đã giả định `res/values/` là tiếng Anh ở mọi module.
+- **Bằng chứng:** issue #288; đếm chuỗi trong `res/values*/strings.xml` trên nhánh chính `b82160a`.
+- **Đề xuất sửa:** `res/values/` là tiếng Anh cho mọi chuỗi của module mẫu, tiếng Việt ở `res/values-vi/`, `values-en/` của `:app` gộp vào `values/`; ghi lại ảnh chuẩn có các chuỗi đó; spec `loading` và bảng chữ của thiết kế ghi chữ theo hai ngôn ngữ, Nhật xác nhận chữ của spec `loading`; làm sau T-081.
+- **Trạng thái:** accepted
+- **Áp dụng:** T-082 (ticket, chưa có plan).
