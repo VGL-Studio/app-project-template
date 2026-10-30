@@ -1,7 +1,7 @@
 ---
 ticket: T-080
 title: Bộ build AGP 9.1, Gradle 9.3.1, compileSdk 37, không đổi ảnh chuẩn
-status: approved
+status: done
 version: 1
 risk_score: 11
 risk_level: high
@@ -306,3 +306,27 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-30):
 - **Ghi chú:** trả lời mục 8: (1) nâng Roborazzi 1.77.0 trong T-080 (phương án B), phương án A là dự phòng; (2) giữ AGP 9.1.0 và cảnh báo compileSdk 37, không đặt `android.suppressUnsupportedCompileSdk`; (3) `failOnNoDiscoveredTests = false` chỉ ở module không có `src/test`; (4) T-080 merge trước khi lập danh sách chạy có các plan quảng cáo; (5) chấp nhận chưa dựng bản production, ghi vào Cần người kiểm tra của nhật ký; (6) thêm dòng ghi chú dưới tiêu đề ADR-0011; (7) ADR-0040 ghi `accepted` lúc duyệt, làm T-080 ngay sau đó. Làm trong phiên có người theo dõi.
 
 ## 10. Nhật ký thực hiện
+
+### Phiên có người theo dõi 2026-10-30, phiên bản plan 1
+
+- **Kết quả:** đã merge, PR #320 (commit merge `70d99f8`). Anh Nhật cho làm ngay sau khi duyệt (mục 8, câu 7), trong phiên có người theo dõi, 2026-10-30.
+- **Nhánh, PR:** `claude/T-080-bo-build-agp-9`, PR #320. Commit test `71e5ba3`, commit code `5f0584c`. `merge-if-green.sh --update` gộp main vào nhánh (commit `78dcf7e`), vì main có thêm danh sách chạy RUN-20261030-01. PR plan #314.
+- **Đã làm:** đúng mục 3.1 theo phương án B (mục 9).
+  - Phiên bản: AGP 9.1.0, Gradle 9.3.1 (wrapper do `./gradlew wrapper --gradle-version 9.3.1` sinh ra, giống từng byte bản của nhánh thử), compileSdk 37, KSP 2.3.12, Hilt 2.59.2, ktlint-gradle 14.2.0, Navigation 2.9.8, Roborazzi 1.77.0.
+  - Bỏ plugin `org.jetbrains.kotlin.android`. `KotlinAndroid.kt` viết theo `CommonExtension` của AGP 9, `failOnNoDiscoveredTests = false` chỉ ở module không có `src/test`.
+  - `scripts/java-check.sh` có giới hạn Java của Gradle 9.0 và 9.1 tới 9.3.
+  - Tài liệu: `CLAUDE.md` mục Công nghệ; dòng ghi chú dưới tiêu đề ADR-0011; ticket T-080 (Mô tả, Không bao gồm) và T-081 (chỉ còn Robolectric 4.17 và ghi lại ảnh chuẩn).
+  - `gradle.properties`, `.github/`, `scripts/check.sh`, file build của từng module và ảnh chuẩn không đổi.
+- **Test viết trước:** 5 test `java-check` mới (hàm `java_check_gradle`). Trước khi có code: đúng 2 test đỏ (`Java 26 is too new for Gradle 9.3.1`, `names Gradle 9.3.1 and Java 17 to 25`), 3 đối chứng qua. Sau code cả 5 qua. Test `java-check: Java 26 is too new for Gradle 8.14` không chạy nữa vì wrapper đã lên Gradle 9, đúng mục 3.5; không `expect` nào bị xóa.
+- **Rà soát độc lập:** plan: hai vòng (vòng 1: 1 chặn, 9 nên sửa; vòng 2: 0 chặn, 7 nên sửa), đã sửa trước khi duyệt. Code: 0 chặn, 0 nên sửa, 7 ghi chú, ghi trong mô tả PR #320 (bộ kiểm chạy trên cây chưa commit, cây sau commit sạch; một phần task lấy từ build cache; chú thích ở `KotlinAndroid.kt` nói nguyên nhân do Hilt như điều chắc, plan coi là giả thuyết).
+- **Kết quả CI:**
+  - Trên máy dev (macOS, JDK 21): `scripts/check.sh` QUA, `Test JVM: 1455 test, 0 lỗi. Ảnh screenshot: 89`, không ảnh nào đổi; `assembleStagingRelease` qua; manifest gộp `stagingDebug` và `stagingRelease` giống hệt bản của main từng byte; `ktlintFormat` không đổi file nào ngoài mục 3.2, engine ktlint 1.5.0, 57 dòng chú thích dài hơn 120 ký tự vẫn qua `ktlintCheck`; init script của `cloud-setup.sh` chạy trên Gradle 9.3.1.
+  - `pr-check` (Linux, Java 17) xanh: lần chạy 40993451809 trên `5f0584c` (`build-and-test` gồm cổng chất lượng, 1455 test, 89 ảnh, build release; `ui-test` trên emulator) và lần chạy lại trên `78dcf7e`.
+  - `main-guard` của commit merge xanh, kiểm đầy đủ vì commit đổi `scripts/tests/run.sh` (lần chạy 40998543821, 1455 test, 89 ảnh). Không có issue `main-broken`.
+  - `staging` chạy tay trên `70d99f8` xanh, job `distribute` qua (lần chạy 40999493807).
+- **Lệch so với plan:** Không có. Ngoài mục 3.2: không có. Mục 8, câu 4 (T-080 merge trước khi lập danh sách chạy có các plan quảng cáo): danh sách RUN-20261030-01 được một phiên khác lập và merge (PR #319) trước khi T-080 merge, nhưng phiên đó chưa bắt đầu; các task của nó sẽ chạy trên bộ build mới.
+- **Việc còn lại:** T-081 (Robolectric 4.17 và ghi lại ảnh chuẩn), plan rủi ro cao, làm trong phiên có người.
+- **Cần người kiểm tra:**
+  - [ ] Cài bản staging của lần chạy 40999493807 lên máy thật: app mở, qua màn hình loading, hộp thoại đồng ý quảng cáo hiện, màn hình sample hiện (mục 4).
+  - [ ] Một phiên cloud mới trên nhánh chính: `scripts/cloud-env-check.sh` mã 0, dòng qua có `platforms/android-37.0`; rồi `scripts/check.sh` QUA. Đây là lần đầu Gradle 9.3.1 được tải qua proxy của môi trường.
+  - [ ] Bản production chưa được dựng trên bộ mới (cần tham số thật, ADR-0013; mục 8, câu 5). Lần phát hành đầu tiên của một app trên bộ mới là lần kiểm đầu tiên.
