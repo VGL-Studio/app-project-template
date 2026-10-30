@@ -751,7 +751,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `CLAUDE.md` mục Lệnh và `docs/templates/plan.md` (cách ghi ảnh chuẩn): ghi lệnh kèm `--rerun` của task test, ví dụ `./gradlew :core:ads:recordRoborazziDebug :core:ads:testDebugUnitTest --rerun`, rồi `git status --short -- '*/src/test/screenshots/'` để thấy ảnh đã đổi.
 - **Trạng thái:** applied
 - **Áp dụng:** `CLAUDE.md` mục Lệnh, `docs/templates/plan.md` mục 4, `docs/ops/new-app.md`: lệnh ghi ảnh kèm `--rerun` của task test, rồi `git status` thư mục ảnh. Đã thử trên máy dev (2026-10-28): chạy `:core:ads:recordRoborazziDebug` lần hai báo `testDebugUnitTest UP-TO-DATE`, không chạy test; thêm `:core:ads:testDebugUnitTest --rerun` thì test chạy lại.
-- **Kiểm chứng:** 2026-10-30: phần `--rerun` đúng; phần `git status` thì mẫu `'*/src/test/screenshots/'` không khớp tệp nào, lệnh luôn in rỗng. Sửa ở L-130 (PR #333).
+- **Kiểm chứng:** 2026-10-30, rà soát độc lập lần chạy thử plan T-081 (PR #332): mẫu `'*/src/test/screenshots/'` không khớp tệp nào, lệnh luôn in rỗng. Sửa ở L-130 (PR #333).
 
 ### L-115. Dòng KDoc dài hơn 120 ký tự qua ktlint, và điểm nên sửa chỉ về định dạng không sửa được vì không có test thất bại trước
 
@@ -881,11 +881,11 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** accepted
 - **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
 
-### L-131. Task làm trong phiên có người dùng nhánh `claude/T-*` được merge giữa phiên tự chạy
+### L-131. Task có plan làm ngoài phiên tự chạy, trên nhánh `claude/T-*`, được merge giữa phiên tự chạy
 
 - **Ngày, nguồn:** 2026-10-30, T-080 (PR #320) và phiên RUN-20261030-01
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** T-080 làm trong phiên có người theo dõi, trên nhánh `claude/T-080-bo-build-agp-9`, đúng quy ước tên nhánh task của `docs/CLAUDE.md`. Danh sách RUN-20261030-01 merge lúc 03:06 UTC (PR #319), phiên bắt đầu lúc 03:19 UTC, T-080 merge lúc 03:38:49 UTC. `merge-if-green.sh` cho mọi nhánh `claude/T-[0-9]*` merge khi có phiên đang chạy, vì coi là task của phiên; nó không đối chiếu mã task với danh sách chạy. Nhánh chính đổi bộ build giữa phiên: task 1 của phiên (T-054, PR #322) được viết và kiểm trên bộ cũ, rồi gặp bộ mới khi gộp main. Đường làm nhanh đã tránh lỗ này bằng tên `claude/quick-T-*` (`docs/CLAUDE.md`), nhưng task có plan làm ngoài phiên thì chưa có quy ước tên.
 - **Bằng chứng:** `scripts/merge-if-green.sh`, khối kiểm phiên đang chạy (`"$HEAD_REF" != claude/T-[0-9]*`); nhật ký plan T-080, mục Lệch so với plan (`docs/features/quy-trinh/plans/T-080-bo-build-agp-9.md` trên nhánh `claude/log-T-080`, PR #323).
-- **Đề xuất sửa:** cách nhẹ: `docs/CLAUDE.md` thêm quy ước nhánh cho task có plan làm ngoài phiên tự chạy, không bắt đầu bằng `claude/T-`, để script từ chối khi có phiên. `scripts/token-usage.py` chỉ gán token cho nhánh `claude/T-NNN` và `claude/fix-T-NNN` (`docs/ops/token-usage.md`, mục 1), nên tên mới cần thêm vào đó. Cách chặt: `merge-if-green.sh` chỉ cho nhánh task merge khi mã task có trong danh sách của phiên đang chạy; script là file được bảo vệ, cần plan rủi ro cao duyệt chéo.
+- **Đề xuất sửa:** cách nhẹ: `docs/CLAUDE.md` thêm quy ước nhánh cho task có plan làm ngoài phiên tự chạy, không bắt đầu bằng `claude/T-`, để script từ chối khi có phiên. `scripts/token-usage.py` chỉ gán token cho nhánh `claude/T-NNN` và `claude/fix-T-NNN` (`docs/ops/token-usage.md`, mục 1), nên tên mới cần thêm vào đó; `scripts/resume-check.py` và `scripts/run-watchdog.py` không cần đổi, vì nhánh làm ngoài phiên không có trong danh sách chạy nào. Cách chặt: `merge-if-green.sh` chỉ cho nhánh task merge khi mã task có trong danh sách của phiên đang chạy, như `scripts/resume-check.py` và `scripts/run-watchdog.py` đã đối chiếu nhánh task với ticket của danh sách; script là file được bảo vệ, cần plan rủi ro cao duyệt chéo.
 - **Trạng thái:** proposed
