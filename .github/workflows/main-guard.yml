@@ -8,6 +8,9 @@
 # - Green run: close open main-broken issues when this commit contains the blamed commit, or is that very
 #   commit run again (an older commit finishing late must not close a newer breakage; ADR-0025, point 2).
 # - Run by hand (workflow_dispatch) for a commit that got no push event (L-076): same steps on the head of main.
+# - scripts/main-guard-verified.sh first chooses how to check (ADR-0039): skip when pr-check already ran check.sh green
+#   on the very same tree, tests (scripts/tests/run.sh only) when only docs differ, full otherwise and whenever unsure.
+#   skip is a step inside this job, never a job-level if, so the check run guard still ends success.
 # Changing this file is a high-risk plan; cross-review required.
 name: main-guard
 
@@ -28,6 +31,9 @@ permissions:
   contents: write
   issues: write
   checks: read
+  # main-guard-verified.sh reads the PR of the commit and its pr-check run (ADR-0039).
+  actions: read
+  pull-requests: read
 
 jobs:
   guard:
@@ -40,17 +46,27 @@ jobs:
         with:
           fetch-depth: 50
 
-      - uses: actions/setup-java@v5
+      - name: Chọn cách kiểm (scripts/main-guard-verified.sh)
+        id: mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "mode=$(scripts/main-guard-verified.sh "${GITHUB_SHA}" "${GITHUB_EVENT_NAME}" "${GITHUB_RUN_ATTEMPT}")" >> "$GITHUB_OUTPUT"
+
+      # Any mode other than skip and tests (even an empty one) is full.
+      - if: steps.mode.outputs.mode != 'skip'
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v4
+      - if: steps.mode.outputs.mode != 'skip' && steps.mode.outputs.mode != 'tests'
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cổng chất lượng (scripts/check.sh)
         id: first
+        if: steps.mode.outputs.mode != 'skip'
         continue-on-error: true
-        run: scripts/check.sh 2>&1 | tee build.log
+        run: if [ "${{ steps.mode.outputs.mode }}" = "tests" ]; then scripts/tests/run.sh 2>&1 | tee build.log; else scripts/check.sh 2>&1 | tee build.log; fi
 
       - name: Phân loại lỗi
         id: kind
@@ -68,6 +84,10 @@ jobs:
       - name: Kết quả cổng chất lượng
         id: check
         run: |
+          if [ "${{ steps.mode.outputs.mode }}" = "skip" ]; then
+            echo "Đã kiểm ở PR, xem bước Chọn cách kiểm."
+            exit 0
+          fi
           if [ "${{ steps.first.outcome }}" = "success" ]; then
             exit 0
           fi
