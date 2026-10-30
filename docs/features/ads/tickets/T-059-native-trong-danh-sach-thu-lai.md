@@ -8,7 +8,7 @@ owner: Nhật
 status: approved
 risk: high
 size: S
-depends_on: [T-054]
+depends_on: [T-054, T-058]
 sprint:
 plan: features/ads/plans/T-059-native-trong-danh-sach-thu-lai.md
 auto_run: 
