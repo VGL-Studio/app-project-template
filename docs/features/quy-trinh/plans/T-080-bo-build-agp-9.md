@@ -330,5 +330,5 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-30):
   - [ ] CI của PR #322 (T-054) sau khi gộp main có T-080; xem báo cáo phiên RUN-20261030-01 có task nào đỏ vì bộ build mới không.
   - [ ] Đề xuất một bài học: task làm trong phiên có người dùng nhánh `claude/T-*` thì `merge-if-green.sh` coi là task của phiên đang chạy và cho merge giữa phiên; nên dùng tên nhánh khác (như `claude/quick-T-*` của đường làm nhanh) hoặc để script đối chiếu với danh sách chạy.
   - [ ] Cài bản staging của lần chạy 40999493807 lên máy thật: app mở, qua màn hình loading, hộp thoại đồng ý quảng cáo hiện, màn hình sample hiện (mục 4).
-  - [ ] Một phiên cloud mới trên nhánh chính: `scripts/cloud-env-check.sh` mã 0, dòng qua có `platforms/android-37.0`; rồi `scripts/check.sh` QUA. Đây là lần đầu Gradle 9.3.1 được tải qua proxy của môi trường.
+  - [x] Một phiên cloud mới trên nhánh chính: `scripts/cloud-env-check.sh` mã 0, dòng qua có `platforms/android-37.0`; rồi `scripts/check.sh` QUA. Đây là lần đầu Gradle 9.3.1 được tải qua proxy của môi trường. Anh Nhật báo đã chạy cả hai lệnh thành công, 2026-10-30.
   - [ ] Bản production chưa được dựng trên bộ mới (cần tham số thật, ADR-0013; mục 8, câu 5). Lần phát hành đầu tiên của một app trên bộ mới là lần kiểm đầu tiên.
