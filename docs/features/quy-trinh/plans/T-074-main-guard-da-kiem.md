@@ -1,7 +1,7 @@
 ---
 ticket: T-074
 title: main-guard không chạy lại cổng chất lượng cho nội dung đã kiểm ở PR
-status: approved
+status: done
 version: 1
 risk_score: 8
 risk_level: high
@@ -218,3 +218,17 @@ Không cần (E dưới 2): `gh api` với `fake-gh`, `git diff`, `git commit-tr
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-29 (lời anh Nhật: "Duyệt."), sau khi xem tóm tắt plan và bốn câu hỏi ở mục 8. Bốn câu theo đề xuất của plan: (1) chấp nhận ADR-0039, ADR ghi `accepted`; (2) chấp nhận mất lần chạy lại bắt test chập chờn ở cách `skip`; (3) cách `tests` đỏ mở `main-broken`; (4) thêm `actions: read`, `pull-requests: read`. Task làm có người (`auto_run: false`), không qua phiên tự chạy.
 
 ## 10. Nhật ký thực hiện
+
+### Làm có người 2026-10-29, phiên bản plan 1
+
+- **Kết quả:** merge bằng PR này
+- **Nhánh, PR:** `claude/T-074-main-guard-da-kiem`, PR này
+- **Đã làm:** `scripts/main-guard-verified.sh` chọn `full`, `tests` hay `skip` theo mục 3.1; `main-guard.yml` thêm `actions: read`, `pull-requests: read`, bước `mode` trong job `guard`, điều kiện của `setup-java`, `setup-gradle`, `first`, nhánh `skip` của bước `check`; chú thích ở `pr-check.yml`; ghi chú ở ADR-0010; số phút `main-guard` ở `docs/auto-run.md` (mục 1 ý 6, bước 9) và `docs/ops/quick-lane.md`.
+- **Test viết trước:** commit 152ca0b, 36 test thất bại đúng lý do trước khi có code (script chưa có: mã 127; workflow chưa nối: `yes no no no no no yes yes yes no`). Sau commit test, file test có hai sửa: (1) filter jq có dấu ngoặc nhọn đưa vào biến, vì bash 3.2 của macOS làm hỏng chúng trong `"$(...)"` lồng nhau và vài ca qua vì fixture hỏng; thêm kiểm fixture phải là JSON (`bad fixture`); (2) hai test đổi tên theo rà soát (viết trước phần sửa, đã thất bại `0 tests` và `0 skip`). Không test nào bị nới hay xóa.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa (`git diff` nhận đổi tên: code đổi tên vào `docs/` ra `tests`, đổi tên file cổng không ra `full`), đã sửa bằng `--no-renames` và `core.quotePath=false`, kèm hai test; 7 ghi chú. Vòng rà soát lại: 0 chặn, 0 nên sửa; xác nhận bỏ `--no-renames` thì đúng hai test mới đỏ.
+- **Ghi chú để người xem:** `retry` có thể chạy `check.sh` chưa cài Gradle ở cách `tests` nếu sau này `failure-kind.sh` trả `tests` cho log của `run.sh` (hiện không xảy ra; thêm điều kiện thì vượt mục 3.1); run `pr-check` chỉ lọc theo `head_sha`, không theo số PR (rất hiếm); test 14 chỉ bắt dạng `rootProject.file("docs/...")` (đã ghi trong chú thích của `GRADLE_READ_DOCS`); dòng kiểm `FETCH_HEAD` là lớp phòng thủ thừa, test 10 ca hai không chứng minh riêng nó.
+- **Kết quả CI:** CI của PR này. `scripts/check.sh` trên máy: qua (1.455 test JVM, 0 lỗi); `scripts/tests/run.sh`, `actionlint`, `shellcheck` qua.
+- **Lệch so với plan:** Không có. File đều trong mục 3.2; `docs/adr/0039-...` và `docs/foundation.md` không cần sửa.
+- **Token:** 11.2M (ước tính 23.9M, 0,5 lần), `scripts/token-usage.py report --since 2026-10-29T16:22:33Z`.
+- **Việc còn lại:** người xem lần `main-guard` của commit merge PR này (chạy `full` vì PR đổi `main-guard.yml`), rồi lần đầu một PR code khác được merge: log job `guard` có `ĐÃ KIỂM Ở PR`, job dưới 1 phút, `scripts/main-guard-status.sh` in `XANH` (dòng kiểm tra thủ công của mục 4).
+

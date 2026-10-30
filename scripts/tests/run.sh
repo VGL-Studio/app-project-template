@@ -257,6 +257,238 @@ sed 's/^  build-and-test:$/  build:/' "$pr_wf" > "$work/prwf/renamed.yml"
 expect "pr-check: the job name check names a renamed job" "names=3 missing= build-and-test" \
   "$(pr_missing_jobs "$work/prwf/renamed.yml")"
 
+# main-guard-verified.sh (ADR-0039, T-074): which check main-guard runs for a commit of main. full re-runs
+# scripts/check.sh, tests runs only scripts/tests/run.sh, skip trusts the full check pr-check already ran on the same tree.
+# A temporary repo holds A (the parent on main), H (the PR head pr-check checked, A plus the PR's change) and M (the
+# squash commit on main, parent A). Its fetch tests go to a local bare repo, so the fake origin URL is unset here.
+mgv_git_config=("$GIT_CONFIG_COUNT" "$GIT_CONFIG_KEY_0" "$GIT_CONFIG_VALUE_0")
+unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+mgv_script="$PWD/scripts/main-guard-verified.sh"
+mgv_repo="$work/mgv"
+mgv_write() { # <path=content>...: writes files in the temporary repo
+  local pair
+  for pair in "$@"; do
+    mkdir -p "$mgv_repo/$(dirname "${pair%%=*}")"
+    printf '%s\n' "${pair#*=}" > "$mgv_repo/${pair%%=*}"
+  done
+}
+mgv_setup() { # [<path=content> changed by the PR too]...: a new repo with A and H; sets mgv_a, mgv_h
+  rm -rf "$mgv_repo"
+  git init -q -b main "$mgv_repo"
+  mgv_write app/x.kt=a docs/a.md=a scripts/check.sh=gate
+  git -C "$mgv_repo" add -A && git -C "$mgv_repo" commit -q -m A
+  mgv_a="$(git -C "$mgv_repo" rev-parse HEAD)"
+  mgv_write app/x.kt=h "$@"
+  git -C "$mgv_repo" add -A && git -C "$mgv_repo" commit -q -m H
+  mgv_h="$(git -C "$mgv_repo" rev-parse HEAD)"
+}
+mgv_main() { # [<path=content> added on main after the check]...: prints M, a commit on A with H's tree plus those files
+  local tree
+  mgv_write "$@"
+  git -C "$mgv_repo" add -A
+  tree="$(git -C "$mgv_repo" write-tree)"
+  git -C "$mgv_repo" reset -q --hard "$mgv_h"
+  git -C "$mgv_repo" commit-tree "$tree" -p "$mgv_a" -m squash
+}
+mgv_fx() { # <M> <H> [<jq filter>]: the GitHub answers for a green PR #7 whose build-and-test ran check.sh
+  jq -n --arg m "$1" --arg h "$2" '{routes: {
+    ("commits/" + $m + "/pulls"): [{number: 7, merged_at: "2026-10-29T00:00:00Z", base: {ref: "main"},
+      merge_commit_sha: $m, head: {sha: $h}}],
+    ("actions/workflows/pr-check.yml/runs?head_sha=" + $h + "&per_page=10"): {workflow_runs: [
+      {id: 91, created_at: "2026-10-29T00:00:00Z", conclusion: "success"}]},
+    "actions/runs/91/jobs?per_page=50": {jobs: [{name: "build-and-test", steps: [
+      {name: "Set up job", conclusion: "success"},
+      {name: "Cổng chất lượng (scripts/check.sh)", conclusion: "success"}]}]}}} | '"${3:-.}"
+}
+mgv() { # <fixture> <sha> [<event> [<run attempt>]]: prints "<exit code> <stdout>"; stderr goes to $work/mgv.err
+  local out code=0
+  # A fixture that is not JSON (a broken jq filter) would make every case full: refuse it instead.
+  jq -e . <<<"$1" > /dev/null 2>&1 || { echo "bad fixture"; return; }
+  printf '%s' "$1" > "$work/mgv.json"
+  rm -f "$work/mgv.json.seen"
+  out="$(cd "$mgv_repo" && PATH="$work/bin:$PATH" FIXTURE="$work/mgv.json" GITHUB_REPOSITORY=o/r PULLS_WAIT_SECONDS=0 \
+    "$mgv_script" "$2" ${3:+"$3"} ${4:+"$4"} 2> "$work/mgv.err")" || code=$?
+  echo "$code $out"
+}
+
+mgv_setup
+m="$(mgv_main)"
+expect "main-guard-verified: same tree as a PR that ran check.sh is skip" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+expect "main-guard-verified: skip names the PR and the checked commit" "1 1" \
+  "$(grep -c 'ĐÃ KIỂM Ở PR #7' "$work/mgv.err") $(grep -c "${mgv_h:0:7}" "$work/mgv.err")"
+expect "main-guard-verified: a run of push, first attempt, is skip" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m" push 1)"
+expect "main-guard-verified: workflow_dispatch is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m" workflow_dispatch)"
+expect "main-guard-verified: a re-run is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m" push 2)"
+
+m="$(mgv_main docs/b.md=b)"
+expect "main-guard-verified: only docs differ from the checked PR is tests" "0 tests" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+expect "main-guard-verified: tests says so" 1 "$(grep -c 'CHỈ KHÁC TÀI LIỆU' "$work/mgv.err")"
+m="$(mgv_main README.md=b)"
+expect "main-guard-verified: a .md outside docs/ is tests" "0 tests" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+m="$(mgv_main docs/remote-config-keys.md=b)"
+expect "main-guard-verified: a docs file Gradle reads is full (remote-config-keys.md)" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+m="$(mgv_main docs/design-system/tokens.json=b)"
+expect "main-guard-verified: a docs file Gradle reads is full (tokens.json)" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+m="$(mgv_main app/y.kt=b)"
+expect "main-guard-verified: code differs from the checked PR is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+expect "main-guard-verified: full says why" 1 "$(grep -c 'KIỂM ĐẦY ĐỦ' "$work/mgv.err")"
+# git diff names only the new path of a renamed file unless renames are off: code moved into docs/ is still code.
+git -C "$mgv_repo" mv app/x.kt docs/x.md
+m="$(mgv_main)"
+expect "main-guard-verified: code renamed into docs/ is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+mgv_setup
+git -C "$mgv_repo" mv scripts/check.sh docs/check.md
+git -C "$mgv_repo" commit -q -m H2
+mgv_h="$(git -C "$mgv_repo" rev-parse HEAD)"
+m="$(mgv_main)"
+expect "main-guard-verified: a commit renaming a gate file is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+mgv_setup
+
+m="$(mgv_main)"
+step='.routes["actions/runs/91/jobs?per_page=50"].jobs[0].steps[1]'
+expect "main-guard-verified: a PR that skipped check.sh is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$step.conclusion = \"skipped\"")" "$m")"
+expect "main-guard-verified: a renamed gate step is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$step.name = \"Cổng chất lượng\"")" "$m")"
+expect "main-guard-verified: a renamed gate job is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" '.routes["actions/runs/91/jobs?per_page=50"].jobs[0].name = "build"')" "$m")"
+runs='.routes["actions/workflows/pr-check.yml/runs?head_sha=" + $h + "&per_page=10"].workflow_runs'
+expect "main-guard-verified: a red pr-check run is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$runs[0].conclusion = \"failure\"")" "$m")"
+expect "main-guard-verified: no pr-check run is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$runs = []")" "$m")"
+# Filters with braces are built in variables first: bash 3.2 (macOS) mangles them inside nested "$(...)" .
+newer_red="$runs += [{id: 92, created_at: \"2026-10-29T01:00:00Z\", conclusion: \"failure\"}]"
+older_red="$runs = [{id: 90, created_at: \"2026-10-28T00:00:00Z\", conclusion: \"failure\"}] + $runs"
+expect "main-guard-verified: the newest pr-check run counts (newer red)" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$newer_red")" "$m")"
+expect "main-guard-verified: the newest pr-check run counts (older red)" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$older_red")" "$m")"
+pulls='.routes["commits/" + $m + "/pulls"]'
+expect "main-guard-verified: a commit without a merged PR is full" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls = []")" "$m")"
+expect "main-guard-verified: a PR merged as another commit is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls[0].merge_commit_sha = \"$mgv_a\"")" "$m")"
+expect "main-guard-verified: a PR that is not merged is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls[0].merged_at = null")" "$m")"
+expect "main-guard-verified: a PR into another branch is full" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls[0].base.ref = \"release\"")" "$m")"
+late_once="$pulls = {__sequence__: [[], $pulls]}"
+late_thrice="$pulls = {__sequence__: [[], [], [], $pulls]}"
+expect "main-guard-verified: asks again while GitHub has not linked the PR yet" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$late_once")" "$m")"
+expect "main-guard-verified: stops asking after PULLS_TRIES" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$late_thrice")" "$m")"
+pulls_403='.errors = {("commits/" + $m + "/pulls"): "HTTP 403: Resource not accessible by integration"}'
+expect "main-guard-verified: an unreadable PR list is full, exit 0" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$pulls_403")" "$m")"
+jobs_500='.errors = {"actions/runs/91/jobs?per_page=50": "HTTP 500: Server Error"}'
+expect "main-guard-verified: an unreadable job list is full, exit 0" "0 full" "$(mgv "$(mgv_fx "$m" "$mgv_h" "$jobs_500")" "$m")"
+expect "main-guard-verified: a commit unknown to git is full, exit 0" "0 full" \
+  "$(mgv "$(mgv_fx "$m" "$mgv_h")" 0123456789abcdef0123456789abcdef01234567)"
+
+mgv_gate_files=(.github/workflows/pr-check.yml .github/workflows/main-guard.yml scripts/check.sh scripts/failure-kind.sh
+  scripts/find-breaking-commit.sh scripts/main-guard-verified.sh scripts/tests/run.sh scripts/tests/fake-gh)
+gate_full=0
+for f in "${mgv_gate_files[@]}"; do
+  mgv_setup "$f=changed"
+  m="$(mgv_main)"
+  [[ "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")" == "0 full" ]] && gate_full=$((gate_full + 1))
+done
+expect "main-guard-verified: a commit changing a file the guard job runs is full" "${#mgv_gate_files[@]}" "$gate_full"
+mgv_setup scripts/status.py=changed
+m="$(mgv_main)"
+expect "main-guard-verified: a commit changing another script can be skip" "0 skip" "$(mgv "$(mgv_fx "$m" "$mgv_h")" "$m")"
+
+# On GitHub H is not in the checkout of main (the squash commit does not descend from it): it comes from refs/pull/7/head.
+mgv_setup
+m="$(mgv_main)"
+git -C "$mgv_repo" branch -q -f squash "$m"
+rm -rf "$work/mgv-origin.git" "$work/mgv-main"
+git init -q --bare "$work/mgv-origin.git"
+git init -q -b main "$work/mgv-main"
+git -C "$work/mgv-main" fetch -q "$mgv_repo" refs/heads/squash
+git -C "$work/mgv-main" reset -q --hard FETCH_HEAD
+git -C "$work/mgv-main" remote add origin "file://$work/mgv-origin.git"
+mgv_in_main() { # <fixture>: runs the script in the clone without H
+  local saved="$mgv_repo" out
+  mgv_repo="$work/mgv-main"
+  out="$(mgv "$1" "$m")"
+  mgv_repo="$saved"
+  echo "$out"
+}
+expect "main-guard-verified: the clone of main does not have H" no \
+  "$(git -C "$work/mgv-main" cat-file -e "$mgv_h^{commit}" 2>/dev/null && echo yes || echo no)"
+expect "main-guard-verified: no refs/pull/7/head is full" "0 full" "$(mgv_in_main "$(mgv_fx "$m" "$mgv_h")")"
+git -C "$mgv_repo" push -q "$work/mgv-origin.git" "$mgv_a:refs/pull/7/head"
+expect "main-guard-verified: refs/pull/7/head on another commit is full" "0 full" "$(mgv_in_main "$(mgv_fx "$m" "$mgv_h")")"
+git -C "$mgv_repo" push -q -f "$work/mgv-origin.git" "$mgv_h:refs/pull/7/head"
+expect "main-guard-verified: fetches H from refs/pull/7/head and skips" "0 skip" "$(mgv_in_main "$(mgv_fx "$m" "$mgv_h")")"
+
+# The names the script reads from pr-check.yml, and the docs files Gradle reads, stay in step with those files.
+mgv_gate_names() { # <script> <workflow>: "yes" when the workflow has the script's GATE_JOB with a step named GATE_STEP
+  local job step
+  job="$(sed -n -E 's/^GATE_JOB="(.*)"$/\1/p' "$1")"
+  step="$(sed -n -E 's/^GATE_STEP="(.*)"$/\1/p' "$1")"
+  if [[ "$job" == build-and-test && -n "$step" ]] && grep -qE "^  $job:$" "$2" \
+    && pr_steps "$2" | grep -qF "name: $step"; then echo yes; else echo no; fi
+}
+expect "main-guard-verified: pr-check.yml has the job and the step it reads" yes "$(mgv_gate_names "$mgv_script" "$pr_wf")"
+sed 's/name: Cổng chất lượng (scripts\/check.sh)/name: Cổng chất lượng/' "$pr_wf" > "$work/prwf/gate-step.yml"
+expect "main-guard-verified: the name check fails on a copy with a renamed gate step" no \
+  "$(mgv_gate_names "$mgv_script" "$work/prwf/gate-step.yml")"
+mgv_gradle_docs() { # <script>: "yes" when GRADLE_READ_DOCS lists exactly the docs files of rootProject.file("docs/...")
+  local listed read
+  listed="$(sed -n -E 's/^GRADLE_READ_DOCS=\((.*)\)$/\1/p' "$1" | tr ' ' '\n' | sed '/^$/d' | sort)"
+  read="$(git grep -hoE 'rootProject\.file\("docs/[^"]+"\)' -- '*.gradle.kts' | sed -E 's/^rootProject\.file\("(.*)"\)$/\1/' | sort -u)"
+  [[ -n "$read" && "$listed" == "$read" ]] && echo yes || echo no
+}
+expect "main-guard-verified: GRADLE_READ_DOCS lists every docs file Gradle reads" yes "$(mgv_gradle_docs "$mgv_script")"
+sed 's# docs/design-system/tokens.json##' "$mgv_script" > "$work/mgv-short.sh" 2>/dev/null || true
+expect "main-guard-verified: the Gradle docs check fails on a copy missing a file" no "$(mgv_gradle_docs "$work/mgv-short.sh")"
+
+# main-guard.yml chooses the mode before the gate, inside the guard job, so the check run guard still ends success or
+# failure and every reader of it (find-breaking-commit.sh, main-guard-status.sh, start-run.yml, release.sh) is unchanged.
+mg_steps() { # <workflow>; prints each step of the guard job on one line, its lines joined by tabs
+  awk '/^  guard:$/ { j = 1; next }
+    j && /^  [^ ]/ { j = 0 }
+    j && /^      - / { if (s != "") print s; s = $0; next }
+    j && s != "" && /^        / { s = s "\t" $0 }
+    END { if (s != "") print s }' "$1"
+}
+mg_step_has() { # <workflow> <text in the step> <text that must be in the same step>: yes or no
+  mg_steps "$1" | grep -F -- "$2" | grep -qF -- "$3" && echo yes || echo no
+}
+mg_wiring() { # <workflow>; prints yes or no for the points (a) to (j) of the plan T-074, section 4, test 13
+  local wf="$1" a b f j
+  a="$(awk '/^  guard:$/ { g = 1; next } g && /^    steps:$/ { g = 0 } g && /^    if:/ { n++; if ($0 ~ /github\.ref == .refs\/heads\/main./) r++ }
+    END { print ((n == 1 && r == 1) ? "yes" : "no") }' "$wf")"
+  b="$(awk '/^  guard:$/ { g = 1 } g && /uses: actions\/checkout/ && !c { c = NR }
+    g && /scripts\/main-guard-verified\.sh "\$\{GITHUB_SHA\}" "\$\{GITHUB_EVENT_NAME\}" "\$\{GITHUB_RUN_ATTEMPT\}"/ && !m { m = NR }
+    g && /id: first$/ && !f { f = NR }
+    END { print ((c && m > c && f > m) ? "yes" : "no") }' "$wf")"
+  f="$(mg_steps "$wf" | grep -F 'id: check' | awk -F'\t' '{ s = index($0, "= \"skip\" ]; then"); o = index($0, "steps.first.outcome") }
+    END { print ((s && o && s < o) ? "yes" : "no") }')"
+  j="$(grep -qE '^  actions: read$' "$wf" && grep -qE '^  pull-requests: read$' "$wf" && echo yes || echo no)"
+  echo "$a $b" \
+    "$(mg_step_has "$wf" 'uses: actions/setup-java' "if: steps.mode.outputs.mode != 'skip'")" \
+    "$(mg_step_has "$wf" 'uses: gradle/actions/setup-gradle' "if: steps.mode.outputs.mode != 'skip' && steps.mode.outputs.mode != 'tests'")" \
+    "$( [[ "$(mg_step_has "$wf" 'id: first' "if: steps.mode.outputs.mode != 'skip'") $(mg_step_has "$wf" 'id: first' '= "tests" ]; then scripts/tests/run.sh 2>&1 | tee build.log; else scripts/check.sh 2>&1 | tee build.log; fi')" == "yes yes" ]] && echo yes || echo no)" \
+    "$f" \
+    "$( [[ "$(mg_step_has "$wf" 'id: kind' "if: steps.first.outcome == 'failure'") $(mg_step_has "$wf" 'id: retry' "if: steps.kind.outputs.kind == 'tests'")" == "yes yes" ]] && echo yes || echo no)" \
+    "$(mg_step_has "$wf" 'name: Đánh dấu nhánh chính đang đỏ' "if: failure() && steps.check.outcome == 'failure'")" \
+    "$(mg_step_has "$wf" 'name: Đóng issue main-broken khi nhánh chính xanh trở lại' 'if: success()')" \
+    "$j"
+}
+expect "main-guard: chooses the mode before the gate and skips inside the guard job" \
+  "yes yes yes yes yes yes yes yes yes yes" "$(mg_wiring "$guard_wf")"
+mkdir -p "$work/mgwf"
+awk '{ print } /^    if: github.ref == .refs\/heads\/main.$/ { print "    if: steps.mode.outputs.mode != '\''skip'\''" }' \
+  "$guard_wf" > "$work/mgwf/a.yml"
+grep -vF 'scripts/main-guard-verified.sh' "$guard_wf" > "$work/mgwf/b.yml"
+sed "s/steps.mode.outputs.mode != 'skip' \&\& steps.mode.outputs.mode != 'tests'/steps.mode.outputs.mode == 'full'/" \
+  "$guard_wf" > "$work/mgwf/d.yml"
+sed 's/= "tests" ]; then scripts\/tests\/run.sh/= "full" ]; then scripts\/tests\/run.sh/' "$guard_wf" > "$work/mgwf/e.yml"
+sed 's/= "skip" ]; then/= "none" ]; then/' "$guard_wf" > "$work/mgwf/f.yml"
+grep -vE '^  pull-requests: read$' "$guard_wf" > "$work/mgwf/j.yml"
+expect "main-guard: the wiring check fails on each broken copy (a, b, d, e, f, j)" "no no no no no no" \
+  "$(mg_wiring "$work/mgwf/a.yml" | cut -d' ' -f1) $(mg_wiring "$work/mgwf/b.yml" | cut -d' ' -f2) $(mg_wiring "$work/mgwf/d.yml" | cut -d' ' -f4) $(mg_wiring "$work/mgwf/e.yml" | cut -d' ' -f5) $(mg_wiring "$work/mgwf/f.yml" | cut -d' ' -f6) $(mg_wiring "$work/mgwf/j.yml" | cut -d' ' -f10)"
+export GIT_CONFIG_COUNT="${mgv_git_config[0]}" GIT_CONFIG_KEY_0="${mgv_git_config[1]}" GIT_CONFIG_VALUE_0="${mgv_git_config[2]}"
+
 # merge-if-green.sh must reject any argument other than exactly "<PR> [--dry-run]" before doing anything.
 for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; do
   # shellcheck disable=SC2086
