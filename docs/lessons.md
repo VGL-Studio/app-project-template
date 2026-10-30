@@ -693,6 +693,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` bước 6, dòng Nên sửa: thêm test khi test nằm trong file của mục 3.2 và thất bại khi tạm bỏ dòng code đó (đột biến), ghi kết quả vào nhật ký; không thì ghi vào báo cáo.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/auto-run.md` bước 6, dòng Nên sửa; issue #204.
+- **Kiểm chứng:** RUN-20261030-01: ba điểm nên sửa hay chặn đòi test cho hành vi đã đúng (T-054 dòng nối cổng gửi của nguồn, T-059 `LIST_ROW`, T-055 đọc tracker) đều có lần đột biến làm test mới đỏ, ghi vào nhật ký plan; rà soát lại dựa vào kết quả đột biến để đóng điểm.
 
 ### L-109. Phiên con chết giữa bước 3 vì lỗi API 403 `oauth_org_not_allowed`, phiên chính đứng chờ 2 giờ 30 phút
 
@@ -838,6 +839,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 và bước 4: chạy `./gradlew ktlintFormat` trước khi commit test và trước khi commit code; lệnh định dạng mọi file Kotlin nên chỉ commit file của task; lệnh chỉ đổi định dạng nên không tính là sửa test.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #280: `docs/auto-run.md` bước 3, bước 4 và lời giao cho phiên con; thay đổi định dạng sau commit test là lệch nhỏ L5 (ADR-0032).
+- **Kiểm chứng:** RUN-20261030-01: 11 phiên con chạy `./gradlew ktlintFormat` trước mỗi commit; không lần `scripts/check.sh` nào và không lần `pr-check` nào đỏ vì `ktlintCheck`.
 
 ### L-124. Nhánh của task sau tạo từ `origin/main` cũ vì phiên không `git fetch` sau khi merge task trước
 
@@ -849,6 +851,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** bước 1 ghi `git fetch origin main` ngay trước khi tạo nhánh `claude/T-NNN-...` từ `origin/main`.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #281: `docs/auto-run.md` bước 1, việc 0 cuối phiên và mục Tiếp tục trên nhánh cũ có `git fetch origin main`.
+- **Kiểm chứng:** RUN-20261030-01: mười task liên tiếp tạo nhánh sau `git fetch origin main`, mỗi nhánh dựng trên commit merge của task trước (ví dụ `claude/T-067-...` từ `fbf8b05` của T-054); không task nào phải gộp lại vì thiếu commit của phiên (hai lần `--update` là do PR của người, L-129).
 
 ### L-125. `release.sh` chỉ chạy thật vào đêm phát hành, test của nó không đọc file build thật, nên hai bên lệch mà không ai biết
 
