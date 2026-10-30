@@ -1,7 +1,7 @@
 ---
 ticket: T-060
 title: "Dọn native: hàng sao, chữ lớn ở native nhỏ, chú thích cũ"
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -208,3 +208,15 @@ Plan rủi ro cao chạm quảng cáo: người phụ trách sản phẩm biết
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (commit c70fd10, 2026-10-30 11:10 UTC).
+- **Nhánh, PR:** `claude/T-060-don-native-sao-va-chu-lon`, #342.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `NativeAdAsset.STAR_RATING` đăng ký `adView.starRatingView`, `NativeAdStarRow` chỉ đăng ký khi có sao (bỏ đăng ký khi điểm về 0); CTA của native nhỏ `widthIn(max = 120.dp)`; KDoc `NativeAdSlot`; `ads-guide.md`. Hai ảnh chuẩn mới của mục 3.2 (`NativeAdCard_font-scale-2_small.png`, `NativeAdCard_long-texts_light.png`); không ảnh có sẵn nào đổi. Không dùng phương án dự phòng.
+- **Test viết trước:** 9 test mới và 2 câu canh (commit 5ecd4b6). 6 đỏ đúng lý do (hàng sao chưa đăng ký; CTA rộng 242,7 dp; tiêu đề còn 3/75 ký tự; "Ad" còn 1/2 ở khung 360 dp). Qua ngay theo plan: hai câu canh, hai screenshot test mới. Test JVM mọi module sau bước 3: chỉ 6 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 5 ghi chú (tham số `assets` của `setHostedLayout` không test nào dùng; CTA dài ở cỡ chữ 2.0 hiện "Instal…" thay vì "Inst…" plan đoán; `scripts/design-compare.sh ads` không chạy với `:core:ads`; hàng sao đăng ký là `ComposeView`, không phải `RatingBar`). Rà soát đã mở hai ảnh mới: đúng tiêu chí.
+- **Kết quả CI:** `pr-check` xanh trên c70fd10 (lần chạy 41044674206).
+- **Lệch so với plan:** không có file ngoài mục 3.2. L4 (ADR-0032): `NativeAdFontScaleTest.smallAndCard_headlineBadgeCta_notCut_fontScales` đỏ ở cỡ chữ 1.0 thay vì 1.3 plan đoán (bảng đo của plan ghi 3/75 ở 1.0). Không viết lại câu khẳng định cũ nào.
+- **Việc còn lại:** kiểm tra thủ công KB-2 trên máy thật.
+- **Cần người xem:** hai ảnh chuẩn mới; trên máy thật, adapter mediation có đòi `starRatingView` là `RatingBar` không, chạm hàng sao có mở trang người quảng cáo không.
