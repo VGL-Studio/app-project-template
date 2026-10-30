@@ -26,6 +26,8 @@ Các nơi đọc kết quả `main-guard` hiện nay:
 - `scripts/release.sh` (không sửa, ADR-0009, ADR-0017) chỉ build bản production từ commit có một lần chạy workflow `main-guard.yml` kết luận `success`.
 - Phiên tự chạy chờ cả workflow `main-guard.yml` sau mỗi lần merge (`scripts/wait-run.sh --workflow main-guard.yml`, `docs/auto-run.md` bước 9).
 
+Từ 2026-10-30 `app-project-template` và `camera-pose` là repo công khai, phút Actions của hai repo không tính tiền. Phần tiết kiệm của quyết định này nằm ở các app private tạo từ dự án mẫu và nhận thay đổi qua `scripts/template-sync.sh` (ADR-0030); dự án mẫu giữ cùng cách để mẫu và app không lệch nhau.
+
 Emulator trên máy của GitHub hay đỏ vì hạ tầng: tải file R2 hết giờ chờ (PB-01), kho Maven trả 403 (PB-11), file R2 không có (PB-13), gói Android Emulator tải lỗi nên emulator không khởi động (PB-15). Ở PR, phiên chạy lại job hay đẩy commit rỗng. Sau merge không còn nhánh để đẩy commit rỗng, và một lần đỏ vì hạ tầng mà mở `main-broken` thì chặn mọi lần merge.
 
 ## Quyết định
@@ -35,27 +37,27 @@ Emulator trên máy của GitHub hay đỏ vì hạ tầng: tải file R2 hết 
 **2. Job `ui-test` trong `main-guard.yml`, sau job `guard`.**
 
 - Job `guard` thêm một bước gọi `scripts/ui-test-needed.sh <sha> <sự kiện>`, in `yes` hay `no`, đưa ra thành output `ui` của job. `yes` khi commit có thay đổi so với commit cha ở code chạy trong app hay cách build nó (`app/`, `core/`, `feature/`, `build-logic/`, `gradle/`, `*.gradle.kts` ở gốc, `gradle.properties`, `gradlew`), ở các script mà job `ui-test` gọi, hay ở `.github/workflows/main-guard.yml`; khi chạy tay; và khi script không đọc được thay đổi. Danh sách đường dẫn là bộ lọc `ui` cũ của `pr-check.yml`.
-- Job `ui-test` có `needs: guard` và `if: needs.guard.outputs.ui == 'yes'`. `guard` đỏ thì `ui-test` bị bỏ qua: nhánh chính đã đỏ, chạy emulator chỉ tốn phút. Job bị bỏ qua vẫn có check run kết luận `skipped`, và workflow vẫn kết luận `success`.
+- Job `ui-test` có `needs: guard` và `if: needs.guard.outputs.ui != 'no'`: output rỗng (bước `ui` không ghi được) vẫn chạy emulator. `guard` đỏ thì `ui-test` bị bỏ qua: nhánh chính đã đỏ, chạy emulator chỉ tốn phút. Job bị bỏ qua vẫn có check run kết luận `skipped`, và workflow vẫn kết luận `success`.
 - Job chạy test emulator tối đa hai lần trên cùng emulator (`scripts/ui-test-on-emulator.sh`): lần đầu đỏ thì chạy lại một lần, như ADR-0025 mục 1 cho `check.sh`.
 - `scripts/ui-test-verdict.sh` đọc log và cho một trong bốn kết luận:
   - `green`: lần chạy cuối xanh, lần đầu xanh hay đỏ vì hạ tầng.
   - `flaky`: lần đầu đỏ không vì hạ tầng, lần chạy lại xanh. Job xanh, ghi issue `flaky` như `guard`.
-  - `infra`: emulator không khởi động, không có log, không test nào chạy, kết quả lạ, hay log khớp một dòng của `docs/ops/failure-playbook.md` không phải loại `that`. Job đỏ, không mở `main-broken`.
-  - `red`: test đã chạy, có test thất bại, log không khớp dòng hạ tầng nào. Job đỏ, xử lý như mục 3.
-- Không chắc thì là `infra`: một lỗi thật bị xếp nhầm vẫn để job và workflow đỏ, không bao giờ chặn mọi lần merge vì một lần chập chờn.
+  - `infra`: không có log của Gradle (emulator không khởi động), kết quả lạ (`cancelled`, rỗng), bước emulator xanh mà không test nào chạy, 0 test kèm dấu hiệu thiết bị hỏng, hay log khớp một dòng trong danh sách trắng của script (PB-01, PB-11, PB-13, PB-15 của `docs/ops/failure-playbook.md`). Job đỏ, không mở `main-broken`.
+  - `red`: mọi trường hợp đỏ khác, gồm app dừng (`Process crashed`, `Instrumentation run failed`, `FATAL EXCEPTION`) dù 0 test chạy, 0 test không rõ lý do, và lần đầu đỏ thật mà lần chạy lại đỏ vì hạ tầng. Job đỏ, xử lý như mục 3.
+- `infra` chỉ dành cho lỗi hạ tầng đã biết của emulator. Một lỗi thật có log giống hệt lỗi hạ tầng (ví dụ code tải R2 hỏng giống PB-01) vẫn để job và workflow đỏ, và bị giới hạn ở mục 4.
 
 **3. Emulator đỏ thật là nhánh chính đỏ**, như `guard` đỏ (ADR-0010, ADR-0025):
 
-- Tìm commit gây lỗi bằng `scripts/find-breaking-commit.sh --check ui-test <sha>`: đọc check run `ui-test`, bỏ qua commit có `ui-test` kết luận `skipped` (không đổi code app, hay `guard` đỏ), dừng ở commit mà `main-guard.yml` của chính commit đó chưa có job `ui-test` (emulator của commit đó đã chạy ở PR).
+- Tìm commit gây lỗi bằng `scripts/find-breaking-commit.sh --check ui-test <sha>`: đọc check run `ui-test`, coi là chưa biết và đi tiếp qua commit có `ui-test` kết luận `skipped` (không đổi code app, hay `guard` đỏ nên emulator không chạy) và commit có `ui-test` `failure` kèm annotation `HẠ TẦNG:` (kết luận `infra`, không đổ lỗi cho nó), dừng ở commit mà `main-guard.yml` của chính commit đó chưa có job `ui-test` (emulator của commit đó đã chạy ở PR).
 - Mở issue `main-broken` có thêm dòng `<!-- check:ui-test -->` cạnh dòng `<!-- culprit:<sha> -->`, đẩy nhánh `revert/<sha>`. Đã có issue `main-broken` của `ui-test` đang mở thì chỉ bình luận.
 - Mỗi job chỉ bình luận vào issue của chính nó và chỉ tự đóng issue của chính nó: `guard` bỏ qua issue có dòng `check:ui-test`, `ui-test` chỉ xét issue có dòng đó. `guard` xanh không đóng issue của emulator; hai job cùng đỏ thì có hai issue, và `merge-if-green.sh` từ chối mọi PR, kể cả bản revert, như khi có hai issue bất kỳ (ADR-0025 mục 3).
 - `merge-if-green.sh`, bản revert đúng, quy tắc phiên tự chạy revert commit của chính phiên (ADR-0025 mục 3, 4) giữ nguyên: issue vẫn có dòng `culprit`.
 
-**4. Đỏ vì hạ tầng sau merge.** Không mở `main-broken`. Người hay phiên chạy lại riêng job đỏ của lần chạy đó (`rerun-failed-jobs`; `guard` xanh không chạy lại), theo dòng của `failure-playbook.md`; không còn cách đẩy commit rỗng. Không chạy lại được thì ghi cho người, nhánh chính không bị coi là đỏ. Lần chạy `ui-test` của commit code app kế tiếp kiểm lại toàn bộ app.
+**4. Đỏ vì hạ tầng sau merge.** Không mở `main-broken`. Người hay phiên chạy lại riêng job đỏ của lần chạy đó (`rerun-failed-jobs`; `guard` xanh không chạy lại), theo dòng của `failure-playbook.md`; không còn cách đẩy commit rỗng. Không chạy lại được thì ghi cho người, nhánh chính không bị coi là đỏ. Lần chạy `ui-test` của commit code app kế tiếp kiểm lại toàn bộ app. Giới hạn: hai commit đổi code app liên tiếp có kết luận `infra` mà chưa chạy lại xanh thì phiên tự chạy không merge thêm task đổi code app (`docs/auto-run.md` bước 9).
 
 **5. Nơi đọc kết quả.**
 
-- `release.sh` đọc kết luận của cả workflow `main-guard.yml`: `ui-test` đỏ, thật hay vì hạ tầng, chặn phát hành commit đó tới khi chạy lại xanh. Người duyệt ADR này chấp nhận nghĩa mới của "qua `main-guard.yml`": gồm cả test emulator của commit.
+- `release.sh` đọc kết luận của cả workflow `main-guard.yml` trên commit đổi code (ngoài `docs/`, `*.md`) mới nhất: `ui-test` của commit đó đỏ, thật hay vì hạ tầng, chặn phát hành tới khi chạy lại xanh. Commit code app cũ hơn có `ui-test` đỏ vì hạ tầng mà commit mới nhất chỉ đổi script (`ui-test` bỏ qua) thì không chặn; PR tăng `versionCode` đổi `app/build.gradle.kts` nên emulator luôn chạy trên commit phát hành, và `docs/ops/release.md` dặn chạy lại tới khi xanh. Người duyệt ADR này chấp nhận nghĩa mới của "qua `main-guard.yml`": gồm cả test emulator của commit đó.
 - `main-guard-status.sh` và `start-run.yml` vẫn chỉ đọc `guard`. Emulator đỏ thật được chặn qua issue `main-broken`, mà `start-run.yml` và đầu phiên đã kiểm riêng. Emulator đang chạy hay đỏ vì hạ tầng không chặn bắt đầu phiên.
 - Phiên tự chạy vẫn chờ cả workflow sau mỗi lần merge (`docs/auto-run.md` bước 9), nên thấy emulator đỏ của chính task trước khi đẩy task sau.
 
@@ -80,8 +82,8 @@ Emulator trên máy của GitHub hay đỏ vì hạ tầng: tải file R2 hết 
 - **Phải chấp nhận:**
   - Lỗi chỉ lộ ra trên emulator vào nhánh chính rồi mới bị bắt và revert. Plan vẫn phải có test Robolectric cho vỏ app (L-051, `docs/CLAUDE.md` mục Khi viết plan).
   - `main-guard` của commit đổi code app dài thêm khoảng 5 phút ở dự án mẫu (lâu hơn ở app có nhiều test emulator), thêm một lần chạy khi lần đầu đỏ.
-  - Kết luận `infra` cho một lỗi thật để job đỏ mà không mở `main-broken`; người đọc log và quyết định.
+  - Kết luận `infra` cho một lỗi thật có log giống lỗi hạ tầng để job đỏ mà không mở `main-broken`; người đọc log và quyết định; quá hai lần liên tiếp thì phiên dừng merge code app.
   - `main-guard-status.sh` không đọc `ui-test`: phiên có thể bắt đầu khi emulator của commit cuối còn đang chạy; đỏ thật sau đó mở `main-broken` và phiên dừng ở lần kiểm kế tiếp.
   - PR đang mở có `ui-test` đỏ từ trước quyết định này vẫn bị từ chối tới khi có commit mới.
   - Danh sách file mà job `guard` gọi hay dựa vào (ADR-0039 mục 2) thêm `scripts/ui-test-needed.sh`.
-- **Việc AI phải tuân thủ:** test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`; `merge-if-green.sh` không đòi hay chờ `ui-test`; chỉ kết luận `red` của `scripts/ui-test-verdict.sh` mở `main-broken`, không chắc thì là `infra`; issue `main-broken` của emulator có dòng `<!-- check:ui-test -->`, và mỗi job chỉ bình luận, chỉ tự đóng issue của chính nó; emulator đỏ vì hạ tầng sau merge thì chạy lại riêng job đỏ theo `docs/ops/failure-playbook.md`, không mở `main-broken`, không đẩy commit rỗng lên nhánh chính; thêm đường dẫn code app hay script mà job `ui-test` gọi thì sửa danh sách của `scripts/ui-test-needed.sh` và test của nó cùng PR
+- **Việc AI phải tuân thủ:** test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`; `merge-if-green.sh` không đòi hay chờ `ui-test`; chỉ kết luận `red` của `scripts/ui-test-verdict.sh` mở `main-broken`; `infra` chỉ cho danh sách trắng PB của script và thiết bị hỏng, app dừng luôn là `red`; `find-breaking-commit.sh --check ui-test` không đổ lỗi cho commit có annotation `HẠ TẦNG:`; issue `main-broken` của emulator có dòng `<!-- check:ui-test -->`, và mỗi job chỉ bình luận, chỉ tự đóng issue của chính nó; emulator đỏ vì hạ tầng sau merge thì chạy lại riêng job đỏ theo `docs/ops/failure-playbook.md`, không mở `main-broken`, không đẩy commit rỗng lên nhánh chính; thêm đường dẫn code app hay script mà job `ui-test` gọi thì sửa danh sách của `scripts/ui-test-needed.sh` và test của nó cùng PR
