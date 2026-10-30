@@ -2,7 +2,7 @@
 ticket: T-056
 title: Mã đơn vị theo khe trong code: mọi lớp của thanh đáy có mã ở production
 status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 23.9M        # số gợi ý cỡ M (scripts/token-usage.py estimate, 2026-10-29); giữ nguyên dù phần code nhỏ, vì có test giao diện của thanh đáy và ba tài liệu
@@ -19,6 +19,8 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 ## 1. Tóm tắt
 
 `ConfiguredAdUnitIds` (bản production) đọc thêm mã theo khe, dạng `<tên khe>=<mã>` với tên khe là mã định dạng của M-05 (`banner`, `native_collap`), cho các lớp của thanh đáy; dạng cũ `<mã vị trí>=<mã>` vẫn đọc như hôm nay và vẫn là nguồn duy nhất của định dạng chính của vị trí. `missing` đổi thành danh sách khóa cần có trong `adUnits` (khóa vị trí, rồi khóa khe của lớp thanh đáy). Thiếu khóa thì `AdsController.start` ghi một dòng cảnh báo, không chặn build hay khởi động. Kiểm chứng bằng unit test của `AdUnitIdsTest` và test giao diện của `BottomAdBarTest` dùng `ConfiguredAdUnitIds` thật với chuỗi mã giả; không chạm `scripts/release.sh` (T-057).
+
+**Phiên bản 2 (2026-10-30).** Bản 1 đã duyệt ngày 2026-10-30 (anh Nhật). Theo rà soát độc lập danh sách chạy RUN-20261030-01: (1) test `start_withMissingUnits_warnsOnce` (mục 4) chỉ đếm các mục của `logger.entries` chứa `Production ad units missing`, không đếm mọi mục `WARN`, vì `start()` trên Robolectric có thể ghi thêm `WARN` từ phần đồng ý chạy bất đồng bộ, test sẽ chập chờn. (2) Spec câu hỏi 14 đã có ghi chú "Đổi 2026-10-30" (phần làm hôm nay chỉ áp mã theo khe cho hai lớp của thanh đáy; đổi hẳn sang theo khe cho mọi định dạng là ticket riêng sau T-057); plan dẫn tới ghi chú này ở mục 2 và câu hỏi 1 của mục 8, nên chỗ lệch so với câu 14 không còn. Giải pháp, danh sách file, test khác và chấm rủi ro không đổi. Mục 9 chờ duyệt lại.
 
 ## 2. Hiểu yêu cầu
 
@@ -40,7 +42,7 @@ ADR liên quan: ADR-0004 (một lớp trung gian `:core:ads`), ADR-0009 (không 
 - `release.sh` hôm nay đã chấp nhận dòng này: mỗi mục `adUnits` chỉ phải khớp `^[a-z0-9_]+=ca-app-pub-[0-9]+/[0-9]+$` (`scripts/release.sh`, dòng 149 tới 157), không đòi khóa là vị trí. Dạng có `/` thì `release.sh` cũ từ chối cả bản phát hành;
 - doanh thu và lượt bấm vẫn ghi theo vị trí (D-05, `ad_placement` là mã vị trí của thanh), không đổi.
 
-Mã theo khe chỉ áp cho lớp (định dạng khác định dạng chính của vị trí). Định dạng chính vẫn chỉ đọc khóa vị trí, xem mục 3.1, ý 2 và câu hỏi 1.
+Mã theo khe chỉ áp cho lớp (định dạng khác định dạng chính của vị trí). Định dạng chính vẫn chỉ đọc khóa vị trí, xem mục 3.1, ý 2 và câu hỏi 1. Spec câu hỏi 14 đã ghi phạm vi này ("Đổi 2026-10-30": hôm nay chỉ hai lớp của thanh đáy theo khe, đổi hẳn cho mọi định dạng là ticket riêng sau T-057).
 
 ## 3. Giải pháp
 
@@ -133,7 +135,7 @@ Ba câu đổi đều là dữ liệu và kiểu của `missing` mà plan nói r
 | Không có thanh đáy thì không đòi khóa khe | Unit test | `AdUnitIdsTest.missingUnitKeys_noBar_noSlotKeys`: chỉ `("inter_a", INTERSTITIAL)` và `("gallery_x", NATIVE_SMALL, stagingOnly = true)`, `configured` rỗng: `listOf("inter_a")`. Đối chứng: bỏ `stagingOnly` của `gallery_x` thì có thêm `"gallery_x", "banner", "native_collap"` |
 | `missing` của `ConfiguredAdUnitIds` dùng đúng hàm | Unit test có sẵn, sửa | `configuredUnits_areParsedPerPlacementKey`, `placementWithoutUnit_isReportedMissingAndShowsNoAd` theo mục 3.5 |
 | Báo khi thiếu mã ở production (ý 5) | Unit test | `AdUnitIdsTest.missingUnitsWarning_listsMissingKeys`: `ConfiguredAdUnitIds` có đủ khóa vị trí, không có khóa khe: chuỗi trả về chứa `banner, native_collap`; đối chứng: thêm `banner=unit/8;native_collap=unit/9` thì `null`; `missingUnitsWarning(GoogleTestAdUnitIds)` và `missingUnitsWarning(AdUnitIds { null })` là `null` |
-| Cảnh báo được ghi lúc khởi động, không chặn | Robolectric test | `AdsControllerUnitIdsTest.start_withMissingUnits_warnsOnce`: `testAdsController(unitIds = ConfiguredAdUnitIds(<đủ khóa vị trí, không khóa khe>), logger = logger)`, gọi `start(application, AppActivityFilter { true })` hai lần: `logger.entries` có đúng một mục `WARN`, thẻ `Ads`, chứa `banner, native_collap`, và có mục `Ads started` (khởi động vẫn chạy). Đối chứng `start_withAllUnits_noWarning`: thêm hai khóa khe thì không mục `WARN` nào chứa `Production ad units missing`; `start_staging_noWarning` với `GoogleTestAdUnitIds` cũng vậy |
+| Cảnh báo được ghi lúc khởi động, không chặn | Robolectric test | `AdsControllerUnitIdsTest.start_withMissingUnits_warnsOnce`: `testAdsController(unitIds = ConfiguredAdUnitIds(<đủ khóa vị trí, không khóa khe>), logger = logger)`, gọi `start(application, AppActivityFilter { true })` hai lần: trong `logger.entries` có đúng một mục chứa `Production ad units missing` (chỉ đếm các mục này, không đếm mọi `WARN`, vì phần đồng ý chạy bất đồng bộ trên Robolectric có thể ghi thêm `WARN` khác), mục đó mức `WARN`, thẻ `Ads`, chứa `banner, native_collap`, và có mục `Ads started` (khởi động vẫn chạy). Đối chứng `start_withAllUnits_noWarning`: thêm hai khóa khe thì không mục `WARN` nào chứa `Production ad units missing`; `start_staging_noWarning` với `GoogleTestAdUnitIds` cũng vậy |
 | Không trùng tên khóa (ý 6) | Unit test | `AdUnitIdsTest.placementKeys_neverSlotNames`: `AdPlacement.entries.map { it.key }` giao `AdFormat.entries.map { it.code }` là rỗng; đối chứng: tập mã định dạng có `"banner"` và `"native_collap"` (để test không qua vì tập rỗng). Qua ngay trên khung rỗng: là test chặn, ghi vào nhật ký |
 | KB-17: tắt native ở đáy thì có banner, gửi yêu cầu (production) | Compose UI test | `BottomAdBarTest.configuredSlotUnits_bannerBuiltAndKeepsHeight`: `layerUnitIds = ConfiguredAdUnitIds("sample_native_small=unit/1;banner=unit/b")`, `flags = barFlags(nativeBottom = false, collap = false)`: `banners.createdCount == 1`, sau `banners.last.emitLoaded()` nội dung chừa `BANNER_HEIGHT_DP`. Đối chứng trong cùng test: trước đó `ConfiguredAdUnitIds("sample_native_small=unit/1")` thì `createdCount == 0`, nội dung tới `SCREEN_HEIGHT` |
 | KB-17: bật native ở đáy thì lớp thu gọn nạp (production) | Compose UI test | `BottomAdBarTest.configuredSlotUnits_layerLoads`: `layerUnitIds = ConfiguredAdUnitIds("sample_native_small=unit/1;native_collap=unit/c")`, cờ mặc định (native và lớp bật): `layerFeed.collections == 1`, sau `loadBoth()` có `CollapsibleNativeAdTestTags.AD` và `SLOT_AD`. Đối chứng: `ConfiguredAdUnitIds("sample_native_small=unit/1")` thì `layerFeed.collections == 0`, lớp vắng, khe vẫn có quảng cáo |
@@ -199,6 +201,7 @@ Không thêm quyền, SDK hay dữ liệu. Mức Cao, cần duyệt chéo; ngư�
 
 1. **Định dạng chính có đọc khóa khe không?** Câu 14 ý đầy đủ là "mọi định dạng một mã mỗi khe, vị trí chỉ bật tắt và ghi doanh thu". Plan chỉ áp khóa khe cho lớp của thanh đáy, định dạng chính vẫn theo khóa vị trí, vì `release.sh` cũ điền mã thử cho mọi khóa vị trí thiếu, nên mã thử sẽ luôn thắng mã khe thật.
    - Đây là lệch một phần so với câu trả lời đã chốt của câu 14 ("vị trí chỉ để bật tắt"): định dạng chính vẫn lấy mã theo vị trí. Cần người xác nhận rõ, không coi là đã duyệt theo câu 14 (rà soát độc lập, ghi chú 3).
+   - Đã xác nhận: spec câu hỏi 14 có ghi chú "Đổi 2026-10-30" (phần làm hôm nay chỉ áp mã theo khe cho `banner`, `native_collap`; định dạng chính vẫn theo vị trí vì `release.sh` điền mã thử cho mọi khóa vị trí thiếu; đổi hẳn là ticket riêng sau T-057), nên plan không còn lệch câu 14.
    - Đề xuất của AI: giữ như plan. Muốn đổi hẳn sang theo khe cho mọi định dạng thì làm sau T-057, bằng một ticket riêng: khóa vị trí thắng, khóa khe làm mặc định, `release.sh` không điền mã thử khi đã có khóa khe.
 2. **Vị trí `native_small` đặt trong màn có bị đòi khóa khe không?** Plan coi mọi vị trí `native_small` là thanh đáy (MC-08), nên một vị trí `native_small` trong màn (`NativeAdSlot`) cũng làm `missing` có `banner`, `native_collap`. Hôm nay dự án mẫu chỉ có `sample_native_small` (thanh đáy) ngoài `gallery_`.
    - Đề xuất của AI: chấp nhận đòi thừa (chỉ là danh sách thông tin, không chặn build). Nếu cần phân biệt thì thêm thuộc tính `bottomBar` vào `AdPlacement`, nhưng việc đó sửa `AdPlacement.kt` và luật đọc của `release.sh`, nên là ticket khác.
@@ -212,6 +215,14 @@ Không thêm quyền, SDK hay dữ liệu. Mức Cao, cần duyệt chéo; ngư�
    - Đề xuất của AI: người phát hành chấp nhận khoảng trống này tới khi T-057 xong, và coi T-057 là điều kiện trước của bản production đầu tiên có thanh đáy cần banner hay lớp thu gọn. Ghi ở `ads-guide.md` mục 9.
 
 ## 9. Quyết định duyệt
+
+Phiên bản 2:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt lại trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt."), cùng năm plan khác sửa theo rà soát độc lập danh sách chạy RUN-20261030-01, sau khi xem tóm tắt các điểm đã sửa và câu hỏi AI gửi trong phiên. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Các trả lời ở mục 9 của bản trước giữ nguyên. Bản này chỉ đếm dòng `Production ad units missing` trong test cảnh báo và dẫn ghi chú mới của câu hỏi 14.
+
+Phiên bản 1:
 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
