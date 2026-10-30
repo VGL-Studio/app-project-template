@@ -27,11 +27,10 @@ import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private const val TAG = "Ads"
@@ -39,7 +38,9 @@ private const val TAG = "Ads"
 /**
  * Ads of one in-list placement on one screen. Create it with [rememberInListAds], outside the lazy list. A native
  * small row keeps its ad for the life of the screen: scrolling a row away and back shows the same ad, never a new
- * request (ads-guide.md, section 6); every such ad is destroyed when the screen leaves the composition. A row of a
+ * request (ads-guide.md, section 6); every such ad is destroyed when the screen leaves the composition. A native small
+ * row that failed tries again 5 s later while it is drawn, only while the in-screen window is open (foreground, no
+ * full-screen ad over the app, KB-27) and the consent gate is open right at the send (O-05, plan T-059). A row of a
  * pooled format (medium, card: plan T-028) is a cell of the pool ([pooledCell]): it takes an ad when it comes on
  * screen and gives it back when it leaves (P-01, P-01a), so a row scrolled back may show another ad.
  */
@@ -106,9 +107,12 @@ class InListAds internal constructor(
         return state
     }
 
-    /** The row of slot [index] came into the composition ([isShown] true) or left it. */
+    /**
+     * The row of slot [index] came into the composition ([isShown] true) or left it. A row that left keeps its flow:
+     * a request in flight goes on and its ad is kept; a retry due meanwhile waits until the row is drawn again.
+     */
     internal fun onRowShown(index: Int, isShown: Boolean) {
-        // Step 3 skeleton (plan T-059): the rows do not know yet whether they are drawn.
+        shown[index]?.value = isShown
     }
 
     /** Destroys every loaded ad and cancels the loads still running. Called when the screen is left. */
@@ -136,7 +140,12 @@ internal fun interface InListRowSource {
 }
 
 /**
- * Step 3 skeleton (plan T-059): the behavior of the old one-shot row load, one try, gate checked when called.
+ * The states of one native small row of a list (plan T-059): no refresh, no single-ad source. Each send, the first
+ * one and every retry (5 s with no ad, sooner when Internet comes back), goes through [retryingNativeAdStates], which
+ * waits for the in-screen [window] (foreground, no full-screen ad over the app, KB-27) and asks [mayRequestNow]; then
+ * it waits until the row is drawn ([rowShown]) and asks the window and the gate again right before the send, since
+ * that wait may be long. A row scrolled away sends nothing until it is drawn again. A Loaded ad stays until the
+ * collection is cancelled, then is destroyed. Every send path of a row goes through this function (L-072).
  */
 internal fun inListRowStates(
     load: suspend () -> NativeAdState,
@@ -146,22 +155,18 @@ internal fun inListRowStates(
     retryResets: StateFlow<Int>,
     logger: AppLogger,
     placementKey: String,
-): Flow<NativeAdState> = flow {
-    if (!mayRequestNow()) {
-        emit(NativeAdState.Unavailable)
-        return@flow
-    }
-    emit(NativeAdState.Loading)
-    val state = load()
-    emit(state)
-    if (state is NativeAdState.Loaded) {
-        try {
-            awaitCancellation()
-        } finally {
-            state.ad.destroy()
-        }
-    }
-}
+): Flow<NativeAdState> = retryingNativeAdStates(
+    load = {
+        rowShown.first { it }
+        if (awaitSendAllowed(window, mayRequestNow)) load() else null
+    },
+    foreground = window,
+    mayRequestNow = mayRequestNow,
+    retryResets = retryResets,
+    logger = logger,
+    placementKey = placementKey,
+    refresh = null,
+)
 
 /**
  * Only small, medium and card (`native_in_collection`) native ads go inside a list. Not an exhaustive `when` on

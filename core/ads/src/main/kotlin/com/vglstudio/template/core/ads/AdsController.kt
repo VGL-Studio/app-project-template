@@ -1610,7 +1610,13 @@ class AdsController @Inject internal constructor(
         logger.info(TAG, "Collapsible ${placement.key} re-expanded after $seconds s")
     }
 
-    /** Step 3 skeleton (plan T-059): the states of the native small row of [slot] of a list of [placement]. */
+    /**
+     * The states of the native small row of [slot] of a list of [placement] ([inListRowStates]): its own `LIST_ROW`
+     * load on each try, tried again like a native slot (5 s, the in-screen window, the gate right before the send,
+     * Internet back) but never refreshed and never through a single-ad source (plan T-059, section 3.1). Logs under
+     * `<code>#<slot>`, so rows loading at once do not mix; the metrics keep [placement]. [rowShown] is true while the
+     * row is drawn. The caller checks consent and [isEnabled] first ([inListEvery]).
+     */
     internal fun inListRowStates(
         placement: AdPlacement,
         slot: Int,
@@ -1641,34 +1647,6 @@ class AdsController @Inject internal constructor(
                 logger = logger,
                 placementKey = key,
             ),
-        )
-    }
-
-    /**
-     * Loads one native ad of [placement] ([loadOneNativeAd]): Loaded or Unavailable (also when there is no ad unit).
-     * The caller owns a Loaded ad and destroys it; one ad per item of a list (T-011). The caller checks consent and
-     * [isEnabled] first, like [NativeAdSlot].
-     */
-    internal suspend fun loadNativeAd(placement: AdPlacement): NativeAdState {
-        val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
-        val unitId = unitId(placement) ?: return NativeAdState.Unavailable
-        if (!mayRequestNow()) {
-            logger.info(TAG, "Native ${placement.key} not requested: consent gate closed")
-            return NativeAdState.Unavailable
-        }
-        return loadOneNativeAd(
-            SdkNativeAdLoader(
-                context,
-                adRequest(),
-                nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW),
-                networkLog = networkLog,
-                logKey = placement.key,
-            ),
-            unitId,
-            size,
-            NATIVE_LOAD_TIMEOUT_MILLIS,
-            logger,
-            placement.key,
         )
     }
 
@@ -2152,7 +2130,7 @@ internal fun AdFormat.nativeLoadSize(): NativeAdSize? = when (this) {
     AdFormat.NATIVE_MEDIUM -> NativeAdSize.MEDIUM
     // Opens expanded, with media, so it loads as medium.
     AdFormat.NATIVE_COLLAPSIBLE -> NativeAdSize.MEDIUM
-    // Preloaded by its own loader with full-screen options, never through nativeAd or loadNativeAd.
+    // Preloaded by its own loader with full-screen options, never through nativeAd or inListRowStates.
     AdFormat.NATIVE_FULL_SCREEN -> null
     // App open (its own slot, T-024) and rewarded are not native. The pool of T-028 loads the in-collection cards
     // with portrait media, and the cards of a flow step at their 250 dp size, media wide (T-032).
