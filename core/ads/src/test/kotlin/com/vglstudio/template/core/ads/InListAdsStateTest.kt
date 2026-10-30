@@ -8,6 +8,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -71,9 +72,11 @@ class InListAdsStateTest {
     }
 
     /**
-     * Loads run on the test scheduler but outside backgroundScope, whose work advanceUntilIdle does not run.
+     * Loads run on the test scheduler but outside the dispatcher of backgroundScope, whose work advanceUntilIdle does
+     * not run. Their job is a child of backgroundScope, so the rows that keep retrying stop when the test ends.
      */
-    private fun TestScope.loadScope() = CoroutineScope(StandardTestDispatcher(testScheduler))
+    private fun TestScope.loadScope() =
+        CoroutineScope(StandardTestDispatcher(testScheduler) + Job(backgroundScope.coroutineContext[Job]))
 
     /** Rows through the real [inListRowStates], each with the load [loadOf] gives for its slot. */
     private fun rowsOf(loadOf: (slot: Int) -> suspend () -> NativeAdState) = InListRowSource { placement, slot, shown ->
