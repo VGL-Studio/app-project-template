@@ -340,14 +340,14 @@ class NativeAdFontScaleTest {
                 val media = bounds(NativeFullScreenAdTestTags.MEDIA)
                 assertTrue("media is ${media.h()} high, $case", media.h() >= 120f - TOLERANCE)
                 val close = bounds(NativeFullScreenAdTestTags.CLOSE)
-                assertEquals("close button width, $case", 36f, (close.right - close.left).value, TOLERANCE)
-                assertEquals("close button height, $case", 36f, close.h(), TOLERANCE)
+                assertEquals("close button width, $case", 48f, (close.right - close.left).value, TOLERANCE)
+                assertEquals("close button height, $case", 48f, close.h(), TOLERANCE)
                 assertEquals("close button left, $case", 16f, close.left.value, TOLERANCE)
                 assertEquals("close button top, $case", 24f, close.top.value, TOLERANCE)
                 if (scale == 1f && texts === FakeNativeAdAssets.Design) {
                     val icon = bounds(NativeFullScreenAdTestTags.ICON)
                     assertEquals("icon (head) at the design size, $case", 48f, icon.h(), TOLERANCE)
-                    assertEquals("media at the design size, $case", 595f, media.h(), TOLERANCE)
+                    assertEquals("media at the design size, $case", 583f, media.h(), TOLERANCE)
                 }
             }
         }

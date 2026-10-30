@@ -57,6 +57,8 @@ data class AdsGlobalFlags(
     val logFullScreenEvents: Boolean,
     /** is_log_ad_slot_events. */
     val logSlotEvents: Boolean,
+    /** time_close_native, 1 to 30, any other value read as 5. */
+    val closeNativeCountdownSeconds: Long,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */
@@ -88,6 +90,7 @@ internal class DefaultAdsFlags @Inject constructor(private val settings: RemoteS
             settings.value(AdsSettings.IS_ENABLE_CONSENT_SHORTCUT),
             settings.value(AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS),
             settings.value(AdsSettings.IS_LOG_AD_SLOT_EVENTS),
+            settings.value(AdsSettings.TIME_CLOSE_NATIVE),
         ),
     ) { values ->
         val adsEnabled = values[0] as Boolean
@@ -107,6 +110,7 @@ internal class DefaultAdsFlags @Inject constructor(private val settings: RemoteS
             consentShortcutEnabled = values[11] as Boolean,
             logFullScreenEvents = values[12] as Boolean,
             logSlotEvents = values[13] as Boolean,
+            closeNativeCountdownSeconds = nativeCloseCountdownSeconds(values[14] as Long),
         )
     }.distinctUntilChanged()
 

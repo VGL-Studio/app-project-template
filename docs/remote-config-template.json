@@ -161,8 +161,13 @@
       "description": "Shows an ad when the user comes back to the app. Name kept with the AdsKit typo.",
       "valueType": "BOOLEAN"
     },
+    "time_close_native": {
+      "defaultValue": { "value": "5" },
+      "description": "Countdown before the full-screen native ad can be closed, in seconds; 1 to 30, any other value uses 5. Name from JBase, not an AdsKit key.",
+      "valueType": "NUMBER"
+    },
     "time_expand_collap_ad": {
-      "defaultValue": { "value": "30" },
+      "defaultValue": { "value": "10" },
       "description": "Time after the user collapses the collapsible native ad before it expands again, in seconds; 0 means never. Name set by the template, not an AdsKit key.",
       "valueType": "NUMBER"
     },
