@@ -5,14 +5,11 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.flow.MutableStateFlow
 
-/** T-063 step 3 frame: a fresh status, not yet the shared NONE. */
+/** The template sells no ad removal: never ad-free (KB-30). An app with a purchase provides its own here. */
 @Module
 @InstallIn(SingletonComponent::class)
 object AdFreeModule {
     @Provides
-    fun adFreeStatus(): AdFreeStatus = object : AdFreeStatus {
-        override val adFree = MutableStateFlow(false)
-    }
+    fun adFreeStatus(): AdFreeStatus = AdFreeStatus.NONE
 }

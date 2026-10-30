@@ -131,6 +131,18 @@ Nhóm kinh doanh hoạch định vị trí, khóa và sự kiện trên file Exc
 
 Cần một định dạng mới hay một cơ chế mới (không phải một vị trí mới) thì không làm trong app: đề xuất về dự án mẫu (`docs/ops/from-app.md`).
 
+### 5.1. Nối gói bỏ quảng cáo
+
+Người đã mua gói bỏ quảng cáo không thấy quảng cáo nào (KB-30, `ads-business-rules.md` MC-11). `:core:ads` chỉ đọc một tín hiệu đúng sai, `AdFreeStatus.adFree` (một `StateFlow<Boolean>`); việc mua, lưu trạng thái mua và hỏi Play là của app.
+
+- Dự án mẫu không bán gói này: `AdFreeModule` (`app/src/main/kotlin/com/vglstudio/template/di/`) cấp `AdFreeStatus.NONE`, luôn `false`, nên quảng cáo chạy như cũ.
+- App có mua hàng thay `AdFreeModule` bằng binding của mình, cấp một `StateFlow<Boolean>` có giá trị đầu là trạng thái mua đã lưu lần trước. Dùng `StateFlow`, không phải `Flow`: `:core:ads` không bao giờ chờ giá trị đầu, nên màn loading và lần chọn quảng cáo mở app không bị giữ lại. Binding của app phải là `@Singleton`, để mọi nơi đọc cùng một `StateFlow`. `AdFreeModule` của mẫu không cần scope vì `NONE` là một object.
+- `:core:ads` không lưu trạng thái, không hỏi Play, không có khóa Remote Config cho tín hiệu này.
+- Tín hiệu `true` thì như `is_show_ads` tắt: không lượt tải mới nào, mọi khe trong màn (banner, native, thanh đáy, native trong danh sách, pool, bước của luồng) bỏ quảng cáo ngay và thanh đáy không chiếm chỗ; không có quảng cáo mở app hay khi quay lại app; interstitial và native toàn màn hình bị bỏ lượt (`DISABLED`); hành động có điều kiện (rewarded) làm thẳng, không hộp thoại; không ghi `ad_opportunity`. Quảng cáo toàn màn hình đã nạp sẵn không bị hủy ngay nhưng không bao giờ hiện, hết hạn theo luật cũ.
+- Hộp thoại đồng ý, SDK quảng cáo và AppsFlyer vẫn như khi chưa mua (câu hỏi 50 của spec ads).
+- Tín hiệu đổi giữa phiên (vừa mua xong, hoàn tiền, đổi tài khoản) thì áp ngay, không cần mở lại app; về `false` thì quảng cáo chạy lại như khi bật lại `is_show_ads`.
+- Thử trên staging: tạm cấp `MutableStateFlow(true)` trong `AdFreeModule` trên máy dev, không commit.
+
 ## 6. Nhịp hiển thị
 
 Luật đầy đủ ở `ads-business-rules.md`, mục 3 và 4. Tóm tắt cho người vận hành:
@@ -263,6 +275,7 @@ Bản staging dựng trên máy dev có thể coi máy thật của dev là máy
   | Mintegral | Chưa thấy trang Data safety của Mintegral | Xem ghi chú về Mintegral ở mục 7 |
 
   Manifest gộp có `<queries>` dò kho ứng dụng và năm gói của công cụ root máy (mục 7); không phải `QUERY_ALL_PACKAGES`.
+- [ ] App bán gói bỏ quảng cáo: đã nối tín hiệu `AdFreeStatus` (mục 5.1) và thử mua, hoàn tiền trên bản staging: mua xong thì quảng cáo biến mất ngay, hoàn tiền thì quảng cáo chạy lại.
 - [ ] Tắt chế độ thử trên AdMob và các mạng con (máy thử, single ad source testing) trước khi phát hành.
 - [ ] Rà từng vị trí theo mục 2 trên bản phát hành.
 - [ ] Mọi khóa quảng cáo vẫn tắt trên Remote Config tới khi bản phát hành lên Play; bật dần theo [remote-config.md](remote-config.md).
