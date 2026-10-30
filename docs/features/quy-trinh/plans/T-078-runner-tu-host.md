@@ -1,16 +1,16 @@
 ---
 ticket: T-078
 title: Runner tự host cho các job nặng, có đường quay về runner của GitHub
-status: draft
+status: approved
 version: 1
 risk_score: 12
 risk_level: high
 token_estimate: 30.0M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -42,7 +42,7 @@ Ticket quy trình, không có spec nghiệp vụ. Yêu cầu: `features/quy-trin
 | DoD 3 | Tài liệu cài và vận hành máy, dòng bảng tra lỗi | `docs/ops/self-hosted-runner.md` mới; PB-16 tới PB-18 |
 | DoD 4 | CI qua, đã merge | Như mọi task. Merge được trước khi có máy: biến chưa đặt thì mọi job vẫn chạy trên runner của GitHub |
 
-**Giả định về T-075, T-076, T-077.** Ngày 2026-10-30 cả ba đang ở dạng plan draft: PR #318, #315, #316. Plan này lấy chúng làm gốc:
+**Giả định về T-075, T-076, T-077.** Ngày soạn plan cả ba đang ở dạng plan draft; lúc duyệt (2026-10-30) T-075 đã merge (PR #324), T-076, T-077 đã duyệt (PR #315, #316). Plan này lấy chúng làm gốc:
 
 - T-075 (PR #318): `ui-test` rời `pr-check.yml`. Job mới `ui-test` trong `main-guard.yml` có `needs: guard`, `if: needs.guard.outputs.ui != 'no'` (theo bản mới nhất của plan T-075) và `timeout-minutes: 60`. Hai bước "Giải phóng đĩa cho emulator" và "Bật KVM cho emulator" chép nguyên từ `pr-check.yml`, không có `if:`. Job dùng quyền cấp workflow của `main-guard.yml` (`contents: write`, `issues: write`, `checks: read`, `actions: read`, `pull-requests: read`).
 - T-076 (PR #315): `pr-check.yml` chỉ còn job `build-and-test`. Job mở đầu bằng bước `Lọc đường dẫn (dorny/paths-filter)` và bước `Kiểm kết quả lọc đường dẫn`, đứng trước `actions/checkout`. Phương án dự phòng của T-076 có thể dời bước lọc ra sau checkout.
@@ -285,6 +285,7 @@ Các file khác nhắc tới file plan sửa nhưng không bị ảnh hưởng. 
 - dẫn `docs/auto-run.md`: `scripts/cloud-env-check.sh`, `scripts/push-on-commit.sh`, `scripts/push-probe.sh`, `scripts/resume-check.py` (có trong mục 3.2), `scripts/run-check.py`, `scripts/run-watchdog.py`, `scripts/save-branch.sh`, `scripts/schedule-idle.py`, `scripts/status.py`, `scripts/token-usage.py`;
 - dẫn `docs/ops/staging-and-runs.md`: `scripts/cloud-env-check.sh`, `scripts/env-canary.sh`, `scripts/run-watchdog.py`, `scripts/setup-check.sh`. Plan chỉ thêm một câu sau dòng 5, số mục giữ nguyên;
 - dẫn `docs/ops/failure-playbook.md`: `scripts/push-probe.sh` (dẫn PB-14). Plan thêm ba dòng, không đổi mã dòng cũ;
+- `scripts/ui-test-verdict.sh` (T-075, thêm sau khi soạn plan) dẫn `docs/ops/failure-playbook.md` (mã PB-01, PB-11, PB-13, PB-15 trong `INFRA_PB`) và `docs/auto-run.md`: plan không đổi mã dòng PB cũ hay số mục của `auto-run.md`, mã mới của plan không vào `INFRA_PB` của script đó;
 - dẫn `CLAUDE.md` (plan chỉ thêm một dòng vào mục Lệnh):
   - `.github/ISSUE_TEMPLATE/from-app.yml`;
   - `scripts/new-app.sh`: thay tên app trong `CLAUDE.md`, mà dòng mới không có tên app;
@@ -554,8 +555,8 @@ Nguồn (đọc ngày 2026-10-30):
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện / Duyệt ADR-0042, hoãn task (plan giữ `draft`, ticket giữ `backlog` tới khi có repo private cần runner tự host; mục 8, câu 1)
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30, sau khi T-075 merge (PR #324) và plan T-076, T-077 được duyệt (PR #315, #316). Câu 1: làm tiếp; repo công khai chỉ là tạm thời, coi như private (anh Nhật, 2026-10-30), không cần xem lại T-075 tới T-077. Câu 2: thuê máy chủ riêng Linux x86_64 có KVM (khoảng 8 nhân, 64 GB RAM, 500 GB SSD). Câu 3: một máy cho cả tổ chức, 2 container chạy cùng lúc. Câu 4 tới 8 theo đề xuất: biến `HEAVY_RUNNER` cấp repo (kiểm cài đặt nhóm runner trước H4); chỉ job không đọc bí mật lên runner tự host, `staging` và `device-session` giữ runner của GitHub; Re-run sau khi xóa biến thử ở H6; thêm `actions: read` cho `resume-run.yml`; ADR-0042 ghi `accepted`. Đối chiếu lúc duyệt: job `ui-test` của `main-guard.yml` trên nhánh chính khớp mục 2 (`needs: guard`, `if: needs.guard.outputs.ui != 'no'`, `timeout-minutes: 60`, hai bước `sudo`). Rà soát lại phần sửa test 3 (commit b4c54f1): không còn điểm chặn; đối chứng theo hình dạng sau T-076 ra qua, năm bản sao hỏng đều thất bại. Task sửa trong file của mục 3.2, như điểm nên sửa (ADR-0029), bốn điều sau: (a) bước `run:` đứng trước bước kiểm runner chỉ được có các khóa `name`, `id`, `if`, `env`, `run` (không `working-directory`, `shell`), thêm bản sao hỏng có `working-directory: /home/runner/.gradle/init.d`; (b) định nghĩa rõ "lệnh ghi tệp" của test 3: ngoài `>`, `>>`, `tee`, dò cả `cp`, `mv`, `mkdir`, `touch`, `ln`, `install`, `curl -o`/`-O`, `wget`, `sed -i`, `dd`, và cấm cả `${HOME}`, `/home/`, `/root/`; thêm bản sao hỏng dùng `${HOME}` và `curl -o`; (c) thêm bản sao hỏng đặt `uses: gradle/actions/setup-gradle@v4` trước checkout, mong thất bại; (d) nguồn của đối chứng "pr-check.yml theo T-076 qua" là `pr-check.yml` trên nhánh chính sau khi T-076 merge (không phải commit d8f714e của nhánh plan), và mục 7 thêm điều kiện dừng: T-076 merge theo phương án dự phòng (bước lọc sau checkout) thì test P3(c) của T-076 và test 3 của plan này không cùng thỏa được: dừng, soạn plan phiên bản 2. Dựng máy, cài runner, đặt biến và thử quay về (H1 tới H6) là việc của người, sau khi merge. Task làm có người (`auto_run: false`), sau khi T-076, T-077 merge.
 
 ## 10. Nhật ký thực hiện

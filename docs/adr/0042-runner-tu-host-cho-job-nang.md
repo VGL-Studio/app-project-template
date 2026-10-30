@@ -1,7 +1,7 @@
 ---
 id: ADR-0042
 title: Job nặng không đọc bí mật chạy được trên runner tự host chạy một lần, chọn bằng biến HEAVY_RUNNER của repo private; xóa biến thì quay về runner của GitHub
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-30
 deciders: [Nhật]
