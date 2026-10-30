@@ -1,16 +1,16 @@
 ---
 ticket: T-059
 title: Native small trong danh sách thử lại khi lỗi
-status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft                # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 5.4M         # cỡ S, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); hai file code, hai file test sửa, một file test mới, một tài liệu; giữ số gợi ý dù thêm phần hàng rời màn và cửa sổ của T-054 (L-107)
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật               # người duyệt
-cross_reviewer: Nhật         # bắt buộc khi risk_level là high
-approved_at: 2026-10-30
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -19,6 +19,13 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 ## 1. Tóm tắt
 
 Hàng native small trong danh sách hôm nay tải đúng một lần (`AdsController.loadNativeAd`, `AdsController.kt:1553-1568`): lỗi thì hàng co về 0 suốt màn, không thử lại, không chờ foreground. Plan cho mỗi hàng một luồng trạng thái đi qua `retryingNativeAdStates` (đường thử lại mà mọi khe native trong màn đang dùng), không có làm mới, nên hàng thử lại sau 5 giây (O-05), mỗi lượt gửi chờ foreground và hỏi cổng đồng ý ngay trước khi gửi, lỗi chuẩn bị yêu cầu tính mã 0 (O-09), rời màn khi yêu cầu đang bay thì quảng cáo về muộn bị hủy (O-03). Mỗi hàng vẫn giữ một quảng cáo riêng suốt màn, hủy khi rời màn. Hàng chỉ thử lại khi đang được dựng trên màn (hàng cuộn ra khỏi màn ngừng thử lại, cuộn về thì thử ngay một lượt) và chỉ khi cửa sổ quảng cáo trong màn của T-054 mở (foreground, không bị native toàn màn hình che, KB-27). Kiểm chứng bằng unit test trên đồng hồ ảo cho từng đường gửi (lượt đầu, thử lại 5 giây, thử lại sớm khi mạng về), hai hàng tải cùng lúc, rời màn giữa chừng, và test Robolectric của danh sách giữ nguyên câu khẳng định.
+
+**Phiên bản 2 (2026-10-30).** Bản 1 đã duyệt ngày 2026-10-30 (anh Nhật). Theo rà soát độc lập danh sách chạy RUN-20261030-01: T-058 (chạy giữa T-054 và T-059) bản 4 đổi `newNativeLoader(events, options)` của T-054 thành `newNativeLoader(events, options, logKey)` để mọi loader native ghi log từng mạng ở staging, và thêm test quét `AdNetworkLogWiringTest.everyLoaderInMain_getsTheNetworkLog`. Bản 1 gọi `newNativeLoader(events, null)` và bỏ `loadNativeAd` (chỗ T-058 truyền `networkLog`), nên hàng trong danh sách sẽ mất log từng mạng hay không biên dịch. Thay đổi so với bản 1:
+
+- Bước 2: gọi `newNativeLoader(events, null, key)` với cùng `key = "${placement.key}#$slot"` mà `nativeLoadOnce` nhận làm `placementKey` (khóa log đã duyệt ở câu hỏi 1), nên hàng giữ log từng mạng, khóa theo hàng.
+- Mục 3.2: dòng `AdsController.kt` ghi chữ ký ba đối số của T-058.
+- Mục 3.5: thêm dòng cho test quét của T-058; test này phải xanh sau T-059 và lý do.
+- Mục 6: T-058 theo bản 4 (không còn "khác hàm"). Mục 7: điều kiện dừng thêm chữ ký của T-058. Mục 9: để trống cho bản 2, giữ quyết định của bản 1.
 
 ## 2. Hiểu yêu cầu
 
@@ -69,7 +76,7 @@ Plan chọn (a), vì (b) trái ba điều mà hàng trong danh sách phải gi�
    - KDoc lớp `InListAds` thêm: hàng native small lỗi thì thử lại sau 5 giây trong lúc hàng còn được dựng, chỉ khi cửa sổ quảng cáo trong màn mở (foreground, không bị che, KB-27) và cổng đồng ý mở ngay lúc gửi (O-05, T-059).
 2. **`AdsController.kt`:** thay `internal suspend fun loadNativeAd(placement)` (dòng 1548-1568) bằng `internal fun inListRowStates(placement: AdPlacement, slot: Int, rowShown: StateFlow<Boolean>): Flow<NativeAdState> = flow { ... }`. Sửa trên bản đã có T-054 (mục 6):
    - `size = requireNotNull(placement.format.nativeLoadSize())`, `unitId(placement)` null thì `emit(Unavailable)` rồi kết thúc (như hôm nay).
-   - `emitAll(inListRowStates(load = nativeLoadOnce(newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW) }, newLoader = { events -> newNativeLoader(events, null) }, unitId, size, NATIVE_LOAD_TIMEOUT_MILLIS, logger, placementKey = key), window = inScreenAdWindow, rowShown = rowShown, mayRequestNow = ::mayRequestNow, retryResets = preloader.nativeRetryResets, logger, placementKey = key))` với `key = "${placement.key}#$slot"`. `inScreenAdWindow` và `newNativeLoader` (trả `nativeLoaderForTest` khi test đặt) là của T-054; đây là chỗ gọi thứ sáu của cửa sổ mà plan T-054 (mục 3.1 C, mục 6) để cho T-059, thay cho `foregroundState`, nên hàng dừng gửi khi native toàn màn hình che (KB-27).
+   - `emitAll(inListRowStates(load = nativeLoadOnce(newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW) }, newLoader = { events -> newNativeLoader(events, null, key) }, unitId, size, NATIVE_LOAD_TIMEOUT_MILLIS, logger, placementKey = key), window = inScreenAdWindow, rowShown = rowShown, mayRequestNow = ::mayRequestNow, retryResets = preloader.nativeRetryResets, logger, placementKey = key))` với `key = "${placement.key}#$slot"`. `inScreenAdWindow` và `newNativeLoader` (trả `nativeLoaderForTest` khi test đặt) là của T-054; đây là chỗ gọi thứ sáu của cửa sổ mà plan T-054 (mục 3.1 C, mục 6) để cho T-059, thay cho `foregroundState`, nên hàng dừng gửi khi native toàn màn hình che (KB-27). Đối số thứ ba `key` của `newNativeLoader` là của T-058 bản 4 (`logKey`, bắt buộc): T-058 chạy trước và đã truyền `networkLog` qua hàm này, nên mỗi lượt tải của hàng ghi dòng `Network gallery_inlist_small#0: ...` ở staging như `loadNativeAd` cũ (khóa cũ là `placement.key`, nay theo hàng). Dùng đúng biến `key` cho cả `newNativeLoader` và `placementKey`, để dòng `Network` và dòng `Native ... retry in` của cùng hàng có cùng khóa.
    - Khóa log `<mã vị trí>#<số ô>` (như `Pool native_medium#1` của T-028) để log của hai hàng tải cùng lúc không lẫn: `Native gallery_inlist_small#0 retry in 5000 ms (failures 1)`. Khóa này chỉ là log; số liệu vẫn qua `nativeAdMetrics(placement, ...)` với `placement.key` (câu hỏi 7 của plan T-023 giữ). Câu hỏi 1.
    - Bỏ log riêng `Native <mã> not requested: consent gate closed` của `loadNativeAd`: cổng đóng lúc gửi nay ghi `Native <khóa> request blocked` của `retryingNativeAdStates` như mọi khe native.
    - KDoc của `nativeAd` không đổi; KDoc hàm mới nói: một hàng small của danh sách, lượt nạp `LIST_ROW`, thử lại như khe native nhưng không làm mới, không qua nguồn một quảng cáo (plan T-059, mục 3.1).
@@ -93,7 +100,7 @@ Không đổi: `NativeLoadUse` (giữ `LIST_ROW`), `nativeLoadReport`, `inListEv
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/InListAds.kt` | Bước 1: `inListRowStates` (cửa sổ, `rowShown`), `InListRowSource` thay `InListAdLoader`, `slot` gom luồng, `onRowShown` và `DisposableEffect` trong `InListAdRow`, `release` không tự hủy quảng cáo, nối `rememberInListAds`, KDoc |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | Bước 2: `inListRowStates(placement, slot, rowShown)` thay `loadNativeAd`, dùng `inScreenAdWindow`, `newNativeLoader` của T-054 |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | Bước 2: `inListRowStates(placement, slot, rowShown)` thay `loadNativeAd`, dùng `inScreenAdWindow` của T-054 và `newNativeLoader(events, null, key)` (hàm của T-054, chữ ký ba đối số của T-058 bản 4), `key = "${placement.key}#$slot"` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRetry.kt` | Bước 3: chỉ KDoc |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeSendGate.kt` | Bước 3: chỉ KDoc |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/InListAdsStateTest.kt` | Hàm dựng theo `InListRowSource`; test mới của mục 4; viết lại `unavailableSlot_notRetriedOnSameScreen` (mục 3.5) |
@@ -129,8 +136,9 @@ Không có. Mọi phần đều là đường đã chạy ở khe native (`retry
 | `InListAds` nhận `loader: InListAdLoader?` | Nhận `rowSource: InListRowSource?` | `InListAdsStateTest.slot_loadsOnce_reusedOnSecondCall`, `twoSlots_twoSeparateLoads`, `slotResult_isLoggedOnceWithoutAdContent`; `InListAdsTest`: mọi test dựng `InListAds` qua `inListAds(...)`, `setPublicListContent`, `loadedLoader` hay `InListAds(loader = ...)` (`lazyColumn_fewerItemsThanEvery_noAdRow`, `adRow_showsAdLabel`, `adRow_isSixteenDpFromItemsAboveAndBelow`, `unavailableSlot_takesNoHeight`, `loadingSlot_showsPlaceholderOfSmallHeight`, `lazyGrid_twoColumnsEveryThree_adSpansFullWidthAfterItem4`, `publicApi_withoutAdsController_addsNoAdRow`, `adRowKeys_doNotClashWithItemKeys`, `alternatingPlacements_takeTurns`, các test hàng có pool qua hàm dựng dòng 394-412 (`pooledRow_*`, `pooledRows_everyBecomesNull_releaseToPool`), `grid_inCollection_adTakesOneCell_everyNItems`, `positions_followEvery`). `lazyColumn_sevenItemsEveryThree_adRowsAfterItems3And6` không dùng `InListAds`, không đổi | Giữ mọi câu; chỉ đổi dữ liệu: `loadedLoader` thành `loadedRows = InListRowSource { _, _, shown -> inListRowStates({ Loaded(FakeLoadedNativeAd(sampleNativeAdAssets)) }, MutableStateFlow(true), shown, { true }, MutableStateFlow(0), RecordingAppLogger(), "test") }`; hàng có pool không gọi `rowSource` nên chỉ đổi tên tham số. Robolectric: hàng `Unavailable` dùng `InListRowSource { _, _, _ -> flowOf(Unavailable) }`, hàng đang tải dùng `flow { emit(Loading); awaitCancellation() }`, để test bố cục không có vòng thử lại 5 giây chạy theo đồng hồ của Compose; hàng `Loaded` dùng `inListRowStates` thật (để `destroyCount` là của luồng). `InListRowSource` nhận thêm `rowShown`; hàm dựng của test bỏ qua nó hay truyền tiếp. `slotResult_isLoggedOnceWithoutAdContent`: một dòng INFO vẫn đúng vì `retryingNativeAdStates` không ghi log ở lượt thành công với `load` giả |
 | Cổng đóng lúc gọi: `loadNativeAd` ghi `Native <mã> not requested: consent gate closed`, trả `Unavailable` | Cổng đóng ngay trước khi gửi: `Native <mã>#<ô> request blocked`, `Unavailable`, luồng kết thúc | Không có test nào khẳng định dòng log cũ (`grep -rn "not requested"`: chỉ `RewardedTurnsTest`, không liên quan) | Không có câu nào phải đổi |
 | Lượt đầu của hàng gửi ngay cả khi app ở nền | Chờ foreground | Không có test nào khẳng định | Không có câu nào phải đổi; test mới ở mục 4 |
+| (Bản 2, sau T-058) `loadNativeAd` tạo `SdkNativeAdLoader` trực tiếp, có `networkLog` và `logKey = placement.key` | `inListRowStates` gọi `newNativeLoader(events, null, key)` trong `nativeLoadOnce(..., placementKey = key)`, `key = "${placement.key}#$slot"`; không còn lời gọi `SdkNativeAdLoader(` nào ngoài thân `newNativeLoader` | `AdNetworkLogWiringTest.everyLoaderInMain_getsTheNetworkLog` của T-058 (chưa có trên nhánh chính lúc viết bản 2, nên `existing-tests.py` không liệt kê) | Giữ, không sửa test. Test không đếm số chỗ tạo loader (T-058 bản 4 bỏ số "(4)"), nên bỏ một chỗ trực tiếp và thêm một `newNativeLoader(` không làm nó đỏ; lời gọi mới có ba đối số, đối số thứ ba `key` trùng chữ với `placementKey = key` của chính `nativeLoadOnce` bao nó (điều kiện khóa đúng chỗ của test); đối chứng của test (`newNativeLoader(` với `POOL_LOG_KEY` của pool) không đổi. Phiên chạy test này ở bước 4 cùng các test của mục 4; đỏ thì sửa lời gọi cho đúng khóa, không sửa test (ADR-0031) |
 
-Kết quả của `existing-tests.py` (2026-10-29): 335 test dùng tên hay tag của bốn file; "Cần xem trước" 19, "Nên xem" 194, 112 chỉ dùng tên plan không nêu. Đã đọc cả hai nhóm đầu: gần hết khớp vì tên chung `slot`, `load`, `start`, `AdsController`, `mayRequestNow` (khe native và banner của `NativeAdSlot`, `BottomAdBar`, `CollapsibleNativeAd`, pool, nạp sẵn, toàn màn hình, rewarded, `:core:assets`) chứ không gọi `InListAds.slot`, `loadNativeAd` hay đường thử lại mà plan đổi; các test đó giữ, không câu nào phải đổi. Nhóm thật sự chạm là `InListAdsStateTest`, `InListAdsTest` (bảng trên); `AdTelemetryTest.inListRows_haveNoLoadAttempt_andDoNotCount`, `inListRows_overlappingRequests_eachHasOwnLatency` (giữ: `LIST_ROW` không đổi); `NativeAdRetryTest.*`, `NativeSendGateTest.*` (giữ: chỉ KDoc đổi); `NativeEligibleCoverageTest.everyFileDrawingANativeAd_reportsEligible` (giữ: `InListAdRow` vẫn gọi `ReportNativeEligible`); `InListAdPositionsTest.inListEvery_nullWhenAdsNotAllowedOrBadValue` (giữ: `inListEvery` không đổi).
+Kết quả của `existing-tests.py` (2026-10-29): 335 test dùng tên hay tag của bốn file; "Cần xem trước" 19, "Nên xem" 194, 112 chỉ dùng tên plan không nêu. Đã đọc cả hai nhóm đầu: gần hết khớp vì tên chung `slot`, `load`, `start`, `AdsController`, `mayRequestNow` (khe native và banner của `NativeAdSlot`, `BottomAdBar`, `CollapsibleNativeAd`, pool, nạp sẵn, toàn màn hình, rewarded, `:core:assets`) chứ không gọi `InListAds.slot`, `loadNativeAd` hay đường thử lại mà plan đổi; các test đó giữ, không câu nào phải đổi. Nhóm thật sự chạm là `InListAdsStateTest`, `InListAdsTest` (bảng trên); `AdTelemetryTest.inListRows_haveNoLoadAttempt_andDoNotCount`, `inListRows_overlappingRequests_eachHasOwnLatency` (giữ: `LIST_ROW` không đổi); `NativeAdRetryTest.*`, `NativeSendGateTest.*` (giữ: chỉ KDoc đổi); `NativeEligibleCoverageTest.everyFileDrawingANativeAd_reportsEligible` (giữ: `InListAdRow` vẫn gọi `ReportNativeEligible`); `InListAdPositionsTest.inListEvery_nullWhenAdsNotAllowedOrBadValue` (giữ: `inListEvery` không đổi). Chạy lại trên bản 2 (2026-10-30, nhánh chính `03e470b`): 335 test, "Cần xem trước" 21, "Nên xem" 244, plan nhắc 19, 51 chỉ dùng tên plan không nêu; bản 1 chạy trên cùng nhánh cho đúng các số này, nên chữ mới của bản 2 không kéo thêm test nào. Số khác lần chạy 2026-10-29 vì nhánh chính đã đổi; 21 test "Cần xem trước" (`AdGalleryScreenTest`, `BottomAdBarTest`, `CollapsibleNativeAdTest`, `NativeAdSlotTest`, `RewardedActionTest`, `SampleScreenTest`) khớp vì tên chung `slot`, `load`, `start`, `openConsentGateForTest`, như đã nói ở trên, không gọi phần plan đổi. Test của T-058 (`AdNetworkLogWiringTest`) chưa có trên nhánh này: xem dòng cuối của bảng.
 
 ## 4. Kiểm thử
 
@@ -202,7 +210,7 @@ Không cần (E dưới 2).
 - File hoặc thành phần dùng chung bị chạm: `AdsController.kt` (thay `loadNativeAd`), `InListAds.kt` (giao diện nội bộ). Dùng mà không sửa: `retryingNativeAdStates`, `nativeLoadOnce`, `awaitSendAllowed`, `AdRetryPolicy`, `NativeLoadUse.LIST_ROW`.
 - Task khác có thể xung đột (ticket đợt 2026-10-29, chưa có plan lúc viết; các plan đang được soạn song song):
   - T-054 (quảng cáo trong màn dừng khi native toàn màn hình che; plan ở `origin/claude/plan-T-054-dung-khi-bi-che`, commit `fa0b0af`): **chạy trước T-059** (quyết định của người điều phối sau rà soát). T-054 tạo `InScreenAdWindow.kt` (lớp đồng bộ `InScreenAdWindow`, `onForeground`, `onCovered`, `open`), và trong `AdsController` thêm `inScreenAdWindow: StateFlow<Boolean>`, `inScreenSendGate`, `newNativeLoader(events, options)`, `nativeLoaderForTest`, `setAppForegroundForTest`, `markSdkReadyForTest`; plan T-054 để dòng `loadNativeAd` cho T-059 và ghi T-059 là chỗ gọi thứ sáu của cửa sổ (mục 6 và câu hỏi 1 của plan T-054). T-059 dùng các ký hiệu đó, không tạo lại; `retryingNativeAdStates`, `awaitSendAllowed` T-054 không đổi chữ ký. Nếu khi chạy T-054 chưa merge thì phiên không bắt đầu T-059 (phụ thuộc, ticket ghi `depends_on: [T-054]`).
-  - T-058 (máy thử và log từng mạng): chạy giữa T-054 và T-059 theo thứ tự đã thống nhất; có thể sửa log của nạp quảng cáo; khác hàm.
+  - T-058 (máy thử và log từng mạng, plan bản 4): chạy giữa T-054 và T-059 theo thứ tự đã thống nhất. T-058 đổi `newNativeLoader` của T-054 thành `newNativeLoader(events, options, logKey)` (truyền `networkLog` vào `SdkNativeAdLoader`), truyền `networkLog` và `placement.key` ở `loadNativeAd`, và thêm test quét `AdNetworkLogWiringTest.everyLoaderInMain_getsTheNetworkLog`. T-059 bỏ `loadNativeAd` và gọi `newNativeLoader(events, null, key)` (bước 2), nên hàng trong danh sách giữ log từng mạng, khóa theo hàng; test quét của T-058 giữ xanh (mục 3.5). Cùng một hàm, không chỉ cùng tệp.
   - T-055 (kiểm màn hình trước khi hiện toàn màn hình): cùng sửa `AdsController.kt`, khác hàm; chạy sau T-059.
   - T-056 (mã đơn vị theo khe): có thể đổi `unitId(placement)`; hàm mới gọi `unitId(placement)` như `loadNativeAd` cũ.
   - T-063 (cổng không hiện quảng cáo cho người đã mua gói): cùng sửa `AdsController.kt` (khác hàm), có thể sửa `inListEvery` và `mayRequestNow`; task này không đổi hai hàm đó, chỉ gọi `::mayRequestNow`.
@@ -214,6 +222,7 @@ Không cần (E dưới 2).
 - Để test qua mà phải cho hàng native small trong danh sách đi qua `NativeAdSource` hay làm mới 60 giây, hay đổi hàng medium, thẻ dọc (pool): dừng (ngoài phạm vi, mục 3.1).
 - Phải đổi `retryingNativeAdStates`, `awaitSendAllowed`, `AdRetryPolicy` (ngoài KDoc) hay `InScreenAdWindow` của T-054 để hàng thử lại đúng: dừng, vì các khe native khác dựa vào hành vi đó.
 - Trên `origin/main` chưa có `inScreenAdWindow` hay `newNativeLoader` của T-054: dừng (phụ thuộc chưa xong), không tự dựng lại các ký hiệu đó.
+- (Bản 2) `newNativeLoader` trên `origin/main` chưa có tham số khóa thứ ba của T-058 bản 4 (T-058 chưa merge, hay merge theo bản cũ): dừng, không tự thêm tham số và không gọi `SdkNativeAdLoader` trực tiếp.
 
 ## 8. Câu hỏi cho người duyệt
 
@@ -223,6 +232,14 @@ Không cần (E dưới 2).
 4. **Nhịp gửi và số sự kiện `ad_load_fail` tăng (điểm chặn 1):** chỉ hàng small đang được dựng mới thử lại: mỗi hàng lỗi đang thấy gửi một yêu cầu mỗi 5 giây (12 mỗi phút), hàng đã cuộn đi 0. Với N = 8 và màn điện thoại thấy khoảng 10 tới 12 mục, thường 1 tới 2 hàng small được dựng cùng lúc (tối đa thêm một hàng dựng trước), tức khoảng 12 tới 36 yêu cầu mỗi phút cho cả màn khi mạng hỏng hay không có quảng cáo, so với 0 lượt thử lại hôm nay; khi bật số liệu chi tiết, mỗi yêu cầu lỗi ghi một `ad_load_fail` (như khe native small và pool hôm nay). Ở nền và khi bị che: 0. Người phụ trách sản phẩm đồng ý nhịp này?
 
 ## 9. Quyết định duyệt
+
+Phiên bản 2:
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+
+Phiên bản 1:
 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
