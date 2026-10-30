@@ -1454,7 +1454,8 @@ class AdsController @Inject internal constructor(
     }
 
     /**
-     * Whether [placement] may load and show ads: the master switch `is_show_ads` and the placement's own switch
+     * Whether [placement] may load and show ads: the master switch `is_show_ads` (off too while ad-free, KB-30,
+     * [AdFreeStatus]) and the placement's own switch
      * `is_show_<code>` (KB-7, ADR-0014); for an app-wide placement, whether the keys of this open choose it
      * ([placementSwitch], A-01, A-02). Every ad format, including native ones added later, must check this before
      * loading or showing an ad.
