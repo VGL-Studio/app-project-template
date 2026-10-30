@@ -10,7 +10,7 @@ risk: high
 size: S
 depends_on: [T-075]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-076-pr-check-mot-job.md
 auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
 created: 2026-10-29
 ---
