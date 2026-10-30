@@ -96,18 +96,18 @@ fbc_guard='"aaaaaa1":{"parent":"","states":["failure"]},
   "ccccc03":{"parent":"bbbbbb2","states":["success"]},
   "ddddd04":{"parent":"ccccc03","states":["failure"]}'
 fx_ui='{"routes": {'"$(ui_route aaaaaa1 11 success), $(ui_route bbbbbb2 21 failure), $(ui_route ccccc03 31 skipped)"',
-  '"$(ui_route ddddd04 41 failure)"', "check-runs/21/annotations": [], "check-runs/41/annotations": []},
+  '"$(ui_route ddddd04 41 failure)"', "check-runs/21/annotations?per_page=100": [], "check-runs/41/annotations?per_page=100": []},
   '"$fbc_guard"'}'
 expect "find-breaking-commit --check ui-test: blames the oldest red ui-test after the newest green" bbbbbb2 \
   "$(find_breaking_ui "$fx_ui" --check ui-test)"
 expect "find-breaking-commit --check ui-test: without --check the guard states decide" ddddd04 "$(find_breaking_ui "$fx_ui")"
 # An infrastructure failure (the check step printed EMULATOR HẠ TẦNG) is not blamed; anything else red is.
 fbc_infra() { # <annotations answer of C, or "error">: D and C red, B green
-  local c_ann='"check-runs/31/annotations": '"$1"','
+  local c_ann='"check-runs/31/annotations?per_page=100": '"$1"','
   [[ "$1" != error ]] || c_ann=''
-  echo '{"errors": {'"$([[ "$1" == error ]] && echo '"check-runs/31/annotations": "HTTP 500: Server Error"')"'},
+  echo '{"errors": {'"$([[ "$1" == error ]] && echo '"check-runs/31/annotations?per_page=100": "HTTP 500: Server Error"')"'},
   "routes": {'"$(ui_route bbbbbb2 21 success), $(ui_route ccccc03 31 failure), $(ui_route ddddd04 41 failure)"',
-  '"$c_ann"' "check-runs/41/annotations": []},
+  '"$c_ann"' "check-runs/41/annotations?per_page=100": []},
   '"$fbc_guard"'}'
 }
 fx_ann_infra="$(fbc_infra '[{"message": "EMULATOR HẠ TẦNG (PB-11): Kho Maven trả 403; không mở main-broken."}]')"
@@ -655,6 +655,10 @@ perl -0pe '$n = 0; s/\Qselect(.body | contains("<!-- check:ui-test -->"))\E/++$n
   "$guard_wf" > "$work/mgwf/ui-h.yml"
 awk '/^  ui-test:$/ { u = 1 } u && /^    timeout-minutes:/ { u = 0; next } { print }' "$guard_wf" > "$work/mgwf/ui-i.yml"
 ui_point() { ui_wiring "$work/mgwf/ui-$1.yml" | cut -d' ' -f"$2"; } # <copy> <field>
+# Closing the issue is a note for people: a GitHub error there must not turn a green ui-test red without annotation,
+# which find-breaking-commit.sh --check ui-test would blame (review of T-075, round 1).
+expect "main-guard: the close step of ui-test cannot turn the job red" yes \
+  "$(step_all "$(ui_steps "$guard_wf" | step_by_name 'Đóng issue main-broken của emulator khi xanh trở lại')" 'continue-on-error: true')"
 expect "main-guard: the ui-test wiring check fails on each broken copy (a, a, b, c, d, e, f, g, g, h, i)" \
   "no no no no no no no no no no no" \
   "$(ui_point a1 1) $(ui_point a2 1) $(ui_point b 2) $(ui_point c 3) $(ui_point d 4) $(ui_point e 5) $(ui_point f 6) $(ui_point g1 7) $(ui_point g2 7) $(ui_point h 8) $(ui_point i 9)"
@@ -1286,6 +1290,36 @@ cp "$pb_dir/PB-01.log" "$uv_dir/ui-test-first.log"
 uv_put logcat-first.txt "$uv_pb01"
 expect "ui-test-verdict: a real first failure stays red when the rerun fails on infrastructure" "0 red 0 infra" \
   "$uv_first_real $(uv failure)"
+# Gradle (AGP CustomTestRunListener) prints a failed device test as "<class> > <test>[<device>] \e[31mFAILED \e[0m":
+# the colour codes and the trailing space must not hide the failure (review of T-075, round 1).
+uv_agp_failed=$'com.vglstudio.template.AppLaunchTest > launches[test(AVD) - 14] \033[31mFAILED \033[0m'
+uv_reset
+uv_put ui-test-first.log '> Task :app:connectedStagingDebugAndroidTest FAILED' "$uv_agp_failed"
+uv_put logcat-first.txt 'I VGL.Home: shown'
+uv_put ui-test.log 'BUILD SUCCESSFUL in 1m'
+uv_summary 3 0
+uv_agp_flaky="$(uv success)"
+cp "$pb_dir/PB-01.log" "$uv_dir/ui-test.log"
+uv_put logcat.txt "$uv_pb01"
+uv_summary 3 1
+uv_agp_red="$(uv failure)"
+uv_put ui-test-first.log '> Task :app:connectedStagingDebugAndroidTest FAILED' \
+  'Tests on test(AVD) - 14 failed: There was 1 failure(s).'
+expect "ui-test-verdict: a failed test in Gradle's coloured format is a real first failure (flaky, red, summary line)" \
+  "0 flaky 0 red 0 red" "$uv_agp_flaky $uv_agp_red $(uv failure)"
+# The flaky step of main-guard.yml reads the test names from the same coloured lines.
+uv_flaky_names() { # <workflow>: the test names the tests= line of the flaky step of ui-test finds in ui-test-first.log
+  local line
+  line="$(step_run "$(ui_steps "$1" | step_by_name 'Ghi test chập chờn')" | grep -E '^tests=' || true)"
+  [[ -n "$line" ]] || { echo none; return 0; }
+  (cd "$uv_dir" && eval "$line" && printf '%s' "$tests")
+}
+expect "main-guard: the flaky step of ui-test reads the name of a test in Gradle's coloured format" \
+  'com.vglstudio.template.AppLaunchTest > launches[test(AVD) - 14]' \
+  "$(uv_put ui-test-first.log '> Task :app:connectedStagingDebugAndroidTest FAILED' "$uv_agp_failed"; uv_flaky_names "$guard_wf")"
+# scripts/ui-test-needed.sh runs in guard, not in ui-test: a commit changing only it is not the ui-test job broken.
+uv_reset scripts/ui-test-needed.sh
+expect "ui-test-verdict: no log after a commit changing only ui-test-needed.sh is infra" "0 infra" "$(uv failure)"
 
 uv_reset
 expect "ui-test-verdict: an unknown outcome is infra" "0 infra 0 infra 0 infra" "$(uv cancelled) $(uv skipped) $(uv '')"
