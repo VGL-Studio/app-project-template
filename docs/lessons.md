@@ -879,3 +879,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
 - **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
+
+### L-128. Hai test của `scripts/tests/run.sh` dựa vào tài liệu riêng của dự án mẫu, nên app mới đỏ ngay lần `check.sh` đầu tiên
+
+- **Ngày, nguồn:** 2026-10-30, Photune (issue #287; lần chạy thử của plan T-022, PR #27 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** app dựng bằng `scripts/new-app.sh` ở `853da34` chạy `scripts/check.sh` và đỏ ở bộ test của script. Test "the latest run list has no new error from rule 11" tìm danh sách chạy bằng `ls docs/runs/RUN-*.md`; `new-app.sh` bỏ mọi danh sách chạy của mẫu, nên `ls` lỗi và bộ test dừng sau 81 giây. Test "this repository's docs with a lesson number used twice stop the page" thêm `### L-040` vào bản sao của sổ bài học rồi chờ `status.py` báo trùng L-040; sổ của app mới rỗng, sổ của Photune mới có L-001 tới L-003, nên test đỏ (`expected '1 1', got '0 0'`). `new-app.sh` dặn chạy `check.sh` ngay sau khi tạo app, nên mọi app mới đỏ ngay bước đầu; app đồng bộ bằng `template-sync.sh` mà sổ chưa tới L-040 cũng đỏ. Repo mẫu luôn có danh sách chạy và có L-040, nên CI của mẫu không bao giờ chạy vào trường hợp của app.
+- **Bằng chứng:** issue #287; tái hiện trên app dựng bằng `new-app.sh` từ `70d99f8`: `ls: docs/runs/RUN-*.md: No such file or directory`, và test thứ hai cho `0 0`.
+- **Đề xuất sửa:** test thứ nhất bỏ qua kèm dòng `skip - ...` khi chưa có danh sách chạy; test thứ hai nhân đôi một số bài học có thật trong sổ, sổ rỗng thì thêm cùng một bài học hai lần; một test chạy hai phần đó trên bản sao không có danh sách chạy và có sổ rỗng.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #???: `scripts/tests/run.sh`. Test danh sách chạy mới nhất tìm bằng `find`, chưa có danh sách nào thì in dòng `skip - ...`. Test số bài học dùng hai lần lấy số cuối của sổ, sổ rỗng thì thêm L-001 hai lần; câu khẳng định giữ nguyên (trang dừng và nêu đúng số). Hai test mới chạy hai phần đó trên app mà khối `new-app.sh` của bộ test dựng (chỉ có ở repo mẫu); đặt lại code cũ thì cả hai đỏ. Đầu file ghi quy tắc: test đọc tài liệu của repo phải qua khi chưa có danh sách chạy và sổ bài học rỗng.
