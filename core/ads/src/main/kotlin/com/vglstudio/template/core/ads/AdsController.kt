@@ -1610,6 +1610,40 @@ class AdsController @Inject internal constructor(
         logger.info(TAG, "Collapsible ${placement.key} re-expanded after $seconds s")
     }
 
+    /** Step 3 skeleton (plan T-059): the states of the native small row of [slot] of a list of [placement]. */
+    internal fun inListRowStates(
+        placement: AdPlacement,
+        slot: Int,
+        rowShown: StateFlow<Boolean>,
+    ): Flow<NativeAdState> = flow {
+        val size = requireNotNull(placement.format.nativeLoadSize()) { "${placement.key} is not a native placement" }
+        val unitId = unitId(placement)
+        if (unitId == null) {
+            emit(NativeAdState.Unavailable)
+            return@flow
+        }
+        val key = "${placement.key}#$slot"
+        emitAll(
+            inListRowStates(
+                load = nativeLoadOnce(
+                    newEvents = { nativeAdMetrics(placement, unitId, NativeLoadUse.LIST_ROW) },
+                    newLoader = { events -> newNativeLoader(events, null, key) },
+                    unitId = unitId,
+                    size = size,
+                    timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
+                    logger = logger,
+                    placementKey = key,
+                ),
+                window = inScreenAdWindow,
+                rowShown = rowShown,
+                mayRequestNow = ::mayRequestNow,
+                retryResets = preloader.nativeRetryResets,
+                logger = logger,
+                placementKey = key,
+            ),
+        )
+    }
+
     /**
      * Loads one native ad of [placement] ([loadOneNativeAd]): Loaded or Unavailable (also when there is no ad unit).
      * The caller owns a Loaded ad and destroys it; one ad per item of a list (T-011). The caller checks consent and
