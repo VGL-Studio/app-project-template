@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests for the shell scripts of the quality gate. Needs bash, python3 and jq.
 # An app made from the template runs them from its first scripts/check.sh: a test that reads this repository's own
-# docs must also pass with no run list and an empty lessons log, as in a new app (L-128).
+# docs must also pass, or print a `skip - ...` line, with no run list and an empty lessons log, as in a new app (L-128).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -2479,7 +2479,7 @@ else
   expect "run-check: the latest run list has no new error from rule 11" "0 yes" \
     "$(grep -c 'LỖI.*kiểm tra thủ công\|LỖI.*quy tắc 11' "$work/run-check-latest.out" || true) $([[ -s "$work/run-check-latest.out" ]] && echo yes || echo no)"
 fi
-if [[ -f scripts/new-app.sh ]]; then
+if [[ -f scripts/new-app.sh && -d "$new_app/docs" ]]; then
   expect "run-check: a new app has no latest run list, and looking for it does not fail" ":0" \
     "$(cd "$new_app" && latest_run_list 2>&1; echo ":$?")"
 fi
@@ -3247,12 +3247,12 @@ expect "status: a checked item leaves the page" "0 1" \
 expect "status: check passes after the release readiness section" "0 1" \
   "$(status_page --check > /dev/null; echo $?) $(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true)"
 # The page also builds from this repository's own docs, so a docs-only PR with a lesson number used twice is red in
-# build-and-test, not only in status-page.yml after the merge (L-040). The number used twice is the last one of the
-# log; a new app starts with an empty log, so there the same lesson is added twice, as the new app made above checks
-# (L-128).
+# build-and-test, not only in status-page.yml after the merge (L-040). The number used twice is the first one of the
+# log, so the copy sits far from the original, as when two branches add lessons at once (L-056); a new app starts with
+# an empty log, so there the same lesson is added twice, as the new app made above checks (L-128).
 lesson_number_used_twice() { # <copy of a repository>: prints the exit code of status.py and whether it names the number
   local log="$1/docs/lessons.md" number
-  number="$(sed -n 's/^### \(L-[0-9]*\)[.:].*/\1/p' "$log" | tail -n 1)"
+  number="$(sed -n 's/^### \(L-[0-9]*\)[.:].*/\1/p' "$log" | sed -n 1p)"
   [[ -n "$number" ]] || { number=L-001; printf -- '\n### %s. Một\n\n- **Trạng thái:** proposed\n' "$number" >> "$log"; }
   printf -- '\n### %s. Trùng số\n\n- **Trạng thái:** proposed\n' "$number" >> "$log"
   echo "$(STATUS_ROOT="$1" python3 -I scripts/status.py > "$1.out" 2>&1; echo $?) $(grep -c "số bài học dùng hai lần: $number" "$1.out" || true)"
@@ -3263,7 +3263,7 @@ expect "status: the progress page builds from this repository's docs" 0 \
   "$(STATUS_ROOT="$work/status-real" python3 -I scripts/status.py > "$work/status-real.out" 2>&1; echo $?)"
 expect "status: this repository's docs with a lesson number used twice stop the page" "1 1" \
   "$(lesson_number_used_twice "$work/status-real")"
-if [[ -f scripts/new-app.sh ]]; then
+if [[ -f scripts/new-app.sh && -d "$new_app/docs" ]]; then
   mkdir -p "$work/status-new-app"
   cp -R "$new_app/docs" "$work/status-new-app/docs"
   expect "status: a new app's docs with a lesson number used twice stop the page" "1 1" \
