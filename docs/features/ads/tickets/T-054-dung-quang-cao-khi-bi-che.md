@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-27]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-054-dung-quang-cao-khi-bi-che.md
 auto_run: 
 created: 2026-10-29
 ---
