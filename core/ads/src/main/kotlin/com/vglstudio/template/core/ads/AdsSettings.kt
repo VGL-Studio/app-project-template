@@ -128,8 +128,9 @@ object AdsSettings {
     val IS_ENABLE_CONSENT_SHORTCUT = booleanKey(
         name = "is_enable_consent_shortcut",
         default = false,
-        description = "Remote switch of the consent shortcut (CACHED_EARLY, ERROR_ALLOWED); also needs the build " +
-            "setting of the app. False takes ERROR_ALLOWED back at once.",
+        description = "Remote switch of ERROR_ALLOWED, the temporary right when UMP fails on the network (S-12); " +
+            "also needs the build setting of the app. CACHED_EARLY is always on (ADR-0038). False takes " +
+            "ERROR_ALLOWED back at once.",
     )
 
     val IS_LOG_AD_FULLSCREEN_EVENTS = booleanKey(

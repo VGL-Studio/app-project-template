@@ -101,6 +101,14 @@ class AdsSettingsTest {
     }
 
     @Test
+    fun consentShortcut_describesErrorAllowedOnly() {
+        val description = AdsSettings.IS_ENABLE_CONSENT_SHORTCUT.description
+        assertTrue(description, description.startsWith("Remote switch of ERROR_ALLOWED"))
+        assertTrue(description, description.contains("CACHED_EARLY is always on"))
+        assertFalse(description, description.contains("(CACHED_EARLY, ERROR_ALLOWED)"))
+    }
+
+    @Test
     fun nativeCollap_isOnByDefault() {
         assertKey(AdsSettings.IS_SHOW_NATIVE_COLLAP, "is_show_native_collap", RemoteKey.Type.BOOLEAN, true)
         assertTrue(AdsSettings.IS_SHOW_NATIVE_COLLAP in AdsSettings.all())
