@@ -48,8 +48,10 @@ internal class AppLovinMaxPlatform(private val context: Context) : MaxPlatform {
 
 /**
  * Starts AppLovin MAX once (plan T-068, KB-31, ADR-0037): after the consent gate opened and AdMob is ready
- * ([onAdmobReady], called once by `startSdk`), with an SDK key, and while `ads_mediation_order` has MAX. There is no
- * stop: withdrawn consent closes the gate, which every request of MAX asks (S-15). Main thread.
+ * ([onAdmobReady], called once by `startSdk`), with an SDK key, while `ads_mediation_order` has MAX, and only while the
+ * consent gate is open at that moment ([gateAllowed], question 9 of the plan): a gate closed while `startSdk` waited
+ * for AdMob, or when the order changed, starts nothing; the gate open again asks once more ([onOrderChanged]). There
+ * is no stop: withdrawn consent after the start closes the gate, which every request of MAX asks (S-15). Main thread.
  */
 internal class MaxSdkStarter(
     private val config: MaxConfig,
@@ -72,12 +74,12 @@ internal class MaxSdkStarter(
         maybeStart(order)
     }
 
-    /** `ads_mediation_order` changed remotely. */
+    /** `ads_mediation_order` changed remotely, or the consent gate opened again (S-14). */
     fun onOrderChanged(order: MediationOrder) = maybeStart(order)
 
     /** The only call of [MaxPlatform.initialize] (L-072). */
     private fun maybeStart(order: MediationOrder) {
-        if (!gateOpened || started || !config.hasKey || !order.usesMax) return
+        if (!gateOpened || started || !config.hasKey || !order.usesMax || !gateAllowed()) return
         started = true
         if (platform.isInitialized) {
             logger.warn(
