@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-28]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-058-may-thu-va-log-tung-mang.md
 auto_run: 
 created: 2026-10-29
 ---
