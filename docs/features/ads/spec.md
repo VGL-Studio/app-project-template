@@ -8,7 +8,7 @@ requests:
   - requests/2026-10-29-hoc-tu-jbase.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-10-29
+confirmed: 2026-10-30
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -347,7 +347,7 @@ Tiêu chí chấp nhận:
 
 ### KB-27. Quảng cáo trong màn hình dừng khi bị quảng cáo toàn màn hình che
 
-**Thêm 2026-10-29** (ADR-0036, điểm 2). Màn hình có banner hay native làm mới tại chỗ; một native toàn màn hình (sau inter hay độc lập) hiện đè lên.
+**Thêm 2026-10-29** (ADR-0036, điểm 1). Màn hình có banner hay native làm mới tại chỗ; một native toàn màn hình (sau inter hay độc lập) hiện đè lên.
 
 Tiêu chí chấp nhận:
 
@@ -367,7 +367,7 @@ Tiêu chí chấp nhận:
 
 ### KB-29. Banner MREC
 
-**Thêm 2026-10-29** (ADR-0036, điểm 4). Spec của một app khai báo vị trí `banner_mrec` trong màn hình.
+**Thêm 2026-10-29** (ADR-0036, điểm 3). Spec của một app khai báo vị trí `banner_mrec` trong màn hình.
 
 Tiêu chí chấp nhận:
 
@@ -379,7 +379,7 @@ Tiêu chí chấp nhận:
 
 ### KB-30. Người dùng đã mua gói bỏ quảng cáo
 
-**Thêm 2026-10-29** (ADR-0036, điểm 5). Một app tạo từ dự án mẫu có gói bỏ quảng cáo; app báo cho `:core:ads` người dùng đã mua.
+**Thêm 2026-10-29** (ADR-0036, điểm 4). Một app tạo từ dự án mẫu có gói bỏ quảng cáo; app báo cho `:core:ads` người dùng đã mua.
 
 Tiêu chí chấp nhận:
 
@@ -387,6 +387,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi người dùng làm một hành động có điều kiện (KB-19) thì hành động làm thẳng, không có hộp thoại.
 - [ ] Khi trạng thái đổi giữa lúc dùng app (vừa mua xong) thì quảng cáo đang hiện trong màn hình biến mất ngay, không cần mở lại app.
 - [ ] Khi app không nối tín hiệu này (dự án mẫu hôm nay) thì quảng cáo chạy như trước.
+- [ ] **Thêm 2026-10-30:** Khi người dùng đã mua gói bỏ quảng cáo thì hộp thoại đồng ý, SDK quảng cáo và AppsFlyer vẫn như khi chưa mua; chỉ không tải, không hiện quảng cáo (câu hỏi 50).
 
 ### KB-31. AppLovin MAX và Amazon APS
 
@@ -472,7 +473,8 @@ Tiêu chí chấp nhận:
 - **Thêm 2026-10-26 (đo ở plan T-033, câu hỏi 18):** SDK AppsFlyer `6.18.1` khai báo `INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID` (đã có) và kéo vào hai quyền đọc mã giới thiệu của kho Samsung, Huawei; bỏ cả hai vì app chỉ phát hành trên Google Play. SDK kéo theo thư viện Play Integrity `com.google.android.play:integrity:1.3.0` (thêm hoạt động `com.google.android.play.core.common.PlayCoreDialogWrapperActivity`, không xuất). Manifest gộp thêm `<queries>` dò gói Instagram, Facebook Lite và intent `com.appsflyer.referrer.INSTALL_PROVIDER` (bỏ gói `com.samsung.android.mapsagent`), quy tắc sao lưu của AppsFlyer; sao lưu của app vẫn tắt. AppsFlyer chỉ khởi động khi có câu trả lời đồng ý (kể cả từ chối), hoặc sau 10 giây mà hộp thoại đồng ý không mở; hộp thoại đang mở thì chờ nó đóng (cách hiểu ADR-0027, quyết định 3; plan T-033, câu hỏi 9).
 - **Thêm 2026-10-24 (đo ở plan T-034, câu hỏi 18):** tám adapter (Meta Audience Network `6.22.0.1`, DT Exchange `8.5.0.0`, InMobi `11.5.0.0`, ironSource `9.6.1.0`, Mintegral `17.1.81.1`, Moloco `4.13.0.0`, Pangle `8.3.0.4.0`, Unity Ads `4.21.0.0` kèm SDK Unity Ads `4.21.0`) không thêm quyền nào vào manifest gộp: các quyền chúng khai báo (`INTERNET`, `ACCESS_NETWORK_STATE`, `AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS`) đã có từ Google Mobile Ads. Không thêm các quyền tùy chọn InMobi gợi ý (vị trí chính xác, trạng thái và đổi Wi-Fi). Mạng nào khởi động SDK lúc mở app thì bỏ phần đó, để mạng chỉ khởi động qua AdMob sau khi có đồng ý: bỏ thành phần khởi động của Meta (cùng cách với AppLovin). Bỏ thành phần nhận sự kiện đổi mạng của Mintegral (app khác gọi được, hệ thống không còn gửi sự kiện này). Giữ các thành phần chỉ theo dõi màn hình đang mở của ironSource, Mintegral, Unity.
 - **Thêm 2026-10-23:** Play Console: An toàn dữ liệu khai đủ chín mạng và AppsFlyer (mã quảng cáo và mã thiết bị, tương tác với app và quảng cáo, chẩn đoán) trước khi phát hành bản có các SDK đó.
-- **Thêm 2026-10-29 (ADR-0037, chờ câu hỏi 41 tới 47):** SDK bên ngoài mới dự kiến: AppLovin MAX và Amazon APS. Quyền chúng kéo vào manifest gộp đo ở plan, ghi vào mục này trước khi duyệt plan, như câu hỏi 18. Play Console: An toàn dữ liệu khai thêm Amazon trước khi phát hành bản có APS.
+- ~~**Thêm 2026-10-29 (ADR-0037, chờ câu hỏi 41 tới 47):** SDK bên ngoài mới dự kiến: AppLovin MAX và Amazon APS. Quyền chúng kéo vào manifest gộp đo ở plan, ghi vào mục này trước khi duyệt plan, như câu hỏi 18. Play Console: An toàn dữ liệu khai thêm Amazon trước khi phát hành bản có APS.~~
+- **Thêm 2026-10-29 (đo ở plan T-068):** SDK AppLovin MAX `13.6.4` (cùng thư viện mà adapter AppLovin của AdMob đã kéo vào từ T-015) và adapter Google của MAX `25.5.0.0` không thêm quyền hay thành phần nào vào manifest gộp; vẫn bỏ `AppLovinInitProvider`, `CHECK_LICENSE`, `ACCESS_WIFI_STATE` như T-015, giữ `VIBRATE`. MAX chỉ khởi động sau khi cổng đồng ý của app mở và sau Google Mobile Ads, đọc đồng ý từ chuỗi TCF của UMP; app không viết cứng đồng ý. Khóa SDK MAX đưa vào lúc build phát hành, không vào repo; bản staging không có khóa thì MAX không khởi động. Play Console: An toàn dữ liệu đã khai AppLovin (T-015); APS chưa làm.
 - **Thêm 2026-10-29:** cổng không hiện quảng cáo (KB-30) và banner MREC (KB-29) không thêm SDK hay quyền. Không thêm sự kiện phân tích mới; MREC dùng các sự kiện đã có với một mã định dạng mới (câu hỏi 38).
 
 ## 7. File tĩnh trên R2
@@ -514,6 +516,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | `<tham số>_<mã vị trí>` | theo tham số | theo spec | Tham số riêng của vị trí (câu hỏi 28) |
 | `is_enable_consent_shortcut` | boolean | tắt (câu hỏi 21) | Quyền tạm khi đồng ý chưa trả lời xong; cần thêm cấu hình của app, cũng mặc định tắt (tên do ta đặt). **Đổi 2026-10-29 (ADR-0038):** chỉ còn điều khiển `ERROR_ALLOWED`; `CACHED_EARLY` luôn bật |
 | **Thêm 2026-10-29 (ADR-0038):** `time_close_native` | long (giây) | 5 | Đếm ngược trước khi đóng được native toàn màn hình sau inter; nhận 1 tới 30, giá trị khác dùng 5 (tên của JBase) |
+| **Thêm 2026-10-29 (ADR-0037):** `ads_mediation_order` | string | `max_admob` | Thứ tự hai nền tảng cho banner, MREC, interstitial, rewarded, app open khi quay lại: `admob`, `max`, `admob_max`, `max_admob`; giá trị khác dùng `max_admob`; bản không có khóa SDK MAX dùng `admob` (tên do ta đặt) |
 | `is_log_ad_fullscreen_events` | boolean | tắt | Số liệu chi tiết của quảng cáo toàn màn hình |
 | `is_log_ad_slot_events` | boolean | tắt | Số liệu chi tiết của quảng cáo trong màn hình |
 | `is_log_af_*` (11 khóa, `ads-business-rules.md` mục 10.1) | boolean | bật | Công tắc từng sự kiện AppsFlyer (tên do ta đặt) |
@@ -670,6 +673,9 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 49. **Chừa chỗ lúc tải (câu 37) với khe cao theo bề rộng:** chiều cao chừa tính thế nào khi chưa có quảng cáo?
     - Đề xuất của AI: dùng cùng hàm tính chiều cao theo bề rộng màn hình của KB-32, nên biết trước khi tải; một hằng số cho cả vẽ và chừa chỗ như câu 22.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29): cùng một hàm tính chiều cao theo bề rộng màn hình cho cả vẽ và chừa chỗ.
+50. **Người đã mua gói bỏ quảng cáo có còn thấy hộp thoại đồng ý của UMP, và SDK quảng cáo, AppsFlyer có còn khởi động không?** (câu hỏi 6 của plan T-063)
+    - Đề xuất của AI: T-063 giữ như `is_show_ads` tắt: hộp thoại đồng ý, `MobileAds.initialize` và AppsFlyer như hôm nay, chỉ không tải, không hiện (ít rủi ro nhất cho thứ tự khởi tạo; người đó rút mua thì quảng cáo chạy lại ngay). Bỏ hộp thoại và không khởi động SDK khi đã mua là một ticket sau, khi có app đầu tiên làm mua hàng.
+    - Trả lời: theo đề xuất của AI (anh Nhật duyệt plan T-063, 2026-10-30).
 
 ## 10. Lịch sử
 
@@ -691,3 +697,5 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-29 | Nhật | Trả lời câu 47 (chưa có tài khoản APS), 48 và 49 theo đề xuất của AI (AI ghi theo lời anh Nhật) |
 | 2026-10-29 | AI | Chốt KB-31 theo câu 41 tới 47; tách ticket MAX T-068 tới T-073 (APS chưa tách: chưa có tài khoản) |
 | 2026-10-29 | Nhật | Xác nhận spec; chấp nhận ADR-0036, ADR-0037, ADR-0038 (AI ghi theo lời anh Nhật) |
+| 2026-10-29 | AI | Sửa số điểm khi dẫn ADR-0036 ở KB-27, KB-29, KB-30 cho khớp ADR sau khi bỏ điểm hạn dùng interstitial (điểm 2, 4, 5 thành 1, 3, 4); không đổi nội dung (rà soát plan T-054, T-062) |
+| 2026-10-30 | Nhật | Duyệt 12 plan đợt 4 (T-053 tới T-060, T-062, T-063, T-066 tới T-068) theo đề xuất của AI: thêm kết quả đo quyền của MAX vào mục 6 và khóa `ads_mediation_order` vào mục 8 (câu hỏi 1 của plan T-068); thêm câu hỏi 50 và một tiêu chí của KB-30 (câu hỏi 6 của plan T-063). Xác nhận lại (AI ghi theo lời anh Nhật) |

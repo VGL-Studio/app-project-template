@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-18, KB-32]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: S
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-067-banner-thich-ung-thuong.md
 auto_run: 
 created: 2026-10-29
 ---
