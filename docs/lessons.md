@@ -879,3 +879,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
 - **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
+
+### L-130. Mẫu đường dẫn của lệnh xem ảnh chuẩn đã đổi không khớp tệp nào, nên lệnh luôn in rỗng
+
+- **Ngày, nguồn:** 2026-10-30, dự án mẫu (rà soát độc lập lần chạy thử plan T-081; plan T-081 ở PR #332)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** L-114 đưa vào `CLAUDE.md`, mục Lệnh, và mẫu plan lệnh `git status --short -- '*/src/test/screenshots/'` để xem ảnh chuẩn nào đã đổi sau khi ghi lại. Mẫu có ký tự đại diện được so với cả đường dẫn của tệp, nên mẫu kết thúc bằng `/` không khớp tệp nào, kể cả ảnh sửa hay ảnh mới: lệnh luôn in rỗng. Lần chạy thử plan T-081 ghi lại 89 ảnh và một ảnh đổi, nhưng lệnh báo không ảnh nào đổi; rà soát độc lập phát hiện. Plan đã duyệt T-053, T-060, T-062 chờ danh sách 9, 2 và 2 ảnh, còn T-067 và plan T-080 cũng dùng lệnh này: trên máy, phép kiểm của chúng luôn ra rỗng. `pr-check` vẫn so ảnh, nhưng không thấy ảnh ngoài plan bị ghi lại.
+- **Bằng chứng:** worktree thử của T-081 (git 2.39.5): `git status --short` có ` M core/designsystem/src/test/screenshots/DesignSystem_spacing_components_light.png`, lệnh của `CLAUDE.md` in rỗng, còn mẫu `'*/src/test/screenshots/*'` in đúng tệp đó. Thử lại trên một repo tạm có một ảnh sửa và một ảnh mới: mẫu cũ không in tệp nào, mẫu có `*` ở cuối in cả hai.
+- **Đề xuất sửa:** `CLAUDE.md` và mẫu plan dùng `'*/src/test/screenshots/*'`; một test chạy đúng lệnh của hai tài liệu đó trên repo tạm. Plan đã duyệt không sửa (`docs/CLAUDE.md`, mục Những điều không được làm): báo người phụ trách trước khi T-053 và T-060 chạy.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #???: `CLAUDE.md` mục Lệnh và `docs/templates/plan.md` mục 4 dùng `'*/src/test/screenshots/*'`, kèm câu nói vì sao phải có `*`. Test trong `scripts/tests/run.sh` lấy lệnh từ hai tài liệu và chạy trên repo tạm có một ảnh sửa và một ảnh mới; với mẫu cũ, test đỏ. Plan đã duyệt T-053, T-060, T-062, T-067 giữ nguyên; người phụ trách được báo ở PR #332.
