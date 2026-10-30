@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-127 (issue #276), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: L
 depends_on: [T-079]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-080-bo-build-agp-9.md
 auto_run: false              # làm trong phiên có người theo dõi (quyết định 2026-10-29)
 created: 2026-10-29
 ---
@@ -19,7 +19,7 @@ created: 2026-10-29
 
 ## Mô tả
 
-Bước 2 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâng bộ build lên các bản đã chạy được ở Photune: AGP 9.1.0 (có Kotlin dựng sẵn), Gradle 9.3.1, compileSdk 37, kèm KSP, Hilt và ktlint-gradle. `build-logic` được viết lại theo cách AGP 9 cấu hình Kotlin. Robolectric và Roborazzi giữ bản cũ, nên ảnh chuẩn không được đổi: ảnh nào đổi ở bước này thì đó là thay đổi của bộ build, cần tìm nguyên nhân.
+Bước 2 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâng bộ build lên các bản đã chạy được ở Photune: AGP 9.1.0 (có Kotlin dựng sẵn), Gradle 9.3.1, compileSdk 37, kèm KSP, Hilt và ktlint-gradle. `build-logic` được viết lại theo cách AGP 9 cấu hình Kotlin. Robolectric giữ bản cũ; Roborazzi lên 1.77.0 vì bản 1.43 cần DSL cũ của AGP (plan T-080, mục 8, câu 1). Ảnh chuẩn không được đổi: ảnh nào đổi ở bước này thì đó là thay đổi của bộ build, cần tìm nguyên nhân.
 
 ## Phạm vi
 
@@ -46,7 +46,7 @@ Bước 2 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâ
 
 **Không bao gồm:**
 
-- Robolectric, Roborazzi và ghi lại ảnh chuẩn (T-081).
+- Robolectric và ghi lại ảnh chuẩn (T-081).
 - Nâng targetSdk lên 37.
 - Thư viện riêng của Photune (Room, Media3).
 

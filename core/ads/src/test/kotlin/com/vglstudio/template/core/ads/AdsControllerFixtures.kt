@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.flowOf
 
 /**
  * The real [AdsController] for tests, with no SDK ad (plan T-033): every test builds it here, so a new parameter of
- * the controller is added in one place. Defaults: Google's test ad units, no consent debug, the defaults of every
+ * the controller is added in one place. Defaults: Google's test ad units, no consent debug, no ads debug (no test device, no per-network log), the defaults of every
  * Remote Config key, Internet on, no consent shortcut, recording metrics, funnel and logger, empty preferences.
  */
 internal fun testAdsController(
@@ -31,6 +31,7 @@ internal fun testAdsController(
     logger: AppLogger = RecordingAppLogger(),
     connectivity: InternetConnectivity = AlwaysConnected,
     consentDebug: ConsentDebugOptions = ConsentDebugOptions.NONE,
+    debugOptions: AdsDebugOptions = AdsDebugOptions.NONE,
     shortcutConfig: ConsentShortcutConfig = ConsentShortcutConfig.OFF,
     firstOpenMark: FirstOpenMark = FirstOpenMark(EmptyPreferencesForTests(), RecordingAppLogger()),
     interDisplayCounter: InterDisplayCounter = InterDisplayCounter(EmptyPreferencesForTests(), RecordingAppLogger()),
@@ -38,6 +39,7 @@ internal fun testAdsController(
     context = context,
     unitIds = unitIds,
     consentDebug = consentDebug,
+    debugOptions = debugOptions,
     flags = flags,
     connectivity = connectivity,
     shortcutConfig = shortcutConfig,

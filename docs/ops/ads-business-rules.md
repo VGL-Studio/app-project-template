@@ -179,12 +179,13 @@ AdsKit không có splash; app chủ tự làm. Ở dự án mẫu, màn loading 
 
 | # | Luật | Chủ | AdsKit |
 | --- | --- | --- | --- |
-| B-01 | Banner cố định: thích ứng theo chiều rộng màn hình, neo ở đáy. Lần nạp đầu chờ cổng đồng ý, không nạp ngay lúc dựng giao diện | ads | `M/compose/BannerAdFixed.kt:39-157`, commit `0a5c65b` |
+| B-01 | Banner cố định: thích ứng theo chiều rộng màn hình, neo ở đáy. Lần nạp đầu chờ cổng đồng ý, không nạp ngay lúc dựng giao diện. **Đổi 2026-10-29 (ADR-0038):** cỡ thích ứng neo đáy thường theo hướng màn hình hiện tại (`AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize`), như JBase, thay cỡ neo đáy lớn (`getLargeAnchoredAdaptiveBannerAdSize`). Banner thu gọn (B-03) giữ cỡ lớn. SDK 25.5.0 đánh dấu bỏ hàm cỡ thường và không có hàm thay | ads | `M/compose/BannerAdFixed.kt:39-157`, commit `0a5c65b`; JBase `admobadshelper-release.aar`: `AdLayoutUtils.getAdaptiveBannerSize` (offset 48) |
 | B-02 | **Làm mới:** dùng đơn vị của khe `banner`, đã bật tự làm mới trên AdMob (mã nguồn AdsKit gọi khe này là `bannerPartner`, M-05); app không tự nạp lại. Banner tạm dừng và chạy lại theo Activity chính. Lỗi thì thử lại `min(n x 2 giây, 10 giây)`; tới hạn thử lại khi Activity không hiện thì dời tới lần hiện lại kế tiếp | ads | `M/manager/NativePolicyDecisions.kt:84-92`, `M/compose/BannerAdFixed.kt:58-141` |
 | B-03 | Banner thu gọn được (collapsible, bung từ đáy): khe `banner_collapsible`, đơn vị **không** bật tự làm mới; `:core:ads` nạp lại tay theo nhịp (mặc định 30 giây), mỗi lượt qua cổng đồng ý và có mã yêu cầu ngẫu nhiên mới, nên mỗi lần làm mới là một banner bung ra mới. Không nằm trong thanh đáy | ads | A 05:108, A 08:40, `M/compose/BannerAd.kt:23-65` |
 | B-04 | Mã đơn vị rỗng thì không gửi yêu cầu, không chiếm chỗ | ads | `T/compose/BannerAdRequestDecisionTest.kt` |
 | B-05 | Mọi lượt nạp lại hay thử lại của banner chỉ chạy khi app ở foreground. AdsKit đã dời lượt thử lại tới lần hiện lại; vòng nạp lại tay khi thiếu đơn vị tự làm mới thì chưa kiểm (mục 12, AR-03) | ads | `M/compose/BannerAdFixed.kt:61-73,130-131,143-147` |
 | B-06 | **Rút đồng ý giữa phiên khi banner đã có quảng cáo:** dừng banner (không gửi yêu cầu mới, tạm dừng tự làm mới), nhưng **giữ khung** và chỗ chừa cho nội dung, không co về 0; cổng mở lại thì nạp lại trong khung đó | ads | A 05:110-115 |
+| B-07 | **Bị che bởi quảng cáo toàn màn hình** (cờ "đang hiện" của cổng chung, F-01: native toàn màn hình, sau inter hay độc lập, cả inter, app open, rewarded): banner của màn bên dưới tạm dừng như khi màn không hiện. Không gửi yêu cầu, tự làm mới của đơn vị dừng (`pause()`), quảng cáo đang có giữ nguyên, không hủy. Màn che đóng thì `resume()`; lượt thử lại hay nạp lại tay tới hạn trong lúc bị che gửi đúng một lượt khi màn che đóng, không dồn (như B-05). Inter nối sang native giữ cờ liền mạch, không có khoảng hở. Trang toàn trang ở bước của luồng không tính là che (KB-27, câu hỏi 36, ADR-0036 quyết định 1) | ads | Không có (ADR-0036, JBase `pauseAutoRefresh`) |
 
 ### 5.6 Thanh quảng cáo ở đáy màn hình
 
@@ -195,6 +196,7 @@ AdsKit không có splash; app chủ tự làm. Ở dự án mẫu, màn loading 
 | D-03 | Lớp nổi chỉ lấp chiều rộng, không lấp cả khoảng trống, để không đẩy thanh điều hướng của app ra ngoài và không nhận chạm thay app | ads | `M/compose/BottomAdBar.kt:50-57`, commit `b4781fa` |
 | D-04 | Khoảng chừa dưới nội dung chỉ tính khe đáy và chỉ khi khe đã có quảng cáo, đúng bằng chiều cao thật của khe (80 dp với native, cùng một hằng số với chiều cao vẽ). Lớp nổi không tính. Không được phép hiện quảng cáo thì không dựng thanh đáy, chừa 0 | ads | `M/compose/BottomAdDecision.kt:26-45` |
 | D-05 | Vị trí của thanh đáy đọc **lúc có sự kiện** (hiện, bấm, doanh thu), không chụp lúc dựng, vì thanh đáy sống qua nhiều màn hình | ads | `M/compose/BannerAdFixed.kt:55-57`, `M/compose/NativeAdSmall.kt:64-66` |
+| D-06 | Cả hai lớp của thanh đáy (khe đáy native hay banner, lớp native thu gọn) dừng khi bị quảng cáo toàn màn hình che: không gửi, không làm mới, không thử lại, quảng cáo đang có giữ nguyên; màn che đóng thì chạy lại theo nhịp của từng lớp (B-07, O-10, CL-02; KB-27, ADR-0036 quyết định 1) | ads | Không có (ADR-0036, JBase `pauseAutoRefresh`) |
 
 ### 5.7 Native: các biến thể và kích thước
 
@@ -223,13 +225,14 @@ Luật chung của native:
 | O-07 | Đặt cách co giãn ảnh **trước** khi gắn quảng cáo vào khung, để ảnh không bị cắt | ads | commit `f3947af` |
 | O-08 | Nhãn "Ad" luôn thấy được, ~~đặt ở góc trên trái~~ **đổi 2026-10-26:** đặt theo thiết kế T-035, ở đầu dòng mô tả dưới tiêu đề (câu hỏi 6 của plan T-027); biểu tượng AdChoices do SDK ghim ở góc trên phải (**thêm 2026-10-26:** trừ lớp nổi của native thu gọn, nơi nút thu gọn chiếm góc trên phải nên AdChoices ở góc trên trái, theo thiết kế T-035 và plan T-030), không bị đè hay che. Hàng sao chỉ hiện khi quảng cáo có điểm thật lớn hơn 0: sao đặc làm tròn theo điểm, tối đa 5, không vẽ nửa sao | ads | A 05:240-242, `src/main/res/values/strings.xml` (`adskit_native_ad_label`) |
 | O-09 | Chuẩn bị yêu cầu native bị lỗi (kể cả SDK tự hủy giữa chừng) thì tính là một lần nạp lỗi mã 0 và thử lại theo O-05 | ads | A 05:174, `M/manager/NativeAdRequester.kt:100` |
+| O-10 | **Bị che bởi quảng cáo toàn màn hình** (cờ "đang hiện" của cổng chung, F-01): native trong màn (native nhỏ, lớp thu gọn, pool: medium, thẻ trong tập hợp, thẻ ở bước của luồng) không gửi yêu cầu, không làm mới, không thử lại, như ở nền (O-05); quảng cáo đang có giữ nguyên. Lượt đang chờ gửi đúng một lần khi màn che đóng; nhịp làm mới rơi lúc bị che thì bỏ (CL-02). Mọi đường gửi đọc một điều kiện "foreground và không bị che". Lượt nạp của chính native toàn màn hình không chờ điều kiện này (K-04). Hàng native nhỏ trong danh sách chưa theo luật này tới T-059 (KB-27, ADR-0036 quyết định 1) | ads | Không có (ADR-0036, JBase `pauseAutoRefresh`) |
 
 ### 5.8 Native thu gọn
 
 | # | Luật | Chủ | AdsKit |
 | --- | --- | --- | --- |
 | CL-01 | Quảng cáo đầu tiên mở rộng, trừ khi người dùng đã thu gọn. Lần nạp đầu chờ tối đa 10 giây (kiểm mỗi 200 ms); quá thời gian thì không vẽ | ads | `M/compose/NativeAdCollap.kt:69-93`, `M/compose/NativeAdCollapReloadPolicy.kt:29` |
-| CL-02 | Làm mới mỗi 60 giây: nạp quảng cáo chờ, đợi tối đa 10 giây, rồi đổi vào và hủy cái cũ. Làm mới **chỉ đổi nội dung**, giữ nguyên trạng thái thu gọn. Lỗi thì giữ quảng cáo và trạng thái cũ. Ở nền thì bỏ nhịp | ads | `M/compose/NativeAdCollap.kt:97-188`, `M/manager/NativePolicyDecisions.kt:76-81` |
+| CL-02 | Làm mới mỗi 60 giây: nạp quảng cáo chờ, đợi tối đa 10 giây, rồi đổi vào và hủy cái cũ. Làm mới **chỉ đổi nội dung**, giữ nguyên trạng thái thu gọn. Lỗi thì giữ quảng cáo và trạng thái cũ. Ở nền thì bỏ nhịp. Bị che thì bỏ nhịp như ở nền (O-10); nhịp sau tính 60 giây từ nhịp bị bỏ, đóng màn che không làm mới ngay | ads | `M/compose/NativeAdCollap.kt:97-188`, `M/manager/NativePolicyDecisions.kt:76-81` |
 | CL-03 | **Bung lại:** hẹn giờ riêng, đếm từ lúc người dùng bấm thu gọn, kéo dài `time_expand_collap_ad` giây (mặc định 30). Giá trị 0 hay âm là không bao giờ bung lại. Làm mới không đặt lại hẹn giờ. Chỉ bung khi đang có quảng cáo | ads | `M/compose/NativeAdCollap.kt:190-217`, commit `28f6941`, `5e5deba` |
 | CL-04 | Vòng làm mới đọc trạng thái thu gọn **hiện tại**, không dùng giá trị chụp lúc bắt đầu | ads | `M/compose/NativeAdCollap.kt:55-58`, commit `70d52db` |
 
@@ -242,7 +245,7 @@ Luật chung của native:
 | P-02 | Cỡ pool: ô lưới 5, giới thiệu 3, medium 3. Pool đếm cả quảng cáo đang dùng; dư một so với số ô cùng lúc | ads | `M/manager/NativeAdPoolManager.kt:425`, `M/AdsKit.kt:452-487` |
 | P-03 | Nạp bù tuần tự, mỗi lúc một yêu cầu. Quảng cáo trong pool hết hạn từ đủ 55 phút | ads | `M/manager/NativeAdPoolManager.kt:113-141,354-359,427` |
 | P-04 | Vị trí gán lúc **lấy** quảng cáo ra; bấm và doanh thu tính cho màn đang giữ quảng cáo | ads | `M/manager/NativeAdPoolManager.kt:363-381` |
-| P-05 | **Pool cạn** khi không có quảng cáo rảnh, không có yêu cầu đang chạy, và không nạp được (chưa khởi tạo, mã rỗng, đang chờ thử lại, ở nền, cổng đồng ý đóng). Pool đầy mà mọi quảng cáo đang dùng thì không tính là cạn | ads | `M/manager/NativeAdPoolAvailability.kt:14-68` |
+| P-05 | **Pool cạn** khi không có quảng cáo rảnh, không có yêu cầu đang chạy, và không nạp được (chưa khởi tạo, mã rỗng, đang chờ thử lại, ở nền, đang bị quảng cáo toàn màn hình che (O-10), cổng đồng ý đóng). Pool đầy mà mọi quảng cáo đang dùng thì không tính là cạn | ads | `M/manager/NativeAdPoolAvailability.kt:14-68` |
 | P-06 | Ô chờ quảng cáo thử lấy mỗi 500 ms; khi pool cạn thì mỗi 2 giây, vẫn tiếp tục nên quảng cáo về muộn vẫn hiện. Ô cạn thì không vẽ gì, không giữ chỗ; nơi gọi chọn được hiện khung chờ thay vì ẩn | ads | `M/compose/PooledNativeAd.kt:26-29,62-71,101-133`, commit `a4b33ca` |
 | P-07 | Ô trong pager chỉ tính là "đang hiện" khi trang đó đã dừng hẳn. Ô chưa từng hiện thì không ghi gì. Ghi `shown` khi ô vừa có quảng cáo vừa đang hiện; ghi `not_ready` khi ô rời màn mà chưa có quảng cáo. Native ở bước của luồng không có trạng thái này nên chỉ đặt **ngoài** pager | ads | `R.md:294`, `M/analytics/PoolCellOpportunity.kt`, `M/compose/NativeAdOnboarding.kt:28-30` |
 
@@ -482,7 +485,7 @@ Chỗ bản đặc tả độc lập tự mâu thuẫn, ta **không** theo:
 | --- | --- | --- | --- |
 | AS-01 | Bảng kết quả của resume ghi `throttled` gồm cả "cửa `ads_interval`" | Resume không có cổng `ads_interval` nên không bao giờ ra `throttled` vì lý do đó; `throttled` của resume chỉ là khóa 1 giây sau app open (A-08). Đây là vế sót từ bộ `CURRENT`; chính bản đặc tả nói resume PARTNER không có cổng thời gian | A 06:224 ngược A 04:37-41; `T/controller/ResumeAdPartnerRulesTest.kt:13` |
 
-Chỗ ta lệch có chủ đích khỏi bản đặc tả (đã ghi ở ADR-0026, ADR-0027): luôn ghi doanh thu bằng `ad_impression_placement` (A để mặc định `ad_impression`, A 06:32); không bao giờ gửi `af_revenue` (A cho bật tùy chọn, A 06:38); mốc thời gian đo bằng đồng hồ đơn điệu (AR-01).
+Chỗ ta lệch có chủ đích khỏi bản đặc tả (đã ghi ở ADR-0026, ADR-0027): luôn ghi doanh thu bằng `ad_impression_placement` (A để mặc định `ad_impression`, A 06:32); không bao giờ gửi `af_revenue` (A cho bật tùy chọn, A 06:38); mốc thời gian đo bằng đồng hồ đơn điệu (AR-01). Theo ADR-0036 (quyết định 1, JBase làm chuẩn): banner và native trong màn dừng khi quảng cáo toàn màn hình che, AdsKit không có luật này (B-07, D-06, O-10).
 
 ## 13. Ghi chú cho người viết plan
 

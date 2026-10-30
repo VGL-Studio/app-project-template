@@ -40,6 +40,9 @@ class BannerSlotHostTest {
 
     private val views = FakeBannerAdViews()
     private val visible = MutableStateFlow(true)
+
+    /** A full-screen ad drawn over the app (KB-27, plan T-054). */
+    private val covered = MutableStateFlow(false)
     private val retryResets = MutableStateFlow(0)
     private val logger = RecordingAppLogger()
 
@@ -63,6 +66,7 @@ class BannerSlotHostTest {
                     heightDp = HEIGHT_DP,
                     refresh = refresh,
                     visible = visible,
+                    covered = covered,
                     mayRequestNow = { gateOpen },
                     retryResets = retryResets,
                     logger = logger,
@@ -87,6 +91,30 @@ class BannerSlotHostTest {
     private fun update(change: () -> Unit) {
         composeRule.runOnIdle(change)
         composeRule.waitForIdle()
+    }
+
+    /** [setHost] with the clock of Compose stopped: the test moves it ([advanceTo]). */
+    private fun setTimedHost() {
+        composeRule.mainClock.autoAdvance = false
+        setHost()
+        frame()
+    }
+
+    private fun frame() {
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+    }
+
+    private fun advanceTo(timeMillis: Long) {
+        val step = timeMillis - composeRule.mainClock.currentTime
+        if (step > 0) composeRule.mainClock.advanceTimeBy(step, ignoreFrameDuration = true)
+        composeRule.waitForIdle()
+    }
+
+    /** Changes a value with the clock stopped, then lets one frame run. */
+    private fun timedUpdate(change: () -> Unit) {
+        composeRule.runOnIdle(change)
+        frame()
     }
 
     @Test
@@ -273,6 +301,90 @@ class BannerSlotHostTest {
         update { enabled = true }
         update { views.last.emitLoaded() }
         assertEquals(listOf(true, false, true), availability)
+    }
+
+    @Test
+    fun coveredAtStart_sendsNothing_untilUncovered() {
+        covered.value = true
+        setTimedHost()
+        val start = composeRule.mainClock.currentTime
+        assertEquals(1, views.createdCount)
+        val view = views.last
+
+        advanceTo(start + 60_000)
+        assertEquals(0, view.sendCount)
+        assertEquals(1, view.pauseCount)
+        assertEquals(0, view.resumeCount)
+
+        // Control (L-055): the cover goes, the first request is sent once.
+        timedUpdate { covered.value = false }
+        assertEquals(1, view.sendCount)
+        assertEquals(1, view.resumeCount)
+    }
+
+    @Test
+    fun retryDueWhileCovered_sendsOnceWhenUncovered() {
+        setTimedHost()
+        val start = composeRule.mainClock.currentTime
+        val view = views.last
+        assertEquals(1, view.sendCount)
+        // The first load fails: a retry is due 2 s later (B-02).
+        timedUpdate { view.emitFailed(3) }
+
+        advanceTo(start + 1_000)
+        timedUpdate { covered.value = true }
+        advanceTo(start + 30_000)
+        assertEquals(1, view.sendCount)
+
+        timedUpdate { covered.value = false }
+        assertEquals(2, view.sendCount)
+        advanceTo(start + 31_000)
+        assertEquals(2, view.sendCount)
+    }
+
+    @Test
+    fun manualReloadDueWhileCovered_sendsOnceWhenUncovered() {
+        refresh = BannerRefresh.MANUAL
+        setTimedHost()
+        val start = composeRule.mainClock.currentTime
+        val view = views.last
+        assertEquals(1, view.sendCount)
+        // Loaded: the reload by hand is due 30 s later (B-03).
+        timedUpdate { view.emitLoaded() }
+
+        advanceTo(start + 10_000)
+        timedUpdate { covered.value = true }
+        // Three reloads of 30 s would have been due by now.
+        advanceTo(start + 100_000)
+        assertEquals(1, view.sendCount)
+
+        // One send when the cover goes, not three.
+        timedUpdate { covered.value = false }
+        assertEquals(2, view.sendCount)
+        advanceTo(start + 101_000)
+        assertEquals(2, view.sendCount)
+    }
+
+    @Test
+    fun covered_pausesView_keepsAd_uncovered_resumes() {
+        setHost()
+        update { views.last.emitLoaded() }
+        val view = views.last
+        // Control: built while visible and not covered, the view runs and shows its ad.
+        assertEquals(0, view.pauseCount)
+        assertAdShown(true)
+
+        update { covered.value = true }
+        assertEquals(1, view.pauseCount)
+        assertEquals(0, view.destroyCount)
+        assertSlotHeight(HEIGHT_DP)
+        assertAdShown(true)
+        assertEquals(1, views.createdCount)
+
+        update { covered.value = false }
+        assertEquals(1, view.resumeCount)
+        assertEquals(0, view.destroyCount)
+        assertEquals(1, view.sendCount)
     }
 
     private companion object {
