@@ -145,6 +145,15 @@ object AdsSettings {
         description = "Logs the Firebase lifecycle events of ad slots (banner, native).",
     )
 
+    /** The order of AdMob and AppLovin MAX (ADR-0037, plan T-068); read by [MediationOrder.of]. */
+    val ADS_MEDIATION_ORDER = stringKey(
+        name = "ads_mediation_order",
+        default = MediationOrder.DEFAULT.code,
+        description = "Order of the two ad platforms for banner, MREC, interstitial, rewarded and resume app open " +
+            "ads: admob, max, admob_max or max_admob; any other value uses max_admob. Without a MAX SDK key in " +
+            "the build, admob.",
+    )
+
     /** The switch `is_show_<code>` of [placement], off by default (ADR-0014, MC-03). */
     fun placementEnabled(placement: AdPlacement): RemoteKey<Boolean> = placementEnabled(placement.declaration)
 
@@ -227,6 +236,7 @@ object AdsSettings {
         IS_ENABLE_CONSENT_SHORTCUT,
         IS_LOG_AD_FULLSCREEN_EVENTS,
         IS_LOG_AD_SLOT_EVENTS,
+        ADS_MEDIATION_ORDER,
     )
 
     private fun derivedNote(declaration: AdPlacementDeclaration) =

@@ -189,6 +189,7 @@ class AdsFlagsTest {
         settings.set("is_log_ad_fullscreen_events", true)
         settings.set("is_log_ad_slot_events", true)
         settings.set("time_close_native", 12L)
+        settings.set("ads_mediation_order", "admob_max")
         assertEquals(
             AdsGlobalFlags(
                 adsEnabled = true,
@@ -206,12 +207,40 @@ class AdsFlagsTest {
                 logFullScreenEvents = true,
                 logSlotEvents = true,
                 closeNativeCountdownSeconds = 12,
+                mediationOrder = MediationOrder.ADMOB_MAX,
             ),
             flags.global.first(),
         )
         // is_show_native_collap off by itself turns the collapsible layer off.
         settings.set("is_show_native_collap", false)
         assertFalse(flags.global.first().showNativeCollap)
+    }
+
+    @Test
+    fun globalMediationOrder_defaultIsMaxAdmob() = runTest {
+        assertEquals(MediationOrder.MAX_ADMOB, flags.global.first().mediationOrder)
+        // Control (L-055): the key is really read, so the default above is not a constant.
+        settings.set("ads_mediation_order", "admob")
+        assertEquals(MediationOrder.ADMOB, flags.global.first().mediationOrder)
+    }
+
+    @Test
+    fun globalMediationOrder_invalidIsDefault() = runTest {
+        // Control (L-055): a valid value is read first, so the default below comes from the invalid value.
+        settings.set("ads_mediation_order", "max")
+        assertEquals(MediationOrder.MAX, flags.global.first().mediationOrder)
+        settings.set("ads_mediation_order", "x")
+        assertEquals(MediationOrder.MAX_ADMOB, flags.global.first().mediationOrder)
+    }
+
+    @Test
+    fun globalMediationOrder_followsChange() = runTest {
+        flags.global.test {
+            assertEquals(MediationOrder.MAX_ADMOB, awaitItem().mediationOrder)
+            settings.set("ads_mediation_order", "admob")
+            assertEquals(MediationOrder.ADMOB, awaitItem().mediationOrder)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

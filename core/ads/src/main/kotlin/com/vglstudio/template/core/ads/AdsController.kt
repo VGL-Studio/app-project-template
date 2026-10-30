@@ -88,6 +88,13 @@ import kotlinx.coroutines.withContext
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
  *
+ * AppLovin MAX (plan T-068, ADR-0037) is the second ad platform. [MaxSdkStarter] initializes it once, after the consent
+ * gate opened and once [sdkReady] of AdMob is on (its callback or the 35 s cap of S-21), never before
+ * ([startAdsSdks]), and only while the gate is open at that moment: a gate closed meanwhile starts nothing, the gate
+ * open again starts it if it has not started (S-14). No consent flag is set: MAX reads the TCF and AC strings of UMP.
+ * Without an SDK key in the build ([MaxConfig]) MAX never starts and [mediationOrder] (`ads_mediation_order`) is AdMob
+ * only.
+ *
  * The ad of the loading screen (plan T-024, KB-13) is [StartupAds]: [awaitStartupAd] waits within the limits of A-03
  * ([awaitStartupAd] of StartupAdWait.kt), and [showStartupAd] shows the app open ad of the app open slot (A-07 to
  * A-09) or the interstitial of `open_app_inter`. App-wide placements are switched by [placementSwitch].
@@ -131,6 +138,8 @@ class AdsController @Inject internal constructor(
     private val interDisplayCounter: InterDisplayCounter,
     private val attribution: AppsFlyerStartup,
     funnel: AdFunnel,
+    private val maxConfig: MaxConfig,
+    maxPlatform: MaxPlatform,
 ) : StartupAds {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -228,6 +237,20 @@ class AdsController @Inject internal constructor(
         .map { it ?: DEFAULT_GLOBAL_FLAGS }
         .stateIn(scope, SharingStarted.Eagerly, latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS)
     private val online = MutableStateFlow(true)
+
+    /** Starts AppLovin MAX after the consent gate and AdMob (plan T-068). */
+    private val maxStarter = MaxSdkStarter(maxConfig, maxPlatform, logger) { gate.state.value.allowed }
+
+    /**
+     * The order of the two ad platforms that applies (`ads_mediation_order`, ADR-0037): [MediationOrder.ADMOB] in a
+     * build without an AppLovin MAX SDK key. Read by the loads of MAX (T-069 to T-071).
+     */
+    internal val mediationOrder: StateFlow<MediationOrder> = globalFlags
+        .map { MediationOrder.effective(it.mediationOrder, maxConfig.hasKey) }
+        .stateIn(scope, SharingStarted.Eagerly, MediationOrder.effective(MediationOrder.DEFAULT, maxConfig.hasKey))
+
+    /** True once AppLovin MAX answered its initialization (T-069). */
+    internal val maxReady: StateFlow<Boolean> = maxStarter.ready
 
     /** Blocks the ads that show by themselves while a consent form is open (S-16, G-01); read by T-022, T-025. */
     internal val foregroundAdSuppressor = ForegroundAdSuppressor()
@@ -577,6 +600,7 @@ class AdsController @Inject internal constructor(
             }
         }
         scope.launch { flags.global.collect { latestGlobalFlags.value = it } }
+        scope.launch { mediationOrder.collect { maxStarter.onOrderChanged(it) } }
         scope.launch {
             combine(flags.global, firstOpen) { global, first -> startupAdPlacement(global, first) }.collect {
                 startupChoice.value = it
@@ -813,6 +837,8 @@ class AdsController @Inject internal constructor(
         } else if (sdkStarted.value) {
             logger.info(TAG, "Consent gate opened again: preload")
             preloader.request(PreloadReason.GATE_REOPENED)
+            // S-14: MAX starts now if the gate was closed when it was due (plan T-068, question 9).
+            maxStarter.onOrderChanged(mediationOrder.value)
         }
     }
 
@@ -831,21 +857,28 @@ class AdsController @Inject internal constructor(
                 MobileAds::setRequestConfiguration,
                 logger,
             )
-            // Google recommends starting the SDK off the main thread.
-            withContext(Dispatchers.IO) {
-                // The listener runs once every adapter is initialized or timed out (KB-9).
-                MobileAds.initialize(context) { status ->
-                    adapterStatusLines(status.adapterStatusMap).forEach { logger.info(TAG, it) }
-                    scope.launch {
-                        sdkCallbackArrived = true
-                        updateSdkReady("callback")
+            startAdsSdks(
+                initAdmob = {
+                    // Google recommends starting the SDK off the main thread.
+                    withContext(Dispatchers.IO) {
+                        // The listener runs once every adapter is initialized or timed out (KB-9).
+                        MobileAds.initialize(context) { status ->
+                            adapterStatusLines(status.adapterStatusMap).forEach { logger.info(TAG, it) }
+                            scope.launch {
+                                sdkCallbackArrived = true
+                                updateSdkReady("callback")
+                            }
+                        }
                     }
-                }
-            }
-            sdkStarted.value = true
-            // The first preload of the plan, once the SDK is both started and ready (S-20, S-21).
-            _sdkReady.first { it }
-            preloader.request(PreloadReason.SDK_READY)
+                    sdkStarted.value = true
+                },
+                // The SDK both started and ready (S-20, S-21).
+                awaitAdmobReady = { _sdkReady.first { it } },
+                // AppLovin MAX only once AdMob's adapters are initialized (plan T-068, startAdsSdks).
+                startMax = { maxStarter.onAdmobReady(mediationOrder.value) },
+                // The first preload of the plan.
+                preload = { preloader.request(PreloadReason.SDK_READY) },
+            )
         }
     }
 
@@ -1224,6 +1257,26 @@ class AdsController @Inject internal constructor(
     internal fun openConsentGateForTest() {
         gate.onPrivacyFormClosed(umpCanRequestAds = true)
         sdkStarted.value = true
+    }
+
+    /** Tests only: the user withdraws consent in the privacy options form (S-14, plan T-068). */
+    @VisibleForTesting
+    internal fun closeConsentGateForTest() {
+        gate.onPrivacyFormClosed(umpCanRequestAds = false)
+    }
+
+    /** Tests only: the consent gate opens again, as `ConsentCoordinator` reports it (S-14, plan T-068). */
+    @VisibleForTesting
+    internal fun reopenConsentGateForTest() {
+        gate.onPrivacyFormClosed(umpCanRequestAds = true)
+        onGateOpened(firstTime = false)
+    }
+
+    /** Tests only: AdMob is ready (S-21) and MAX is asked to start, as `startAdsSdks` does (plan T-068). */
+    @VisibleForTesting
+    internal fun admobReadyForTest() {
+        markSdkReadyForTest()
+        maxStarter.onAdmobReady(mediationOrder.value)
     }
 
     /**

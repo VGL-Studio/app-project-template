@@ -3839,6 +3839,19 @@ printf 'applovin_sdk_key: FAKE%sKl\n' "$(printf "$applovin_piece%.0s" 1 2 3 4 5 
   > "$work/scan-applovin-fake/strings.md"
 expect "secret-scan: a fake AppLovin key passes" 0 \
   "$(SECRET_SCAN_ROOT="$work/scan-applovin-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
+# The AppLovin MAX SDK key is the same 86-character key, on lines named after the build parameter (plan T-068).
+mkdir -p "$work/scan-max" "$work/scan-max-fake"
+printf 'ads.maxSdkKey=%s\n' "$applovin_key" > "$work/scan-max/local.properties"
+printf './gradlew bundleProductionRelease -PmaxSdkKey=%s\n' "$applovin_key" > "$work/scan-max/notes.md"
+expect "secret-scan: a MAX SDK key fails" "1 2 0" \
+  "$(SECRET_SCAN_ROOT="$work/scan-max" python3 -I scripts/secret-scan.py > /dev/null; echo $?) $(
+    SECRET_SCAN_ROOT="$work/scan-max" python3 -I scripts/secret-scan.py | grep -c 'khóa SDK AppLovin' || true) $(
+    SECRET_SCAN_ROOT="$work/scan-max" python3 -I scripts/secret-scan.py | grep -c "$applovin_key" || true)"
+max_fake="FAKE$(printf "$applovin_piece%.0s" 1 2 3 4 5 6 7 8)Kl"
+printf 'ads.maxSdkKey=%s\n' "$max_fake" > "$work/scan-max-fake/local.properties"
+printf './gradlew bundleProductionRelease -PmaxSdkKey=%s\n' "$max_fake" > "$work/scan-max-fake/notes.md"
+expect "secret-scan: a fake MAX SDK key passes" 0 \
+  "$(SECRET_SCAN_ROOT="$work/scan-max-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: this repository has no real ad IDs or keys" 0 \
   "$(python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 

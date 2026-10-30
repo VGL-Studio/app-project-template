@@ -62,6 +62,8 @@ data class AdsGlobalFlags(
     val logSlotEvents: Boolean,
     /** time_close_native, 1 to 30, any other value read as 5. */
     val closeNativeCountdownSeconds: Long,
+    /** ads_mediation_order, read as written; [AdsController.mediationOrder] applies the SDK key. */
+    val mediationOrder: MediationOrder = MediationOrder.DEFAULT,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */
@@ -106,6 +108,7 @@ internal class DefaultAdsFlags @Inject constructor(
             settings.value(AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS),
             settings.value(AdsSettings.IS_LOG_AD_SLOT_EVENTS),
             settings.value(AdsSettings.TIME_CLOSE_NATIVE),
+            settings.value(AdsSettings.ADS_MEDIATION_ORDER),
         ),
     ) { values ->
         val adsEnabled = values[0] as Boolean
@@ -126,6 +129,7 @@ internal class DefaultAdsFlags @Inject constructor(
             logFullScreenEvents = values[12] as Boolean,
             logSlotEvents = values[13] as Boolean,
             closeNativeCountdownSeconds = nativeCloseCountdownSeconds(values[14] as Long),
+            mediationOrder = MediationOrder.of(values.last() as String),
         )
     }.distinctUntilChanged()
 
