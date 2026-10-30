@@ -139,6 +139,17 @@ class MaxSdkStarterTest {
         assertFalse(MaxConfig(FAKE_KEY).toString(), FAKE_KEY in MaxConfig(FAKE_KEY).toString())
     }
 
+    /** The consent gate is never assumed open: every caller passes it (ADR-0037, question 9 of the plan). */
+    @Test
+    fun gateAllowed_hasNoDefault() {
+        fun hasDefaultArguments(type: Class<*>) = type.declaredConstructors.any { constructor ->
+            constructor.parameterTypes.any { it.name == "kotlin.jvm.internal.DefaultConstructorMarker" }
+        }
+        // Control: a class with a default argument has the synthetic constructor this test looks for.
+        assertTrue(hasDefaultArguments(FakeMaxPlatform::class.java))
+        assertFalse(hasDefaultArguments(MaxSdkStarter::class.java))
+    }
+
     private companion object {
         /** A fake key of the real length (86 characters), with FAKE so the secret scan lets it through. */
         val FAKE_KEY = "FAKE" + "k".repeat(82)
