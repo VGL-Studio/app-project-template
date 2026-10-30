@@ -10,7 +10,7 @@ risk: high
 size: L
 depends_on: [T-076, T-077]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-078-runner-tu-host.md
 auto_run: false
 created: 2026-10-29
 ---

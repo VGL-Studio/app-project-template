@@ -295,3 +295,14 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
+
+### [ADR-0042](adr/0042-runner-tu-host-cho-job-nang.md): Job nặng không đọc bí mật chạy được trên runner tự host chạy một lần, chọn bằng biến HEAVY_RUNNER của repo private; xóa biến thì quay về runner của GitHub
+
+- chỉ job chạy `scripts/check.sh`, Gradle hay emulator mà không đọc `secrets.` mới khai báo `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`
+- job có `secrets.` và job nhẹ giữ `runs-on: ubuntu-latest`
+- job nặng gọi `scripts/runner-check.sh` ngay sau `actions/checkout`, với `if: runner.environment == 'self-hosted'`, trước `setup-java` và `setup-gradle`
+- bước dùng `sudo` trong job nặng có `if: runner.environment == 'github-hosted'`
+- không đặt `clean: false` cho `actions/checkout` của job nặng
+- `wait-run.sh` báo job chờ runner tự host quá lâu là `HẠ TẦNG`, phiên không sửa code vì lỗi đó
+- không cài, đăng ký hay đổi cấu hình runner, không đặt hay xóa biến `HEAVY_RUNNER` trong phiên
+- không đề xuất đặt `HEAVY_RUNNER` cho repo công khai
