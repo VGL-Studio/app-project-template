@@ -286,6 +286,7 @@ Các file khác nhắc tới file plan sửa nhưng không bị ảnh hưởng. 
 - dẫn `docs/ops/staging-and-runs.md`: `scripts/cloud-env-check.sh`, `scripts/env-canary.sh`, `scripts/run-watchdog.py`, `scripts/setup-check.sh`. Plan chỉ thêm một câu sau dòng 5, số mục giữ nguyên;
 - dẫn `docs/ops/failure-playbook.md`: `scripts/push-probe.sh` (dẫn PB-14). Plan thêm ba dòng, không đổi mã dòng cũ;
 - `scripts/ui-test-verdict.sh` (T-075, thêm sau khi soạn plan) dẫn `docs/ops/failure-playbook.md` (mã PB-01, PB-11, PB-13, PB-15 trong `INFRA_PB`) và `docs/auto-run.md`: plan không đổi mã dòng PB cũ hay số mục của `auto-run.md`, mã mới của plan không vào `INFRA_PB` của script đó;
+- `scripts/ui-test-on-emulator.sh`, `scripts/ui-test-needed.sh`, `scripts/ui-test-verdict.sh` (T-075) nhắc `main-guard.yml` trong chú thích, và coi commit đổi `main-guard.yml` là commit phải chạy `ui-test` (`ui-test-needed.sh`), emulator không khởi động thì đỏ, không phải `infra` (`ui-test-verdict.sh`, rủi ro T-075 đã chấp nhận). Plan không đổi tên job, bước hay đường dẫn mà chúng đọc. Hệ quả: commit merge của T-078 chạy `ui-test` trên runner của GitHub (biến chưa đặt), đúng lần kiểm H3 cần;
 - dẫn `CLAUDE.md` (plan chỉ thêm một dòng vào mục Lệnh):
   - `.github/ISSUE_TEMPLATE/from-app.yml`;
   - `scripts/new-app.sh`: thay tên app trong `CLAUDE.md`, mà dòng mới không có tên app;
