@@ -70,6 +70,12 @@ internal interface RewardedPort {
     fun recordOpportunity(declaration: AdPlacementDeclaration, result: String, loadState: String)
 
     fun recordReward(declaration: AdPlacementDeclaration)
+
+    /** Skeleton for the tests of plan T-055 (step 3). */
+    fun hostUsable(activity: Activity?): Boolean
+
+    /** Skeleton for the tests of plan T-055 (step 3). */
+    fun recordShowFailed(declaration: AdPlacementDeclaration, code: Int)
 }
 
 /**

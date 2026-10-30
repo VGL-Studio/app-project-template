@@ -472,6 +472,11 @@ class AdsController @Inject internal constructor(
 
             override fun recordReward(declaration: AdPlacementDeclaration) =
                 telemetry.rewardEarned(declaration.placement())
+
+            // Skeleton for the tests of plan T-055 (step 3).
+            override fun hostUsable(activity: Activity?): Boolean = true
+
+            override fun recordShowFailed(declaration: AdPlacementDeclaration, code: Int) = Unit
         },
         logger = logger,
     )
@@ -1236,6 +1241,24 @@ class AdsController @Inject internal constructor(
     @VisibleForTesting
     internal fun putPreloadedNativeFullScreenForTest(placement: AdPlacement, ad: LoadedNativeAd) {
         preloadedNativeFullScreen.put(placement, ad, clock.nowMillis())
+    }
+
+    /** Tests only: puts [ad] in the interstitial slot of [placement], as a load would (plan T-055). */
+    @VisibleForTesting
+    internal fun putLoadedInterstitialForTest(placement: AdPlacement, ad: InterstitialAd) {
+        loadedInterstitials[placement] = ad
+    }
+
+    /** Tests only: puts [ad] in the app open slot of [placement], loaded now, as a load would (plan T-055). */
+    @VisibleForTesting
+    internal fun putLoadedAppOpenForTest(placement: AdPlacement, ad: AppOpenAd) {
+        loadedAppOpens.put(placement, ad, clock.nowMillis())
+    }
+
+    /** Tests only: puts [ad] in the rewarded slot of [placement], loaded now, as a load would (plan T-055). */
+    @VisibleForTesting
+    internal fun putLoadedRewardedForTest(placement: AdPlacement, ad: RewardedAd) {
+        loadedRewardeds.put(placement, ad, clock.nowMillis())
     }
 
     /**

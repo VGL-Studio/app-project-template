@@ -195,4 +195,44 @@ class FullScreenAdPresenceTest {
         assertFalse(presence.showingNow)
         assertFalse(presence.showing.value)
     }
+
+    @Test
+    fun rehostIfAwaiting_onlyOnce_keepsStartedAt() {
+        val p = AdPlacement.GALLERY_INTERSTITIAL
+        // Control: with no hand-over, a new activity never takes the turn.
+        val plain = FullScreenAdPresence()
+        assertTrue(plain.tryBegin(p, 1, now = 0))
+        assertFalse(plain.rehostIfAwaiting(2))
+        assertEquals(1, plain.current?.hostActivityId)
+
+        val presence = FullScreenAdPresence()
+        assertTrue(presence.tryBegin(p, 1, now = 0))
+        presence.handOver()
+        assertTrue(presence.rehostIfAwaiting(2))
+        assertEquals(2, presence.current?.hostActivityId)
+        assertFalse(presence.current!!.awaitingHost)
+        // Used up: a later activity does not take it again.
+        assertFalse(presence.rehostIfAwaiting(3))
+        assertEquals(2, presence.current?.hostActivityId)
+        // The cap of F-02 still counts from tryBegin.
+        assertTrue(presence.isBusy(FullScreenAdPresence.SHOWING_CAP_MILLIS - 1))
+        assertFalse(presence.isBusy(FullScreenAdPresence.SHOWING_CAP_MILLIS))
+    }
+
+    @Test
+    fun handOver_clearedByCloseAndNewTurn() {
+        val p = AdPlacement.GALLERY_INTERSTITIAL
+        val presence = FullScreenAdPresence()
+        assertTrue(presence.tryBegin(p, 1, now = 0))
+        presence.handOver()
+        // Control: the hand-over is set on the turn.
+        assertTrue(presence.current!!.awaitingHost)
+        presence.onClosed()
+        assertFalse(presence.rehostIfAwaiting(9))
+        assertEquals(null, presence.current)
+
+        assertTrue(presence.tryBegin(p, 2, now = 0))
+        assertFalse(presence.rehostIfAwaiting(9))
+        assertEquals(2, presence.current?.hostActivityId)
+    }
 }

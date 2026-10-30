@@ -44,7 +44,13 @@ internal class FullScreenAdPresence(private val onPublished: (Boolean) -> Unit =
     }
 
     /** One full-screen ad on screen: its placement and the identity hash of the activity that showed it. */
-    data class Shown(val placement: AdPlacement, val hostActivityId: Int)
+    data class Shown(val placement: AdPlacement, val hostActivityId: Int, val awaitingHost: Boolean = false)
+
+    /** Skeleton for the tests of plan T-055 (step 3). */
+    fun handOver() {}
+
+    /** Skeleton for the tests of plan T-055 (step 3). */
+    fun rehostIfAwaiting(activityId: Int): Boolean = false
 
     /** A full-screen ad is about to be shown, with no placement or host (kept for the tests of T-013). */
     fun onShowing() {
