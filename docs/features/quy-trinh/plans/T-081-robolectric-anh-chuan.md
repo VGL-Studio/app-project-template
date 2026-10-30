@@ -1,16 +1,16 @@
 ---
 ticket: T-081
 title: Robolectric 4.17, không ảnh chuẩn nào đổi
-status: draft
+status: approved
 version: 1
 risk_score: 7
 risk_level: high
 token_estimate: 5.4M
 blocking_points: [build, sdk]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -194,8 +194,10 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-30):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai vòng rà soát độc lập: vòng 1 có 1 chặn và 5 nên sửa, vòng 2 có 0 chặn và 5 nên sửa, đều đã sửa ở PR #332)
+- **Ghi chú:** trả lời mục 8: (1) không ghi lại ảnh chuẩn nào, ticket chuyển cỡ M sang S; (2) để nguyên ảnh lệch có sẵn `DesignSystem_spacing_components_light.png`, ngoài plan này; (3) làm sau khi phiên RUN-20261030-01 kết thúc, PR plan cũng merge sau đó; (4) bài học về pathspec và sửa `CLAUDE.md`, `docs/templates/plan.md`, L-114 làm ở một PR riêng. Làm trong phiên có người theo dõi.
 
 ## 10. Nhật ký thực hiện
