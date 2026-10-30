@@ -64,8 +64,21 @@ class ConfiguredAdUnitIds(config: String) : AdUnitIds {
      * Placements that have no ad unit in this build. A release must have none. Staging-only placements
      * ([AdPlacement.stagingOnly]) never ship, so they are never missing.
      */
-    val missing: List<AdPlacement> = AdPlacement.entries.filter { !it.stagingOnly && it.key !in units }
+    val missing: List<String> = missingUnitKeys(AdPlacement.entries.map { it.declaration }, units.keys)
 
     /** Staging-only placements get no unit even when the configuration names them: production never shows them. */
     override fun of(placement: AdPlacement): String? = if (placement.stagingOnly) null else units[placement.key]
 }
+
+/** The layer formats of a bottom bar (D-01): their units are read from slot keys (plan T-056). */
+internal val BOTTOM_BAR_LAYER_FORMATS = listOf(AdFormat.BANNER, AdFormat.NATIVE_COLLAPSIBLE)
+
+/** The layers of a placement (plan T-056): skeleton. */
+internal val AdPlacementDeclaration.layerFormats: List<AdFormat> get() = emptyList()
+
+/** The keys missing from `adUnits` (plan T-056): skeleton. */
+internal fun missingUnitKeys(placements: List<AdPlacementDeclaration>, configured: Set<String>): List<String> =
+    placements.filter { !it.stagingOnly && it.code !in configured }.map { it.code }
+
+/** The warning of missing production units (plan T-056): skeleton. */
+internal fun missingUnitsWarning(unitIds: AdUnitIds): String? = null
