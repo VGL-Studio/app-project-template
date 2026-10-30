@@ -57,7 +57,7 @@ internal class MaxSdkStarter(
     private val config: MaxConfig,
     private val platform: MaxPlatform,
     private val logger: AppLogger,
-    private val gateAllowed: () -> Boolean = { true },
+    private val gateAllowed: () -> Boolean,
 ) {
     private var gateOpened = false
     private var started = false

@@ -15,7 +15,7 @@ class MaxSdkStarterTest {
     private val logger = RecordingAppLogger()
 
     private fun starter(config: MaxConfig = MaxConfig(FAKE_KEY), platform: MaxPlatform) =
-        MaxSdkStarter(config, platform, logger)
+        MaxSdkStarter(config, platform, logger) { true }
 
     private fun messages() = logger.entries.map { it.message }
 
@@ -53,7 +53,7 @@ class MaxSdkStarterTest {
         listOf(MaxConfig.NONE, MaxConfig("   ")).forEach { config ->
             val platform = FakeMaxPlatform()
             val log = RecordingAppLogger()
-            val starter = MaxSdkStarter(config, platform, log)
+            val starter = MaxSdkStarter(config, platform, log) { true }
             starter.onAdmobReady(MediationOrder.MAX_ADMOB)
             starter.onOrderChanged(MediationOrder.MAX)
             starter.onOrderChanged(MediationOrder.ADMOB_MAX)
@@ -120,7 +120,7 @@ class MaxSdkStarterTest {
         // Control: an SDK not yet started gives no warning.
         val quiet = RecordingAppLogger()
         val fresh = FakeMaxPlatform(isInitialized = false)
-        MaxSdkStarter(MaxConfig(FAKE_KEY), fresh, quiet).onAdmobReady(MediationOrder.MAX_ADMOB)
+        MaxSdkStarter(MaxConfig(FAKE_KEY), fresh, quiet) { true }.onAdmobReady(MediationOrder.MAX_ADMOB)
         assertEquals(1, fresh.calls)
         assertFalse(quiet.entries.toString(), quiet.entries.any { "already started" in it.message })
     }
