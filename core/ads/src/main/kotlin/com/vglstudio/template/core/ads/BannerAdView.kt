@@ -57,7 +57,8 @@ private const val COLLAPSIBLE_REQUEST_ID_KEY = "collapsible_request_id"
  * A real [AdView] of [placement], drawn as [format]: the placement's own, or the banner layer of a bottom bar, reported
  * under the bar's placement (plan T-030, D-05). Its paid events, load results and clicks go to the ad metrics (plan
  * T-023): no zero-value fallback for banners (T-02); only the first result after a send has a latency, the refreshes
- * of the SDK have none (A 06:157). Load results also go to [results] for [runBannerLoads].
+ * of the SDK have none (A 06:157). Load results also go to [results] for [runBannerLoads], and their networks to
+ * [networkLog] at staging (plan T-058).
  */
 internal class SdkBannerAdView(
     private val adView: AdView,
@@ -120,11 +121,13 @@ internal class SdkBannerAdView(
         val slot = slotKey
         adView.adListener = object : AdListener() {
             override fun onAdLoaded() {
+                networkLog.loaded(slot, adView.responseInfo)
                 telemetry.loadSucceeded(format, slot, loadPlacement, now())
                 emitted.tryEmit(BannerLoadResult.Loaded)
             }
 
             override fun onAdFailedToLoad(error: LoadAdError) {
+                networkLog.failed(slot, error)
                 telemetry.loadFailed(format, slot, loadPlacement, error.code, error.message, now())
                 emitted.tryEmit(BannerLoadResult.Failed(error.code))
             }

@@ -35,7 +35,8 @@ internal interface NativeAdEvents {
 /**
  * Loads native ads with the Google Mobile Ads SDK. Main thread only, like the SDK. [events] gets the callbacks the
  * ad metrics read; one loader loads one ad. [options] are the request options, those of the size by default (the
- * collapsible layer passes its own, plan T-030).
+ * collapsible layer passes its own, plan T-030). [networkLog] logs the networks of each result under [logKey], the key
+ * the load logs under (plan T-058); off by default.
  */
 internal class SdkNativeAdLoader(
     private val context: Context,
@@ -52,9 +53,14 @@ internal class SdkNativeAdLoader(
         onFailed: (code: Int) -> Unit,
     ) {
         val options = (options ?: nativeRequestOptions(size)).toNativeAdOptions()
-        val listener = NativeAdLoadListener(events, onFailed = onFailed)
+        val listener = NativeAdLoadListener(
+            events,
+            onLoadFailedResponse = { networkLog.failed(logKey, it) },
+            onFailed = onFailed,
+        )
         val loader = AdLoader.Builder(context, unitId)
             .forNativeAd { ad ->
+                networkLog.loaded(logKey, ad.responseInfo)
                 events?.let { metrics ->
                     // Attached at load (T-01), before the ad can be shown.
                     ad.setOnPaidEventListener { metrics.onPaid(it) }
@@ -74,7 +80,8 @@ internal class SdkNativeAdLoader(
 
 /**
  * The SDK listener of one native load: hands the load error, impression and click to [events], and marks the
- * impression on the [loaded] ad, so a pool destroys it instead of showing it again (P-01a, plan T-028).
+ * impression on the [loaded] ad, so a pool destroys it instead of showing it again (P-01a, plan T-028). The whole
+ * error goes first to [onLoadFailedResponse], for the per-network log (plan T-058).
  */
 internal class NativeAdLoadListener(
     private val events: NativeAdEvents?,
@@ -85,6 +92,7 @@ internal class NativeAdLoadListener(
     var loaded: SdkLoadedNativeAd? = null
 
     override fun onAdFailedToLoad(error: LoadAdError) {
+        onLoadFailedResponse(error)
         events?.onFailed(error.code, error.message)
         onFailed(error.code)
     }
