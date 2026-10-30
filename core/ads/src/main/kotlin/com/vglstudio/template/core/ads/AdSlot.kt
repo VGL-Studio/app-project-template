@@ -245,7 +245,7 @@ private fun BannerFrameContent(
 
 /**
  * The banner slot of a bottom bar ([BottomAdBarScaffold], D-01): the fixed banner at the anchored adaptive size
- * (refreshed by the SDK, B-01, B-02, ADR-0038) as a layer of the bar's [placement], with the unit of [AdFormat.BANNER] for it; no unit (production today) sends
+ * (refreshed by the SDK, B-01, B-02, ADR-0038) as a layer of the bar's [placement], with the unit of [AdFormat.BANNER] for it; no unit (production without the `banner` slot key) sends
  * nothing and takes no space (B-04). [onHeight] gets the frame's height for the space the bar keeps.
  */
 @Composable
