@@ -19,7 +19,7 @@ created: 2026-10-29
 
 ## Mô tả
 
-Thêm định dạng `banner_mrec` (300 x 250) vào danh sách đóng của `:core:ads` (ADR-0036, điểm 4; anh Nhật chọn 2026-10-29), cùng luật với banner cố định và dừng khi bị che như T-054.
+Thêm định dạng `banner_mrec` (300 x 250) vào danh sách đóng của `:core:ads` (ADR-0036, điểm 3; anh Nhật chọn 2026-10-29), cùng luật với banner cố định và dừng khi bị che như T-054.
 
 ## Phạm vi
 
