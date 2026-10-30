@@ -1,16 +1,16 @@
 ---
 ticket: T-055
 title: Kiểm màn hình trước khi hiện quảng cáo toàn màn hình, xoay máy
-status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft                # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 5.4M         # cỡ S, số gợi ý 5.4M (scripts/token-usage.py estimate, 2026-10-29); giữ nguyên, không nâng tay (L-107)
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật               # người duyệt
-cross_reviewer: Nhật         # bắt buộc khi risk_level là high
-approved_at: 2026-10-30
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -21,6 +21,8 @@ Sửa theo rà soát độc lập (2026-10-29, chưa duyệt nên giữ số phi
 ## 1. Tóm tắt
 
 Trước mọi lần gọi `show` của SDK (interstitial, app open, rewarded; MAX sau này gọi cùng hàm), `:core:ads` kiểm activity sẽ nhận quảng cáo: chưa đóng, chưa hủy và đang là activity resumed của app. Không đạt thì quảng cáo nằm lại trong khe, hàm hoàn tất chạy một lần và có một `ad_show_fail` lý do `app_not_foreground`. Phần xoay máy đã tái hiện được bằng test tạm trên nhánh chính: activity bị tạo lại vì đổi cấu hình làm hoàn tất cưỡng bức chạy ngay, trước khi quảng cáo báo đóng; plan bỏ qua lần hủy có `isChangingConfigurations` và giao lượt cho activity mới của app.
+
+**Phiên bản 2 (2026-10-30).** Bản 1 đã duyệt ngày 2026-10-30 (anh Nhật). Theo rà soát độc lập danh sách chạy RUN-20261030-01: (1) spec đã thêm ngoại lệ "Đổi 2026-10-30" vào KB-16 tiêu chí 7 (inter không được gọi hiện vì màn hình của app không còn dùng được thì không có native, dẫn KB-26 tiêu chí 3); plan dẫn tới ngoại lệ này ở mục 3.1 B, mục 4 (test `interstitial_hostGone_comboOn_noNativeFullScreen`), câu hỏi 2 ở mục 8 và mục 9. (2) Mục 3.2 sửa chỗ kiểm activity trong `showAgain` cho khớp mục 3.1 B và code thật: ở đầu hàm, trước khi đổi `turn.callers`, trước `turn.shows++` và trước lần ghi `busy` (bản 1 ghi "sau `busy`, trước `turn.shows++`", vị trí không có trong code). (3) Mục 6 thêm một câu: nếu T-054 dùng phương án dự phòng `FullScreenAdPresence.handOver(placement)` thì hàm `handOver()` của plan này đổi tên thành `awaitNewHost()`. Giải pháp, danh sách file, test khác và chấm rủi ro không đổi. Mục 9 chờ duyệt lại.
 
 ## 2. Hiểu yêu cầu
 
@@ -58,7 +60,7 @@ Lý do chọn resumed:
 
 **B. Không đạt thì làm gì (một hàm cho mọi định dạng).**
 
-`AdsController` thêm `private fun skipHostGone(placement, onFinished): Boolean`: log `Full-screen <key> skipped: host not usable` (ADR-0019, không ghi mã đơn vị), `telemetry.opportunity(format, placement, "shown", READY)` (câu hỏi 1), `telemetry.showFailed(format, placement, SHOW_FAILED_APP_NOT_FOREGROUND)` với hằng số mới `SHOW_FAILED_APP_NOT_FOREGROUND = 3` cạnh `SHOW_FAILED_INTERNAL` (`showFailReasonOf(3)` đã trả `app_not_foreground`, `AdTelemetryRules.kt:82`), rồi chạy `onFinished` một lần qua `FullScreenCompletion` như `skipTurn`, trả `false`. Không bật cờ "đang hiện", không ghi mốc `ads_interval`, không nạp (quảng cáo còn trong khe), không mở native sau inter (câu hỏi 2).
+`AdsController` thêm `private fun skipHostGone(placement, onFinished): Boolean`: log `Full-screen <key> skipped: host not usable` (ADR-0019, không ghi mã đơn vị), `telemetry.opportunity(format, placement, "shown", READY)` (câu hỏi 1), `telemetry.showFailed(format, placement, SHOW_FAILED_APP_NOT_FOREGROUND)` với hằng số mới `SHOW_FAILED_APP_NOT_FOREGROUND = 3` cạnh `SHOW_FAILED_INTERNAL` (`showFailReasonOf(3)` đã trả `app_not_foreground`, `AdTelemetryRules.kt:82`), rồi chạy `onFinished` một lần qua `FullScreenCompletion` như `skipTurn`, trả `false`. Không bật cờ "đang hiện", không ghi mốc `ads_interval`, không nạp (quảng cáo còn trong khe), không mở native sau inter (câu hỏi 2; spec KB-16 tiêu chí 7 có ngoại lệ "Đổi 2026-10-30" cho đúng trường hợp này).
 
 Chỗ gọi:
 
@@ -95,7 +97,7 @@ Mẫu theo: `skipTurn`, `FullScreenCompletion`, `StuckFullScreenRecovery`, `isAc
 | Tạo | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenHost.kt` | `fullScreenHostUsable`, `hostDestroyedAction`, `HostDestroyedAction` (mục 3.1 A, C) |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `isHostUsable`, `skipHostGone`, `SHOW_FAILED_APP_NOT_FOREGROUND`; kiểm ở `showInterstitialTurn`, `showAppOpen`; bỏ kiểm sớm của `showStartupAd`; hai hàm mới của port rewarded; `onAppActivityDestroyed`, `onAppActivityResumed` theo mục 3.1 C; ba hàm `put...ForTest`; KDoc của `showInterstitial`, `showStartupAd`, `onAppActivityDestroyed` |
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/FullScreenAdPresence.kt` | `Shown.awaitingHost`, `handOver()`, `rehostIfAwaiting(activityId)` giữ `startedAt` |
-| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/RewardedTurns.kt` | `RewardedPort.hostUsable`, `RewardedPort.recordShowFailed`; `DecisionStep.HOST_GONE` trong `decide` trước `port.take`; kiểm trong `showAgain` sau `busy`, trước `turn.shows++`; KDoc |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/RewardedTurns.kt` | `RewardedPort.hostUsable`, `RewardedPort.recordShowFailed`; `DecisionStep.HOST_GONE` trong `decide` trước `port.take`; kiểm trong `showAgain` ở đầu hàm (mục 3.1 B): trước khi đổi `turn.callers` (dòng 366-367), trước `turn.shows++` (dòng 368) và trước lần ghi `busy` (`port.recordOpportunity(declaration, BUSY, ...)`, dòng 369); nhánh activity không dùng được tự ghi `busy`, gửi `recordShowFailed` rồi trả về, không chạm `callers`, `shows`; KDoc |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenHostTest.kt` | Test thuần của mục 4 |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeFullScreenSdkAds.kt` | `FakeInterstitialAd`, `FakeAppOpenAd`, `FakeRewardedAd` |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerHostTest.kt` | Test Robolectric của controller thật (mục 4): kiểm trước khi hiện, xoay máy; activity thử `ChangingActivity` (lớp con của `ComponentActivity`, cờ `changing` mà `isChangingConfigurations()` trả về) khai báo trong file |
@@ -165,7 +167,7 @@ Kết luận: tái hiện được. Trên code hiện tại, dựng lại activi
 | KB-26, tiêu chí 3: hàm kiểm | Unit test | `FullScreenHostTest.hostUsable_onlyWhenAliveAndResumed`: 8 tổ hợp `(finishing, destroyed, resumed)`, chỉ `(false, false, true)` trả `true` |
 | KB-26, tiêu chí 3: interstitial, activity đã dừng | Unit test Robolectric | `AdsControllerHostTest.interstitial_stoppedHost_notShown_keptInSlot_showFailOnce`: controller `start()`, cổng mở, khóa bật, `putLoadedInterstitialForTest(GALLERY_INTERSTITIAL, fake)`; activity `pause().stop()`; `showInterstitial` trả `false`, `fake.shows == 0`, `onFinished` 1 lần, `isFullScreenAdReady(GALLERY_INTERSTITIAL) == true`, `fullScreenAdShowing == false`, `RecordingAdMetrics` có đúng một `ShowFail("INTER", "gallery_interstitial", "3", "app_not_foreground")` và một cơ hội `shown`. Đối chứng trong cùng test: activity thứ hai resumed, gọi lại thì `fake.shows == 1`, trả `true`. Trên nhánh chính: `fake.shows == 1` ở activity đã dừng (bảng trên) |
 | KB-26, tiêu chí 3: interstitial, activity đang đóng, đã hủy | Unit test Robolectric | `interstitial_finishingHost_notShown_keptInSlot`, `interstitial_destroyedHost_notShown_keptInSlot`: như trên với `finish()` và `pause().stop().destroy()` |
-| KB-26, tiêu chí 3: không mở native sau inter | Unit test Robolectric | `interstitial_hostGone_comboOn_noNativeFullScreen`: `IS_SHOW_NATIVE_AFTER_INTER` bật, activity đã dừng; sau `idleFor(2_100)` `nativeFullScreenView.value == null`, `onFinished` 1 lần; đối chứng: theo câu hỏi 2, nếu người duyệt chọn có combo thì câu này đổi trước khi duyệt |
+| KB-26, tiêu chí 3: không mở native sau inter | Unit test Robolectric | `interstitial_hostGone_comboOn_noNativeFullScreen`: `IS_SHOW_NATIVE_AFTER_INTER` bật, activity đã dừng; sau `idleFor(2_100)` `nativeFullScreenView.value == null`, `onFinished` 1 lần; đối chứng: theo câu hỏi 2, nếu người duyệt chọn có combo thì câu này đổi trước khi duyệt. Khớp ngoại lệ "Đổi 2026-10-30" của KB-16 tiêu chí 7 trong spec |
 | KB-26, tiêu chí 3: app open (màn xem thử) | Unit test Robolectric | `appOpen_stoppedHost_notShown_keptInSlot_showFailOnce`: `putLoadedAppOpenForTest(GALLERY_APP_OPEN, fake)`, `showStagingAppOpen(activity đã dừng, ...)`: `fake.shows == 0`, `onFinished` 1, quảng cáo còn trong khe, `ShowFail("APP_OPEN", "gallery_app_open", "3", "app_not_foreground")` một lần; đối chứng activity resumed: `fake.shows == 1` |
 | KB-26, tiêu chí 3: lúc mở app | Unit test Robolectric | `startup_destroyedHost_appOpen_showFail_finishesFalse`: khóa chọn `open_app` của lần mở này (như `StartupAdChoiceTest`), `putLoadedAppOpenForTest(OPEN_APP, fake)`, `showStartupAd(activity đã hủy, StartupAdTurn(OPEN_APP))`: kết quả `[false]`, `fake.shows == 0`, một `ShowFail` mã 3. Trên nhánh chính: `[false]`, không sự kiện (bảng trên) |
 | KB-26, tiêu chí 3: quay lại app vẫn hiện (đối chứng của cách đọc resumed) | Unit test Robolectric | `resumeAd_fromOnActivityResumed_passesHostCheck`: theo cách dựng của `AdsControllerResumeTest` (resume bật, app open sẵn trong khe bằng `putLoadedAppOpenForTest(RESUME, fake)`), đưa activity ra nền rồi về (`pause().stop()`, `start().resume()`): `fake.shows == 1` và `show` nhận đúng activity đó. Đột biến: đọc `Lifecycle.currentState` thay cho tracker thì test này đỏ |
@@ -208,6 +210,7 @@ Kết quả `scripts/existing-tests.py` (nhóm "Cần xem trước", "Nên xem")
 
 - File hoặc thành phần dùng chung bị chạm: `AdsController.kt`, `RewardedTurns.kt`, `FullScreenAdPresence.kt`, `docs/ops/ads-business-rules.md`. Mọi feature gọi quảng cáo toàn màn hình qua `rememberShowFullScreenAd`, `rememberRewardedAction`, màn loading (`rememberShowStartupAd`) và vỏ app (quảng cáo khi quay lại) đi qua phần đổi.
 - Task khác trong sprint có thể xung đột: T-054 (sửa `AdsController.kt` ở phần quảng cáo trong màn hình, `ads-business-rules.md` các dòng B-07, D-06, O-10, CL-02, P-05, mục 12), T-058 (`AdsController.kt` phần khởi động SDK và callback tải, `AdsControllerFixtures.kt`), T-059 (`AdsController.kt`, phần native trong danh sách thử lại khi lỗi), T-063 (KDoc của `isEnabled`, `ads-business-rules.md` MC-11): khác vùng code và khác dòng luật, chỉ xung đột vị trí khi merge. T-069 (MAX) phải gọi `isHostUsable` trước `show` của MAX, ghi trong KDoc của hàm.
+- Trùng tên với T-054: plan T-054 có phương án dự phòng `FullScreenAdPresence.handOver(placement)` (nghĩa khác). Nếu T-054 rơi vào phương án đó thì T-055 đổi tên hàm `handOver()` của mình (mục 3.1 C, 3.2, 4) thành `awaitNewHost()`; hành vi không đổi.
 - Đề xuất thứ tự chạy (theo rà soát độc lập): T-054, rồi T-058, rồi T-059, rồi T-055 nếu chúng cùng danh sách (vùng sửa của chúng trong `AdsController.kt` lớn hơn); T-055 trước T-069, vì MAX phải gọi `isHostUsable`.
 
 ## 7. Điều kiện dừng riêng
@@ -218,16 +221,22 @@ Kết quả `scripts/existing-tests.py` (nhóm "Cần xem trước", "Nên xem")
 ## 8. Câu hỏi cho người duyệt
 
 1. **Lượt bị bỏ vì activity không dùng được có ghi `ad_opportunity` không, giá trị gì?** Mục 8.2 nói mỗi lượt gọi hiện có đúng một kết quả. Đề xuất của AI: ghi `shown` (cổng đã cho hiện) rồi `ad_show_fail` `app_not_foreground`, giống hệt khi SDK tự báo lỗi hiện mã 3, để tỷ lệ lỗi hiện (`ad_show_fail` trên `shown`) giữ một cách tính. Phương án khác: ghi `not_ready`, hay không ghi cơ hội.
-2. **Interstitial bị bỏ vì activity không dùng được có mở native sau inter không?** KB-16, tiêu chí 7 nói inter đã được phép hiện mà không lên được màn ("lỗi hiển thị") thì vẫn có native; KB-26, tiêu chí 3 nói "người dùng đi tiếp ngay". Hai câu có thể mâu thuẫn ở trường hợp này. Đề xuất của AI: không mở native, đi tiếp ngay theo KB-26 (kịch bản mới, nói thẳng trường hợp này), vì native vẽ trong cây Compose của chính activity đang đóng hay ở nền: không ai thấy và đếm ngược chạy ở nền. Cần anh Nhật chốt và ghi vào spec nếu chọn khác.
+2. **Interstitial bị bỏ vì activity không dùng được có mở native sau inter không?** KB-16, tiêu chí 7 nói inter đã được phép hiện mà không lên được màn ("lỗi hiển thị") thì vẫn có native; KB-26, tiêu chí 3 nói "người dùng đi tiếp ngay". Hai câu có thể mâu thuẫn ở trường hợp này. Đề xuất của AI: không mở native, đi tiếp ngay theo KB-26 (kịch bản mới, nói thẳng trường hợp này), vì native vẽ trong cây Compose của chính activity đang đóng hay ở nền: không ai thấy và đếm ngược chạy ở nền. Cần anh Nhật chốt và ghi vào spec nếu chọn khác. Đã chốt: spec KB-16 tiêu chí 7 có ngoại lệ "Đổi 2026-10-30" (trừ khi interstitial không được gọi hiện vì màn hình của app không còn dùng được, KB-26 tiêu chí 3), nên hai tiêu chí không còn mâu thuẫn.
 3. **Rewarded bị bỏ vì activity không dùng được thì hành động có chạy không?** Đề xuất của AI: như hiện lỗi (R-04): `NoAd(network = false, granted = <theo chính sách vị trí>)`, có tính một lần không có quảng cáo. Người dùng thường đã ra nền hay xoay máy giữa lúc chờ; hộp thoại của rewarded vẫn ở màn khi họ quay lại. Phương án khác: `NoAd(granted = false)` không tính lần thử.
 4. **Hàm hoàn tất của feature giữ đối tượng của activity cũ.** Sau khi xoay, `onFinished` mà feature truyền vào `rememberShowFullScreenAd` là lambda của composition cũ (ví dụ một `navController` đã gỡ); điều hướng trong đó có thể mất. Plan không đổi phần này (ticket không nêu, và màn loading dùng `LoadingViewModel.onAdFinished` nên không bị). Đề xuất của AI: ghi vào `docs/ops/ads-guide.md` ở một ticket sau: hành động sau quảng cáo đi qua ViewModel hay trạng thái giữ qua dựng lại. Có làm trong ticket này không?
 5. **Callback đóng thất lạc sau khi xoay (cả hai trường hợp của mục 3.1 C):** dấu che của activity cũ không chuyển sang activity mới, nên lượt chờ lần che rồi hiện lại kế tiếp của activity mới, hay trần 10 phút (F-02), chứ không gỡ ngay khi người dùng về app như KB-15, tiêu chí 5 ở lượt không xoay. Lý do chọn: chuyển dấu che làm lần resumed đầu của activity mới gỡ kẹt ngay, trước callback đóng thật, nên rewarded mất thưởng và tiêu chí 4 của KB-26 không giữ được. Cùng loại khoảng hở đã biết, rà soát lại chấp nhận là ghi chú: lượt thất lạc chỉ được trần 10 phút của F-02 gỡ khi activity mới không bị che lần nào; app có nhiều activity thì activity đầu tiên của app resumed sau `HAND_OVER` nhận lượt, có thể không phải bản mới của activity chủ; activity mới bị hủy trước khi kịp resumed thì lượt vẫn chờ tới trần. Đề xuất của AI: chấp nhận các khoảng hở này cho trường hợp hiếm; không thêm hẹn giờ.
 
 ## 9. Quyết định duyệt
 
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <...>
+
+Phiên bản 1:
+
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
-- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) ghi `shown` rồi `ad_show_fail` `app_not_foreground`. (2) không mở native, đi tiếp ngay theo KB-26. (3) như R-04: `NoAd(network = false, granted = <theo chính sách vị trí>)`, có tính một lần. (4) không làm trong ticket này; hướng dẫn "hành động sau quảng cáo đi qua ViewModel" ghi ở một ticket sau. (5) chấp nhận các khoảng hở cho trường hợp hiếm, không thêm hẹn giờ.
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30 (lời anh Nhật: "Duyệt các plan."), cùng 11 plan khác của đợt 4 quảng cáo, sau khi xem bảng tóm tắt plan và câu hỏi AI gửi trong phiên. Mọi câu ở mục 8 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: (1) ghi `shown` rồi `ad_show_fail` `app_not_foreground`. (2) không mở native, đi tiếp ngay theo KB-26 (spec ghi ngoại lệ "Đổi 2026-10-30" ở KB-16 tiêu chí 7 sau rà soát RUN-20261030-01). (3) như R-04: `NoAd(network = false, granted = <theo chính sách vị trí>)`, có tính một lần. (4) không làm trong ticket này; hướng dẫn "hành động sau quảng cáo đi qua ViewModel" ghi ở một ticket sau. (5) chấp nhận các khoảng hở cho trường hợp hiếm, không thêm hẹn giờ.
 
 ## 10. Nhật ký thực hiện
 
