@@ -78,6 +78,36 @@ class MaxSdkStarterTest {
     }
 
     @Test
+    fun notStarted_whileGateClosed() {
+        // Plan T-068 version 3, question 9: every start of MAX needs the consent gate open at that moment.
+        val platform = FakeMaxPlatform()
+        var gateAllowed = true
+        val starter = MaxSdkStarter(MaxConfig(FAKE_KEY), platform, logger) { gateAllowed }
+        starter.onAdmobReady(MediationOrder.ADMOB)
+        gateAllowed = false
+        starter.onOrderChanged(MediationOrder.MAX_ADMOB)
+        assertEquals(0, platform.calls)
+        // Control (L-055): the same starter starts once the gate is open again.
+        gateAllowed = true
+        starter.onOrderChanged(MediationOrder.MAX_ADMOB)
+        assertEquals(1, platform.calls)
+    }
+
+    @Test
+    fun notStarted_whenGateClosedBeforeAdmobReady() {
+        // Plan T-068 version 4: the gate closed while startSdk waited up to 35 s for AdMob (S-21).
+        val platform = FakeMaxPlatform()
+        var gateAllowed = false
+        val starter = MaxSdkStarter(MaxConfig(FAKE_KEY), platform, logger) { gateAllowed }
+        starter.onAdmobReady(MediationOrder.MAX_ADMOB)
+        assertEquals(0, platform.calls)
+        // Control (L-055): the gate open again, the next ask starts MAX.
+        gateAllowed = true
+        starter.onOrderChanged(MediationOrder.MAX_ADMOB)
+        assertEquals(1, platform.calls)
+    }
+
+    @Test
     fun alreadyInitializedByAdmob_warnsAndStarts() {
         val platform = FakeMaxPlatform(isInitialized = true)
         starter(platform = platform).onAdmobReady(MediationOrder.MAX_ADMOB)

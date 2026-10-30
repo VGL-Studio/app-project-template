@@ -60,6 +60,46 @@ class AdsControllerMaxTest {
         assertEquals(MediationOrder.MAX, controller.mediationOrder.value)
     }
 
+    @Test
+    fun gateReopened_startsMaxIfNotStarted() {
+        // Plan T-068 versions 3 and 4, S-14: consent given again starts MAX if it has not started.
+        val controller = controller(MaxConfig(FAKE_KEY))
+        controller.start(application, AppActivityFilter { true })
+        idle()
+        controller.openConsentGateForTest()
+        setOrder("admob")
+        controller.admobReadyForTest()
+        idle()
+        assertEquals(0, platform.calls)
+        controller.closeConsentGateForTest()
+        idle()
+        setOrder("max_admob")
+        assertEquals(MediationOrder.MAX_ADMOB, controller.mediationOrder.value)
+        assertEquals(0, platform.calls)
+        controller.reopenConsentGateForTest()
+        idle()
+        assertEquals(1, platform.calls)
+    }
+
+    @Test
+    fun gateClosedWhileWaitingForAdmob_maxNotStarted() {
+        // Plan T-068 version 4, KB-31: the gate closed while startSdk waited for AdMob to be ready (S-21).
+        val controller = controller(MaxConfig(FAKE_KEY))
+        controller.start(application, AppActivityFilter { true })
+        idle()
+        controller.openConsentGateForTest()
+        setOrder("max_admob")
+        controller.closeConsentGateForTest()
+        idle()
+        controller.admobReadyForTest()
+        idle()
+        assertEquals(0, platform.calls)
+        // Control (L-055): MAX was held back by the closed gate only; the gate open again starts it.
+        controller.reopenConsentGateForTest()
+        idle()
+        assertEquals(1, platform.calls)
+    }
+
     private companion object {
         val FAKE_KEY = "FAKE" + "k".repeat(82)
     }

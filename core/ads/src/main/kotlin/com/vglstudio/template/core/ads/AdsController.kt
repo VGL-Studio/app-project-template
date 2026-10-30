@@ -1255,6 +1255,21 @@ class AdsController @Inject internal constructor(
         sdkStarted.value = true
     }
 
+    /** Tests only: the user withdraws consent in the privacy options form (S-14, plan T-068). */
+    @VisibleForTesting
+    internal fun closeConsentGateForTest() {
+    }
+
+    /** Tests only: the consent gate opens again, as `ConsentCoordinator` reports it (S-14, plan T-068). */
+    @VisibleForTesting
+    internal fun reopenConsentGateForTest() {
+    }
+
+    /** Tests only: AdMob is ready (S-21) and MAX is asked to start, as `startAdsSdks` does (plan T-068). */
+    @VisibleForTesting
+    internal fun admobReadyForTest() {
+    }
+
     /**
      * True while the in-screen ads (banner, native small, collapsible layer, pool cells) may send, refresh or retry:
      * an app activity is started and no full-screen ad is on screen ([inScreenAdsMayRun], KB-27, plan T-054). Not
