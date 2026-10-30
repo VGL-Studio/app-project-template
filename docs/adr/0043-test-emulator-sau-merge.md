@@ -1,5 +1,5 @@
 ---
-id: ADR-0040
+id: ADR-0043
 title: Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
 status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
@@ -9,7 +9,7 @@ supersedes: ADR-0010         # chỉ thay ý emulator của mục 1 và hai ý e
 superseded_by:
 ---
 
-# ADR-0040: TEST TRÊN EMULATOR CHẠY MỘT LẦN CHO MỖI COMMIT ĐỔI CODE APP CỦA NHÁNH CHÍNH, TRONG JOB UI-TEST CỦA MAIN-GUARD, KHÔNG CHẠY Ở PR
+# ADR-0043: TEST TRÊN EMULATOR CHẠY MỘT LẦN CHO MỖI COMMIT ĐỔI CODE APP CỦA NHÁNH CHÍNH, TRONG JOB UI-TEST CỦA MAIN-GUARD, KHÔNG CHẠY Ở PR
 
 Nguồn: yêu cầu giảm chi phí GitHub Actions (`docs/features/quy-trinh/requests/2026-10-29-giam-phut-actions.md`, cách 3), ticket T-075.
 

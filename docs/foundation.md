@@ -278,7 +278,15 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - commit đổi một file mà job `guard` gọi hay dựa vào, lần chạy tay và lần chạy lại luôn dùng `full`
 - đổi tên bước cổng chất lượng hay tên job `build-and-test` của `pr-check.yml`, hay thêm file trong `docs/` mà Gradle đọc, thì sửa `main-guard-verified.sh` và test của nó cùng PR
 
-### [ADR-0040](adr/0040-test-emulator-sau-merge.md): Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
+### [ADR-0040](adr/0040-bo-build-agp-9.md): Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, compileSdk 37, targetSdk 36
+
+- không áp dụng plugin `org.jetbrains.kotlin.android`
+- trong `build-logic`, cấu hình module Android qua thuộc tính của `CommonExtension` của AGP 9
+- không đặt `android.newDsl=false` ngoài ngoại lệ của plan T-080, plugin cần DSL cũ thì nâng plugin đó
+- giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
+- nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
+
+### [ADR-0043](adr/0043-test-emulator-sau-merge.md): Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
 
 - test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`
 - `merge-if-green.sh` không đòi hay chờ `ui-test`

@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-127 (issue #276), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: L
 depends_on: [T-079]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-080-bo-build-agp-9.md
 auto_run: false              # làm trong phiên có người theo dõi (quyết định 2026-10-29)
 created: 2026-10-29
 ---
