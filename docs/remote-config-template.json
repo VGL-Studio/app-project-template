@@ -56,6 +56,11 @@
       "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_banner_collapsible (banner_collapsible).",
       "valueType": "BOOLEAN"
     },
+    "is_show_gallery_banner_mrec": {
+      "defaultValue": { "value": "false" },
+      "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_banner_mrec (banner_mrec).",
+      "valueType": "BOOLEAN"
+    },
     "is_show_gallery_in_collection": {
       "defaultValue": { "value": "false" },
       "description": "Shows ads in this placement. Off by default. Staging ad gallery only. Derived key of placement gallery_in_collection (native_in_collection).",

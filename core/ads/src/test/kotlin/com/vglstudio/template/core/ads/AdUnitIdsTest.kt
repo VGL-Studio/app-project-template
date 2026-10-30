@@ -50,10 +50,24 @@ class AdUnitIdsTest {
     @Test
     fun googleTestIds_coverGalleryPlacements() {
         val gallery = AdPlacement.entries.filter { it.stagingOnly }
-        assertEquals(13, gallery.size)
+        assertEquals(14, gallery.size)
         gallery.forEach { placement ->
             assertTrue(placement.key, GoogleTestAdUnitIds.of(placement).startsWith("ca-app-pub-3940256099942544/"))
         }
+    }
+
+    @Test
+    fun googleTestUnit_bannerMrec_isFixedSizeBannerUnit() {
+        // Google's fixed-size banner unit, used for every fixed size, 300 x 250 too (plan T-062, question 1).
+        val fixedSize = "ca-app-pub-3940256099942544/6300978111"
+        // Control: the adaptive banner has its own unit.
+        assertEquals("ca-app-pub-3940256099942544/9214589741", GoogleTestAdUnitIds.unitFor(AdFormat.BANNER))
+        assertEquals(fixedSize, GoogleTestAdUnitIds.unitFor(AdFormat.BANNER_MREC))
+        assertEquals(fixedSize, GoogleTestAdUnitIds.of(AdPlacement.GALLERY_BANNER_MREC))
+        // Staging only: production never gets a unit for it, nor reports it missing.
+        val configured = ConfiguredAdUnitIds("gallery_banner_mrec=x")
+        assertNull(configured.of(AdPlacement.GALLERY_BANNER_MREC))
+        assertTrue("gallery_banner_mrec" !in configured.missing)
     }
 
     @Test(expected = IllegalArgumentException::class)

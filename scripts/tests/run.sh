@@ -5359,6 +5359,24 @@ else
     "$(python3 -I scripts/ads-plan.py --dump --with-staging --no-examples | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)["placements"]))')"
   expect "ads-plan: this repo lists its app-wide placements" True \
     "$(python3 -I scripts/ads-plan.py --dump | python3 -I -c 'import json,sys; c={p["code"] for p in json.load(sys.stdin)["placements"]}; print({"open_app","open_app_inter","resume","resume_inter","native_combo"} <= c)')"
+  # The format sheet has one row per AdFormat code, read with the regex of read_placements (plan T-062).
+  expect "ads-plan: the format table lists every AdFormat code of :core:ads" True \
+    "$(python3 -I - "$ap_real_file" << 'PY'
+import re, runpy, sys
+plan = runpy.run_path("scripts/ads-plan.py")
+text = open(sys.argv[1]).read().split("enum class AdPlacement")[0]
+codes = {code for _, code in re.findall(r'^\s*([A-Z_]+)\("([a-z_]+)"\),', text, re.M)}
+print(bool(codes) and codes == {row[0] for row in plan["FORMATS"]})
+PY
+)"
+  expect "ads-plan: banner_mrec is a placement format with metric code BANNER_MREC" "True BANNER_MREC" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+rows = {row[0]: row for row in plan["FORMATS"]}
+print("banner_mrec" in plan["PLACEMENT_FORMATS"], rows["banner_mrec"][6] if "banner_mrec" in rows else None)
+PY
+)"
 fi
 if python3 -I -c 'import openpyxl' 2> /dev/null; then
   ads_plan --out "$work/ap-1.xlsx" > /dev/null
