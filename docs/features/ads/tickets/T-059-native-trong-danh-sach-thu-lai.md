@@ -5,10 +5,10 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-3]
 owner: Nhật
-status: approved
+status: planned
 risk: high
 size: S
-depends_on: [T-054]
+depends_on: [T-054, T-058]
 sprint:
 plan: features/ads/plans/T-059-native-trong-danh-sach-thu-lai.md
 auto_run: 

@@ -5,10 +5,10 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-28]
 owner: Nhật
-status: approved
+status: planned
 risk: high
 size: S
-depends_on: []
+depends_on: [T-054]
 sprint:
 plan: features/ads/plans/T-058-may-thu-va-log-tung-mang.md
 auto_run: 

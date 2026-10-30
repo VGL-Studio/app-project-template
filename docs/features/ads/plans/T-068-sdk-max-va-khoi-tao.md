@@ -216,6 +216,8 @@ Nơi đọc các file bị đổi (L-020), tìm bằng `grep -rn <tên file> scr
 | Khóa tên do ta đặt có ghi chú trong mô tả | Khóa mới dùng `stringKey`, tự thêm "Name set by the template, not an AdsKit key." | `AdsSettingsTest.keysNamedByTemplate_areMarked`, `allKeys_haveUniqueNames`, `allKeys_containsEveryDeclaredKey` | Giữ, qua không sửa |
 | Bảng khóa liệt kê mọi khóa | Thêm một dòng, sinh lại (bước 12) | `RemoteConfigKeysTest.everyFeatureFlagAndPlacement_isListed` và các test so file của lớp này | Giữ; đỏ tới khi sinh lại file, đúng ý |
 
+Lần chạy lại 2026-10-30 trên bản 2 (rà soát lại RUN-20261030-01) thêm 4 test "Cần xem trước": `AdGalleryScreenTest.collapsibleCollapsed_slotAt795`, `AdGalleryScreenTest.collapsible_pinsAdAtBottom`, `CollapsibleNativeAdTest.layer_leavesAdChoicesTopStartCornerFree`, `RewardedActionTest.backgroundWhileDecisionWaits_timeout_closesOnce`. Cả bốn chỉ khớp vì tên chung `start` hay dựng qua `testAdsController` (MAX tắt khi không có khóa), nên giữ, qua không sửa.
+
 Nhóm "Cần xem trước" (3 test, đo bố cục): `RewardedActionTest.longContent_small_buttonsInsideWindow`, `RewardedActionTest.noThanksText_usesOnSurfaceVariant_light_and_dark`, `RewardedActionTest.watchButton_is56dpHigh_fullCardWidth`. Cả ba chỉ trùng tên hàm `start` (`ActivityScenario` hay `AdsController.start`) và đo hộp thoại rewarded mà plan không đổi; controller dựng qua `testAdsController`, nhận `MaxConfig.NONE`. Giữ, không câu khẳng định nào đổi.
 
 Nhóm "Nên xem" (95 test), theo tên mà test dùng:
