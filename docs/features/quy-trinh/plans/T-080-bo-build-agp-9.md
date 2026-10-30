@@ -1,16 +1,16 @@
 ---
 ticket: T-080
 title: Bộ build AGP 9.1, Gradle 9.3.1, compileSdk 37, không đổi ảnh chuẩn
-status: draft
+status: approved
 version: 1
 risk_score: 11
 risk_level: high
 token_estimate: 30.0M
 blocking_points: [build, sdk]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-10-30
 lane:
 ---
 
@@ -299,8 +299,10 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-30):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3; plan đã qua hai vòng rà soát độc lập: vòng 1 có 1 chặn và 9 nên sửa, vòng 2 có 0 chặn và 7 nên sửa, đều đã sửa ở PR #314)
+- **Ghi chú:** trả lời mục 8: (1) nâng Roborazzi 1.77.0 trong T-080 (phương án B), phương án A là dự phòng; (2) giữ AGP 9.1.0 và cảnh báo compileSdk 37, không đặt `android.suppressUnsupportedCompileSdk`; (3) `failOnNoDiscoveredTests = false` chỉ ở module không có `src/test`; (4) T-080 merge trước khi lập danh sách chạy có các plan quảng cáo; (5) chấp nhận chưa dựng bản production, ghi vào Cần người kiểm tra của nhật ký; (6) thêm dòng ghi chú dưới tiêu đề ADR-0011; (7) ADR-0040 ghi `accepted` lúc duyệt, làm T-080 ngay sau đó. Làm trong phiên có người theo dõi.
 
 ## 10. Nhật ký thực hiện
