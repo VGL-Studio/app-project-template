@@ -301,7 +301,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - chỉ job chạy `scripts/check.sh`, Gradle hay emulator mà không đọc `secrets.` mới khai báo `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`
 - job có `secrets.` và job nhẹ giữ `runs-on: ubuntu-latest`
 - job nặng gọi `scripts/runner-check.sh` ở bước ngay sau `actions/checkout`, với `if: runner.environment == 'self-hosted'`, trước `setup-java`, `setup-gradle` và mọi bước build
-- bước đứng trước bước kiểm runner không ghi vào thư mục làm việc hay `~/.gradle`
+- bước đứng trước bước kiểm runner không ghi vào `~/.gradle`, và trong thư mục làm việc chỉ ghi `build.log` trên đường lỗi
 - không coi `runner-check.sh` là hàng rào an toàn, nó chỉ bắt cấu hình nhầm
 - bước dùng `sudo` trong job nặng có `if: runner.environment == 'github-hosted'`
 - không đặt `clean: false` cho `actions/checkout` của job nặng

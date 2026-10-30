@@ -44,7 +44,7 @@ Ticket quy trình, không có spec nghiệp vụ. Yêu cầu: `features/quy-trin
 
 **Giả định về T-075, T-076, T-077.** Ngày 2026-10-30 cả ba đang ở dạng plan draft: PR #318, #315, #316. Plan này lấy chúng làm gốc:
 
-- T-075 (PR #318): `ui-test` rời `pr-check.yml`. Job mới `ui-test` trong `main-guard.yml` có `needs: guard`, `if: needs.guard.outputs.ui == 'yes'` và `timeout-minutes: 60`. Hai bước "Giải phóng đĩa cho emulator" và "Bật KVM cho emulator" chép nguyên từ `pr-check.yml`, không có `if:`. Job dùng quyền cấp workflow của `main-guard.yml` (`contents: write`, `issues: write`, `checks: read`, `actions: read`, `pull-requests: read`).
+- T-075 (PR #318): `ui-test` rời `pr-check.yml`. Job mới `ui-test` trong `main-guard.yml` có `needs: guard`, `if: needs.guard.outputs.ui != 'no'` (theo bản mới nhất của plan T-075) và `timeout-minutes: 60`. Hai bước "Giải phóng đĩa cho emulator" và "Bật KVM cho emulator" chép nguyên từ `pr-check.yml`, không có `if:`. Job dùng quyền cấp workflow của `main-guard.yml` (`contents: write`, `issues: write`, `checks: read`, `actions: read`, `pull-requests: read`).
 - T-076 (PR #315): `pr-check.yml` chỉ còn job `build-and-test`. Job mở đầu bằng bước `Lọc đường dẫn (dorny/paths-filter)` và bước `Kiểm kết quả lọc đường dẫn`, đứng trước `actions/checkout`. Phương án dự phòng của T-076 có thể dời bước lọc ra sau checkout.
 - T-077 (PR #316):
   - `pr-check.yml`: khai báo `types`, và job `build-and-test` có `if:` cấp job `github.event.pull_request.draft == false`;
@@ -117,7 +117,7 @@ ADR liên quan: ADR-0042 (mới, `proposed`), ADR-0009 và ADR-0017 (phát hành
 - `pr-check.yml`, job `build-and-test`:
   - `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`; `if:` cấp job của T-077 giữ nguyên.
   - Bước kiểm runner đứng ngay sau `actions/checkout`: `name: Kiểm runner tự host (scripts/runner-check.sh)`, `if: runner.environment == 'self-hosted'`, `env: REPO_VISIBILITY: ${{ github.event.repository.visibility }}`, `run: scripts/runner-check.sh`.
-  - Hai bước lọc của T-076 đứng trước checkout. Chúng chỉ đọc API và ghi `$GITHUB_OUTPUT`, không ghi vào thư mục làm việc hay `~/.gradle`. Luật này (ADR-0042 mục 3) có test 3.
+  - Hai bước lọc của T-076 đứng trước checkout. Chúng đọc API, ghi `$GITHUB_OUTPUT`, và trên đường lỗi ghi `build.log` vào thư mục làm việc (`echo ... | tee -a build.log`, để bước bình luận lỗi đọc được). Chúng không ghi vào `~/.gradle`. Ghi `build.log` vô hại: job dừng đỏ ngay ở bước đó, và `actions/checkout` sau đó dọn thư mục làm việc (`git clean -ffdx`). Luật này (ADR-0042 mục 3) có test 3.
   - Chú thích đầu file: một dòng dẫn ADR-0042.
   - Nếu T-075 chưa merge và `ui-test` còn trong file: làm như `ui-test` của `main-guard` dưới đây.
 - `main-guard.yml`:
@@ -151,10 +151,15 @@ Chi tiết khác:
 
 **`scripts/resume-check.py`: không mở lại phiên khi job đang chờ runner tự host.**
 
-- Trước khi in danh sách chạy để tiếp tục, script đọc các lần chạy chưa xong của repo: `actions/runs?status=queued&per_page=20` và `actions/runs?status=in_progress&per_page=20`. Với mỗi lần chạy, đọc `actions/runs/<id>/jobs?per_page=50` và dùng cùng bốn điều như `wait-run.sh`, ngưỡng `RESUME_RUNNER_QUEUE_MINUTES` (mặc định 75).
-- Có lần chạy như vậy thì không tiếp tục. Stderr ghi `Không tiếp tục: job <tên> (lần chạy <id>) chờ runner tự host ... (ADR-0042).` và mã thoát giữ 0, như các lý do không tiếp tục khác.
-- Người sửa máy hay xóa biến, rồi hủy và chạy lại lần chạy đó. Hàng chờ sạch thì `resume-run.yml` tiếp tục phiên ở giờ kế.
-- Đọc lỗi thì giữ cách cũ: mã 1, không đổi gì.
+- Trước khi in danh sách chạy để tiếp tục, script đọc các lần chạy chưa xong của repo: `actions/runs?status=queued&per_page=20` và `actions/runs?status=in_progress&per_page=20`. Với mỗi lần chạy, script đọc `actions/runs/<id>/jobs?per_page=50`.
+- Có bất kỳ job nào `status == "queued"` mang nhãn không khớp `^(ubuntu|windows|macos)-` thì không tiếp tục. Không có ngưỡng thời gian, vì hai lý do:
+  - phiên bị coi là đứng im sau 90 phút không commit, trong khi mốc 75 phút của `wait-run.sh` tính từ lúc job được phép chạy, nên có thể bắt đầu muộn hơn nhiều;
+  - phiên cũ có thể vẫn đang chờ chính job đó.
+
+  Khi đó stderr ghi `Không tiếp tục: job <tên> (lần chạy <id>) đang chờ runner tự host (ADR-0042).`, mã thoát giữ 0, như các lý do không tiếp tục khác.
+- Người sửa máy hay xóa biến, rồi hủy và chạy lại lần chạy đó. Hàng chờ hết job như vậy thì `resume-run.yml` tiếp tục phiên ở giờ kế.
+- Đọc `actions/runs` hay `jobs` lỗi thì thoát 1, như mọi lỗi đọc có sẵn của script: không tiếp tục, không đổi gì. Đây là đường lỗi mới (mục 3.5).
+- `docs/auto-run.md` mục Tiếp tục phiên ý 1 (dòng khoảng 289), câu "lần chờ dài nhất (CI, emulator) dưới 40 phút": thêm "khi chạy trên runner tự host, job có thể chờ máy lâu hơn; `resume-check.py` không tiếp tục khi còn job chờ runner tự host (ADR-0042)".
 
 **Bảng tra lỗi `docs/ops/failure-playbook.md`.** Mã lấy số tiếp theo lúc làm task, hiện là PB-16 tới PB-18; T-075 cũng sửa bảng này (mục 6).
 
@@ -242,7 +247,7 @@ Sau lần thử của người (mục 4, bước H5, H6), log thật thay cho t�
 | Tạo | `scripts/tests/playbook/PB-18.log` | Đầu ra `runner-check.sh` khi hết đĩa |
 | Tạo | `docs/ops/self-hosted-runner.md` | Dựng và vận hành máy runner (mục 3.1) |
 | Sửa | `docs/ops/staging-and-runs.md` | Một câu về biến `HEAVY_RUNNER` |
-| Sửa | `docs/auto-run.md` | Bước 8 và 9: mã 7; mục 4: dòng Job chờ runner tự host; mục Tiếp tục phiên bước 3 |
+| Sửa | `docs/auto-run.md` | Bước 8 và 9: mã 7; mục 4: dòng Job chờ runner tự host; mục Tiếp tục phiên ý 1 (câu "dưới 40 phút") và bước 3 |
 | Sửa | `.claude/skills/merge-pr/SKILL.md` | Mã 7 của `wait-run.sh` |
 | Sửa | `CLAUDE.md` | Mục Lệnh: một dòng `runner-check.sh` |
 | Sửa | `docs/adr/0042-runner-tu-host-cho-job-nang.md` | Chỉ khi rà soát độc lập thấy ADR lệch với code đã làm; không đổi `status` |
@@ -318,7 +323,8 @@ Không có: plan không sửa code Kotlin.
   - của `pr-check.yml`, `main-guard.yml`: bước, thứ tự, `if:` của ADR-0039 và của T-075 tới T-077;
   - của `wait-run.sh`: các mã 0 tới 6;
   - của `resume-check.py`: các lý do tiếp tục hay không.
-- Các test có sẵn của `wait-run.sh` và `resume-check.py` dùng fixture không có trường `labels` hay không có lần chạy chưa xong: kết quả giữ nguyên. Test 7 và test 10 có ca đối chứng cho điều này.
+- Các test có sẵn của `wait-run.sh` và `resume-check.py` dùng fixture không có trường `labels` hay không có lần chạy chưa xong: kết quả giữ nguyên. Test 7 và test 10 có ca đối chứng cho điều này. Fixture của các test có sẵn của `resume-check.py` cần thêm câu trả lời rỗng cho `actions/runs?status=queued&per_page=20` và `actions/runs?status=in_progress&per_page=20` (dữ liệu chưa có phần plan thêm, ADR-0029); câu khẳng định giữ nguyên.
+- Đường lỗi mới: từ nay `resume-check.py` thoát 1 khi đọc `actions/runs` hay `jobs` lỗi, kể cả khi trước đây nó đã tiếp tục phiên. Thoát 1 nghĩa là không tiếp tục, không đổi gì, như các lỗi đọc có sẵn; `resume-run.yml` thử lại ở giờ kế. Thiếu quyền `actions: read` cũng rơi vào đường này (test 11 chặn).
 
 ## 4. Kiểm thử
 
@@ -339,7 +345,7 @@ Các test chạy cả trên bản sao hỏng của workflow trong `$work` (như 
 | --- | --- | --- |
 | Phạm vi 2: job nặng không bí mật đọc biến; job có bí mật và job nhẹ giữ runner của GitHub | Test cấu trúc | 1. `runners: heavy jobs read HEAVY_RUNNER, every other job stays on ubuntu-latest`. Với mọi job của mọi workflow: loại `heavy` có đúng một dòng `    runs-on: ${{ vars.HEAVY_RUNNER \|\| 'ubuntu-latest' }}`; loại `secret` và `light` có đúng một dòng `    runs-on: ubuntu-latest`. Mong `yes`. Bản sao hỏng: (a) `staging.yml` dùng `HEAVY_RUNNER`; (b) `guard` giữ `ubuntu-latest`; mong `no` cả hai. Thêm: một job nhẹ chỉ có `./gradlew` trong dòng chú thích vẫn là `light` (ghi chú 9) |
 | Phạm vi 2: tập job nặng đúng | Test cấu trúc | 2. `runners: the heavy jobs are build-and-test, guard and ui-test`. `heavy_jobs` phải có `pr-check.yml build-and-test`, `main-guard.yml guard` và `main-guard.yml ui-test` (sau T-075; trước T-075 là `pr-check.yml ui-test`). Không có job nào của `staging.yml`, `device-session.yml`. Đối chứng L-055: test 1 qua trên một bộ workflow không có job nặng nào, còn test 2 thất bại khi đó |
-| ADR-0042 mục 3: job nặng kiểm runner trước mọi bước cài hay build; bước trước đó không ghi vào thư mục làm việc hay `~/.gradle` | Test cấu trúc | 3. `runners: every heavy job checks the runner right after checkout`. Trong mỗi job nặng, bước đứng ngay sau `uses: actions/checkout@v5` phải có `if: runner.environment == 'self-hosted'`, `REPO_VISIBILITY: ${{ github.event.repository.visibility }}` và `run: scripts/runner-check.sh` (có `--emulator` khi job có `android-emulator-runner`, không có khi không). Bước đó đứng trước `setup-java`, `setup-gradle`, bước `mode` và mọi bước có `gradlew`, `check.sh`, `tests/run.sh`. Các bước đứng trước bước kiểm (kể cả bước lọc của T-076 trước checkout) chỉ được là `actions/checkout`, `dorny/paths-filter`, hay bước `run:` mà mọi lệnh ghi tệp chỉ ghi vào `"$GITHUB_OUTPUT"` hay `"$GITHUB_STEP_SUMMARY"`, và không chứa `gradle`, `$HOME`, `~/`. Bản sao hỏng, mong thất bại mỗi bản: bước kiểm đứng sau `setup-gradle`; thiếu `--emulator` ở `ui-test`; `if:` thiếu; một bước trước checkout có `echo x > ~/.gradle/init.d/a.gradle`. Đối chứng: `pr-check.yml` theo T-076 (lọc trước checkout) qua |
+| ADR-0042 mục 3: job nặng kiểm runner trước mọi bước cài hay build; bước trước đó không ghi vào `~/.gradle`, thư mục làm việc chỉ được ghi `build.log` | Test cấu trúc | 3. `runners: every heavy job checks the runner right after checkout`. Trong mỗi job nặng, bước đứng ngay sau `uses: actions/checkout@v5` phải có `if: runner.environment == 'self-hosted'`, `REPO_VISIBILITY: ${{ github.event.repository.visibility }}` và `run: scripts/runner-check.sh` (có `--emulator` khi job có `android-emulator-runner`, không có khi không). Bước đó đứng trước `setup-java`, `setup-gradle`, bước `mode` và mọi bước có `gradlew`, `check.sh`, `tests/run.sh`. Các bước đứng trước bước kiểm (kể cả bước lọc của T-076 trước checkout) chỉ được là `actions/checkout`, `dorny/paths-filter`, hay bước `run:` mà mọi lệnh ghi tệp chỉ ghi vào `"$GITHUB_OUTPUT"`, `"$GITHUB_STEP_SUMMARY"` hay `build.log` bằng đường dẫn tương đối (`tee -a build.log`, `>> build.log`, `> build.log`), và không chứa `gradle`, `$HOME`, `~/`. Bản sao hỏng, mong thất bại mỗi bản: bước kiểm đứng sau `setup-gradle`; thiếu `--emulator` ở `ui-test`; `if:` thiếu; một bước trước checkout có `echo x > ~/.gradle/init.d/a.gradle`; một bước trước checkout có `echo x > "$HOME/build.log"`. Đối chứng, mong qua: `pr-check.yml` theo T-076 (PR #315, commit d8f714e: bước `Kiểm kết quả lọc đường dẫn` trước checkout có `echo ... \| tee -a build.log` trên đường lỗi) |
 | Phạm vi 3: bước `sudo` chỉ trên máy của GitHub | Test cấu trúc | 4. `runners: sudo steps of heavy jobs run only on GitHub runners`. Mọi bước có `sudo ` trong job nặng có dòng `if:` chứa `runner.environment == 'github-hosted'`. Bản sao hỏng bỏ `if:` của bước `Bật KVM cho emulator`: mong thất bại. Đối chứng: `device-session.yml` (job `secret`) giữ bước `sudo` không có `if:` mà test không thất bại |
 | Phạm vi 4: thư mục làm việc sạch | Test cấu trúc | 5. `runners: heavy jobs keep the default clean checkout`. Không job nặng nào có `clean: false`. Bản sao hỏng có `clean: false`: mong thất bại |
 | `runner-check.sh` bắt cấu hình nhầm | Test của script | 6. `runner-check: ...` (chi tiết ngay dưới bảng) |
@@ -394,8 +400,9 @@ Các test chạy cả trên bản sao hỏng của workflow trong `$work` (như 
 **Test 10, `resume-check: no resume while a job waits for a self-hosted runner`.**
 
 - Dựng: dữ liệu của test có sẵn "phiên dừng được tiếp tục" (danh sách `running`, không commit 90 phút, mong in danh sách). Thêm `actions/runs?status=queued&per_page=20` có lần chạy 91, và `actions/runs/91/jobs?per_page=50` có job như ca chính của test 7. `RESUME_NOW` cố định.
-- Ca chính: mong đầu ra rỗng, stderr có `chờ runner tự host`, mã 0.
-- Đối chứng: job `queued` <T - 30 phút> → in danh sách (tiếp tục). Không có lần chạy chưa xong → in danh sách. Đọc `actions/runs` lỗi → mã 1, như lỗi đọc có sẵn.
+- Ca chính: mong đầu ra rỗng, stderr có `đang chờ runner tự host`, mã 0.
+- Không có ngưỡng thời gian: job `queued` nhãn `vgl-android` mới tạo (<T - 1 phút>) → cũng không tiếp tục (đầu ra rỗng, mã 0).
+- Đối chứng: job `queued` nhãn `ubuntu-latest` → in danh sách (tiếp tục). Job nhãn `vgl-android` `in_progress` → in danh sách. Không có lần chạy chưa xong → in danh sách. Đọc `actions/runs` lỗi → mã 1, như lỗi đọc có sẵn.
 
 **H6, các bước:**
 
@@ -405,7 +412,7 @@ Các test chạy cả trên bản sao hỏng của workflow trong `$work` (như 
 4. Thử máy tắt:
    - đặt lại biến, dừng dịch vụ tạo runner, đẩy một PR code;
    - `wait-run.sh --pr <số>` trả mã 7, dòng có `chờ runner tự host`, khoảng 75 phút sau khi job được phép chạy (đặt `WAIT_RUN_RUNNER_QUEUE_MINUTES=5` để thử nhanh);
-   - `python3 scripts/resume-check.py` (với `RESUME_RUNNER_QUEUE_MINUTES=5`) ghi `Không tiếp tục`;
+   - `python3 scripts/resume-check.py` ghi `Không tiếp tục` ngay khi job đang chờ;
    - giữa một job đang chạy, dừng container: ghi mẫu log thật của PB-17.
 5. Xóa biến, bấm Re-run lần chạy đang chờ. Ghi lại lần chạy lại nhận nhãn mới hay giữ nhãn cũ (chưa xác minh, mục 8 câu 6). Cùng lúc thử một job có `needs` (`ui-test` sau `guard`) nếu commit có.
 6. Bật dịch vụ, đặt lại biến.
@@ -462,6 +469,7 @@ Ghi lệnh, mã lần chạy và kết quả vào nhật ký.
   - Cả ba làm trước T-078 (`depends_on: [T-076, T-077]`; T-076 phụ thuộc T-075).
   - ADR-0040 (T-075) và ADR-0041 (T-077) có thể thêm vế vào `foundation.md`: sinh lại sau khi merge.
 - Các app nhận qua đợt đồng bộ (`scripts/template-sync.sh`): workflow và script của dự án mẫu. Biến `HEAVY_RUNNER` đặt riêng ở từng repo, không đồng bộ.
+- `scripts/run-watchdog.py` mở issue `session-stalled` sau 60 tới 90 phút không commit, kể cả khi phiên đang chờ runner tự host một cách chính đáng. Plan chấp nhận: issue chỉ là thông báo cho người, không mở lại phiên hay chạy gì; khi máy bận lâu, người cũng nên biết. Nếu thấy phiền thì làm ticket sau: `run-watchdog.py` dùng cùng điều kiện với `resume-check.py`.
 - Đề xuất thứ tự: làm có người, sau T-075, T-076, T-077. Merge được trước khi có máy, vì biến chưa đặt. Bước H3 tới H6 sau khi merge.
 
 ## 7. Điều kiện dừng riêng

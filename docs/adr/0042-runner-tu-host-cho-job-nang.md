@@ -62,7 +62,7 @@ Biến `HEAVY_RUNNER` của repo (Settings, Secrets and variables, Actions, Vari
 
 - Mục đích: bắt cấu hình nhầm, không phải hàng rào an toàn (mục 2).
 - Vị trí: bước đứng ngay sau `actions/checkout` của mỗi job nặng là `scripts/runner-check.sh` (`--emulator` cho `ui-test`), chỉ chạy khi `runner.environment == 'self-hosted'`.
-- Các bước đứng trước bước kiểm, ví dụ bước lọc đường dẫn trước checkout, không ghi vào thư mục làm việc hay `~/.gradle`.
+- Các bước đứng trước bước kiểm, ví dụ bước lọc đường dẫn trước checkout, không ghi vào `~/.gradle`. Trong thư mục làm việc, chúng chỉ được ghi `build.log`, trên đường lỗi, cho bước bình luận lỗi đọc.
 - Script báo lỗi (job đỏ, thông báo `RUNNER KHÔNG DÙNG ĐƯỢC:`) khi:
   - repo không phải private;
   - container không có dấu `VGL_RUNNER_EPHEMERAL=1`. Dấu này chỉ cho biết container dựng theo tài liệu, không bảo đảm runner chạy một lần;
@@ -83,7 +83,7 @@ Biến `HEAVY_RUNNER` của repo (Settings, Secrets and variables, Actions, Vari
   - job đó được phép chạy từ quá `WAIT_RUN_RUNNER_QUEUE_MINUTES` phút (mặc định 75, lớn hơn thời gian tối đa của `ui-test`).
 - "Được phép chạy" tính từ lúc job cuối mà nó chờ (`needs`) xong.
 - Phiên nhận mã 7 thì không chạy lại, ghi "Cần người kiểm tra" và dừng như `docs/auto-run.md` mục 4.
-- `scripts/resume-check.py` không mở lại phiên khi repo có job như vậy.
+- `scripts/resume-check.py` không mở lại phiên khi repo có bất kỳ job nào đang chờ (`queued`) mang nhãn không phải của GitHub, không cần ngưỡng thời gian: phiên cũ có thể vẫn đang chờ chính job đó.
 - Người bật lại máy hay xóa biến, rồi hủy và chạy lại lần chạy đó.
 
 **6. Không đặt `HEAVY_RUNNER` cho repo công khai.** Repo công khai dùng runner của GitHub, vừa miễn phí vừa không cho người lạ chạy code trên máy của nhóm qua fork.
@@ -112,4 +112,4 @@ Biến `HEAVY_RUNNER` của repo (Settings, Secrets and variables, Actions, Vari
   - Ở cách `skip` (ADR-0039), `guard` vẫn giữ một chỗ trên máy khoảng 1 phút.
   - `staging`, `device-session` và các job nhẹ vẫn tính phút.
   - Kết quả trên runner tự host có thể khác runner của GitHub (phiên bản SDK, CPU, emulator). Lỗi chỉ có trên một loại máy thì so bằng cách xóa biến rồi chạy lại.
-- **Việc AI phải tuân thủ:** chỉ job chạy `scripts/check.sh`, Gradle hay emulator mà không đọc `secrets.` mới khai báo `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`; job có `secrets.` và job nhẹ giữ `runs-on: ubuntu-latest`; job nặng gọi `scripts/runner-check.sh` ở bước ngay sau `actions/checkout`, với `if: runner.environment == 'self-hosted'`, trước `setup-java`, `setup-gradle` và mọi bước build; bước đứng trước bước kiểm runner không ghi vào thư mục làm việc hay `~/.gradle`; không coi `runner-check.sh` là hàng rào an toàn, nó chỉ bắt cấu hình nhầm; bước dùng `sudo` trong job nặng có `if: runner.environment == 'github-hosted'`; không đặt `clean: false` cho `actions/checkout` của job nặng; `wait-run.sh` mã 7 (`CHỜ RUNNER`) không phải lỗi của code: không sửa code, không chạy lại, ghi "Cần người kiểm tra"; không cài, đăng ký hay đổi cấu hình runner, không đặt hay xóa biến `HEAVY_RUNNER` trong phiên; không đề xuất đặt `HEAVY_RUNNER` cho repo công khai
+- **Việc AI phải tuân thủ:** chỉ job chạy `scripts/check.sh`, Gradle hay emulator mà không đọc `secrets.` mới khai báo `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`; job có `secrets.` và job nhẹ giữ `runs-on: ubuntu-latest`; job nặng gọi `scripts/runner-check.sh` ở bước ngay sau `actions/checkout`, với `if: runner.environment == 'self-hosted'`, trước `setup-java`, `setup-gradle` và mọi bước build; bước đứng trước bước kiểm runner không ghi vào `~/.gradle`, và trong thư mục làm việc chỉ ghi `build.log` trên đường lỗi; không coi `runner-check.sh` là hàng rào an toàn, nó chỉ bắt cấu hình nhầm; bước dùng `sudo` trong job nặng có `if: runner.environment == 'github-hosted'`; không đặt `clean: false` cho `actions/checkout` của job nặng; `wait-run.sh` mã 7 (`CHỜ RUNNER`) không phải lỗi của code: không sửa code, không chạy lại, ghi "Cần người kiểm tra"; không cài, đăng ký hay đổi cấu hình runner, không đặt hay xóa biến `HEAVY_RUNNER` trong phiên; không đề xuất đặt `HEAVY_RUNNER` cho repo công khai
