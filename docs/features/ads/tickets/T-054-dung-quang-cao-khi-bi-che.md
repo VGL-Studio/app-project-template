@@ -19,7 +19,7 @@ created: 2026-10-29
 
 ## Mô tả
 
-Khi native toàn màn hình của `:core:ads` đang hiện (sau inter hay độc lập), banner và native làm mới ở màn bên dưới không gửi yêu cầu, không làm mới, không thử lại; quảng cáo đang có giữ nguyên (ADR-0036, điểm 2). JBase dừng tự làm mới khi có quảng cáo toàn màn hình; hôm nay ta chỉ dừng theo vòng đời Activity, mà native toàn màn hình là Dialog trong app nên Activity vẫn resumed.
+Khi native toàn màn hình của `:core:ads` đang hiện (sau inter hay độc lập), banner và native làm mới ở màn bên dưới không gửi yêu cầu, không làm mới, không thử lại; quảng cáo đang có giữ nguyên (ADR-0036, điểm 1). JBase dừng tự làm mới khi có quảng cáo toàn màn hình; hôm nay ta chỉ dừng theo vòng đời Activity, mà native toàn màn hình là Dialog trong app nên Activity vẫn resumed.
 
 ## Phạm vi
 

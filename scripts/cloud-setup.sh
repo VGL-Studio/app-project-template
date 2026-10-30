@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Bump on every change. The auto-run session compares it with ~/.cloud-setup-version
 # (scripts/cloud-env-check.sh) and stops at once when the environment still runs an older copy.
-SETUP_VERSION=4
+SETUP_VERSION=5
 
 SDK_ROOT="${HOME}/android-sdk"
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-13114758_latest.zip"
@@ -34,6 +34,7 @@ yes | "${SDKMANAGER}" --licenses > /dev/null || true
 "${SDKMANAGER}" --install \
   "platform-tools" \
   "platforms;android-36" \
+  "platforms;android-37.0" \
   "build-tools;36.0.0" > /dev/null
 
 # Tell Gradle and later shells where the SDK is. Each line is added only once.

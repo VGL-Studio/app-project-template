@@ -26,6 +26,7 @@ created: 2026-10-29
 - `NativeAdDimens` và cách tính chiều cao theo bề rộng; một hằng số hay một hàm cho cả vẽ và chừa chỗ (câu hỏi 22, 49).
 - Viết lại câu khẳng định cũ của D-02 (80 dp) theo ADR-0031; ghi lại ảnh chuẩn bị đổi (liệt kê trong plan).
 - Cỡ chữ 200%: kiểm lại theo tiêu chí của KB-1 (T-060 làm trên kích thước cũ; plan thống nhất thứ tự với T-060).
+- Giới hạn 120 dp của nút CTA ở native nhỏ (T-060): bỏ hay giữ theo layout JBase; bỏ thì viết lại hai test 120 dp của T-060 (`small_ctaAtMost120dpWide_shortCtaKeepsWidth`, `sdkLayout_small_longCta_ctaAtMost120dp_headlineVisible`) theo ADR-0031, vẫn giữ kiểm tiêu đề còn ít nhất 4 ký tự và nhãn "Ad" hiện đủ (rà soát plan T-060).
 - Sửa `ads-business-rules.md` mục 5.7, D-02, D-04, mục 11 kèm ADR-0038.
 
 **Không bao gồm:**
