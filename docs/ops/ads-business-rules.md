@@ -369,6 +369,8 @@ Luật đi kèm: **mỗi sự kiện có công tắc từ xa riêng** (khóa `is
 | M-05 | Khe quảng cáo (một mã đơn vị mỗi khe), theo tên của bản đặc tả (A 01:9-22) để mỗi tên một nghĩa: `app_open`, `interstitial`, `rewarded`, `banner` (tự làm mới; mã nguồn AdsKit gọi `bannerPartner`), `banner_collapsible` (nạp tay; mã nguồn gọi `banner`), `native_small` (A: `nativeBanner`), `native_collap`, `native_fullscreen`, `native_full`, `native_step` (A: `nativeOnboarding`), `native_content`, `native_medium`. Vị trí dùng khe theo định dạng (MC-02); mã theo khe hay theo vị trí là câu hỏi 14 của spec ads | A 01:9-24, `M/AdUnitIds.kt:3-25` |
 | M-06 | Mã thử của Google cho staging theo định dạng (inter, banner, rewarded, app open, native) | `DG:127-133` |
 | M-07 | Quy tắc ProGuard của từng adapter theo tài liệu của mạng đó; AdsKit để file rỗng dù tài liệu ghi có, nên ta kiểm bằng build release của staging | `consumer-rules.pro`, `DG:189-208` |
+| M-08 | MAX khởi tạo đúng một lần, sau khi `sdkReady` của AdMob bật (callback hay mốc 35 giây, S-21) và chỉ khi cổng đồng ý đang mở ngay lúc khởi tạo; cổng đóng trong lúc chờ hay khi thứ tự đổi sang có MAX thì không khởi tạo, cổng mở lại thì khởi tạo nếu chưa (plan T-068, câu hỏi 9); rút đồng ý sau khi đã khởi tạo không tắt SDK, yêu cầu MAX sau đó bị chặn qua `mayRequestNow()` (S-15); không cờ đồng ý viết cứng, MAX đọc chuỗi TCF và AC của UMP (ADR-0037, plan T-068). JBase khởi tạo MAX trước đồng ý và viết cứng đồng ý: không theo | AdsKit không có; theo ADR-0037 |
+| M-09 | Khóa SDK MAX là cấu hình của app, vào lúc build bằng `-PmaxSdkKey`; staging đọc `ads.maxSdkKey` của `local.properties`; không khóa thì MAX không khởi tạo (ADR-0037, thay M-03 cho MAX) | AdsKit không có; theo ADR-0037 |
 
 ## 10. Khóa Remote Config
 
@@ -394,6 +396,7 @@ Cột "Nguồn tên": **AdsKit** là tên có trong bảng khóa chính thức c
 | `is_enable_consent_shortcut` | boolean | **false** | Công tắc từ xa của quyền tạm khi lỗi mạng `ERROR_ALLOWED` (S-12). Cần thêm cấu hình lúc build của `:app`, mặc định cũng tắt. Tắt thì thu hồi ngay `ERROR_ALLOWED`. `CACHED_EARLY` luôn bật, không theo khóa này (ADR-0038) | ads | tên do ta đặt | A 02:24-26, `M/AdsKit.kt:876-879` |
 | `is_log_ad_fullscreen_events` | boolean | false | Số liệu vòng đời Firebase của nhóm toàn màn hình (mục 8.2) | ads | tên do ta đặt | `M/analytics/FirebaseAdEventConfig.kt:13-21` |
 | `is_log_ad_slot_events` | boolean | false | Số liệu vòng đời Firebase của nhóm khe | ads | tên do ta đặt | như trên |
+| `ads_mediation_order` | string | `max_admob` | Thứ tự hai nền tảng cho banner, MREC, interstitial, rewarded, app open khi quay lại: `admob`, `max`, `admob_max`, `max_admob`; giá trị khác dùng `max_admob`; bản build không có khóa SDK MAX dùng `admob` (M-09) | ads | tên do ta đặt | Không có; theo ADR-0037 (JBase `AdsConfig.Network`, `MaxPrimary`) |
 | `is_log_af_ad_revenue` | boolean | true | Gửi `af_ad_revenue` (mục 8.3) | analytics | tên do ta đặt | A 06:37 |
 | `is_log_af_inters_ad_eligible`, `is_log_af_inters_api_called`, `is_log_af_inters_displayed` | boolean | true | Công tắc từng sự kiện phễu inter | analytics | tên do ta đặt | A 06:34 |
 | `is_log_af_rewarded_ad_eligible`, `is_log_af_rewarded_api_called`, `is_log_af_rewarded_ad_displayed` | boolean | true | Công tắc từng sự kiện phễu rewarded | analytics | tên do ta đặt | A 06:35 |

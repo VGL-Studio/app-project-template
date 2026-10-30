@@ -226,6 +226,18 @@ Luật đầy đủ ở `ads-business-rules.md`, S-20 tới S-25, F-04 tới F-0
 - **Việc của người trên AdMob** (trang của từng mạng): thêm từng mạng vào danh sách đối tác quảng cáo của thông điệp GDPR và các bang Mỹ; ánh xạ mã của từng mạng trong nhóm mediation; bật chế độ thử của mạng khi thử và tắt trước khi phát hành; `app-ads.txt` có dòng của từng mạng ([release.md](release.md), mục 1.4).
 - **Nâng adapter** là plan rủi ro cao: chọn bản có "Built and tested with" khớp bản Google Mobile Ads; kiểm lại tên provider, receiver trong manifest của AAR. `MergedManifestTest` chỉ kiểm theo tên cũ: SDK đổi tên phần tử thì dòng `tools:node="remove"` không còn khớp, phần tử tên mới vào app mà test vẫn qua, nên phải đọc manifest của AAR bằng tay.
 
+### AppLovin MAX (T-068)
+
+MAX là nền tảng quảng cáo thứ hai, cạnh AdMob (ADR-0037). T-068 chỉ thêm SDK và phần khởi tạo; MAX chưa nạp hay hiện quảng cáo nào (T-069 tới T-071).
+
+- **Thư viện** (chỉ `:core:ads` phụ thuộc): `com.applovin:applovin-sdk:13.6.4` (khóa catalog `applovin-sdk`) và adapter Google của MAX `com.applovin.mediation:google-adapter:25.5.0.0` (khóa `max-mediation-google`, bản dựng cho `play-services-ads` 25.5.0). SDK MAX là cùng thư viện mà adapter AppLovin của AdMob kéo vào (mục trên): nâng một bên thì nâng bên kia trong cùng plan. Cả hai có trên Maven Central, không cần kho mới.
+- **Manifest gộp không đổi** (đo ở plan T-068): không quyền, không thành phần mới; `AppLovinInitProvider` vẫn bị bỏ.
+- **Khởi tạo:** `AdsController` khởi tạo MAX đúng một lần, sau khi `sdkReady` của AdMob bật (callback của `MobileAds.initialize` hay mốc 35 giây, S-21), trước lượt nạp sẵn đầu, và chỉ khi cổng đồng ý đang mở ngay lúc khởi tạo (M-08): cổng đóng trong lúc chờ hay khi `ads_mediation_order` đổi sang có MAX thì không khởi tạo, cổng mở lại thì khởi tạo nếu chưa. Lý do chờ `sdkReady`: lần đầu khởi tạo, adapter Google của MAX gọi `MobileAds.disableMediationAdapterInitialization` rồi tự gọi `MobileAds.initialize`; MAX chạy trước thì chín adapter mediation của AdMob có thể không được khởi tạo. MAX chỉ khởi tạo khi `ads_mediation_order` có MAX.
+- **Đồng ý:** app không gọi `AppLovinPrivacySettings`, không bật luồng đồng ý của MAX; MAX đọc chuỗi TCF và AC mà UMP ghi. "AppLovin Corp." phải có trong đối tác của thông điệp GDPR trên AdMob (đã là việc của người, mục trên); thiếu thì MAX coi như không có đồng ý.
+- **Khóa SDK MAX:** bản production nhận `-PmaxSdkKey=<khóa>` (tùy chọn tới T-073); bản staging đọc `ads.maxSdkKey=<khóa>` trong `local.properties` ở gốc repo (không commit) để dev thử MAX trên máy mình, chỉ nhận chữ, số, `_` và `-`, giá trị khác bị bỏ kèm một dòng cảnh báo của Gradle. Không có khóa (mọi bản của CI) thì MAX không khởi tạo, thứ tự coi như `admob`, log thẻ `Ads` có một dòng `MAX skipped: no SDK key`. Có khóa: `MAX started` rồi `MAX ready`. `scripts/secret-scan.py` chặn khóa trên dòng có `applovin` hay tên tham số `maxSdkKey`.
+- **AppLovin hai vai:** app dùng MAX thì bỏ "AppLovin (Bidding)" khỏi mọi nhóm mediation AdMob (ADR-0037, câu hỏi 45 của spec; chi tiết ở T-073). Nếu adapter AppLovin của AdMob đã khởi tạo SDK trước, log có dòng cảnh báo `AppLovin SDK already started by AdMob mediation`.
+- **Kiểm trên máy:** với khóa trong `local.properties`, sau khi đồng ý, logcat thẻ `Ads` có đủ các dòng `Adapter ...` như trước **rồi** mới có `MAX started`, `MAX ready`. Mediation Debugger của MAX (`AppLovinSdk.getInstance(context).showMediationDebugger()`, chỉ gọi tạm trong bản thử của dev, không có trong code) cho thấy bên điều phối `max` và trạng thái đồng ý theo từng mạng.
+
 ### Thử mediation trên máy thật (T-058)
 
 Bản staging dựng trên máy dev có thể coi máy thật của dev là máy thử của AdMob và ghi log từng mạng của mỗi lượt tải.
