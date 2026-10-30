@@ -259,7 +259,7 @@ Plan chạm quảng cáo và dữ liệu: người phụ trách sản phẩm (an
 
 ### RUN-20261030-02, phiên bản plan 2
 
-- **Kết quả:** đã merge, PR #349, commit `0b04fa0` lên nhánh chính 2026-10-30 17:29 UTC.
+- **Kết quả:** đã merge, PR #349 (commit cuối của nhánh `0b04fa0`), commit squash `460f22d` trên nhánh chính, 2026-10-30 17:29 UTC.
 - **Nhánh, PR:** `claude/T-062-dinh-dang-banner-mrec`, tạo từ nhánh chính `9757365` (đã có T-068), PR #349. `merge-if-green.sh` không xóa được nhánh sau khi merge (L-092): người xóa tay.
 - **Đã làm:** bước 3 đến 5 giao phiên con. Commit test `0bb0fd0`, code `0b04fa0`. `plan-check.py` qua, 6 chú ý L-020 (file nhắc `scripts/tests/run.sh`, `ads-business-rules.md`, bảng khóa: `main-guard.yml`, `main-guard-verified.sh`, `ProductionPropertiesTest.kt`, `AdNetworkResponsesTest.kt`), không file nào phải sửa.
 - **Test viết trước:** 22 test đỏ đúng lý do trên khung rỗng, đều là test mới hay dữ liệu của mục 3.2; test JVM của mọi module trên khung: không test nào đỏ ngoài mục 3.2. 14 test viết chặt bằng bước đối chứng (L-055). Qua ngay như plan ghi: bốn test chung của khung, dữ liệu `FORMAT_CODES`. Qua ngay mà plan không ghi (dòng enum và vị trí cần để biên dịch): `AdFormatTest.bannerMrec_codeAndNotFullScreen`, `AdPlacementTest.galleryBannerMrec_isStagingOnlyMrec`; đột biến (`nativeLoadSize(BANNER_MREC)` thành `SMALL`, định dạng vị trí thành `BANNER`) làm cả hai đỏ.

@@ -409,7 +409,7 @@ Phiên bản 1:
 
 ### RUN-20261030-02, phiên bản plan 4
 
-- **Kết quả:** đã merge, PR #347, commit `05df6aa` lên nhánh chính 2026-10-30 16:51 UTC.
+- **Kết quả:** đã merge, PR #347 (commit cuối của nhánh `05df6aa`), commit squash `9757365` trên nhánh chính, 2026-10-30 16:51 UTC.
 - **Nhánh, PR:** `claude/T-068-sdk-max-va-khoi-tao`, tiếp tục từ `b0680b7`, gộp nhánh chính `5cca21e` (commit `234b795`, không xung đột), PR #347.
 - **Đã làm:** theo đoạn "Cách tiếp tục" của mục 3.1, chỉ phần bản 3 và bản 4: `gateAllowed` của `MaxSdkStarter` (kiểm ngay trước `platform.initialize`), `onGateOpened(firstTime = false)` gọi `maxStarter.onOrderChanged`, ba hàm test của `AdsController`, KDoc, M-08 của `ads-business-rules.md` và tiểu mục MAX của `ads-guide.md`. Bước 3 đến 5 giao phiên con. Commit: test `f31b1b4`, code `74fb6dd`, tài liệu `8b16afe`, sửa theo rà soát `8a89888` (test), `05df6aa` (code).
 - **Test viết trước:** 4 test mới (`MaxSdkStarterTest.notStarted_whileGateClosed`, `notStarted_whenGateClosedBeforeAdmobReady`, `AdsControllerMaxTest.gateReopened_startsMaxIfNotStarted`, `gateClosedWhileWaitingForAdmob_maxNotStarted`), đỏ ở câu khẳng định trên khung (`gateAllowed` chưa dùng, ba hàm test thân rỗng). 1 test viết chặt bằng bước đối chứng (L-055): `gateClosedWhileWaitingForAdmob_maxNotStarted` thêm `reopenConsentGateForTest()` thì phải đúng 1 lần, vì câu "0 lần" qua ngay trên khung. Đột biến: bỏ `maxStarter.onOrderChanged(...)` trong `onGateOpened` thì cả hai test của `AdsControllerMaxTest` đỏ. Test JVM của mọi module trên khung: 1267 test, chỉ đúng 4 test mới đỏ.
