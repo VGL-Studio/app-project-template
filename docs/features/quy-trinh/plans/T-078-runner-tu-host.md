@@ -57,7 +57,7 @@ Phiên đối chiếu lại với code trên main sau khi ba plan đó merge, tr
 
 Thiết kế tham chiếu: Không có thiết kế riêng.
 
-ADR liên quan: ADR-0042 (mới, `proposed`), ADR-0009 và ADR-0017 (phát hành production ngoài GitHub, ngoài phạm vi), ADR-0010, ADR-0025, ADR-0039 (`main-guard`, giữ nguyên cách chọn `skip`, `tests`, `full`), ADR-0040 (T-075) và ADR-0041 (T-077), đều đang đề xuất, ADR-0029 (phạm vi file).
+ADR liên quan: ADR-0042 (mới, `proposed`), ADR-0009 và ADR-0017 (phát hành production ngoài GitHub, ngoài phạm vi), ADR-0010, ADR-0025, ADR-0039 (`main-guard`, giữ nguyên cách chọn `skip`, `tests`, `full`), ADR-0043 (T-075) và ADR-0041 (T-077), đều đang đề xuất, ADR-0029 (phạm vi file).
 
 ## 3. Giải pháp
 
@@ -487,7 +487,7 @@ Ghi lệnh, mã lần chạy và kết quả vào nhật ký.
   - **T-076 (PR #315):** đổi cấu trúc `pr-check.yml` (một job, hai bước lọc trước checkout).
   - **T-077 (PR #316):** sửa `pr-check.yml` (`types`, `if:` cấp job bỏ PR nháp), `wait-run.sh` (mã 6, lần chạy `skipped`), `merge-if-green.sh`, `docs/auto-run.md` bước 8 và skill `merge-pr` (cùng dòng mã thoát mà T-078 thêm mã 7).
   - Cả ba làm trước T-078 (`depends_on: [T-076, T-077]`; T-076 phụ thuộc T-075).
-  - ADR-0040 (T-075) và ADR-0041 (T-077) có thể thêm vế vào `foundation.md`: sinh lại sau khi merge.
+  - ADR-0043 (T-075) và ADR-0041 (T-077) có thể thêm vế vào `foundation.md`: sinh lại sau khi merge.
 - Các app nhận qua đợt đồng bộ (`scripts/template-sync.sh`): workflow và script của dự án mẫu. Biến `HEAVY_RUNNER` đặt riêng ở từng repo, không đồng bộ.
 - `scripts/run-watchdog.py` mở issue `session-stalled` sau 60 tới 90 phút không commit, kể cả khi phiên đang chờ runner tự host một cách chính đáng. Plan chấp nhận: issue chỉ là thông báo cho người, không mở lại phiên hay chạy gì; khi máy bận lâu, người cũng nên biết. Nếu thấy phiền thì làm ticket sau: `run-watchdog.py` dùng cùng điều kiện với `resume-check.py`.
 - Luật "bất kỳ job `queued` nhãn tự host thì không tiếp tục" của `resume-check.py` có thể chặn việc tiếp tục phiên tới hết 24 giờ (`RESUME_MAX_HOURS`) khi máy bận liên tục, vì nhiều repo dùng chung máy. Plan chấp nhận: phiên tự chạy không nên chồng lên hàng chờ của máy. Người thấy phiên dừng lâu thì xem máy hay xóa biến.
