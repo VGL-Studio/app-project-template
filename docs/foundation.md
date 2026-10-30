@@ -271,6 +271,13 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không chép code hay khóa của JBase
 - ghi mỗi luật đổi theo JBase vào `ads-business-rules.md` kèm mã ADR-0038 và nguồn JBase
 
+### [ADR-0039](adr/0039-main-guard-tin-lan-kiem-cua-pr.md): main-guard không chạy lại cổng chất lượng cho commit có nội dung đã được pr-check kiểm đầy đủ, chỉ chạy test của script khi phần khác chỉ là tài liệu
+
+- `main-guard.yml` chỉ bỏ qua `check.sh` qua `scripts/main-guard-verified.sh`, bằng một bước bên trong job `guard`, không bằng `if:` ở cấp job
+- script không chắc thì chọn `full`
+- commit đổi một file mà job `guard` gọi hay dựa vào, lần chạy tay và lần chạy lại luôn dùng `full`
+- đổi tên bước cổng chất lượng hay tên job `build-and-test` của `pr-check.yml`, hay thêm file trong `docs/` mà Gradle đọc, thì sửa `main-guard-verified.sh` và test của nó cùng PR
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh

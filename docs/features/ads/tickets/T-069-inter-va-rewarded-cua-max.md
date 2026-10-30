@@ -8,7 +8,7 @@ owner: Nhật
 status: backlog
 risk: high
 size: L
-depends_on: [T-068]
+depends_on: [T-068, T-073]
 sprint:
 plan:
 auto_run: 
@@ -33,6 +33,8 @@ Interstitial và rewarded của MAX đi qua cùng cổng toàn màn hình, mốc
 - Banner, MREC (T-071), app open khi quay lại (T-070).
 
 ## Rủi ro sơ bộ
+
+Phụ thuộc T-073 (người làm): quảng cáo MAX đầu tiên chỉ vào bản phát hành khi `release.sh` đã truyền và kiểm khóa MAX; không thì production lặng lẽ chỉ chạy AdMob (rà soát plan T-068).
 
 Module core, quảng cáo, hành vi toàn màn hình (điểm chặn 1, 7). Cỡ L: plan cân nhắc tách interstitial và rewarded.
 
