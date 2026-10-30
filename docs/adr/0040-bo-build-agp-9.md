@@ -19,12 +19,12 @@ ADR-0011 chốt Gradle 8.14.3, AGP 8.13, Kotlin 2.2.10, JDK 17, compileSdk và t
 
 Photune đã build, test và phát staging bằng AGP 9.1.0 (Kotlin dựng sẵn), Gradle 9.3.1, compileSdk 37 qua 2 phiên tự chạy và khoảng 15 PR (L-127). Nếu mẫu ở lại AGP 8, app mới bắt đầu từ bộ công cụ cũ, và Photune không về được khung nhiều module của mẫu mà không hạ AGP.
 
-AGP 9 khác AGP 8 ở bốn chỗ mà dự án chạm tới. Chỗ thứ tư do Gradle 9 đặt ra:
+Bộ mới khác bộ cũ ở bốn chỗ mà dự án chạm tới; ba chỗ đầu của AGP 9, chỗ thứ tư của Gradle 9:
 
 - Kotlin được dựng sẵn trong AGP. Plugin `org.jetbrains.kotlin.android` không còn được áp dụng, và AGP tự đăng ký `KotlinAndroidProjectExtension`.
 - `CommonExtension` không còn tham số kiểu, và không còn các hàm khối `defaultConfig { }`, `compileOptions { }`, `testOptions { }`, `packaging { }`. Chỉ còn thuộc tính.
 - DSL mới là mặc định. Plugin còn tìm kiểu DSL cũ (`TestedExtension`) thì không áp dụng được, ví dụ Roborazzi 1.43. Cờ `android.newDsl=false` giữ DSL cũ, nhưng AGP báo cờ này sắp bỏ và sẽ gỡ nó ở AGP 10.
-- Gradle 9 cho task test đỏ khi có nguồn test mà không tìm thấy test nào. Một module không có `src/test` vẫn có thể có lớp sinh ra cho source set unit test (thấy ở `:core:data`, có Hilt).
+- Gradle 9 cho task test đỏ khi có nguồn test mà không tìm thấy test nào. `:core:data` không có `src/test`, vậy mà task test của nó đỏ với thông báo "There are test sources present ... did not discover any tests". Giả thuyết: lớp do Hilt sinh cho source set unit test được tính là nguồn test.
 
 AGP 9.1.0 chỉ được Google kiểm tới compileSdk 36.1, và mỗi lần build với compileSdk 37 in một cảnh báo. Lúc viết ADR này đã có AGP 9.5.0, nhưng chưa app nào của nhóm chạy bản đó.
 
