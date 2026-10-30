@@ -1,6 +1,7 @@
 package com.vglstudio.template.di
 
 import com.vglstudio.template.core.ads.AdUnitIds
+import com.vglstudio.template.core.ads.AdsDebugOptions
 import com.vglstudio.template.core.ads.ConsentDebugOptions
 import com.vglstudio.template.core.ads.ConsentShortcutConfig
 import com.vglstudio.template.core.ads.GoogleTestAdUnitIds
@@ -28,4 +29,8 @@ object StagingAdsModule {
      */
     @Provides
     fun consentShortcutConfig(): ConsentShortcutConfig = ConsentShortcutConfig(enabledInBuild = true)
+
+    // Skeleton of T-058, step 3: replaced by the code of step 4.
+    @Provides
+    fun adsDebugOptions(): AdsDebugOptions = AdsDebugOptions.NONE
 }

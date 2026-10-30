@@ -42,6 +42,8 @@ internal class SdkNativeAdLoader(
     private val request: AdRequest,
     private val events: NativeAdEvents? = null,
     private val options: NativeRequestOptions? = null,
+    private val networkLog: AdNetworkLog = AdNetworkLog.OFF,
+    private val logKey: String = "",
 ) : NativeAdLoader {
     override fun load(
         unitId: String,
@@ -50,7 +52,7 @@ internal class SdkNativeAdLoader(
         onFailed: (code: Int) -> Unit,
     ) {
         val options = (options ?: nativeRequestOptions(size)).toNativeAdOptions()
-        val listener = NativeAdLoadListener(events, onFailed)
+        val listener = NativeAdLoadListener(events, onFailed = onFailed)
         val loader = AdLoader.Builder(context, unitId)
             .forNativeAd { ad ->
                 events?.let { metrics ->
@@ -74,8 +76,11 @@ internal class SdkNativeAdLoader(
  * The SDK listener of one native load: hands the load error, impression and click to [events], and marks the
  * impression on the [loaded] ad, so a pool destroys it instead of showing it again (P-01a, plan T-028).
  */
-internal class NativeAdLoadListener(private val events: NativeAdEvents?, private val onFailed: (Int) -> Unit) :
-    AdListener() {
+internal class NativeAdLoadListener(
+    private val events: NativeAdEvents?,
+    private val onLoadFailedResponse: (LoadAdError) -> Unit = {},
+    private val onFailed: (Int) -> Unit,
+) : AdListener() {
     /** The ad of this load, set as soon as the SDK returns it. */
     var loaded: SdkLoadedNativeAd? = null
 

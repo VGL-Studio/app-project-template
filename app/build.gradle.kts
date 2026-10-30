@@ -53,6 +53,8 @@ android {
             buildConfigField("String", "ASSETS_BASE_URL", "\"https://app-project-template.vgl.io.vn/\"")
             // No AppsFlyer key in staging, never read from a parameter: AppsFlyer never starts (ADR-0027, ADR-0012).
             buildConfigField("String", "APPSFLYER_DEV_KEY", "\"\"")
+            // Skeleton of T-058, step 3: replaced by the code of step 4.
+            buildConfigField("String", "ADS_TEST_DEVICE_IDS", "\"\"")
             // Builds sent to the team by staging.yml carry the run number, so testers can tell them apart.
             providers.gradleProperty("stagingBuildNumber").orNull?.toInt()?.let { buildNumber ->
                 versionCode = buildNumber
