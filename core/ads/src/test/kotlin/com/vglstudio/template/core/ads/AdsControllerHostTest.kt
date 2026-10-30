@@ -2,8 +2,10 @@ package com.vglstudio.template.core.ads
 
 import android.app.Activity
 import android.app.Application
+import android.os.Bundle
 import android.os.Looper
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdMetricEvent
@@ -260,6 +262,42 @@ class AdsControllerHostTest {
         assertEquals(1, fake.shows)
         assertSame(host.get(), fake.shownOn.single())
         assertTrue(showFails().isEmpty())
+    }
+
+    @Test
+    fun hostCheck_insideOnActivityResumed_usesTracker() {
+        start()
+        val usable = mutableListOf<Boolean>()
+        val states = mutableListOf<Lifecycle.State>()
+        // Registered after the tracker of start(), so it runs after it, as the resume ad does.
+        val probe = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                usable += controller.isHostUsable(activity)
+                states += (activity as ComponentActivity).lifecycle.currentState
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+
+            override fun onActivityStarted(activity: Activity) = Unit
+
+            override fun onActivityPaused(activity: Activity) = Unit
+
+            override fun onActivityStopped(activity: Activity) = Unit
+
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        application.registerActivityLifecycleCallbacks(probe)
+        try {
+            resumedActivity()
+        } finally {
+            application.unregisterActivityLifecycleCallbacks(probe)
+        }
+
+        assertEquals(listOf(true), usable)
+        // Control: Lifecycle is not RESUMED yet inside onActivityResumed (API 29 and up), so only the tracker passes.
+        assertEquals(listOf(Lifecycle.State.STARTED), states)
     }
 
     @Test
