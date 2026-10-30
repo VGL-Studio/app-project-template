@@ -56,6 +56,9 @@ internal interface NativeFullScreenPort {
 
     /** Preloads [placement] for the next time (K-06). */
     fun reload(placement: AdPlacement)
+
+    /** `time_close_native` read now, already in 1..30 (K-02). */
+    fun closeCountdownSeconds(): Long
 }
 
 /**
@@ -217,7 +220,7 @@ internal class NativeFullScreenTurns(
         if (turn !== current || current.closed) return
         _view.value = NativeFullScreenView(
             ad = current.ad,
-            secondsLeft = countdownSecondsLeft(current.deadline, clock.nowMillis()),
+            secondsLeft = countdownSecondsLeft(current.deadline, clock.nowMillis(), 3L),
             loadFailed = current.loadFailed,
         )
     }

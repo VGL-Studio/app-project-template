@@ -231,6 +231,7 @@ class FakeAdsFlags : AdsFlags {
             consentShortcutEnabled = false,
             logFullScreenEvents = false,
             logSlotEvents = false,
+            closeNativeCountdownSeconds = 5,
         ),
     )
 

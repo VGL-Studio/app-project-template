@@ -93,6 +93,14 @@ object AdsSettings {
         description = "Shows a full-screen native ad right after an interstitial (combo).",
     )
 
+    // Scaffold of plan T-053 (step 3): the default and the table come with the code.
+    val TIME_CLOSE_NATIVE = longKey(
+        name = "time_close_native",
+        default = 0L,
+        description = "Countdown before the full-screen native ad can be closed, in seconds; 1 to 30, " +
+            "any other value uses 5.",
+    )
+
     val IS_SHOW_NATIVE_BOTTOM = booleanKey(
         name = "is_show_native_bottom",
         default = false,

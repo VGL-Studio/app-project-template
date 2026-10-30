@@ -57,6 +57,8 @@ data class AdsGlobalFlags(
     val logFullScreenEvents: Boolean,
     /** is_log_ad_slot_events. */
     val logSlotEvents: Boolean,
+    /** time_close_native, 1 to 30, any other value read as 5. */
+    val closeNativeCountdownSeconds: Long,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */
@@ -107,6 +109,8 @@ internal class DefaultAdsFlags @Inject constructor(private val settings: RemoteS
             consentShortcutEnabled = values[11] as Boolean,
             logFullScreenEvents = values[12] as Boolean,
             logSlotEvents = values[13] as Boolean,
+            // Scaffold of plan T-053 (step 3): the key is read with the code.
+            closeNativeCountdownSeconds = 0L,
         )
     }.distinctUntilChanged()
 

@@ -156,10 +156,11 @@ class AdsFlagsTest {
                 showNativeBottom = false,
                 // Off because is_show_native_bottom is off by default (D-01).
                 showNativeCollap = false,
-                expandCollapAfterSeconds = 30,
+                expandCollapAfterSeconds = 10,
                 consentShortcutEnabled = false,
                 logFullScreenEvents = false,
                 logSlotEvents = false,
+                closeNativeCountdownSeconds = 5,
             ),
             flags.global.first(),
         )
@@ -181,6 +182,7 @@ class AdsFlagsTest {
         settings.set("is_enable_consent_shortcut", true)
         settings.set("is_log_ad_fullscreen_events", true)
         settings.set("is_log_ad_slot_events", true)
+        settings.set("time_close_native", 12L)
         assertEquals(
             AdsGlobalFlags(
                 adsEnabled = true,
@@ -197,6 +199,7 @@ class AdsFlagsTest {
                 consentShortcutEnabled = true,
                 logFullScreenEvents = true,
                 logSlotEvents = true,
+                closeNativeCountdownSeconds = 12,
             ),
             flags.global.first(),
         )
@@ -231,10 +234,23 @@ class AdsFlagsTest {
     }
 
     @Test
+    fun timeCloseNative_outsideOneToThirty_readsFive() = runTest {
+        assertEquals(5L, flags.global.first().closeNativeCountdownSeconds)
+        // Control: a value inside the range is written and read back (L-055).
+        settings.set("time_close_native", 12L)
+        assertEquals(12L, flags.global.first().closeNativeCountdownSeconds)
+        mapOf(1L to 1L, 30L to 30L, 0L to 5L, 31L to 5L, -3L to 5L).forEach { (remote, expected) ->
+            settings.set("time_close_native", remote)
+            assertEquals("time_close_native=$remote", expected, flags.global.first().closeNativeCountdownSeconds)
+        }
+        assertTrue(settings.readNames.toString(), "time_close_native" in settings.readNames)
+    }
+
+    @Test
     fun negativeSeconds_areReadAsZero() = runTest {
         // Control: the defaults before any value is set.
         assertEquals(45L, flags.global.first().adsIntervalSeconds)
-        assertEquals(30L, flags.global.first().expandCollapAfterSeconds)
+        assertEquals(10L, flags.global.first().expandCollapAfterSeconds)
         assertEquals(45L, flags.intervalSeconds(AdIntervalGroup.DEFAULT).first())
         settings.set("ads_interval", -5L)
         settings.set("time_expand_collap_ad", -1L)

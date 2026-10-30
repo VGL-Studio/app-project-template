@@ -15,8 +15,15 @@ internal const val INTER_GONE_POLL_MILLIS = 200L
 private const val MILLIS_PER_SECOND = 1_000L
 private const val MAX_SECONDS_LEFT = (NATIVE_AFTER_INTER_COUNTDOWN_MILLIS / MILLIS_PER_SECOND).toInt()
 
+// Scaffold of plan T-053 (step 3).
+internal const val NATIVE_CLOSE_COUNTDOWN_DEFAULT_SECONDS = 0L
+
+@Suppress("UNUSED_PARAMETER")
+internal fun nativeCloseCountdownSeconds(remote: Long): Long = 0L
+
 /** K-02: the seconds shown by the countdown, rounded up (3, 2, 1), 0 once [deadline] has passed. */
-internal fun countdownSecondsLeft(deadline: Long, now: Long): Int {
+@Suppress("UNUSED_PARAMETER")
+internal fun countdownSecondsLeft(deadline: Long, now: Long, countdownSeconds: Long): Int {
     val left = deadline - now
     if (left <= 0) return 0
     val seconds = (left + MILLIS_PER_SECOND - 1) / MILLIS_PER_SECOND

@@ -366,6 +366,8 @@ class AdsController @Inject internal constructor(
             )
 
             override fun reload(placement: AdPlacement) = fullScreenReloads.onClosedOrShowFailed(placement)
+
+            override fun closeCountdownSeconds(): Long = globalFlags.value.closeNativeCountdownSeconds
         },
         clock = clock,
         scope = scope,
@@ -2165,6 +2167,7 @@ class AdsController @Inject internal constructor(
             consentShortcutEnabled = AdsSettings.IS_ENABLE_CONSENT_SHORTCUT.default,
             logFullScreenEvents = AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS.default,
             logSlotEvents = AdsSettings.IS_LOG_AD_SLOT_EVENTS.default,
+            closeNativeCountdownSeconds = nativeCloseCountdownSeconds(AdsSettings.TIME_CLOSE_NATIVE.default),
         )
 
         /** Host of a full-screen ad drawn by the composition; `System.identityHashCode` gives 0 only for null. */
