@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: [T-074]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-075-emulator-sau-merge.md
 auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
 created: 2026-10-29
 ---
