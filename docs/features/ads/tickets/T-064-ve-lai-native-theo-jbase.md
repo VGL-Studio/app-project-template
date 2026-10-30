@@ -25,6 +25,7 @@ Component native nhỏ ở đáy, native thu gọn và native medium trong file 
 
 - Dựng theo `docs/ops/design-workflow.md`; người duyệt.
 - Khe đáy theo bề rộng màn hình (90 dp ở 320 dp, 200 dp ở 600 dp): vẽ ở ba bề rộng khung chuẩn của ADR-0020.
+- Thêm biến thể `After interstitial` của `Native/FullScreen`: nút đóng và vòng đếm ngược 48 dp ở góc trên trái, media từ y = 88, hai ảnh sáng tối; thay ảnh `NativeFullScreenAdScreen_default_light`, `_dark` còn vẽ nút 36 dp (câu hỏi 1 của plan T-053).
 - Cập nhật `docs/features/ads/design/` (ảnh và `context/`), ghi ảnh nào thay ảnh của T-035.
 
 **Không bao gồm:**

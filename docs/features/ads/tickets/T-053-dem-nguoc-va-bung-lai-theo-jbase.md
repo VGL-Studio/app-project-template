@@ -3,14 +3,14 @@ id: T-053
 title: Đếm ngược native sau inter và bung lại native thu gọn theo JBase
 feature: ads
 spec: features/ads/spec.md
-scenarios: [KB-16, KB-4, KB-32]
+scenarios: [KB-16, KB-5, KB-4, KB-32]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
-size: S
+size: M
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-053-dem-nguoc-va-bung-lai-theo-jbase.md
 auto_run: 
 created: 2026-10-29
 ---
