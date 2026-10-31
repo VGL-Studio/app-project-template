@@ -55,7 +55,7 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 
 ## Khi tách spec thành ticket
 
-- Mỗi ticket là một phần giao được, kiểm chứng được, chạy xong trong một lượt của phiên tự chạy. Ticket quá lớn thì tách tiếp.
+- Mỗi ticket là một phần giao được, kiểm chứng được, chạy xong trong một lượt của phiên tự chạy. Ticket quá lớn thì tách tiếp thành nhiều ticket nối bằng `depends_on`, mỗi ticket một plan (như T-052 tách thành T-079, T-080, T-081). Không chia một plan thành nhiều lượt trong danh sách chạy: bước 10 của `auto-run.md` chuyển plan `done` và ticket `on-staging` ngay sau lượt đầu, `plan-check.py` kiểm plan theo trạng thái repo lúc chạy nên báo lỗi khi lượt trước đã tạo hay xóa file của plan, và `run-check.py` báo cùng sửa file khi một plan nằm ở nhiều dòng của danh sách (L-142).
 - Mã ticket lấy số tiếp theo của cả app: tìm mã lớn nhất trong mọi thư mục `features/*/tickets/` rồi cộng một.
 - Ghi rõ ticket xử lý kịch bản nào của spec và phụ thuộc ticket nào.
 - Chấm rủi ro sơ bộ và ước lượng cỡ (S, M, L) theo [mẫu ticket](templates/ticket.md).
@@ -84,6 +84,7 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 - Chấm rủi ro theo [risk-scoring.md](risk-scoring.md), ghi lý do cho từng tiêu chí. Không hạ điểm để plan dễ được duyệt.
 - Ghi `token_estimate` theo cỡ của ticket, lấy số gợi ý từ `scripts/token-usage.py estimate`; task khác thường thì chỉnh và ghi lý do. Không nâng số gợi ý theo một hai task của một phiên: mẫu của script đã gồm phiên con, và task thật thường dùng 0,4 đến 0,7 lần số nâng tay (L-107). Ước tính chỉ để lập kế hoạch, không chặn task ([ops/token-usage.md](ops/token-usage.md)).
 - Nêu thẳng điều chưa chắc chắn trong mục câu hỏi cho người duyệt.
+- Bước kiểm tra thủ công bật hay tắt một cờ trên Firebase staging: đối chiếu `StagingFeatureFlagsModule` trong `app/src/staging`. Cờ bật sẵn ở đó luôn bật trên bản staging, Firebase không tắt được (`docs/ops/remote-config.md`, mục 4); nhánh cờ tắt khi đó kiểm bằng test, không bằng bước tay. Tham số của `StagingRemoteValuesModule` thì Firebase vẫn ghi đè được. Bước chờ một dòng log thì dẫn dòng code ghi log đó và điều kiện để nó chạy, rồi đối chiếu với thao tác của bước (ví dụ hộp hỏi quyền không đưa app ra nền, nên không sinh log của lúc ra nền) (L-140).
 - Tiêu chí kiểm thủ công chạy được trên emulator thì viết thành kịch bản (`docs/ops/test-sessions.md`, mục 5): tệp `<module>/src/deviceScenarios/<T-NNN>-<tên>.txt`, đưa vào mục 3.2, chạy `scripts/device-scenario.py check <tệp>`. Mỗi dòng "Kiểm tra thủ công" của mục 4 ghi `(emulator: <tệp>)`, `(máy thật: <lý do>)` hay `(người: <lý do>)` (L-085; `scripts/plan-check.py`, quy tắc 11: lỗi khi plan còn `draft`). Tệp kịch bản là test chạy ở `device-session` cuối phiên, không "thất bại trước" được, nên ghi vào ngoại lệ viết test trước.
 - Test kiểm giá trị mặc định ("chưa lưu gì thì trả mặc định", "tệp hỏng thì trả `null`") thường qua ngay trên khung rỗng của bước 3. Ghi sẵn trong mục 4 một bước đối chứng: ghi rồi đọc lại, hoặc đặt dữ liệu đúng cạnh dữ liệu sai, để test thất bại đúng lý do (L-055).
 - Plan ghi số liệu hay trạng thái theo vị trí hay theo đối tượng: liệt kê mọi cách đối tượng đó được dùng hiện nay (một yêu cầu, nhiều yêu cầu song song, kho dùng chung) và nói rõ cách tính cho từng cách; mục kiểm thử có một test cho hai yêu cầu chồng nhau (L-068).

@@ -114,6 +114,13 @@ LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của
 # as the app's release blockers (status.py, section 6). They stay in the template repo.
 find docs/runs -name 'RUN-*.md' -delete
 
+# The new app numbers its own tickets from T-001 (docs/CLAUDE.md takes the next number over every features/*/tickets/,
+# L-141). Specs and designs of the modules it ships stay, since their code points to them; the template's tickets, plans,
+# feedback, requests and its process feature stay in the template repo.
+rm -rf docs/features/quy-trinh
+find docs/features -mindepth 2 -maxdepth 2 -type d \( -name tickets -o -name plans -o -name feedback -o -name requests \) \
+  -exec rm -rf {} +
+
 # Pages generated from the documents must describe the new app, not the template (its lessons, for one).
 python3 -I scripts/status.py > /dev/null
 python3 -I scripts/foundation.py > /dev/null

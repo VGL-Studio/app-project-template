@@ -983,6 +983,13 @@ expect "playbook: PB-13 an R2 file missing (404) in ui-test -> nguoi, before the
 expect "playbook: PB-14 push refused for a workflow file (OAuth App, workflow scope) -> bo-qua-loai" "PB-14 bo-qua-loai" "$(pb_head $pb_dir/PB-14.log)"
 expect "playbook: PB-15 the emulator package failed to download and no test ran -> lich-thu-lai" "PB-15 lich-thu-lai" \
   "$(pb_head $pb_dir/PB-15.log)"
+expect "playbook: PB-16 a job cancelled at its time limit during the release build -> chay-lai, not PB-08" "PB-16 chay-lai" \
+  "$(pb_head $pb_dir/PB-16.log)"
+# R8 prints "WARNING: R8: Missing class ... (referenced from ...)" on a green release build; only its errors are PB-08 (L-138).
+grep 'WARNING: R8' $pb_dir/PB-16.log > "$work/pb-r8-warning.log"
+expect "playbook: an R8 missing-class warning alone is not PB-08" khong-co "$(pb_head "$work/pb-r8-warning.log")"
+printf '%s\n' 'ERROR: Missing class com.example.Gone (referenced from: void com.example.Uses.call())' > "$work/pb-r8-error.log"
+expect "playbook: an R8 missing-class error is PB-08" "PB-08 that" "$(pb_head "$work/pb-r8-error.log")"
 # A row with two patterns joined by "và" matches only when the log has both: the same download warning on a run whose
 # tests did run and fail is a real failure, not infrastructure.
 grep -v 'Không có test nào chạy' $pb_dir/PB-15.log > "$work/pb15-tests-ran.log"
@@ -1046,6 +1053,26 @@ expect "playbook: every bo-qua-loai row names the plan-check --touches command" 
 expect "playbook: the table has at least one bo-qua-loai row" yes "$([ -n "$pb_skip_rows" ] && echo yes || echo no)"
 expect "playbook: the table has at least 10 rows" yes "$([ "$(printf '%s\n' "$pb_rows" | wc -l)" -ge 10 ] && echo yes || echo no)"
 expect "failure-kind: a playbook-only log still says other" other "$(scripts/failure-kind.sh $pb_dir/PB-01.log)"
+
+# test-summary.sh counts only this checkout: agent worktrees in .claude/worktrees/ and any other worktree nested in the
+# repository keep their own build results and screenshots (L-137).
+ts_repo="$work/ts-repo"
+mkdir -p "$ts_repo/scripts"
+cp scripts/test-summary.sh "$ts_repo/scripts/"
+ts_result() { # <dir> <tests>: one JUnit file and one screenshot in module m under <dir>
+  mkdir -p "$1/m/build/test-results/testDebugUnitTest" "$1/m/src/test/screenshots"
+  printf '<testsuite tests="%s" failures="0" errors="0"/>\n' "$2" > "$1/m/build/test-results/testDebugUnitTest/TEST-a.xml"
+  : > "$1/m/src/test/screenshots/a.png"
+}
+git -C "$ts_repo" init -q
+git -C "$ts_repo" add scripts
+git -C "$ts_repo" commit -q -m init
+git -C "$ts_repo" worktree add -q "$ts_repo/nested" 2> /dev/null
+ts_result "$ts_repo" 3
+ts_result "$ts_repo/.claude/worktrees/agent-old" 5
+ts_result "$ts_repo/nested" 7
+expect "test-summary: tests and screenshots of nested worktrees are not counted" \
+  "Test JVM: 3 test, 0 lỗi. Ảnh screenshot: 1. ./m: 3 test, 0 lỗi" "$(GITHUB_ACTIONS='' "$ts_repo/scripts/test-summary.sh" jvm)"
 
 # The emulator tests of main-guard.yml (ADR-0043, T-075): ui-test-needed.sh, ui-test-on-emulator.sh, ui-test-verdict.sh.
 # The blocks below commit in temporary repos, so the fake origin URL is unset here and restored at the end (L-082).
@@ -2197,6 +2224,12 @@ elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=t
     "$([ -e "$new_app/.github/ISSUE_TEMPLATE/from-app.yml" ] && echo present || echo absent)"
   expect "new-app.sh starts an empty lessons log" 0 "$(grep -c '^### L-' "$new_app/docs/lessons.md" || true)"
   expect "new-app.sh leaves out the template's run reports" 0 "$(ls "$new_app/docs/runs" | grep -c '^RUN-' || true)"
+  expect "new-app.sh leaves out the template's tickets, plans, feedback and requests" "" \
+    "$(find "$new_app/docs/features" -mindepth 2 -maxdepth 2 -type d \( -name tickets -o -name plans -o -name feedback -o -name requests \))"
+  expect "new-app.sh leaves out the template's process feature" absent \
+    "$([ -e "$new_app/docs/features/quy-trinh" ] && echo present || echo absent)"
+  expect "new-app.sh keeps the specs and designs of the template's modules" "yes yes" \
+    "$([ -f "$new_app/docs/features/loading/spec.md" ] && echo yes || echo no) $([ -d "$new_app/docs/features/loading/design" ] && echo yes || echo no)"
   expect "new-app.sh regenerates the progress page without the template's lessons" 0 \
     "$(grep -c 'L-0[0-9][0-9]' "$new_app/docs/STATUS.md" || true)"
   expect "new-app.sh leaves pages that match the documents" 0 \
