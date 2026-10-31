@@ -1,7 +1,7 @@
 ---
 ticket: T-071
 title: Banner và MREC của MAX
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -10,7 +10,7 @@ blocking_points: [ads, analytics, core, build-config, ci]
 run_order:                   # AI điền sau họp đánh giá rủi ro
 reviewer: Nhật               # người duyệt
 cross_reviewer: Nhật         # bắt buộc khi risk_level là high
-approved_at:
+approved_at: 2026-10-31
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -260,7 +260,7 @@ Kết quả `scripts/existing-tests.py` bản 2 (2026-10-31): 457 test dùng tê
   - T-069 (inter, rewarded của MAX), T-070 (app open của MAX): chưa có plan; sẽ mở rộng `MaxConfig.unitFor` cho `interstitial`, `rewarded`, `app_open` theo cùng `-PmaxAdUnits` (plan này tạo, plan kia ghi Sửa, L-054).
   - T-072 (doanh thu, phễu của MAX): gắn `setRevenueListener` vào `MaxBannerAdView` (plan này tạo, đã có số liệu nạp và lượt bấm). Trước khi phát hành bản có mã MAX, T-072 phải merge, không thì banner MAX không có doanh thu trong Firebase và AppsFlyer (câu hỏi 2). Nếu câu hỏi 8 chọn thêm `ad_platform` cho sự kiện nạp, T-072 (hay ticket riêng) sửa `MaxBannerAdView` và `AdMetricEvent`.
   - T-073 (người làm): `release.sh` truyền và kiểm `maxAdUnits` (kể cả ký tự: production đưa `-PmaxAdUnits` vào `BuildConfig` không lọc, như `maxSdkKey` hôm nay; staging lọc bằng regex ở bước 7; rà soát bản 2, G4), viết lại `ProductionPropertiesTest` khi bắt buộc (câu hỏi 1). Mẫu mã đơn vị MAX trong `secret-scan.py` rút về T-071 (câu hỏi 3, 9).
-- Nhật ký mạng con của MAX (KB-28 tiêu chí 3, T-058) chưa có: theo câu hỏi 12 (bản 3).
+- Nhật ký mạng con của MAX (KB-28 tiêu chí 3, T-058) chưa có: T-072 làm (câu hỏi 12).
 - Đổi `ads_mediation_order` khi Remote Config tải xong (giá trị khác mặc định) dựng lại khung đang hiện: quảng cáo đang có bị hủy, khung gửi lại một yêu cầu, có thể thấy nháy (rà soát, G4; câu hỏi 7).
 - Đề xuất thứ tự chạy: sau T-062, T-067, T-054, T-068 (đã merge). Trước T-072. Độc lập với T-069 về file code ngoài `MaxSdk.kt` và `AdsController.kt`: cùng danh sách chạy thì T-071 trước, T-069 dùng lại `MaxConfig.adUnits`.
 
@@ -306,7 +306,7 @@ Kết quả `scripts/existing-tests.py` bản 2 (2026-10-31): 457 test dùng tê
 11. **Lượt bấm banner MAX và A-14 (bản 2 thêm, ngoài câu hỏi).** Bản 1 bỏ sót A-14 (bấm mọi quảng cáo, kể cả banner, thì bỏ lượt resume kế tiếp); bản 2 nối lượt bấm banner, MREC của MAX vào `AdTelemetry.clicked`, nên ghi cả `ad_clicked` có sẵn.
    - Trả lời (anh Nhật, 2026-10-31): đồng ý.
 12. **Nhật ký mạng con của lượt nạp MAX (bản 3, rà soát danh sách chạy, điểm 4).** Spec KB-28 tiêu chí 3: "Mỗi lượt tải quảng cáo ở staging ghi log từng mạng đã thử (tên mạng, thời gian, lỗi), không ghi mã đơn vị." T-058 làm việc này cho AdMob bằng `ResponseInfo`; bản 2 của plan này để lượt nạp banner, MREC của MAX không ghi (mục 3.5) mà không hỏi người. KB-28 không có trong `scenarios` của ticket T-071. MAX có thông tin tương đương (`MaxAd.getWaterfall()`, `MaxError.getWaterfall()`, danh sách mạng đã thử và kết quả), nhưng chưa đọc bằng `javap` và chưa chạy thử. Đề xuất: T-071 không ghi; nhật ký mạng con của MAX cho mọi định dạng (banner, MREC, rồi inter, rewarded, app open của T-069, T-070) làm một lần ở ticket riêng sau T-069, T-070, vì cùng một hàm đọc waterfall dùng cho mọi định dạng; khi duyệt bản 3, người tạo ticket đó (hay thêm vào phạm vi T-072). Nếu chọn hoãn, KB-28 tiêu chí 3 còn mở cho MAX tới ticket đó; ghi vào bảng nghiệm thu của T-071. Phương án giữa: T-071 ghi một dòng log `VGL.Ads` mỗi lượt nạp MAX với tên mạng thắng (`MaxAd.getNetworkName()`) hay mã lỗi, không đọc waterfall; waterfall để ticket riêng (cần đọc `getNetworkName` bằng `javap`, thêm một test log trên bản giả). Phương án khác: T-071 ghi đủ waterfall (thêm đọc waterfall vào `MaxBannerAdView`, test trên bản giả, chạy thử `javap` trước khi duyệt; tăng phạm vi và tiêu chí E).
-   - Trả lời:
+   - Trả lời (anh Nhật, 2026-10-31): T-071 không ghi; nhật ký mạng con của lượt nạp MAX (tên mạng, thời gian, lỗi, không ghi mã đơn vị; KB-28 tiêu chí 3) đưa vào phạm vi T-072, cùng lúc thêm `ad_platform` (câu hỏi 8), cho mọi định dạng đã có MAX lúc làm T-072. KB-28 tiêu chí 3 còn mở cho MAX tới khi T-072 merge. Ticket T-072 đã ghi vào phạm vi. Mục 3.1, 3.2, 4 không đổi.
 13. **Ghi chú của rà soát danh sách chạy đã làm trong bản 3.** (a) Ví dụ mã trong `ads-guide.md` chỉ dùng chỗ giữ chỗ hay `FAKE` (bước 8). (b) `BannerAdSizeTest.admobOrder_withMaxKey_noMaxPlatform_heightIsAdmob` so giá trị cuối của `onHeight` (mục 4). (c) Chạy riêng `MaxBannerAdViewTest.realView_buildsForBannerAndMrec_rejectsCollapsible` ba lần trước khi mở PR (mục 4, L-048). (d) Kiểm thủ công thêm vị trí của quảng cáo MAX trong khung cao hơn nó (căn trên, câu hỏi 4) và lượt thử lại sau khi làm mới của MAX đang hiện lỗi (mục 4). (e) Mục 3.4 tách điều kiện chuyển trong phiên với kết quả trên máy thật. Ghi chú không làm, để người xem: phần "chiều cao không đổi" của `BannerSlotHostTest.banner_twoPlatforms_firstFails_heightUnchanged_secondShown` qua bất kể code vì `BannerSlotHost` nhận chiều cao cố định (chiều cao thật đã kiểm ở `frameHeight_isTallestOfPlatforms`, `BannerAdSizeTest`); không truyền `-PmaxAdUnits` cho bản phát hành trước khi T-072 (doanh thu MAX) và T-073 (lọc ký tự) merge; ticket ghi "Mọi tiêu chí ... đạt" nhưng T-071 chỉ làm phần banner, MREC của KB-31: nghiệm thu theo bảng mục 2.
 14. **Rà soát độc lập bản 3 (2026-10-31):** phiên AI riêng, chỉ đọc: 0 chặn, 2 nên sửa, 4 ghi chú; năm điểm của bản 3 đã sửa đúng, ba test mới đỏ trên luật của bản 2. Đã sửa trong bản 3: (N1) `Channel` riêng cho kết quả giả không cứu kết quả mà con thật phát ngay trong `send()`, vì `merge` vẫn đăng ký các con muộn: `results` dựng bằng `flow` với hộp thư chung và các con đăng ký `UNDISPATCHED` (bước 3), test `failsInsideSend_throughRunBannerLoads_isOneFailure`; (N2) test thứ tự chỉ `max` chưa sẵn sàng ghi rõ cách đẩy thời gian (`runCurrent()`, không `advanceUntilIdle()`); ghi chú: không dùng lại `run()` của `BannerLoadsTest` (bộ điều phối `Unconfined` che lỗi), kết quả giả gắn số lượt gửi thay cho việc xả, đối chứng của `mrec_admobOnly_pausedThenFails_collapses` đổi sang `[MAX, ADMOB]`, câu hỏi 12 dẫn đủ câu spec và thêm phương án giữa. Kiểm lại phần sửa: 0 chặn, 0 nên sửa, 2 ghi chú, đã làm (test gọi thẳng `send()` thu `results` trước; `results` của con phải là `SharedFlow` thu được ngay).
 
@@ -316,9 +316,9 @@ Kết quả `scripts/existing-tests.py` bản 2 (2026-10-31): 457 test dùng tê
 
 Phiên bản 3:
 
-- **Quyết định:**
-- **Người duyệt:**, **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-31 (anh Nhật chọn "Duyệt bản 3", lời anh Nhật: "Cùng tôi trả lời các câu hỏi để duyệt."), sau khi trả lời câu hỏi 12 (đưa nhật ký mạng con của MAX vào T-072) và xem tóm tắt bản 3 cùng kết quả hai lần rà soát độc lập (câu hỏi 14). Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 Phiên bản 2:
 

@@ -26,6 +26,7 @@ Doanh thu và phễu của quảng cáo MAX ghi cùng sự kiện với AdMob: `
 - Ánh xạ doanh thu của MAX vào `AdTelemetry` (định dạng, mạng, mã đơn vị, vị trí đọc lúc sự kiện về); không ghi `ad_impression` từ app.
 - Sửa `ads-business-rules.md` mục 8 kèm ADR-0037; báo nhóm UA trước khi phát hành (HD-07).
 - Thêm 2026-10-31: tham số `ad_platform` (`admob`, `applovin`) cho `ad_load_success`, `ad_load_fail`, `ad_clicked` (`:core:analytics`), kèm sửa spec `ads` mục 6 và luật mục 8.2 (plan T-071, câu hỏi 8). T-072 merge trước bản phát hành đầu có mã MAX.
+- Thêm 2026-10-31: nhật ký mạng con của lượt nạp MAX ở staging (tên mạng, thời gian, lỗi, không ghi mã đơn vị; spec `ads` KB-28 tiêu chí 3, như T-058 làm cho AdMob) cho mọi định dạng đã có MAX lúc làm (banner, MREC của T-071; inter, rewarded của T-069; app open nếu T-070 đã merge), qua cùng chỗ ghi `networkLog` (plan T-071, câu hỏi 12).
 
 **Không bao gồm:**
 
