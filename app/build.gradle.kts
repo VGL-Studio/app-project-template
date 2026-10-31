@@ -58,6 +58,7 @@ android {
     //   -PassetsBaseUrl=<https address of the production files on R2>
     //   -PappsFlyerDevKey=<AppsFlyer dev key>
     //   -PmaxSdkKey=<AppLovin MAX SDK key> (optional until T-073)
+    //   -PmaxAdUnits="banner=<MAX ad unit>;banner_mrec=<MAX ad unit>" (optional until T-073)
     productFlavors {
         named("staging") {
             manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
@@ -82,6 +83,13 @@ android {
                 logger.warn("ads.maxSdkKey in local.properties ignored: only letters, digits, _ and - are allowed")
             }
             buildConfigField("String", "MAX_SDK_KEY", "\"$maxSdkKey\"")
+            // The MAX ad unit of each slot (T-071, ADR-0037): the key ads.maxAdUnits of local.properties, as
+            // "banner=<unit>;banner_mrec=<unit>". A value with other characters is dropped, not printed; the app then
+            // logs the slots without a MAX unit.
+            val maxAdUnits = localProperties.getProperty("ads.maxAdUnits").orEmpty().trim()
+                .takeIf { it.matches(Regex("[A-Za-z0-9_=;-]*")) }
+                .orEmpty()
+            buildConfigField("String", "MAX_AD_UNITS", "\"$maxAdUnits\"")
             // Builds sent to the team by staging.yml carry the run number, so testers can tell them apart.
             providers.gradleProperty("stagingBuildNumber").orNull?.toInt()?.let { buildNumber ->
                 versionCode = buildNumber
@@ -107,6 +115,12 @@ android {
                 "String",
                 "MAX_SDK_KEY",
                 "\"${providers.gradleProperty("maxSdkKey").getOrElse("")}\"",
+            )
+            // Optional until T-073 passes it from scripts/release.sh: a slot without a MAX unit loads from AdMob only.
+            buildConfigField(
+                "String",
+                "MAX_AD_UNITS",
+                "\"${providers.gradleProperty("maxAdUnits").getOrElse("")}\"",
             )
             signingConfigs.findByName("upload")?.let { signingConfig = it }
         }

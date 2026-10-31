@@ -63,6 +63,9 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  *   again (B-05, AR-03). The banner is paused, not destroyed, while hidden or covered.
  * - Consent withdrawn after the banner had an ad: the frame keeps its height, the ad is hidden and paused; consent
  *   given again loads a new ad in the same frame (B-06).
+ * - [AdFormat.BANNER] and [AdFormat.BANNER_MREC] load from AppLovin MAX and AdMob in the order of
+ *   `ads_mediation_order` (KB-31, ADR-0037, plan T-071): the first platform without an ad hands the turn to the
+ *   second one in the same frame, as tall as the tallest of them; a collapsible banner is AdMob only.
  */
 @Composable
 fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
@@ -90,7 +93,12 @@ private fun BannerSlot(
     }
     val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
     val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
-    val unitId = remember(placement, format) { ads.unitId(placement, format) }
+    val order by ads.mediationOrder.collectAsStateWithLifecycle()
+    val admobUnit = remember(placement, format) { ads.unitId(placement, format) }
+    val maxUnit = remember(format) { ads.maxUnitId(format) }
+    // The platforms of the frame (plan T-071, KB-31): a new order or unit builds a new frame (question 7 of the plan).
+    val platforms = remember(format, order, admobUnit, maxUnit) { bannerPlatforms(format, order, admobUnit, maxUnit) }
+    val frameKey = remember(platforms, admobUnit, maxUnit) { bannerSlotUnitKey(platforms, admobUnit, maxUnit) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val visible = remember(lifecycle) { lifecycle.resumedFlow() }
     val currentOnHeight by rememberUpdatedState(onHeight)
@@ -100,14 +108,27 @@ private fun BannerSlot(
         val screenWidthDp = LocalConfiguration.current.screenWidthDp
         val widthDp = if (constraints.hasBoundedWidth) maxWidth.value.toInt() else screenWidthDp
         val adSize = remember(widthDp, format) { bannerAdSize(context, format, widthDp) }
-        LaunchedEffect(adSize) { currentOnHeight(adSize.height.dp) }
         val kind = bannerSizeKind(format)
+        val hasMax = AdPlatform.MAX in platforms
+        val maxHeightDp = remember(kind, widthDp, hasMax) {
+            if (hasMax) {
+                ads.maxBannerHeightForTest?.invoke(
+                    kind,
+                    widthDp,
+                ) ?: maxBannerHeightDp(context, kind, widthDp)
+            } else {
+                0
+            }
+        }
+        // The frame is as tall as its tallest platform, so it does not jump when the platform shown changes.
+        val heightDp = bannerFrameHeightDp(platforms, adSize.height, maxHeightDp)
+        LaunchedEffect(heightDp) { currentOnHeight(heightDp.dp) }
         key(adSize) {
             BannerSlotHost(
                 gateOpen = canRequestAds,
                 enabled = enabled,
-                unitId = unitId,
-                heightDp = adSize.height,
+                unitId = frameKey,
+                heightDp = heightDp,
                 refresh = refresh,
                 visible = visible,
                 // The published flag: no gap while an interstitial hands over to its native ad (KB-27).
@@ -117,20 +138,45 @@ private fun BannerSlot(
                 logger = ads.logger,
                 placementKey = nativeSlotKey(placement, format),
                 newView = {
-                    val id = checkNotNull(unitId) { "${placement.key} has no ad unit" }
-                    val adView = AdView(context).apply {
-                        adUnitId = id
-                        setAdSize(adSize)
+                    val children = platforms.map { platform ->
+                        platform to when (platform) {
+                            AdPlatform.ADMOB -> {
+                                val id = checkNotNull(admobUnit) { "${placement.key} has no ad unit" }
+                                val adView = AdView(context).apply {
+                                    adUnitId = id
+                                    setAdSize(adSize)
+                                }
+                                SdkBannerAdView(
+                                    adView = adView,
+                                    refresh = refresh,
+                                    placement = placement,
+                                    unitId = id,
+                                    telemetry = ads.telemetry,
+                                    now = ads::metricsNowMillis,
+                                    format = format,
+                                    networkLog = ads.networkLog,
+                                )
+                            }
+
+                            AdPlatform.MAX -> {
+                                val id = checkNotNull(maxUnit) { "${placement.key} has no MAX ad unit" }
+                                MaxBannerAdView(
+                                    // Built on the first send to MAX only (G2 of the plan).
+                                    newSdkView = { AppLovinMaxBannerView(id, kind, widthDp, context) },
+                                    placement = placement,
+                                    format = format,
+                                    telemetry = ads.telemetry,
+                                    now = ads::metricsNowMillis,
+                                    logger = ads.logger,
+                                )
+                            }
+                        }
                     }
-                    SdkBannerAdView(
-                        adView = adView,
-                        refresh = refresh,
-                        placement = placement,
-                        unitId = id,
-                        telemetry = ads.telemetry,
-                        now = ads::metricsNowMillis,
-                        format = format,
-                        networkLog = ads.networkLog,
+                    OrderedBannerAdView(
+                        children = children,
+                        maxReady = { ads.maxReady.value },
+                        logger = ads.logger,
+                        placementKey = nativeSlotKey(placement, format),
                     )
                 },
                 onAdAvailabilityChange = onAdAvailabilityChange,

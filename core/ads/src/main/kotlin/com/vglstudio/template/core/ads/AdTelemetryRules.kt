@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import com.applovin.mediation.MaxErrorCode
 import com.vglstudio.template.core.analytics.AdFunnelKind
 
 /**
@@ -68,8 +69,19 @@ internal fun loadStateAfterError(code: Int, offline: Boolean, sdkThrottled: Bool
     else -> "unknown"
 }
 
-/** Stub (T-071). */
-internal fun maxLoadStateAfterError(code: Int, offline: Boolean): String = ""
+/**
+ * `load_state` after a load error of AppLovin MAX of [code] (section 8.2; plan T-071, question 2): offline is always
+ * `network`; the codes are those of [MaxErrorCode], read with javap on applovin-sdk 13.6.4. MAX has no throttling of
+ * its own to read from a message, so no message is read.
+ */
+internal fun maxLoadStateAfterError(code: Int, offline: Boolean): String = when {
+    offline -> "network"
+    code == MaxErrorCode.NO_FILL -> "no_fill"
+    code == MaxErrorCode.NETWORK_ERROR || code == MaxErrorCode.NETWORK_TIMEOUT || code == MaxErrorCode.NO_NETWORK ->
+        "network"
+    code == MaxErrorCode.UNSPECIFIED -> "internal"
+    else -> "unknown"
+}
 
 /**
  * Whether the SDK refused the request by itself after too many failed ones (code 1; question 3 of plan T-023). The

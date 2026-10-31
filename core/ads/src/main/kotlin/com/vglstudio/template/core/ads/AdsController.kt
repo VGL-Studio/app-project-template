@@ -552,6 +552,7 @@ class AdsController @Inject internal constructor(
         }
         logger.info(TAG, "Ads started")
         missingUnitsWarning(unitIds)?.let { logger.warn(TAG, it) }
+        missingMaxUnits()?.let { logger.info(TAG, it) }
         startedAtMillis = clock.nowMillis()
         // AppsFlyer starts once consent allows it (ADR-0027, decision 3; plan T-033).
         scope.launch {
@@ -1535,6 +1536,17 @@ class AdsController @Inject internal constructor(
     }
 
     /**
+     * The line logged once at [start] when the build has a MAX SDK key but no MAX unit for some slots (plan T-071):
+     * the slots only, never a unit.
+     */
+    private fun missingMaxUnits(): String? {
+        if (!maxConfig.hasKey) return null
+        val missing = MaxConfig.MAX_FORMATS.filter { maxConfig.unitFor(it) == null }
+        if (missing.isEmpty()) return null
+        return "MAX ad units missing for ${missing.joinToString(", ") { it.code }}; those slots run without MAX"
+    }
+
+    /**
      * The ad unit of [placement] drawn as [format]: its own format, or a layer of its bottom bar (plan T-030, question
      * 2). Null shows no ad.
      */
@@ -1543,10 +1555,10 @@ class AdsController @Inject internal constructor(
             if (it == null) Log.e(TAG, "No ad unit for placement ${nativeSlotKey(placement, format)}; it shows no ad")
         }
 
-    /** Stub (T-071). */
-    internal fun maxUnitId(format: AdFormat): String? = null
+    /** The AppLovin MAX ad unit of the slot of [format] (plan T-071): banner and MREC; null without one or a key. */
+    internal fun maxUnitId(format: AdFormat): String? = maxConfig.unitFor(format)
 
-    /** Stub (T-071). */
+    /** The height of a MAX banner of a kind and width in tests, where the SDK of MAX gives the same as AdMob. */
     @VisibleForTesting
     internal var maxBannerHeightForTest: ((BannerSizeKind, Int) -> Int)? = null
 
