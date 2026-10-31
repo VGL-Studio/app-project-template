@@ -1,16 +1,16 @@
 ---
 ticket: T-071
 title: Banner và MREC của MAX
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 25M          # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-10-31, trung vị 20 task M); bản 2 thêm số liệu nạp của MAX và mẫu secret-scan, nâng ít vì L-107
 blocking_points: [ads, analytics, core, build-config, ci]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-10-31
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -285,7 +285,9 @@ Kết quả `scripts/existing-tests.py` bản 2 (2026-10-31): 457 test dùng tê
 7. **Đổi `ads_mediation_order` giữa phiên (G4):** khi Remote Config tải xong với thứ tự khác mặc định, khung banner đang hiện bị dựng lại (thêm một yêu cầu, có thể nháy). Đề xuất chấp nhận (chỉ xảy ra một lần mỗi lần mở app khi giá trị đổi); phương án khác: chỉ áp thứ tự mới cho khung dựng sau đó.
    - Trả lời (anh Nhật, 2026-10-31): theo đề xuất của AI: dựng lại khung đang hiện.
 8. **Tham số nền tảng cho sự kiện nạp.** Anh Nhật muốn ghi nền tảng `max` cho lượt nạp nếu sự kiện có chỗ (câu 2), nhưng `ad_load_success`, `ad_load_fail` không có tham số nền tảng: thêm là đổi sự kiện ở `:core:analytics` (`AdMetricEvent`, `FirebaseAdMetrics`) và bảng mục 8.2, ngoài spec (câu 46 của spec chỉ chốt `ad_platform` là `applovin` cho doanh thu). Hệ quả khi không thêm: trên Firebase, lượt nạp banner của MAX và AdMob trộn chung một vị trí; chỉ tách được lượt lỗi qua `load_error_code` (MAX là `204` hay số âm, AdMob là 0 tới 11), không tách được lượt thành công. Đề xuất: T-071 không thêm (như mục 3.1 bước 9); thêm `ad_platform` (giá trị `admob`, `applovin` như câu 46) cho `ad_load_success`, `ad_load_fail`, `ad_clicked` ở T-072, cùng lúc doanh thu MAX, sửa spec mục 6 và luật mục 8.2 trong plan đó. Phương án khác: thêm ngay trong T-071 (thêm `:core:analytics` vào mục 3.2, spec cần xác nhận lại trước khi duyệt).
+   - Trả lời (anh Nhật, 2026-10-31): theo đề xuất của AI: thêm `ad_platform` (`admob`, `applovin`) cho `ad_load_success`, `ad_load_fail`, `ad_clicked` ở T-072, kèm sửa spec mục 6 và luật mục 8.2; ticket T-072 đã ghi vào phạm vi. T-071 không đổi sự kiện.
 9. **Sửa ticket T-073.** Ticket T-073 ghi "Thêm mẫu mã đơn vị MAX vào `scripts/secret-scan.py` nếu T-068 chưa làm"; theo câu 3, T-071 làm phần này. Đề xuất: khi duyệt plan này, sửa dòng đó của T-073 thành "Mẫu mã đơn vị MAX trong `scripts/secret-scan.py` đã làm ở T-071 (bản 2 của plan, câu hỏi 3); T-073 chỉ thêm tên khe mới nếu `release.sh` dùng tên khác `banner`, `banner_mrec`, `interstitial`, `rewarded`, `app_open`". AI không tự sửa ticket T-073 trong PR plan này.
+   - Trả lời (anh Nhật, 2026-10-31): theo đề xuất của AI; AI sửa dòng đó của ticket T-073 khi ghi duyệt plan này.
 10. **Rà soát độc lập bản 2 (2026-10-31):** phiên AI riêng, chỉ đọc, theo `docs/CLAUDE.md` mục Khi viết plan và `docs/ops/pre-run-review.md`; đã kiểm chữ ký và hằng số bằng `javap` khớp mục 4.1, các trả lời của anh Nhật đều đã làm. 3 chặn, 4 nên sửa, 5 ghi chú. Đã sửa:
    - C1: khung chỉ suy "con đang được hỏi" từ `next`, nên kết quả của lượt gửi về sau `pause()` bị bỏ (banner kẹt trống) và lượt làm mới lỗi của con hiện đứng thứ nhất bị coi như `TryNext`. Sửa: trạng thái `pending`, `pausedSinceSend`, cách dựng `results` (bước 3); test `pendingResult_afterPause_isHandled`, `firstShownRefreshFails_isFailed_notTryNext`.
    - C2: dừng mọi con lỗi đổi hành vi banner AdMob ở thứ tự `admob` (trúng điều kiện dừng ở mục 7). Sửa: chỉ dừng con MAX khi lỗi; con dừng được `resume()` trước `send()` (bước 3, mục 3.5); test `admobOnly_failure_doesNotPause_retrySendsOnRunningView`.
@@ -295,6 +297,8 @@ Kết quả `scripts/existing-tests.py` bản 2 (2026-10-31): 457 test dùng tê
    - N3: test hai yêu cầu chồng nhau trên khóa `/max` (`AdTelemetryTest.twoFramesOneMaxKey_overlap`).
    - N4: bộ lọc dòng của mẫu mã đơn vị MAX thêm `adUnits`, `MaxConfig(` để bắt mã viết trong code Kotlin; test thêm một dòng (năm dòng); quét lại repo: không dòng nào khớp.
    - Ghi chú đã làm: G1 (câu log thiếu mã chỉ liệt kê khe thiếu, bước 6), G2 (`blocking_points` thêm `ci`), G3 (khẳng định chiều cao MAX đúng 56), G4 (ghi việc kiểm ký tự của `-PmaxAdUnits` vào phần T-073 ở mục 6). G5: câu 8 cần người trả lời trước khi duyệt; ticket T-073 theo câu 9.
+11. **Lượt bấm banner MAX và A-14 (bản 2 thêm, ngoài câu hỏi).** Bản 1 bỏ sót A-14 (bấm mọi quảng cáo, kể cả banner, thì bỏ lượt resume kế tiếp); bản 2 nối lượt bấm banner, MREC của MAX vào `AdTelemetry.clicked`, nên ghi cả `ad_clicked` có sẵn.
+   - Trả lời (anh Nhật, 2026-10-31): đồng ý.
 
 ## 9. Quyết định duyệt
 
@@ -302,9 +306,9 @@ Kết quả `scripts/existing-tests.py` bản 2 (2026-10-31): 457 test dùng tê
 
 Phiên bản 2:
 
-- **Quyết định:** <chờ duyệt>
-- **Người duyệt:** <chờ duyệt>, **duyệt chéo:** <chờ duyệt>
-- **Ghi chú:** <chờ duyệt>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-31 (anh Nhật chọn "Duyệt bản 2"), sau khi trả lời câu hỏi 1 tới 7 (lời anh Nhật: "Cùng tôi trả lời các câu hỏi tiếp theo."), câu 8, 9, 11, và xem tóm tắt bản 2 cùng kết quả rà soát độc lập bản 2 (3 chặn, 4 nên sửa, đã sửa hết). Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Trả lời: như ghi ở mục 8.
 
 Phiên bản 1:
 
