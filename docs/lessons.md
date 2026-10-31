@@ -938,6 +938,26 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** cách nhẹ: `docs/CLAUDE.md` thêm quy ước nhánh cho task có plan làm ngoài phiên tự chạy, không bắt đầu bằng `claude/T-`, để script từ chối khi có phiên. `scripts/token-usage.py` chỉ gán token cho nhánh `claude/T-NNN` và `claude/fix-T-NNN` (`docs/ops/token-usage.md`, mục 1), nên tên mới cần thêm vào đó; `scripts/resume-check.py` và `scripts/run-watchdog.py` không cần đổi, vì nhánh làm ngoài phiên không có trong danh sách chạy nào. Cách chặt: `merge-if-green.sh` chỉ cho nhánh task merge khi mã task có trong danh sách của phiên đang chạy, như `scripts/resume-check.py` và `scripts/run-watchdog.py` đã đối chiếu nhánh task với ticket của danh sách; script là file được bảo vệ, cần plan rủi ro cao duyệt chéo. Anh Nhật chọn cách chặt ngày 2026-10-30, thành ticket T-083.
 - **Trạng thái:** proposed
 
+### L-134. Hai test của `scripts/tests/run.sh` dựa vào tài liệu riêng của dự án mẫu, nên app mới đỏ ngay lần `check.sh` đầu tiên
+
+- **Ngày, nguồn:** 2026-10-30, Photune (issue #287; lần chạy thử của plan T-022, PR #27 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** app dựng bằng `scripts/new-app.sh` ở `853da34` chạy `scripts/check.sh` và đỏ ở bộ test của script. Test "the latest run list has no new error from rule 11" tìm danh sách chạy bằng `ls docs/runs/RUN-*.md`; `new-app.sh` bỏ mọi danh sách chạy của mẫu, nên `ls` lỗi và bộ test dừng sau 81 giây. Test "this repository's docs with a lesson number used twice stop the page" thêm `### L-040` vào bản sao của sổ bài học rồi chờ `status.py` báo trùng L-040; sổ của app mới rỗng, sổ của Photune mới có L-001 tới L-003, nên test đỏ (`expected '1 1', got '0 0'`). `new-app.sh` dặn chạy `check.sh` ngay sau khi tạo app, nên mọi app mới đỏ ngay bước đầu; app đồng bộ bằng `template-sync.sh` mà sổ chưa tới L-040 cũng đỏ. Repo mẫu luôn có danh sách chạy và có L-040, nên CI của mẫu không bao giờ chạy vào trường hợp của app.
+- **Bằng chứng:** issue #287; tái hiện trên app dựng bằng `new-app.sh` từ `70d99f8`: `ls: docs/runs/RUN-*.md: No such file or directory`, và test thứ hai cho `0 0`.
+- **Đề xuất sửa:** test thứ nhất bỏ qua kèm dòng `skip - ...` khi chưa có danh sách chạy; test thứ hai nhân đôi một số bài học có thật trong sổ, sổ rỗng thì thêm cùng một bài học hai lần; một test chạy hai phần đó trên bản sao không có danh sách chạy và có sổ rỗng.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #326: `scripts/tests/run.sh`. Test danh sách chạy mới nhất tìm bằng `find`, chưa có danh sách nào thì in dòng `skip - ...`. Test số bài học dùng hai lần lấy số đầu của sổ, để bản trùng nằm xa bản gốc như ở L-056; sổ rỗng thì thêm L-001 hai lần; câu khẳng định giữ nguyên (trang dừng và nêu đúng số). Hai test mới chạy hai phần đó trên app mà khối `new-app.sh` của bộ test dựng (chỉ có ở repo mẫu); đặt lại code cũ thì cả hai đỏ. Đầu file ghi quy tắc: test đọc tài liệu của repo phải qua, hoặc in dòng `skip - ...`, khi chưa có danh sách chạy và sổ bài học rỗng.
+
+### L-135. Chữ mặc định của các module mẫu là tiếng Việt, nên app giao diện tiếng Anh phải ghi đè từng chuỗi của mẫu
+
+- **Ngày, nguồn:** 2026-10-30, Photune (issue #288; ADR 1007 của app, quyết định 10; plan T-022, PR #27 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** Photune có giao diện tiếng Anh. Khi chuyển sang khung của mẫu (T-022 của app), màn loading, `brand_tagline` và popup mất mạng hiện tiếng Việt, trừ khi app ghi đè từng chuỗi; mỗi đợt `template-sync.sh` lại phải kiểm chuỗi mới. Ở mẫu, 12 chuỗi mặc định là tiếng Việt: `:feature:loading` 7, `:core:designsystem` 1 (`brand_tagline`), `:app` 4 (popup mất mạng, đã có bản tiếng Anh ở `values-en/`). Chuỗi của `:core:ads`, `:feature:sample` và bản staging đã là tiếng Anh, khác điều issue ghi. `scripts/device-scenario.py` đã giả định `res/values/` là tiếng Anh ở mọi module.
+- **Bằng chứng:** issue #288; đếm chuỗi trong `res/values*/strings.xml` trên nhánh chính `b82160a`.
+- **Đề xuất sửa:** `res/values/` là tiếng Anh cho mọi chuỗi của module mẫu, tiếng Việt ở `res/values-vi/`, `values-en/` của `:app` gộp vào `values/`; ghi lại ảnh chuẩn có các chuỗi đó; spec `loading` và bảng chữ của thiết kế ghi chữ theo hai ngôn ngữ, Nhật xác nhận chữ của spec `loading`; làm sau T-081.
+- **Trạng thái:** accepted
+- **Áp dụng:** T-082 (ticket, chưa có plan).
+
 ### L-136. Mẫu đường dẫn của lệnh xem ảnh chuẩn đã đổi không khớp tệp nào, nên lệnh luôn in rỗng
 
 - **Ngày, nguồn:** 2026-10-30, dự án mẫu (rà soát độc lập lần chạy thử plan T-081; plan T-081 ở PR #332)
