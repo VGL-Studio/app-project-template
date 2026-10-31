@@ -202,10 +202,10 @@ Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân lo
 - CI đỏ (`wait-run.sh` mã 1) thì tra [bảng tra lỗi](ops/failure-playbook.md) trước khi sửa code (L-079):
   1. Lấy log của job đỏ rồi tra bảng:
      ```bash
-     gh run view <id> --log-failed > ci.log
+     { gh run view <id> --log-failed; gh run view <id>; } > ci.log
      scripts/failure-kind.sh --playbook ci.log
      ```
-     Làm theo dòng script in ra. Không dùng `gh api .../jobs/<job id>/logs`: tùy phiên bản `gh`, lệnh đó đòi cờ `--allow-escape-sequences` hay không biết cờ này, và ghi thông báo lỗi vào `ci.log`; script khi đó in `log-hong` (L-104). Không tải được log (địa chỉ chuyển hướng sang kho lưu trữ khác, proxy có thể chặn như với artifact): chạy `failure-kind.sh --playbook` trên đầu ra của `wait-run.sh`; vẫn không khớp thì xử lý như `khong-co` và ghi "không tải được log job" vào báo cáo.
+     Làm theo dòng script in ra. Lệnh thứ hai thêm tóm tắt của lần chạy, có mục ANNOTATIONS: job bị hủy vì hết giờ có `--log-failed` rỗng, câu báo hết giờ chỉ nằm ở chú thích của job (PB-16, L-138). Không dùng `gh api .../jobs/<job id>/logs`: tùy phiên bản `gh`, lệnh đó đòi cờ `--allow-escape-sequences` hay không biết cờ này, và ghi thông báo lỗi vào `ci.log`; script khi đó in `log-hong` (L-104). Không tải được log (địa chỉ chuyển hướng sang kho lưu trữ khác, proxy có thể chặn như với artifact): chạy `failure-kind.sh --playbook` trên đầu ra của `wait-run.sh`; vẫn không khớp thì xử lý như `khong-co` và ghi "không tải được log job" vào báo cáo.
   2. Loại `chay-lai`, `lich-thu-lai`, `cho`, `gop-nhanh`, `kiem-da-merge` không tính vào 3 lần sửa.
   3. `khong-co` và `that` thì như cũ: lỗi chập chờn chạy lại một lần, lỗi thật quay lại bước 4, tối đa 3 lần cho cùng một lỗi, sau đó dừng task.
   4. Báo cáo phiên ghi mã dòng bảng của mỗi lần chạy lại (mục Số liệu, "Số lần thử lại vì lỗi hạ tầng").

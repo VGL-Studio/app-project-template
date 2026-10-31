@@ -55,7 +55,7 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 
 ## Khi tách spec thành ticket
 
-- Mỗi ticket là một phần giao được, kiểm chứng được, chạy xong trong một lượt của phiên tự chạy. Ticket quá lớn thì tách tiếp thành nhiều ticket nối bằng `depends_on`, mỗi ticket một plan (như T-052 tách thành T-079, T-080, T-081). Không chia một plan thành nhiều lượt trong danh sách chạy: bước 10 của `auto-run.md` chuyển plan `done` và ticket `on-staging` ngay sau lượt đầu, còn `plan-check.py` và `run-check.py` coi mỗi dòng của danh sách là một plan trọn vẹn (L-142).
+- Mỗi ticket là một phần giao được, kiểm chứng được, chạy xong trong một lượt của phiên tự chạy. Ticket quá lớn thì tách tiếp thành nhiều ticket nối bằng `depends_on`, mỗi ticket một plan (như T-052 tách thành T-079, T-080, T-081). Không chia một plan thành nhiều lượt trong danh sách chạy: bước 10 của `auto-run.md` chuyển plan `done` và ticket `on-staging` ngay sau lượt đầu, `plan-check.py` kiểm plan theo trạng thái repo lúc chạy nên báo lỗi khi lượt trước đã tạo hay xóa file của plan, và `run-check.py` báo cùng sửa file khi một plan nằm ở nhiều dòng của danh sách (L-142).
 - Mã ticket lấy số tiếp theo của cả app: tìm mã lớn nhất trong mọi thư mục `features/*/tickets/` rồi cộng một.
 - Ghi rõ ticket xử lý kịch bản nào của spec và phụ thuộc ticket nào.
 - Chấm rủi ro sơ bộ và ước lượng cỡ (S, M, L) theo [mẫu ticket](templates/ticket.md).

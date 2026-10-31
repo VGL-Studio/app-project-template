@@ -11,7 +11,7 @@ size: M
 depends_on: []
 sprint:
 plan:
-auto_run: true
+auto_run:
 created: 2026-10-31
 ---
 
@@ -25,7 +25,7 @@ Ticket này cho test của `:core:ads` vẽ trong một theme cố định khai 
 
 ## Phạm vi
 
-- Một theme của test trong `core/ads/src/test/` (bảng màu sáng và tối, chữ, hình dạng), giá trị chép từ `AppTheme` hiện tại của mẫu. Mọi test của `:core:ads` đang gọi `AppTheme` (khoảng 21 tệp, `grep -rl AppTheme core/ads/src/test`) chuyển sang theme này.
+- Một theme của test trong `core/ads/src/test/` (bảng màu sáng và tối, chữ, hình dạng), giá trị chép từ `AppTheme` hiện tại của mẫu. Mọi test của `:core:ads` đang gọi `AppTheme` (21 tệp, `grep -rlE 'AppTheme ?[({]' core/ads/src/test`) chuyển sang theme này.
 - Test kiểm theme của test còn khớp `AppTheme` của dự án mẫu, chỉ chạy ở repo mẫu (như các test chỉ có ở mẫu của `scripts/tests/run.sh`), để mẫu đổi màu thì biết phải đổi theme của test.
 - Hai chỗ còn phụ thuộc `:core:designsystem` mà plan phải quyết, kèm lý do:
   - `Spacing` được mã chính của `:core:ads` dùng (9 tệp). Theme của test không chặn được; app đổi `Spacing` thì ảnh vẫn đổi.

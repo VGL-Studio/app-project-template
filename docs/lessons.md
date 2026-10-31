@@ -983,10 +983,10 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Ngày, nguồn:** 2026-10-31, camera-pose (issue #329; bài học L-092 của app, báo cáo RUN-20261029-01, PR #228 và #229 của app)
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** PR đổi thư viện hay file build chạy thêm bản release (R8) trong `build-and-test` của `pr-check`. Ở camera-pose, một lần chạy bị hủy vì chạm `timeout-minutes: 45` giữa bước R8, lần chạy lại xanh trong 35 phút; PR sau xanh trong 38 phút. `failure-kind.sh --playbook` xếp lần hết giờ vào PB-08 (lỗi R8 thật, tính vào 3 lần sửa). Lý do: R8 in `WARNING: R8: Missing class ... (referenced from: ...)` cả ở lần build xanh (ví dụ SDK của TikTok tham chiếu Billing), và nửa sau của mẫu PB-08 `Missing class .* \(referenced from` khớp dòng cảnh báo đó. Bảng chưa có dòng cho lỗi hết giờ của job.
-- **Bằng chứng:** issue #329; log lần chạy 40835766905 của camera-pose: lần 1 có `The job has exceeded the maximum execution time of 45m0s`, lần 2 (xanh) có dòng `WARNING: R8: Missing class com.android.billingclient.api.BillingClient$Builder (referenced from: ...)`.
-- **Đề xuất sửa:** mẫu PB-08 chỉ khớp lỗi (`ERROR:`), không khớp cảnh báo; dòng PB-16 mới cho `has exceeded the maximum execution time`, loại `chay-lai`, đặt trước PB-08. Phần giới hạn 45 phút (tách bản release thành job riêng hay nâng giới hạn) đụng `.github/`: xem lại sau T-076 và T-078 (runner tự host cho job nặng).
+- **Bằng chứng:** issue #329; lần chạy 40835766905 của camera-pose, lần 1: bước bị hủy là "Build bản release (R8)"; log của job có `WARNING: R8: Missing class com.android.billingclient.api.BillingClient$Builder (referenced from: ...)` rồi `##[error]The operation was canceled.`; `gh run view <id> --log-failed` in rỗng; câu `The job has exceeded the maximum execution time of 45m0s` chỉ có trong chú thích của job (mục ANNOTATIONS của `gh run view <id>`). Lệnh lấy log của bước 8 vì vậy không bao giờ thấy câu hết giờ (rà soát độc lập của PR này phát hiện).
+- **Đề xuất sửa:** mẫu PB-08 chỉ khớp lỗi (`ERROR:`), không khớp cảnh báo; lệnh lấy log của bước 8 thêm `gh run view <id>` để có chú thích của job; dòng PB-16 mới cho `has exceeded the maximum execution time`, loại `chay-lai` khi bước bị hủy là bản release, bước khác là lỗi thật. Phần giới hạn 45 phút (tách bản release thành job riêng hay nâng giới hạn) đụng `.github/`: xem lại sau T-076 và T-078 (runner tự host cho job nặng).
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `docs/ops/failure-playbook.md` thêm PB-16 trước PB-08, mẫu PB-08 thành `Missing classes detected while running R8\|ERROR:.*Missing class .* \(referenced from`, cột Thấy ở của PB-08 thêm `pr-check`; `scripts/tests/playbook/PB-16.log` từ log thật; ba test trong `scripts/tests/run.sh` (PB-16, cảnh báo R8 riêng không phải PB-08, lỗi R8 vẫn là PB-08). Giới hạn 45 phút chưa đổi.
+- **Áp dụng:** PR_NUM: `docs/auto-run.md` bước 8, skill `/merge-pr` và dòng `log-hong` của `scripts/failure-kind.sh` lấy log bằng `{ gh run view <id> --log-failed; gh run view <id>; } > ci.log`; `docs/ops/failure-playbook.md` thêm PB-16 ở cuối bảng (lệnh tìm bước bị hủy, việc khi chạy lại vẫn hết giờ), mẫu PB-08 thành `Missing classes detected while running R8\|ERROR:.*Missing class .* \(referenced from`, cột Thấy ở của PB-08 thêm `pr-check`; `scripts/tests/playbook/PB-16.log` chép đúng hai dòng log và phần chú thích của lần 1 theo dạng lệnh mới in ra; ba test trong `scripts/tests/run.sh` (PB-16, cảnh báo R8 riêng không phải PB-08, lỗi R8 vẫn là PB-08). Giới hạn 45 phút chưa đổi.
 
 ### L-139. Issue `env-broken` của môi trường cloud chặn cả phiên `local`
 
@@ -996,7 +996,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #348; issue camera-pose#242.
 - **Đề xuất sửa:** phiên `local` không dừng vì `env-broken`, chép issue vào mục Kiểm tra đầu phiên; cổng của phiên `local` là `local-setup.sh --check` và `check.sh` trên máy; ghi ở `docs/ops/session-capabilities.md`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `docs/auto-run.md` mục 2, dòng `env-broken` của bảng và bước 1 của Kiểm tra build ở chế độ nền; `docs/ops/session-capabilities.md`, dòng `local` của bảng cách mở. Phiên `cloud`, `routine` giữ như cũ.
+- **Áp dụng:** PR_NUM: `docs/auto-run.md` mục 2, dòng `env-broken` của bảng và bước 1 của Kiểm tra build ở chế độ nền; `docs/ops/session-capabilities.md`, dòng `local` của bảng cách mở; bước 2 của skill `/run-list`. Phiên `cloud`, `routine` giữ như cũ. Đường làm nhanh (ADR-0034) vẫn chặn khi có `env-broken`: đổi thì qua ADR.
 
 ### L-140. Bước thử tay của plan tắt trên Firebase một cờ mà bản staging bật sẵn trong code
 
@@ -1033,7 +1033,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Ngày, nguồn:** 2026-10-31, Photune (issue #321; plan T-022, PR #27 của app; ADR 1007 của app, quyết định 8)
 - **Loại, phạm vi:** quy trình, chung
 - **Chuyện gì:** test và 43 ảnh chuẩn của `:core:ads` vẽ trong `AppTheme` của `:core:designsystem`. Mỗi app đặt màu và chữ riêng trong `:core:designsystem` (ADR-0008), còn `:core:ads` thuộc nhóm "của dự án mẫu, app không sửa" (`docs/ops/to-app.md` mục 2, `TEMPLATE_OWNED` của `template-sync.sh`): khi xung đột, app lấy bản của mẫu. App đổi theme thì ảnh của `:core:ads` không khớp, và mỗi đợt đồng bộ có đổi ảnh đó làm `check.sh` của app đỏ cho tới khi app ghi lại. Photune phải viết ngoại lệ riêng trong ADR của app. Ngoài `AppTheme`, mã chính của `:core:ads` dùng `Spacing` (9 tệp) và hai test dùng `PrimaryButton` của `:core:designsystem`.
-- **Bằng chứng:** issue #321; `grep -rl AppTheme core/ads/src/test` (21 tệp), `ls core/ads/src/test/screenshots` (43 ảnh).
+- **Bằng chứng:** issue #321; `grep -rlE 'AppTheme ?[({]' core/ads/src/test` (21 tệp gọi `AppTheme`), `ls core/ads/src/test/screenshots` (43 ảnh).
 - **Đề xuất sửa:** test của `:core:ads` vẽ trong một theme cố định khai báo trong mã test, cùng giá trị với theme hiện tại của mẫu (Nhật chọn hướng này, 2026-10-31; hướng khác là xếp ảnh của `:core:ads` vào nhóm app tự ghi lại).
 - **Trạng thái:** accepted
 - **Áp dụng:** T-084 (ticket, chưa có plan).
