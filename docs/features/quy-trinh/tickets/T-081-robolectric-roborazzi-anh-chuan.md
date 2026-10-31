@@ -24,7 +24,7 @@ Bước 3 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâ
 ## Phạm vi
 
 - `gradle/libs.versions.toml`: Robolectric 4.17.
-- Ghi lại ảnh chuẩn bằng lệnh của `CLAUDE.md`, mục Lệnh, có `--rerun` (L-114). Mỗi ảnh đổi được liệt kê trong plan, kèm mức lệch (`scripts/design-compare.sh` hay so điểm ảnh).
+- Không ghi lại ảnh chuẩn nào. Đo ảnh bằng lệnh 3 và 3b của plan, mục 4: ghi lại mọi ảnh bằng 4.15.1 rồi bằng 4.17, so danh sách ảnh đổi và từng byte, rồi trả ảnh về như cũ.
 - Test giao diện đo màu hay kích thước mà đỏ vì cách vẽ mới: tìm nguyên nhân. Chỉ sửa phần dựng test theo ADR-0033/L11, không nới câu khẳng định.
 - `CLAUDE.md`, phần test (nếu quy tắc về `GraphicsMode`, `captureRoboImage` hay khung chụp đổi theo bản mới).
 
@@ -35,7 +35,7 @@ Bước 3 trong 3 bước tách từ T-052 (L-127, issue #276). Bước này nâ
 
 ## Rủi ro sơ bộ
 
-Ảnh chuẩn là bằng chứng của giao diện. Ghi lại hàng loạt có thể che một lỗi giao diện thật, nên cần plan rủi ro cao được duyệt chéo, và người xem từng ảnh đổi. Chạm `gradle/libs.versions.toml`. Roborazzi 1.77.0 giữ DSL và tên task `recordRoborazzi`, `verifyRoborazzi` mà `build-logic/` và `scripts/check.sh` dùng (đã chạy ở T-080). Các app nhận qua `template-sync.sh` phải ghi lại ảnh chuẩn của riêng chúng.
+Ảnh chuẩn là bằng chứng của giao diện. Nếu bản mới vẽ khác, ghi lại hàng loạt có thể che một lỗi giao diện thật, nên cần plan rủi ro cao được duyệt chéo; lần chạy thử cho thấy không ảnh nào đổi, nên plan không ghi lại ảnh. Chạm `gradle/libs.versions.toml`. Roborazzi 1.77.0 giữ DSL và tên task `recordRoborazzi`, `verifyRoborazzi` mà `build-logic/` và `scripts/check.sh` dùng (đã chạy ở T-080). Các app nhận qua `template-sync.sh` phải kiểm ảnh chuẩn của riêng chúng.
 
 ## Định nghĩa hoàn thành
 
