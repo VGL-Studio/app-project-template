@@ -1,7 +1,7 @@
 ---
 ticket: T-053
 title: Đếm ngược native sau inter và bung lại native thu gọn theo JBase
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -269,3 +269,15 @@ Không cần (E dưới 2).
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (commit e744446, 2026-10-30 08:50 UTC).
+- **Nhánh, PR:** `claude/T-053-dem-nguoc-va-bung-lai-theo-jbase`, #338.
+- **Đã làm:** bước 3 đến 5 giao phiên con. Khóa chung `time_close_native` (1 tới 30 giây, mặc định 5, ngoài khoảng đọc 5; khóa chung thứ 15), đếm ngược đọc một lần khi mở màn (combo và lượt độc lập); vòng đếm và nút đóng 48 dp, media từ y = 88; `time_expand_collap_ad` mặc định 10 giây; 9 ảnh chuẩn của mục 3.2 ghi lại, `design/review/` cập nhật (0,6%); `ads-business-rules.md`, `ads-guide.md` (câu khuyến cáo chính sách của câu hỏi 3), README thiết kế, hai file sinh (chỉ hai dòng khóa). Không dùng phương án dự phòng.
+- **Test viết trước:** commit 9c0f7dd, 28 test đỏ đúng lý do trên khung rỗng (test mới và câu khẳng định viết lại theo mục 3.5). `NativeFullScreenOverlayTest.background_duringCountdown_resumedPastDeadline_showsClose` qua ngay (chốt hồi quy L-091), thêm đối chứng ở 1 000 ms. Test JVM mọi module sau bước 3: chỉ 28 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 8 ghi chú (đối chiếu từng câu khẳng định viết lại với mục 3.5: khớp; `AdsSettingsTest.allKeys_containsEveryDeclaredKey` thật ra không đổi câu khẳng định; `closeCountdownSeconds()` đọc `globalFlags` dẫn xuất, trễ một lượt dispatch; lỗi chữ "48 dp tại (16, 24) dp" ở mục 11 của `ads-business-rules.md`; K-03 ghi X 20 dp trong khi code 24 dp, có từ trước).
+- **Kết quả CI:** `pr-check` xanh trên e744446 (lần chạy 41028239224).
+- **Lệch so với plan:** phần ngoài mục 3.2 (ADR-0029, nối chỗ gọi): `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerInListRowTest.kt`, `AdsControllerInScreenWindowTest.kt` (T-054, T-059 thêm trong phiên này): hàm phụ `uncover()` đổi hằng `NATIVE_AFTER_INTER_COUNTDOWN_MILLIS` (plan bỏ) thành `NATIVE_CLOSE_COUNTDOWN_DEFAULT_SECONDS * 1_000`, câu khẳng định không đổi (2 file, 6 dòng thêm, 2 dòng bớt). L3 (ADR-0032): mốc dòng KDoc của `AdsController` đã dời (dòng 96 và khoảng 1090). Sau commit test: `AdsControllerNativeComboTest.standalone_timeCloseNative_fromRemote` thêm `controller.start(...)` ở phần dựng (giá trị Remote Config chỉ tới sau `start()`), câu khẳng định không đổi. Câu khẳng định viết lại (ADR-0031): đúng danh sách của mục 3.5. `scripts/ads-plan.py` không chạy được trên máy (thiếu `openpyxl`), test của script trong `check.sh` qua.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** 9 ảnh chuẩn mới (`NativeFullScreenOverlay_*`) và `design/review/`; câu khẳng định viết lại của mục 3.5.
