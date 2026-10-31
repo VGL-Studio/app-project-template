@@ -17,6 +17,7 @@ internal fun AdFormat.metricCode(): String = when (this) {
     AdFormat.APP_OPEN -> "APP_OPEN"
     AdFormat.BANNER -> "BANNER"
     AdFormat.BANNER_COLLAPSIBLE -> "BANNER"
+    AdFormat.BANNER_MREC -> "BANNER_MREC"
     AdFormat.NATIVE_FULL_SCREEN -> "NATIVE_FULL"
     AdFormat.NATIVE_COLLAPSIBLE -> "NATIVE_COLLAP"
     AdFormat.NATIVE_SMALL -> "NATIVE_SMALL"
@@ -39,7 +40,7 @@ internal fun AdFormat.funnelKind(): AdFunnelKind? = when (this) {
     AdFormat.NATIVE_IN_COLLECTION,
     AdFormat.NATIVE_MEDIUM,
     -> AdFunnelKind.NATIVE
-    AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE -> null
+    AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE, AdFormat.BANNER_MREC -> null
 }
 
 /** Full screen: `INTER`, `REWARDED`, `APP_OPEN`, `NATIVE_FULL`; every other format is a slot (section 8.2). */
@@ -88,13 +89,13 @@ internal fun showFailReasonOf(code: Int): String = when (code) {
  * `ad_placement` of a load (section 8.2): full-screen formats always `preload`; one native small ad and the
  * collapsible one the placement of the screen using the slot, else `preload`; the pooled formats (medium, step,
  * in-collection: plan T-028, PL-02) always `pool`, since the placement of a pooled ad is set when it is claimed
- * (P-04); a banner the placement of the screen, else none.
+ * (P-04); a banner (MREC too) the placement of the screen, else none.
  */
 internal fun loadPlacementOf(format: AdFormat, screenPlacement: AdPlacement?): String? = when (format) {
     AdFormat.INTERSTITIAL, AdFormat.APP_OPEN, AdFormat.REWARDED, AdFormat.NATIVE_FULL_SCREEN -> PRELOAD
     AdFormat.NATIVE_SMALL, AdFormat.NATIVE_COLLAPSIBLE -> screenPlacement?.key ?: PRELOAD
     AdFormat.NATIVE_MEDIUM, AdFormat.NATIVE_STEP, AdFormat.NATIVE_IN_COLLECTION -> POOL
-    AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE -> screenPlacement?.key
+    AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE, AdFormat.BANNER_MREC -> screenPlacement?.key
 }
 
 /** `opportunity_result` of a full-screen turn; a closed consent gate or a switched-off placement is no opportunity. */

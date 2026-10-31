@@ -1,7 +1,7 @@
 ---
 ticket: T-055
 title: Kiểm màn hình trước khi hiện quảng cáo toàn màn hình, xoay máy
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -243,3 +243,15 @@ Phiên bản 1:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (commit e3bd44a, 2026-10-30 08:12 UTC).
+- **Nhánh, PR:** `claude/T-055-hien-toan-man-hinh-an-toan`, #336.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `FullScreenHost.kt` mới (`fullScreenHostUsable`, `hostDestroyedAction`, hằng `SHOW_FAILED_APP_NOT_FOREGROUND`); `FullScreenAdPresence` (`awaitingHost`, `handOver`, `rehostIfAwaiting`); `AdsController.isHostUsable` đọc `tracker.resumedActivity`, kiểm trước mỗi lần hiện, luồng xoay máy; `RewardedTurns` kiểm trước khi lấy quảng cáo và trước `showAgain`; F-08, N-04, HD-03, mục 8.2 của `ads-business-rules.md`. Không dùng phương án dự phòng 3.4 (`recreate()` của Robolectric cho đúng chuỗi vòng đời plan đã đo).
+- **Test viết trước:** 23 test (commit b25c9ee): 21 đỏ đúng lý do trên khung rỗng; 2 test chặn qua ngay (`resumeAd_fromOnActivityResumed_passesHostCheck`, `realDestroy_coveredHost_forcesCompletion`). 7 viết chặt thêm (L-055): mỗi test kiểm trước khi hiện có đối chứng trên activity resumed; `hostGone_notTaken_*` có đối chứng `hostUsable = true`; `handover_closeDuringHandover_*` thêm `firstFinishes == 0` sau khi hủy `a1`. Test JVM mọi module sau bước 3: chỉ 21 test mới đỏ.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 6 ghi chú. Nên sửa: cách kiểm activity qua tracker chưa có test khóa; thêm `AdsControllerHostTest.hostCheck_insideOnActivityResumed_usesTracker` (commit e3bd44a), đột biến đọc `lifecycle.currentState.isAtLeast(RESUMED)`: đỏ `expected:<[true]> but was:<[false]>`, hoàn tác 16 test xanh. Rà soát lại: 0 chặn, 0 nên sửa.
+- **Kết quả CI:** `pr-check` xanh trên e3bd44a (lần chạy 41023650817).
+- **Lệch so với plan:** không có file ngoài mục 3.2. Hằng `SHOW_FAILED_APP_NOT_FOREGROUND` đặt ở mức đỉnh của `FullScreenHost.kt` thay vì companion private của `AdsController` (để `RewardedTurns` dùng chung). `RewardedTurnsTest` có 4 test mới (mục 3.2 ghi 3, mục 4 liệt kê đủ 4 tên); `FakeRewardedPort` thêm `takes`. L4 (ADR-0032): đột biến mà mục 4 dự đoán (đọc `Lifecycle` làm `resumeAd_fromOnActivityResumed_passesHostCheck` đỏ) không đỏ trên Robolectric, vì lượt hiện khi quay lại app dừng ở `isEnabled().first()`; test khóa thêm theo rà soát (trên).
+- **Việc còn lại:** kiểm tra thủ công trên máy thật (xoay máy khi quảng cáo thử đang hiện; bấm Rewarded rồi về nền ngay).
+- **Cần người xem:** ghi chú của rà soát: `HOST_GONE` chỉ xét activity của lần bấm đầu khi các lần bấm nhập chung một quyết định; lượt mở app trên activity đã đóng mà bị cổng chặn nay ghi cơ hội và nạp lại như khi activity còn sống (mục 3.5 viết "bỏ lượt như cũ", kết quả `false` không đổi).
