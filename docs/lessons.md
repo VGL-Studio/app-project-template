@@ -1037,3 +1037,23 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** test của `:core:ads` vẽ trong một theme cố định khai báo trong mã test, cùng giá trị với theme hiện tại của mẫu (Nhật chọn hướng này, 2026-10-31; hướng khác là xếp ảnh của `:core:ads` vào nhóm app tự ghi lại).
 - **Trạng thái:** accepted
 - **Áp dụng:** T-084 (ticket, chưa có plan).
+
+### L-144. Test `design-compare` của `scripts/tests/run.sh` đỏ ở app không có chế độ tối
+
+- **Ngày, nguồn:** 2026-10-31, Photune (issue #358; plan T-022 bản 3, PR #30 của app; bài học L-005 của app)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** test "light against dark differs" so `SampleScreen_ready_dark.png` với `SampleScreen_ready_light.png` của `:feature:sample` và đòi hai ảnh khác nhau. Ảnh chuẩn của `:feature:sample` vẽ bằng `AppTheme` của app. Theme của Photune không có chế độ tối, nên sau khi app ghi lại ảnh, hai ảnh giống nhau từng byte và test đỏ. `run.sh` thuộc nhóm "của dự án mẫu, app không sửa", và phiên không được viết lại test của script (ADR-0031, điều 5): T-022 dừng, plan lên bản 3 để dev duyệt đổi test. Cùng gốc với L-143: phần của mẫu phụ thuộc theme của app.
+- **Bằng chứng:** issue #358; `scripts/design-compare/DesignCompare.java` trên ảnh của mẫu: `SampleScreen_disabled_light.png` so với `SampleScreen_ready_light.png` khác 7,3%; trên ảnh của Photune khác 6,0%.
+- **Đề xuất sửa:** test so hai màn khác nhau ở nội dung (`SampleScreen_disabled_light.png` và `SampleScreen_ready_light.png`), khác nhau với mọi theme; tên test "two different screens differ". Ý của test giữ nguyên: hai ảnh khác nhau cho mức khác lớn hơn 0.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #PR_NUM: khối `design-compare` của `scripts/tests/run.sh`.
+
+### L-145. Ảnh chuẩn có bóng mờ ghi trên macOS làm CI Linux đỏ
+
+- **Ngày, nguồn:** 2026-10-31, Photune (issue #359; T-011 PR #25 và T-022 PR #30 của app; bài học L-004 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** màn chính của Photune có một khối mang bóng mờ (`Paint.setShadowLayer`). Ba ảnh chuẩn ghi trên máy dev macOS (Apple Silicon, JDK 21) bằng lệnh ghi ảnh của `CLAUDE.md` làm `pr-check` (Linux) đỏ: mỗi ảnh lệch 113.105 điểm ảnh, mỗi kênh tối đa 2/255, chỉ quanh vùng bóng. Chuyện xảy ra hai lần (T-011, T-022); cả hai lần sửa bằng ảnh actual của `pr-check`. Dự án mẫu đã thấy loại lệch nhỏ hơn ở T-081 (`DesignSystem_spacing_components_light.png` lệch 1/255 ở 501 điểm ảnh, vẫn qua ngưỡng so ảnh).
+- **Bằng chứng:** issue #359; lần chạy `pr-check` của app 40837366518 và 41155046188 (đỏ), 41157475707 (xanh sau khi trả ảnh của CI).
+- **Đề xuất sửa:** `CLAUDE.md`, mục Lệnh, dòng ghi ảnh chuẩn: ảnh có bóng mờ ghi ở phiên cloud (Linux) hoặc lấy ảnh actual trong artifact `build-and-test-reports` của `pr-check`, sau khi xem đúng là chỉ lệch quanh vùng bóng. Không thêm dòng vào bảng tra lỗi như issue đề xuất: log của `verifyRoborazzi` không phân biệt lệch do bóng mờ với lỗi giao diện thật, nên một dòng "lấy ảnh của CI" sẽ khớp mọi lần so ảnh đỏ (Nhật chọn, 2026-10-31). Không nới ngưỡng so ảnh, vì ngưỡng nằm trong `build-logic/`.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #PR_NUM: `CLAUDE.md`, mục Lệnh.
