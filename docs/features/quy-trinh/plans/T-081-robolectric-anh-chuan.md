@@ -206,11 +206,11 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-30):
 
 - **Kết quả:** đã merge, PR #354 (commit merge `94b6064`). Làm sau khi RUN-20261030-01 và RUN-20261030-02 kết thúc (mục 9, câu 3); không có phiên `running` lúc bắt đầu và lúc merge.
 - **Nhánh, PR:** `claude/T-081-robolectric-4-17`, PR #354. Commit `94e04ce` (phiên bản, ticket), `c1ce092` (ticket, theo rà soát). PR plan #332.
-- **Đã làm:** đúng mục 3.1. `gradle/libs.versions.toml`: `robolectric = "4.17"`. Ticket: tiêu đề, `size: S`, Mô tả, Phạm vi, Rủi ro sơ bộ, Định nghĩa hoàn thành 1 và 2. Không ghi lại ảnh chuẩn nào (mục 9, câu 1).
+- **Đã làm:** mục 3.1. `gradle/libs.versions.toml`: `robolectric = "4.17"`. Ticket: tiêu đề, `size: S`, Mô tả, Định nghĩa hoàn thành 1 và 2 (bước 4); Phạm vi và Rủi ro sơ bộ sửa thêm theo rà soát, cùng file của mục 3.2. Không ghi lại ảnh chuẩn nào (mục 9, câu 1).
 - **Test viết trước:** không có, theo ngoại lệ của mục 4 (chỉ đổi phiên bản và ticket). Bằng chứng là lệnh đo và đối chứng dưới đây.
 - **Đo trên máy dev** (macOS, JDK 21; main `bf5b1c5`; khối lệnh của mục 4 chép nguyên văn, chạy theo thứ tự của mục 3.1):
   - Lệnh 3 với 4.15.1: `label 4.15.1: 1 changed image(s)`. Với 4.17: `label 4.17: 1 changed image(s)`; test chạy lại thật (28 task chạy, gồm 5 task test và 5 task ghi ảnh).
-  - Lệnh 3b: `same list, same bytes`. Ảnh duy nhất là `DesignSystem_spacing_components_light.png` (lệch có sẵn, mục 3.1), 60.577 byte ở cả hai lần, như mục 4.1. Lệnh 3 phủ cả 91 ảnh hiện có, gồm 2 ảnh mới của phiên quảng cáo.
+  - Lệnh 3b: `same list, same bytes`. Ảnh duy nhất là `DesignSystem_spacing_components_light.png` (lệch có sẵn, mục 3.1), 60.577 byte ở cả hai lần, như mục 4.1. Lệnh 3 phủ cả 91 ảnh hiện có, gồm các ảnh mà phiên quảng cáo thêm hay ghi lại sau lần chạy thử của mục 4.1.
   - Lệnh 1: `org.robolectric:robolectric:4.17`. Lệnh 4: `27 tests completed, 1 failed`, `exit 1 (must be 1)`.
   - `scripts/check.sh`: QUA, `Test JVM: 1689 test, 0 lỗi. Ảnh screenshot: 91`, bằng lần `main-guard` gần nhất trước đó (`460f22d`). Lệnh 2: `0`.
 - **Rà soát độc lập:** 0 chặn, 1 nên sửa (Phạm vi và Rủi ro sơ bộ của ticket còn nói ghi lại ảnh), đã sửa; 5 ghi chú, ghi trong mô tả PR #354.
@@ -219,6 +219,7 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-10-30):
   - `main-guard` của commit merge xanh (lần chạy 41177946703): `guard` không chạy lại cổng chất lượng vì nội dung đã kiểm ở PR (ADR-0039); `ui-test` trên emulator xanh. Không có issue `main-broken`.
   - Không dựng bản staging mới: Robolectric chỉ ở classpath test, APK không đổi.
 - **Lệch so với plan:** không có. Ngoài mục 3.2: không có.
-- **Việc còn lại:** không còn bước nào của T-052. Ảnh lệch có sẵn để ngoài (mục 9, câu 2).
+- **Việc còn lại:** không còn bước nào của T-052. Ảnh lệch có sẵn để ngoài (mục 9, câu 2). Sửa pathspec của mục 9, câu 4 nằm ở PR #333 (bài học về pathspec, `CLAUDE.md`, `docs/templates/plan.md`), chưa merge lúc ghi nhật ký.
 - **Cần người kiểm tra:**
   - [ ] Một phiên cloud mới trên nhánh chính: `scripts/check.sh` QUA, tức môi trường cloud tải được `android-all-instrumented` bản mới của Robolectric 4.17 qua mirror (mục 4).
+  - [ ] Người duyệt mở `core/designsystem/src/test/screenshots/DesignSystem_spacing_components_light.png` ở repo và bản ghi lại (lệnh 3 của mục 4 giữ bản chép trong `${TMPDIR:-/tmp}/t081-4.17/`), thấy không khác bằng mắt (mục 4). Mục 9, câu 2 đã quyết để ảnh ngoài plan; dòng này là lần xem ảnh.
