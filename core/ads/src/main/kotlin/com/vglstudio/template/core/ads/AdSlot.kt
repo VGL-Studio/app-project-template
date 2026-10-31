@@ -177,6 +177,7 @@ private fun BannerSlot(
                         maxReady = { ads.maxReady.value },
                         logger = ads.logger,
                         placementKey = nativeSlotKey(placement, format),
+                        heightsDp = mapOf(AdPlatform.ADMOB to adSize.height, AdPlatform.MAX to maxHeightDp),
                     )
                 },
                 onAdAvailabilityChange = onAdAvailabilityChange,

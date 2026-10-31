@@ -1,12 +1,15 @@
 package com.vglstudio.template.core.ads
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.Channel
@@ -81,12 +84,15 @@ internal const val MAX_NOT_READY = -9000
  * - [results] has one inbox per collection, and every child is subscribed before the collection first suspends, so a
  *   result given inside [send] (the turn of MAX skipped, an SDK that fails at once) is never lost. The children's
  *   results must be flows subscribed at once (a `SharedFlow`), not built on a channel. Main thread only.
+ * - [heightsDp] is the height of each platform's banner: a child is drawn at its own height, full width, at the top
+ *   of the frame (question 4 of the plan, B-09); a platform without a height takes the size of the frame.
  */
 internal class OrderedBannerAdView(
     private val children: List<Pair<AdPlatform, BannerAdView>>,
     private val maxReady: () -> Boolean,
     private val logger: AppLogger,
     private val placementKey: String,
+    private val heightsDp: Map<AdPlatform, Int> = emptyMap(),
 ) : BannerAdView {
     /** One result of child [child]; [sendNo] is set on the result the frame gives for a skipped turn of MAX. */
     private class Tagged(val child: Int, val result: BannerLoadResult, val sendNo: Int?)
@@ -164,8 +170,12 @@ internal class OrderedBannerAdView(
     override fun Content(showAd: Boolean, modifier: Modifier) {
         val shown = showing
         Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
-            children.forEachIndexed { index, (_, child) ->
-                child.Content(showAd = showAd && index == shown, modifier = modifier)
+            children.forEachIndexed { index, (platform, child) ->
+                // A platform shorter than the frame takes its own height at the top of the frame (B-09): an AdView
+                // of AdMob given the height of the frame would centre its ad in it.
+                val own = heightsDp[platform]
+                val childModifier = if (own != null) Modifier.fillMaxWidth().height(own.dp) else modifier
+                child.Content(showAd = showAd && index == shown, modifier = childModifier)
             }
         }
     }
