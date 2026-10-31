@@ -976,7 +976,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #331; repo tạm có kết quả ở module thật (3 test), ở `.claude/worktrees/agent-old/` (5) và ở một worktree lồng khác (7): bản cũ in `15 test`, ảnh `3`.
 - **Đề xuất sửa:** `test-summary.sh` bỏ `.claude/` và mọi worktree lồng trong repo mà `git worktree list` biết; một test dựng đủ ba chỗ đó.
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `scripts/test-summary.sh` thêm `-not -path` cho `./.claude/*` và cho mỗi worktree nằm dưới thư mục repo (so bằng `pwd -P`, vì git in đường dẫn đã giải symlink); test `test-summary: tests and screenshots of nested worktrees are not counted` trong `scripts/tests/run.sh`, đỏ với bản cũ.
+- **Áp dụng:** PR #357: `scripts/test-summary.sh` thêm `-not -path` cho `./.claude/*` và cho mỗi worktree nằm dưới thư mục repo (so bằng `pwd -P`, vì git in đường dẫn đã giải symlink); test `test-summary: tests and screenshots of nested worktrees are not counted` trong `scripts/tests/run.sh`, đỏ với bản cũ.
 
 ### L-138. Job hết giờ ở bước build bản release bị bảng tra lỗi xếp nhầm vào PB-08, vì cảnh báo R8 thường khớp mẫu lỗi R8
 
@@ -986,7 +986,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #329; lần chạy 40835766905 của camera-pose, lần 1: bước bị hủy là "Build bản release (R8)"; log của job có `WARNING: R8: Missing class com.android.billingclient.api.BillingClient$Builder (referenced from: ...)` rồi `##[error]The operation was canceled.`; `gh run view <id> --log-failed` in rỗng; câu `The job has exceeded the maximum execution time of 45m0s` chỉ có trong chú thích của job (mục ANNOTATIONS của `gh run view <id>`). Lệnh lấy log của bước 8 vì vậy không bao giờ thấy câu hết giờ (rà soát độc lập của PR này phát hiện).
 - **Đề xuất sửa:** mẫu PB-08 chỉ khớp lỗi (`ERROR:`), không khớp cảnh báo; lệnh lấy log của bước 8 lấy `gh run view <id>` khi `--log-failed` rỗng, để có chú thích của job; dòng PB-16 mới cho `has exceeded the maximum execution time`, loại `chay-lai` khi bước bị hủy là bản release, bước khác là lỗi thật. Phần giới hạn 45 phút (tách bản release thành job riêng hay nâng giới hạn) đụng `.github/`: xem lại sau T-076 và T-078 (runner tự host cho job nặng).
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `docs/auto-run.md` bước 8, skill `/merge-pr` và dòng `log-hong` của `scripts/failure-kind.sh` lấy log bằng `gh run view <id> --log-failed`, rỗng thì `gh run view <id>` (tóm tắt có chú thích của job; không nối vào log đã có, để chú thích của job khác không khớp PB-02); `docs/ops/failure-playbook.md` thêm PB-16 ở cuối bảng (lệnh tìm bước bị hủy, việc khi chạy lại vẫn hết giờ), mẫu PB-08 thành `Missing classes detected while running R8\|ERROR:.*Missing class .* \(referenced from`, cột Thấy ở của PB-08 thêm `pr-check`; `scripts/tests/playbook/PB-16.log` chép đúng hai dòng log và phần chú thích của lần 1; ba test trong `scripts/tests/run.sh` (PB-16, cảnh báo R8 riêng không phải PB-08, lỗi R8 vẫn là PB-08). Giới hạn 45 phút chưa đổi.
+- **Áp dụng:** PR #357: `docs/auto-run.md` bước 8, skill `/merge-pr` và dòng `log-hong` của `scripts/failure-kind.sh` lấy log bằng `gh run view <id> --log-failed`, rỗng thì `gh run view <id>` (tóm tắt có chú thích của job; không nối vào log đã có, để chú thích của job khác không khớp PB-02); `docs/ops/failure-playbook.md` thêm PB-16 ở cuối bảng (lệnh tìm bước bị hủy, việc khi chạy lại vẫn hết giờ), mẫu PB-08 thành `Missing classes detected while running R8\|ERROR:.*Missing class .* \(referenced from`, cột Thấy ở của PB-08 thêm `pr-check`; `scripts/tests/playbook/PB-16.log` chép đúng hai dòng log và phần chú thích của lần 1; ba test trong `scripts/tests/run.sh` (PB-16, cảnh báo R8 riêng không phải PB-08, lỗi R8 vẫn là PB-08). Giới hạn 45 phút chưa đổi.
 
 ### L-139. Issue `env-broken` của môi trường cloud chặn cả phiên `local`
 
@@ -996,7 +996,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #348; issue camera-pose#242.
 - **Đề xuất sửa:** phiên `local` không dừng vì `env-broken`, chép issue vào mục Kiểm tra đầu phiên; cổng của phiên `local` là `local-setup.sh --check` và `check.sh` trên máy; ghi ở `docs/ops/session-capabilities.md`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `docs/auto-run.md` mục 2, dòng `env-broken` của bảng và bước 1 của Kiểm tra build ở chế độ nền; `docs/ops/session-capabilities.md`, dòng `local` của bảng cách mở; bước 2 của skill `/run-list`. Phiên `cloud`, `routine` giữ như cũ. Đường làm nhanh (ADR-0034) vẫn chặn khi có `env-broken`: đổi thì qua ADR.
+- **Áp dụng:** PR #357: `docs/auto-run.md` mục 2, dòng `env-broken` của bảng và bước 1 của Kiểm tra build ở chế độ nền; `docs/ops/session-capabilities.md`, dòng `local` của bảng cách mở; bước 2 của skill `/run-list`. Phiên `cloud`, `routine` giữ như cũ. Đường làm nhanh (ADR-0034) vẫn chặn khi có `env-broken`: đổi thì qua ADR.
 
 ### L-140. Bước thử tay của plan tắt trên Firebase một cờ mà bản staging bật sẵn trong code
 
@@ -1006,7 +1006,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #330; plan T-074 của camera-pose, PR #230 của app.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: bước bật tắt cờ trên Firebase staging đối chiếu `StagingFeatureFlagsModule`; bước chờ log dẫn dòng code ghi log và điều kiện để nó chạy.
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `docs/CLAUDE.md`, mục Khi viết plan, gạch đầu dòng mới trước dòng kịch bản emulator. Tên cờ của app không đưa vào.
+- **Áp dụng:** PR #357: `docs/CLAUDE.md`, mục Khi viết plan, gạch đầu dòng mới trước dòng kịch bản emulator. Tên cờ của app không đưa vào.
 
 ### L-141. `new-app.sh` chép ticket, plan và phản hồi của mẫu, nên mã ticket của app mới nối tiếp mã của mẫu
 
@@ -1016,7 +1016,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #289; `grep -rn docs/features/ core feature` trên nhánh chính.
 - **Đề xuất sửa:** `new-app.sh` bỏ `docs/features/quy-trinh/` và các thư mục `tickets/`, `plans/`, `feedback/`, `requests/` của mọi feature; giữ spec và thiết kế. `docs/ops/new-app.md` ghi việc này và mã ticket của app bắt đầu từ T-001.
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `scripts/new-app.sh`; `docs/ops/new-app.md` mục 2, ý 5; ba test trong khối `new-app.sh` của `scripts/tests/run.sh` (không còn thư mục nào trong bốn loại, không có `quy-trinh`, còn spec và thiết kế của `loading`).
+- **Áp dụng:** PR #357: `scripts/new-app.sh`; `docs/ops/new-app.md` mục 2, ý 5; ba test trong khối `new-app.sh` của `scripts/tests/run.sh` (không còn thư mục nào trong bốn loại, không có `quy-trinh`, còn spec và thiết kế của `loading`).
 
 ### L-142. Quy trình không có plan nhiều lượt; task lớn tách thành nhiều ticket
 
@@ -1026,7 +1026,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #328; T-052 của dự án mẫu, PR #300.
 - **Đề xuất sửa:** không thêm khái niệm lượt (Nhật chọn, 2026-10-31). `docs/CLAUDE.md`, mục Khi tách spec thành ticket: ticket quá lớn tách thành nhiều ticket nối `depends_on`, mỗi ticket một plan; không chia một plan thành nhiều lượt, kèm lý do.
 - **Trạng thái:** applied
-- **Áp dụng:** PR_NUM: `docs/CLAUDE.md`, mục Khi tách spec thành ticket, gạch đầu dòng đầu.
+- **Áp dụng:** PR #357: `docs/CLAUDE.md`, mục Khi tách spec thành ticket, gạch đầu dòng đầu.
 
 ### L-143. Ảnh chuẩn của `:core:ads` vẽ bằng `AppTheme` của app, nên app đổi theme phải ghi lại ảnh của module mẫu
 
