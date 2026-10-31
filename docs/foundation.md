@@ -286,6 +286,16 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
 - nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
 
+### [ADR-0041](adr/0041-merge-khong-cap-nhat-khi-main-chi-doi-tai-lieu.md): merge-if-green.sh merge PR code mà không cập nhật nhánh khi nhánh chính chỉ đổi tài liệu từ điểm tách, và PR nháp không chạy pr-check
+
+- `merge-if-green.sh` chỉ merge nhánh chậm hơn nhánh chính mà không cập nhật khi PR đã chạy bước cổng chất lượng `check.sh` xanh, nhánh chính từ điểm tách chỉ đổi file trong `docs/**` hay `**/*.md` không phải file Gradle đọc, không file nào đổi ở cả hai bên và GitHub báo không xung đột
+- thiếu một điều hay không đọc được thì cập nhật nhánh như cũ
+- PR chỉ tài liệu luôn cập nhật nhánh trước khi merge
+- `merge-if-green.sh` quyết "chỉ tài liệu" và "PR đã chạy check.sh" chỉ qua `scripts/main-guard-verified.sh`, không viết lại quy tắc
+- đổi `paths-ignore` của `main-guard.yml` hay quy tắc tài liệu của `main-guard-verified.sh` thì sửa cả hai và test cùng PR
+- `pr-check.yml` khai báo đủ `opened`, `synchronize`, `reopened`, `ready_for_review` và chỉ bỏ PR nháp bằng `if:` cấp job
+- muốn CI cho PR nháp thì chuyển PR sang sẵn sàng, không bỏ điều kiện nháp
+
 ### [ADR-0043](adr/0043-test-emulator-sau-merge.md): Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
 
 - test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`
