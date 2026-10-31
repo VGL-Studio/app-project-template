@@ -1,7 +1,7 @@
 ---
 ticket: T-056
 title: Mã đơn vị theo khe trong code: mọi lớp của thanh đáy có mã ở production
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -231,3 +231,15 @@ Phiên bản 1:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (commit 167e323, 2026-10-30 10:34 UTC).
+- **Nhánh, PR:** `claude/T-056-ma-theo-khe-trong-code`, #341.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `AdUnitIds`: ở production, định dạng khác định dạng chính đọc mã theo khóa khe (`banner=`, `native_collap=`); `missingUnitKeys` gồm hai khóa khe khi có thanh đáy; `AdsController.start` ghi một dòng `Production ad units missing` (chỉ tên khóa); `BottomAdBar` nhận mã của lớp; `ads-guide.md` mục 5 ý 2, ý 6, mục 9. Không dùng phương án dự phòng; không ảnh chuẩn nào đổi. `scripts/secret-scan.py` sạch.
+- **Test viết trước:** 14 test mới và 2 test cũ đổi câu khẳng định (commit 0536979); 10 đỏ đúng lý do trên khung rỗng. Qua ngay theo plan: `production_ownFormat_ignoresSlotKey`, `placementKeys_neverSlotNames` (test chặn, có đối chứng); `start_withAllUnits_noWarning`, `start_staging_noWarning` (đối chứng của `start_withMissingUnits_warnsOnce`). Test JVM mọi module sau bước 3: chỉ 10 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 7 ghi chú. Nên sửa chưa sửa: lệnh `adb logcat -s Ads` ở `ads-guide.md` mục 9 (và "thẻ `Ads`" ở mục 5 ý 6) không thấy dòng cảnh báo vì logcat ghi thẻ `VGL.Ads` (`DefaultAppLogger.kt`, `logcatTag = "VGL.$tag"`); plan mục 3.1 ý 5, ý 8 ghi cùng lệnh nên phiên không tự đổi (mâu thuẫn với plan, không có test). Đề xuất: `adb logcat -s VGL.Ads`. Ghi chú khác: nhánh `else -> units[format.code]` đọc khóa khe cho mọi định dạng khác định dạng chính (có thể siết theo `layerFormats`); câu mục 5 ý 6 nên tách theo khóa.
+- **Kết quả CI:** `pr-check` xanh trên 167e323 (lần chạy 41040573343).
+- **Lệch so với plan:** không có file ngoài mục 3.2. Câu khẳng định viết lại (ADR-0031), ba câu, câu của plan ở mục 3.1 ý 4 và mục 3.5: (1) `AdUnitIdsTest.configuredUnits_areParsedPerPlacementKey`, `missing.isEmpty()`: chuỗi thêm `banner=unit/8;native_collap=unit/9`, đối chứng thiếu hai khóa khe thì `missing == [banner, native_collap]`; (2) cùng test, `withoutAppWide.missing` thành danh sách khóa có thêm hai khóa khe; (3) `placementWithoutUnit_isReportedMissingAndShowsNoAd`: `filterNot { stagingOnly }` thành `.map { it.key } + [banner, native_collap]`; ý định giữ (vị trí toàn app vẫn cần mã ở production); đối chứng đỏ trên khung rỗng. Test cảnh báo so thẻ bằng chữ `"Ads"` (`TAG` private).
+- **Việc còn lại:** đưa mã thật vào build là T-057.
+- **Cần người xem:** lệnh logcat của `ads-guide.md` (điểm nên sửa); ba câu khẳng định viết lại.

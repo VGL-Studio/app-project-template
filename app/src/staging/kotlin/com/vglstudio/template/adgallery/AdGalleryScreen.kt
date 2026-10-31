@@ -170,6 +170,10 @@ interface AdGallerySlots {
     @Composable
     fun CollapsibleBanner(modifier: Modifier)
 
+    /** The MREC banner of the banners page (KB-29). */
+    @Composable
+    fun MediumRectangleBanner(modifier: Modifier)
+
     /** N of the grid page, or null while its ads are off. Called on the grid page, before its grid. */
     @Composable
     fun gridEvery(): Int?
@@ -203,7 +207,8 @@ interface AdGallerySlots {
 
 /**
  * Real ads of the gallery, from the staging-only placements `gallery_*`. In the list, small and medium take turns
- * (two placements, one format each); N comes from `native_every_<placement code>`, as for any list of the app.
+ * (two placements, one format each); N comes from `native_every_<placement code>`, as for any list of the app. The
+ * banners page has the fixed banner, the MREC banner (`gallery_banner_mrec`) and the collapsible banner.
  */
 internal class SdkAdGallerySlots : AdGallerySlots {
     // Set by inListEvery() during the composition of the in-list page, read when its lazy list is built after it.
@@ -252,6 +257,11 @@ internal class SdkAdGallerySlots : AdGallerySlots {
     @Composable
     override fun CollapsibleBanner(modifier: Modifier) {
         AdSlot(AdPlacement.GALLERY_BANNER_COLLAPSIBLE, modifier)
+    }
+
+    @Composable
+    override fun MediumRectangleBanner(modifier: Modifier) {
+        AdSlot(AdPlacement.GALLERY_BANNER_MREC, modifier)
     }
 
     @Composable
@@ -641,12 +651,16 @@ private fun CollapsiblePage(itemCount: Int, slots: AdGallerySlots, modifier: Mod
     }
 }
 
-/** The banners page (T-029): a fixed banner under the title, the list, the collapsible banner at the bottom (B-03). */
+/**
+ * The banners page (T-029): a fixed banner under the title, the MREC banner under it (KB-29, outside the list so its
+ * ad view is not built again on each scroll), the list, the collapsible banner at the bottom (B-03).
+ */
 @Composable
 private fun BannersPage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier) {
     Column(modifier = modifier.testTag(AdGalleryTestTags.BANNERS)) {
         PageTitle(stringResource(R.string.ad_gallery_banners_title))
         slots.Banner(Modifier.fillMaxWidth())
+        slots.MediumRectangleBanner(Modifier.fillMaxWidth().padding(vertical = Spacing.md))
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()

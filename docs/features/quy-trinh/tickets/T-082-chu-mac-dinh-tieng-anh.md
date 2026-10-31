@@ -2,7 +2,7 @@
 id: T-082
 title: Chữ mặc định của các module mẫu là tiếng Anh, tiếng Việt ở values-vi/
 feature: quy-trinh
-spec:                        # ticket quy trình: yêu cầu là bài học L-129 (issue #288); chữ của spec loading đổi theo, Nhật xác nhận
+spec:                        # ticket quy trình: yêu cầu là bài học L-135 (issue #288); chữ của spec loading đổi theo, Nhật xác nhận
 scenarios: []
 owner: Nhật
 status: backlog
@@ -19,7 +19,7 @@ created: 2026-10-30
 
 ## Mô tả
 
-Theo bài học L-129 (issue #288, từ Photune): chữ trong `res/values/` của mọi module mẫu là tiếng Anh, bản tiếng Việt chuyển sang `res/values-vi/`. App giao diện tiếng Anh hay nhiều ngôn ngữ không phải ghi đè chuỗi của mẫu; app tiếng Việt vẫn hiện tiếng Việt trên máy để tiếng Việt. Ảnh chuẩn có các chuỗi này đổi theo, vì Robolectric chạy tiếng Anh.
+Theo bài học L-135 (issue #288, từ Photune): chữ trong `res/values/` của mọi module mẫu là tiếng Anh, bản tiếng Việt chuyển sang `res/values-vi/`. App giao diện tiếng Anh hay nhiều ngôn ngữ không phải ghi đè chuỗi của mẫu; app tiếng Việt vẫn hiện tiếng Việt trên máy để tiếng Việt. Ảnh chuẩn có các chuỗi này đổi theo, vì Robolectric chạy tiếng Anh.
 
 ## Phạm vi
 

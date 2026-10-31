@@ -1,7 +1,7 @@
 ---
 ticket: T-059
 title: Native small trong danh sách thử lại khi lỗi
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -248,3 +248,15 @@ Phiên bản 1:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (commit 424118f, 2026-10-30 07:23 UTC).
+- **Nhánh, PR:** `claude/T-059-native-trong-danh-sach-thu-lai`, #335.
+- **Đã làm:** bước 3 đến 5 giao phiên con. Hàng native small trong danh sách nạp qua `retryingNativeAdStates` (`inListRowStates`), chờ `inScreenAdWindow` của T-054, chỉ gửi khi hàng đang được dựng, thử lại sau 5 giây; `newNativeLoader(events, null, key)` với khóa `<mã vị trí>#<số ô>`; `ads-guide.md` mục 5, 6. Không dùng phương án dự phòng.
+- **Test viết trước:** 34 test mới hay viết lại (commit 05a21da): 29 ở `InListAdsStateTest`, 2 ở `InListAdsTest`, 3 ở `AdsControllerInListRowTest` (mới). 27 đỏ đúng lý do trên khung rỗng (không thử lại, không chờ cửa sổ, lỗi ném chưa bắt, thiếu log mới). Qua ngay như plan ghi: `everyNull_duringRetryWait_sendsNothingMore`, `destroyAll_duringRetryWait_sendsNothing`, `destroyAll_whileLoading_lateFailure_noRetry`, `loadedRow_scrollBack_sameAd_noSend`, `firstSend_gateOpen_sends` (đối chứng). Test JVM mọi module sau bước 3: chỉ 27 test mới đỏ.
+- **Rà soát độc lập:** vòng 1: 1 chặn, 0 nên sửa, 6 ghi chú. Chặn: test controller (đặt tên `inListRow_failedThenRetriesAt5s_rowLogKey`) bỏ phần "hai báo cáo `LIST_ROW` riêng, không `load_attempt`" của plan; đột biến `LIST_ROW` thành `SINGLE_AD` không test nào bắt. Sửa lần 1 (commit 424118f): test đúng tên plan `inListRow_failedThenRetriesAt5s_listRowMetrics`, `RecordingAdMetrics`, cờ `IS_LOG_AD_SLOT_EVENTS` bật và `start()` như `AdsControllerResumeTest`; đúng 2 `LoadFail` với `loadAttempt` null và vị trí `gallery_inlist_small`. Đột biến: đỏ `expected:<[null, null]> but was:<[1, 2]>`, hoàn tác xanh. Rà soát lại: 0 chặn, 0 nên sửa.
+- **Kết quả CI:** `pr-check` xanh trên 424118f (lần chạy 41018813048).
+- **Lệch so với plan:** không có file ngoài mục 3.2. L4(a) (ADR-0032): `firstSend_gateClosed_sendsNothing_noRetry` (thiếu log `request blocked`), `retry_gateClosedAtSend_sendsNothing_endsRetries` (`expected:<1> but was:<0>` ở số dòng `retry in`) plan ghi qua ngay mà đỏ, qua sau bước 4 không sửa test. L4(b): `hiddenRow_inFlightAd_isKept`, `destroyAll_whileLoading_lateAdDestroyed_noRetry` qua ngay; đột biến "`onRowShown(false)` hủy luồng" và "`release()` không hủy `loads`" làm chúng đỏ. Dữ liệu test: `fail(3)` của test `listRowMetrics` thành loader giả ném lỗi (`ThrowingNativeAdLoader`), vì `nativeLoaderForTest` của T-054 không nhận `NativeAdEvents`; đường lỗi SDK `fail(3)` vẫn được `InListAdsStateTest` kiểm qua `loadOneNativeAd` thật. Câu khẳng định cũ viết lại (ADR-0031): `InListAdsStateTest.unavailableSlot_notRetriedOnSameScreen` thành `unavailableSlot_retriedAfter5s_notOnScrollBack`, câu cũ `assertEquals(1, loader.calls)` sau lần gọi `slot(0)` thứ hai, câu mới 1 lượt ở 4 999 ms, 2 ở 5 000 ms, gọi lại trả cùng `State` và vẫn 2 lượt; câu của plan ở mục 3.5; ý định "một hàng không có lượt nạp nào ngoài luật"; đối chứng đỏ `expected:<2> but was:<1>`. Test cũ khác đổi dữ liệu `InListAdLoader` thành `InListRowSource` (ADR-0029), câu khẳng định giữ. Sau commit test: commit 1319094 sửa phần dựng `InListAdsStateTest.loadScope()` (gắn `Job` của `backgroundScope`) vì vòng thử lại không dừng làm `runTest` treo (một lần chạy treo hơn 1700 giây); không đổi câu khẳng định. `InScreenOnlyUnitIds` chép vào file test mới.
+- **Việc còn lại:** kiểm tra thủ công trên máy thật (hàng thử lại trên bản staging).
+- **Cần người xem:** câu khẳng định viết lại (ADR-0031) và lệch dữ liệu `fail(3)` nói trên.

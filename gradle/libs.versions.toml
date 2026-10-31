@@ -44,13 +44,15 @@ admobMediationMoloco = "4.13.0.0"
 admobMediationPangle = "8.3.0.4.0"
 admobMediationUnity = "4.21.0.0"
 unityAds = "4.21.0"
+applovinSdk = "13.6.4"
+maxMediationGoogle = "25.5.0.0"
 appsflyer = "6.18.1"
 
 # Testing
 junit4 = "4.13.2"
 mockk = "1.14.5"
 turbine = "1.2.1"
-robolectric = "4.15.1"
+robolectric = "4.17"
 roborazzi = "1.77.0"
 androidxTestCore = "1.7.0"
 androidxTestExtJunit = "1.3.0"
@@ -97,6 +99,8 @@ admob-mediation-moloco = { group = "com.google.ads.mediation", name = "moloco", 
 admob-mediation-pangle = { group = "com.google.ads.mediation", name = "pangle", version.ref = "admobMediationPangle" }
 admob-mediation-unity = { group = "com.google.ads.mediation", name = "unity", version.ref = "admobMediationUnity" }
 unity-ads = { group = "com.unity3d.ads", name = "unity-ads", version.ref = "unityAds" }
+applovin-sdk = { group = "com.applovin", name = "applovin-sdk", version.ref = "applovinSdk" }
+max-mediation-google = { group = "com.applovin.mediation", name = "google-adapter", version.ref = "maxMediationGoogle" }
 user-messaging-platform = { group = "com.google.android.ump", name = "user-messaging-platform", version.ref = "userMessagingPlatform" }
 appsflyer = { group = "com.appsflyer", name = "af-android-sdk", version.ref = "appsflyer" }
 

@@ -1,7 +1,7 @@
 ---
 ticket: T-058
 title: Máy thử và log từng mạng ở bản staging
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 4                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core, build)
 risk_level: high             # low | medium | high
@@ -307,3 +307,15 @@ Phiên bản 3:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 4
+
+- **Kết quả:** đã merge (commit 3670c12, 2026-10-30 06:04 UTC).
+- **Nhánh, PR:** `claude/T-058-may-thu-va-log-tung-mang`, #327.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `AdsDebugOptions.kt`, `AdNetworkResponses.kt` mới; khối `staging` của `app/build.gradle.kts` đọc `ads.testDeviceIds` từ `local.properties` (khối `production` không đổi); `applyTestDevices` trước `MobileAds.initialize`, sau cổng đồng ý; dòng `Network` ở bảy đường tải; `newNativeLoader(events, options, logKey)`; `StagingAdsModule`, `ProductionAdsModule` (`NONE`). Trên `origin/main` đã có `newNativeLoader` của T-054 (điều kiện dừng ở mục 7 không xảy ra). `./gradlew :app:assembleStagingRelease`: qua.
+- **Test viết trước:** 20 test (commit 5ed11ec), đỏ đúng lý do trên khung rỗng. 3 test viết chặt thêm đối chứng (L-055): `SdkBannerAdViewTest.networkLog_defaultOff_logsNothing`, `ProductionPropertiesTest.production_hasNoTestDeviceField`, `AdNetworkResponsesTest.log_enabled_writesLines_disabled_writesNothing`. Test JVM mọi module sau bước 3: chỉ 20 test mới đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú (điều kiện dừng 7 không chạm, có test khóa; luồng và thứ tự khởi tạo đúng; dòng `loaded` chọn theo tên lớp adapter nên hai mục cùng lớp adapter đều in `loaded`; KDoc `openAdInspector` có thể nói rõ hơn).
+- **Kết quả CI:** `pr-check` xanh trên 5ce884d (lần chạy 41007645624) và trên commit gộp nhánh chính 3670c12 (`--update`, vì #324 T-075 do người merge giữa phiên).
+- **Lệch so với plan:** không có file ngoài mục 3.2. Lệch nhỏ ADR-0032/L5: tham số `onLoadFailedResponse` của `NativeAdLoadListener` đứng trước `onFailed` (đặt sau thì lambda cuối của lời gọi có sẵn `NativeAdLoadListener(events) {}` gắn nhầm vào nó). `AdsControllerFixtures.kt` (mục 3.2) đổi trong commit code: tham số `debugOptions = AdsDebugOptions.NONE` cho constructor mới. Mục 3.5: rà soát chạy lại `existing-tests.py` trên nhánh có T-054: 296 test, 0 "Cần xem trước", 3 "Nên xem" chưa nhắc (`AdsControllerInScreenWindowTest.realController_retryingSlot_firstLoadWaitsWhileCovered`, `realController_smallSlot_nextLoadAfterClaimWhileCovered_waits`, `realController_smallSlot_refreshTickWhileCovered_isSkipped`): dùng nhánh `nativeLoaderForTest` không đổi, câu khẳng định giữ nguyên.
+- **Việc còn lại:** kiểm tra thủ công trên máy thật (Ad Inspector mở được trên máy đã khai báo, dòng `Network` trong logcat).
+- **Cần người xem:** dòng `loaded` theo tên lớp adapter (ghi chú 3 của rà soát) nếu app có hai mục mediation cùng adapter.
