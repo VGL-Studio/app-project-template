@@ -20,7 +20,7 @@ Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày
    Lịch của `resume-run.yml` và `run-watchdog.yml` tự tắt khi không có phiên (T-051). `status-page.yml` bật lại chúng khi danh sách `approved` lên nhánh chính, nhưng GitHub có lúc không phát sự kiện push của một lần merge (L-076). Vì vậy sau khi merge danh sách, trước khi kích hoạt, dev chạy `gh workflow list --all` và thấy cả hai ở `active`; không thì chạy `scripts/schedule-idle.py --enable` trên máy.
 4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính, kể cả PR chỉ có tài liệu: mỗi commit mới trên nhánh chính bắt task đang làm chạy lại CI một vòng. `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`, kể cả khi phiên đang chờ hạn mức được làm mới (mục 4, Tiếp tục phiên sau khi hết hạn mức).
 5. Một danh sách chạy chỉ chạy một lần. Danh sách đã `finished` không được kích hoạt lại; muốn chạy lại thì lập danh sách mới.
-6. Trước khi duyệt danh sách dài, dev xem hạn mức GitHub Actions còn lại (Billing and plans của tổ chức; token của phiên không đọc được trang này) và so với số phút CI của danh sách: mỗi task khoảng 10 phút `pr-check` và 10 phút `main-guard` (khoảng 1 phút khi `main-guard` bỏ qua vì PR đã chạy `check.sh` trên cùng cây file, ADR-0039), gấp ba khi task đổi thư viện hay file build (build bản release), cộng khoảng 35 phút `device-session` và `staging` cuối phiên. Hết hạn mức giữa phiên thì mọi workflow, kể cả `resume-run.yml`, đều không chạy (L-094). Ghi kết quả ở dòng "Hạn mức Actions" của mục Kiểm tra trước khi duyệt.
+6. Trước khi duyệt danh sách dài, dev xem hạn mức GitHub Actions còn lại (Billing and plans của tổ chức; token của phiên không đọc được trang này) và so với số phút CI của danh sách: mỗi task khoảng 10 phút `pr-check` và 10 phút `main-guard` (khoảng 1 phút khi `main-guard` bỏ qua vì PR đã chạy `check.sh` trên cùng cây file, ADR-0039), cộng khoảng 5 phút `ui-test` của `main-guard` khi task đổi code app (ADR-0043), gấp ba khi task đổi thư viện hay file build (build bản release), cộng khoảng 35 phút `device-session` và `staging` cuối phiên. Hết hạn mức giữa phiên thì mọi workflow, kể cả `resume-run.yml`, đều không chạy (L-094). Ghi kết quả ở dòng "Hạn mức Actions" của mục Kiểm tra trước khi duyệt.
 7. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
 ## 2. Kiểm tra đầu phiên
@@ -72,7 +72,7 @@ Mỗi task đi qua 10 bước theo thứ tự. Điều kiện dừng ở mục 4
 | 5. Kiểm tra cục bộ | Build, lint, unit test, screenshot test, quy tắc phụ thuộc module, đối chiếu danh sách file | Sẵn sàng rà soát |
 | 6. Rà soát độc lập | Phiên AI khác rà soát thay đổi | Danh sách điểm phát hiện đã xử lý |
 | 7. Commit và đẩy | Commit theo quy ước, đẩy nhánh bằng `scripts/save-branch.sh`, mở PR. PR của task chỉ có code, test, ảnh chuẩn và ảnh so sánh thiết kế | PR liên kết tới plan |
-| 8. CI đầy đủ | `pr-check.yml` chạy cổng chất lượng, thêm test trên emulator khi PR chạm vào code chạy trong app | CI xanh |
+| 8. CI đầy đủ | `pr-check.yml` chạy cổng chất lượng | CI xanh |
 | 9. Merge | Merge bằng `scripts/merge-if-green.sh` | Nhánh chính có thay đổi của task |
 | 10. Ghi nhật ký | Khi task có kết quả cuối, ghi vào cuối plan và cập nhật trạng thái trên nhánh báo cáo | Người đọc được kết quả |
 
@@ -192,7 +192,7 @@ Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân lo
 
 ### Bước 8. CI đầy đủ
 
-- `pr-check.yml` chạy toàn bộ kiểm tra ở bước 5. Test trên emulator chỉ chạy khi PR chạm vào code giao diện hoặc test giao diện (ADR-0010).
+- `pr-check.yml` chạy toàn bộ kiểm tra ở bước 5. Test trên emulator chạy sau merge, ở job `ui-test` của `main-guard` (ADR-0043), không chạy ở PR.
 - AI chờ CI bằng `scripts/wait-run.sh --pr <số> --sha "$(git rev-parse HEAD)"` sau khi chính phiên đẩy commit lên nhánh của PR, cho đến khi `pr-check` kết thúc (mục Chờ workflow bên dưới), rồi gọi `merge-if-green.sh`.
 
 **Chờ workflow.** Mỗi lần hỏi GitHub trạng thái là một lượt gọi model đọc lại toàn bộ ngữ cảnh của phiên, nên không hỏi lặp lại bằng tay. `scripts/wait-run.sh` tự chờ trong một lệnh và in một dòng kết quả: mã 0 xanh, 1 đỏ (kèm tên job đỏ), 2 hết thời gian chờ thì gọi lại, 4 GitHub không chạy job (`HẠ TẦNG`), 5 PR xung đột với nhánh chính (`XUNG ĐỘT`). Chạy lệnh ở chế độ nền và làm việc khác trong lúc chờ nếu có (mục 4); không có việc khác thì chạy thường. Môi trường giới hạn một lệnh 10 phút thì dùng `--timeout 9` và gọi lại khi nhận mã 2.
@@ -210,7 +210,7 @@ Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân lo
   3. `khong-co` và `that` thì như cũ: lỗi chập chờn chạy lại một lần, lỗi thật quay lại bước 4, tối đa 3 lần cho cùng một lỗi, sau đó dừng task.
   4. Báo cáo phiên ghi mã dòng bảng của mỗi lần chạy lại (mục Số liệu, "Số lần thử lại vì lỗi hạ tầng").
 - Bước "Build bản release (R8)" của `build-and-test` đỏ (PR đổi thư viện, file build hay luật R8) là lỗi thật của task: sửa trong luật R8 của module có trong mục 3.2 (`consumer-rules.pro`, `proguard-rules.pro`); file đó không có trong mục 3.2 thì dừng task theo điều kiện 1 (L-083).
-- Khi `ui-test` đỏ, log của job có bước "Chi tiết test trên emulator" in toàn văn lỗi của từng test và log của app trên emulator (ADR-0019). Đọc bước đó trước khi kết luận. Bản đầy đủ nằm trong artifact `ui-test-report` của lần chạy: `gh api repos/{owner}/{repo}/actions/runs/<id>/artifacts`, rồi tải tệp zip theo `archive_download_url`.
+- Khi job `ui-test` của `main-guard` đỏ (bước 9), log của job có bước "Chi tiết test trên emulator" in toàn văn lỗi của từng test và log của app trên emulator (ADR-0019). Đọc bước đó trước khi kết luận. Bản đầy đủ nằm trong artifact `ui-test-report` của lần chạy `main-guard`: `gh api repos/{owner}/{repo}/actions/runs/<id>/artifacts`, rồi tải tệp zip theo `archive_download_url`.
 - Không thêm lệnh in chẩn đoán vào test để tìm lỗi trên CI; đọc chi tiết và log nói trên.
 
 ### Bước 9. Merge
@@ -222,9 +222,15 @@ Lệnh đẩy của phiên chính bị môi trường từ chối (bộ phân lo
 - Script từ chối vì lý do khác thì không tìm cách vượt qua, mà dừng task và ghi lý do vào nhật ký.
 - Lệnh của phiên không mở đầu bằng `sleep`: công cụ chặn lệnh đó. Chờ bằng `scripts/wait-run.sh`, hoặc một vòng có giới hạn nằm trong lệnh (`for i in 1 2 3; do ...; sleep 30; done`). Tệp tạm ghi vào `${TMPDIR:-/tmp}`, không ghi `$TMPDIR` trống: trên cloud biến này không được đặt, nên `"$TMPDIR/x"` ghi vào gốc ổ đĩa (L-088).
 - Sau khi merge, chờ `main-guard` của commit merge: `scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge>` ở chế độ nền, trong lúc làm bước 10 và bước 1, 2 của task sau. Kết quả đọc từ tệp đầu ra của lệnh nền (hoặc thông báo khi lệnh xong); không tự viết vòng chờ bằng `pgrep -f` hay dọn bằng `pkill -f` theo chuỗi lệnh: `pgrep -f` khớp cả dòng lệnh của chính vòng đó nên chờ mãi, `pkill -f` giết luôn shell của phiên (L-082). Commit merge chỉ đổi tài liệu thì `main-guard` không chạy (`paths-ignore`), không cần chờ. Lần chờ này trả mã 4 thì nhánh chính chưa được kiểm, không phải đỏ: không revert (ADR-0025 chỉ áp dụng khi có issue `main-broken`), làm theo mục 4, dòng "GitHub không chạy job".
-- Trước khi đẩy commit đầu tiên của task sau, phải có kết quả của lần chờ đó, rồi kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Kiểm tra ngay sau khi merge là quá sớm: `main-guard` mất khoảng 5 đến 12 phút (gấp đôi khi nó chạy lại test thất bại; khoảng 1 phút khi đã kiểm ở PR, ADR-0039), và issue chỉ được mở khi nó xong (L-043).
+- Trước khi đẩy commit đầu tiên của task sau, phải có kết quả của lần chờ đó, rồi kiểm tra lại không có issue hay PR nào đang mở mang nhãn `main-broken`. Kiểm tra ngay sau khi merge là quá sớm: `main-guard` mất khoảng 5 đến 12 phút (gấp đôi khi nó chạy lại test thất bại; khoảng 1 phút khi đã kiểm ở PR, ADR-0039), thêm khoảng 5 phút job `ui-test` khi commit đổi code app (gấp đôi phần test khi lần đầu đỏ, ADR-0043), và issue chỉ được mở khi nó xong (L-043).
 - Có issue `main-broken`: commit gây lỗi (dòng `<!-- culprit:<sha> -->` trong thân issue) là commit merge của một task chính phiên đã merge thì làm theo mục Khi nhánh chính đỏ vì task của phiên; commit khác thì kết thúc phiên (mục 4).
 - `main-guard` xanh sau khi chạy lại test thất bại thì có issue mang nhãn `flaky` (ADR-0025): phiên làm tiếp như bình thường, chép issue vào báo cáo.
+- `main-guard` đỏ ở job `ui-test` (ADR-0043): đọc annotation của check run, `gh api "repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=ui-test" --jq '.check_runs[0].id'`, rồi `gh api "repos/{owner}/{repo}/check-runs/<id>/annotations" --jq '.[].message'`.
+  - Có `EMULATOR HẠ TẦNG (PB-NN)`: lỗi hạ tầng, làm theo dòng PB-NN của [bảng tra lỗi](ops/failure-playbook.md), không revert.
+  - Có `EMULATOR HẠ TẦNG (<nhãn>)` mà nhãn không phải mã PB (`thiết bị`, `không có log`, `không có test`, `kết quả lạ`): lỗi hạ tầng không có dòng bảng. Chạy lại riêng job đỏ (`gh api -X POST "repos/{owner}/{repo}/actions/runs/<id>/rerun-failed-jobs"`) theo lịch của PB-15 (1, 2, 4, 8, 15 phút), không revert; hết lịch vẫn đỏ thì ghi vào Cần người kiểm tra.
+  - Có issue `main-broken` với dòng `<!-- check:ui-test -->`: như mọi issue `main-broken` (hai gạch đầu dòng trên).
+  - Không có cả hai (job bị hủy, hết giờ, đỏ trước bước phân loại): chạy lại riêng job đỏ một lần; vẫn vậy thì ghi cho người và tính như một lần `infra` cho giới hạn dưới. Không suy ra "không có `main-broken` là hạ tầng".
+  - Giới hạn: hai commit đổi code app liên tiếp trên nhánh chính có `ui-test` kết luận `infra` mà chưa chạy lại xanh thì phiên không merge thêm task nào đổi code app (`scripts/ui-test-needed.sh <commit cuối của task>` in `yes`), chỉ làm task không đổi code app, và ghi vào Cần người kiểm tra. Một lần `ui-test` xanh sau đó gỡ giới hạn. Chuỗi chỉ tính các commit mà `ui-test` có chạy, theo thứ tự trên nhánh chính: commit có `ui-test` `skipped` (không đổi code app) không ngắt chuỗi và không được tính. Phiên đếm từ kết quả các lần chờ `main-guard` của chính phiên cộng commit code app cuối cùng trước phiên (lệnh annotation ở trên).
 
 ### Khi nhánh chính đỏ vì task của phiên
 
@@ -280,6 +286,7 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 | Lỗi hạ tầng còn sau lịch thử lại ở bước 5 | Như trên. Plan và ticket giữ `approved`; báo cáo ghi tên nhánh để lần sau tiếp tục trên nhánh đó |
 | GitHub không chạy job (`wait-run.sh` mã 4, L-064) | Đẩy hết những gì đang có: nhánh của task đang làm, nhánh báo cáo với dòng thời gian ghi giờ, tên workflow và mã lần chạy bị bỏ. Giữ danh sách chạy `running`, plan và ticket giữ trạng thái; không bắt đầu task mới. `resume-run.yml` kích hoạt lại phiên khi GitHub chạy lại được (nó cũng chỉ chạy được từ lúc đó) |
 | Lệnh đẩy nhánh bị từ chối ở hai task liên tiếp, mà thông báo không khớp dòng `bo-qua-loai` nào của bảng tra lỗi (ADR-0032/L8) | Đẩy nhánh báo cáo nếu được; báo cáo ghi các bundle (bước 7, "Khi không đẩy được") |
+| Hai commit đổi code app liên tiếp có job `ui-test` của `main-guard` kết luận `infra` mà chưa chạy lại xanh (bước 9, ADR-0043) | Không kết thúc phiên: không merge thêm task đổi code app, chỉ làm task không đổi code app; ghi vào Cần người kiểm tra |
 | Nhánh chính đỏ sau một lần merge (xuất hiện issue mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào. Trừ khi commit gây lỗi là commit merge của một task chính phiên: revert theo mục 3, Khi nhánh chính đỏ vì task của phiên, rồi làm tiếp các task không phụ thuộc task đó (ADR-0025) |
 
 ### Tiếp tục phiên sau khi hết hạn mức

@@ -541,6 +541,23 @@ class AdTelemetryTest {
     }
 
     @Test
+    fun revenue_bannerMrec_formatCodeAndPlacement() {
+        val telemetry = telemetry()
+        // Control: the same impression of a fixed banner has the banner's code.
+        telemetry.revenue(AdFormat.BANNER, "unit", { AdPlacement.GALLERY_BANNER }, 1_000, "USD", "Pangle", null)
+        telemetry.revenue(AdFormat.BANNER_MREC, "unit", {
+            AdPlacement.GALLERY_BANNER_MREC
+        }, 1_000, "USD", "Pangle", null)
+
+        val events = metrics.events.map { it as AdMetricEvent.ImpressionRevenue }
+        assertEquals("BANNER", events[0].adFormat)
+        assertEquals("BANNER_MREC", events[1].adFormat)
+        assertEquals("gallery_banner_mrec", events[1].adPlacement)
+        assertEquals(0.001, events[1].value, 0.0)
+        assertTrue(funnel.events.isEmpty())
+    }
+
+    @Test
     fun revenue_monetizationNetwork_isRawSource() {
         val telemetry = telemetry()
         telemetry.revenue(AdFormat.BANNER, "unit", { null }, 1_000, "USD", null, null)
@@ -605,7 +622,12 @@ class AdTelemetryTest {
     @Test
     fun funnel_appOpenAndBanner_sendNothing() {
         val telemetry = telemetry()
-        listOf(AdFormat.APP_OPEN, AdFormat.BANNER, AdFormat.BANNER_COLLAPSIBLE).forEach { format ->
+        listOf(
+            AdFormat.APP_OPEN,
+            AdFormat.BANNER,
+            AdFormat.BANNER_COLLAPSIBLE,
+            AdFormat.BANNER_MREC,
+        ).forEach { format ->
             telemetry.eligible(format)
             telemetry.apiCalled(format, "u", "A")
             telemetry.displayed(format, "u", "A")
