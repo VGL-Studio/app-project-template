@@ -881,8 +881,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** dự án mẫu ở AGP 8.13.0, Gradle 8.14.3, compileSdk 36. Photune build và test bằng AGP 9.1.0 (Kotlin dựng sẵn), Gradle 9.3.1, Kotlin 2.2.10, compileSdk 37, KSP 2.3.12, Hilt 2.59.2, Robolectric 4.17, Roborazzi 1.77.0, ktlint-gradle 14.2.0; `pr-check`, `main-guard`, `staging` xanh qua 2 phiên và khoảng 15 PR. Kotlin giữ 2.2.10 như mẫu, nhưng plugin `kotlin-android` bỏ vì AGP 9 có Kotlin dựng sẵn; KSP 2.3.2 thì cần `android.disallowKotlinSourceSets=false`; build-tools 36.0.0 vẫn là mặc định của AGP 9.1; Navigation Compose 2.9.8. Hai chỗ script phải sửa: gói nền tên `platforms;android-37.0` trong `cloud-setup.sh`; `cloud-env-check.sh` đọc `compileSdk` từ đúng một dòng của `libs.versions.toml`. App chưa phát hành bản production nào.
 - **Bằng chứng:** issue #276.
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
-- **Trạng thái:** accepted
-- **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
+- **Trạng thái:** applied
+- **Áp dụng:** T-052, tách thành T-079 (môi trường, PR #310), T-080 (bộ build AGP 9, PR #320, ADR-0040), T-081 (Robolectric 4.17, PR #354).
 
 ### L-128. Phiên chạy `merge-if-green.sh` từ nhánh báo cáo cũ, chờ 30 phút một kiểm tra đã bỏ
 
@@ -967,3 +967,73 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `CLAUDE.md` và mẫu plan dùng `'*/src/test/screenshots/*'`; một test chạy đúng lệnh của hai tài liệu đó trên repo tạm. Plan đã duyệt không sửa (`docs/CLAUDE.md`, mục Những điều không được làm): báo người phụ trách trước khi T-053 và T-060 chạy.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #333: `CLAUDE.md` mục Lệnh và `docs/templates/plan.md` mục 4 dùng `'*/src/test/screenshots/*'`, kèm câu nói vì sao phải có `*`. Test trong `scripts/tests/run.sh` lấy lệnh từ hai tài liệu và chạy trên repo tạm có một ảnh sửa và một ảnh mới; với mẫu cũ, test đỏ. Plan đã duyệt T-053, T-060, T-062, T-067 giữ nguyên; người phụ trách được báo ở PR #332.
+
+### L-137. `test-summary.sh` đếm cả kết quả test trong worktree cũ của `.claude/worktrees/`, số test báo gần gấp đôi
+
+- **Ngày, nguồn:** 2026-10-31, camera-pose (issue #331; bài học L-094 của app, báo cáo RUN-20261030-01, phiên `local`)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phiên `local` chạy `scripts/check.sh` trong thư mục repo. Dòng tóm tắt in "Test JVM: 4635 test", kèm số của từng `./.claude/worktrees/agent-*/...`: worktree cũ của agent con nằm trong thư mục repo và còn kết quả test cũ. Cùng ngày, `check.sh` trong một worktree ngoài repo đếm 2373. Cổng chất lượng vẫn đúng vì Gradle chỉ build repo chính, nhưng con số dễ đọc nhầm khi so giữa các phiên. Nguyên nhân nằm ở `scripts/test-summary.sh` (`check.sh` gọi nó): cả ba lệnh `find .` (test JVM, test emulator, ảnh chuẩn) không bỏ worktree lồng trong repo.
+- **Bằng chứng:** issue #331; repo tạm có kết quả ở module thật (3 test), ở `.claude/worktrees/agent-old/` (5) và ở một worktree lồng khác (7): bản cũ in `15 test`, ảnh `3`.
+- **Đề xuất sửa:** `test-summary.sh` bỏ `.claude/` và mọi worktree lồng trong repo mà `git worktree list` biết; một test dựng đủ ba chỗ đó.
+- **Trạng thái:** applied
+- **Áp dụng:** PR_NUM: `scripts/test-summary.sh` thêm `-not -path` cho `./.claude/*` và cho mỗi worktree nằm dưới thư mục repo (so bằng `pwd -P`, vì git in đường dẫn đã giải symlink); test `test-summary: tests and screenshots of nested worktrees are not counted` trong `scripts/tests/run.sh`, đỏ với bản cũ.
+
+### L-138. Job hết giờ ở bước build bản release bị bảng tra lỗi xếp nhầm vào PB-08, vì cảnh báo R8 thường khớp mẫu lỗi R8
+
+- **Ngày, nguồn:** 2026-10-31, camera-pose (issue #329; bài học L-092 của app, báo cáo RUN-20261029-01, PR #228 và #229 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** PR đổi thư viện hay file build chạy thêm bản release (R8) trong `build-and-test` của `pr-check`. Ở camera-pose, một lần chạy bị hủy vì chạm `timeout-minutes: 45` giữa bước R8, lần chạy lại xanh trong 35 phút; PR sau xanh trong 38 phút. `failure-kind.sh --playbook` xếp lần hết giờ vào PB-08 (lỗi R8 thật, tính vào 3 lần sửa). Lý do: R8 in `WARNING: R8: Missing class ... (referenced from: ...)` cả ở lần build xanh (ví dụ SDK của TikTok tham chiếu Billing), và nửa sau của mẫu PB-08 `Missing class .* \(referenced from` khớp dòng cảnh báo đó. Bảng chưa có dòng cho lỗi hết giờ của job.
+- **Bằng chứng:** issue #329; log lần chạy 40835766905 của camera-pose: lần 1 có `The job has exceeded the maximum execution time of 45m0s`, lần 2 (xanh) có dòng `WARNING: R8: Missing class com.android.billingclient.api.BillingClient$Builder (referenced from: ...)`.
+- **Đề xuất sửa:** mẫu PB-08 chỉ khớp lỗi (`ERROR:`), không khớp cảnh báo; dòng PB-16 mới cho `has exceeded the maximum execution time`, loại `chay-lai`, đặt trước PB-08. Phần giới hạn 45 phút (tách bản release thành job riêng hay nâng giới hạn) đụng `.github/`: xem lại sau T-076 và T-078 (runner tự host cho job nặng).
+- **Trạng thái:** applied
+- **Áp dụng:** PR_NUM: `docs/ops/failure-playbook.md` thêm PB-16 trước PB-08, mẫu PB-08 thành `Missing classes detected while running R8\|ERROR:.*Missing class .* \(referenced from`, cột Thấy ở của PB-08 thêm `pr-check`; `scripts/tests/playbook/PB-16.log` từ log thật; ba test trong `scripts/tests/run.sh` (PB-16, cảnh báo R8 riêng không phải PB-08, lỗi R8 vẫn là PB-08). Giới hạn 45 phút chưa đổi.
+
+### L-139. Issue `env-broken` của môi trường cloud chặn cả phiên `local`
+
+- **Ngày, nguồn:** 2026-10-31, camera-pose (issue #348; bài học L-095 của app, báo cáo RUN-20261030-02, phiên `local`)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** bảng kiểm tra đầu phiên của `docs/auto-run.md` nói có issue `env-broken` đang mở thì không chạy task nào. Issue `env-broken` do `env-canary` mở khi môi trường cloud lỗi (ở app, proxy của cloud trả 403 cho kho Maven của Mintegral và Pangle). Phiên RUN-20261030-02 của app mở `local` trên máy dev, không đi qua proxy đó, `check.sh` qua 2394 test, CI xanh, nhưng theo chữ của quy tắc vẫn phải dừng và hỏi người. Dòng kiểm môi trường của cùng bảng đã có ngoại lệ `local` (L-116); dòng `env-broken` chưa theo. Đây lại là lúc phiên `local` có ích nhất.
+- **Bằng chứng:** issue #348; issue camera-pose#242.
+- **Đề xuất sửa:** phiên `local` không dừng vì `env-broken`, chép issue vào mục Kiểm tra đầu phiên; cổng của phiên `local` là `local-setup.sh --check` và `check.sh` trên máy; ghi ở `docs/ops/session-capabilities.md`.
+- **Trạng thái:** applied
+- **Áp dụng:** PR_NUM: `docs/auto-run.md` mục 2, dòng `env-broken` của bảng và bước 1 của Kiểm tra build ở chế độ nền; `docs/ops/session-capabilities.md`, dòng `local` của bảng cách mở. Phiên `cloud`, `routine` giữ như cũ.
+
+### L-140. Bước thử tay của plan tắt trên Firebase một cờ mà bản staging bật sẵn trong code
+
+- **Ngày, nguồn:** 2026-10-31, camera-pose (issue #330; bài học L-093 của app, báo cáo RUN-20261029-01, T-074 lượt 3)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** mục 4 của một plan ghi bước thử tay "tắt cờ loading trên Firebase staging: không có quảng cáo mở app". `StagingFeatureFlagsModule` bật cờ đó trong code, và cờ bật như vậy luôn bật, Firebase không tắt được (`docs/ops/remote-config.md`, mục 4), nên bước này không làm được trên staging. Rà soát cũng thấy một bước chờ dòng log mà thao tác của bước không bao giờ sinh ra (hộp hỏi quyền không đưa app ra nền). Quy tắc đã có ở `remote-config.md` nhưng mục Khi viết plan không nhắc.
+- **Bằng chứng:** issue #330; plan T-074 của camera-pose, PR #230 của app.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: bước bật tắt cờ trên Firebase staging đối chiếu `StagingFeatureFlagsModule`; bước chờ log dẫn dòng code ghi log và điều kiện để nó chạy.
+- **Trạng thái:** applied
+- **Áp dụng:** PR_NUM: `docs/CLAUDE.md`, mục Khi viết plan, gạch đầu dòng mới trước dòng kịch bản emulator. Tên cờ của app không đưa vào.
+
+### L-141. `new-app.sh` chép ticket, plan và phản hồi của mẫu, nên mã ticket của app mới nối tiếp mã của mẫu
+
+- **Ngày, nguồn:** 2026-10-31, Photune (issue #289; lần chạy thử plan T-022, PR #27 của app)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** app dựng bằng `scripts/new-app.sh` có sẵn `docs/features/ads/`, `loading/`, `network/`, `quy-trinh/` của mẫu với ticket tới T-083, cùng plan, phản hồi và yêu cầu. `docs/CLAUDE.md` lấy mã ticket tiếp theo theo mọi `features/*/tickets/`, nên ticket đầu của app mới mang mã sau T-083; app đã có ticket riêng (Photune: T-001 tới T-022) mà nhận các tài liệu này thì trùng mã. `docs/features/` không bao giờ được `template-sync.sh` đồng bộ, nên bản chép không được cập nhật. Script đã làm trống `docs/runs/` và sổ bài học, nhưng chưa làm với `docs/features/`. Không xóa hết được: code của `:feature:loading`, `:core:ads` và `:core:designsystem` dẫn tới thiết kế trong `docs/features/<feature>/design/`.
+- **Bằng chứng:** issue #289; `grep -rn docs/features/ core feature` trên nhánh chính.
+- **Đề xuất sửa:** `new-app.sh` bỏ `docs/features/quy-trinh/` và các thư mục `tickets/`, `plans/`, `feedback/`, `requests/` của mọi feature; giữ spec và thiết kế. `docs/ops/new-app.md` ghi việc này và mã ticket của app bắt đầu từ T-001.
+- **Trạng thái:** applied
+- **Áp dụng:** PR_NUM: `scripts/new-app.sh`; `docs/ops/new-app.md` mục 2, ý 5; ba test trong khối `new-app.sh` của `scripts/tests/run.sh` (không còn thư mục nào trong bốn loại, không có `quy-trinh`, còn spec và thiết kế của `loading`).
+
+### L-142. Quy trình không có plan nhiều lượt; task lớn tách thành nhiều ticket
+
+- **Ngày, nguồn:** 2026-10-31, camera-pose (issue #328; bài học L-091 của app, báo cáo RUN-20261029-01, T-074 chạy ba lượt)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** camera-pose chia T-074 thành ba lượt của cùng một plan và ticket, mỗi lượt một PR. Quy trình không biết đến lượt: bước 10 chuyển plan `done`, ticket `on-staging` sau lượt 1 nên lượt sau bị bỏ ở kiểm tra đầu task; `plan-check.py` báo lỗi trước lượt 2 vì lượt 1 đã xóa file đúng theo plan; `run-check.py` báo 32 dòng chú ý vì cùng plan nằm ở ba dòng; cột "Phụ thuộc: lượt N" không script nào đọc. Phiên chạy được chỉ nhờ sáu quy tắc người viết tay vào danh sách chạy. Issue đề xuất thêm trường `passes:` và sửa hai script. Dự án mẫu đã gặp cùng loại việc ở T-052 (nâng AGP 9) và tách thành ba ticket T-079, T-080, T-081, mỗi ticket một plan nối bằng `depends_on`, mà mọi script hiện có đã hiểu.
+- **Bằng chứng:** issue #328; T-052 của dự án mẫu, PR #300.
+- **Đề xuất sửa:** không thêm khái niệm lượt (Nhật chọn, 2026-10-31). `docs/CLAUDE.md`, mục Khi tách spec thành ticket: ticket quá lớn tách thành nhiều ticket nối `depends_on`, mỗi ticket một plan; không chia một plan thành nhiều lượt, kèm lý do.
+- **Trạng thái:** applied
+- **Áp dụng:** PR_NUM: `docs/CLAUDE.md`, mục Khi tách spec thành ticket, gạch đầu dòng đầu.
+
+### L-143. Ảnh chuẩn của `:core:ads` vẽ bằng `AppTheme` của app, nên app đổi theme phải ghi lại ảnh của module mẫu
+
+- **Ngày, nguồn:** 2026-10-31, Photune (issue #321; plan T-022, PR #27 của app; ADR 1007 của app, quyết định 8)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** test và 43 ảnh chuẩn của `:core:ads` vẽ trong `AppTheme` của `:core:designsystem`. Mỗi app đặt màu và chữ riêng trong `:core:designsystem` (ADR-0008), còn `:core:ads` thuộc nhóm "của dự án mẫu, app không sửa" (`docs/ops/to-app.md` mục 2, `TEMPLATE_OWNED` của `template-sync.sh`): khi xung đột, app lấy bản của mẫu. App đổi theme thì ảnh của `:core:ads` không khớp, và mỗi đợt đồng bộ có đổi ảnh đó làm `check.sh` của app đỏ cho tới khi app ghi lại. Photune phải viết ngoại lệ riêng trong ADR của app. Ngoài `AppTheme`, mã chính của `:core:ads` dùng `Spacing` (9 tệp) và hai test dùng `PrimaryButton` của `:core:designsystem`.
+- **Bằng chứng:** issue #321; `grep -rl AppTheme core/ads/src/test` (21 tệp), `ls core/ads/src/test/screenshots` (43 ảnh).
+- **Đề xuất sửa:** test của `:core:ads` vẽ trong một theme cố định khai báo trong mã test, cùng giá trị với theme hiện tại của mẫu (Nhật chọn hướng này, 2026-10-31; hướng khác là xếp ảnh của `:core:ads` vào nhóm app tự ghi lại).
+- **Trạng thái:** accepted
+- **Áp dụng:** T-084 (ticket, chưa có plan).

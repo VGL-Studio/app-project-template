@@ -1,0 +1,3 @@
+build-and-test	Build bản release (R8)	2026-10-29T08:45:38.0479184Z WARNING: R8: Missing class com.android.billingclient.api.BillingClient$Builder (referenced from: void com.tiktok.iap.billing.client.V5_V8BillingProxy.tryCreateAndStartBillingClient())
+build-and-test	Build bản release (R8)	2026-10-29T08:52:11.4417102Z ##[error]The job has exceeded the maximum execution time of 45m0s
+build-and-test	Build bản release (R8)	2026-10-29T08:52:11.4520193Z ##[error]The operation was canceled.
