@@ -911,11 +911,37 @@ class BannerSlotHostTest {
         assertSlotHeight(SLOT_2, MREC_HEIGHT_DP)
     }
 
+    @Test
+    fun shorterPlatform_drawnAtFrameTop_atItsOwnHeight() {
+        // AdMob 50 dp, MAX 62 dp: the frame is 62 dp and the ad of AdMob sits at its top (question 4 of the plan, B-09).
+        newViewOverride = {
+            val admob = FakeBannerAdView(tag = ADMOB_TAG).also { admobFakes += it }
+            val max = FakeBannerAdView(tag = MAX_TAG).also { maxFakes += it }
+            OrderedBannerAdView(
+                children = listOf(ADMOB to admob, MAX to max),
+                maxReady = { maxReady },
+                logger = logger,
+                placementKey = KEY,
+                heightsDp = mapOf(ADMOB to ADMOB_HEIGHT_DP, MAX to HEIGHT_DP),
+            )
+        }
+        setHost()
+        update { admobFakes.single().emitLoaded() }
+        assertSlotHeight(HEIGHT_DP)
+        val slot = composeRule.onNodeWithTag(SLOT).getBoundsInRoot()
+        val ad = composeRule.onNodeWithTag(ADMOB_TAG, useUnmergedTree = true).getBoundsInRoot()
+        assertEquals(slot.top, ad.top)
+        assertEquals(ADMOB_HEIGHT_DP.dp, ad.bottom - ad.top)
+        assertEquals(slot.left, ad.left)
+        assertEquals(slot.right, ad.right)
+    }
+
     private companion object {
         const val SLOT = "banner_slot"
         const val SLOT_2 = "banner_slot_2"
         const val KEY = "test_banner"
         const val HEIGHT_DP = 62
+        const val ADMOB_HEIGHT_DP = 50
         const val MREC_HEIGHT_DP = 250
         const val UNIT = "unit-of-the-mrec-slot"
         const val MAX_TAG = "max_banner"
