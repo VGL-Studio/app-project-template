@@ -1,14 +1,20 @@
 package com.vglstudio.template.core.ads
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -22,6 +28,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,34 +61,73 @@ class BannerSlotHostTest {
     private var refresh by mutableStateOf(BannerRefresh.BY_AD_UNIT)
     private val availability = mutableListOf<Boolean>()
 
+    // The size of the slot under test (plan T-062): a fixed banner by default, as every test before MREC.
+    private var kind by mutableStateOf(BannerSizeKind.ANCHORED)
+    private var fits by mutableStateOf(true)
+    private var heightDp by mutableStateOf(HEIGHT_DP)
+
+    /** A second slot of the same placement under [SLOT_2], drawn below the first one when [setHost] asks for it. */
+    private val secondViews = FakeBannerAdViews()
+    private var secondKind by mutableStateOf(BannerSizeKind.ANCHORED)
+
     private val totalSends: Int get() = views.created.sumOf { it.sendCount }
 
-    private fun setHost() {
+    private fun setHost(withSecond: Boolean = false) {
         composeRule.setContent {
             if (shown) {
-                BannerSlotHost(
-                    gateOpen = gateOpen,
-                    enabled = enabled,
-                    unitId = unitId,
-                    heightDp = HEIGHT_DP,
-                    refresh = refresh,
-                    visible = visible,
-                    covered = covered,
-                    mayRequestNow = { gateOpen },
-                    retryResets = retryResets,
-                    logger = logger,
-                    placementKey = placementKey,
-                    newView = views::newView,
-                    modifier = Modifier.fillMaxWidth().testTag(SLOT),
-                    onAdAvailabilityChange = { availability += it },
-                )
+                Column {
+                    BannerSlotHost(
+                        gateOpen = gateOpen,
+                        enabled = enabled,
+                        unitId = unitId,
+                        heightDp = heightDp,
+                        refresh = refresh,
+                        visible = visible,
+                        covered = covered,
+                        mayRequestNow = { gateOpen },
+                        retryResets = retryResets,
+                        logger = logger,
+                        placementKey = placementKey,
+                        newView = views::newView,
+                        modifier = Modifier.fillMaxWidth().testTag(SLOT),
+                        onAdAvailabilityChange = { availability += it },
+                        kind = kind,
+                        fits = fits,
+                    )
+                    if (withSecond) {
+                        BannerSlotHost(
+                            gateOpen = gateOpen,
+                            enabled = enabled,
+                            unitId = unitId,
+                            heightDp = heightDp,
+                            refresh = refresh,
+                            visible = visible,
+                            covered = covered,
+                            mayRequestNow = { gateOpen },
+                            retryResets = retryResets,
+                            logger = logger,
+                            placementKey = placementKey,
+                            newView = secondViews::newView,
+                            modifier = Modifier.fillMaxWidth().testTag(SLOT_2),
+                            kind = secondKind,
+                        )
+                    }
+                }
             }
         }
         composeRule.waitForIdle()
     }
 
+    /** The fake ads drawn inside the slot tagged [slot]. */
+    private fun adsIn(slot: String): SemanticsNodeInteractionCollection =
+        composeRule.onAllNodes(hasTestTag(FAKE_BANNER_TAG) and hasAnyAncestor(hasTestTag(slot)), useUnmergedTree = true)
+
+    private fun assertSlotHeight(slot: String, heightDp: Int) {
+        composeRule.onNodeWithTag(slot).assertHeightIsEqualTo(heightDp.dp)
+    }
+
     private fun assertSlotHeight(heightDp: Int) {
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(heightDp.dp)
+        assertSlotHeight(SLOT, heightDp)
     }
 
     private fun assertAdShown(shown: Boolean) {
@@ -94,9 +140,9 @@ class BannerSlotHostTest {
     }
 
     /** [setHost] with the clock of Compose stopped: the test moves it ([advanceTo]). */
-    private fun setTimedHost() {
+    private fun setTimedHost(withSecond: Boolean = false) {
         composeRule.mainClock.autoAdvance = false
-        setHost()
+        setHost(withSecond)
         frame()
     }
 
@@ -387,9 +433,238 @@ class BannerSlotHostTest {
         assertEquals(1, view.sendCount)
     }
 
+    @Test
+    fun mrec_loading_keeps250_width300_centered() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        // Control: a fixed banner of the same placement below it, in the same width.
+        setHost(withSecond = true)
+
+        // Before any result: the frame keeps 250 dp, the ad is 300 dp wide, centred in the 411 dp slot.
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertEquals(1, views.last.sendCount)
+        val ad = adsIn(SLOT).also { it.assertCountEquals(1) }[0]
+        ad.assertWidthIsEqualTo(300.dp)
+        val left = ad.getBoundsInRoot().left
+        assertEquals((411f - 300f) / 2f, left.value, 1f)
+        adsIn(SLOT_2)[0].assertWidthIsEqualTo(411.dp)
+    }
+
+    @Test
+    fun mrec_failedBeforeAd_collapsesTo0_retries_loadedBackTo250_laterFailureKeeps250() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        setTimedHost(withSecond = true)
+        val start = composeRule.mainClock.currentTime
+        val view = views.last
+
+        timedUpdate {
+            view.emitFailed(3)
+            secondViews.last.emitFailed(3)
+        }
+        assertSlotHeight(0)
+        assertEquals(0, view.destroyCount)
+        // Control (L-055): a fixed banner that fails keeps its height.
+        assertSlotHeight(SLOT_2, MREC_HEIGHT_DP)
+
+        // B-02: the view lives on in the collapsed frame and retries 2 s later.
+        advanceTo(start + 2_000)
+        assertEquals(2, view.sendCount)
+
+        timedUpdate { view.emitLoaded() }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        adsIn(SLOT).assertCountEquals(1)
+
+        // A failure after an ad keeps the frame: the view still shows the ad it had.
+        timedUpdate { view.emitFailed(3) }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        adsIn(SLOT).assertCountEquals(1)
+    }
+
+    @Test
+    fun mrec_revokedAfterAd_keeps250_reloadsWhenGranted() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        setHost()
+        update { views.last.emitLoaded() }
+        val view = views.last
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertAdShown(true)
+
+        update { gateOpen = false }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertAdShown(false)
+        assertEquals(1, view.pauseCount)
+        assertEquals(0, view.destroyCount)
+
+        update { gateOpen = true }
+        assertAdShown(true)
+        assertEquals(2, view.sendCount)
+        assertEquals(1, views.createdCount)
+        assertSame(view, views.last)
+    }
+
+    @Test
+    fun mrec_gateClosedOrOffOrBlank_noSpace_noView() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        gateOpen = false
+        setHost()
+        assertSlotHeight(0)
+        assertEquals(0, views.createdCount)
+
+        update {
+            gateOpen = true
+            enabled = false
+        }
+        assertSlotHeight(0)
+        assertEquals(0, views.createdCount)
+
+        update {
+            enabled = true
+            unitId = " "
+        }
+        assertSlotHeight(0)
+        assertEquals(0, views.createdCount)
+
+        // Control: gate open, placement on, a unit: the 250 dp frame and one send.
+        update { unitId = "u" }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertEquals(1, views.createdCount)
+        assertEquals(1, views.last.sendCount)
+    }
+
+    @Test
+    fun mrec_failedThenRevoked_givesSpaceBack_freshFrameAt250() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        setTimedHost()
+        val first = views.last
+        timedUpdate { first.emitFailed(3) }
+        assertSlotHeight(0)
+
+        timedUpdate { gateOpen = false }
+        // With the clock stopped, a value written from the test is composed one frame later.
+        frame()
+        assertSlotHeight(0)
+        assertEquals(1, first.destroyCount)
+
+        // A new frame starts with no failure: 250 dp while its first load runs.
+        timedUpdate { gateOpen = true }
+        frame()
+        assertEquals(2, views.createdCount)
+        assertEquals(1, views.last.sendCount)
+        assertSlotHeight(MREC_HEIGHT_DP)
+    }
+
+    @Test
+    fun mrec_twoSlotsSamePlacement_collapseApart() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        secondKind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        setTimedHost(withSecond = true)
+        // Control: both frames keep 250 dp while their first loads run.
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertSlotHeight(SLOT_2, MREC_HEIGHT_DP)
+
+        timedUpdate { views.last.emitFailed(3) }
+        assertSlotHeight(0)
+        assertSlotHeight(SLOT_2, MREC_HEIGHT_DP)
+
+        timedUpdate { secondViews.last.emitLoaded() }
+        assertSlotHeight(0)
+        assertSlotHeight(SLOT_2, MREC_HEIGHT_DP)
+    }
+
+    @Test
+    fun mrec_doesNotFit_noFrame_noView_noSend() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        unitId = UNIT
+        fits = false
+        setHost()
+        assertSlotHeight(0)
+        assertEquals(0, views.createdCount)
+        assertEquals(0, totalSends)
+        update { visible.value = false }
+        update { visible.value = true }
+        val narrow = logger.entries.filter { "too narrow" in it.message }
+        assertEquals(1, narrow.size)
+        assertEquals("Banner $KEY too narrow", narrow.single().message)
+        assertTrue(logger.entries.none { UNIT in it.message })
+
+        // Control: the same slot where 300 dp fit builds its frame and sends.
+        update { fits = true }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertEquals(1, views.createdCount)
+        assertEquals(1, views.last.sendCount)
+    }
+
+    @Test
+    fun mrec_hiddenScreen_pauses_noRetryUntilVisible() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        setTimedHost()
+        val start = composeRule.mainClock.currentTime
+        val view = views.last
+        assertEquals(1, view.sendCount)
+
+        timedUpdate { visible.value = false }
+        assertEquals(1, view.pauseCount)
+        timedUpdate { view.emitFailed(3) }
+        advanceTo(start + 10_000)
+        assertEquals(1, view.sendCount)
+
+        // B-05: the retry due meanwhile is sent once when the screen shows again.
+        timedUpdate { visible.value = true }
+        assertEquals(1, view.resumeCount)
+        assertEquals(2, view.sendCount)
+    }
+
+    @Test
+    fun mrec_covered_pausesView_keepsAd_noRetry_uncoveredResumes() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        setTimedHost()
+        val view = views.last
+        timedUpdate { view.emitLoaded() }
+        assertAdShown(true)
+
+        timedUpdate { covered.value = true }
+        assertEquals(1, view.pauseCount)
+        assertEquals(0, view.destroyCount)
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertAdShown(true)
+
+        timedUpdate { covered.value = false }
+        assertEquals(1, view.resumeCount)
+
+        // Control: not covered, a failure is retried 2 s later.
+        val controlStart = composeRule.mainClock.currentTime
+        timedUpdate { view.emitFailed(3) }
+        advanceTo(controlStart + 2_000)
+        assertEquals(2, view.sendCount)
+
+        // Covered while a retry is due: nothing is sent until the cover goes, then once.
+        val start = composeRule.mainClock.currentTime
+        timedUpdate { view.emitFailed(3) }
+        advanceTo(start + 1_000)
+        timedUpdate { covered.value = true }
+        advanceTo(start + 30_000)
+        assertEquals(2, view.sendCount)
+
+        timedUpdate { covered.value = false }
+        assertEquals(3, view.sendCount)
+        advanceTo(start + 31_000)
+        assertEquals(3, view.sendCount)
+    }
+
     private companion object {
         const val SLOT = "banner_slot"
+        const val SLOT_2 = "banner_slot_2"
         const val KEY = "test_banner"
         const val HEIGHT_DP = 62
+        const val MREC_HEIGHT_DP = 250
+        const val UNIT = "unit-of-the-mrec-slot"
     }
 }

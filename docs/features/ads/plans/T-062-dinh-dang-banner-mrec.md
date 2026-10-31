@@ -1,7 +1,7 @@
 ---
 ticket: T-062
 title: Định dạng banner MREC
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, analytics, core)
 risk_level: high             # low | medium | high
@@ -256,3 +256,16 @@ Plan chạm quảng cáo và dữ liệu: người phụ trách sản phẩm (an
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-02, phiên bản plan 2
+
+- **Kết quả:** đã merge, PR #349 (commit cuối của nhánh `0b04fa0`), commit squash `460f22d` trên nhánh chính, 2026-10-30 17:29 UTC.
+- **Nhánh, PR:** `claude/T-062-dinh-dang-banner-mrec`, tạo từ nhánh chính `9757365` (đã có T-068), PR #349. `merge-if-green.sh` không xóa được nhánh sau khi merge (L-092): người xóa tay.
+- **Đã làm:** bước 3 đến 5 giao phiên con. Commit test `0bb0fd0`, code `0b04fa0`. `plan-check.py` qua, 6 chú ý L-020 (file nhắc `scripts/tests/run.sh`, `ads-business-rules.md`, bảng khóa: `main-guard.yml`, `main-guard-verified.sh`, `ProductionPropertiesTest.kt`, `AdNetworkResponsesTest.kt`), không file nào phải sửa.
+- **Test viết trước:** 22 test đỏ đúng lý do trên khung rỗng, đều là test mới hay dữ liệu của mục 3.2; test JVM của mọi module trên khung: không test nào đỏ ngoài mục 3.2. 14 test viết chặt bằng bước đối chứng (L-055). Qua ngay như plan ghi: bốn test chung của khung, dữ liệu `FORMAT_CODES`. Qua ngay mà plan không ghi (dòng enum và vị trí cần để biên dịch): `AdFormatTest.bannerMrec_codeAndNotFullScreen`, `AdPlacementTest.galleryBannerMrec_isStagingOnlyMrec`; đột biến (`nativeLoadSize(BANNER_MREC)` thành `SMALL`, định dạng vị trí thành `BANNER`) làm cả hai đỏ.
+- **Ảnh chuẩn ghi lại:** `app/src/test/screenshots/AdGalleryScreen_banners_light.png`, `AdGalleryScreen_banners_small.png` (mục 3.2, mục 4). Nghi ngờ của rà soát danh sách chạy về `AdGalleryScreenTest.banners_small_listStillReachable` không xảy ra: test qua, danh sách vẫn cuộn được ở 360 x 640.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú (chép ở mô tả PR #349): chú thích của `frame()` thêm sau commit test nêu lý do chưa đúng hẳn; lề `padding(vertical = Spacing.md)` quanh MREC còn khi khung co về 0 (đúng bước 8, đề xuất ghi vào `ads-guide.md`); phần nối `kind`/`fits` không có test (ngoại lệ đã duyệt); `BannerSlotHost` đặt chiều cao cho mọi loại banner, hành vi banner cũ không đổi; hai test qua ngay; bản giả viết đầy đủ ngay ở commit test.
+- **Kết quả CI:** `pr-check` xanh trên `0b04fa0` (lần chạy 41097433359), 1 vòng. `scripts/check.sh` cục bộ: 1689 test JVM, 0 lỗi.
+- **Lệch so với plan:** không có file ngoài mục 3.2. Thay đổi ở file test sau commit test: `BannerSlotHostTest.mrec_failedThenRevoked_givesSpaceBack_freshFrameAt250` thêm 2 dòng `frame()` sau mỗi lần đổi `gateOpen` và 1 chú thích (cờ `failedBeforeAd` đặt lại trong `LaunchedEffect` ở khung hình sau), không đổi câu khẳng định. Bản giả `PreviewAdGallerySlots.MediumRectangleBanner` viết đầy đủ ở commit test thay vì `Box` rỗng (test vẫn đỏ vì trang chưa gọi MREC). Dữ liệu test cũ theo ADR-0029: `AdFormatTest`, `AdPlacementTest`, `AdUnitIdsTest` (13 thành 14), `BannerLoadsTest`, `AdTelemetryRulesTest`, `AdTelemetryTest`, `BannerAdSizeTest.BANNER_FORMATS`, `AppsFlyerTrackerTest` (10 thành 11). Câu khẳng định cũ viết lại (ADR-0031): không có. `scripts/design-compare.sh ads` báo không có ảnh của module feature (màn xem thử ở `:app`), không commit gì.
+- **Việc còn lại:** kiểm thủ công trên máy thật (mục 4): MREC thật co về 0 khi bật chế độ máy bay và hiện lại khi có mạng; DebugView ghi `ad_format = BANNER_MREC`.
+- **Cần người xem:** hai ảnh chuẩn ghi lại; ghi chú 2 của rà soát (lề quanh MREC).

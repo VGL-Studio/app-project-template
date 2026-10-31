@@ -43,8 +43,31 @@ internal class FullScreenAdPresence(private val onPublished: (Boolean) -> Unit =
         return true
     }
 
-    /** One full-screen ad on screen: its placement and the identity hash of the activity that showed it. */
-    data class Shown(val placement: AdPlacement, val hostActivityId: Int)
+    /**
+     * One full-screen ad on screen: its placement and the identity hash of the activity that showed it. [awaitingHost]
+     * is true while its host was destroyed for a configuration change and the new activity is not resumed yet (plan
+     * T-055); it lives in the turn, so every close and every new turn clears it.
+     */
+    data class Shown(val placement: AdPlacement, val hostActivityId: Int, val awaitingHost: Boolean = false)
+
+    /**
+     * The host of the ad on screen is recreated for a configuration change (KB-26, criterion 4): the turn waits for
+     * the next resumed activity of the app. Does nothing when no ad shows.
+     */
+    fun handOver() {
+        current = current?.copy(awaitingHost = true)
+    }
+
+    /**
+     * Gives the waiting turn to [activityId], the activity resumed now, and returns true; false, changing nothing,
+     * when no turn waits. The start of the turn stays, so the cap of F-02 counts from the real show.
+     */
+    fun rehostIfAwaiting(activityId: Int): Boolean {
+        val shown = current
+        if (shown == null || !shown.awaitingHost) return false
+        current = shown.copy(hostActivityId = activityId, awaitingHost = false)
+        return true
+    }
 
     /** A full-screen ad is about to be shown, with no placement or host (kept for the tests of T-013). */
     fun onShowing() {

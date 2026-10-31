@@ -693,6 +693,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` bước 6, dòng Nên sửa: thêm test khi test nằm trong file của mục 3.2 và thất bại khi tạm bỏ dòng code đó (đột biến), ghi kết quả vào nhật ký; không thì ghi vào báo cáo.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/auto-run.md` bước 6, dòng Nên sửa; issue #204.
+- **Kiểm chứng:** RUN-20261030-01: ba điểm nên sửa hay chặn đòi test cho hành vi đã đúng (T-054 dòng nối cổng gửi của nguồn, T-059 `LIST_ROW`, T-055 đọc tracker) đều có lần đột biến làm test mới đỏ, ghi vào nhật ký plan; rà soát lại dựa vào kết quả đột biến để đóng điểm.
 
 ### L-109. Phiên con chết giữa bước 3 vì lỗi API 403 `oauth_org_not_allowed`, phiên chính đứng chờ 2 giờ 30 phút
 
@@ -838,6 +839,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 và bước 4: chạy `./gradlew ktlintFormat` trước khi commit test và trước khi commit code; lệnh định dạng mọi file Kotlin nên chỉ commit file của task; lệnh chỉ đổi định dạng nên không tính là sửa test.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #280: `docs/auto-run.md` bước 3, bước 4 và lời giao cho phiên con; thay đổi định dạng sau commit test là lệch nhỏ L5 (ADR-0032).
+- **Kiểm chứng:** RUN-20261030-01: 11 phiên con chạy `./gradlew ktlintFormat` trước mỗi commit; không lần `scripts/check.sh` nào và không lần `pr-check` nào đỏ vì `ktlintCheck`.
 
 ### L-124. Nhánh của task sau tạo từ `origin/main` cũ vì phiên không `git fetch` sau khi merge task trước
 
@@ -849,6 +851,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** bước 1 ghi `git fetch origin main` ngay trước khi tạo nhánh `claude/T-NNN-...` từ `origin/main`.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #281: `docs/auto-run.md` bước 1, việc 0 cuối phiên và mục Tiếp tục trên nhánh cũ có `git fetch origin main`.
+- **Kiểm chứng:** RUN-20261030-01: mười task liên tiếp tạo nhánh sau `git fetch origin main`, mỗi nhánh dựng trên commit merge của task trước (ví dụ `claude/T-067-...` từ `fbf8b05` của T-054); không task nào phải gộp lại vì thiếu commit của phiên (hai lần `--update` là do PR của người, L-129).
 
 ### L-125. `release.sh` chỉ chạy thật vào đêm phát hành, test của nó không đọc file build thật, nên hai bên lệch mà không ai biết
 
@@ -879,3 +882,48 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** ticket nâng bộ công cụ build của dự án mẫu, plan rủi ro cao duyệt chéo (`build-logic/`, `gradle/`); làm lại phần cấu hình Kotlin của `build-logic` theo AGP 9.
 - **Trạng thái:** accepted
 - **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
+
+### L-128. Phiên chạy `merge-if-green.sh` từ nhánh báo cáo cũ, chờ 30 phút một kiểm tra đã bỏ
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-058, PR #327)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** thư mục chính của phiên ở trên nhánh báo cáo, gộp nhánh chính lần cuối lúc 04:51. #324 (T-075, ADR-0043) merge lúc 05:24, bỏ job `ui-test` khỏi `pr-check` và sửa `scripts/merge-if-green.sh` cho khớp. Phiên gọi `merge-if-green.sh 327 --update` bằng bản trên máy (bản trước #324), script chờ `ui-test` trên commit của PR tới hết 30 phút rồi trả mã 2. Cập nhật nhánh báo cáo theo nhánh chính rồi gọi lại thì merge ngay.
+- **Bằng chứng:** dòng thời gian của RUN-20261030-01, 05:33 tới 06:04; `CHƯA XONG: chưa thấy kiểm tra 'ui-test' trên commit 3670c12`.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 9: trước mỗi lần gọi `merge-if-green.sh` (và `wait-run.sh`), `git fetch origin main` và chạy script từ bản của nhánh chính mới nhất (gộp nhánh chính vào nhánh báo cáo, hay `git show origin/main:scripts/merge-if-green.sh`). Hoặc `merge-if-green.sh` tự so mã băm của chính nó với bản trên `origin/main` và dừng với thông báo rõ khi lệch.
+- **Trạng thái:** proposed
+
+### L-129. Người merge PR vào nhánh chính khi phiên tự chạy đang `running`
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** trong phiên, hai PR không phải của phiên được merge vào nhánh chính: #320 (T-080, AGP 9.1, Gradle 9.3.1, compileSdk 37) lúc 03:38 và #324 (T-075, emulator sau merge) lúc 05:24. Hai task (T-054, T-058) phải gộp nhánh chính và chạy lại CI một vòng; L-128 xảy ra vì #324; plan T-068 chạy thử trên bộ build cũ nên phiên phải so lại classpath trên nhánh mới. `docs/auto-run.md` mục 1, ý 4 nói người không merge khi phiên đang chạy, và `merge-if-green.sh` từ chối PR ngoài phiên khi danh sách đang `running`, nên hai PR này đã đi đường khác.
+- **Bằng chứng:** `merged_at` của #320 (03:38:49Z) và #324 (05:24:08Z); phiên bắt đầu 03:19; dòng thời gian 04:08 và 05:33.
+- **Đề xuất sửa:** người xem cách hai PR được merge (nút merge hay luật bảo vệ nhánh). Nếu muốn chặn cứng: luật bảo vệ nhánh chính chỉ cho merge qua một kiểm tra mà `merge-if-green.sh` đặt, hay một kiểm tra bắt buộc báo đỏ khi có danh sách `running` mà PR không phải của phiên.
+- **Trạng thái:** proposed
+
+### L-130. Daemon Gradle của phiên bản cũ còn chạy sau khi nhánh chính đổi phiên bản Gradle, daemon mới bị giết vì thiếu bộ nhớ
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-067)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `check.sh` đầu phiên chạy trên Gradle 8.14.3; #320 đổi sang 9.3.1 giữa phiên. Daemon 8.14.3 (khoảng 2,8 GB) và daemon Kotlin của nó (khoảng 2,5 GB) vẫn sống. Lần `check.sh` đầu của T-067 dừng với "Gradle build daemon disappeared unexpectedly" (máy 15 GB, không swap); chạy lại thì qua. Phiên dừng hai tiến trình cũ (bộ nhớ trống từ 5 lên 10 GB), các task sau không gặp lại.
+- **Bằng chứng:** báo cáo phiên con T-067; `ps` lúc 04:42 (PID daemon 8.14.3 và daemon Kotlin 2.2.10).
+- **Đề xuất sửa:** bảng tra lỗi thêm dòng cho "Gradle build daemon disappeared unexpectedly": chạy `./gradlew --stop` bằng wrapper của phiên bản cũ (hay dừng các daemon có phiên bản khác `gradle-wrapper.properties`), rồi chạy lại một lần, không tính vào 3 lần sửa. `scripts/check.sh` có thể in cảnh báo khi có daemon Gradle của phiên bản khác đang chạy.
+- **Trạng thái:** proposed
+
+### L-131. Plan dựng test qua điểm nối test của task trước mà không kiểm điểm nối đó mang đủ dữ liệu cho câu khẳng định
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-059, PR #335)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-059 bản 2 viết test `inListRow_failedThenRetriesAt5s_listRowMetrics` qua `nativeLoaderForTest` của T-054 với `fail(3)` và kiểm số liệu `LIST_ROW` theo `RecordingAdMetrics`. Điểm nối đó bỏ `NativeAdEvents`, nên không có số liệu nào tới `RecordingAdMetrics`. Phiên con viết test bỏ phần số liệu; rà soát độc lập xếp chặn (đột biến `LIST_ROW` thành `SINGLE_AD` không test nào bắt). Lần sửa thứ nhất dùng loader giả ném lỗi trong file test (đường `onFailed(0, null)`), thêm một vòng rà soát.
+- **Bằng chứng:** nhật ký plan T-059; commit 424118f.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, Khi viết plan: test dùng điểm nối test (`...ForTest`) của task khác thì plan ghi điểm nối đó truyền gì, bỏ gì, và mỗi câu khẳng định đọc dữ liệu từ đâu; chạy thử câu khẳng định đó bằng một test tạm (như L-029) khi điểm nối đã có trên nhánh chính.
+- **Trạng thái:** proposed
+
+### L-132. Plan khởi tạo SDK sau cổng đồng ý chỉ xét lần mở đầu, bỏ sót lúc cổng đóng lại trước khi SDK chạy
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-068, dừng ở bước 6)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-068 bản 2 chốt "cổng đã mở" một lần ở `onAdmobReady` và ghi "Không có đường dừng". Rà soát độc lập của task chỉ ra MAX vẫn khởi tạo khi người dùng đã rút đồng ý (đổi `ads_mediation_order` sau khi rút; cổng đóng trong 35 giây chờ `sdkReady`), trái KB-31 và ADR-0037. Hai lần rà soát plan trước phiên không bắt được điểm này. Task dừng; plan bản 3 thêm kiểm cổng ngay trước `initialize`.
+- **Bằng chứng:** nhật ký plan T-068; plan bản 3, mục 1 và câu hỏi 9.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, Khi viết plan, ý của L-072: với điều kiện "không chạy trước khi đồng ý", mục 4 liệt kê cả các đường tới lượt khởi tạo sau khi cổng đã mở rồi đóng lại (rút đồng ý, thay đổi từ xa, hết giờ chờ), và kiểm trạng thái cổng ngay trước lời gọi SDK, không chỉ lúc nhận tín hiệu đầu.
+- **Trạng thái:** proposed

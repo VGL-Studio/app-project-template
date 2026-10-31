@@ -450,6 +450,39 @@ class AdGalleryScreenTest {
     }
 
     @Test
+    fun banners_mrecCenteredBetweenBannerAndList() {
+        setScreen(AdGalleryUiState.Banners(30))
+
+        val banner = bounds(PreviewAdTags.BANNER)
+        val mrec = bounds(PreviewAdTags.BANNER_MREC)
+        val list = bounds(AdGalleryTestTags.BANNERS_LIST)
+        // Plan T-062, KB-29: 300 x 250 dp, centred, 16 dp below the fixed banner, above the list.
+        assertDp("MREC width", 300.dp, mrec.width)
+        assertDp("MREC height", 250.dp, mrec.height)
+        assertDp("MREC centred", 205.5.dp, (mrec.left + mrec.right) / 2)
+        assertTrue("MREC below the banner", mrec.top >= banner.bottom + 16.dp - TOLERANCE_DP.dp)
+        assertTrue("list below the MREC", list.top >= mrec.bottom)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun banners_small_listStillReachable() {
+        setScreen(AdGalleryUiState.Banners(30))
+
+        composeRule.onAllNodesWithTag(PreviewAdTags.BANNER_MREC).assertCountEquals(1)
+        val collapsible = bounds(PreviewAdTags.COLLAPSIBLE_BANNER)
+        val list = bounds(AdGalleryTestTags.BANNERS_LIST)
+        assertTrue("list has room: $list", list.height > 0.dp)
+        assertTrue("MREC above the list", bounds(PreviewAdTags.BANNER_MREC).bottom <= list.top + TOLERANCE_DP.dp)
+
+        composeRule.onNodeWithTag(AdGalleryTestTags.BANNERS_LIST).performScrollToNode(hasText("List item 30"))
+        assertTrue(
+            "last item not covered by the collapsible banner",
+            textBounds("List item 30").bottom <= collapsible.top + TOLERANCE_DP.dp,
+        )
+    }
+
+    @Test
     fun grid_insertsCardsAfterEveryNItems() {
         setScreen(AdGalleryUiState.Grid(12), PreviewAdGallerySlots(gridEvery = 4))
 

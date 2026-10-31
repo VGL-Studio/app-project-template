@@ -62,7 +62,8 @@ class BannerLoadsTest {
     fun refreshOf_bannerByAdUnit_collapsibleManual_othersThrow() {
         assertEquals(BannerRefresh.BY_AD_UNIT, bannerRefreshOf(AdFormat.BANNER))
         assertEquals(BannerRefresh.MANUAL, bannerRefreshOf(AdFormat.BANNER_COLLAPSIBLE))
-        val others = AdFormat.entries - AdFormat.BANNER - AdFormat.BANNER_COLLAPSIBLE
+        assertEquals(BannerRefresh.BY_AD_UNIT, bannerRefreshOf(AdFormat.BANNER_MREC))
+        val others = AdFormat.entries - AdFormat.BANNER - AdFormat.BANNER_COLLAPSIBLE - AdFormat.BANNER_MREC
         assertTrue(others.isNotEmpty())
         others.forEach { format ->
             assertThrows(format.name, IllegalArgumentException::class.java) { bannerRefreshOf(format) }
@@ -240,6 +241,46 @@ class BannerLoadsTest {
 
         assertEquals(listOf(0L, 2_000L, 6_000L, 12_000L, 20_000L, 30_000L, 40_000L), view.sendTimes)
         assertTrue(logger.entries.any { it.message == "Banner $KEY retry in 10000 ms (failures 5, code 3)" })
+    }
+
+    @Test
+    fun failed_callsOnFailed_onceEach_beforeRetry() = runTest {
+        // Plan T-062: the slot hears every failure (an MREC with no ad yet collapses), at the failure, before the retry.
+        val failedAt = mutableListOf<Long>()
+        val sendsAtFailure = mutableListOf<Int>()
+        val view = fakeView()
+        view.onSend = { if (view.sendCount <= 2) view.emitFailed(3) else view.emitLoaded() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            runBannerLoads(
+                refresh = BannerRefresh.BY_AD_UNIT,
+                view = view,
+                visible = visible,
+                mayRequestNow = { mayRequest },
+                retryResets = retryResets,
+                onLoaded = { loadedCalls++ },
+                logger = logger,
+                placementKey = KEY,
+                onFailed = {
+                    failedAt += testScheduler.currentTime
+                    sendsAtFailure += view.sendCount
+                },
+            )
+        }
+        at(10_000)
+
+        assertEquals(listOf(0L, 2_000L), failedAt)
+        assertEquals(listOf(1, 2), sendsAtFailure)
+        assertEquals(1, loadedCalls)
+        val withOnFailed = view.sendTimes.toList()
+        assertEquals(listOf(0L, 2_000L, 6_000L), withOnFailed)
+
+        // Control: the same story without onFailed sends at the same times.
+        val start = testScheduler.currentTime
+        val plain = fakeView()
+        plain.onSend = { if (plain.sendCount <= 2) plain.emitFailed(3) else plain.emitLoaded() }
+        run(BannerRefresh.BY_AD_UNIT, plain)
+        at(start + 10_000)
+        assertEquals(withOnFailed, plain.sendTimes.map { it - start })
     }
 
     @Test
