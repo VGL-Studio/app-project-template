@@ -1046,7 +1046,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #358; `scripts/design-compare/DesignCompare.java` trên ảnh của mẫu: `SampleScreen_disabled_light.png` so với `SampleScreen_ready_light.png` khác 7,3%; trên ảnh của Photune khác 6,0%.
 - **Đề xuất sửa:** test so hai màn khác nhau ở nội dung (`SampleScreen_disabled_light.png` và `SampleScreen_ready_light.png`), khác nhau với mọi theme; tên test "two different screens differ". Ý của test giữ nguyên: hai ảnh khác nhau cho mức khác lớn hơn 0.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PR_NUM: khối `design-compare` của `scripts/tests/run.sh`.
+- **Áp dụng:** PR #360: khối `design-compare` của `scripts/tests/run.sh`.
 
 ### L-145. Ảnh chuẩn có bóng mờ ghi trên macOS làm CI Linux đỏ
 
@@ -1056,4 +1056,4 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #359; lần chạy `pr-check` của app 40837366518 và 41155046188 (đỏ), 41157475707 (xanh sau khi trả ảnh của CI).
 - **Đề xuất sửa:** `CLAUDE.md`, mục Lệnh, dòng ghi ảnh chuẩn: ảnh có bóng mờ ghi ở phiên cloud (Linux) hoặc lấy ảnh actual trong artifact `build-and-test-reports` của `pr-check`, sau khi xem đúng là chỉ lệch quanh vùng bóng. Không thêm dòng vào bảng tra lỗi như issue đề xuất: log của `verifyRoborazzi` không phân biệt lệch do bóng mờ với lỗi giao diện thật, nên một dòng "lấy ảnh của CI" sẽ khớp mọi lần so ảnh đỏ (Nhật chọn, 2026-10-31). Không nới ngưỡng so ảnh, vì ngưỡng nằm trong `build-logic/`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PR_NUM: `CLAUDE.md`, mục Lệnh.
+- **Áp dụng:** PR #360: `CLAUDE.md`, mục Lệnh.
