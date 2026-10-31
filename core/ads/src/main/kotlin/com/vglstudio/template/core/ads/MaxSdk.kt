@@ -12,14 +12,42 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * The AppLovin MAX SDK key of the build (ADR-0037), given by :app: `-PmaxSdkKey` in production, `ads.maxSdkKey` of
  * local.properties in staging. Without a key MAX never starts. [toString] hides the key, so it reaches no log.
+ *
+ * [adUnits] holds the MAX ad unit of each slot of the app, `<slot>=<unit>;...` with the slot named by [AdFormat.code]
+ * (`banner`, `banner_mrec`; plan T-071): `-PmaxAdUnits` in production, `ads.maxAdUnits` of local.properties in
+ * staging. [toString] counts the slots with a unit and never shows one.
  */
-data class MaxConfig(val sdkKey: String) {
+data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
     val hasKey: Boolean get() = sdkKey.isNotBlank()
 
-    override fun toString(): String = if (hasKey) "MaxConfig(sdkKey=${sdkKey.take(4)}…)" else "MaxConfig(no key)"
+    /** Units by slot code; a malformed entry (no `=`, empty slot or unit) is skipped: that slot runs without MAX. */
+    private val units: Map<String, String> by lazy {
+        adUnits.split(';').mapNotNull { entry ->
+            val slot = entry.substringBefore('=', missingDelimiterValue = "").trim()
+            val unit = entry.substringAfter('=', missingDelimiterValue = "").trim()
+            if (slot.isEmpty() || unit.isEmpty()) null else slot to unit
+        }.toMap()
+    }
+
+    /**
+     * The MAX ad unit of [format]: only [AdFormat.BANNER] and [AdFormat.BANNER_MREC] so far (T-069 and T-070 add the
+     * full-screen slots); none without an SDK key.
+     */
+    fun unitFor(format: AdFormat): String? {
+        if (!hasKey || format !in MAX_FORMATS) return null
+        return units[format.code]
+    }
+
+    override fun toString(): String {
+        val slots = MAX_FORMATS.count { unitFor(it) != null }
+        return if (hasKey) "MaxConfig(sdkKey=${sdkKey.take(4)}…, units=$slots)" else "MaxConfig(no key)"
+    }
 
     companion object {
         val NONE = MaxConfig("")
+
+        /** The formats that may load from MAX (plan T-071). */
+        internal val MAX_FORMATS = listOf(AdFormat.BANNER, AdFormat.BANNER_MREC)
     }
 }
 

@@ -2,12 +2,15 @@ package com.vglstudio.template.core.ads
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.android.gms.ads.AdSize
 import org.junit.Assert.assertEquals
@@ -134,6 +137,74 @@ class BannerAdSizeTest {
         val large = AdSize.getLargeAnchoredAdaptiveBannerAdSize(activity, 411).height.dp
         assertNotEquals(large, anchored)
         assertEquals(anchored, reported.last())
+    }
+
+    @Test
+    fun bottomBannerSlot_withMaxBannerUnit_reportsTallestHeight() {
+        // Plan T-071: the bar keeps the height of the frame of two platforms, the taller one (here MAX, 90 dp).
+        val withMax = mutableListOf<Dp>()
+        val withoutMax = mutableListOf<Dp>()
+        val maxController = testAdsController(maxConfig = MaxConfig("key", "banner=u1"))
+            .also { it.maxBannerHeightForTest = { _, _ -> 90 } }
+        val admobController = testAdsController(maxConfig = MaxConfig.NONE)
+            .also { it.maxBannerHeightForTest = { _, _ -> 90 } }
+        composeRule.setContent {
+            Column {
+                bottomSlot(maxController, withMax)
+                // Control: no MAX key, same height override: the anchored height of AdMob.
+                bottomSlot(admobController, withoutMax)
+            }
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(56.dp, anchoredSize(360).height.dp)
+        assertEquals(90.dp, withMax.last())
+        assertEquals(56.dp, withoutMax.last())
+    }
+
+    @Test
+    fun admobOrder_withMaxKey_noMaxPlatform_heightIsAdmob() {
+        // KB-31: with a MAX key but ads_mediation_order admob, the frame has no MAX platform.
+        val admobOrder = FakeRemoteSettings().apply { set(AdsSettings.ADS_MEDIATION_ORDER, "admob") }
+        val maxAdmobOrder = FakeRemoteSettings().apply { set(AdsSettings.ADS_MEDIATION_ORDER, "max_admob") }
+        val admobReported = mutableListOf<Dp>()
+        val maxAdmobReported = mutableListOf<Dp>()
+        fun controller(settings: FakeRemoteSettings) = testAdsController(
+            flags = DefaultAdsFlags(settings),
+            maxConfig = MaxConfig("key", "banner=u1"),
+        ).also {
+            it.maxBannerHeightForTest = { _, _ -> 90 }
+            // The remote keys reach the controller once it started (ads_mediation_order is max_admob before).
+            it.start(ApplicationProvider.getApplicationContext(), AppActivityFilter { true })
+        }
+        val admobController = controller(admobOrder)
+        val maxAdmobController = controller(maxAdmobOrder)
+        composeRule.setContent {
+            Column {
+                bottomSlot(admobController, admobReported)
+                // Control: the order max_admob reports the height of MAX.
+                bottomSlot(maxAdmobController, maxAdmobReported)
+            }
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(MediationOrder.ADMOB, admobController.mediationOrder.value)
+        assertEquals(56.dp, admobReported.last())
+        assertEquals(90.dp, maxAdmobReported.last())
+    }
+
+    /** The banner slot of a bottom bar 360 dp wide under [controller], its heights put in [reported]. */
+    @Composable
+    private fun bottomSlot(controller: AdsController, reported: MutableList<Dp>) {
+        CompositionLocalProvider(LocalAdsController provides controller) {
+            Box(Modifier.width(360.dp)) {
+                BottomBannerSlot(
+                    AdPlacement.SAMPLE_NATIVE_SMALL,
+                    onAdAvailabilityChange = {},
+                    onHeight = { reported += it },
+                )
+            }
+        }
     }
 
     /** The SDK marks the anchored adaptive size deprecated with no replacement for it (plan T-067, section 2). */

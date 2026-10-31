@@ -385,6 +385,73 @@ class BannerLoadsTest {
         assertEquals(listOf(0L), view.sendTimes)
     }
 
+    /** [run] with a count of [runBannerLoads]' onFailed calls (plan T-071). */
+    private var failedCalls = 0
+
+    private fun TestScope.runCountingFailures(view: FakeBannerAdView): Job =
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            runBannerLoads(
+                refresh = BannerRefresh.BY_AD_UNIT,
+                view = view,
+                visible = visible,
+                mayRequestNow = { mayRequest },
+                retryResets = retryResets,
+                onLoaded = { loadedCalls++ },
+                logger = logger,
+                placementKey = KEY,
+                onFailed = { failedCalls++ },
+            )
+        }
+
+    @Test
+    fun tryNext_sendsAtOnce_noFailureCounted_noOnFailed() = runTest {
+        // Plan T-071, KB-31: the first platform of a frame had no ad; the second one is asked at once.
+        val view = fakeView()
+        runCountingFailures(view)
+        at(500)
+        view.emitTryNext()
+        runCurrent()
+        assertEquals(listOf(0L, 500L), view.sendTimes)
+        assertEquals(0, failedCalls)
+        assertFalse(logger.entries.any { it.message.startsWith("Banner $KEY retry") })
+
+        // The second platform fails too: the first failure in a row, retried 2 s later (not 4 s).
+        view.emitFailed(3)
+        runCurrent()
+        assertEquals(1, failedCalls)
+        at(2_499)
+        assertEquals(listOf(0L, 500L), view.sendTimes)
+        at(2_500)
+        assertEquals(listOf(0L, 500L, 2_500L), view.sendTimes)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY retry in 2000 ms (failures 1, code 3)" })
+    }
+
+    @Test
+    fun tryNext_waitsVisible_andAsksGate() = runTest {
+        // S-15, KB-27, L-072: the send to the second platform waits for the screen and asks the consent gate.
+        val view = fakeView()
+        val job = runCountingFailures(view)
+        at(1_000)
+        visible.value = false
+        view.emitTryNext()
+        runCurrent()
+        at(5_000)
+        assertEquals(listOf(0L), view.sendTimes)
+        visible.value = true
+        runCurrent()
+        assertEquals(listOf(0L, 5_000L), view.sendTimes)
+
+        // The gate closed: nothing sent, the loop ends.
+        mayRequest = false
+        view.emitTryNext()
+        runCurrent()
+        at(60_000)
+        assertEquals(listOf(0L, 5_000L), view.sendTimes)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY request blocked" })
+        assertTrue(job.isCompleted)
+        assertEquals(0, failedCalls)
+    }
+
     private companion object {
         const val KEY = "test_banner"
     }
