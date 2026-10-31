@@ -57,6 +57,7 @@ android {
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
     //   -PassetsBaseUrl=<https address of the production files on R2>
     //   -PappsFlyerDevKey=<AppsFlyer dev key>
+    //   -PmaxSdkKey=<AppLovin MAX SDK key> (optional until T-073)
     productFlavors {
         named("staging") {
             manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
@@ -72,6 +73,15 @@ android {
                 .filter { it.matches(Regex("[0-9A-Za-z]+")) }
                 .joinToString(",")
             buildConfigField("String", "ADS_TEST_DEVICE_IDS", "\"$adsTestDeviceIds\"")
+            // An AppLovin MAX SDK key to try MAX on a developer's phone (T-068, ADR-0037): the key ads.maxSdkKey of
+            // local.properties, never a parameter, so CI always builds staging without MAX. Filtered, as a quote or a
+            // backslash would break the Java string of BuildConfig; the value is never printed.
+            val maxSdkKeyRead = localProperties.getProperty("ads.maxSdkKey").orEmpty().trim()
+            val maxSdkKey = maxSdkKeyRead.takeIf { it.matches(Regex("[A-Za-z0-9_-]+")) }.orEmpty()
+            if (maxSdkKeyRead.isNotEmpty() && maxSdkKey.isEmpty()) {
+                logger.warn("ads.maxSdkKey in local.properties ignored: only letters, digits, _ and - are allowed")
+            }
+            buildConfigField("String", "MAX_SDK_KEY", "\"$maxSdkKey\"")
             // Builds sent to the team by staging.yml carry the run number, so testers can tell them apart.
             providers.gradleProperty("stagingBuildNumber").orNull?.toInt()?.let { buildNumber ->
                 versionCode = buildNumber
@@ -91,6 +101,12 @@ android {
                 "String",
                 "APPSFLYER_DEV_KEY",
                 "\"${providers.gradleProperty("appsFlyerDevKey").getOrElse("")}\"",
+            )
+            // Optional until T-073 requires it with scripts/release.sh: without it MAX never starts (ADR-0037).
+            buildConfigField(
+                "String",
+                "MAX_SDK_KEY",
+                "\"${providers.gradleProperty("maxSdkKey").getOrElse("")}\"",
             )
             signingConfigs.findByName("upload")?.let { signingConfig = it }
         }

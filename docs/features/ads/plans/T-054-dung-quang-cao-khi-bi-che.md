@@ -1,7 +1,7 @@
 ---
 ticket: T-054
 title: Quảng cáo trong màn hình dừng khi native toàn màn hình che
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -312,3 +312,15 @@ Không bắt buộc (E dưới 2). Đã chạy thử một điểm mà rà soát
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (commit f93c638, 2026-10-30 04:19 UTC).
+- **Nhánh, PR:** `claude/T-054-dung-quang-cao-khi-bi-che`, #322.
+- **Đã làm:** bước 3 đến 5 giao phiên con trong worktree `../task-T-054`. `InScreenAdWindow.kt` mới; `publishAfter`, `showingNow`, `onPublished` của `FullScreenAdPresence`; cửa sổ nối vào năm chỗ của `AdsController`, `endTurn` trong `publishAfter`, `ConsentCoordinator` đọc `showingNow`; `BannerSlotHost(covered)`; tài liệu B-07, D-06, O-10, CL-02, P-05, mục 12, `ads-guide.md`. Không dùng phương án dự phòng (mục 3.4).
+- **Test viết trước:** 35 test (commit 1d04dac), đỏ đúng lý do trên khung rỗng (cửa sổ bỏ qua cờ che, `publishAfter` công bố ngay). 7 test viết chặt thêm đối chứng (L-055). Test JVM mọi module sau bước 3: chỉ 35 test mới đỏ. Commit test có sẵn các điểm nối thật `poolCanLoadNow`, `newNativeLoader` (ghi chú của rà soát).
+- **Rà soát độc lập:** vòng 1: 1 chặn, 1 nên sửa, 5 ghi chú. Nên sửa: dòng nối `sendGate = inScreenSendGate` của `NativeAdSources` chưa có test mức controller; thêm `AdsControllerInScreenWindowTest.realController_smallSlot_nextLoadAfterClaimWhileCovered_waits` (commit 68b5e1b), đột biến dòng nối về `foregroundState`: chỉ test mới đỏ (`expected:<1> but was:<2>`), hoàn tác thì xanh. Chặn: mốc thời gian của hai test khác mục 4 (dòng Lệch so với plan); rà soát lại 1 đồng ý hạ xuống ghi chú. Rà soát lại 1: 0 chặn, 0 nên sửa.
+- **Kết quả CI:** `pr-check` xanh trên 68b5e1b (lần chạy 41000354801) và trên commit gộp nhánh chính f93c638 (`merge-if-green.sh --update`, vì #320 T-080 do người merge giữa phiên).
+- **Lệch so với plan:** không có file ngoài mục 3.2; không viết lại câu khẳng định cũ nào. Mốc thời gian của hai test viết trước khác mục 4, xếp theo `docs/auto-run.md` bước 4 (test sai ở chi tiết không đổi điều nó kiểm), không phải L4 của ADR-0032: `NativeAdRefreshTest.refreshRetryWhileCovered_waitsUntilUncovered` làm mới lỗi ở 65 giây, che ở 66 giây (plan: 70, 71 giây; ở 70 giây lỗi do hết 10 giây chờ nên yêu cầu cũ còn bay, lượt thử lại không gửi yêu cầu mới); `NativeAdRefreshTest.refreshClaimWhileCovered_sendsNothingUntilUncovered` che ở 60 giây ngay sau lượt kiểm cửa sổ (plan: 60,1 giây, lúc đó nguồn đã gửi). `NativeAdSourceTest.twoSlotsCovered_neitherSends_bothResumeOnce`: một lượt nạp chung rồi một lượt thử lại của chỗ thua (đúng "tổng số lượt bằng số lượt đang chờ" của plan).
+- **Việc còn lại:** kiểm tra thủ công trên máy thật (mục 4 của plan, dòng "Dừng và chạy lại trên máy").
+- **Cần người xem:** hai mốc thời gian nói trên; ghi chú của rà soát: `publish()` đặt `_showing` trước `onPublished` (khoảnh khắc cửa sổ còn mở khi cờ đã bật, chỉ hộp thoại mạng thu cờ), `refreshClaimWhileCovered_...` dựa vào thứ tự của bộ lập lịch ảo (xác định).

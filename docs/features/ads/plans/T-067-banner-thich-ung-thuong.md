@@ -1,7 +1,7 @@
 ---
 ticket: T-067
 title: Banner cố định dùng cỡ thích ứng neo đáy thường
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -209,3 +209,15 @@ Không thêm vị trí, quyền, SDK hay dữ liệu. Mức Cao, cần duyệt c
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261030-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (commit 7abc66d, 2026-10-30 04:51 UTC).
+- **Nhánh, PR:** `claude/T-067-banner-thich-ung-thuong`, #325.
+- **Đã làm:** bước 3 đến 5 giao phiên con. `BannerAdSize.kt` mới (loại cỡ theo định dạng, `bannerAdSize`, `@Suppress("DEPRECATION")` trên dòng riêng); `BannerSlot` lấy cỡ qua `bannerAdSize`; B-01 của `ads-business-rules.md`, `ads-guide.md`. Không dùng phương án dự phòng.
+- **Test viết trước:** 7 test của `BannerAdSizeTest` (commit 6df78bb). 3 đỏ đúng lý do trên khung rỗng (`fixedBanner_kindIsAnchored`: `LARGE_ANCHORED` thay `ANCHORED`; `bannerAdSize_fixed_matchesAnchored`: 100 thay 50; `bottomBannerSlot_reportsAnchoredHeight`: 128 dp thay 64 dp). 4 qua ngay theo plan: `sdkSizes_anchoredAndLarge_measured` (tiền đề SDK, số đo 56/64 và 113/128 đúng mục 4.1), `collapsibleBanner_kindStaysLarge`, `bannerAdSize_collapsible_matchesLarge` (B-03 giữ nguyên), `nonBannerFormat_throws`. Viết chặt thêm: 0. Test JVM mọi module sau bước 3: chỉ 3 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú (ba test qua ngay là đối chứng hành vi giữ nguyên; KDoc `BottomBannerSlot` ngắt dòng không đều; khóa `remember` không có hướng màn hình, không phải lỗi; hàm SDK bị đánh dấu bỏ là quyết định của câu hỏi 1).
+- **Kết quả CI:** `pr-check` xanh trên 7abc66d (lần chạy 41004443197).
+- **Lệch so với plan:** Không có. Trong test, lời gọi SDK bị đánh dấu bỏ bọc trong hàm phụ `anchoredSize(widthDp)` có `@Suppress("DEPRECATION")`.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** `scripts/check.sh` lần 1 dừng vì "Gradle build daemon disappeared unexpectedly" (nghi thiếu bộ nhớ: daemon Gradle 8.14.3 cũ của lần kiểm đầu phiên còn chạy sau khi nhánh chính lên Gradle 9.3.1); chạy lại thì qua.
