@@ -286,6 +286,29 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
 - nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
 
+### [ADR-0041](adr/0041-merge-khong-cap-nhat-khi-main-chi-doi-tai-lieu.md): merge-if-green.sh merge PR code mà không cập nhật nhánh khi nhánh chính chỉ đổi tài liệu từ điểm tách, và PR nháp không chạy pr-check
+
+- `merge-if-green.sh` chỉ merge nhánh chậm hơn nhánh chính mà không cập nhật khi PR đã chạy bước cổng chất lượng `check.sh` xanh, nhánh chính từ điểm tách chỉ đổi file trong `docs/**` hay `**/*.md` không phải file Gradle đọc, không file nào đổi ở cả hai bên và GitHub báo không xung đột
+- thiếu một điều hay không đọc được thì cập nhật nhánh như cũ
+- PR chỉ tài liệu luôn cập nhật nhánh trước khi merge
+- `merge-if-green.sh` quyết "chỉ tài liệu" và "PR đã chạy check.sh" chỉ qua `scripts/main-guard-verified.sh`, không viết lại quy tắc
+- đổi `paths-ignore` của `main-guard.yml` hay quy tắc tài liệu của `main-guard-verified.sh` thì sửa cả hai và test cùng PR
+- `pr-check.yml` khai báo đủ `opened`, `synchronize`, `reopened`, `ready_for_review` và chỉ bỏ PR nháp bằng `if:` cấp job
+- muốn CI cho PR nháp thì chuyển PR sang sẵn sàng, không bỏ điều kiện nháp
+
+### [ADR-0042](adr/0042-runner-tu-host-cho-job-nang.md): Job nặng không đọc bí mật chạy được trên runner tự host chạy một lần, chọn bằng biến HEAVY_RUNNER của repo private; xóa biến thì quay về runner của GitHub
+
+- chỉ job chạy `scripts/check.sh`, Gradle hay emulator mà không đọc `secrets.` mới khai báo `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`
+- job có `secrets.` và job nhẹ giữ `runs-on: ubuntu-latest`
+- job nặng gọi `scripts/runner-check.sh` ở bước ngay sau `actions/checkout`, với `if: runner.environment == 'self-hosted'`, trước `setup-java`, `setup-gradle` và mọi bước build
+- bước đứng trước bước kiểm runner không ghi vào `~/.gradle`, và trong thư mục làm việc chỉ ghi `build.log` trên đường lỗi
+- không coi `runner-check.sh` là hàng rào an toàn, nó chỉ bắt cấu hình nhầm
+- bước dùng `sudo` trong job nặng có `if: runner.environment == 'github-hosted'`
+- không đặt `clean: false` cho `actions/checkout` của job nặng
+- `wait-run.sh` mã 7 (`CHỜ RUNNER`) không phải lỗi của code: không sửa code, không chạy lại, ghi "Cần người kiểm tra"
+- không cài, đăng ký hay đổi cấu hình runner, không đặt hay xóa biến `HEAVY_RUNNER` trong phiên
+- không đề xuất đặt `HEAVY_RUNNER` cho repo công khai
+
 ### [ADR-0043](adr/0043-test-emulator-sau-merge.md): Test trên emulator chạy một lần cho mỗi commit đổi code app của nhánh chính, trong job ui-test của main-guard, không chạy ở PR
 
 - test emulator chạy ở job `ui-test` của `main-guard.yml` sau job `guard`, không chạy ở `pr-check.yml`
