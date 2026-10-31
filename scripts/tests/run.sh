@@ -2244,6 +2244,21 @@ for skill in .claude/skills/*/SKILL.md; do
 done
 expect "every skill names its folder, real files and, in the template, has a row in /whatnow" "" "$skill_problems"
 
+# The command that lists the reference images a recording changed (CLAUDE.md, section Lệnh; the plan template,
+# section 4) must list a changed image and a new one. A wildcard pathspec that ends in "/" matches no file (L-136).
+sp_repo="$work/screenshot-pathspec"
+git init -q -b main "$sp_repo"
+mkdir -p "$sp_repo/feature/demo/src/test/screenshots"
+echo old > "$sp_repo/feature/demo/src/test/screenshots/Changed.png"
+git -C "$sp_repo" add -A && git -C "$sp_repo" commit -q -m root
+echo new > "$sp_repo/feature/demo/src/test/screenshots/Changed.png"
+echo new > "$sp_repo/feature/demo/src/test/screenshots/Added.png"
+for doc in CLAUDE.md docs/templates/plan.md; do
+  pathspec="$(sed -n "s/.*git status --short -- '\([^']*\)'.*/\1/p" "$doc" | sed -n 1p)"
+  expect "$doc: the command for changed reference images lists a changed one and a new one" 2 \
+    "$(git -C "$sp_repo" status --short -- "$pathspec" | grep -c -e 'screenshots/Changed\.png$' -e 'screenshots/Added\.png$' || true)"
+done
+
 # template-sync.sh brings later template commits into an app made by new-app.sh (ADR-0030). It runs on a scratch
 # copy of the template, so the test can add template commits; like new-app.sh it exists only in the template.
 if [[ ! -f scripts/template-sync.sh ]]; then
