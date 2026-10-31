@@ -144,6 +144,34 @@ class SdkBannerAdViewTest {
     }
 
     @Test
+    fun mrecBanner_reportsBannerMrecFormatAndPlacement() {
+        // Plan T-062, KB-29: the MREC placement reports its own format code and its placement.
+        val view = SdkBannerAdView(
+            adView = adView,
+            refresh = bannerRefreshOf(AdFormat.BANNER_MREC),
+            placement = AdPlacement.GALLERY_BANNER_MREC,
+            unitId = "unit",
+            telemetry = telemetry,
+            now = { nowMillis },
+            load = { requests += it },
+            format = AdFormat.BANNER_MREC,
+        )
+        view.send()
+        adView.adListener.onAdLoaded()
+        adView.adListener.onAdClicked()
+
+        val success = metrics.events.filterIsInstance<AdMetricEvent.LoadSuccess>().single()
+        assertEquals("BANNER_MREC", success.adFormat)
+        assertEquals("gallery_banner_mrec", success.adPlacement)
+        val click = metrics.events.filterIsInstance<AdMetricEvent.Clicked>().single()
+        assertEquals("BANNER_MREC", click.adFormat)
+        assertEquals("gallery_banner_mrec", click.adPlacement)
+        // Refreshed by its ad unit: the request has no collapsible extras.
+        val extras = requests.single().getNetworkExtrasBundle(AdMobAdapter::class.java)
+        assertTrue("$extras", extras == null || !extras.containsKey("collapsible"))
+    }
+
+    @Test
     fun networkLog_onLoadResults_logsAtStaging() {
         // Plan T-058, KB-28: every result of the banner, sent by the app or refreshed by the SDK, logs its networks.
         // The AdView of Robolectric has no response info, so each result is one "none tried" line.

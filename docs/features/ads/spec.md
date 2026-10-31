@@ -676,6 +676,9 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 50. **Người đã mua gói bỏ quảng cáo có còn thấy hộp thoại đồng ý của UMP, và SDK quảng cáo, AppsFlyer có còn khởi động không?** (câu hỏi 6 của plan T-063)
     - Đề xuất của AI: T-063 giữ như `is_show_ads` tắt: hộp thoại đồng ý, `MobileAds.initialize` và AppsFlyer như hôm nay, chỉ không tải, không hiện (ít rủi ro nhất cho thứ tự khởi tạo; người đó rút mua thì quảng cáo chạy lại ngay). Bỏ hộp thoại và không khởi động SDK khi đã mua là một ticket sau, khi có app đầu tiên làm mua hàng.
     - Trả lời: theo đề xuất của AI (anh Nhật duyệt plan T-063, 2026-10-30).
+51. **Khởi tạo SDK (MAX) có tính là một "yêu cầu" phải đợi app ở màn trước (`mayRequestNow`, S-08) không?** (ghi chú rà soát của T-068, báo cáo RUN-20261030-02)
+    - Bối cảnh: `MaxSdkStarter` kiểm cổng bằng `gate.state.value.allowed`, không bằng `mayRequestNow(foreground)`. Với quyền tạm khi lỗi mạng (`ERROR_ALLOWED`, S-08, mặc định tắt), MAX có thể khởi tạo khi app ở nền.
+    - Trả lời: không. Khởi tạo SDK không phải yêu cầu quảng cáo; chỉ cần cổng đồng ý đang mở lúc khởi tạo (M-08). Mọi yêu cầu quảng cáo của MAX vẫn hỏi `mayRequestNow()` (S-15). Giữ code của T-068 (anh Nhật, 2026-10-31).
 
 ## 10. Lịch sử
 
@@ -700,3 +703,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-29 | AI | Sửa số điểm khi dẫn ADR-0036 ở KB-27, KB-29, KB-30 cho khớp ADR sau khi bỏ điểm hạn dùng interstitial (điểm 2, 4, 5 thành 1, 3, 4); không đổi nội dung (rà soát plan T-054, T-062) |
 | 2026-10-30 | Nhật | Duyệt 12 plan đợt 4 (T-053 tới T-060, T-062, T-063, T-066 tới T-068) theo đề xuất của AI: thêm kết quả đo quyền của MAX vào mục 6 và khóa `ads_mediation_order` vào mục 8 (câu hỏi 1 của plan T-068); thêm câu hỏi 50 và một tiêu chí của KB-30 (câu hỏi 6 của plan T-063). Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-30 | Nhật | Theo rà soát độc lập danh sách chạy RUN-20261030-01: thêm ngoại lệ vào KB-16 tiêu chí 7 (câu hỏi 2 của plan T-055) và ghi phạm vi hôm nay của câu 14 (câu hỏi 1 của plan T-056). Xác nhận lại (AI ghi theo lời anh Nhật) |
+| 2026-10-31 | Nhật | Trả lời câu hỏi 51: khởi tạo SDK MAX không tính là yêu cầu quảng cáo, không phải đợi app ở màn trước. Không đổi tiêu chí, spec giữ `confirmed` (AI ghi theo lời anh Nhật) |

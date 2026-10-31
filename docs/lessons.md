@@ -693,6 +693,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` bước 6, dòng Nên sửa: thêm test khi test nằm trong file của mục 3.2 và thất bại khi tạm bỏ dòng code đó (đột biến), ghi kết quả vào nhật ký; không thì ghi vào báo cáo.
 - **Trạng thái:** applied
 - **Áp dụng:** `docs/auto-run.md` bước 6, dòng Nên sửa; issue #204.
+- **Kiểm chứng:** RUN-20261030-01: ba điểm nên sửa hay chặn đòi test cho hành vi đã đúng (T-054 dòng nối cổng gửi của nguồn, T-059 `LIST_ROW`, T-055 đọc tracker) đều có lần đột biến làm test mới đỏ, ghi vào nhật ký plan; rà soát lại dựa vào kết quả đột biến để đóng điểm.
 
 ### L-109. Phiên con chết giữa bước 3 vì lỗi API 403 `oauth_org_not_allowed`, phiên chính đứng chờ 2 giờ 30 phút
 
@@ -751,6 +752,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `CLAUDE.md` mục Lệnh và `docs/templates/plan.md` (cách ghi ảnh chuẩn): ghi lệnh kèm `--rerun` của task test, ví dụ `./gradlew :core:ads:recordRoborazziDebug :core:ads:testDebugUnitTest --rerun`, rồi `git status --short -- '*/src/test/screenshots/'` để thấy ảnh đã đổi.
 - **Trạng thái:** applied
 - **Áp dụng:** `CLAUDE.md` mục Lệnh, `docs/templates/plan.md` mục 4, `docs/ops/new-app.md`: lệnh ghi ảnh kèm `--rerun` của task test, rồi `git status` thư mục ảnh. Đã thử trên máy dev (2026-10-28): chạy `:core:ads:recordRoborazziDebug` lần hai báo `testDebugUnitTest UP-TO-DATE`, không chạy test; thêm `:core:ads:testDebugUnitTest --rerun` thì test chạy lại.
+- **Kiểm chứng:** 2026-10-30, rà soát độc lập lần chạy thử plan T-081 (PR #332): mẫu `'*/src/test/screenshots/'` không khớp tệp nào, lệnh luôn in rỗng. PR #333 sửa (chưa merge lúc ghi dòng này).
 
 ### L-115. Dòng KDoc dài hơn 120 ký tự qua ktlint, và điểm nên sửa chỉ về định dạng không sửa được vì không có test thất bại trước
 
@@ -838,6 +840,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md` bước 3 và bước 4: chạy `./gradlew ktlintFormat` trước khi commit test và trước khi commit code; lệnh định dạng mọi file Kotlin nên chỉ commit file của task; lệnh chỉ đổi định dạng nên không tính là sửa test.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #280: `docs/auto-run.md` bước 3, bước 4 và lời giao cho phiên con; thay đổi định dạng sau commit test là lệch nhỏ L5 (ADR-0032).
+- **Kiểm chứng:** RUN-20261030-01: 11 phiên con chạy `./gradlew ktlintFormat` trước mỗi commit; không lần `scripts/check.sh` nào và không lần `pr-check` nào đỏ vì `ktlintCheck`.
 
 ### L-124. Nhánh của task sau tạo từ `origin/main` cũ vì phiên không `git fetch` sau khi merge task trước
 
@@ -849,6 +852,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** bước 1 ghi `git fetch origin main` ngay trước khi tạo nhánh `claude/T-NNN-...` từ `origin/main`.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #281: `docs/auto-run.md` bước 1, việc 0 cuối phiên và mục Tiếp tục trên nhánh cũ có `git fetch origin main`.
+- **Kiểm chứng:** RUN-20261030-01: mười task liên tiếp tạo nhánh sau `git fetch origin main`, mỗi nhánh dựng trên commit merge của task trước (ví dụ `claude/T-067-...` từ `fbf8b05` của T-054); không task nào phải gộp lại vì thiếu commit của phiên (hai lần `--update` là do PR của người, L-129).
 
 ### L-125. `release.sh` chỉ chạy thật vào đêm phát hành, test của nó không đọc file build thật, nên hai bên lệch mà không ai biết
 
@@ -880,7 +884,61 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** accepted
 - **Áp dụng:** T-052, tách thành T-079 (môi trường), T-080 (bộ build AGP 9), T-081 (Robolectric, Roborazzi, ảnh chuẩn).
 
-### L-130. Mẫu đường dẫn của lệnh xem ảnh chuẩn đã đổi không khớp tệp nào, nên lệnh luôn in rỗng
+### L-128. Phiên chạy `merge-if-green.sh` từ nhánh báo cáo cũ, chờ 30 phút một kiểm tra đã bỏ
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-058, PR #327)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** thư mục chính của phiên ở trên nhánh báo cáo, gộp nhánh chính lần cuối lúc 04:51. #324 (T-075, ADR-0043) merge lúc 05:24, bỏ job `ui-test` khỏi `pr-check` và sửa `scripts/merge-if-green.sh` cho khớp. Phiên gọi `merge-if-green.sh 327 --update` bằng bản trên máy (bản trước #324), script chờ `ui-test` trên commit của PR tới hết 30 phút rồi trả mã 2. Cập nhật nhánh báo cáo theo nhánh chính rồi gọi lại thì merge ngay.
+- **Bằng chứng:** dòng thời gian của RUN-20261030-01, 05:33 tới 06:04; `CHƯA XONG: chưa thấy kiểm tra 'ui-test' trên commit 3670c12`.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 9: trước mỗi lần gọi `merge-if-green.sh` (và `wait-run.sh`), `git fetch origin main` và chạy script từ bản của nhánh chính mới nhất (gộp nhánh chính vào nhánh báo cáo, hay `git show origin/main:scripts/merge-if-green.sh`). Hoặc `merge-if-green.sh` tự so mã băm của chính nó với bản trên `origin/main` và dừng với thông báo rõ khi lệch.
+- **Trạng thái:** proposed
+
+### L-129. Người merge PR vào nhánh chính khi phiên tự chạy đang `running`
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** trong phiên, hai PR không phải của phiên được merge vào nhánh chính: #320 (T-080, AGP 9.1, Gradle 9.3.1, compileSdk 37) lúc 03:38 và #324 (T-075, emulator sau merge) lúc 05:24. Hai task (T-054, T-058) phải gộp nhánh chính và chạy lại CI một vòng; L-128 xảy ra vì #324; plan T-068 chạy thử trên bộ build cũ nên phiên phải so lại classpath trên nhánh mới. `docs/auto-run.md` mục 1, ý 4 nói người không merge khi phiên đang chạy, và `merge-if-green.sh` từ chối PR ngoài phiên khi danh sách đang `running`, nên hai PR này đã đi đường khác.
+- **Bằng chứng:** `merged_at` của #320 (03:38:49Z) và #324 (05:24:08Z); phiên bắt đầu 03:19; dòng thời gian 04:08 và 05:33.
+- **Đề xuất sửa:** người xem cách hai PR được merge (nút merge hay luật bảo vệ nhánh). Nếu muốn chặn cứng: luật bảo vệ nhánh chính chỉ cho merge qua một kiểm tra mà `merge-if-green.sh` đặt, hay một kiểm tra bắt buộc báo đỏ khi có danh sách `running` mà PR không phải của phiên.
+- **Trạng thái:** proposed
+
+### L-130. Daemon Gradle của phiên bản cũ còn chạy sau khi nhánh chính đổi phiên bản Gradle, daemon mới bị giết vì thiếu bộ nhớ
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-067)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `check.sh` đầu phiên chạy trên Gradle 8.14.3; #320 đổi sang 9.3.1 giữa phiên. Daemon 8.14.3 (khoảng 2,8 GB) và daemon Kotlin của nó (khoảng 2,5 GB) vẫn sống. Lần `check.sh` đầu của T-067 dừng với "Gradle build daemon disappeared unexpectedly" (máy 15 GB, không swap); chạy lại thì qua. Phiên dừng hai tiến trình cũ (bộ nhớ trống từ 5 lên 10 GB), các task sau không gặp lại.
+- **Bằng chứng:** báo cáo phiên con T-067; `ps` lúc 04:42 (PID daemon 8.14.3 và daemon Kotlin 2.2.10).
+- **Đề xuất sửa:** bảng tra lỗi thêm dòng cho "Gradle build daemon disappeared unexpectedly": chạy `./gradlew --stop` bằng wrapper của phiên bản cũ (hay dừng các daemon có phiên bản khác `gradle-wrapper.properties`), rồi chạy lại một lần, không tính vào 3 lần sửa. `scripts/check.sh` có thể in cảnh báo khi có daemon Gradle của phiên bản khác đang chạy.
+- **Trạng thái:** proposed
+
+### L-131. Plan dựng test qua điểm nối test của task trước mà không kiểm điểm nối đó mang đủ dữ liệu cho câu khẳng định
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-059, PR #335)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-059 bản 2 viết test `inListRow_failedThenRetriesAt5s_listRowMetrics` qua `nativeLoaderForTest` của T-054 với `fail(3)` và kiểm số liệu `LIST_ROW` theo `RecordingAdMetrics`. Điểm nối đó bỏ `NativeAdEvents`, nên không có số liệu nào tới `RecordingAdMetrics`. Phiên con viết test bỏ phần số liệu; rà soát độc lập xếp chặn (đột biến `LIST_ROW` thành `SINGLE_AD` không test nào bắt). Lần sửa thứ nhất dùng loader giả ném lỗi trong file test (đường `onFailed(0, null)`), thêm một vòng rà soát.
+- **Bằng chứng:** nhật ký plan T-059; commit 424118f.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, Khi viết plan: test dùng điểm nối test (`...ForTest`) của task khác thì plan ghi điểm nối đó truyền gì, bỏ gì, và mỗi câu khẳng định đọc dữ liệu từ đâu; chạy thử câu khẳng định đó bằng một test tạm (như L-029) khi điểm nối đã có trên nhánh chính.
+- **Trạng thái:** proposed
+
+### L-132. Plan khởi tạo SDK sau cổng đồng ý chỉ xét lần mở đầu, bỏ sót lúc cổng đóng lại trước khi SDK chạy
+
+- **Ngày, nguồn:** 2026-10-30, RUN-20261030-01 (T-068, dừng ở bước 6)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** plan T-068 bản 2 chốt "cổng đã mở" một lần ở `onAdmobReady` và ghi "Không có đường dừng". Rà soát độc lập của task chỉ ra MAX vẫn khởi tạo khi người dùng đã rút đồng ý (đổi `ads_mediation_order` sau khi rút; cổng đóng trong 35 giây chờ `sdkReady`), trái KB-31 và ADR-0037. Hai lần rà soát plan trước phiên không bắt được điểm này. Task dừng; plan bản 3 thêm kiểm cổng ngay trước `initialize`.
+- **Bằng chứng:** nhật ký plan T-068; plan bản 3, mục 1 và câu hỏi 9.
+- **Đề xuất sửa:** `docs/CLAUDE.md`, Khi viết plan, ý của L-072: với điều kiện "không chạy trước khi đồng ý", mục 4 liệt kê cả các đường tới lượt khởi tạo sau khi cổng đã mở rồi đóng lại (rút đồng ý, thay đổi từ xa, hết giờ chờ), và kiểm trạng thái cổng ngay trước lời gọi SDK, không chỉ lúc nhận tín hiệu đầu.
+- **Trạng thái:** proposed
+
+### L-133. Task có plan làm ngoài phiên tự chạy, trên nhánh `claude/T-*`, được merge giữa phiên tự chạy
+
+- **Ngày, nguồn:** 2026-10-30, T-080 (PR #320) và phiên RUN-20261030-01
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** T-080 làm trong phiên có người theo dõi, trên nhánh `claude/T-080-bo-build-agp-9`, đúng quy ước tên nhánh task của `docs/CLAUDE.md`. Danh sách RUN-20261030-01 merge lúc 03:06 UTC (PR #319), phiên bắt đầu lúc 03:19 UTC, T-080 merge lúc 03:38:49 UTC. `merge-if-green.sh` cho mọi nhánh `claude/T-[0-9]*` merge khi có phiên đang chạy, vì coi là task của phiên; nó không đối chiếu mã task với danh sách chạy. Nhánh chính đổi bộ build giữa phiên: task 1 của phiên (T-054, PR #322) được viết và kiểm trên bộ cũ, rồi gặp bộ mới khi gộp main. Đường làm nhanh đã tránh lỗ này bằng tên `claude/quick-T-*` (`docs/CLAUDE.md`), nhưng task có plan làm ngoài phiên thì chưa có quy ước tên. L-129 ghi cùng sự cố từ phía phiên (hai PR, #320 và #324); bài học này ghi nguyên nhân trong script: script không chặn nhánh `claude/T-*`, nên cả #324 (`claude/T-075-...`) cũng đi qua `merge-if-green.sh`, không cần đường khác.
+- **Bằng chứng:** `scripts/merge-if-green.sh`, khối kiểm phiên đang chạy (`"$HEAD_REF" != claude/T-[0-9]*`); nhật ký plan T-080, mục Lệch so với plan (`docs/features/quy-trinh/plans/T-080-bo-build-agp-9.md` trên nhánh `claude/log-T-080`, PR #323).
+- **Đề xuất sửa:** cách nhẹ: `docs/CLAUDE.md` thêm quy ước nhánh cho task có plan làm ngoài phiên tự chạy, không bắt đầu bằng `claude/T-`, để script từ chối khi có phiên. `scripts/token-usage.py` chỉ gán token cho nhánh `claude/T-NNN` và `claude/fix-T-NNN` (`docs/ops/token-usage.md`, mục 1), nên tên mới cần thêm vào đó; `scripts/resume-check.py` và `scripts/run-watchdog.py` không cần đổi, vì nhánh làm ngoài phiên không có trong danh sách chạy nào. Cách chặt: `merge-if-green.sh` chỉ cho nhánh task merge khi mã task có trong danh sách của phiên đang chạy, như `scripts/resume-check.py` và `scripts/run-watchdog.py` đã đối chiếu nhánh task với ticket của danh sách; script là file được bảo vệ, cần plan rủi ro cao duyệt chéo. Anh Nhật chọn cách chặt ngày 2026-10-30, thành ticket T-083.
+- **Trạng thái:** proposed
+
+### L-136. Mẫu đường dẫn của lệnh xem ảnh chuẩn đã đổi không khớp tệp nào, nên lệnh luôn in rỗng
 
 - **Ngày, nguồn:** 2026-10-30, dự án mẫu (rà soát độc lập lần chạy thử plan T-081; plan T-081 ở PR #332)
 - **Loại, phạm vi:** quy trình, chung

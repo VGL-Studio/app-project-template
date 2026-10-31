@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-31, KB-18, KB-29]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-068, T-062, T-054]
 sprint:
-plan:
+plan: features/ads/plans/T-071-banner-va-mrec-cua-max.md
 auto_run: 
 created: 2026-10-29
 ---

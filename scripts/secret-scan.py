@@ -6,8 +6,8 @@ Usage: scripts/secret-scan.py
   Exit 0: nothing found. Exit 1: one line per finding, with the value masked.
 
 What counts: AdMob app and ad unit IDs (ca-app-pub-<16 digits>), Google API keys (AIza...), AppLovin SDK keys
-(exactly 86 characters of [A-Za-z0-9_-] on a line that mentions applovin, plan T-034: the key is entered only in the
-AdMob ad source mapping, never in the repo), private keys, GitHub tokens. Allowed: Google's own test ad IDs
+(exactly 86 characters of [A-Za-z0-9_-] on a line that mentions applovin or a MAX SDK key name (plan T-068), plan
+T-034: the key is entered only in the AdMob ad source mapping or as a build parameter, never in the repo), private keys, GitHub tokens. Allowed: Google's own test ad IDs
 (publisher 3940256099942544), the obviously fake publishers 1234567890123456 and 0000000000000000 used by script
 tests and plans, and keys that say FAKE (the staging google-services.json, script tests). The typical leak
 this catches: a survey report of a reference app quoting a log line with that app's ad ID (docs/ops/clone-study.md).
@@ -29,7 +29,7 @@ PATTERNS = [
 ]
 ALLOWED_PUBLISHERS = {"3940256099942544", "1234567890123456", "0000000000000000"}
 # A pattern listed here only applies to lines that match the given expression.
-LINE_FILTERS = {"khóa SDK AppLovin": re.compile(r"applovin", re.IGNORECASE)}
+LINE_FILTERS = {"khóa SDK AppLovin": re.compile(r"applovin|max[._-]?sdk[._-]?key", re.IGNORECASE)}
 
 
 def files():

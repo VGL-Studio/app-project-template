@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
@@ -50,6 +51,7 @@ object PreviewAdTags {
 
     const val BANNER = "preview_ad_banner"
     const val COLLAPSIBLE_BANNER = "preview_ad_collapsible_banner"
+    const val BANNER_MREC = "preview_ad_banner_mrec"
     const val COLLECTION_CARD = "preview_ad_collection_card"
     const val STEP_CARD = "preview_ad_step_card"
     const val STEP_FULL_PAGE = "preview_ad_step_full_page"
@@ -157,6 +159,26 @@ class PreviewAdGallerySlots(
     @Composable
     override fun CollapsibleBanner(modifier: Modifier) {
         PreviewBanner("Collapsible banner", modifier.testTag(PreviewAdTags.COLLAPSIBLE_BANNER))
+    }
+
+    /** A 300 x 250 dp box at the top centre of [modifier], as the real MREC banner in its frame (plan T-062). */
+    @Composable
+    override fun MediumRectangleBanner(modifier: Modifier) {
+        Box(modifier, contentAlignment = Alignment.TopCenter) {
+            Box(
+                modifier = Modifier
+                    .size(width = 300.dp, height = 250.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .testTag(PreviewAdTags.BANNER_MREC),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "MREC banner",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 
     @Composable

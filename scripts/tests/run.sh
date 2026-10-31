@@ -2243,7 +2243,7 @@ done
 expect "every skill names its folder, real files and, in the template, has a row in /whatnow" "" "$skill_problems"
 
 # The command that lists the reference images a recording changed (CLAUDE.md, section Lệnh; the plan template,
-# section 4) must list a changed image and a new one. A wildcard pathspec that ends in "/" matches no file (L-130).
+# section 4) must list a changed image and a new one. A wildcard pathspec that ends in "/" matches no file (L-136).
 sp_repo="$work/screenshot-pathspec"
 git init -q -b main "$sp_repo"
 mkdir -p "$sp_repo/feature/demo/src/test/screenshots"
@@ -3854,6 +3854,19 @@ printf 'applovin_sdk_key: FAKE%sKl\n' "$(printf "$applovin_piece%.0s" 1 2 3 4 5 
   > "$work/scan-applovin-fake/strings.md"
 expect "secret-scan: a fake AppLovin key passes" 0 \
   "$(SECRET_SCAN_ROOT="$work/scan-applovin-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
+# The AppLovin MAX SDK key is the same 86-character key, on lines named after the build parameter (plan T-068).
+mkdir -p "$work/scan-max" "$work/scan-max-fake"
+printf 'ads.maxSdkKey=%s\n' "$applovin_key" > "$work/scan-max/local.properties"
+printf './gradlew bundleProductionRelease -PmaxSdkKey=%s\n' "$applovin_key" > "$work/scan-max/notes.md"
+expect "secret-scan: a MAX SDK key fails" "1 2 0" \
+  "$(SECRET_SCAN_ROOT="$work/scan-max" python3 -I scripts/secret-scan.py > /dev/null; echo $?) $(
+    SECRET_SCAN_ROOT="$work/scan-max" python3 -I scripts/secret-scan.py | grep -c 'khóa SDK AppLovin' || true) $(
+    SECRET_SCAN_ROOT="$work/scan-max" python3 -I scripts/secret-scan.py | grep -c "$applovin_key" || true)"
+max_fake="FAKE$(printf "$applovin_piece%.0s" 1 2 3 4 5 6 7 8)Kl"
+printf 'ads.maxSdkKey=%s\n' "$max_fake" > "$work/scan-max-fake/local.properties"
+printf './gradlew bundleProductionRelease -PmaxSdkKey=%s\n' "$max_fake" > "$work/scan-max-fake/notes.md"
+expect "secret-scan: a fake MAX SDK key passes" 0 \
+  "$(SECRET_SCAN_ROOT="$work/scan-max-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: this repository has no real ad IDs or keys" 0 \
   "$(python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 
@@ -5361,6 +5374,24 @@ else
     "$(python3 -I scripts/ads-plan.py --dump --with-staging --no-examples | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)["placements"]))')"
   expect "ads-plan: this repo lists its app-wide placements" True \
     "$(python3 -I scripts/ads-plan.py --dump | python3 -I -c 'import json,sys; c={p["code"] for p in json.load(sys.stdin)["placements"]}; print({"open_app","open_app_inter","resume","resume_inter","native_combo"} <= c)')"
+  # The format sheet has one row per AdFormat code, read with the regex of read_placements (plan T-062).
+  expect "ads-plan: the format table lists every AdFormat code of :core:ads" True \
+    "$(python3 -I - "$ap_real_file" << 'PY'
+import re, runpy, sys
+plan = runpy.run_path("scripts/ads-plan.py")
+text = open(sys.argv[1]).read().split("enum class AdPlacement")[0]
+codes = {code for _, code in re.findall(r'^\s*([A-Z_]+)\("([a-z_]+)"\),', text, re.M)}
+print(bool(codes) and codes == {row[0] for row in plan["FORMATS"]})
+PY
+)"
+  expect "ads-plan: banner_mrec is a placement format with metric code BANNER_MREC" "True BANNER_MREC" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+rows = {row[0]: row for row in plan["FORMATS"]}
+print("banner_mrec" in plan["PLACEMENT_FORMATS"], rows["banner_mrec"][6] if "banner_mrec" in rows else None)
+PY
+)"
 fi
 if python3 -I -c 'import openpyxl' 2> /dev/null; then
   ads_plan --out "$work/ap-1.xlsx" > /dev/null
