@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là requests/2026-10-29-giam-phut-actions.md, không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: L
 depends_on: [T-076, T-077]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-078-runner-tu-host.md
 auto_run: false
 created: 2026-10-29
 ---
