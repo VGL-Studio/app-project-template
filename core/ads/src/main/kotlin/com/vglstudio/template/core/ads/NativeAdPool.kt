@@ -28,6 +28,7 @@ internal fun AdFormat.poolCapacity(): Int? = when (this) {
     AdFormat.APP_OPEN,
     AdFormat.REWARDED,
     AdFormat.BANNER_COLLAPSIBLE,
+    AdFormat.BANNER_MREC,
     -> null
 }
 
