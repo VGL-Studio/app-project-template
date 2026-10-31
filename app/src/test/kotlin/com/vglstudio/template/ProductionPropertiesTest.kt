@@ -128,6 +128,28 @@ class ProductionPropertiesTest {
         assertEquals(1, build.occurrences("import java.util.Properties"))
     }
 
+    @Test
+    fun maxAdUnits_stagingReadsLocalPropertiesFiltered_productionOptional() {
+        // Plan T-071, step 7: the MAX ad units of the slots are never in the repo; staging reads them from
+        // local.properties only (filtered for BuildConfig), production from -PmaxAdUnits, optional until T-073.
+        val staging = flavor("staging")
+        assertTrue(staging, "getProperty(\"ads.maxAdUnits\")" in staging)
+        assertTrue(staging, ".trim()" in staging)
+        assertTrue(staging, "Regex(\"[A-Za-z0-9_=;-]*\")" in staging)
+        assertTrue(staging, "\"MAX_AD_UNITS\"" in staging)
+        assertFalse(staging, "gradleProperty(\"maxAdUnits\")" in staging)
+        val production = flavor("production")
+        assertTrue(production, "\"MAX_AD_UNITS\"" in production)
+        assertTrue(production, "gradleProperty(\"maxAdUnits\")" in production)
+        assertFalse(production, "ads.maxAdUnits" in production)
+        val check = build
+            .substringAfter("val missingProductionProperties = mapOf(")
+            .substringBefore("throw GradleException(")
+        // Control: the check read is the one that names the AppsFlyer key.
+        assertTrue(check, "appsFlyerDevKey" in check)
+        assertFalse(check, "maxAdUnits" in check)
+    }
+
     private fun String.occurrences(part: String): Int = split(part).size - 1
 
     private companion object {

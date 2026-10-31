@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,10 +21,16 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.vglstudio.template.core.ads.AdPlatform.ADMOB
+import com.vglstudio.template.core.ads.AdPlatform.MAX
+import com.vglstudio.template.core.analytics.RecordingAdFunnel
+import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -72,6 +79,10 @@ class BannerSlotHostTest {
 
     private val totalSends: Int get() = views.created.sumOf { it.sendCount }
 
+    /** The views of the slots when a test builds frames of two platforms (plan T-071); null: [views], [secondViews]. */
+    private var newViewOverride: (() -> BannerAdView)? = null
+    private var secondNewViewOverride: (() -> BannerAdView)? = null
+
     private fun setHost(withSecond: Boolean = false) {
         composeRule.setContent {
             if (shown) {
@@ -88,7 +99,7 @@ class BannerSlotHostTest {
                         retryResets = retryResets,
                         logger = logger,
                         placementKey = placementKey,
-                        newView = views::newView,
+                        newView = newViewOverride ?: views::newView,
                         modifier = Modifier.fillMaxWidth().testTag(SLOT),
                         onAdAvailabilityChange = { availability += it },
                         kind = kind,
@@ -107,7 +118,7 @@ class BannerSlotHostTest {
                             retryResets = retryResets,
                             logger = logger,
                             placementKey = placementKey,
-                            newView = secondViews::newView,
+                            newView = secondNewViewOverride ?: secondViews::newView,
                             modifier = Modifier.fillMaxWidth().testTag(SLOT_2),
                             kind = secondKind,
                         )
@@ -659,6 +670,247 @@ class BannerSlotHostTest {
         assertEquals(3, view.sendCount)
     }
 
+    // Frames of two platforms (plan T-071, KB-31): an OrderedBannerAdView of fakes, or of the MAX wrapper on a fake SDK.
+
+    private val maxFakes = mutableListOf<FakeBannerAdView>()
+    private val admobFakes = mutableListOf<FakeBannerAdView>()
+    private val secondMaxFakes = mutableListOf<FakeBannerAdView>()
+    private val secondAdmobFakes = mutableListOf<FakeBannerAdView>()
+    private val sdkViews = mutableListOf<FakeMaxBannerSdkView>()
+    private val secondSdkViews = mutableListOf<FakeMaxBannerSdkView>()
+    private var maxReady = true
+
+    private val telemetry = AdTelemetry(
+        metrics = RecordingAdMetrics(),
+        funnel = RecordingAdFunnel(),
+        lifecycleSwitches = { DEFAULT_FLAGS },
+        serving = { true },
+        offline = { false },
+        counter = LoadAttemptCounter(),
+        logger = logger,
+    )
+
+    /** Frames of fakes tagged [MAX_TAG] and [ADMOB_TAG], asked in [order]. */
+    private fun ordered(
+        order: List<AdPlatform> = listOf(MAX, ADMOB),
+        maxs: MutableList<FakeBannerAdView> = maxFakes,
+        admobs: MutableList<FakeBannerAdView> = admobFakes,
+    ): () -> BannerAdView = {
+        val max = FakeBannerAdView(tag = MAX_TAG).also { maxs += it }
+        val admob = FakeBannerAdView(tag = ADMOB_TAG).also { admobs += it }
+        OrderedBannerAdView(order.map { it to if (it == MAX) max else admob }, { maxReady }, logger, KEY)
+    }
+
+    /** Frames of [MAX, ADMOB] whose MAX is the real wrapper on a fake SDK view, kept in [sdks] once built. */
+    private fun withMaxSdk(
+        sdks: MutableList<FakeMaxBannerSdkView> = sdkViews,
+        admobs: MutableList<FakeBannerAdView> = admobFakes,
+        ready: () -> Boolean = { maxReady },
+    ): () -> BannerAdView = {
+        val admob = FakeBannerAdView(tag = ADMOB_TAG).also { admobs += it }
+        val max = MaxBannerAdView(
+            newSdkView = { FakeMaxBannerSdkView().also { sdks += it } },
+            placement = AdPlacement.GALLERY_BANNER,
+            format = AdFormat.BANNER,
+            telemetry = telemetry,
+            now = { 0L },
+            logger = logger,
+        )
+        OrderedBannerAdView(listOf(MAX to max, ADMOB to admob), ready, logger, KEY)
+    }
+
+    private fun assertTagCount(tag: String, count: Int) {
+        composeRule.onAllNodesWithTag(tag, useUnmergedTree = true).assertCountEquals(count)
+    }
+
+    @Test
+    fun mrec_twoPlatforms_firstFails_keeps250_bothFail_collapses() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        newViewOverride = ordered()
+        setTimedHost()
+        val max = maxFakes.single()
+        val admob = admobFakes.single()
+        assertEquals(1, max.sendCount)
+
+        timedUpdate { max.emitFailed(204) }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertEquals(1, admob.sendCount)
+
+        val failedAt = composeRule.mainClock.currentTime
+        timedUpdate { admob.emitFailed(3) }
+        assertSlotHeight(0)
+
+        // B-02: the retry asks MAX first again; AdMob has an ad this time.
+        advanceTo(failedAt + 2_000)
+        assertEquals(2, max.sendCount)
+        timedUpdate { max.emitFailed(204) }
+        assertEquals(2, admob.sendCount)
+        timedUpdate { admob.emitLoaded() }
+        assertSlotHeight(MREC_HEIGHT_DP)
+        assertTagCount(ADMOB_TAG, 1)
+    }
+
+    @Test
+    fun banner_twoPlatforms_firstFails_heightUnchanged_secondShown() {
+        newViewOverride = ordered()
+        setHost()
+        val max = maxFakes.single()
+        val admob = admobFakes.single()
+        assertSlotHeight(HEIGHT_DP)
+
+        update { max.emitFailed(204) }
+        assertSlotHeight(HEIGHT_DP)
+        assertEquals(1, admob.sendCount)
+
+        update { admob.emitLoaded() }
+        assertSlotHeight(HEIGHT_DP)
+        assertTagCount(ADMOB_TAG, 1)
+        assertTagCount(MAX_TAG, 0)
+    }
+
+    @Test
+    fun unitKeyChangesMidway_destroysBothChildren_newFrameAsksFirst() {
+        newViewOverride = ordered()
+        setHost()
+        update { maxFakes.single().emitLoaded() }
+        assertTagCount(MAX_TAG, 1)
+
+        // ads_mediation_order changes to admob_max: the key of the frame changes (L-061).
+        update {
+            newViewOverride = ordered(listOf(ADMOB, MAX))
+            unitId = "admob_max"
+        }
+        assertEquals(1, maxFakes[0].destroyCount)
+        assertEquals(1, admobFakes[0].destroyCount)
+        assertEquals(1, maxFakes[0].sendCount)
+        assertEquals(0, admobFakes[0].sendCount)
+        assertEquals(2, admobFakes.size)
+        assertEquals(1, admobFakes[1].sendCount)
+        assertEquals(0, maxFakes[1].sendCount)
+    }
+
+    @Test
+    fun covered_maxShown_stopsAutoRefresh_uncovered_starts() {
+        newViewOverride = withMaxSdk()
+        setHost()
+        val sdk = sdkViews.single()
+        assertEquals(1, sdk.loadCount)
+        update { sdk.emitLoaded() }
+        val stops = sdk.stopCount
+
+        update { covered.value = true }
+        assertEquals(stops + 1, sdk.stopCount)
+        assertEquals(1, sdk.loadCount)
+
+        update { covered.value = false }
+        assertEquals(1, sdk.startCount)
+        assertEquals(1, sdk.loadCount)
+    }
+
+    @Test
+    fun maxShown_revoked_keepsHeight_hides_reloadsFromFirstWhenGranted() {
+        newViewOverride = withMaxSdk()
+        setHost()
+        val sdk = sdkViews.single()
+        update { sdk.emitLoaded() }
+        assertEquals(View.VISIBLE, sdk.view.visibility)
+        val stops = sdk.stopCount
+
+        update { gateOpen = false }
+        assertSlotHeight(HEIGHT_DP)
+        assertEquals(View.INVISIBLE, sdk.view.visibility)
+        assertEquals(stops + 1, sdk.stopCount)
+        assertEquals(1, sdk.loadCount)
+
+        update { gateOpen = true }
+        assertEquals(2, sdk.loadCount)
+        assertEquals(0, admobFakes.single().sendCount)
+        assertEquals(View.VISIBLE, sdk.view.visibility)
+    }
+
+    @Test
+    fun hiddenScreen_maxFirst_noLoadUntilVisible() {
+        visible.value = false
+        newViewOverride = withMaxSdk()
+        setHost()
+        assertTrue(sdkViews.isEmpty())
+        assertEquals(0, admobFakes.single().sendCount)
+
+        update { visible.value = true }
+        val sdk = sdkViews.single()
+        assertEquals(1, sdk.loadCount)
+        assertEquals(0, sdk.stopCount)
+    }
+
+    @Test
+    fun shownPlatformChangesAfterFirstAd_redraws() {
+        newViewOverride = ordered()
+        setTimedHost()
+        val max = maxFakes.single()
+        val admob = admobFakes.single()
+        timedUpdate { max.emitFailed(204) }
+        timedUpdate { admob.emitLoaded() }
+        assertTagCount(ADMOB_TAG, 1)
+        assertTagCount(MAX_TAG, 0)
+
+        // A refresh of AdMob fails: the retry of B-02 asks MAX, which loads.
+        val failedAt = composeRule.mainClock.currentTime
+        timedUpdate { admob.emitFailed(3) }
+        advanceTo(failedAt + 2_000)
+        assertEquals(2, max.sendCount)
+        timedUpdate { max.emitLoaded() }
+        assertTagCount(MAX_TAG, 1)
+        assertTagCount(ADMOB_TAG, 0)
+        assertSlotHeight(HEIGHT_DP)
+    }
+
+    @Test
+    fun maxNotReady_noMaxViewBuilt_admobShown_readyLater_buildsOnNextMaxTurn() {
+        maxReady = false
+        newViewOverride = withMaxSdk()
+        // Control: a second slot whose MAX is ready from the start.
+        secondNewViewOverride = withMaxSdk(secondSdkViews, secondAdmobFakes) { true }
+        setTimedHost(withSecond = true)
+        val admob = admobFakes.single()
+        assertEquals(1, admob.sendCount)
+        assertTrue(sdkViews.isEmpty())
+        assertEquals(1, secondSdkViews.size)
+        assertEquals(1, secondSdkViews.single().loadCount)
+        assertEquals(0, secondAdmobFakes.single().sendCount)
+
+        timedUpdate { admob.emitLoaded() }
+        assertTrue(sdkViews.isEmpty())
+
+        maxReady = true
+        val failedAt = composeRule.mainClock.currentTime
+        timedUpdate { admob.emitFailed(3) }
+        advanceTo(failedAt + 2_000)
+        assertEquals(1, sdkViews.size)
+        assertEquals(1, sdkViews.single().loadCount)
+    }
+
+    @Test
+    fun mrec_admobOnly_pausedThenFails_collapses() {
+        kind = BannerSizeKind.MEDIUM_RECTANGLE
+        secondKind = BannerSizeKind.MEDIUM_RECTANGLE
+        heightDp = MREC_HEIGHT_DP
+        newViewOverride = ordered(listOf(ADMOB))
+        // Control: a second MREC of [MAX, ADMOB].
+        secondNewViewOverride = ordered(listOf(MAX, ADMOB), secondMaxFakes, secondAdmobFakes)
+        setTimedHost(withSecond = true)
+        assertEquals(1, admobFakes.single().sendCount)
+        assertEquals(1, secondMaxFakes.single().sendCount)
+
+        timedUpdate { covered.value = true }
+        timedUpdate {
+            admobFakes.single().emitFailed(3)
+            secondMaxFakes.single().emitFailed(204)
+        }
+        assertSlotHeight(0)
+        assertSlotHeight(SLOT_2, MREC_HEIGHT_DP)
+    }
+
     private companion object {
         const val SLOT = "banner_slot"
         const val SLOT_2 = "banner_slot_2"
@@ -666,5 +918,9 @@ class BannerSlotHostTest {
         const val HEIGHT_DP = 62
         const val MREC_HEIGHT_DP = 250
         const val UNIT = "unit-of-the-mrec-slot"
+        const val MAX_TAG = "max_banner"
+        const val ADMOB_TAG = "admob_banner"
+
+        val DEFAULT_FLAGS: AdsGlobalFlags = runBlocking { DefaultAdsFlags(FakeRemoteSettings()).global.first() }
     }
 }

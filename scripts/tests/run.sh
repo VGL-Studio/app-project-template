@@ -3928,6 +3928,25 @@ printf 'ads.maxSdkKey=%s\n' "$max_fake" > "$work/scan-max-fake/local.properties"
 printf './gradlew bundleProductionRelease -PmaxSdkKey=%s\n' "$max_fake" > "$work/scan-max-fake/notes.md"
 expect "secret-scan: a fake MAX SDK key passes" 0 \
   "$(SECRET_SCAN_ROOT="$work/scan-max-fake" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
+# A MAX ad unit (16 hex characters on the Ad Units page of MAX) after a slot name, on a line about MAX ad units (plan
+# T-071); built from pieces, so this file holds no unit-like string. Only the slot name is printed, never the unit.
+max_unit="$(printf 'a1b2%.0s' 1 2 3 4)"
+mkdir -p "$work/scan-max-units" "$work/scan-max-units-ok"
+printf 'ads.maxAdUnits=banner=%s;banner_mrec=%s\n' "$max_unit" "$max_unit" > "$work/scan-max-units/local.properties"
+printf './gradlew bundleProductionRelease -PmaxAdUnits="banner=%s"\n' "$max_unit" > "$work/scan-max-units/notes.md"
+printf 'maxAdUnits ghi: banner=%s\n' "$max_unit" > "$work/scan-max-units/report.md"
+printf 'val config = MaxConfig("k", "banner=%s")\n' "$max_unit" > "$work/scan-max-units/Sample.kt"
+expect "secret-scan: a MAX ad unit fails and is masked" "1 5 0 0" \
+  "$(SECRET_SCAN_ROOT="$work/scan-max-units" python3 -I scripts/secret-scan.py > /dev/null; echo $?) $(
+    SECRET_SCAN_ROOT="$work/scan-max-units" python3 -I scripts/secret-scan.py | grep -c 'mã đơn vị MAX' || true) $(
+    SECRET_SCAN_ROOT="$work/scan-max-units" python3 -I scripts/secret-scan.py | grep -c "$max_unit" || true) $(
+    SECRET_SCAN_ROOT="$work/scan-max-units" python3 -I scripts/secret-scan.py | grep -c '=a1b2' || true)"
+printf 'ads.maxAdUnits=banner=FAKE%s\n' "$max_unit" > "$work/scan-max-units-ok/local.properties"
+printf '%s\n' '-PmaxAdUnits="banner=<MAX ad unit>;banner_mrec=<MAX ad unit>"' > "$work/scan-max-units-ok/build.md"
+printf '%s\n' 'maxAdUnits = "banner=u1;banner_mrec=b2"' > "$work/scan-max-units-ok/Test.kt"
+printf 'ghi: banner=%s\n' "$max_unit" > "$work/scan-max-units-ok/report.md"
+expect "secret-scan: fake, placeholder and short MAX ad units pass" 0 \
+  "$(SECRET_SCAN_ROOT="$work/scan-max-units-ok" python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 expect "secret-scan: this repository has no real ad IDs or keys" 0 \
   "$(python3 -I scripts/secret-scan.py > /dev/null; echo $?)"
 

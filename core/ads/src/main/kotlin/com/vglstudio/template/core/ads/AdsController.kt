@@ -1543,6 +1543,13 @@ class AdsController @Inject internal constructor(
             if (it == null) Log.e(TAG, "No ad unit for placement ${nativeSlotKey(placement, format)}; it shows no ad")
         }
 
+    /** Stub (T-071). */
+    internal fun maxUnitId(format: AdFormat): String? = null
+
+    /** Stub (T-071). */
+    @VisibleForTesting
+    internal var maxBannerHeightForTest: ((BannerSizeKind, Int) -> Int)? = null
+
     /**
      * The single-ad sources of native small slots (plan T-040), one per (placement, format), shut down when the
      * placement is switched off ([isEnabled]) or consent withdrawn ([canRequestAds]). Each load gets fresh metrics

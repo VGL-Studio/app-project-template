@@ -659,6 +659,72 @@ class AdTelemetryTest {
         }
     }
 
+    @Test
+    fun maxSlot_countsApartFromAdmob() {
+        // Plan T-071, L-068: in one banner frame, MAX counts under "<key>/max", AdMob under "<key>".
+        logSlot = true
+        serving = true
+        val telemetry = telemetry()
+        telemetry.requestSent(MAX_SLOT, 0)
+        telemetry.maxLoadFailed(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, 204, 10)
+        telemetry.requestSent(MAX_SLOT, 20)
+        telemetry.maxLoadFailed(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, 204, 30)
+        telemetry.requestSent(BANNER_SLOT, 40)
+        telemetry.loadSucceeded(AdFormat.BANNER, BANNER_SLOT, BANNER_SLOT, 50)
+        assertEquals(listOf(1, 2, 1), metrics.events.map { it.loadAttemptOrMissing() })
+        assertEquals(2, counter.failuresInARow(MAX_SLOT))
+
+        // Control (L-055): the same calls on one key count 1, 2, 3.
+        val shared = "shared_banner"
+        telemetry.requestSent(shared, 100)
+        telemetry.maxLoadFailed(AdFormat.BANNER, shared, BANNER_SLOT, 204, 110)
+        telemetry.requestSent(shared, 120)
+        telemetry.maxLoadFailed(AdFormat.BANNER, shared, BANNER_SLOT, 204, 130)
+        telemetry.requestSent(shared, 140)
+        telemetry.loadSucceeded(AdFormat.BANNER, shared, BANNER_SLOT, 150)
+        assertEquals(listOf(1, 2, 3), metrics.events.drop(3).map { it.loadAttemptOrMissing() })
+    }
+
+    @Test
+    fun twoFramesOneMaxKey_overlap() {
+        // Two frames of one placement share the MAX key, as AdMob does today (plan T-071, step 9 (c)).
+        logSlot = true
+        serving = true
+        val telemetry = telemetry()
+        telemetry.requestSent(MAX_SLOT, 0)
+        telemetry.requestSent(MAX_SLOT, 5)
+        telemetry.maxLoadFailed(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, 204, 10)
+        telemetry.loadSucceeded(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, 12)
+        assertEquals(
+            listOf(
+                AdMetricEvent.LoadFail("BANNER", BANNER_SLOT, 1, 5, "204", "no_fill"),
+                AdMetricEvent.LoadSuccess("BANNER", BANNER_SLOT, 2, null),
+            ),
+            metrics.events,
+        )
+    }
+
+    @Test
+    fun maxLoadFailed_logsMaxLabel_returnsIt() {
+        logSlot = true
+        serving = true
+        val telemetry = telemetry()
+        telemetry.requestSent(MAX_SLOT, 0)
+        assertEquals("no_fill", telemetry.maxLoadFailed(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, 204, 10))
+        assertEquals(listOf(AdMetricEvent.LoadFail("BANNER", BANNER_SLOT, 1, 10, "204", "no_fill")), metrics.events)
+        offline = true
+        assertEquals("network", telemetry.maxLoadFailed(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, -1, 20))
+        offline = false
+        assertEquals(AdMetricEvent.LoadFail("BANNER", BANNER_SLOT, 2, null, "-1", "network"), metrics.events.last())
+
+        // The slot group off: the label is returned, nothing is logged, the counter still moves.
+        logSlot = false
+        val before = metrics.events.size
+        assertEquals("internal", telemetry.maxLoadFailed(AdFormat.BANNER, MAX_SLOT, BANNER_SLOT, -1, 30))
+        assertEquals(before, metrics.events.size)
+        assertEquals(3, counter.failuresInARow(MAX_SLOT))
+    }
+
     /** `load_attempt` of a load event; any other event is a test error. */
     private fun AdMetricEvent.loadAttemptOrMissing(): Int? = when (this) {
         is AdMetricEvent.LoadSuccess -> loadAttempt
@@ -669,6 +735,8 @@ class AdTelemetryTest {
     private companion object {
         const val SLOT = "preload:INTER"
         const val NATIVE_SLOT = "sample_native_small"
+        const val BANNER_SLOT = "gallery_banner"
+        const val MAX_SLOT = "gallery_banner/max"
 
         /** The defaults of T-019, as read when Remote Config has no value. */
         val DEFAULT_FLAGS: AdsGlobalFlags = runBlocking { DefaultAdsFlags(FakeRemoteSettings()).global.first() }

@@ -13,8 +13,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * The AppLovin MAX SDK key of the build (ADR-0037), given by :app: `-PmaxSdkKey` in production, `ads.maxSdkKey` of
  * local.properties in staging. Without a key MAX never starts. [toString] hides the key, so it reaches no log.
  */
-data class MaxConfig(val sdkKey: String) {
+data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
     val hasKey: Boolean get() = sdkKey.isNotBlank()
+
+    /** Stub (T-071, step 3 of docs/auto-run.md). */
+    fun unitFor(format: AdFormat): String? = null
 
     override fun toString(): String = if (hasKey) "MaxConfig(sdkKey=${sdkKey.take(4)}…)" else "MaxConfig(no key)"
 

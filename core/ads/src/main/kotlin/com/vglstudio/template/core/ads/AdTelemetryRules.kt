@@ -68,6 +68,9 @@ internal fun loadStateAfterError(code: Int, offline: Boolean, sdkThrottled: Bool
     else -> "unknown"
 }
 
+/** Stub (T-071). */
+internal fun maxLoadStateAfterError(code: Int, offline: Boolean): String = ""
+
 /**
  * Whether the SDK refused the request by itself after too many failed ones (code 1; question 3 of plan T-023). The
  * message is read on the device only: it may hold the ad unit, so it is never logged or sent.

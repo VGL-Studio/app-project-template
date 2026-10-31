@@ -37,6 +37,9 @@ internal sealed interface BannerLoadResult {
     data object Loaded : BannerLoadResult
 
     data class Failed(val code: Int) : BannerLoadResult
+
+    /** Stub (T-071). */
+    data object TryNext : BannerLoadResult
 }
 
 /** B-03, section 11 of docs/ops/ads-business-rules.md: a collapsible banner loads again 30 s after it loaded. */
@@ -99,6 +102,8 @@ internal suspend fun runBannerLoads(
                         sending = sendWhenAllowed()
                     }
                 }
+
+                BannerLoadResult.TryNext -> Unit
 
                 is BannerLoadResult.Failed -> {
                     failures++

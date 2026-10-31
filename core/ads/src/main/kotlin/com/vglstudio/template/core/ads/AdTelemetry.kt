@@ -141,6 +141,9 @@ internal class AdTelemetry(
         return label
     }
 
+    /** Stub (T-071). */
+    fun maxLoadFailed(format: AdFormat, slot: String, placement: String?, code: Int, now: Long): String = ""
+
     /** One call to show [placement]; no placement or no [result] is no opportunity (A 06:197). */
     fun opportunity(format: AdFormat, placement: AdPlacement?, result: String?, loadState: String) {
         if (placement == null || result == null || !lifecycleOn(format)) return
