@@ -1950,12 +1950,13 @@ java_cmd="java"
 mkdir -p "$work/design" "$work/shots"
 cp feature/sample/src/test/screenshots/SampleScreen_ready_light.png "$work/design/Same.png"
 cp feature/sample/src/test/screenshots/SampleScreen_ready_light.png "$work/shots/Same.png"
-cp feature/sample/src/test/screenshots/SampleScreen_ready_dark.png "$work/design/Dark.png"
-cp feature/sample/src/test/screenshots/SampleScreen_ready_light.png "$work/shots/Dark.png"
+# Two screens that differ in content, so they differ under any app theme, including one without dark mode (L-144).
+cp feature/sample/src/test/screenshots/SampleScreen_disabled_light.png "$work/design/Other.png"
+cp feature/sample/src/test/screenshots/SampleScreen_ready_light.png "$work/shots/Other.png"
 cp feature/sample/src/test/screenshots/SampleScreen_ready_light.png "$work/design/Missing.png"
 "$java_cmd" -Djava.awt.headless=true scripts/design-compare/DesignCompare.java "$work/design" "$work/shots" "$work/review" > /dev/null
 expect "design-compare: identical images differ by 0%" "| Same | 0.0% | \`Same_compare.png\` |" "$(grep '^| Same ' "$work/review/summary.md")"
-expect "design-compare: light against dark differs" yes "$(grep -qE '^\| Dark \| ([1-9][0-9]?|100)\.[0-9]%' "$work/review/summary.md" && echo yes || echo no)"
+expect "design-compare: two different screens differ" yes "$(grep -qE '^\| Other \| ([1-9][0-9]?|100)\.[0-9]%' "$work/review/summary.md" && echo yes || echo no)"
 expect "design-compare: missing screenshot is listed" 1 "$(grep -c '^| Missing | thiếu ảnh chuẩn' "$work/review/summary.md")"
 expect "design-compare: writes side-by-side images" yes "$([ -s "$work/review/Same_compare.png" ] && echo yes || echo no)"
 
