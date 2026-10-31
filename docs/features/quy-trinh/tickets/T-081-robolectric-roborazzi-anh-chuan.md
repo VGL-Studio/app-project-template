@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-127 (issue #276), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-080]
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-081-robolectric-anh-chuan.md
 auto_run: false              # làm trong phiên có người theo dõi (quyết định 2026-10-29); người xem từng ảnh đổi
 created: 2026-10-29
 ---
