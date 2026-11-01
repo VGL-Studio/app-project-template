@@ -287,6 +287,7 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 | Lỗi hạ tầng còn sau lịch thử lại ở bước 5 | Như trên. Plan và ticket giữ `approved`; báo cáo ghi tên nhánh để lần sau tiếp tục trên nhánh đó |
 | GitHub không chạy job (`wait-run.sh` mã 4, L-064) | Đẩy hết những gì đang có: nhánh của task đang làm, nhánh báo cáo với dòng thời gian ghi giờ, tên workflow và mã lần chạy bị bỏ. Giữ danh sách chạy `running`, plan và ticket giữ trạng thái; không bắt đầu task mới. `resume-run.yml` kích hoạt lại phiên khi GitHub chạy lại được (nó cũng chỉ chạy được từ lúc đó) |
 | Lệnh đẩy nhánh bị từ chối ở hai task liên tiếp, mà thông báo không khớp dòng `bo-qua-loai` nào của bảng tra lỗi (ADR-0032/L8) | Đẩy nhánh báo cáo nếu được; báo cáo ghi các bundle (bước 7, "Khi không đẩy được") |
+| Lệnh `merge-if-green.sh` bị môi trường từ chối ở hai task liên tiếp (bước 9, L-146) | Các PR task để mở, plan và ticket giữ `approved`; ghi PR, nguyên văn lệnh và thông báo vào Cần người kiểm tra; PR báo cáo để người merge |
 | Hai commit đổi code app liên tiếp có job `ui-test` của `main-guard` kết luận `infra` mà chưa chạy lại xanh (bước 9, ADR-0043) | Không kết thúc phiên: không merge thêm task đổi code app, chỉ làm task không đổi code app; ghi vào Cần người kiểm tra |
 | Nhánh chính đỏ sau một lần merge (xuất hiện issue mang nhãn `main-broken`) | Dừng ngay, không làm thêm task nào. Trừ khi commit gây lỗi là commit merge của một task chính phiên: revert theo mục 3, Khi nhánh chính đỏ vì task của phiên, rồi làm tiếp các task không phụ thuộc task đó (ADR-0025) |
 

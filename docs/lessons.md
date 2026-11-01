@@ -1066,7 +1066,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 18:03; PR #364.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: thêm trường hợp "lệnh `merge-if-green.sh` của phiên bị môi trường từ chối": không gọi lại dưới dạng khác, dừng task với plan và ticket giữ `approved` (không phải lỗi của plan), không bắt đầu task phụ thuộc, ghi PR vào Cần người kiểm tra để người merge, và để PR báo cáo mở. Cân nhắc gọi `merge-if-green.sh` thành một lệnh riêng (không gộp với lệnh khác) để bộ phân loại thấy rõ việc merge là bước của danh sách chạy đã duyệt.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #376: `docs/auto-run.md` bước 9 (gọi `merge-if-green.sh` thành lệnh riêng; lệnh merge bị môi trường từ chối thì dừng task, giữ `approved`, để người merge, task độc lập làm tiếp, lệnh merge của task sau cũng bị từ chối thì kết thúc phiên) và mục 4 ý 4 (PR báo cáo).
+- **Áp dụng:** PR #376: `docs/auto-run.md` bước 9 (gọi `merge-if-green.sh` thành lệnh riêng; lệnh merge bị môi trường từ chối thì dừng task, giữ `approved`, để người merge, task độc lập làm tiếp, lệnh merge của task sau cũng bị từ chối thì kết thúc phiên), mục 4 (dòng mới của bảng Kết thúc phiên; ý 4, PR báo cáo).
 
 ### L-147. Lệnh nền không đặt `timeout` bị dừng sau 30 phút, kể cả `push-on-commit.sh --minutes 180`
 
@@ -1086,4 +1086,4 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** nhật ký plan T-084 (RUN-20261101-01), dòng "Lệnh của mục 4".
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan (cạnh ý về `${TMPDIR:-/tmp}` và `sleep`): lệnh đổi tạm tệp đã có trong git dùng `sed -i` không đuôi và trả về bằng `git checkout -- <tệp>`, không tạo rồi xóa tệp `.bak`; lệnh `rm` trong plan không dùng biến làm đích, hay dùng `"${BIEN:?}"`. Cân nhắc thêm quy tắc vào `scripts/plan-check.py` dò `rm` có đích bắt đầu bằng `$`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #376: `docs/CLAUDE.md`, mục Khi viết plan (đổi tạm tệp bằng `perl -pi -e` hay `sed -i` không đuôi trên Linux, rồi `git checkout`, `rm` không dùng biến làm đích); không thêm quy tắc vào `scripts/plan-check.py` (lệnh trong plan là chữ tự do, dò `rm $` dễ báo nhầm; để sau nếu lặp lại).
+- **Áp dụng:** PR #376: `docs/CLAUDE.md`, mục Khi viết plan (đổi tạm tệp bằng `perl -pi -e` với `\Q...\E` và kiểm `git diff --stat`, hay `sed -i` không đuôi trên Linux, rồi `git checkout`, `rm` không dùng biến làm đích); không thêm quy tắc vào `scripts/plan-check.py` (lệnh trong plan là chữ tự do, dò `rm $` dễ báo nhầm; để sau nếu lặp lại).
