@@ -1,7 +1,7 @@
 ---
 ticket: T-085
 title: Dọn test và luật biên của khung banner hai nền tảng
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -182,3 +182,15 @@ Không bắt buộc (E dưới 2); ghi lại các lần đo của ghi chú 1, 2,
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261101-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #373, commit 31b78ac của nhánh, 2026-11-01 06:15 UTC). `main-guard` xanh (lần chạy 41280114227, `ui-test` xanh), không có issue `main-broken`.
+- **Nhánh, PR:** `claude/T-085-khung-hai-nen-tang`, https://github.com/VGL-Studio/app-project-template/pull/373. `merge-if-green.sh` báo không xóa được nhánh sau merge (L-092): người xóa tay.
+- **Đã làm:** bước 2: bỏ `resumeChild(index)` ở nhánh `Loaded` khi khung chạy, còn `if (!running && platform == AdPlatform.MAX) pauseChild(index)`; bước 3: `heldFailures`, đặt lại ở `send()`, hàm `shownResult` giữ lỗi làm mới đầu tiên của con đang hiện mỗi lượt gửi khi còn con `pending`, log `Banner <key> <nền tảng> refresh failed, waiting for <nền tảng>` (tách hai chuỗi), lỗi thứ hai đi qua; KDoc của lớp; bước 4: chú thích trong `Content`; vế mới của B-09 ở `docs/ops/ads-business-rules.md`. Ticket chuyển `on-staging` qua PR báo cáo.
+- **Test viết trước:** 5 test trong `PlatformBannersTest`, commit e0c9baf. Trên code cũ: `shownRefreshFails_whileOtherPending_waitsForPending` đỏ `expected:<[TryNext, Loaded, Failed(code=3)]> but was:<[TryNext, Loaded, Failed(code=3), Failed(code=3)]>`; `shownRefreshFails_whileMaxPending_throughRunBannerLoads_maxLoadHeard` đỏ `second AdMob failure while MAX loads expected:<1> but was:<2>`; `shownRefreshFailsTwice_whileMaxPendingSilent_throughRunBannerLoads_retriesGoOn` đỏ `expected:<1> but was:<2>`. Hai test giữ hành vi đã có qua ngay (ngoại lệ đã duyệt, câu hỏi 3) và đỏ với đột biến tạm (L-108): bỏ dòng `sendNo` thì `staleSkippedTurn_isNotAnswerOfNextSend` đỏ `expected:<[]> but was:<[TryNext]>`; bỏ nhánh `else if (platform == AdPlatform.MAX) pauseChild(index)` thì `sendWhilePaused_loadedBeforeResume_maxStaysPausedUntilResume` đỏ `MAX stays paused while the frame is paused`. Sau bước 2, xóa dòng mới `if (!running && platform == AdPlatform.MAX) pauseChild(index)` thì test 2 lại đỏ cùng câu. Cả `:core:ads` trên commit test: 1347 test, đúng 3 đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: (1) hàm phụ của test 3 không có `runCurrent()` giữa `max.emitFailed(204)` và `send()` thứ hai, đúng chữ plan, an toàn vì bộ thu chạy trên `UnconfinedTestDispatcher`; (2) test 4 không kiểm bộ đếm lỗi của `runBannerLoads` về 0 (độ dài lần chờ sau), plan không đòi; (3) `pause()` không đặt lại `heldFailures`, không ảnh hưởng; (4) đúng phương án "B, giữ tối đa 1 lỗi".
+- **Kết quả CI:** `scripts/check.sh` cục bộ: `== Cổng chất lượng: QUA`, 1748 test JVM, 0 lỗi, 91 ảnh, không ảnh nào đổi. `pr-check` xanh (lần chạy 41279346212); `main-guard` xanh.
+- **Lệch so với plan:** (1) Hai hàm phụ riêng tư trong tệp test (`showAdmobThenAskMax`, `loadsUntilMaxAskedAgain`) dựng phần chung của test 3, 4, 5, đúng các bước của mục 4; nằm trong tệp của mục 3.2, có ở commit test. (2) Ở bước 3 chỉ chạy test của `:core:ads` (1347 test), không chạy test JVM của mọi module: commit test chỉ thêm test vào một lớp của `:core:ads`; `check.sh` ở bước 5 chạy đủ. Không có phần ngoài mục 3.2; tệp test không đổi sau commit test.
+- **Việc còn lại:** xóa nhánh `claude/T-085-khung-hai-nen-tang`.
+- **Cần người xem:** dòng B-09 mới và chú thích trong `Content` (hai dòng kiểm tra thủ công của mục 4).

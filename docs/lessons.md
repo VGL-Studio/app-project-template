@@ -1077,3 +1077,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: chạy `push-on-commit.sh` nền với `timeout` của công cụ lớn hơn `--minutes` (tối đa 120 phút), và chạy lại khi nhận thông báo lệnh bị dừng mà phiên con chưa xong.
 - **Trạng thái:** accepted
 - **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
+
+### L-148. Lệnh `rm -f $BIEN/*.bak` trong lệnh của plan bị bộ kiểm an toàn của môi trường chặn
+
+- **Ngày, nguồn:** 2026-11-01, RUN-20261101-01 (T-084)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** lệnh 3 của plan T-084 đổi tạm tệp bằng `sed -i.bak` rồi dọn bằng `rm -f core/.../theme/*.bak`. Phiên viết đường dẫn vào biến (`C=...; rm -f $C/*.bak`) và bộ kiểm an toàn của Claude Code từ chối cả lệnh, vì đích `rm` là biến có thể rỗng thành `/*`. Lệnh không chạy gì (cả phần đổi tệp lẫn Gradle). Phiên chạy lại không có `-i.bak` và trả tệp bằng `git checkout`, kết quả như plan. Bộ kiểm gợi ý viết `"${C:?}"/*.bak` hay đường dẫn tuyệt đối.
+- **Bằng chứng:** nhật ký plan T-084 (RUN-20261101-01), dòng "Lệnh của mục 4".
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan (cạnh ý về `${TMPDIR:-/tmp}` và `sleep`): lệnh đổi tạm tệp đã có trong git dùng `sed -i` không đuôi và trả về bằng `git checkout -- <tệp>`, không tạo rồi xóa tệp `.bak`; lệnh `rm` trong plan không dùng biến làm đích, hay dùng `"${BIEN:?}"`. Cân nhắc thêm quy tắc vào `scripts/plan-check.py` dò `rm` có đích bắt đầu bằng `$`.
+- **Trạng thái:** proposed
+- **Áp dụng:**
