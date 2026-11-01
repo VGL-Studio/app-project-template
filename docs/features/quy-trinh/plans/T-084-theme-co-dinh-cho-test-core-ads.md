@@ -1,16 +1,16 @@
 ---
 ticket: T-084
 title: Test của :core:ads vẽ trong theme cố định của test, ảnh chuẩn không đổi theo theme của app
-status: draft
+status: approved
 version: 1
 risk_score:
 risk_level: high
 token_estimate: 22.3M
 blocking_points: [core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-01
 lane:
 ---
 
@@ -83,6 +83,8 @@ ADR liên quan: ADR-0008 (`:core:designsystem` là bản gốc; quy tắc "khôn
 
 **`to-app.md`, mục 2:** thêm một đoạn dưới bảng: "Test và ảnh chuẩn của `:core:ads` vẽ trong theme cố định của test (`AdsTestTheme`, chép giá trị của dự án mẫu, phông Inter riêng trong `src/test/resources/ads-test-fonts/`), không theo `AppTheme` của app (T-084, L-143). App giữ tên và chữ ký `AppTheme(darkTheme, content)`: `AdsTestThemeMatchTest.kt` vẫn được biên dịch ở app dù bị bỏ qua. App đổi màu, chữ hay phông trong `:core:designsystem` không cần ghi lại ảnh của `:core:ads`; xung đột ở các ảnh đó lấy bản của mẫu như phần còn lại của module. Còn phụ thuộc: `Spacing` (mã chính của `:core:ads` dùng). App đổi giá trị `Spacing` thì ghi lại ảnh của `:core:ads` và ghi ngoại lệ trong ADR của app. Ảnh của `:app` có quảng cáo (`AdGalleryScreen_*`) vẫn theo theme của app."
 
+**`ads-guide.md`, mục 5, ý 5 (Test):** thêm câu cuối: "Test trong `:core:ads` (module của dự án mẫu) vẽ trong `AdsTestTheme` của `core/ads/src/test`, không dùng `AppTheme`, để ảnh chuẩn không đổi theo theme của app (T-084, `docs/ops/to-app.md` mục 2); nút trong test dùng `AdsTestNextButton`, không dùng `PrimaryButton`." (câu hỏi 3, anh Nhật đồng ý 2026-11-01).
+
 **Ticket:** phiên điền trạng thái theo plan (`scripts/status.py --sync`).
 
 ### 3.2. Danh sách file
@@ -118,6 +120,7 @@ ADR liên quan: ADR-0008 (`:core:designsystem` là bản gốc; quy tắc "khôn
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/RewardedAdDialogScreenshotTest.kt` | Như trên |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FontScaleTestSupport.kt` | Chỉ KDoc: "Put it outside `AdsTestTheme`" thay cho `AppTheme` |
 | Sửa | `docs/ops/to-app.md` | Mục 2: đoạn mới ở mục 3.1 |
+| Sửa | `docs/ops/ads-guide.md` | Mục 5, ý 5: câu về `AdsTestTheme` (mục 3.1, câu hỏi 3) |
 | Sửa | `docs/features/quy-trinh/tickets/T-084-theme-co-dinh-cho-test-core-ads.md` | Trạng thái theo plan (`scripts/status.py --sync`) |
 
 Không ghi lại ảnh chuẩn nào: 43 ảnh trong `core/ads/src/test/screenshots/` giữ nguyên từng byte (mục 4.1). Không sửa mã Kotlin ngoài thư mục test.
@@ -125,6 +128,7 @@ Không ghi lại ảnh chuẩn nào: 43 ảnh trong `core/ads/src/test/screensho
 Nơi đọc các file plan đổi (L-020; `grep -rn` trong `scripts/`, `.github/`, `*/src/test`, 2026-11-01):
 - Tệp test của `:core:ads`: chỉ Gradle biên dịch; `scripts/check.sh` đọc lệnh `captureRoboImage` trong `src/test` (đường dẫn ảnh không đổi). `scripts/existing-tests.py` và `scripts/ads-plan.py` không đọc tệp test.
 - `docs/ops/to-app.md`: `scripts/template-sync.sh` và `scripts/tests/run.sh` không đọc nội dung mục 2 (chỉ dẫn tên tệp trong chú thích và thông báo). Bảng mục 2 không đổi, nên `TEMPLATE_OWNED` không cần đổi (mục 7 của `to-app.md`).
+- `docs/ops/ads-guide.md`: không script hay test nào đọc nội dung tệp (`scripts/ads-plan.py` chỉ nhắc tên trong chú thích và chữ của bảng Excel; các test chỉ nhắc tên trong chú thích); chỉ thêm một câu vào ý 5 của mục 5, không đổi số mục.
 - `core/designsystem/src/main/res/font/*.ttf` và `third_party/inter/LICENSE.txt`: chỉ được đọc, không sửa. Tệp mới `ads-test-fonts/` không trùng tên thư mục `fonts/` mà Robolectric dùng (quyết định 2).
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
@@ -168,6 +172,7 @@ Plan không sửa mã Kotlin ngoài thư mục test (`scripts/existing-tests.py`
 | Định nghĩa hoàn thành 3: đổi theme của app, ảnh của `:core:ads` vẫn khớp | Lệnh đo, không commit | Lệnh 3: sau khi đổi `AppTheme` như trên, `:core:ads:verifyRoborazziDebug` chỉ có test của `AdsTestThemeMatchTest` đỏ; 43 ảnh và mọi test khác qua; trả `Color.kt`, `Type.kt` về |
 | Mọi test qua, không ảnh nào đổi | Cổng chất lượng | `scripts/check.sh`: `== Cổng chất lượng: QUA`; số test JVM không ít hơn trước cộng 4 (test mới); `git status --short -- '*/src/test/screenshots/*'` in rỗng |
 | `to-app.md` đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt đọc đoạn mới ở mục 2 |
+| `ads-guide.md` đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt đọc câu mới ở mục 5, ý 5 |
 | CI qua | Kiểm tra thủ công (người: GitHub Actions) | `pr-check` của PR xanh, gồm so ảnh của `:core:ads` trên Linux (mục 3.4) |
 
 Lệnh của mục 4 (chạy ở gốc repo; pathspec ảnh luôn có `*` ở cuối, L-136):
@@ -253,14 +258,18 @@ Mỗi dòng "Kiểm tra thủ công" ghi nơi chạy (L-085).
 ## 8. Câu hỏi cho người duyệt
 
 1. `AdGalleryScreenTest` của `app/src/testStaging` (bình luận của Tuấn: 1 test đỏ với thang chữ của Photune, thẻ cao 272,33 dp thay vì 270). Ticket để ảnh và test của `:app` theo theme của app, và `:app` thuộc loại "cả hai cùng sửa", nên app tự sửa được. Đề xuất: giữ ngoài plan này; nếu anh muốn, một ticket riêng cho `AdGalleryScreenTest` dùng thang chữ cố định ở các test đo kích thước.
+   - Trả lời (anh Nhật, 2026-11-01): theo đề xuất: giữ ngoài plan này; app gặp lỗi thì báo về bằng from-app, làm ticket riêng nếu cần.
 2. `Spacing`: đề xuất giữ (mục 3.1, quyết định 4), ghi rõ trong `to-app.md`. Phương án khác: `:core:ads` có hằng khoảng cách riêng trong mã chính, sửa 9 tệp mã chính, cần sửa thêm `CLAUDE.md` (quy tắc khoảng cách) và là một plan khác.
+   - Trả lời (anh Nhật, 2026-11-01): theo đề xuất: giữ phụ thuộc, ghi rõ trong `to-app.md` (quyết định 4).
 3. Ghi quy tắc "test mới của `:core:ads` dùng `AdsTestTheme`" vào `docs/ops/ads-guide.md` hay `CLAUDE.md`? Đề xuất: thêm một dòng vào `docs/ops/ads-guide.md` trong plan này nếu anh đồng ý (thêm tệp vào mục 3.2), vì phiên viết test quảng cáo đọc tệp đó.
+   - Trả lời (anh Nhật, 2026-11-01): có, thêm một dòng vào `docs/ops/ads-guide.md`. Đã làm: mục 3.1 (đoạn `ads-guide.md`), 3.2, nơi đọc file, mục 4.
 4. Phông Inter chép vào tài nguyên test (1,2 MB thêm vào git). Đề xuất: chấp nhận; phương án tránh chép (dùng `R.font` của `:core:designsystem`) để lại phụ thuộc phông của app, là phương án dự phòng ở mục 3.4.
+   - Trả lời (anh Nhật, 2026-11-01): chấp nhận chép phông Inter (giấy phép OFL 1.1 ở `core/ads/third_party/inter/LICENSE.txt`).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-01 (anh Nhật chọn "Chấp nhận, duyệt", lời anh Nhật: "Cùng tôi trả lời các câu hỏi đề duyệt."), sau khi trả lời câu hỏi 1 tới 4 (như ghi ở mục 8) và xem tóm tắt plan cùng kết quả rà soát độc lập (vòng 1: 0 chặn, 3 nên sửa, 6 ghi chú, đã sửa; rà soát lại: 0 chặn, 0 nên sửa, 1 ghi chú: phía test, nên kiểm mọi kiểu chữ của `AdsTestTheme` dùng `AdsTestFontFamily`, phiên làm được trong `fontFamilies_matchAppTheme`). Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3). Thêm `docs/ops/ads-guide.md` vào mục 3.2 theo câu hỏi 3.
 
 ## 10. Nhật ký thực hiện
