@@ -19,6 +19,8 @@ Người làm: AI trong phiên có người theo dõi, trên máy có cả repo 
 | Cả hai cùng sửa | `CLAUDE.md`, `docs/CLAUDE.md`, `README.md`, `.gitignore`, `:app`, `:core:designsystem`, `:core:config`, `:core:analytics`, `AdPlacement.kt`, `feature/sample`, `feature/loading`, cấu hình build ở gốc | Gộp tay: lấy phần mới của mẫu, giữ phần riêng của app (module, vị trí quảng cáo, cờ, màu) |
 | Chỉ của app | Feature của app, module core riêng của app, ADR từ 1001, `scripts/setup-check-app.sh`, `scripts/tests/app.sh` (mục 6), kịch bản thử tay trên máy thật `docs/ops/manual-test.md` (theo nghiệp vụ của app, mẫu không có file này) | Không xảy ra: dự án mẫu không có các file này |
 
+Test và ảnh chuẩn của `:core:ads` vẽ trong theme cố định của test (`AdsTestTheme`, chép giá trị của dự án mẫu, phông Inter riêng trong `src/test/resources/ads-test-fonts/`), không theo `AppTheme` của app (T-084, L-143). App giữ tên và chữ ký `AppTheme(darkTheme, content)`: `AdsTestThemeMatchTest.kt` vẫn được biên dịch ở app dù bị bỏ qua. App đổi màu, chữ hay phông trong `:core:designsystem` không cần ghi lại ảnh của `:core:ads`; xung đột ở các ảnh đó lấy bản của mẫu như phần còn lại của module. Còn phụ thuộc: `Spacing` (mã chính của `:core:ads` dùng). App đổi giá trị `Spacing` thì ghi lại ảnh của `:core:ads` và ghi ngoại lệ trong ADR của app. Ảnh của `:app` có quảng cáo (`AdGalleryScreen_*`) vẫn theo theme của app.
+
 Script in danh sách xung đột theo hai nhóm giữa: "Phần của dự án mẫu" và "Phần app cũng sửa".
 
 ## 3. File mốc `docs/template-sync.txt` của app

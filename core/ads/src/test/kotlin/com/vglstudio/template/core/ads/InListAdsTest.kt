@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -104,7 +103,7 @@ class InListAdsTest {
     /** Seven items through the public function, with the real ad rows of [rows], every 3 items. */
     private fun setPublicListContent(rows: InListRowSource) {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember { inListAds(every = 3, rows = rows, scope = scope) }
                 LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
@@ -120,7 +119,7 @@ class InListAdsTest {
     @Test
     fun lazyColumn_sevenItemsEveryThree_adRowsAfterItems3And6() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
                     itemsWithInListAds(
                         items = (1..7).toList(),
@@ -152,7 +151,7 @@ class InListAdsTest {
     fun lazyColumn_fewerItemsThanEvery_noAdRow() {
         var every by mutableStateOf<Int?>(3)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember {
                     InListAds(
@@ -226,7 +225,7 @@ class InListAdsTest {
     @Test
     fun lazyGrid_twoColumnsEveryThree_adSpansFullWidthAfterItem4() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember { inListAds(every = 3, rows = loadedRows, scope = scope) }
                 LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().testTag(GRID)) {
@@ -249,7 +248,7 @@ class InListAdsTest {
     fun publicApi_withoutAdsController_addsNoAdRow() {
         var adsWithoutController: InListAds? = null
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val ads = rememberInListAds(AdPlacement.SAMPLE_NATIVE_SMALL)
                 adsWithoutController = ads
                 val scope = rememberCoroutineScope()
@@ -287,7 +286,7 @@ class InListAdsTest {
             NativeAdState.Loaded(FakeLoadedNativeAd(sampleNativeAdAssets).also { loaded += it })
         }
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember {
                     InListAds(
@@ -326,7 +325,7 @@ class InListAdsTest {
     @Test
     fun adRowKeys_doNotClashWithItemKeys() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember { inListAds(every = 3, rows = loadedRows, scope = scope) }
                 LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
@@ -346,7 +345,7 @@ class InListAdsTest {
     @Test
     fun alternatingPlacements_takeTurns() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
                     itemsWithInListAds(
                         items = (1..7).toList(),
@@ -423,7 +422,7 @@ class InListAdsTest {
             }
         }
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember { inListAds(every = 3, rows = rows, scope = scope) }
                 LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
@@ -451,7 +450,7 @@ class InListAdsTest {
     fun emptyAds_isRejected() {
         val error = runCatching {
             composeRule.setContent {
-                AppTheme {
+                AdsTestTheme {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         itemsWithInListAds(items = (1..7).toList(), ads = emptyList()) {
                             Text("List item $it")
@@ -494,7 +493,7 @@ class InListAdsTest {
         onOpportunity: (String) -> Unit = {},
     ) {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val scope = rememberCoroutineScope()
                 val ads = remember {
                     InListAds(
@@ -611,7 +610,7 @@ class InListAdsTest {
         assertTrue(gridAdSpansOneCell(AdFormat.NATIVE_IN_COLLECTION))
         assertFalse(gridAdSpansOneCell(AdFormat.NATIVE_MEDIUM))
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().testTag(GRID)) {
                     itemsWithInListAds(
                         items = (1..7).toList(),
