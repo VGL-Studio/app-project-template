@@ -1,7 +1,7 @@
 ---
 id: ADR-0044
 title: Tài liệu quy tắc chỉ nói quy tắc hiện tại; lịch sử nằm ở những chỗ dành riêng và không sang app
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-11-01
 deciders: [Nhật]

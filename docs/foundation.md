@@ -320,6 +320,17 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - emulator đỏ vì hạ tầng sau merge thì chạy lại riêng job đỏ theo `docs/ops/failure-playbook.md`, không mở `main-broken`, không đẩy commit rỗng lên nhánh chính
 - thêm đường dẫn code app hay script mà job `ui-test` gọi thì sửa danh sách của `scripts/ui-test-needed.sh` và test của nó cùng PR
 
+### [ADR-0044](adr/0044-tai-lieu-quy-tac-chi-noi-hien-tai.md): Tài liệu quy tắc chỉ nói quy tắc hiện tại; lịch sử nằm ở những chỗ dành riêng và không sang app
+
+- tài liệu quy tắc viết quy tắc ở thì hiện tại, lý do cần thiết viết thành một vế câu, không kể lại cách làm cũ
+- không ghi mã bài học, mã ticket hay mã phiên (`L-` hay `T-` cộng ba chữ số, `RUN-` cộng tám chữ số) trong tài liệu quy tắc, các mã đó chỉ ghi ở chỗ dành cho lịch sử của mục 1 của ADR-0044
+- chữ giữ chỗ, mã `PB-NN` của bảng tra lỗi và mã luật quảng cáo hai chữ số vẫn được dùng
+- PR áp dụng bài học sửa quy tắc theo cách này và ghi mã bài học trong mô tả PR
+- ADR mới sửa một phần ADR chưa `superseded` thì hợp nhất, chép lại quy tắc còn đúng và cho ADR cũ `superseded`
+- tài liệu quy tắc không dẫn tới hay nhắc mã ADR `superseded`
+- không thêm dòng vào `scripts/tests/history-refs-allow.txt`
+- PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào, và ghi trong mô tả PR các mã đã gỡ khỏi mỗi quy tắc
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
@@ -337,14 +348,3 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
-
-### [ADR-0044](adr/0044-tai-lieu-quy-tac-chi-noi-hien-tai.md): Tài liệu quy tắc chỉ nói quy tắc hiện tại; lịch sử nằm ở những chỗ dành riêng và không sang app
-
-- tài liệu quy tắc viết quy tắc ở thì hiện tại, lý do cần thiết viết thành một vế câu, không kể lại cách làm cũ
-- không ghi mã bài học, mã ticket hay mã phiên (`L-` hay `T-` cộng ba chữ số, `RUN-` cộng tám chữ số) trong tài liệu quy tắc, các mã đó chỉ ghi ở chỗ dành cho lịch sử của mục 1 của ADR-0044
-- chữ giữ chỗ, mã `PB-NN` của bảng tra lỗi và mã luật quảng cáo hai chữ số vẫn được dùng
-- PR áp dụng bài học sửa quy tắc theo cách này và ghi mã bài học trong mô tả PR
-- ADR mới sửa một phần ADR chưa `superseded` thì hợp nhất, chép lại quy tắc còn đúng và cho ADR cũ `superseded`
-- tài liệu quy tắc không dẫn tới hay nhắc mã ADR `superseded`
-- không thêm dòng vào `scripts/tests/history-refs-allow.txt`
-- PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào, và ghi trong mô tả PR các mã đã gỡ khỏi mỗi quy tắc
