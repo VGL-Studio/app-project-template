@@ -2349,6 +2349,8 @@ else
     expect "template-sync.sh moves the base in the same commit" "base=$v2" "$(grep '^base=' "$app/docs/template-sync.txt")"
     expect "template-sync.sh removes an ADR superseded in the template, and one superseded before the base" \
       "absent absent" "$([ -e "$app/$adr1" ] && echo present || echo absent) $([ -e "$app/$adr22" ] && echo present || echo absent)"
+    expect "template-sync.sh says nothing about removed ADRs the app did not change" 0 \
+      "$(grep -c '^CHÚ Ý: ADR' <<< "$out" || true)"
     expect "template-sync.sh lists rule documents of the app that name a removed ADR" 1 \
       "$(grep -cE '^   CLAUDE\.md: .*ADR-0001' <<< "$out")"
     expect "template-sync.sh leaves the app clean" "" "$(git -C "$app" status --porcelain)"
@@ -2386,18 +2388,42 @@ else
     git -C "$tpl" show "$v1:README.md" > "$tpl/README.md" && git -C "$tpl" commit --quiet -am "template README back"
     "$tpl/scripts/new-app.sh" --dest "$app2" --package com.example.notes --name "Ghi chú" \
       --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
-    adr2="$(cd "$tpl" && ls docs/adr/0002-*.md)"
+    adr2="$(cd "$tpl" && ls docs/adr/0002-*.md)" adr3="$(cd "$tpl" && ls docs/adr/0003-*.md)"
     echo "app change" >> "$app2/$adr2"
+    # ADR-0022 was replaced before the app's base; this app kept it and changed it.
+    { git -C "$tpl" show "$v1:$adr22"; echo "app change"; } > "$app2/$adr22"
+    # ADR-0003 is replaced by a merged ADR that copies it, which git may take for a rename of the app's changed file.
+    echo "app change" >> "$app2/$adr3"
     printf -- '---\nid: ADR-1001\nstatus: superseded\norigin: app\n---\n' > "$app2/docs/adr/1001-rieng.md"
     git -C "$app2" add -A && git -C "$app2" commit --quiet -m "app changes an ADR"
     sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr2" && rm "$tpl/$adr2.bak"
-    git -C "$tpl" commit --quiet -am "template v4"
+    # The new line is near the top, so it merges cleanly with the app's line at the end.
+    { sed -n 1p "$tpl/$adr3"; echo "merged: ADR-0003"; sed 1d "$tpl/$adr3"; } > "$tpl/docs/adr/0099-hop-nhat.md"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr3" && rm "$tpl/$adr3.bak"
+    git -C "$tpl" add -A && git -C "$tpl" commit --quiet -m "template v4"
     code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app2" --to HEAD 2>&1)" || code=$?
     expect "template-sync.sh removes a replaced ADR the app changed, says so, and finishes" "0 1 1 absent" \
       "$code $(grep -c '^CHÚ Ý: ADR .*app đã sửa' <<< "$out") $(grep -cx "   ADR-0002 ($adr2)" <<< "$out") $(
         [ -e "$app2/$adr2" ] && echo present || echo absent)"
     expect "template-sync.sh never removes an ADR of the app" present \
       "$([ -e "$app2/docs/adr/1001-rieng.md" ] && echo present || echo absent)"
+    expect "template-sync.sh says so for a changed ADR replaced before the app's base" 1 \
+      "$(grep -cx "   ADR-0022 ($adr22)" <<< "$out")"
+    expect "template-sync.sh says so when the app's change may have moved into the merged ADR" 1 \
+      "$(grep -c "^   ADR-0003 ($adr3; .*ADR mới" <<< "$out")"
+
+    # When the list of mentions cannot be made, the sync still finishes and says how to make it.
+    app3="$work/sync-app3"
+    "$tpl/scripts/new-app.sh" --dest "$app3" --package com.example.notes --name "Ghi chú" \
+      --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
+    adr4="$(cd "$tpl" && ls docs/adr/0004-*.md)"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr4" && rm "$tpl/$adr4.bak"
+    git -C "$tpl" commit --quiet -am "template v5"
+    mkdir -p "$work/broken-python"
+    printf '#!/bin/sh\nexit 1\n' > "$work/broken-python/python3" && chmod +x "$work/broken-python/python3"
+    code=0; out="$(PATH="$work/broken-python:$PATH" "$tpl/scripts/template-sync.sh" --app "$app3" --to HEAD 2>&1)" || code=$?
+    expect "template-sync.sh finishes and says how to list mentions when the listing fails" "0 1 absent" \
+      "$code $(grep -c 'không liệt kê được' <<< "$out") $([ -e "$app3/$adr4" ] && echo present || echo absent)"
     exit "$failures"
   ) || failures=$((failures + $?))
 fi

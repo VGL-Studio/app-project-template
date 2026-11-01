@@ -176,14 +176,24 @@ if [ -z "$take" ]; then
     [ -n "$adr" ] || continue
     git show "$target:$adr" > "$work/adr.md"
     grep -qE '^status:[[:space:]]*superseded' "$work/adr.md" || continue
-    removed_adrs+=("ADR-$(basename "$adr" | cut -c1-4)")
-    git -C "$app" ls-files --error-unmatch -- "$adr" > /dev/null 2>&1 || continue
+    id="ADR-$(basename "$adr" | cut -c1-4)"
+    removed_adrs+=("$id")
+    in_index=0
+    git -C "$app" ls-files --error-unmatch -- "$adr" > /dev/null 2>&1 && in_index=1
     # An ADR the app changed: in conflict now, or different from the template at the base. It goes anyway, since
-    # the app does not change the template's ADRs, but the sync PR must say what was lost.
-    if [ -n "$(git -C "$app" ls-files --unmerged -- "$adr")" ] ||
-      ! git -C "$app" show "HEAD:$adr" 2> /dev/null | cmp -s - <(git show "$from:$adr" 2> /dev/null); then
-      changed_adrs+="   ADR-$(basename "$adr" | cut -c1-4) ($adr)"$'\n'
+    # the app does not change the template's ADRs, but the sync PR must say what was lost. When git took the
+    # template's merged ADR for a rename of it, the app's change has moved into that ADR instead.
+    if git -C "$app" cat-file -e "HEAD:$adr" 2> /dev/null; then
+      if [ -n "$(git -C "$app" ls-files --unmerged -- "$adr")" ] ||
+        ! git -C "$app" show "HEAD:$adr" | cmp -s - <(git show "$from:$adr" 2> /dev/null); then
+        if [ "$in_index" -eq 1 ]; then
+          changed_adrs+="   $id ($adr)"$'\n'
+        else
+          changed_adrs+="   $id ($adr; phần sửa của app có thể đã sang ADR mới thay nó, xem git status)"$'\n'
+        fi
+      fi
     fi
+    [ "$in_index" -eq 1 ] || continue
     git -C "$app" rm --quiet --force -- "$adr" > /dev/null
   done <<< "$(git ls-tree --name-only "$target" -- docs/adr/ | grep -E '^docs/adr/0[0-9]{3}-[^/]*\.md$' || true)"
 fi
