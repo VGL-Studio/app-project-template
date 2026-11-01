@@ -79,8 +79,10 @@ internal const val MAX_NOT_READY = -9000
  *   [runBannerLoads]; after a pause of the frame the next turn starts again from the first platform). A MAX child that
  *   failed is paused, so MAX never refreshes or sends by itself outside the send step; an AdMob child is not, as
  *   before T-071.
- * - The refreshes of the child shown pass through (Failed is retried from the first platform); other children are
- *   ignored. [pause] pauses every child; [resume] resumes the child shown and the one asked.
+ * - The refreshes of the child shown pass through (Failed is retried from the first platform), except the first Failed
+ *   of a send while another child asked has not answered: that answer decides the turn; a second Failed of the same
+ *   send passes, so a child that never answers does not stop the retries (B-09). Other children are ignored.
+ *   [pause] pauses every child; [resume] resumes the child shown and the one asked.
  * - [results] has one inbox per collection, and every child is subscribed before the collection first suspends, so a
  *   result given inside [send] (the turn of MAX skipped, an SDK that fails at once) is never lost. The children's
  *   results must be flows subscribed at once (a `SharedFlow`), not built on a channel. Main thread only.
@@ -110,6 +112,9 @@ internal class OrderedBannerAdView(
     private val paused = BooleanArray(children.size)
     private var sendCount = 0
 
+    /** Failed refreshes of the child shown held back during the current send, while another child is pending. */
+    private var heldFailures = 0
+
     /** The inbox of the collection of [results] running now. */
     private var active: Channel<Tagged>? = null
 
@@ -135,6 +140,7 @@ internal class OrderedBannerAdView(
     override fun send() {
         if (children.isEmpty()) return
         sendCount++
+        heldFailures = 0
         val index = next.coerceIn(children.indices)
         pending = index
         pausedSinceSend = false
@@ -171,8 +177,9 @@ internal class OrderedBannerAdView(
         val shown = showing
         Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
             children.forEachIndexed { index, (platform, child) ->
-                // A platform shorter than the frame takes its own height at the top of the frame (B-09): an AdView
-                // of AdMob given the height of the frame would centre its ad in it.
+                // A platform with a height in heightsDp is drawn at that height, full width, at the top of the frame
+                // (B-09): an AdView of AdMob given the height of a taller frame would centre its ad in it. A platform
+                // without one takes the frame's modifier.
                 val own = heightsDp[platform]
                 val childModifier = if (own != null) Modifier.fillMaxWidth().height(own.dp) else modifier
                 child.Content(showAd = showAd && index == shown, modifier = childModifier)
@@ -186,9 +193,25 @@ internal class OrderedBannerAdView(
         val index = tagged.child
         return when (index) {
             pending -> answer(index, tagged.result)
-            showing -> tagged.result.takeUnless { it == BannerLoadResult.TryNext }
+            showing -> shownResult(index, tagged.result)
             else -> null
         }
+    }
+
+    /** A result of the child shown, which is not the child asked: a refresh. */
+    private fun shownResult(index: Int, result: BannerLoadResult): BannerLoadResult? {
+        if (result == BannerLoadResult.TryNext) return null
+        val waiting = pending
+        if (result is BannerLoadResult.Failed && waiting != null && heldFailures < 1) {
+            heldFailures++
+            logger.info(
+                TAG,
+                "Banner $placementKey ${children[index].first} refresh failed, " +
+                    "waiting for ${children[waiting].first}",
+            )
+            return null
+        }
+        return result
     }
 
     /** The answer of the child asked. */
@@ -200,11 +223,7 @@ internal class OrderedBannerAdView(
                 showing = index
                 next = 0
                 children.indices.filter { it != index }.forEach(::pauseChild)
-                if (running) {
-                    resumeChild(index)
-                } else if (platform == AdPlatform.MAX) {
-                    pauseChild(index)
-                }
+                if (!running && platform == AdPlatform.MAX) pauseChild(index)
                 BannerLoadResult.Loaded
             }
 
