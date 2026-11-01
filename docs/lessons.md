@@ -1035,8 +1035,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** test và 43 ảnh chuẩn của `:core:ads` vẽ trong `AppTheme` của `:core:designsystem`. Mỗi app đặt màu và chữ riêng trong `:core:designsystem` (ADR-0008), còn `:core:ads` thuộc nhóm "của dự án mẫu, app không sửa" (`docs/ops/to-app.md` mục 2, `TEMPLATE_OWNED` của `template-sync.sh`): khi xung đột, app lấy bản của mẫu. App đổi theme thì ảnh của `:core:ads` không khớp, và mỗi đợt đồng bộ có đổi ảnh đó làm `check.sh` của app đỏ cho tới khi app ghi lại. Photune phải viết ngoại lệ riêng trong ADR của app. Ngoài `AppTheme`, mã chính của `:core:ads` dùng `Spacing` (9 tệp) và hai test dùng `PrimaryButton` của `:core:designsystem`.
 - **Bằng chứng:** issue #321; `grep -rlE 'AppTheme ?[({]' core/ads/src/test` (21 tệp gọi `AppTheme`), `ls core/ads/src/test/screenshots` (43 ảnh).
 - **Đề xuất sửa:** test của `:core:ads` vẽ trong một theme cố định khai báo trong mã test, cùng giá trị với theme hiện tại của mẫu (Nhật chọn hướng này, 2026-10-31; hướng khác là xếp ảnh của `:core:ads` vào nhóm app tự ghi lại).
-- **Trạng thái:** accepted
-- **Áp dụng:** T-084 (ticket, chưa có plan).
+- **Trạng thái:** applied
+- **Áp dụng:** PR #372 (T-084, RUN-20261101-01): test của `:core:ads` vẽ trong `AdsTestTheme` khai báo trong `core/ads/src/test` (bảng màu sáng, tối, thang chữ, phông Inter riêng trong tài nguyên test), `AdsTestNextButton` thay `PrimaryButton`; `AdsTestThemeMatchTest` giữ theme của test khớp `AppTheme`, chỉ chạy ở repo mẫu; 0 trên 43 ảnh chuẩn đổi; `docs/ops/to-app.md` mục 2, `docs/ops/ads-guide.md` mục 5. `Spacing` vẫn phụ thuộc `:core:designsystem` (app đổi `Spacing` thì ghi lại ảnh của `:core:ads`).
 
 ### L-144. Test `design-compare` của `scripts/tests/run.sh` đỏ ở app không có chế độ tối
 
@@ -1085,5 +1085,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** lệnh 3 của plan T-084 đổi tạm tệp bằng `sed -i.bak` rồi dọn bằng `rm -f core/.../theme/*.bak`. Phiên viết đường dẫn vào biến (`C=...; rm -f $C/*.bak`) và bộ kiểm an toàn của Claude Code từ chối cả lệnh, vì đích `rm` là biến có thể rỗng thành `/*`. Lệnh không chạy gì (cả phần đổi tệp lẫn Gradle). Phiên chạy lại không có `-i.bak` và trả tệp bằng `git checkout`, kết quả như plan. Bộ kiểm gợi ý viết `"${C:?}"/*.bak` hay đường dẫn tuyệt đối.
 - **Bằng chứng:** nhật ký plan T-084 (RUN-20261101-01), dòng "Lệnh của mục 4".
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan (cạnh ý về `${TMPDIR:-/tmp}` và `sleep`): lệnh đổi tạm tệp đã có trong git dùng `sed -i` không đuôi và trả về bằng `git checkout -- <tệp>`, không tạo rồi xóa tệp `.bak`; lệnh `rm` trong plan không dùng biến làm đích, hay dùng `"${BIEN:?}"`. Cân nhắc thêm quy tắc vào `scripts/plan-check.py` dò `rm` có đích bắt đầu bằng `$`.
-- **Trạng thái:** proposed
-- **Áp dụng:**
+- **Trạng thái:** accepted
+- **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
