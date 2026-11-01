@@ -13,7 +13,8 @@
 # How it works: the template at the two commits is exported, renamed to the app's package like new-app.sh does, and
 # committed twice in a scratch repository. The second commit is cherry-picked onto a new branch of the app, so git
 # merges only the template's own changes into the app's files, three-way, and marks a conflict where the app changed
-# the same lines. Nothing is pushed. The template's history and pages generated from it are never synced.
+# the same lines. Nothing is pushed. The template's history, its superseded ADRs and pages generated from it are never
+# synced; a template ADR superseded at the target is removed from the app (ADR-0044).
 # Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
@@ -28,6 +29,7 @@ SYNC_FILE="docs/template-sync.txt"
 # A generated page is rebuilt in the app after the sync instead.
 NEVER_SYNCED=(
   scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE
+  scripts/history-refs.py scripts/tests/history-refs-allow.txt
   docs/lessons.md docs/runs docs/features docs/metrics docs/inbox docs/test-sessions docs/design-system/tokens.json
   docs/ops/required-assets.txt docs/foundation.md docs/STATUS.md docs/remote-config-keys.md
   docs/remote-config-template.json
@@ -118,6 +120,12 @@ export_tree() {
     for path in "${hold_paths[@]+"${hold_paths[@]}"}"; do rm -rf "${dir:?}/$path"; done
   fi
   for path in "${NEVER_SYNCED[@]}"; do rm -rf "${dir:?}/$path"; done
+  # Each side drops the ADRs superseded at its own commit, so an ADR replaced in between is deleted in the app
+  # (ADR-0044).
+  if [ -d "$dir/docs/adr" ]; then
+    { grep -lE '^status:[[:space:]]*superseded' "$dir"/docs/adr/[0-9]*.md 2> /dev/null || true; } |
+      while read -r found; do rm -f "$found"; done
+  fi
 
   # The same renaming as new-app.sh: source folders, then the package in text outside the ADRs.
   local package_path="${package//.//}" template_path="${TEMPLATE_PACKAGE//.//}" found root
@@ -159,6 +167,59 @@ git -C "$app" switch --quiet -c "$branch"
 conflict=0
 git -C "$app" -c merge.renames=true cherry-pick --no-commit FETCH_HEAD > /dev/null 2>&1 || conflict=1
 
+# ADRs of the template superseded at the target: the app removes them too, also those superseded before its base
+# (ADR-0044). Only the sync deletes them; the app's own ADRs (from 1001) are never touched.
+removed_adrs=()
+changed_adrs=""
+if [ -z "$take" ]; then
+  while read -r adr; do
+    [ -n "$adr" ] || continue
+    git show "$target:$adr" > "$work/adr.md"
+    grep -qE '^status:[[:space:]]*superseded' "$work/adr.md" || continue
+    id="ADR-$(basename "$adr" | cut -c1-4)"
+    removed_adrs+=("$id")
+    in_index=0
+    git -C "$app" ls-files --error-unmatch -- "$adr" > /dev/null 2>&1 && in_index=1
+    # An ADR the app changed: in conflict now, or different from the template at the base. It goes anyway, since
+    # the app does not change the template's ADRs, but the sync PR must say what was lost. When git took the
+    # template's merged ADR for a rename of it, the app's change has moved into that ADR instead.
+    if git -C "$app" cat-file -e "HEAD:$adr" 2> /dev/null; then
+      if [ -n "$(git -C "$app" ls-files --unmerged -- "$adr")" ] ||
+        ! git -C "$app" show "HEAD:$adr" | cmp -s - <(git show "$from:$adr" 2> /dev/null); then
+        if [ "$in_index" -eq 1 ]; then
+          changed_adrs+="   $id ($adr)"$'\n'
+        else
+          moved_to="$(git -C "$app" diff --cached -M --name-status HEAD |
+            awk -F '\t' -v old="$adr" '$1 ~ /^R/ && $2 == old { print $3 }')"
+          if [ -n "$moved_to" ]; then
+            changed_adrs+="   $id ($adr; phần sửa của app đã gộp vào ADR mới $moved_to, bỏ khỏi đó nếu không thuộc dự án mẫu)"$'\n'
+          else
+            changed_adrs+="   $id ($adr; phần sửa của app có thể đã gộp vào ADR mới thay nó, xem git show HEAD -- docs/adr/)"$'\n'
+          fi
+        fi
+      fi
+    fi
+    [ "$in_index" -eq 1 ] || continue
+    git -C "$app" rm --quiet --force -- "$adr" > /dev/null
+  done <<< "$(git ls-tree --name-only "$target" -- docs/adr/ | grep -E '^docs/adr/0[0-9]{3}-[^/]*\.md$' || true)"
+fi
+# Rule documents of the app that still name a removed ADR: the sync PR points them to the ADR that replaced it.
+stale_mentions=""
+if [ "${#removed_adrs[@]}" -gt 0 ]; then
+  stale_mentions="$(python3 -I "$template/scripts/history-refs.py" --mentions "$app" "${removed_adrs[@]}")" ||
+    stale_mentions="   (không liệt kê được: chạy python3 scripts/history-refs.py --mentions <app> ${removed_adrs[*]} trong dự án mẫu)"
+fi
+print_removed_adrs() {
+  if [ -n "$changed_adrs" ]; then
+    echo "CHÚ Ý: ADR của dự án mẫu mà app đã sửa, bị xóa hay gộp vào ADR mới vì mẫu đã thay (ghi phần sửa của app vào mô tả PR):"
+    printf '%s' "$changed_adrs"
+  fi
+  if [ -n "$stale_mentions" ]; then
+    echo "Tài liệu quy tắc của app còn nhắc ADR đã bị thay (sửa sang ADR thay nó, trong cùng PR):"
+    printf '%s\n' "$stale_mentions"
+  fi
+}
+
 # The new base (or one hold line less) goes into the same commit.
 if [ -n "$take" ]; then
   TAKE="$take" perl -ni -e 'print unless /^hold=\Q$ENV{TAKE}\E\/?\s/' "$app/$SYNC_FILE"
@@ -168,6 +229,8 @@ fi
 git -C "$app" add -- "$SYNC_FILE"
 
 conflicts="$(git -C "$app" diff --name-only --diff-filter=U)"
+# A conflict only on removed ADRs is solved by their removal.
+[ -n "$conflicts" ] || [ -z "$changed_adrs" ] || conflict=0
 stat="$(git -C "$app" diff --cached --shortstat | sed 's/^ *//')"
 if [ -z "$conflicts" ] && [ "$conflict" -eq 0 ]; then
   if [ -f "$app/scripts/foundation.py" ]; then
@@ -176,6 +239,7 @@ if [ -z "$conflicts" ] && [ "$conflict" -eq 0 ]; then
   printf '%s\n' "$message" > "$work/message"
   git -C "$app" commit --quiet -F "$work/message"
   git -C "$app" cherry-pick --quit 2> /dev/null || true
+  print_removed_adrs
   cat << EOF
 == Xong, không có xung đột: nhánh $branch của app ($stat).
 Việc tiếp theo trong app:
@@ -197,6 +261,7 @@ if [ -n "$shared" ]; then
   echo "Phần app cũng sửa (gộp tay, giữ phần riêng của app):"
   sed 's/^/   /' <<< "$shared"
 fi
+print_removed_adrs
 cat << EOF
 Việc tiếp theo trong app:
    1. Sửa xung đột, git add từng file đã sửa.

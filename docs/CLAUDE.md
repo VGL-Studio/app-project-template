@@ -169,6 +169,7 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 - Mã ADR: ở dự án mẫu (repo có `docs/ops/new-app.md`) lấy số tiếp theo dưới 1000 và ghi `origin: template`. Ở app, lấy số tiếp theo từ 1001 và ghi `origin: app`, để không trùng với ADR mà dự án mẫu thêm sau này.
 - Trong app, không sửa ADR có `origin: template`. Muốn khác thì viết ADR của app, ghi rõ thay quy tắc nào và vì sao (`supersedes`), và đề xuất về dự án mẫu nếu có ích chung (`docs/ops/from-app.md`).
 - PR thêm hay đổi trạng thái ADR thì chạy `scripts/foundation.py` và commit `docs/foundation.md` cùng PR. Test của script báo lỗi khi trang chưa khớp.
+- ADR mới sửa một phần một ADR chưa `superseded` thì là ADR hợp nhất: chép lại mọi quy tắc còn đúng của ADR cũ cùng phần mới, ghi `supersedes`, và chuyển ADR cũ sang `superseded`. Một quy tắc không được nằm rải ở hai ADR còn hiệu lực trở lên (ADR-0044).
 
 ## Trang tiến độ
 
@@ -187,7 +188,7 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 ## Những điều không được làm
 
 - Không sửa nội dung đã xác nhận: spec `confirmed`, plan `approved`, ADR `accepted`. Muốn thay đổi thì thêm mục mới hoặc tạo bản thay thế.
-- Không xóa tài liệu. Tài liệu hết hiệu lực được chuyển trạng thái, không bị xóa.
+- Không xóa tài liệu. Tài liệu hết hiệu lực được chuyển trạng thái, không bị xóa. Ngoại lệ duy nhất: ở app, `scripts/template-sync.sh` của dự án mẫu xóa ADR `superseded` của dự án mẫu (ADR-0044).
 - Không đưa vào tài liệu bất kỳ khóa bí mật, mã quảng cáo thật, thông tin đăng nhập hay dữ liệu cá nhân của người dùng.
 - Không tự cấp quyền duyệt, không tự chuyển trạng thái thay cho người. Ngoại lệ duy nhất: plan và spec của đường làm nhanh, khi dev đã đồng ý rõ ràng trong chính phiên đó (ADR-0034).
 
@@ -197,3 +198,4 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 - Thuật ngữ kỹ thuật thông dụng giữ tiếng Anh: module, test, build, staging, commit, merge.
 - Không dùng dấu gạch ngang dài, không dùng biểu tượng cảm xúc.
 - Ngày viết theo dạng `YYYY-MM-DD`.
+- Tài liệu quy tắc (phạm vi ở ADR-0044, mục 1: mọi file Markdown ngoài chỗ dành cho lịch sử, cùng dòng "Việc AI phải tuân thủ" của ADR còn hiệu lực) chỉ nói quy tắc hiện tại, lý do cần thiết viết thành một vế câu. Không ghi mã bài học, mã ticket hay mã phiên vào đó và không kể lại cách làm cũ; các mã đó ghi ở chỗ dành cho lịch sử và trong mô tả PR (ADR-0044). Ở dự án mẫu, `scripts/history-refs.py` kiểm điều này; file chưa dọn nằm trong `scripts/tests/history-refs-allow.txt`, danh sách chỉ được ngắn đi.

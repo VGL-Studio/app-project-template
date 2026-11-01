@@ -8,7 +8,9 @@
 #   --staging-assets-url  https address of the app's staging folder on R2, ending with '/'
 #
 # Only committed files of the template are copied (git archive), so build outputs and local secrets never
-# reach the new app. The template-only scripts (this one, template-sync.sh) and doc docs/ops/new-app.md are left out.
+# reach the new app. The template-only scripts (this one, template-sync.sh, history-refs.py and its allow list) and doc
+# docs/ops/new-app.md are left out, and so is the template's history: lessons, run reports, tickets and plans, the
+# token counts of its sessions and the superseded ADRs (ADR-0044).
 # The app records the template commit it was made from in docs/template-sync.txt, the base of its first sync (ADR-0030).
 # :feature:sample is kept: CLAUDE.md tells every feature to follow it.
 # Messages are in Vietnamese for the team; comments are in English.
@@ -62,8 +64,11 @@ echo "== Chép dự án mẫu (${template_commit}) sang $dest"
 mkdir -p "$dest"
 git archive --format=tar HEAD | tar -x -C "$dest"
 cd "$dest"
-rm -f scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
+rm -f scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml \
+  scripts/history-refs.py scripts/tests/history-refs-allow.txt
 rmdir .github/ISSUE_TEMPLATE 2> /dev/null || true
+# A superseded ADR no longer holds a rule; the app reads only the ADRs in force (ADR-0044).
+{ grep -lE '^status:[[:space:]]*superseded' docs/adr/[0-9]*.md || true; } | while read -r adr; do rm -f "$adr"; done
 
 # Replaces text in every file that contains it; fails when nothing matched, so a renamed template file is noticed.
 replace_in() {
@@ -113,6 +118,9 @@ LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của
 # The new app starts its own run history: the template's reports would list the template's unchecked manual checks
 # as the app's release blockers (status.py, section 6). They stay in the template repo.
 find docs/runs -name 'RUN-*.md' -delete
+# The token counts of the template's sessions stay in the template; the app measures its own tasks (ADR-0044).
+head -n 1 docs/metrics/token-usage.csv > docs/metrics/token-usage.csv.new
+mv docs/metrics/token-usage.csv.new docs/metrics/token-usage.csv
 
 # The new app numbers its own tickets from T-001 (docs/CLAUDE.md takes the next number over every features/*/tickets/,
 # L-141). Specs and designs of the modules it ships stay, since their code points to them; the template's tickets, plans,

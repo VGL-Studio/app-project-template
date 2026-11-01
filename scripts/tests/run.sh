@@ -2237,6 +2237,15 @@ elif GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=t
     "$(cd "$new_app" && python3 -I scripts/status.py --check > /dev/null && python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
   expect "new-app.sh commits everything" "" "$(git -C "$new_app" status --porcelain)"
   expect "new-app.sh leaves the progress page out of git" "" "$(git -C "$new_app" ls-files docs/STATUS.md)"
+  expect "new-app.sh leaves out superseded ADRs" "" \
+    "$(grep -lE '^status:[[:space:]]*superseded' "$new_app"/docs/adr/*.md || true)"
+  expect "new-app.sh keeps only the header of the template's token log" 1 \
+    "$(wc -l < "$new_app/docs/metrics/token-usage.csv" | tr -d ' ')"
+  expect "new-app.sh leaves out the history check and its allow list" "absent absent" \
+    "$([ -e "$new_app/scripts/history-refs.py" ] && echo present || echo absent) $(
+      [ -e "$new_app/scripts/tests/history-refs-allow.txt" ] && echo present || echo absent)"
+  expect "the app made by new-app.sh has no broken relative link" 0 \
+    "$(python3 -I scripts/history-refs.py --links "$new_app" > /dev/null; echo $?)"
 else
   expect "new-app.sh succeeds" ok failed
 fi
@@ -2270,7 +2279,7 @@ for skill in .claude/skills/*/SKILL.md; do
   fi
   for path in $(grep -oE '(scripts/[A-Za-z0-9_./-]+\.(sh|py)|docs/[A-Za-z0-9_./-]+\.md)' "$skill" | sort -u); do
     case "$path" in
-      scripts/new-app.sh | scripts/template-sync.sh | docs/ops/new-app.md | *YYYY* | *NNN*) continue ;;
+      scripts/new-app.sh | scripts/template-sync.sh | scripts/history-refs.py | docs/ops/new-app.md | *YYYY* | *NNN*) continue ;;
     esac
     # Generated pages such as docs/STATUS.md are ignored by git, so a fresh checkout (CI) does not have them.
     [[ -e "$path" ]] || git check-ignore -q "$path" || skill_problems+=" $dir:$path"
@@ -2316,9 +2325,15 @@ else
     echo "// template v2: com.vglstudio.template.core.logging" >> "$tpl/$logger_kt"
     echo "// template v2" >> "$tpl/$ads_kt"
     echo "template v2" >> "$tpl/docs/lessons.md"
+    # ADR-0001 is replaced in v2; the app also still has ADR-0022, replaced before its base, like the apps made
+    # before ADR-0044.
+    adr1="$(cd "$tpl" && ls docs/adr/0001-*.md)" adr22="$(cd "$tpl" && ls docs/adr/0022-*.md)"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr1" && rm "$tpl/$adr1.bak"
     git -C "$tpl" commit --quiet -am "template v2"
     v2="$(git -C "$tpl" rev-parse HEAD)"
     echo "hold=core/ads $v1" >> "$app/docs/template-sync.txt"
+    git -C "$tpl" show "$v1:$adr22" > "$app/$adr22"
+    git -C "$app" add -- "$adr22"
     git -C "$app" commit --quiet -am "hold ads"
     app_logger="$app/core/logging/src/main/kotlin/com/example/notes/core/logging/AppLogger.kt"
     app_ads="$app/core/ads/src/main/kotlin/com/example/notes/core/ads/AdUnitIds.kt"
@@ -2332,6 +2347,12 @@ else
     expect "template-sync.sh leaves the template's lessons out" 0 "$(grep -c 'template v2' "$app/docs/lessons.md")"
     expect "template-sync.sh keeps a held path at its commit" 0 "$(grep -c 'template v2' "$app_ads")"
     expect "template-sync.sh moves the base in the same commit" "base=$v2" "$(grep '^base=' "$app/docs/template-sync.txt")"
+    expect "template-sync.sh removes an ADR superseded in the template, and one superseded before the base" \
+      "absent absent" "$([ -e "$app/$adr1" ] && echo present || echo absent) $([ -e "$app/$adr22" ] && echo present || echo absent)"
+    expect "template-sync.sh says nothing about removed ADRs the app did not change" 0 \
+      "$(grep -c '^CHÚ Ý: ADR' <<< "$out" || true)"
+    expect "template-sync.sh lists rule documents of the app that name a removed ADR" 1 \
+      "$(grep -cE '^   CLAUDE\.md: .*ADR-0001' <<< "$out")"
     expect "template-sync.sh leaves the app clean" "" "$(git -C "$app" status --porcelain)"
 
     code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to "$v2" 2>&1)" || code=$?
@@ -2359,6 +2380,50 @@ else
 
     code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to HEAD 2>&1)" || code=$?
     expect "template-sync.sh refuses an app with uncommitted changes" "1 1" "$code $(grep -c 'chưa commit' <<< "$out")"
+
+    # An ADR the app changed and the template replaces is still removed, but the sync says so; an app's own ADR
+    # (from 1001) is never removed, even when superseded.
+    app2="$work/sync-app2"
+    # new-app.sh needs the template's own README title, which the conflict test above changed.
+    git -C "$tpl" show "$v1:README.md" > "$tpl/README.md" && git -C "$tpl" commit --quiet -am "template README back"
+    "$tpl/scripts/new-app.sh" --dest "$app2" --package com.example.notes --name "Ghi chú" \
+      --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
+    adr2="$(cd "$tpl" && ls docs/adr/0002-*.md)" adr3="$(cd "$tpl" && ls docs/adr/0003-*.md)"
+    echo "app change" >> "$app2/$adr2"
+    # ADR-0022 was replaced before the app's base; this app kept it and changed it.
+    { git -C "$tpl" show "$v1:$adr22"; echo "app change"; } > "$app2/$adr22"
+    # ADR-0003 is replaced by a merged ADR that copies it, which git may take for a rename of the app's changed file.
+    echo "app change" >> "$app2/$adr3"
+    printf -- '---\nid: ADR-1001\nstatus: superseded\norigin: app\n---\n' > "$app2/docs/adr/1001-rieng.md"
+    git -C "$app2" add -A && git -C "$app2" commit --quiet -m "app changes an ADR"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr2" && rm "$tpl/$adr2.bak"
+    # The new line is near the top, so it merges cleanly with the app's line at the end.
+    { sed -n 1p "$tpl/$adr3"; echo "merged: ADR-0003"; sed 1d "$tpl/$adr3"; } > "$tpl/docs/adr/0099-hop-nhat.md"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr3" && rm "$tpl/$adr3.bak"
+    git -C "$tpl" add -A && git -C "$tpl" commit --quiet -m "template v4"
+    code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app2" --to HEAD 2>&1)" || code=$?
+    expect "template-sync.sh removes a replaced ADR the app changed, says so, and finishes" "0 1 1 absent" \
+      "$code $(grep -c '^CHÚ Ý: ADR .*app đã sửa' <<< "$out") $(grep -cx "   ADR-0002 ($adr2)" <<< "$out") $(
+        [ -e "$app2/$adr2" ] && echo present || echo absent)"
+    expect "template-sync.sh never removes an ADR of the app" present \
+      "$([ -e "$app2/docs/adr/1001-rieng.md" ] && echo present || echo absent)"
+    expect "template-sync.sh says so for a changed ADR replaced before the app's base" 1 \
+      "$(grep -cx "   ADR-0022 ($adr22)" <<< "$out")"
+    expect "template-sync.sh says so when the app's change may have moved into the merged ADR" 1 \
+      "$(grep -c "^   ADR-0003 ($adr3; .*gộp vào ADR mới docs/adr/0099-hop-nhat\.md," <<< "$out")"
+
+    # When the list of mentions cannot be made, the sync still finishes and says how to make it.
+    app3="$work/sync-app3"
+    "$tpl/scripts/new-app.sh" --dest "$app3" --package com.example.notes --name "Ghi chú" \
+      --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
+    adr4="$(cd "$tpl" && ls docs/adr/0004-*.md)"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr4" && rm "$tpl/$adr4.bak"
+    git -C "$tpl" commit --quiet -am "template v5"
+    mkdir -p "$work/broken-python"
+    printf '#!/bin/sh\nexit 1\n' > "$work/broken-python/python3" && chmod +x "$work/broken-python/python3"
+    code=0; out="$(PATH="$work/broken-python:$PATH" "$tpl/scripts/template-sync.sh" --app "$app3" --to HEAD 2>&1)" || code=$?
+    expect "template-sync.sh finishes and says how to list mentions when the listing fails" "0 1 absent" \
+      "$code $(grep -c 'không liệt kê được' <<< "$out") $([ -e "$app3/$adr4" ] && echo present || echo absent)"
     exit "$failures"
   ) || failures=$((failures + $?))
 fi
@@ -3890,6 +3955,66 @@ expect "foundation: an ADR without rules points to the full ADR" 1 "$(grep -c 'A
 expect "foundation: check passes on a fresh page" 0 "$(foundation --check > /dev/null; echo $?)"
 expect "foundation: docs/foundation.md of this repo matches its ADRs" 0 \
   "$(python3 -I scripts/foundation.py --check > /dev/null; echo $?)"
+
+# history-refs.py keeps lesson, ticket and run codes out of the rule documents (ADR-0044). Like new-app.sh it exists
+# only in the template: an app's own documents name the app's own lessons, which are not broken.
+if [[ ! -f scripts/history-refs.py ]]; then
+  echo "skip - history-refs.py: chỉ có ở repo dự án mẫu"
+else
+  hr="$work/history-repo"
+  mkdir -p "$hr/docs/adr" "$hr/docs/runs" "$hr/docs/features/demo/plans" "$hr/scripts/tests" "$hr/links/sub"
+  printf -- '---\nid: ADR-0001\nstatus: accepted\n---\n\nBối cảnh: L-001.\n\n- **Việc AI phải tuân thủ:** làm A.\n' > "$hr/docs/adr/0001-a.md"
+  printf -- '---\nid: ADR-0002\nstatus: superseded\n---\n\n- **Việc AI phải tuân thủ:** làm B (L-002).\n' > "$hr/docs/adr/0002-b.md"
+  printf 'Quy tắc, vì một lý do (L-123).\n' > "$hr/docs/guide.md"
+  printf 'Chữ giữ chỗ `L-NNN`, `RUN-YYYYMMDD-NN`, mã dòng PB-07, mã luật T-01.\n' > "$hr/docs/clean.md"
+  printf 'Theo ADR-0002.\n' > "$hr/docs/mention.md"
+  printf 'Báo cáo: L-001, T-001.\n' > "$hr/docs/runs/RUN-20261101-01.md"
+  printf 'Các phiên từ RUN-20261015-01.\n' > "$hr/docs/runs/README.md"
+  printf 'Plan T-002.\n' > "$hr/docs/features/demo/plans/T-002-x.md"
+  history_refs() { HISTORY_REFS_ROOT="$hr" python3 -I scripts/history-refs.py "$@"; }
+  code=0; out="$(history_refs)" || code=$?
+  expect "history-refs: lists the codes of rule documents and a mention of a superseded ADR" "1 1 1 1" \
+    "$code $(grep -cx '   docs/guide.md: L-123' <<< "$out") $(grep -cx '   docs/runs/README.md: RUN-20261015' <<< "$out") $(
+      grep -cx '   docs/mention.md: ADR-0002' <<< "$out")"
+  expect "history-refs: placeholders, playbook rows, run reports, plans, ADR context and superseded ADRs pass" 0 \
+    "$(grep -cE 'clean\.md|RUN-20261101-01|T-002|ADR-0001|L-002' <<< "$out" || true)"
+  printf '# not cleaned yet\ndocs/guide.md\ndocs/runs/README.md\ndocs/mention.md\n' > "$hr/scripts/tests/history-refs-allow.txt"
+  expect "history-refs: files in the allow list pass" 0 "$(history_refs > /dev/null; echo $?)"
+  echo docs/clean.md >> "$hr/scripts/tests/history-refs-allow.txt"
+  code=0; out="$(history_refs)" || code=$?
+  expect "history-refs: a clean file left in the allow list fails" "1 1" "$code $(grep -c 'docs/clean.md: đã sạch' <<< "$out")"
+  printf 'docs/guide.md\ndocs/runs/README.md\ndocs/mention.md\n' > "$hr/scripts/tests/history-refs-allow.txt"
+  printf -- '---\nid: ADR-0001\nstatus: accepted\n---\n\n- **Việc AI phải tuân thủ:** làm A (T-080).\n' > "$hr/docs/adr/0001-a.md"
+  code=0; out="$(history_refs)" || code=$?
+  expect "history-refs: checks the rule line of an ADR in force" "1 1" "$code $(grep -cx '   ADR-0001: T-080' <<< "$out")"
+  printf 'x\n' > "$hr/links/sub/b.md"
+  printf '[b](sub/b.md) [c](sub/b.md#muc) [m](missing.md) `[code](code.md)` [g](../../../blob/status/x.md) [w](https://e.vn/x.md)\n\n```\n[f](fenced.md)\n```\n' > "$hr/links/a.md"
+  code=0; out="$(python3 -I scripts/history-refs.py --links "$hr/links")" || code=$?
+  expect "history-refs --links: reports only a missing file inside the tree" "1 1 1" \
+    "$code $(grep -c 'a.md: missing.md' <<< "$out") $(grep -c '^   ' <<< "$out")"
+  expect "history-refs --mentions: lists rule documents that name a removed ADR" "   docs/mention.md: ADR-0002" \
+    "$(python3 -I scripts/history-refs.py --mentions "$hr" ADR-0002)"
+  mkdir -p "$hr/docs/features"
+  printf 'Hướng dẫn (L-124).\n' > "$hr/docs/features/README.md"
+  code=0; out="$(history_refs)" || code=$?
+  expect "history-refs: a guide in docs/features that is not a spec, design or ticket is a rule document" "1 1" \
+    "$code $(grep -cx '   docs/features/README.md: L-124' <<< "$out")"
+  rm "$hr/docs/features/README.md"
+  # A file that is not UTF-8 and a file in a merge conflict (one index entry per stage) are each listed once.
+  cr="$work/history-conflict"
+  git init -q -b main "$cr" && mkdir -p "$cr/docs"
+  printf 'a\n' > "$cr/docs/x.md" && git -C "$cr" add -A && git -C "$cr" commit -q -m a
+  git -C "$cr" switch -q -c other && printf 'b ADR-0005\n' > "$cr/docs/x.md" && git -C "$cr" commit -q -am b
+  git -C "$cr" switch -q main && printf 'c ADR-0005\n' > "$cr/docs/x.md" && git -C "$cr" commit -q -am c
+  git -C "$cr" merge -q other > /dev/null 2>&1 || true
+  printf 'Theo ADR-0005, caf\xe9.\n' > "$cr/docs/latin.md"
+  git -C "$cr" add docs/latin.md
+  code=0; out="$(python3 -I scripts/history-refs.py --mentions "$cr" ADR-0005 2>&1)" || code=$?
+  expect "history-refs --mentions: a conflicted file once, a file that is not UTF-8 read" "0 1 1" \
+    "$code $(grep -cx '   docs/x.md: ADR-0005' <<< "$out") $(grep -cx '   docs/latin.md: ADR-0005' <<< "$out")"
+  expect "history-refs: the rule documents of this repo are clean or in the allow list" 0 \
+    "$(python3 -I scripts/history-refs.py > /dev/null; echo $?)"
+fi
 
 # secret-scan.py finds real-looking ad IDs and keys; Google test IDs and keys marked FAKE are allowed.
 scan="$work/scan"
