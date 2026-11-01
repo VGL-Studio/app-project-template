@@ -28,6 +28,7 @@ SYNC_FILE="docs/template-sync.txt"
 # A generated page is rebuilt in the app after the sync instead.
 NEVER_SYNCED=(
   scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE
+  scripts/history-refs.py scripts/tests/history-refs-allow.txt
   docs/lessons.md docs/runs docs/features docs/metrics docs/inbox docs/test-sessions docs/design-system/tokens.json
   docs/ops/required-assets.txt docs/foundation.md docs/STATUS.md docs/remote-config-keys.md
   docs/remote-config-template.json
@@ -118,6 +119,12 @@ export_tree() {
     for path in "${hold_paths[@]+"${hold_paths[@]}"}"; do rm -rf "${dir:?}/$path"; done
   fi
   for path in "${NEVER_SYNCED[@]}"; do rm -rf "${dir:?}/$path"; done
+  # Each side drops the ADRs superseded at its own commit, so an ADR replaced in between is deleted in the app
+  # (ADR-0044).
+  if [ -d "$dir/docs/adr" ]; then
+    { grep -lE '^status:[[:space:]]*superseded' "$dir"/docs/adr/[0-9]*.md 2> /dev/null || true; } |
+      while read -r found; do rm -f "$found"; done
+  fi
 
   # The same renaming as new-app.sh: source folders, then the package in text outside the ADRs.
   local package_path="${package//.//}" template_path="${TEMPLATE_PACKAGE//.//}" found root
@@ -159,6 +166,31 @@ git -C "$app" switch --quiet -c "$branch"
 conflict=0
 git -C "$app" -c merge.renames=true cherry-pick --no-commit FETCH_HEAD > /dev/null 2>&1 || conflict=1
 
+# ADRs of the template superseded at the target: the app removes them too, also those superseded before its base
+# (ADR-0044). Only the sync deletes them; the app's own ADRs (from 1001) are never touched.
+removed_adrs=()
+if [ -z "$take" ]; then
+  while read -r adr; do
+    [ -n "$adr" ] || continue
+    git show "$target:$adr" > "$work/adr.md"
+    grep -qE '^status:[[:space:]]*superseded' "$work/adr.md" || continue
+    removed_adrs+=("ADR-$(basename "$adr" | cut -c1-4)")
+    if [ -e "$app/$adr" ] || git -C "$app" ls-files --error-unmatch -- "$adr" > /dev/null 2>&1; then
+      git -C "$app" rm --quiet --force -- "$adr" > /dev/null
+    fi
+  done <<< "$(git ls-tree --name-only "$target" -- docs/adr/ | grep -E '^docs/adr/0[0-9]{3}-[^/]*\.md$' || true)"
+fi
+# Rule documents of the app that still name a removed ADR: the sync PR points them to the ADR that replaced it.
+stale_mentions=""
+if [ "${#removed_adrs[@]}" -gt 0 ]; then
+  stale_mentions="$(python3 -I "$template/scripts/history-refs.py" --mentions "$app" "${removed_adrs[@]}")"
+fi
+print_stale_mentions() {
+  [ -n "$stale_mentions" ] || return 0
+  echo "Tài liệu quy tắc của app còn nhắc ADR đã bị thay (sửa sang ADR thay nó, trong cùng PR):"
+  printf '%s\n' "$stale_mentions"
+}
+
 # The new base (or one hold line less) goes into the same commit.
 if [ -n "$take" ]; then
   TAKE="$take" perl -ni -e 'print unless /^hold=\Q$ENV{TAKE}\E\/?\s/' "$app/$SYNC_FILE"
@@ -176,6 +208,7 @@ if [ -z "$conflicts" ] && [ "$conflict" -eq 0 ]; then
   printf '%s\n' "$message" > "$work/message"
   git -C "$app" commit --quiet -F "$work/message"
   git -C "$app" cherry-pick --quit 2> /dev/null || true
+  print_stale_mentions
   cat << EOF
 == Xong, không có xung đột: nhánh $branch của app ($stat).
 Việc tiếp theo trong app:
@@ -197,6 +230,7 @@ if [ -n "$shared" ]; then
   echo "Phần app cũng sửa (gộp tay, giữ phần riêng của app):"
   sed 's/^/   /' <<< "$shared"
 fi
+print_stale_mentions
 cat << EOF
 Việc tiếp theo trong app:
    1. Sửa xung đột, git add từng file đã sửa.

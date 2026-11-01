@@ -62,8 +62,11 @@ echo "== Chép dự án mẫu (${template_commit}) sang $dest"
 mkdir -p "$dest"
 git archive --format=tar HEAD | tar -x -C "$dest"
 cd "$dest"
-rm -f scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml
+rm -f scripts/new-app.sh scripts/template-sync.sh docs/ops/new-app.md .github/ISSUE_TEMPLATE/from-app.yml \
+  scripts/history-refs.py scripts/tests/history-refs-allow.txt
 rmdir .github/ISSUE_TEMPLATE 2> /dev/null || true
+# A superseded ADR no longer holds a rule; the app reads only the ADRs in force (ADR-0044).
+{ grep -lE '^status:[[:space:]]*superseded' docs/adr/[0-9]*.md || true; } | while read -r adr; do rm -f "$adr"; done
 
 # Replaces text in every file that contains it; fails when nothing matched, so a renamed template file is noticed.
 replace_in() {
@@ -113,6 +116,9 @@ LESSONS_NOTE="Bài học trước ngày $today nằm trong sổ bài học của
 # The new app starts its own run history: the template's reports would list the template's unchecked manual checks
 # as the app's release blockers (status.py, section 6). They stay in the template repo.
 find docs/runs -name 'RUN-*.md' -delete
+# The token counts of the template's sessions stay in the template; the app measures its own tasks (ADR-0044).
+head -n 1 docs/metrics/token-usage.csv > docs/metrics/token-usage.csv.new
+mv docs/metrics/token-usage.csv.new docs/metrics/token-usage.csv
 
 # The new app numbers its own tickets from T-001 (docs/CLAUDE.md takes the next number over every features/*/tickets/,
 # L-141). Specs and designs of the modules it ships stay, since their code points to them; the template's tickets, plans,
