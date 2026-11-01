@@ -1065,8 +1065,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** PR #364 có `pr-check` xanh (lần chạy 41226424017). Lệnh của phiên chính gộp đọc kết quả `wait-run.sh` với `scripts/merge-if-green.sh 364` bị bộ phân loại quyền của auto mode từ chối, không nêu lý do ("The server-side auto mode classifier judged this action dangerous"). L-070 và L-081 chỉ nói về lệnh đẩy; `auto-run.md` bước 9 chỉ nói khi chính script từ chối ("dừng task, ghi lý do"), không nói khi môi trường chặn lệnh merge. Phiên làm theo cách gần nhất: không gọi lại, không merge cách khác, dừng task ở bước 9, giữ plan và ticket `approved` như "Khi không đẩy được" ý 3, báo người qua thông báo. Không chạy được `device-session` và `staging` vì không có task merge; PR báo cáo cũng cần `merge-if-green.sh` nên để người merge.
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 18:03; PR #364.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: thêm trường hợp "lệnh `merge-if-green.sh` của phiên bị môi trường từ chối": không gọi lại dưới dạng khác, dừng task với plan và ticket giữ `approved` (không phải lỗi của plan), không bắt đầu task phụ thuộc, ghi PR vào Cần người kiểm tra để người merge, và để PR báo cáo mở. Cân nhắc gọi `merge-if-green.sh` thành một lệnh riêng (không gộp với lệnh khác) để bộ phân loại thấy rõ việc merge là bước của danh sách chạy đã duyệt.
-- **Trạng thái:** accepted
-- **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
+- **Trạng thái:** applied
+- **Áp dụng:** PR #376: `docs/auto-run.md` bước 9 (gọi `merge-if-green.sh` thành lệnh riêng; lệnh merge bị môi trường từ chối thì dừng task, giữ `approved`, để người merge, task độc lập làm tiếp, lệnh merge của task sau cũng bị từ chối thì kết thúc phiên), mục 4 (dòng mới của bảng Kết thúc phiên; ý 4, PR báo cáo).
 
 ### L-147. Lệnh nền không đặt `timeout` bị dừng sau 30 phút, kể cả `push-on-commit.sh --minutes 180`
 
@@ -1075,8 +1075,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên chính chạy nền `scripts/push-on-commit.sh claude/T-071-banner-mrec-max --minutes 180` mà không đặt `timeout` của công cụ; công cụ dừng lệnh sau giới hạn mặc định 30 phút (`killed`), dù script còn 150 phút. Không mất commit (hai commit đã đẩy trước đó), phiên chạy lại với `timeout` dài. Lệnh nền của công cụ có giới hạn tối đa khoảng 2 giờ, nên `--minutes` lớn hơn cũng bị cắt.
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 17:13; đầu ra của lệnh nền kết thúc bằng `[killed]` sau dòng `ĐÃ ĐẨY ... tại f8c19bc (17:12Z)`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: chạy `push-on-commit.sh` nền với `timeout` của công cụ lớn hơn `--minutes` (tối đa 120 phút), và chạy lại khi nhận thông báo lệnh bị dừng mà phiên con chưa xong.
-- **Trạng thái:** accepted
-- **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
+- **Trạng thái:** applied
+- **Áp dụng:** PR #376: `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con (`push-on-commit.sh` nền với `timeout` lớn hơn `--minutes`, `--minutes` không quá 115, chạy lại khi bị dừng; cùng quy tắc cho mọi lệnh nền dài), mục Chờ workflow của bước 8 (mọi lệnh chờ chạy nền đặt `timeout` lớn hơn thời gian chờ của script) và `.claude/skills/merge-pr/SKILL.md` bước 3.
 
 ### L-148. Lệnh `rm -f $BIEN/*.bak` trong lệnh của plan bị bộ kiểm an toàn của môi trường chặn
 
@@ -1085,5 +1085,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** lệnh 3 của plan T-084 đổi tạm tệp bằng `sed -i.bak` rồi dọn bằng `rm -f core/.../theme/*.bak`. Phiên viết đường dẫn vào biến (`C=...; rm -f $C/*.bak`) và bộ kiểm an toàn của Claude Code từ chối cả lệnh, vì đích `rm` là biến có thể rỗng thành `/*`. Lệnh không chạy gì (cả phần đổi tệp lẫn Gradle). Phiên chạy lại không có `-i.bak` và trả tệp bằng `git checkout`, kết quả như plan. Bộ kiểm gợi ý viết `"${C:?}"/*.bak` hay đường dẫn tuyệt đối.
 - **Bằng chứng:** nhật ký plan T-084 (RUN-20261101-01), dòng "Lệnh của mục 4".
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan (cạnh ý về `${TMPDIR:-/tmp}` và `sleep`): lệnh đổi tạm tệp đã có trong git dùng `sed -i` không đuôi và trả về bằng `git checkout -- <tệp>`, không tạo rồi xóa tệp `.bak`; lệnh `rm` trong plan không dùng biến làm đích, hay dùng `"${BIEN:?}"`. Cân nhắc thêm quy tắc vào `scripts/plan-check.py` dò `rm` có đích bắt đầu bằng `$`.
-- **Trạng thái:** accepted
-- **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
+- **Trạng thái:** applied
+- **Áp dụng:** PR #376: `docs/CLAUDE.md`, mục Khi viết plan (đổi tạm tệp bằng `perl -pi -e` với `\Q...\E` và kiểm `git diff --stat`, hay `sed -i` không đuôi trên Linux, rồi `git checkout`, `rm` không dùng biến làm đích); không thêm quy tắc vào `scripts/plan-check.py` (lệnh trong plan là chữ tự do, dò `rm $` dễ báo nhầm; để sau nếu lặp lại).
