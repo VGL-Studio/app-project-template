@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-143 (issue #321), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-084-theme-co-dinh-cho-test-core-ads.md
 auto_run:
 created: 2026-10-31
 ---
