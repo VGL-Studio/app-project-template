@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-31, KB-18]
 owner: Nhật
-status: backlog
+status: approved
 risk: medium
 size: S
 depends_on: [T-071]
 sprint:
-plan:
+plan: features/ads/plans/T-085-don-khung-hai-nen-tang.md
 auto_run: 
 created: 2026-11-01
 ---
