@@ -92,6 +92,22 @@ class AdTelemetryRulesTest {
     }
 
     @Test
+    fun maxLoadStateAfterError_table() {
+        // Plan T-071, question 2: the codes of com.applovin.mediation.MaxErrorCode, read with javap (13.6.4).
+        assertEquals("no_fill", maxLoadStateAfterError(204, offline = false))
+        listOf(-1000, -1001, -1009).forEach { assertEquals("code $it", "network", maxLoadStateAfterError(it, false)) }
+        assertEquals("internal", maxLoadStateAfterError(-1, offline = false))
+        listOf(-5001, -5603, 0, 3, -9000).forEach {
+            assertEquals("code $it", "unknown", maxLoadStateAfterError(it, offline = false))
+        }
+        assertEquals("network", maxLoadStateAfterError(204, offline = true))
+        assertEquals("network", maxLoadStateAfterError(-1, offline = true))
+        // Control: a code of AdMob keeps its meaning for AdMob only.
+        assertEquals("no_fill", loadStateAfterError(3, offline = false, sdkThrottled = false))
+        assertEquals("unknown", maxLoadStateAfterError(3, offline = false))
+    }
+
+    @Test
     fun loadStateAtDecision_snapshot() {
         assertEquals("ready", loadStateAtDecision(FullScreenLoadState.Ready, lastErrorLabel = "no_fill"))
         assertEquals("loading", loadStateAtDecision(FullScreenLoadState.Loading, lastErrorLabel = "no_fill"))
