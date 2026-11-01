@@ -43,9 +43,11 @@ Hiện có hai app tạo từ repo này, cả hai nhận thay đổi qua `script
 - `docs/lessons.md`;
 - `docs/runs/`;
 - ticket, plan, phản hồi và yêu cầu trong `docs/features/`;
-- `docs/metrics/`, `docs/inbox/`, `docs/test-sessions/`, trừ file `README.md` hướng dẫn của các thư mục đó;
+- `docs/metrics/`, `docs/inbox/`, `docs/test-sessions/`;
 - phần Bối cảnh, Các phương án đã cân nhắc và Hệ quả (trừ dòng "Việc AI phải tuân thủ") của ADR;
 - mô tả PR và git log.
+
+File `README.md` hướng dẫn trong các thư mục trên (như `docs/runs/README.md`, `docs/test-sessions/README.md`) không phải lịch sử mà là tài liệu quy tắc.
 
 **Tài liệu quy tắc** là mọi file Markdown của repo nằm ngoài chỗ dành cho lịch sử, cùng dòng "Việc AI phải tuân thủ" của ADR chưa `superseded`. Ba thứ không tính:
 
@@ -92,7 +94,7 @@ Không để một quy tắc phải đọc từ hai ADR chưa `superseded` trở
   - sau khi gộp, xóa thêm ở app mọi ADR `origin: template` đã `superseded` ở commit đích mà app còn giữ. Bước này dọn luôn các ADR đã bị thay từ trước, như ADR-0022 và ADR-0028.
 - **Ngoại lệ của quy tắc "Không xóa tài liệu":** trong app, ADR `superseded` của dự án mẫu bị xóa, và chỉ `template-sync.sh` xóa chúng. Trong repo này ADR `superseded` vẫn được giữ.
 - Tài liệu quy tắc không dẫn tới ADR `superseded`, kể cả nhắc mã bằng chữ.
-- Ở app, ADR đã xóa không còn file để máy đọc trạng thái. Vì vậy `template-sync.sh` in danh sách file của app còn nhắc mã ADR vừa xóa, và PR đồng bộ sửa các chỗ đó (dẫn sang ADR hợp nhất).
+- Ở app, ADR đã xóa không còn file để máy đọc trạng thái. Vì vậy `template-sync.sh` in danh sách tài liệu quy tắc (mục 1) của app còn nhắc mã ADR vừa xóa, và PR đồng bộ sửa các chỗ đó (dẫn sang ADR hợp nhất).
 
 ### 6. Kiểm bằng máy
 
@@ -119,7 +121,7 @@ Phần kiểm link bỏ qua hai loại link:
   4. bộ tài liệu quảng cáo cùng ADR hợp nhất của chuỗi quảng cáo;
   5. các file và chuỗi ADR còn lại.
 - **Thử với app thật:** sau mỗi đợt lớn, đồng bộ sang một trong hai app theo `docs/ops/to-app.md`: phiên có người theo dõi, giữa hai phiên tự chạy của app, mở PR và merge ở app như một đợt đồng bộ thường. PR đồng bộ ghi những chỗ tài liệu sạch gây xung đột giả hay làm mất quy tắc.
-- **Chú thích trong code và script** (khoảng 700 lần) không thuộc đợt dọn này. Việc đó đổi code, nên quyết riêng sau khi dọn xong tài liệu, theo quy trình plan.
+- **Chú thích trong code và script** (khoảng 670 lần) không thuộc đợt dọn này. Việc đó đổi code, nên quyết riêng sau khi dọn xong tài liệu, theo quy trình plan.
 
 **File phải sửa kèm, trong PR cài đặt:**
 
