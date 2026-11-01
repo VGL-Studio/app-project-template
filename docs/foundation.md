@@ -337,3 +337,13 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
+
+### [ADR-0044](adr/0044-tai-lieu-quy-tac-chi-noi-hien-tai.md): Tài liệu quy tắc chỉ nói quy tắc hiện tại; lịch sử nằm ở những chỗ dành riêng và không sang app
+
+- tài liệu quy tắc viết quy tắc ở thì hiện tại, lý do cần thiết viết thành một vế câu
+- không ghi mã L-, T-, PB- hay RUN- trong tài liệu quy tắc và không kể lại cách làm cũ, các mã đó chỉ ghi ở `docs/lessons.md`, báo cáo phiên, ticket, plan và mô tả PR
+- áp dụng bài học là sửa quy tắc theo cách này
+- ADR mới sửa một phần ADR còn hiệu lực thì hợp nhất, chép lại quy tắc còn đúng và cho ADR cũ `superseded`
+- tài liệu quy tắc không dẫn tới ADR `superseded`
+- không thêm file vào danh sách chưa dọn
+- PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào
