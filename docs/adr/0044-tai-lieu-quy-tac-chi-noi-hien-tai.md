@@ -5,7 +5,7 @@ status: proposed             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-11-01
 deciders: [Nhật]
-supersedes:                  # bổ sung ADR-0017 (thứ script khởi tạo bỏ) và ADR-0030 (bản dự án mẫu mà script đồng bộ dựng); hai ADR này được hợp nhất trong đợt dọn (mục 7)
+supersedes:                  # bổ sung ADR-0017 (thứ script khởi tạo bỏ) và ADR-0030 (bản dự án mẫu mà script đồng bộ dựng); hai ADR này được hợp nhất trong đợt dọn (mục 4)
 superseded_by:
 ---
 
@@ -17,15 +17,16 @@ Repo này vừa là dự án mẫu vừa là nơi chạy quy trình hằng ngày
 
 Số liệu ngày 2026-11-01, đếm theo số lần xuất hiện của mã bài học, mã ticket và mã phiên (`L-` hay `T-` cộng ba chữ số, `RUN-` cộng tám chữ số):
 
-- **Tài liệu quy tắc** (`CLAUDE.md`, `README.md`, `docs/CLAUDE.md`, `docs/auto-run.md`, `docs/risk-scoring.md`, `docs/ops/`, `docs/templates/`, `.claude/skills/`): khoảng 430 lần, trong khoảng 30 file. Bảy file chiếm khoảng 85%: `docs/ops/ads-guide.md`, `docs/auto-run.md`, `docs/ops/ads-business-rules.md`, `docs/ops/failure-playbook.md`, `docs/CLAUDE.md`, `docs/ops/pre-run-review.md`, `docs/ops/staging-and-runs.md`.
-- **Chú thích trong code và script** (không tính test): khoảng 700 lần, trong khoảng 150 file. Riêng `core/ads/src/main` có khoảng 420 lần.
+- **Tài liệu quy tắc** (`CLAUDE.md`, `README.md`, `docs/CLAUDE.md`, `docs/auto-run.md`, `docs/risk-scoring.md`, `docs/ops/`, `docs/templates/`, `.claude/skills/`): khoảng 430 lần, trong khoảng 25 file. Bảy file chiếm khoảng 80%: `docs/ops/ads-guide.md`, `docs/auto-run.md`, `docs/ops/ads-business-rules.md`, `docs/ops/failure-playbook.md`, `docs/CLAUDE.md`, `docs/ops/pre-run-review.md`, `docs/ops/staging-and-runs.md`.
+- **Chú thích trong code và script** (không tính test): khoảng 670 lần, trong khoảng 140 file. Riêng `core/ads/src/main` có khoảng 420 lần.
 
 Khi tạo app, `scripts/new-app.sh` đã bỏ sổ bài học, báo cáo phiên, cùng ticket, plan, phản hồi và yêu cầu (`docs/ops/new-app.md`, bước 5). Vì vậy ở app, các mã trên trỏ tới những thứ không có. AI của app vẫn đọc mọi chữ đó trong mỗi phiên: tốn token, và dễ làm theo một quyết định đã cũ.
 
 Script vẫn giữ một số dấu vết lịch sử của dự án mẫu: `docs/metrics/token-usage.csv` (số liệu các phiên của mẫu) và phần Bối cảnh của mọi ADR.
 
-ADR còn có những chuỗi sửa chồng nhau:
+ADR còn có những chuỗi sửa chồng nhau, ví dụ:
 
+- cổng chất lượng và nhánh chính: ADR-0010, 0025, 0039;
 - quảng cáo: ADR-0026, 0036, 0037, 0038;
 - lệch phạm vi: ADR-0029, 0032, 0033 (ADR-0028 đã `superseded`).
 
@@ -42,7 +43,7 @@ Hiện có hai app tạo từ repo này, cả hai nhận thay đổi qua `script
 - `docs/lessons.md`;
 - `docs/runs/`;
 - ticket, plan, phản hồi và yêu cầu trong `docs/features/`;
-- `docs/metrics/`, `docs/inbox/`, `docs/test-sessions/`;
+- `docs/metrics/`, `docs/inbox/`, `docs/test-sessions/`, trừ file `README.md` hướng dẫn của các thư mục đó;
 - phần Bối cảnh, Các phương án đã cân nhắc và Hệ quả (trừ dòng "Việc AI phải tuân thủ") của ADR;
 - mô tả PR và git log.
 
@@ -58,7 +59,7 @@ Phạm vi nêu theo quy tắc này, không theo danh sách file, để tài li�
 
 - Viết quy tắc ở thì hiện tại. Lý do cần thiết viết thành một vế câu, ví dụ "thêm `--rerun`, vì không có nó Gradle có thể bỏ qua test và giữ ảnh cũ".
 - Không kể lại cách làm cũ.
-- Không ghi mã bài học, mã ticket hay mã phiên. Máy kiểm theo mẫu `L-\d{3}`, `T-\d{3}` và `RUN-\d{8}`.
+- Không ghi mã bài học, mã ticket hay mã phiên. Máy kiểm theo mẫu `\b(L-\d{3}|T-\d{3}|RUN-\d{8})\b`.
 - Vẫn được dùng:
   - chữ giữ chỗ (`L-NNN`, `T-NNN`, `RUN-YYYYMMDD-NN`, nhánh `claude/T-`);
   - mã dòng `PB-NN` của bảng tra lỗi (`scripts/failure-kind.sh` đọc nó);
@@ -68,7 +69,10 @@ Phạm vi nêu theo quy tắc này, không theo danh sách file, để tài li�
 
 ### 3. Tra ngược lý do của một quy tắc
 
-Đi từ quy tắc về lý do: `git blame` dòng quy tắc ra PR đã sửa nó, rồi đọc mã bài học trong mô tả PR đó. Vì vậy, PR áp dụng bài học (`/lesson apply`) sửa quy tắc theo mục 2 và ghi mã bài học trong mô tả PR.
+Đi từ quy tắc về lý do: `git blame` dòng quy tắc ra PR đã sửa nó, rồi đọc mã bài học trong mô tả PR đó. Vì vậy:
+
+- PR áp dụng bài học (`/lesson apply`) sửa quy tắc theo mục 2 và ghi mã bài học trong mô tả PR;
+- PR dọn ghi trong mô tả, cho mỗi quy tắc đã viết lại, các mã đã gỡ khỏi quy tắc đó, vì sau đợt dọn `git blame` trỏ vào PR dọn.
 
 ### 4. Hợp nhất ADR
 
@@ -88,10 +92,11 @@ Không để một quy tắc phải đọc từ hai ADR chưa `superseded` trở
   - sau khi gộp, xóa thêm ở app mọi ADR `origin: template` đã `superseded` ở commit đích mà app còn giữ. Bước này dọn luôn các ADR đã bị thay từ trước, như ADR-0022 và ADR-0028.
 - **Ngoại lệ của quy tắc "Không xóa tài liệu":** trong app, ADR `superseded` của dự án mẫu bị xóa, và chỉ `template-sync.sh` xóa chúng. Trong repo này ADR `superseded` vẫn được giữ.
 - Tài liệu quy tắc không dẫn tới ADR `superseded`, kể cả nhắc mã bằng chữ.
+- Ở app, ADR đã xóa không còn file để máy đọc trạng thái. Vì vậy `template-sync.sh` in danh sách file của app còn nhắc mã ADR vừa xóa, và PR đồng bộ sửa các chỗ đó (dẫn sang ADR hợp nhất).
 
 ### 6. Kiểm bằng máy
 
-Kiểm trong `scripts/tests/`, chạy ở CI. Danh sách chưa dọn là `scripts/tests/history-refs-allow.txt`, mỗi dòng một đường dẫn file hay một mã `ADR-NNNN`. PR đầu tiên tạo danh sách này cùng phần kiểm, với mọi file và ADR đang vi phạm lúc đó, trong đó có ADR-0040 (`T-080` trong "Việc AI phải tuân thủ") và ADR-0026 (dẫn ADR-0022). Danh sách chỉ được ngắn đi: mỗi PR dọn xóa dòng của thứ mình đã dọn, không PR nào thêm dòng.
+Kiểm trong `scripts/tests/`, chạy ở CI, chỉ ở repo dự án mẫu (gác như test của `new-app.sh`, theo `scripts/new-app.sh`). App có tài liệu và ADR riêng ghi mã của chính app, những mã đó không gãy, nên app không chạy phần kiểm này. Danh sách chưa dọn là `scripts/tests/history-refs-allow.txt`, mỗi dòng một đường dẫn file hay một mã `ADR-NNNN`. PR đầu tiên tạo danh sách này cùng phần kiểm, với mọi file và ADR đang vi phạm lúc đó, trong đó có ADR-0040 (`T-080` trong "Việc AI phải tuân thủ") và ADR-0026 (dẫn ADR-0022). Danh sách chỉ được ngắn đi: mỗi PR dọn xóa dòng của thứ mình đã dọn, không PR nào thêm dòng.
 
 Báo đỏ khi:
 
@@ -99,11 +104,10 @@ Báo đỏ khi:
 - tài liệu quy tắc ngoài danh sách chưa dọn nhắc mã một ADR `superseded`;
 - bản app do `new-app.sh` dựng có link tương đối gãy.
 
-Phần kiểm link bỏ qua ba loại link:
+Phần kiểm link bỏ qua hai loại link:
 
 - link ra ngoài cây file (như `../../blob/status/...` tới nhánh `status` trên GitHub);
-- link trong khối code;
-- link trong ví dụ. Ví dụ trong mẫu viết thành chữ code, không viết thành link.
+- link nằm trong khối code hay chữ code. Ví dụ trong mẫu viết thành chữ code, không viết thành link.
 
 ### 7. Dọn từng đợt
 
@@ -123,6 +127,8 @@ Phần kiểm link bỏ qua ba loại link:
 - `docs/CLAUDE.md`: mục Khi viết ADR thêm quy tắc hợp nhất; mục Những điều không được làm thêm ngoại lệ của mục 5;
 - `docs/ops/to-app.md`, mục 2: ADR `superseded` không đồng bộ, và bị xóa ở app;
 - `docs/ops/new-app.md`, bước 5: ghi các thứ bị bỏ thêm;
+- `docs/templates/app-proposal.md`: link ví dụ (`com.example.posemate.md`) viết thành chữ code;
+- `docs/risk-scoring.md`: bỏ quy định ghi lý do vào mục Lịch sử thay đổi và bỏ bảng lịch sử ở cuối; lý do mỗi lần đổi thang điểm ghi trong mô tả PR, tra qua git log;
 - `scripts/new-app.sh` và `scripts/template-sync.sh`, cùng test của chúng;
 - `new-app.sh` làm trống thêm `docs/metrics/token-usage.csv`, chỉ giữ dòng đầu.
 
@@ -156,4 +162,4 @@ Khởi đầu lại repo nghĩa là bỏ lịch sử git và chuyển repo cũ t
   - Khi viết lại có thể làm mất một ý tinh tế; bước đối chiếu từng quy tắc ở mục 7 để chặn điều này.
   - Phần Bối cảnh của ADR còn mã dẫn chiếu, vì ADR `accepted` không được sửa.
   - Chú thích trong code còn mã dẫn chiếu tới khi có quyết định riêng.
-- **Việc AI phải tuân thủ:** tài liệu quy tắc viết quy tắc ở thì hiện tại, lý do cần thiết viết thành một vế câu, không kể lại cách làm cũ; không ghi mã bài học, mã ticket hay mã phiên (`L-` hay `T-` cộng ba chữ số, `RUN-` cộng tám chữ số) trong tài liệu quy tắc, các mã đó chỉ ghi ở chỗ dành cho lịch sử của mục 1 của ADR-0044; chữ giữ chỗ, mã `PB-NN` của bảng tra lỗi và mã luật quảng cáo hai chữ số vẫn được dùng; PR áp dụng bài học sửa quy tắc theo cách này và ghi mã bài học trong mô tả PR; ADR mới sửa một phần ADR chưa `superseded` thì hợp nhất, chép lại quy tắc còn đúng và cho ADR cũ `superseded`; tài liệu quy tắc không dẫn tới hay nhắc mã ADR `superseded`; không thêm dòng vào `scripts/tests/history-refs-allow.txt`; PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào.
+- **Việc AI phải tuân thủ:** tài liệu quy tắc viết quy tắc ở thì hiện tại, lý do cần thiết viết thành một vế câu, không kể lại cách làm cũ; không ghi mã bài học, mã ticket hay mã phiên (`L-` hay `T-` cộng ba chữ số, `RUN-` cộng tám chữ số) trong tài liệu quy tắc, các mã đó chỉ ghi ở chỗ dành cho lịch sử của mục 1 của ADR-0044; chữ giữ chỗ, mã `PB-NN` của bảng tra lỗi và mã luật quảng cáo hai chữ số vẫn được dùng; PR áp dụng bài học sửa quy tắc theo cách này và ghi mã bài học trong mô tả PR; ADR mới sửa một phần ADR chưa `superseded` thì hợp nhất, chép lại quy tắc còn đúng và cho ADR cũ `superseded`; tài liệu quy tắc không dẫn tới hay nhắc mã ADR `superseded`; không thêm dòng vào `scripts/tests/history-refs-allow.txt`; PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào, và ghi trong mô tả PR các mã đã gỡ khỏi mỗi quy tắc.

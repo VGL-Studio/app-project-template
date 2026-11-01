@@ -347,4 +347,4 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - ADR mới sửa một phần ADR chưa `superseded` thì hợp nhất, chép lại quy tắc còn đúng và cho ADR cũ `superseded`
 - tài liệu quy tắc không dẫn tới hay nhắc mã ADR `superseded`
 - không thêm dòng vào `scripts/tests/history-refs-allow.txt`
-- PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào
+- PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào, và ghi trong mô tả PR các mã đã gỡ khỏi mỗi quy tắc
