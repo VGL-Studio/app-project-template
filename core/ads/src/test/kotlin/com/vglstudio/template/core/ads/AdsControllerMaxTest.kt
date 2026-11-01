@@ -4,7 +4,10 @@ import android.app.Application
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.vglstudio.template.core.logging.RecordingAppLogger
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
@@ -19,11 +22,14 @@ class AdsControllerMaxTest {
     private val settings = FakeRemoteSettings()
     private val platform = FakeMaxPlatform()
 
+    private val logger = RecordingAppLogger()
+
     private fun controller(config: MaxConfig) = testAdsController(
         context = application,
         flags = DefaultAdsFlags(settings),
         maxConfig = config,
         maxPlatform = platform,
+        logger = logger,
     )
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
@@ -98,6 +104,54 @@ class AdsControllerMaxTest {
         controller.reopenConsentGateForTest()
         idle()
         assertEquals(1, platform.calls)
+    }
+
+    @Test
+    fun maxUnitId_readsConfig() {
+        // Plan T-071: the MAX ad unit of each banner slot comes from the build (MaxConfig.adUnits).
+        val controller = controller(MaxConfig(FAKE_KEY, "banner=u1;banner_mrec=m2"))
+        assertEquals("u1", controller.maxUnitId(AdFormat.BANNER))
+        assertEquals("m2", controller.maxUnitId(AdFormat.BANNER_MREC))
+        assertNull(controller.maxUnitId(AdFormat.INTERSTITIAL))
+        // Control: without an SDK key, no MAX unit.
+        assertNull(controller(MaxConfig("", "banner=u1")).maxUnitId(AdFormat.BANNER))
+    }
+
+    @Test
+    fun start_keyWithoutBannerUnits_logsMissingOnce_noUnitInLog() {
+        val controller = controller(MaxConfig(FAKE_KEY, "banner=unitsecret1"))
+        controller.start(application, AppActivityFilter { true })
+        controller.start(application, AppActivityFilter { true })
+        idle()
+        val missing = logger.entries.filter { it.message.startsWith("MAX ad units missing") }
+        assertEquals(
+            listOf("MAX ad units missing for banner_mrec; those slots run without MAX"),
+            missing.map {
+                it.message
+            },
+        )
+        assertTrue(logger.entries.none { "unitsecret1" in it.message || FAKE_KEY in it.message })
+
+        // Both missing: both slots named.
+        val noUnits = RecordingAppLogger()
+        testAdsController(context = application, maxConfig = MaxConfig(FAKE_KEY), logger = noUnits)
+            .start(application, AppActivityFilter { true })
+        idle()
+        assertTrue(
+            noUnits.entries.map { it.message }.toString(),
+            noUnits.entries.any {
+                it.message ==
+                    "MAX ad units missing for banner, banner_mrec; those slots run without MAX"
+            },
+        )
+
+        // Control: without an SDK key, no such line.
+        val noKey = RecordingAppLogger()
+        testAdsController(context = application, maxConfig = MaxConfig.NONE, logger = noKey)
+            .start(application, AppActivityFilter { true })
+        idle()
+        assertTrue(noKey.entries.isNotEmpty())
+        assertTrue(noKey.entries.none { it.message.startsWith("MAX ad units missing") })
     }
 
     private companion object {
