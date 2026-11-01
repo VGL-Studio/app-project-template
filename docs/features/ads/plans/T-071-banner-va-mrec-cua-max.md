@@ -1,7 +1,7 @@
 ---
 ticket: T-071
 title: Banner và MREC của MAX
-status: approved             # draft | approved | stopped | done
+status: done             # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -335,3 +335,21 @@ Phiên bản 1:
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261031-01, phiên bản plan 3
+
+- **Kết quả:** dừng ở bước 9 (merge), không phải lỗi của plan hay code: PR #364 có `pr-check` xanh, nhưng lệnh `scripts/merge-if-green.sh 364` của phiên bị bộ phân loại quyền của môi trường từ chối (không nêu lý do). Phiên không gọi lại, không merge bằng cách khác (auto-run.md bước 9). Plan và ticket giữ `approved`, như khi lệnh đẩy bị từ chối (auto-run.md, Khi không đẩy được, ý 3): người chạy `scripts/merge-if-green.sh 364`, rồi chờ `main-guard`; xong thì ghi plan `done`, ticket `on-staging`.
+- **Nhánh, PR:** `claude/T-071-banner-mrec-max` (đầu 329c3b4, đã đẩy), PR #364.
+- **Đã làm:** đủ bước 1 tới 8 theo mục 3.1 bước 1 tới 10. 26 file, khớp mục 3.2. Commit: 1e45ae5 (test viết trước, kèm khung rỗng), f8c19bc (code), fd540b3 (test của N1), 329c3b4 (sửa N1).
+- **Test viết trước:** 49 test JVM (`PlatformBannersTest` 19, `MaxBannerAdViewTest` 9, `BannerSlotHostTest` 9, `BannerLoadsTest` 2, `BannerAdSizeTest` 2, `AdsControllerMaxTest` 2, `AdTelemetryTest` 3, `AdTelemetryRulesTest` 1, `MaxSdkStarterTest` 1, `ProductionPropertiesTest` 1) và 2 khẳng định `secret-scan` trong `scripts/tests/run.sh`; cả 49 đỏ đúng lý do trên khung rỗng, khẳng định `secret-scan` thứ nhất in `0 0 0 0` thay `1 5 0 0`. Qua ngay: khẳng định "phải qua" của `secret-scan` (đối chứng là khẳng định thứ nhất) và câu chính của `logs_neverContainUnitId` (plan G1 đã nêu; dòng đối chứng đỏ). Viết chặt thêm bằng đối chứng: 0 (mọi test đã có đối chứng từ plan). Chạy lại cách bản 2 (`merge`, `MutableSharedFlow`): đúng ba test `*_throughRunBannerLoads_*` đỏ; cách bản 3 qua. `testDebugUnitTest testStagingDebugUnitTest` trên khung rỗng: 48 đỏ ở `:core:ads`, 1 ở `:app`, đều là test mới.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 6 ghi chú, 9 lần đột biến (7 bị test bắt). N1 (nên sửa): con banner thấp hơn khung nhận chiều cao khung nên `AdView` căn giữa dọc, trái câu hỏi 4 và B-09; sửa bằng `OrderedBannerAdView(heightsDp)`, test `BannerSlotHostTest.shorterPlatform_drawnAtFrameTop_atItsOwnHeight` (đỏ `expected:<50.0.dp> but was:<62.0.dp>` trước sửa). Rà soát lại vòng 1: 0 chặn, 0 nên sửa, 3 ghi chú. Ghi chú còn để người xem: dòng nối `heightsDp` ở `AdSlot.kt` không có test JVM giữ (đột biến xóa dòng vẫn qua); nhánh bỏ kết quả giả cũ (`sendNo`) và lệnh `resumeChild` ở nhánh `Loaded` khi khung chạy không có test bắt (phòng thủ); kết quả MAX có thể bị bỏ khi AdMob đang hiện làm mới lỗi hai lần trong một lượt nạp MAX (theo chữ mục 3.1, hiếm); `-PmaxAdUnits` production chưa lọc ký tự (T-073).
+- **Kết quả CI:** `pr-check` xanh trên 329c3b4 (lần chạy 41226424017), một vòng. `scripts/check.sh` cục bộ: 1739 test JVM, 0 lỗi; 91 ảnh chuẩn không đổi; test của script qua, kể cả "this repository has no real ad IDs or keys". `realView_buildsForBannerAndMrec_rejectsCollapsible` chạy lại `--rerun` 5 lần, đều qua.
+- **Lệch so với plan:** không có file ngoài mục 3.2, không câu khẳng định cũ viết lại, không phương án dự phòng. Chi tiết test viết trước khác chữ của plan, giữ ý (trong commit test, trước khi có code; rà soát xác nhận không đổi điều test kiểm, không gắn mã L4): (1) `shownAfterPaused_isResumed`: plan ghi `resumeCount` của MAX 0 rồi 1, nhưng bước 3 đã `resume()` con trước `send()`; đối chứng viết tương đối (không đổi khi khung dừng, tăng 1 khi khung `resume()`) và thêm kiểm `isRunning`; (2) `admobOrder_withMaxKey_noMaxPlatform_heightIsAdmob` gọi `start()` để khóa remote tới `mediationOrder`; (3) `maxShown_revoked_...` kiểm view SDK giả thành `INVISIBLE` thay thẻ quảng cáo; (4) hàm phụ `newViewOverride`, `secondNewViewOverride` (`BannerSlotHostTest`), `isRunning` (`FakeBannerAdView`). Commit test fd540b3 của N1 không tự biên dịch (tham số `heightsDp` chỉ có ở 329c3b4); phiên con đã thấy test đỏ đúng lý do với tham số thêm tạm; merge squash nên nhánh chính không bị ảnh hưởng.
+- **Việc còn lại:** merge PR #364 bằng `scripts/merge-if-green.sh 364`, chờ `main-guard` (gồm `ui-test`), ghi plan `done`, ticket `on-staging`; kiểm thủ công mục 4 trên máy thật có khóa và mã MAX.
+- **Cần người xem:** merge PR #364; kiểm thủ công thêm: banner AdMob nằm sát mép trên khi khung cao hơn nó (MAX cao hơn), vì dòng nối `heightsDp` không có test JVM giữ.
+
+### Người merge 2026-11-01, phiên bản plan 3
+
+- **Kết quả:** anh Nhật duyệt: chấp nhận bốn chỗ test viết khác chữ plan (giữ ý) và quyết định dừng task của phiên; PR #364 merge bằng `scripts/merge-if-green.sh 364` (commit 329c3b4) trong phiên có người. Plan `done`, ticket `on-staging`.
+- **Kết quả CI:** `main-guard` của commit merge: xanh (lần chạy 41259089071, `guard` và `ui-test` xanh, không có issue `main-broken` hay `flaky`).
+- **Việc còn lại:** ghi chú rà soát (1) tới (3) gom vào T-085 (dọn test và luật biên của khung hai nền tảng); kiểm thủ công mục 4 trên máy thật có khóa và mã MAX, sau khi phát staging.
