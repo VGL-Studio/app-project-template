@@ -1066,7 +1066,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 18:03; PR #364.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: thêm trường hợp "lệnh `merge-if-green.sh` của phiên bị môi trường từ chối": không gọi lại dưới dạng khác, dừng task với plan và ticket giữ `approved` (không phải lỗi của plan), không bắt đầu task phụ thuộc, ghi PR vào Cần người kiểm tra để người merge, và để PR báo cáo mở. Cân nhắc gọi `merge-if-green.sh` thành một lệnh riêng (không gộp với lệnh khác) để bộ phân loại thấy rõ việc merge là bước của danh sách chạy đã duyệt.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: `docs/auto-run.md` bước 9 (gọi `merge-if-green.sh` thành lệnh riêng; lệnh merge bị môi trường từ chối thì dừng task, giữ `approved`, để người merge, task độc lập làm tiếp) và mục 4 ý 4 (PR báo cáo).
+- **Áp dụng:** PR #376: `docs/auto-run.md` bước 9 (gọi `merge-if-green.sh` thành lệnh riêng; lệnh merge bị môi trường từ chối thì dừng task, giữ `approved`, để người merge, task độc lập làm tiếp) và mục 4 ý 4 (PR báo cáo).
 
 ### L-147. Lệnh nền không đặt `timeout` bị dừng sau 30 phút, kể cả `push-on-commit.sh --minutes 180`
 
@@ -1076,7 +1076,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 17:13; đầu ra của lệnh nền kết thúc bằng `[killed]` sau dòng `ĐÃ ĐẨY ... tại f8c19bc (17:12Z)`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: chạy `push-on-commit.sh` nền với `timeout` của công cụ lớn hơn `--minutes` (tối đa 120 phút), và chạy lại khi nhận thông báo lệnh bị dừng mà phiên con chưa xong.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con (`push-on-commit.sh` nền với `timeout` lớn hơn `--minutes`, `--minutes` không quá 115, chạy lại khi bị dừng; cùng quy tắc cho mọi lệnh nền dài).
+- **Áp dụng:** PR #376: `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con (`push-on-commit.sh` nền với `timeout` lớn hơn `--minutes`, `--minutes` không quá 115, chạy lại khi bị dừng; cùng quy tắc cho mọi lệnh nền dài).
 
 ### L-148. Lệnh `rm -f $BIEN/*.bak` trong lệnh của plan bị bộ kiểm an toàn của môi trường chặn
 
@@ -1086,4 +1086,4 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** nhật ký plan T-084 (RUN-20261101-01), dòng "Lệnh của mục 4".
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan (cạnh ý về `${TMPDIR:-/tmp}` và `sleep`): lệnh đổi tạm tệp đã có trong git dùng `sed -i` không đuôi và trả về bằng `git checkout -- <tệp>`, không tạo rồi xóa tệp `.bak`; lệnh `rm` trong plan không dùng biến làm đích, hay dùng `"${BIEN:?}"`. Cân nhắc thêm quy tắc vào `scripts/plan-check.py` dò `rm` có đích bắt đầu bằng `$`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: `docs/CLAUDE.md`, mục Khi viết plan (đổi tạm tệp bằng `sed -i` không đuôi và `git checkout`, `rm` không dùng biến làm đích); không thêm quy tắc vào `scripts/plan-check.py` (lệnh trong plan là chữ tự do, dò `rm $` dễ báo nhầm; để sau nếu lặp lại).
+- **Áp dụng:** PR #376: `docs/CLAUDE.md`, mục Khi viết plan (đổi tạm tệp bằng `sed -i` không đuôi và `git checkout`, `rm` không dùng biến làm đích); không thêm quy tắc vào `scripts/plan-check.py` (lệnh trong plan là chữ tự do, dò `rm $` dễ báo nhầm; để sau nếu lặp lại).
