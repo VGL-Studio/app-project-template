@@ -10,7 +10,7 @@ risk: high
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/quy-trinh/plans/T-084-theme-co-dinh-cho-test-core-ads.md
 auto_run:
 created: 2026-10-31
 ---
