@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(os.environ.get("HISTORY_REFS_ROOT", Path(__file__).resolve().parent.parent))
 ALLOW = "scripts/tests/history-refs-allow.txt"
@@ -35,14 +36,20 @@ SKIPPED_DIRS = {".git", "build", ".gradle", "node_modules", ".idea"}
 FENCE = re.compile(r"^(\s*)(```|~~~).*?^\1\2[^\n]*$", re.S | re.M)
 CODE_SPAN = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)", re.S)
 INLINE_LINK = re.compile(r"\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
-REFERENCE_LINK = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)", re.M)
+REFERENCE_LINK = re.compile(r"^\s{0,3}\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)", re.M)
+
+
+def read(path):
+    """A file's text; a byte that is not UTF-8 is replaced, so one odd file does not stop the check."""
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def markdown_files(root):
     """Every Markdown file of a folder, relative and sorted: the tracked ones when it is a git work tree."""
     result = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", "*.md"], capture_output=True)
     if result.returncode == 0 and (root / ".git").exists():
-        return sorted(p for p in result.stdout.decode().split("\0") if p and (root / p).is_file())
+        # An unmerged path has one index entry per stage.
+        return sorted({p for p in result.stdout.decode().split("\0") if p and (root / p).is_file()})
     found = []
     for folder, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if d not in SKIPPED_DIRS]
@@ -56,7 +63,10 @@ def is_rule_document(path):
     if path.startswith("docs/adr/") or path in GENERATED or path == "docs/lessons.md":
         return False
     if path.startswith("docs/features/"):
-        return False
+        # Tickets, plans, feedback and requests are history; specs and designs keep their own history section.
+        parts = path.split("/")
+        if parts[-1] == "spec.md" or {"tickets", "plans", "feedback", "requests", "design"} & set(parts[3:-1]):
+            return False
     if path.startswith(HISTORY_DIRS):
         return path.endswith("/README.md")
     return True
@@ -66,7 +76,7 @@ def adrs(root):
     """(id, status, rule line) of every ADR of a folder."""
     result = []
     for path in sorted((root / "docs/adr").glob("[0-9][0-9][0-9][0-9]-*.md")):
-        text = path.read_text(encoding="utf-8")
+        text = read(path)
         status = re.search(r"^status:\s*(\S+)", text, re.M)
         rule = RULE.search(text)
         result.append((f"ADR-{path.name[:4]}", status.group(1) if status else "", rule.group(1) if rule else ""))
@@ -75,7 +85,7 @@ def adrs(root):
 
 def rule_texts(root):
     """(name, text) of every rule document of a folder: a path, or an ADR id for an ADR rule line."""
-    texts = [(p, (root / p).read_text(encoding="utf-8")) for p in markdown_files(root) if is_rule_document(p)]
+    texts = [(p, read(root / p)) for p in markdown_files(root) if is_rule_document(p)]
     texts += [(adr_id, rule) for adr_id, status, rule in adrs(root) if status != "superseded" and rule]
     return texts
 
@@ -125,10 +135,10 @@ def check_links(root):
     broken = []
     for path in markdown_files(root):
         source = root / path
-        for target in link_targets(source.read_text(encoding="utf-8")):
+        for target in link_targets(read(source)):
             if re.match(r"^[a-z][a-z0-9+.-]*:", target, re.I) or target.startswith(("#", "/")):
                 continue
-            file_part = target.split("#", 1)[0].split("?", 1)[0]
+            file_part = unquote(target.split("#", 1)[0].split("?", 1)[0])
             if not file_part:
                 continue
             resolved = Path(os.path.normpath(source.parent / file_part))

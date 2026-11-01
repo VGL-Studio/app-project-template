@@ -8,7 +8,9 @@
 #   --staging-assets-url  https address of the app's staging folder on R2, ending with '/'
 #
 # Only committed files of the template are copied (git archive), so build outputs and local secrets never
-# reach the new app. The template-only scripts (this one, template-sync.sh) and doc docs/ops/new-app.md are left out.
+# reach the new app. The template-only scripts (this one, template-sync.sh, history-refs.py and its allow list) and doc
+# docs/ops/new-app.md are left out, and so is the template's history: lessons, run reports, tickets and plans, the
+# token counts of its sessions and the superseded ADRs (ADR-0044).
 # The app records the template commit it was made from in docs/template-sync.txt, the base of its first sync (ADR-0030).
 # :feature:sample is kept: CLAUDE.md tells every feature to follow it.
 # Messages are in Vietnamese for the team; comments are in English.

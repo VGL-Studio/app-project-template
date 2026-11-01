@@ -2378,6 +2378,26 @@ else
 
     code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to HEAD 2>&1)" || code=$?
     expect "template-sync.sh refuses an app with uncommitted changes" "1 1" "$code $(grep -c 'chưa commit' <<< "$out")"
+
+    # An ADR the app changed and the template replaces is still removed, but the sync says so; an app's own ADR
+    # (from 1001) is never removed, even when superseded.
+    app2="$work/sync-app2"
+    # new-app.sh needs the template's own README title, which the conflict test above changed.
+    git -C "$tpl" show "$v1:README.md" > "$tpl/README.md" && git -C "$tpl" commit --quiet -am "template README back"
+    "$tpl/scripts/new-app.sh" --dest "$app2" --package com.example.notes --name "Ghi chú" \
+      --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
+    adr2="$(cd "$tpl" && ls docs/adr/0002-*.md)"
+    echo "app change" >> "$app2/$adr2"
+    printf -- '---\nid: ADR-1001\nstatus: superseded\norigin: app\n---\n' > "$app2/docs/adr/1001-rieng.md"
+    git -C "$app2" add -A && git -C "$app2" commit --quiet -m "app changes an ADR"
+    sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr2" && rm "$tpl/$adr2.bak"
+    git -C "$tpl" commit --quiet -am "template v4"
+    code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app2" --to HEAD 2>&1)" || code=$?
+    expect "template-sync.sh removes a replaced ADR the app changed, says so, and finishes" "0 1 1 absent" \
+      "$code $(grep -c '^CHÚ Ý: ADR .*app đã sửa' <<< "$out") $(grep -cx "   ADR-0002 ($adr2)" <<< "$out") $(
+        [ -e "$app2/$adr2" ] && echo present || echo absent)"
+    expect "template-sync.sh never removes an ADR of the app" present \
+      "$([ -e "$app2/docs/adr/1001-rieng.md" ] && echo present || echo absent)"
     exit "$failures"
   ) || failures=$((failures + $?))
 fi
@@ -3948,6 +3968,24 @@ else
     "$code $(grep -c 'a.md: missing.md' <<< "$out") $(grep -c '^   ' <<< "$out")"
   expect "history-refs --mentions: lists rule documents that name a removed ADR" "   docs/mention.md: ADR-0002" \
     "$(python3 -I scripts/history-refs.py --mentions "$hr" ADR-0002)"
+  mkdir -p "$hr/docs/features"
+  printf 'Hướng dẫn (L-124).\n' > "$hr/docs/features/README.md"
+  code=0; out="$(history_refs)" || code=$?
+  expect "history-refs: a guide in docs/features that is not a spec, design or ticket is a rule document" "1 1" \
+    "$code $(grep -cx '   docs/features/README.md: L-124' <<< "$out")"
+  rm "$hr/docs/features/README.md"
+  # A file that is not UTF-8 and a file in a merge conflict (one index entry per stage) are each listed once.
+  cr="$work/history-conflict"
+  git init -q -b main "$cr" && mkdir -p "$cr/docs"
+  printf 'a\n' > "$cr/docs/x.md" && git -C "$cr" add -A && git -C "$cr" commit -q -m a
+  git -C "$cr" switch -q -c other && printf 'b ADR-0005\n' > "$cr/docs/x.md" && git -C "$cr" commit -q -am b
+  git -C "$cr" switch -q main && printf 'c ADR-0005\n' > "$cr/docs/x.md" && git -C "$cr" commit -q -am c
+  git -C "$cr" merge -q other > /dev/null 2>&1 || true
+  printf 'Theo ADR-0005, caf\xe9.\n' > "$cr/docs/latin.md"
+  git -C "$cr" add docs/latin.md
+  code=0; out="$(python3 -I scripts/history-refs.py --mentions "$cr" ADR-0005 2>&1)" || code=$?
+  expect "history-refs --mentions: a conflicted file once, a file that is not UTF-8 read" "0 1 1" \
+    "$code $(grep -cx '   docs/x.md: ADR-0005' <<< "$out") $(grep -cx '   docs/latin.md: ADR-0005' <<< "$out")"
   expect "history-refs: the rule documents of this repo are clean or in the allow list" 0 \
     "$(python3 -I scripts/history-refs.py > /dev/null; echo $?)"
 fi
