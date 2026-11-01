@@ -21,7 +21,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.android.gms.ads.nativead.NativeAdView
-import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
@@ -47,7 +46,7 @@ class NativeAdSlotTest {
 
     private fun setSlotContent(state: NativeAdState, size: NativeAdSize, keepSpaceWhenEmpty: Boolean = false) {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdSlotContent(
                     state = state,
                     size = size,
@@ -69,7 +68,7 @@ class NativeAdSlotTest {
     fun unavailable_takesNoSpace() {
         var state by mutableStateOf<NativeAdState>(NativeAdState.Loading)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdSlotContent(
                     state = state,
                     size = NativeAdSize.SMALL,
@@ -91,7 +90,7 @@ class NativeAdSlotTest {
     fun unavailable_keepsSpace_whenDeclaredNextToButton() {
         var size by mutableStateOf(NativeAdSize.SMALL)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdSlotContent(
                     state = NativeAdState.Unavailable,
                     size = size,
@@ -114,7 +113,7 @@ class NativeAdSlotTest {
     fun buttonDoesNotMove_whenAdBecomesUnavailable_withKeptSpace() {
         var state by mutableStateOf<NativeAdState>(NativeAdState.Loading)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 Column {
                     NativeAdSlotContent(
                         state = state,
@@ -142,7 +141,7 @@ class NativeAdSlotTest {
     @Test
     fun withoutAdsController_takesNoSpace() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdSlot(AdPlacement.SAMPLE_NATIVE_SMALL, Modifier.width(CARD_WIDTH).testTag(SLOT))
             }
         }
@@ -186,7 +185,7 @@ class NativeAdSlotTest {
         val states = nativeAdStates(loader, "unit", NativeAdSize.SMALL, 10_000, RecordingAppLogger(), "key")
         var shown by mutableStateOf(true)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 if (shown) {
                     NativeAdSlotHost(
                         states = states,
@@ -217,7 +216,7 @@ class NativeAdSlotTest {
         val binds = mutableListOf<Pair<LoadedNativeAd, NativeAdView>>()
         var frames = 0
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdSlotContent(
                     state = state,
                     size = NativeAdSize.SMALL,
@@ -252,7 +251,7 @@ class NativeAdSlotTest {
     @Test
     fun boundNativeAd_withFakeAd_drawsCard() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 BoundNativeAd(FakeLoadedNativeAd(sampleNativeAdAssets), NativeAdSize.SMALL, Modifier.width(CARD_WIDTH))
             }
         }
@@ -265,7 +264,7 @@ class NativeAdSlotTest {
         // One constant for the drawn bottom slot and the space kept for it (D-02, D-04, AR-02).
         assertEquals(80f, NativeAdDimens.BottomSlotHeight.value, 0.5f)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 Column {
                     NativeAdCard(sampleNativeAdAssets, NativeAdSize.SMALL, Modifier.width(CARD_WIDTH))
                     NativeAdPlaceholder(NativeAdSize.SMALL, Modifier.width(CARD_WIDTH), animated = false)
@@ -309,7 +308,7 @@ class NativeAdSlotTest {
         allowed: () -> Boolean = { true },
     ) {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdSlotGate(
                     allowed = allowed(),
                     states = states,
@@ -375,7 +374,7 @@ class NativeAdSlotTest {
 
     private fun setBottomSlot(feed: FakeNativeFeed, reports: MutableList<Boolean>) {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 BottomNativeSlotHost(
                     allowed = true,
                     newStates = { feed.states() },
@@ -415,7 +414,7 @@ class NativeAdSlotTest {
     /** Builds the bar with a native slot that records the first refresh delay it asks its stream for. */
     private fun setBarRecordingDelay(collapsible: () -> Boolean, feed: FakeNativeFeed, asked: MutableList<Long>) {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 BottomAdBarHost(
                     layers = BottomAdBarLayers(BottomSlotKind.NATIVE, collapsible = collapsible()),
                     nativeSlot = { delay, onAvailability, modifier ->

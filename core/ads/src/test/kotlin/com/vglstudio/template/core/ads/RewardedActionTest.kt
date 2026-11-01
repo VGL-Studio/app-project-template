@@ -37,7 +37,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdMetricEvent
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
-import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import java.time.Duration
@@ -87,7 +86,7 @@ class RewardedActionTest {
 
     @Composable
     private fun Subject(dark: Boolean = false, lines: Int = 1, flow: Flow<Boolean> = enabled) {
-        AppTheme(darkTheme = dark) {
+        AdsTestTheme(darkTheme = dark) {
             scheme = MaterialTheme.colorScheme
             val current = rememberRewardedActionWith(
                 placement = AdPlacement.GALLERY_RW_ACTION,
@@ -340,7 +339,7 @@ class RewardedActionTest {
     @Test
     fun noController_start_runsActionAtOnce() {
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val current = rememberRewardedAction(AdPlacement.GALLERY_RW_ACTION, onGranted = { granted++ })
                 action = current
                 RewardedAdDialog(current, title = TITLE)
@@ -390,7 +389,7 @@ class RewardedActionTest {
     fun policyOverride_galleryPlacement_isAccepted() {
         // Control of the test above: the gallery placement takes an override through the public entry.
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val current = rememberRewardedAction(
                     AdPlacement.GALLERY_RW_ACTION,
                     onGranted = { granted++ },
@@ -526,7 +525,7 @@ class RewardedActionTest {
         val second = mutableListOf<(RewardedOutcome) -> Unit>()
         val actions = mutableListOf<RewardedAction>()
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 listOf(first, second).forEach { calls ->
                     val current = rememberRewardedActionWith(
                         placement = AdPlacement.GALLERY_RW_ACTION,
@@ -885,7 +884,7 @@ class RewardedActionTest {
     private fun setRealContent(controller: AdsController, override: RewardedNoAdPolicy? = null) {
         composeRule.setContent {
             AdsHost(controller) {
-                AppTheme {
+                AdsTestTheme {
                     val current = rememberRewardedAction(
                         AdPlacement.GALLERY_RW_ACTION,
                         onGranted = { granted++ },

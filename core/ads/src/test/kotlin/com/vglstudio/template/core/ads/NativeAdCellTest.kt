@@ -24,7 +24,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -75,7 +74,7 @@ class NativeAdCellTest {
         ).also { it.refill() }
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 Column {
                     listOf("cell_a" to shared, "cell_b" to shared, "cell_c" to single, "cell_d" to single)
                         .forEach { (tag, pool) ->
@@ -113,7 +112,7 @@ class NativeAdCellTest {
     fun exhausted_takesNoSpace() {
         val states = MutableStateFlow<NativeAdState>(NativeAdState.Loading)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdCellHost(
                     states = states,
                     size = NativeAdSize.MEDIUM,
@@ -137,7 +136,7 @@ class NativeAdCellTest {
     fun exhausted_keepSpaceDeclared_showsStaticPlaceholder() {
         val seen = mutableListOf<NativeAdState>()
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 NativeAdCellHost(
                     states = remember { flowOf(NativeAdState.Loading, NativeAdState.Unavailable) },
                     size = NativeAdSize.MEDIUM,
@@ -167,7 +166,7 @@ class NativeAdCellTest {
         assertEquals(NativeAdSize.CARD, card)
         assertEquals(NativeAdSize.MEDIUM, medium)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 Column {
                     listOf(
                         Triple("card", card, 180.dp),
@@ -197,7 +196,7 @@ class NativeAdCellTest {
         assertThrows(IllegalArgumentException::class.java) { requireCellFormat(AdFormat.NATIVE_SMALL) }
         assertThrows(IllegalArgumentException::class.java) { requireCellFormat(AdFormat.BANNER) }
         val error = runCatching {
-            composeRule.setContent { AppTheme { NativeAdCell(AdPlacement.SAMPLE_NATIVE_SMALL) } }
+            composeRule.setContent { AdsTestTheme { NativeAdCell(AdPlacement.SAMPLE_NATIVE_SMALL) } }
             composeRule.waitForIdle()
         }.exceptionOrNull()
         assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
@@ -212,7 +211,7 @@ class NativeAdCellTest {
     ) {
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val state = rememberPagerState(pageCount = { pages })
                 val scope = rememberCoroutineScope()
                 onPager(state, scope)
@@ -288,7 +287,7 @@ class NativeAdCellTest {
         val viewed = mutableMapOf<Int, Boolean>()
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 val state = rememberPagerState(pageCount = { 3 })
                 pager = state
                 scope = rememberCoroutineScope()
@@ -318,7 +317,7 @@ class NativeAdCellTest {
         val loading = mutableListOf<String>()
         var shown by mutableStateOf(true)
         composeRule.setContent {
-            AppTheme {
+            AdsTestTheme {
                 if (shown) {
                     Column {
                         listOf(
