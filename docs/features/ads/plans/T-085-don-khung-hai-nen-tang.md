@@ -1,16 +1,16 @@
 ---
 ticket: T-085
 title: Dọn test và luật biên của khung banner hai nền tảng
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 7.3M         # cỡ S, số gợi ý 7.3M của scripts/token-usage.py estimate (2026-11-01, trung vị 18 task S); không chỉnh
 blocking_points: [core, ads]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-01
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -53,7 +53,7 @@ Chỉ sửa `OrderedBannerAdView` trong `PlatformBanners.kt` và test của nó;
    - Không đổi `runBannerLoads`: bước xả vẫn cần cho banner một nền tảng và kết quả cũ trước một yêu cầu mới (`BannerLoadsTest.staleResultBeforeStart_isIgnored`); sửa ở đó ảnh hưởng mọi banner (phương án D của câu hỏi 1, không đề xuất).
    - Lối thoát khi con chờ không trả lời: không có bằng chứng rằng con `pending` luôn trả lời (rà soát độc lập nêu hai đường có thể mất câu trả lời: `tryEmit` của `SharedFlow` không phát lại cho người thu đến muộn, và `stopAutoRefresh()` giữa lượt nạp). Vì vậy khung chỉ giữ một lỗi mỗi lượt gửi: con đang hiện làm mới lỗi lần nữa thì `Failed` đi qua, `runBannerLoads` tính lỗi, chờ theo B-02 rồi gửi lượt mới (lượt mới ghi đè `pending` và đặt lại `heldFailures`). Điều đã biết, đo ở mục 4.1: với bản B thuần (giữ mọi lỗi), MAX chờ không trả lời và AdMob làm mới lỗi 5 lần trong khoảng 55 giây thì vòng gửi đứng ở `receive()` (`failures` 1, MAX 2 lượt gửi); với bản giữ tối đa một lỗi, cùng ca cho `failures` 3, MAX 4 lượt gửi, vòng gửi chạy tiếp; code hiện tại cho `failures` 6, MAX 7 lượt gửi. Con đang hiện không làm mới lỗi lần hai (ví dụ nó đã dừng) thì vòng gửi chờ câu trả lời của con `pending` như hôm nay, không tệ hơn code hiện tại. Lần thu bị hủy giữa chừng (khung thôi `ACTIVE`) thì vòng mới bắt đầu bằng một lượt gửi, đặt lại `pending`.
    - KDoc của lớp, gạch "The refreshes of the child shown pass through (Failed is retried from the first platform)" thành: "The refreshes of the child shown pass through (Failed is retried from the first platform), except the first Failed of a send while another child asked has not answered: that answer decides the turn; a second Failed of the same send passes, so a child that never answers does not stop the retries (B-09)".
-   - `docs/ops/ads-business-rules.md`, dòng B-09: thêm vế sau "lượt thử lại bắt đầu lại từ nền tảng thứ nhất": "; nền tảng đang hiện làm mới lỗi trong lúc lượt thử lại còn chờ nền tảng khác thì lần lỗi đầu của lượt đó không tính, kết quả của lượt đang chờ quyết định; lần lỗi thứ hai trong cùng lượt tính như một lần lỗi của B-02, để lượt chờ không trả lời không làm ngừng thử lại (T-085)".
+   - `docs/ops/ads-business-rules.md`, dòng B-09: thêm vế sau "lượt thử lại bắt đầu lại từ nền tảng thứ nhất": "; nền tảng đang hiện làm mới lỗi trong lúc lượt thử lại còn chờ nền tảng khác thì lần lỗi đầu của lượt đó không tính, kết quả của lượt đang chờ quyết định; lần lỗi thứ hai trong cùng lượt tính như một lần lỗi của B-02, để lượt chờ không trả lời không làm ngừng thử lại; khi đó kết quả của lượt đang chờ có thể bị bỏ và lượt sau gửi lại, như trước T-085 (T-085)". Mục 3.1 bước 3 hiểu như vậy: đây là cái giá của lối thoát mà anh Nhật đã chọn (câu hỏi 1), đã đo ở mục 4.1 (hai lỗi làm mới trong một lượt chờ rồi MAX nạp được: `loads` 1, `failures` 2, MAX 3 lượt gửi; rà soát lại, 2026-11-01).
 4. **Ghi chú 6, chú thích ở dòng 174 đến 175**: chú thích nói "A platform shorter than the frame takes its own height", nhưng code cho mọi nền tảng có chiều cao trong `heightsDp` vẽ ở chiều cao của nó, không chỉ nền tảng thấp hơn khung, và nền tảng không có chiều cao nhận `modifier` của khung (đúng như KDoc dòng 87, 88). Chú thích mới: "// A platform with a height in heightsDp is drawn at that height, full width, at the top of the frame (B-09): an AdView of AdMob given the height of a taller frame would centre its ad in it. A platform without one takes the frame's modifier." Chỉ đổi chú thích, không đổi code.
 
 ### 3.2. Danh sách file
@@ -77,7 +77,7 @@ Không tạo, không sửa ảnh chuẩn. `FakeBannerAdView.kt`, `BannerLoadsTes
 
 ### 3.4. Phương án dự phòng
 
-Không có. Bản thử của bước 2, 3 đã chạy trên máy dev: 1347 test của `:core:ads` qua (mục 4.1).
+Không có. Bản thử 2 của bước 2, 3 (giữ tối đa một lỗi) đã chạy trên máy dev: 1343 test của `:core:ads` qua (mục 4.1).
 
 ### 3.5. Hành vi đã có bị đổi
 
@@ -86,7 +86,7 @@ Không có. Bản thử của bước 2, 3 đã chạy trên máy dev: 1347 test
 | Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
 | Con vừa nạp khi khung chạy được `resumeChild` ở nhánh `Loaded` (thừa: `send()` đã chạy nó) | Bước 2: bỏ lệnh; con vẫn chạy nhờ `send()` hay `resume()` của khung | `PlatformBannersTest.shownAfterPaused_isResumed` (`max.resumeCount` 1, `max.isRunning`), `singleChild_pausedWhileLoading_resumedThenLoaded_runs`, `BannerSlotHostTest.covered_maxShown_stopsAutoRefresh_uncovered_starts` | Giữ: đều qua với bản thử đã bỏ lệnh (mục 4.1) |
-| Con đang hiện làm mới lỗi khi con khác còn chờ: khung phát `Failed` | Bước 3: lỗi đầu của lượt gửi không phát, kết quả của con chờ quyết định; lỗi thứ hai của cùng lượt phát `Failed` như cũ | Không test nào dựng ca này (đo: 1347 test qua với bản thử). `refreshOfShown_passesThrough_otherIgnored` kiểm lỗi làm mới khi không có con chờ; `firstShownRefreshFails_isFailed_notTryNext` kiểm con thứ nhất đang hiện | Giữ cả hai: ca của chúng không có con chờ khác con đang hiện |
+| Con đang hiện làm mới lỗi khi con khác còn chờ: khung phát `Failed` | Bước 3: lỗi đầu của lượt gửi không phát, kết quả của con chờ quyết định; lỗi thứ hai của cùng lượt phát `Failed` như cũ | Không test nào dựng ca này (đo: 1343 test qua với bản thử 2). `refreshOfShown_passesThrough_otherIgnored` kiểm lỗi làm mới khi không có con chờ; `firstShownRefreshFails_isFailed_notTryNext` kiểm con thứ nhất đang hiện | Giữ cả hai: ca của chúng không có con chờ khác con đang hiện |
 | `runBannerLoads` bỏ kết quả còn trong hộp thư khi gửi yêu cầu mới | Không đổi | `BannerLoadsTest.staleResultBeforeStart_isIgnored`, `tryNext_sendsAtOnce_noFailureCounted_noOnFailed` | Giữ |
 | Nhánh `sendNo`, nhánh dừng MAX khi khung dừng | Không đổi code, thêm test | Không có (đột biến sống sót) | Test mới ở mục 4 |
 | Chú thích trong `Content` nói hẹp hơn code | Bước 4: chỉ đổi chú thích, code vẽ giữ nguyên | `BannerSlotHostTest.shorterPlatform_drawnAtFrameTop_atItsOwnHeight` (nhóm "Cần xem trước" của `existing-tests.py`: đo vị trí, kích thước) | Giữ: code vẽ không đổi |
@@ -175,9 +175,9 @@ Không bắt buộc (E dưới 2); ghi lại các lần đo của ghi chú 1, 2,
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-01 (anh Nhật chọn "Giữ ads, duyệt"), sau khi trả lời câu hỏi 1 tới 4 (như ghi ở mục 8: ghi chú 3 theo "B, giữ tối đa 1 lỗi"; bỏ `resumeChild` thừa; ngoại lệ viết test trước cho hai test giữ hành vi; giữ `blocking_points: [core, ads]`). Rà soát độc lập: vòng 1: 0 chặn, 1 nên sửa, 4 ghi chú, đã xử lý; rà soát lại (commit cf38b0d8): 0 chặn, 0 nên sửa, 4 ghi chú, đã làm (câu về kết quả bị bỏ khi lỗi thứ hai đi qua; số test của bản thử 2; điểm B hạ xuống 1 đúng `risk-scoring.md`). Giữ `version: 1` vì bản 1 chưa từng được duyệt; mọi phần sửa trước khi duyệt nằm trong cùng bản. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
 
