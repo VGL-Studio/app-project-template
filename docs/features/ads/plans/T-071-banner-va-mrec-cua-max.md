@@ -1,7 +1,7 @@
 ---
 ticket: T-071
 title: Banner và MREC của MAX
-status: approved             # draft | approved | stopped | done
+status: done             # draft | approved | stopped | done
 version: 3                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -348,3 +348,8 @@ Phiên bản 1:
 - **Việc còn lại:** merge PR #364 bằng `scripts/merge-if-green.sh 364`, chờ `main-guard` (gồm `ui-test`), ghi plan `done`, ticket `on-staging`; kiểm thủ công mục 4 trên máy thật có khóa và mã MAX.
 - **Cần người xem:** merge PR #364; kiểm thủ công thêm: banner AdMob nằm sát mép trên khi khung cao hơn nó (MAX cao hơn), vì dòng nối `heightsDp` không có test JVM giữ.
 
+### Người merge 2026-11-01, phiên bản plan 3
+
+- **Kết quả:** anh Nhật duyệt: chấp nhận bốn chỗ test viết khác chữ plan (giữ ý) và quyết định dừng task của phiên; PR #364 merge bằng `scripts/merge-if-green.sh 364` (commit 329c3b4) trong phiên có người. Plan `done`, ticket `on-staging`.
+- **Kết quả CI:** `main-guard` của commit merge: xanh (lần chạy 41259089071, `guard` và `ui-test` xanh, không có issue `main-broken` hay `flaky`).
+- **Việc còn lại:** ghi chú rà soát (1) tới (3) gom vào T-085 (dọn test và luật biên của khung hai nền tảng); kiểm thủ công mục 4 trên máy thật có khóa và mã MAX, sau khi phát staging.

@@ -1065,7 +1065,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** PR #364 có `pr-check` xanh (lần chạy 41226424017). Lệnh của phiên chính gộp đọc kết quả `wait-run.sh` với `scripts/merge-if-green.sh 364` bị bộ phân loại quyền của auto mode từ chối, không nêu lý do ("The server-side auto mode classifier judged this action dangerous"). L-070 và L-081 chỉ nói về lệnh đẩy; `auto-run.md` bước 9 chỉ nói khi chính script từ chối ("dừng task, ghi lý do"), không nói khi môi trường chặn lệnh merge. Phiên làm theo cách gần nhất: không gọi lại, không merge cách khác, dừng task ở bước 9, giữ plan và ticket `approved` như "Khi không đẩy được" ý 3, báo người qua thông báo. Không chạy được `device-session` và `staging` vì không có task merge; PR báo cáo cũng cần `merge-if-green.sh` nên để người merge.
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 18:03; PR #364.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: thêm trường hợp "lệnh `merge-if-green.sh` của phiên bị môi trường từ chối": không gọi lại dưới dạng khác, dừng task với plan và ticket giữ `approved` (không phải lỗi của plan), không bắt đầu task phụ thuộc, ghi PR vào Cần người kiểm tra để người merge, và để PR báo cáo mở. Cân nhắc gọi `merge-if-green.sh` thành một lệnh riêng (không gộp với lệnh khác) để bộ phân loại thấy rõ việc merge là bước của danh sách chạy đã duyệt.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted
+- **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
 
 ### L-147. Lệnh nền không đặt `timeout` bị dừng sau 30 phút, kể cả `push-on-commit.sh --minutes 180`
 
@@ -1074,4 +1075,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên chính chạy nền `scripts/push-on-commit.sh claude/T-071-banner-mrec-max --minutes 180` mà không đặt `timeout` của công cụ; công cụ dừng lệnh sau giới hạn mặc định 30 phút (`killed`), dù script còn 150 phút. Không mất commit (hai commit đã đẩy trước đó), phiên chạy lại với `timeout` dài. Lệnh nền của công cụ có giới hạn tối đa khoảng 2 giờ, nên `--minutes` lớn hơn cũng bị cắt.
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 17:13; đầu ra của lệnh nền kết thúc bằng `[killed]` sau dòng `ĐÃ ĐẨY ... tại f8c19bc (17:12Z)`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: chạy `push-on-commit.sh` nền với `timeout` của công cụ lớn hơn `--minutes` (tối đa 120 phút), và chạy lại khi nhận thông báo lệnh bị dừng mà phiên con chưa xong.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted
+- **Áp dụng:** Nhật nhận ngày 2026-11-01; chưa làm (`/lesson`).
