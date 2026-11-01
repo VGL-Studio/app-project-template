@@ -189,7 +189,13 @@ if [ -z "$take" ]; then
         if [ "$in_index" -eq 1 ]; then
           changed_adrs+="   $id ($adr)"$'\n'
         else
-          changed_adrs+="   $id ($adr; phần sửa của app có thể đã sang ADR mới thay nó, xem git status)"$'\n'
+          moved_to="$(git -C "$app" diff --cached -M --name-status HEAD |
+            awk -F '\t' -v old="$adr" '$1 ~ /^R/ && $2 == old { print $3 }')"
+          if [ -n "$moved_to" ]; then
+            changed_adrs+="   $id ($adr; phần sửa của app đã gộp vào ADR mới $moved_to, bỏ khỏi đó nếu không thuộc dự án mẫu)"$'\n'
+          else
+            changed_adrs+="   $id ($adr; phần sửa của app có thể đã gộp vào ADR mới thay nó, xem git show HEAD -- docs/adr/)"$'\n'
+          fi
         fi
       fi
     fi
@@ -205,7 +211,7 @@ if [ "${#removed_adrs[@]}" -gt 0 ]; then
 fi
 print_removed_adrs() {
   if [ -n "$changed_adrs" ]; then
-    echo "CHÚ Ý: ADR của dự án mẫu mà app đã sửa, bị xóa vì mẫu đã thay (ghi phần sửa của app vào mô tả PR):"
+    echo "CHÚ Ý: ADR của dự án mẫu mà app đã sửa, bị xóa hay gộp vào ADR mới vì mẫu đã thay (ghi phần sửa của app vào mô tả PR):"
     printf '%s' "$changed_adrs"
   fi
   if [ -n "$stale_mentions" ]; then

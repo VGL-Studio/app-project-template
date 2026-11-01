@@ -2410,7 +2410,7 @@ else
     expect "template-sync.sh says so for a changed ADR replaced before the app's base" 1 \
       "$(grep -cx "   ADR-0022 ($adr22)" <<< "$out")"
     expect "template-sync.sh says so when the app's change may have moved into the merged ADR" 1 \
-      "$(grep -c "^   ADR-0003 ($adr3; .*ADR mới" <<< "$out")"
+      "$(grep -c "^   ADR-0003 ($adr3; .*gộp vào ADR mới docs/adr/0099-hop-nhat\.md," <<< "$out")"
 
     # When the list of mentions cannot be made, the sync still finishes and says how to make it.
     app3="$work/sync-app3"
