@@ -1,12 +1,12 @@
 ---
 id: ADR-0036
 title: Quảng cáo lệch có chủ đích khỏi PARTNER ở bốn điểm học từ JBase, ghi rõ trong luật nghiệp vụ
-status: accepted             # proposed | accepted | superseded
+status: superseded           # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-29
 deciders: [Nhật]
 supersedes:                  # thay luật D-04 và danh sách định dạng MC-02 của docs/ops/ads-business-rules.md; bổ sung ADR-0026, không thay ADR nào
-superseded_by:
+superseded_by: ADR-0045
 ---
 
 # ADR-0036: QUẢNG CÁO LỆCH CÓ CHỦ ĐÍCH KHỎI PARTNER Ở BỐN ĐIỂM HỌC TỪ JBASE

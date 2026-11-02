@@ -1,12 +1,12 @@
 ---
 id: ADR-0038
 title: Nghiệp vụ quảng cáo lấy JBase làm chuẩn; chỗ JBase không có thì giữ PARTNER, chỗ JBase sai thì không theo
-status: accepted             # proposed | accepted | superseded
+status: superseded           # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-29
 deciders: [Nhật]
 supersedes:                  # bổ sung ADR-0026 (thay chuẩn đối chiếu ở mục "Cách đọc" của docs/ops/ads-business-rules.md); thay luật K-02, K-03, CL-03, S-03, S-12 (phần CACHED_EARLY), B-01 và bảng kích thước 5.7 cho ba biến thể native
-superseded_by:
+superseded_by: ADR-0045
 ---
 
 # ADR-0038: NGHIỆP VỤ QUẢNG CÁO LẤY JBASE LÀM CHUẨN
