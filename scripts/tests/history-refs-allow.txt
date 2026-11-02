@@ -3,8 +3,6 @@
 .claude/skills/merge-pr/SKILL.md
 .claude/skills/run-list/SKILL.md
 .claude/skills/write-plan/SKILL.md
-CLAUDE.md
-docs/CLAUDE.md
 docs/README.md
 docs/auto-run.md
 docs/ops/ads-business-rules.md
