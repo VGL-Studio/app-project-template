@@ -1,13 +1,13 @@
 ---
 id: T-086
-title: Nạp sẵn native nhỏ ở đáy và native thu gọn
+title: Kho nạp sẵn cho native nhỏ và native thu gọn
 feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-33]
 owner: Nhật
 status: backlog
 risk: high
-size: M
+size: L
 depends_on: []
 sprint:
 plan:
@@ -15,18 +15,20 @@ auto_run:
 created: 2026-11-02
 ---
 
-# T-086: NẠP SẴN NATIVE NHỎ Ở ĐÁY VÀ NATIVE THU GỌN
+# T-086: KHO NẠP SẴN CHO NATIVE NHỎ VÀ NATIVE THU GỌN
 
 ## Mô tả
 
-Native nhỏ ở khe đáy và lớp native thu gọn vào kế hoạch nạp sẵn như interstitial, app open và các pool native. Người dùng vào màn đầu tiên có thanh đáy thấy quảng cáo ngay, không phải chờ một yêu cầu gửi lúc màn vào (KB-33, câu hỏi 53).
+Native nhỏ một quảng cáo (thanh đáy và khe đứng riêng) và lớp native thu gọn lấy quảng cáo từ một kho nạp sẵn theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn. Người dùng vào màn nào có các khe này cũng thấy quảng cáo ngay, không chờ yêu cầu gửi lúc màn vào (KB-33, câu hỏi 53, 55).
 
 ## Phạm vi
 
-- Thêm một `PreloadSlot` cho mỗi khe một quảng cáo (`NATIVE_SMALL`, `NATIVE_COLLAPSIBLE`) bên cạnh `FullScreenPreloadSlot` và `NativePoolPreloadSlot` (`AdsController.kt`, `PreloadPlanRunner.kt`); khe chỉ nạp khi vị trí thanh đáy đang bật, khe đáy là native (`is_show_native_bottom`), lớp thu gọn bật (`is_show_native_collap`), cổng đồng ý mở và không có cổng không hiện quảng cáo (KB-30).
-- Kế hoạch mặc định (`defaultPreloadPlan`) có hai khe này ở nhóm sau nhóm đầu; `nativeOnly()` (nạp bù khi Activity quay lại, S-25) có chúng.
-- Thanh đáy (`BottomAdBar.kt`, `CollapsibleNativeAd.kt`, `NativeAdSource.kt`) lấy quảng cáo đã nạp sẵn khi màn vào; lấy ra thì khe nạp cái tiếp theo (O-01); quảng cáo quá 55 phút thì bỏ (O-04). Vị trí của số liệu theo PL-02 và mục 8 (Ghi số liệu) của `ads-business-rules.md`.
-- Sửa `docs/ops/ads-business-rules.md` (S-22, HD-02, mục 5.7, CL-01) và `docs/ops/ads-guide.md` cho khớp.
+- Kho theo `(định dạng, mã đơn vị)` cho `NATIVE_SMALL` và `NATIVE_COLLAPSIBLE`, như khóa của pool (`NativePoolKey`), một `PreloadSlot` cho mỗi kho bên cạnh `FullScreenPreloadSlot` và `NativePoolPreloadSlot` (`AdsController.kt`, `NativeAdSources.kt`, `NativeAdSource.kt`). Kho chỉ nạp khi còn vị trí dùng nó đang bật, cổng đồng ý mở, không có cổng không hiện quảng cáo (KB-30); kho `native_collap` thêm điều kiện `is_show_native_bottom` và `is_show_native_collap`.
+- Kế hoạch mặc định: `NATIVE_SMALL` đã có trong kế hoạch nhưng chưa có khe; `NATIVE_COLLAPSIBLE` phải suy ra từ các vị trí thanh đáy (`defaultPreloadPlan`, `AdPreloadPlan.kt`). Cả hai ở nhóm sau nhóm đầu.
+- Khe một quảng cáo lấy từ kho trước khi gửi yêu cầu riêng; lấy ra thì kho nạp cái kế (O-01); quảng cáo trong kho không bị hủy khi rời màn (ngoại lệ của O-03), quá 55 phút thì bỏ (O-04). Vòng làm mới (`NativeAdRefresh.kt`) và quảng cáo chờ của lớp thu gọn giữ cách hiện tại hay lấy từ kho: plan quyết, ghi lý do.
+- Số liệu: lượt nạp của kho ghi `preload`, doanh thu ghi vị trí của màn lấy (PL-02, PL-03).
+- Vị trí chỉ có ở staging (`gallery_*`): dùng chung kho theo mã đơn vị nên không thêm yêu cầu; plan kiểm lại.
+- Sửa `docs/ops/ads-business-rules.md` (S-22, cả câu "mặc định một nhóm" đã lệch code; HD-02; O-01, O-03; mục 5.7; CL-01) và `docs/ops/ads-guide.md`.
 
 **Không bao gồm:**
 
@@ -35,7 +37,7 @@ Native nhỏ ở khe đáy và lớp native thu gọn vào kế hoạch nạp s�
 
 ## Rủi ro sơ bộ
 
-Module core, quảng cáo (điểm chặn 1 và 7 của `risk-scoring.md`): đổi kế hoạch nạp sẵn và đường lấy quảng cáo của thanh đáy, dễ sinh hai chỗ cùng giữ một quảng cáo hay quảng cáo nạp mà không hiện. Không thêm SDK, quyền, sự kiện.
+Module core, quảng cáo (điểm chặn 1 và 7 của `risk-scoring.md`): đổi vòng đời nguồn native và kế hoạch nạp sẵn, dễ sinh hai chỗ cùng giữ một quảng cáo, quảng cáo nạp mà không hiện, hay rò quảng cáo khi kho không được hủy. Đổi luật đã chốt O-03. Không thêm SDK, quyền, sự kiện. Cỡ L: nếu plan thấy không xong trong một lượt thì tách (kho native nhỏ trước, lớp thu gọn sau).
 
 ## Định nghĩa hoàn thành
 
