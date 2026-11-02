@@ -19,11 +19,11 @@ created: 2026-11-02
 
 ## Mô tả
 
-Banner cố định và banner MREC thôi dựa vào tự làm mới của đơn vị AdMob và MAX: `:core:ads` tải lại cả khung hai nền tảng theo `time_reload_banner` và `time_reload_banner_mrec` (mặc định 60 giây), cùng cơ chế với banner thu gọn sau T-087. Ticket làm KB-34 cho hai lớp này (câu hỏi 52).
+Banner cố định và banner MREC thôi dựa vào tự làm mới của đơn vị AdMob và MAX: `:core:ads` tải lại cả khung hai nền tảng theo `time_reload_banner` và `time_reload_banner_mrec` (mặc định 60 giây), cùng cơ chế với banner thu gọn sau T-087. Ticket làm KB-34 tiêu chí 1 tới 6 cho hai lớp này, tiêu chí 5 trọn vẹn (câu hỏi 52).
 
 ## Phạm vi
 
-- `BannerLoads.kt`: `BANNER` và `BANNER_MREC` tải lại tay, nhịp đọc từ khóa của định dạng; mỗi lượt qua cổng đồng ý, chỉ ở foreground, không khi bị che (B-05, B-07), lượt tới hạn trong lúc bị che gửi một lần khi màn che đóng; khóa là 0 thì vẫn thử lại sau lỗi tới khi có quảng cáo. Tách "ai làm mới" khỏi "yêu cầu thu gọn": hôm nay `bannerAdRequest(MANUAL)` (`BannerAdView.kt`) gắn `collapsible=bottom` và `collapsible_request_id`, banner cố định và MREC không được thành banner thu gọn; sửa chú thích ở `AdSlot.kt` theo.
+- `BannerLoads.kt`: `BANNER` và `BANNER_MREC` tải lại tay, nhịp đọc từ khóa của định dạng, theo dõi được như T-087 (giá trị mới áp từ nhịp sau, 0 sang dương và dương sang 0 theo KB-34 tiêu chí 3); mỗi lượt qua cổng đồng ý, chỉ ở foreground, không khi bị che (B-05, B-07), lượt tới hạn trong lúc bị che gửi một lần khi màn che đóng; khóa là 0 thì vẫn thử lại sau lỗi tới khi có quảng cáo. Tách "ai làm mới" khỏi "yêu cầu thu gọn": hôm nay `bannerAdRequest(MANUAL)` (`BannerAdView.kt`) gắn `collapsible=bottom` và `collapsible_request_id`, banner cố định và MREC không được thành banner thu gọn; sửa chú thích ở `AdSlot.kt` theo.
 - MAX (`MaxBannerAdView.kt`, `PlatformBanners.kt`, `BannerFrame.kt`): view MAX không tự làm mới, kể cả ở `resume()` (hôm nay gọi `startAutoRefresh()`); mỗi lượt tải lại đi theo `ads_mediation_order` như lượt đầu, giữ luật lỗi và thử lại của B-09 (kể cả phần của T-085). Làm cùng AdMob trong ticket này để không có lúc MAX làm mới hai lần.
 - Hai khóa trong `AdsSettings.kt`, sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json`; `scripts/ads-plan.py` như T-087.
 - Số liệu: lượt tải lại nay do `:core:ads` gửi nên có `latency_ms`, `load_attempt` như banner thu gọn; sửa mục 8 (Ghi số liệu) của `ads-business-rules.md` cho khớp.

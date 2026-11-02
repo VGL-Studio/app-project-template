@@ -425,12 +425,12 @@ Tiêu chí chấp nhận:
 
 Tiêu chí chấp nhận:
 
-- [ ] Mỗi định dạng native một quảng cáo (`native_small`, `native_collap`) có một kho nạp sẵn theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn; vị trí cùng định dạng và cùng mã đơn vị dùng chung một kho, nên số yêu cầu nạp sẵn không tăng theo số màn (câu hỏi 55).
+- [ ] Mỗi định dạng native một quảng cáo (`native_small`, `native_collap`) có một kho nạp sẵn theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn; vị trí cùng định dạng và cùng mã đơn vị dùng chung một kho (câu hỏi 55). `native_collap` dùng một mã cho mọi thanh đáy nên luôn chỉ có một kho; native nhỏ ở production lấy mã theo vị trí (M-05), nên số kho bằng số mã khác nhau: app muốn mọi màn dùng chung một kho thì đặt cùng một mã cho các vị trí native nhỏ, `ads-guide.md` ghi rõ điều này.
 - [ ] Hai kho có trong kế hoạch nạp sẵn mặc định ở nhóm sau nhóm đầu (HD-02: app open hiện trước màn đầu tiên có thanh đáy, nên nhóm đầu giữ cho app open và bước đầu của luồng); kho `native_collap` chỉ có khi có vị trí thanh đáy. App đặt kế hoạch riêng thì xếp được chúng như mọi khe khác.
 - [ ] Khi kho đã có quảng cáo và người dùng vào bất kỳ màn nào có khe native nhỏ (thanh đáy hay đứng riêng) hoặc lớp thu gọn thì khe hiện ngay quảng cáo của kho, không chờ một yêu cầu mới.
-- [ ] Khi một khe lấy quảng cáo của kho thì kho nạp cái tiếp theo; mỗi quảng cáo chỉ hiện ở một chỗ (O-01). Quảng cáo đã lấy ra thuộc khe đó và bị hủy khi rời màn như hôm nay; quảng cáo còn trong kho không bị hủy khi rời màn (ngoại lệ của O-03).
+- [ ] Khi một khe lấy quảng cáo của kho thì kho nạp cái tiếp theo; mỗi quảng cáo chỉ hiện ở một chỗ (O-01). Quảng cáo đã lấy ra thuộc khe đó và bị hủy khi rời màn như hôm nay; quảng cáo còn trong kho không bị hủy khi rời màn, và yêu cầu của kho đang bay lúc rời màn vẫn giữ kết quả (ngoại lệ của O-01 và O-03).
 - [ ] Khi quảng cáo trong kho đủ 55 phút mà chưa dùng thì bỏ, nạp cái mới (O-04).
-- [ ] Khi mọi vị trí dùng kho đều tắt, cổng đồng ý đóng, hay người dùng đã mua gói bỏ quảng cáo (KB-30) thì kho không nạp; kho `native_collap` không nạp khi thanh đáy dùng banner (`is_show_native_bottom` tắt) hay lớp thu gọn tắt (`is_show_native_collap`).
+- [ ] Vị trí thanh đáy chỉ tính là dùng kho `native_small` khi `is_show_native_bottom` bật. Khi mọi vị trí dùng kho đều tắt, cổng đồng ý đóng, hay người dùng đã mua gói bỏ quảng cáo (KB-30) thì kho không nạp; kho `native_collap` không nạp khi thanh đáy dùng banner (`is_show_native_bottom` tắt) hay lớp thu gọn tắt (`is_show_native_collap`).
 - [ ] Lượt nạp của kho ghi vị trí `preload` trong số liệu (PL-02); doanh thu và lượt hiển thị ghi vị trí của màn lấy quảng cáo.
 - [ ] Banner cố định, banner thu gọn và banner MREC không được nạp sẵn: vẫn tải khi màn vào (câu hỏi 53).
 
@@ -442,7 +442,7 @@ Tiêu chí chấp nhận:
 
 - [ ] Khi người vận hành đặt khóa của một lớp thì lớp đó thay quảng cáo theo số giây đó: native nhỏ một quảng cáo, ở khe đáy hay đứng riêng, `time_reload_native_small` (mặc định 60; hàng trong danh sách không làm mới, như hôm nay), lớp native thu gọn `time_reload_collap_ad` (mặc định 60, tên của AdsKit, nay có hiệu lực), banner thu gọn `time_reload_banner_collap` (mặc định 30), banner cố định `time_reload_banner` (mặc định 60), banner MREC `time_reload_banner_mrec` (mặc định 60).
 - [ ] Khi khóa là 0 thì lớp đó giữ quảng cáo đang có, không thay; khi khóa dương nhỏ hơn 30 thì dùng 30; khi khóa âm hay không đọc được thì dùng mặc định (câu hỏi 54).
-- [ ] Khi Remote Config có giá trị mới lúc màn đang mở thì nhịp sau dùng giá trị mới, không cần vào lại màn; nhịp đang đếm không bị đặt lại. Khi khóa đổi từ 0 sang số dương lúc màn đang mở thì nhịp đầu tính từ lúc nhận giá trị mới.
+- [ ] Khi Remote Config có giá trị mới lúc màn đang mở thì nhịp sau dùng giá trị mới, không cần vào lại màn; nhịp đang đếm không bị đặt lại. Khi khóa đổi từ 0 sang số dương lúc màn đang mở thì nhịp đầu tính từ lúc nhận giá trị mới; khi đổi từ số dương sang 0 thì lần đang đếm bị bỏ, không thay nữa.
 - [ ] Khi khóa của banner (cố định, thu gọn, MREC) là 0 thì banner vẫn thử lại sau lỗi cho tới khi có quảng cáo (B-02), có rồi thì giữ, không tải lại.
 - [ ] Banner cố định và banner MREC của AdMob và MAX được `:core:ads` tải lại theo khóa, không dùng tự làm mới của đơn vị; hướng dẫn phát hành ghi việc tắt tự làm mới trên đơn vị AdMob và MAX (câu hỏi 52).
 - [ ] Mọi luật đang có của lớp đó giữ nguyên: chỉ thay ở foreground và khi không bị quảng cáo toàn màn hình che (CL-02, B-05, B-07, D-06); thay lỗi thì giữ quảng cáo cũ; native thu gọn giữ trạng thái thu gọn (CL-02, CL-04); mỗi lượt tải lại qua cổng đồng ý (S-15).
@@ -719,13 +719,13 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-02). Đổi B-02, B-08, B-09 ở các ticket thực hiện.
 53. **"Mọi loại quảng cáo được nạp sẵn" có gồm banner không?** (KB-33)
     - Bối cảnh: banner của AdMob được tính lượt hiển thị khi tải xong; nạp sẵn vào một view chưa gắn màn sinh lượt hiển thị không ai thấy, rủi ro chính sách và giảm giá trị của đơn vị.
-    - Trả lời: không. Chỉ nạp sẵn native (native nhỏ ở đáy, native thu gọn); banner cố định, banner thu gọn, MREC tải khi màn vào (anh Nhật, 2026-11-02).
+    - Trả lời: không. Chỉ nạp sẵn native (native nhỏ ở đáy, native thu gọn); banner cố định, banner thu gọn, MREC tải khi màn vào (anh Nhật, 2026-11-02). **Đổi theo câu hỏi 55:** native nhỏ gồm cả khe đứng riêng, vì kho theo mã đơn vị.
 54. **Khóa nhịp làm mới chia theo lớp hay theo vị trí, và nhận giá trị nào?** (KB-34)
     - Đề xuất của AI: một khóa mỗi lớp (năm khóa ở mục 8), giữ mặc định đang có; 0 là không thay, dương dưới 30 dùng 30 (AdMob không cho làm mới dưới 30 giây), âm hay sai kiểu dùng mặc định.
     - Trả lời: một khóa mỗi lớp (anh Nhật, 2026-11-02). Mức sàn 30 giây và nghĩa của 0 theo đề xuất của AI; plan của ticket thực hiện nêu lại nếu cần đổi.
 55. **Native nạp sẵn sống ở đâu?** (KB-33, rà soát độc lập PR #387)
     - Bối cảnh: nguồn native một quảng cáo đi theo cặp vị trí và định dạng, bị hủy khi khe cuối của vị trí rời màn (O-03). Nạp sẵn theo vị trí thì app có N màn có thanh đáy nạp N cặp quảng cáo lúc mở app, và chỉ màn đầu tiên được lợi.
-    - Đề xuất của AI: mỗi định dạng một kho theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn; khe lấy từ kho, kho nạp cái kế; quảng cáo trong kho không bị hủy khi rời màn (ngoại lệ của O-03).
+    - Đề xuất của AI: mỗi định dạng một kho theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn; khe lấy từ kho, kho nạp cái kế; quảng cáo trong kho không bị hủy khi rời màn, và yêu cầu của kho đang bay lúc rời màn vẫn giữ kết quả (ngoại lệ của O-01 và O-03).
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-02).
 
 ## 10. Lịch sử

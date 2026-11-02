@@ -24,11 +24,11 @@ Ba lớp mà `:core:ads` đã tự thay quảng cáo đọc nhịp từ Remote C
 ## Phạm vi
 
 - Ba khóa trong `AdsSettings.kt` theo `docs/ops/remote-config.md`; `time_reload_collap_ad` chuyển từ danh sách khóa AdsKit không khai báo sang khóa có hiệu lực. Câu khẳng định của `AdsSettingsTest.keysAdsKitDropped_areNotDeclared` về khóa này viết lại theo ADR-0031. Luật giá trị: 0 là không thay, dương dưới 30 dùng 30, âm hay sai kiểu dùng mặc định.
-- Thay `NativeAdPolicy.REFRESH_INTERVAL_MILLIS` (`NativeAdSource.kt`, `NativeAdRefresh.kt`, `bottomSlotFirstRefreshDelayMillis` của `BottomAdBar.kt`, `firstRefreshDelayMillis` ở `AdsController.kt`) và `COLLAPSIBLE_BANNER_RELOAD_MILLIS` (`BannerLoads.kt`) bằng giá trị theo dõi được (`Flow`): giá trị mới áp từ nhịp sau, nhịp đang đếm không đặt lại; đổi từ 0 sang dương thì nhịp đầu tính từ lúc nhận giá trị. Khóa native nhỏ áp cho mọi khe native nhỏ một quảng cáo, cả khe đứng riêng. Giữ trễ 500 ms của khe đáy sau lớp thu gọn.
+- Thay `NativeAdPolicy.REFRESH_INTERVAL_MILLIS` (`NativeAdSource.kt`, `NativeAdSources.kt` (`singleAdSlotStates`), `NativeAdRefresh.kt`, `CollapsibleNativeAd.kt`, `bottomSlotFirstRefreshDelayMillis` của `BottomAdBar.kt`, `firstRefreshDelayMillis` ở `AdsController.kt`) và `COLLAPSIBLE_BANNER_RELOAD_MILLIS` (`BannerLoads.kt`) bằng giá trị theo dõi được (`Flow`): giá trị mới áp từ nhịp sau, nhịp đang đếm không đặt lại; đổi từ 0 sang dương thì nhịp đầu tính từ lúc nhận giá trị, đổi từ dương sang 0 thì bỏ lần đang đếm. Hằng hôm nay dùng chung cho native nhỏ và lớp thu gọn: tách thành hai nguồn giá trị, mỗi lớp đọc khóa của nó. Khóa native nhỏ áp cho mọi khe native nhỏ một quảng cáo, cả khe đứng riêng. Giữ trễ 500 ms của khe đáy sau lớp thu gọn.
 - Giữ nguyên CL-02, CL-04, B-03, B-05, B-07, D-06. Câu khẳng định cũ về 60 hay 30 giây cố định viết lại theo ADR-0031 nếu cần.
 - Sinh lại `docs/remote-config-keys.md` và `docs/remote-config-template.json`; giá trị staging nếu cần.
 - `scripts/ads-plan.py`: ba khóa vào đúng nhóm (thanh đáy, banner), bỏ chữ "không còn hiệu lực" của `time_reload_collap_ad` và các dòng ghi 60, 30 giây là hằng số; test của script.
-- Sửa `ads-business-rules.md` (CL-02, B-03, bảng 5.7, mục 10 và 10.1, mục 11), `ads-guide.md`, `docs/ops/ads-plan.md` (câu "nhịp làm mới không đổi được qua Remote Config"). Ghi cảnh báo: app cũ đã đặt `time_reload_collap_ad` theo AdsKit thì khóa nay có hiệu lực.
+- Sửa `ads-business-rules.md` (CL-02, B-03, bảng 5.7, mục 10 và 10.1, mục 11), `ads-guide.md`, `docs/ops/ads-plan.md` (mục Hằng số, câu "Không đổi được qua Remote Config" về nhịp làm mới). Ghi cảnh báo: app cũ đã đặt `time_reload_collap_ad` theo AdsKit thì khóa nay có hiệu lực.
 
 **Không bao gồm:**
 
