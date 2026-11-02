@@ -11,7 +11,7 @@ size: M
 depends_on: [T-074, T-075, T-076]
 sprint:
 plan: features/quy-trinh/plans/T-077-bot-chay-lai-pr-check.md
-auto_run: false               # làm có người: phiên tự chạy dựa vào chính cổng chất lượng mà ticket sửa (như T-051)
+auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy RUN-20261101-02 (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"); trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
 created: 2026-10-29
 ---
 
