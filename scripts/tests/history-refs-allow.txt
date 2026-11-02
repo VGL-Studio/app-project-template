@@ -4,7 +4,6 @@
 .claude/skills/run-list/SKILL.md
 .claude/skills/write-plan/SKILL.md
 docs/README.md
-docs/auto-run.md
 docs/ops/ads-business-rules.md
 docs/ops/ads-guide.md
 docs/ops/clone-study.md
