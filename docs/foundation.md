@@ -319,6 +319,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - `banner_mrec` là một định dạng của danh sách đóng, chỉ dùng khi spec của app khai báo
 - cổng không hiện quảng cáo bật thì mọi định dạng như công tắc tổng tắt và hành động có điều kiện làm thẳng
 - giữ các quy tắc ở mục 11 của ADR-0045 kể cả khi spec yêu cầu khác, gặp yêu cầu như vậy thì ghi thành câu hỏi
+- code lệch luật của `ads-business-rules.md` chỉ sửa bằng ticket có plan đã duyệt, không sửa ngoài phạm vi plan
 
 ### [ADR-0046](adr/0046-remote-config.md): Khóa Remote Config phẳng, có kiểu, khai báo một chỗ trong code, sinh bảng khóa và file mẫu; staging có giá trị cục bộ
 
