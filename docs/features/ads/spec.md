@@ -7,6 +7,7 @@ requests:
   - requests/2026-10-21-native-va-remote-config.md
   - requests/2026-10-29-hoc-tu-jbase.md
   - requests/2026-11-02-nap-san-va-nhip-lam-moi.md
+  - requests/2026-11-06-combo-chi-sau-inter-trong-app.md
 design: features/ads/design/README.md
 created: 2026-10-21
 confirmed: 2026-10-30
@@ -194,6 +195,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi là lần mở đầu sau khi cài và người vận hành bật quảng cáo lần đầu thì màn loading hiện quảng cáo mở app nếu quảng cáo về kịp.
 - [ ] Khi là lần mở thứ hai trở đi và người vận hành bật quảng cáo mở app thì màn loading hiện quảng cáo mở app nếu quảng cáo về kịp.
 - [ ] Khi người vận hành chọn loại "inter" thì lúc mở app hiện interstitial thay cho quảng cáo mở app.
+- [ ] **Thêm 2026-11-06:** Khi interstitial lúc mở app đóng thì không có native toàn màn hình, kể cả khi người vận hành bật native sau inter (KB-16).
 - [ ] Khi quảng cáo không về trong thời gian chờ (đồng ý 10 giây, SDK 35 giây, quảng cáo 40 giây) thì app vào màn chính, không hiện gì.
 - [ ] Khi khóa tắt thì màn loading không chờ quảng cáo.
 
@@ -203,7 +205,7 @@ Người dùng chuyển sang app khác rồi quay lại.
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật quảng cáo khi quay lại thì mỗi lần app trở lại màn hình có quảng cáo mở app (hoặc interstitial nếu chọn loại "inter", có thể nối native toàn màn hình).
+- [ ] Khi người vận hành bật quảng cáo khi quay lại thì mỗi lần app trở lại màn hình có quảng cáo mở app (hoặc interstitial nếu chọn loại "inter"~~, có thể nối native toàn màn hình~~). **Đổi 2026-11-06:** interstitial khi quay lại app không nối native toàn màn hình, kể cả khi người vận hành bật native sau inter (KB-16).
 - [ ] Khi người dùng vừa bấm vào một quảng cáo rồi quay lại thì lần quay lại đó không có quảng cáo.
 - [ ] Khi người dùng quay lại từ màn chọn ảnh, camera, chia sẻ hay hộp thoại đồng ý mà app tự mở thì không có quảng cáo.
 - [ ] Khi đang có một quảng cáo toàn màn hình, hoặc quảng cáo mở app vừa đóng chưa tới 1 giây, thì không hiện thêm.
@@ -228,6 +230,7 @@ Tiêu chí chấp nhận:
 
 - [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình.
 - [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở ~~góc trên phải~~ **đổi 2026-10-26:** góc trên trái, theo thiết kế T-035 (góc trên phải dành cho AdChoices; câu hỏi 10 của plan T-027); hết đếm ngược thì vòng đó thành nút đóng. **Đổi 2026-10-29 (ADR-0038, KB-32):** đếm ngược mặc định 5 giây, chỉnh từ xa bằng `time_close_native` (1 tới 30), trong vòng 48 dp, vẫn ở góc trên trái.
+- [ ] **Thêm 2026-11-06:** Chỉ interstitial của một vị trí trong app mới nối native toàn màn hình. Interstitial lúc mở app (KB-13) và khi quay lại app (KB-14) đóng xong thì người dùng đi tiếp ngay, không có native, kể cả khi native sau inter đang bật.
 - [ ] Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược.
 - [ ] Khi đóng màn native thì người dùng đi tiếp tới màn đã chọn, và khoảng cách `ads_interval` tính từ lúc này.
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
@@ -469,8 +472,8 @@ Tiêu chí chấp nhận:
 | `sample_bottom_banner` (đã có) | đổi sang native small (câu hỏi 3). **Đổi 2026-10-23:** thanh đáy (native nhỏ và lớp thu gọn, hoặc banner) | Màn hình mẫu | Khi vào màn hình | Không. Thay nội dung mỗi 60 giây | ~~`ads_sample_bottom_banner_enabled`~~ `is_show_sample_bottom_banner`, cùng `is_show_native_bottom`, `time_expand_collap_ad` |
 | Các vị trí của màn hình xem thử | mọi định dạng | Xem thử (chỉ staging) | Theo nút bấm | Như production | Bật sẵn ở staging |
 | **Thêm 2026-10-23:** quảng cáo mở app (màn loading, câu hỏi 11) | app open hoặc interstitial | Màn loading | Lúc khởi động mới | Không bị `ads_interval` chặn | `show_open_ads_first_open`, `show_open_ads`, `open_ad_type` |
-| **Thêm 2026-10-23:** `resume` (`:core:ads`, câu hỏi 11). **Đổi 2026-10-26:** hai vị trí toàn app, `resume` (app open) và `resume_inter` (interstitial, không bị `ads_interval` chặn, vẫn đẩy mốc), vì mã đơn vị đi theo vị trí (plan T-025, câu hỏi 1) | app open hoặc interstitial (có thể nối native) | Mọi màn | Khi quay lại app | Theo KB-14 | `show_resum_ads`, `resume_ad_type`, `is_show_native_after_inter` |
-| **Thêm 2026-10-26:** `native_combo` (`:core:ads`, vị trí toàn app, plan T-026, câu hỏi 1) | native toàn màn hình sau interstitial (combo) | Mọi màn | Sau khi interstitial đóng, khi combo bật | Theo KB-16 | `is_show_native_after_inter` (không có `is_show_<mã>`) |
+| **Thêm 2026-10-23:** `resume` (`:core:ads`, câu hỏi 11). **Đổi 2026-10-26:** hai vị trí toàn app, `resume` (app open) và `resume_inter` (interstitial, không bị `ads_interval` chặn, vẫn đẩy mốc), vì mã đơn vị đi theo vị trí (plan T-025, câu hỏi 1) | app open hoặc interstitial ~~(có thể nối native)~~ (**đổi 2026-11-06:** không nối native, KB-14) | Mọi màn | Khi quay lại app | Theo KB-14 | `show_resum_ads`, `resume_ad_type`~~, `is_show_native_after_inter`~~ |
+| **Thêm 2026-10-26:** `native_combo` (`:core:ads`, vị trí toàn app, plan T-026, câu hỏi 1) | native toàn màn hình sau interstitial (combo) | Mọi màn | Sau khi interstitial đóng, khi combo bật. **Đổi 2026-11-06:** chỉ sau interstitial của vị trí trong app, không sau interstitial lúc mở app hay khi quay lại app | Theo KB-16 | `is_show_native_after_inter` (không có `is_show_<mã>`) |
 
 ## 6. Dữ liệu và phân tích
 
@@ -753,3 +756,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-30 | Nhật | Theo rà soát độc lập danh sách chạy RUN-20261030-01: thêm ngoại lệ vào KB-16 tiêu chí 7 (câu hỏi 2 của plan T-055) và ghi phạm vi hôm nay của câu 14 (câu hỏi 1 của plan T-056). Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-31 | Nhật | Trả lời câu hỏi 51: khởi tạo SDK MAX không tính là yêu cầu quảng cáo, không phải đợi app ở màn trước. Không đổi tiêu chí, spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-02 | Nhật | Thêm KB-33 (nạp sẵn native nhỏ và native thu gọn vào kho chung), KB-34 (nhịp thay quảng cáo chỉnh từ xa), năm khóa ở mục 8, câu hỏi 52 tới 55 đã trả lời; ghi chú đổi ở KB-1, KB-4, KB-18, KB-29. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-06 | Nhật | Theo yêu cầu `requests/2026-11-06-combo-chi-sau-inter-trong-app.md`: native toàn màn hình sau inter chỉ theo interstitial của vị trí trong app; interstitial lúc mở app và khi quay lại app không nối native (thêm tiêu chí ở KB-13, KB-16; đổi tiêu chí 1 của KB-14 và hai dòng ở mục 5). Code tách thành ticket T-089. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
