@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-33]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: L
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-086-nap-san-native-thanh-day.md
 auto_run: 
 created: 2026-11-02
 ---

@@ -1,0 +1,219 @@
+---
+ticket: T-086
+title: Kho nạp sẵn cho native nhỏ và native thu gọn
+status: draft                # draft | approved | stopped | done
+version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+risk_score:                  # chạm điểm chặn, không tính điểm
+risk_level: high             # low | medium | high
+token_estimate: 30.0M        # cỡ L, số gợi ý 30.0M (tạm, chưa đủ 5 task L) của scripts/token-usage.py estimate (2026-11-06); không chỉnh
+blocking_points: [ads, analytics, core]
+run_order:                   # AI điền sau họp đánh giá rủi ro
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
+lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
+---
+
+# PLAN T-086: KHO NẠP SẴN CHO NATIVE NHỎ VÀ NATIVE THU GỌN
+
+## 1. Tóm tắt
+
+Nguồn một quảng cáo của native (`NativeAdSource`) đổi từ "một nguồn cho mỗi cặp vị trí và định dạng, hủy khi khe cuối rời màn" thành "một kho cho mỗi cặp định dạng và mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn" cho `NATIVE_SMALL` và `NATIVE_COLLAPSIBLE`. Mỗi định dạng có một khe trong kế hoạch nạp sẵn (`NativeStockPreloadSlot`, cạnh `FullScreenPreloadSlot` và khe của pool), ở nhóm sau nhóm đầu; `NATIVE_COLLAPSIBLE` được thêm vào kế hoạch mặc định khi có vị trí thanh đáy. Kiểm chứng bằng unit test JVM trên `NativeAdSource`, `NativeAdSources`, `AdPreloadPlan`, `AdTelemetry` với đồng hồ giả, và test Robolectric trên `AdsController` thật với bộ nạp native giả (như `AdsControllerInScreenWindowTest`).
+
+## 2. Hiểu yêu cầu
+
+Ticket xử lý các kịch bản sau trong `features/ads/spec.md`:
+
+| Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
+| --- | --- | --- |
+| KB-33 | 1. Mỗi định dạng native một quảng cáo có một kho theo mã đơn vị, tối đa một quảng cáo, sống qua các màn; cùng định dạng và cùng mã thì dùng chung kho | Khóa của kho là `NativePoolKey(format, unitId)` như pool. Staging: mọi vị trí native nhỏ có cùng mã thử, nên một kho `native_small`; mọi thanh đáy dùng mã thử native video cho lớp thu gọn, nên một kho `native_collap`. Production: kho `native_collap` một mã (`native_collap=` của `adUnits`), kho `native_small` theo mã của từng vị trí (M-05) |
+| KB-33 | 2. Hai kho trong kế hoạch mặc định, nhóm sau nhóm đầu; `native_collap` chỉ có khi có vị trí thanh đáy; app đặt kế hoạch riêng xếp được | `defaultPreloadPlan` nhận thêm `NATIVE_COLLAPSIBLE` khi có vị trí `NATIVE_SMALL` không chèn trong danh sách (`nativeEvery == null`, có lớp theo `layerFormats`). `FIRST_GROUP` không đổi nên cả hai ở nhóm 2. `AdPreloadPlan(...)` của app nhận `NATIVE_COLLAPSIBLE` như mọi định dạng |
+| KB-33 | 3. Kho có quảng cáo thì khe native nhỏ (thanh đáy, đứng riêng) hay lớp thu gọn hiện ngay quảng cáo của kho, không chờ yêu cầu mới | `claim` lấy quảng cáo còn hạn trong kho trước, như `takeFresh` hôm nay; khe nhận `Loaded` ngay sau `Loading` đầu tiên, không gửi yêu cầu trước khi hiện |
+| KB-33 | 4. Khe lấy thì kho nạp cái kế; mỗi quảng cáo ở một chỗ (O-01). Quảng cáo đã lấy thuộc khe, hủy khi rời màn; quảng cáo trong kho không bị hủy khi rời màn; yêu cầu của kho đang bay lúc rời màn giữ kết quả | Bỏ "khe cuối rời màn thì đóng nguồn" (`detach` về 0 không còn gọi `close`). Kho chỉ đóng khi rút đồng ý, mọi vị trí dùng kho tắt hay gói bỏ quảng cáo (công tắc tổng), hay (kho `native_collap`) lớp thu gọn bị tắt |
+| KB-33 | 5. Quảng cáo trong kho đủ 55 phút thì bỏ, nạp cái mới (O-04) | Kho hẹn một mốc 55 phút cho quảng cáo đang giữ; tới mốc thì hủy và nạp lại nếu điều kiện nạp của kho còn đúng; lượt nạp vẫn qua hàm gửi chung (chờ foreground, không bị che, cổng đồng ý) |
+| KB-33 | 6. Thanh đáy chỉ tính là dùng kho `native_small` khi `is_show_native_bottom` bật. Mọi vị trí tắt, cổng đồng ý đóng, đã mua gói bỏ quảng cáo thì kho không nạp; kho `native_collap` không nạp khi `is_show_native_bottom` hay `is_show_native_collap` tắt | Điều kiện nạp của kho là một hàm thuần (`stockMayFill`), mọi đường nạp của kho (khe kế hoạch, nạp cái kế, nạp lại sau 55 phút) cùng gọi. Gói bỏ quảng cáo đã nằm trong `isEnabled` (công tắc tổng, KB-30). Vị trí native nhỏ không chèn danh sách được coi là thanh đáy (giả định, câu hỏi 1) |
+| KB-33 | 7. Lượt nạp của kho ghi vị trí `preload` (PL-02); doanh thu và lượt hiển thị ghi vị trí của màn lấy quảng cáo | Lượt nạp do kho tự chạy (khe kế hoạch, nạp cái kế, nạp lại sau 55 phút) ghi `preload`, không có `load_attempt` (`NativeLoadUse.PRELOAD`). Lượt nạp do một khe đang chờ kích (kho rỗng) giữ như hôm nay: vị trí của khe, có `load_attempt` (câu hỏi 2). Doanh thu đọc vị trí từ một `PlacementCell` đặt lúc khe lấy quảng cáo (như P-04 của pool) |
+| KB-33 | 8. Banner cố định, thu gọn, MREC không nạp sẵn | Không thêm khe kế hoạch cho banner; `BANNER` không vào kế hoạch mặc định (lớp banner của thanh đáy không được thêm như `NATIVE_COLLAPSIBLE`) |
+
+Thiết kế tham chiếu: không có thiết kế riêng (giao diện không đổi).
+
+ADR liên quan: ADR-0045 (luật quảng cáo, mục 1.7: luật ghi cả quyết định chưa làm), ADR-0019 (log), ADR-0029, ADR-0031 (test cũ trái plan), ADR-0044 (tài liệu quy tắc không ghi mã ticket).
+
+Các gạch đầu dòng của `docs/CLAUDE.md`, mục Khi viết plan, áp dụng cho plan này: danh sách file đủ (mục 3.2); đổi file nơi khác đọc (`AdPreloadPlan.kt` đọc bởi test của `:core:ads`, `ads-business-rules.md` và `ads-guide.md` không có script nào đọc theo tên ngoài `scripts/history-refs.py`, xem mục 6); sửa Kotlin nên có mục 3.5; mỗi tiêu chí có test (mục 4); quyền và thư viện ở mục 3.3; số liệu theo đối tượng dùng chung (kho dùng chung giữa vị trí: liệt kê cách dùng ở mục 3.1 bước 5 và test hai yêu cầu chồng nhau); tiêu chí áp cho mọi lượt gửi (liệt kê đường ở mục 4); giữ tài nguyên theo khóa Remote Config (test khóa tắt giữa chừng); không có bước chờ trước khi hiện thứ gì (kho không chờ để hiện), nhưng có mốc 55 phút chạy cả khi app ở nền (test ra nền rồi trở lại); `token_estimate`. Không áp dụng: đo lỗi giao diện, kỹ thuật mới (E dưới 2), thư viện mới, R2, dịch chữ, vỏ app, chép code về app.
+
+## 3. Giải pháp
+
+### 3.1. Cách làm
+
+Theo mẫu có sẵn: `NativeAdPools` (kho theo `NativePoolKey`, khe kế hoạch `NativePoolPreloadSlot`, `PlacementCell` cho vị trí của doanh thu) và `NativeAdSource` (luật O-01 tới O-04, O-09 hiện có).
+
+1. **`NativeAdSource` thành kho** (`NativeAdSource.kt`):
+   - `detach()` về 0 khe không còn đóng nguồn: quảng cáo chờ (`pending`) giữ nguyên; lượt nạp đang bay chạy tiếp, kết quả thành quảng cáo chờ (`keep` bỏ nhánh `slots == 0`, `giveBack` bỏ nhánh hủy khi 0 khe). Khe đang chờ bị hủy (rời màn) vẫn tự gỡ khỏi hàng chờ như hôm nay (`invokeOnCancellation`).
+   - `startNextLoad()` sau khi một khe lấy quảng cáo không còn cần `slots > 0`, nhưng cần `mayFill()` (bước 3): kho luôn nạp cái kế khi được phép.
+   - Hàm mới `fill()`: không có quảng cáo chờ còn hạn và không có lượt đang bay thì nạp một lượt `PRELOAD`; quảng cáo chờ đã đủ 55 phút thì hủy rồi nạp (O-04). `settled()` = không có lượt đang bay.
+   - Mốc 55 phút: khi giữ một quảng cáo chờ, kho hẹn một việc trong `scope` tới đúng mốc hết hạn (đồng hồ đơn điệu của luật); tới mốc mà quảng cáo đó còn là quảng cáo chờ thì hủy, ghi log `Native <key> expired`, rồi gọi `fill()`. Quảng cáo được lấy trước mốc thì hủy hẹn. Lượt nạp lại đi qua `sendGate` như mọi lượt nạp, nên ở nền hay bị che thì chờ (O-05, O-10).
+   - `claim(use, placement)` nhận vị trí của khe; quảng cáo trao cho khe mang `PlacementCell` của lượt nạp, kho đặt `holder.value = placement` ngay lúc trao (PL-03, như `NativeAdPool.claim`). `NativeClaim.Ad` giữ nguyên kiểu.
+   - `close()` giữ như hôm nay (hủy quảng cáo chờ, hủy lượt đang bay, trả `NoAd` cho khe chờ, tăng phiên), chỉ chạy khi kho bị đóng (bước 2). Sau khi đóng, `fill()` và `claim` mở lại kho khi được phép như `NativeAdPool.reopen`.
+   - Log thêm (thẻ `Ads`, không ghi mã đơn vị): `Native <key> preload`, `Native <key> kept after last slot left`, `Native <key> expired`. `<key>` của kho là `<mã định dạng>#<số thứ tự>` như pool (`logKey`), không ghi mã đơn vị; log của khe (`retryingNativeAdStates`, `refreshingNativeAdStates`) giữ khóa `nativeSlotKey(vị trí, định dạng)` như hôm nay.
+2. **`NativeAdSources` theo mã đơn vị** (`NativeAdSources.kt`):
+   - Bảng kho theo `NativePoolKey(format, unitId)`; `source(placement, format)` tra mã bằng `unitId(placement, format)` rồi trả kho (tạo khi cần). Hai vị trí cùng định dạng và cùng mã nhận cùng một kho; hai định dạng của một vị trí vẫn hai kho (L-068).
+   - Theo dõi trong `scope` công tắc của mọi vị trí dùng kho (`isEnabled`, đã gồm công tắc tổng và gói bỏ quảng cáo), `canRequestAds` và `globalFlags`. Một vị trí tắt: các khe của vị trí đó dừng (luồng `stopped(placement)` tăng một, khe đang làm mới hủy quảng cáo đang hiện và kết thúc như hôm nay); kho chỉ đóng khi mọi vị trí dùng nó đều tắt, hay rút đồng ý. Kho `native_collap` đóng thêm khi `globalFlags.showNativeCollap` tắt (không lớp nào lấy được nữa).
+   - `claim` của một vị trí đang tắt hay khi chưa đồng ý trả `Blocked` như `allowed` hôm nay.
+   - Hàm thuần `stockMayFill(format, consent, flags, membersOn)`: `consent` và có ít nhất một vị trí dùng kho đang bật; với `NATIVE_SMALL` thêm `flags.showNativeBottom`; với `NATIVE_COLLAPSIBLE` thêm `flags.showNativeCollap` (đã gồm `showNativeBottom`). Vị trí dùng kho: vị trí có `format` là định dạng đó (`NATIVE_SMALL`) hay có định dạng đó trong `layerFormats` (`NATIVE_COLLAPSIBLE`), trừ vị trí chèn trong danh sách (`nativeEvery != null`, hàng trong danh sách đi đường `LIST_ROW`, không qua kho).
+   - `preloadSlots(format)`: một `NativeStockPreloadSlot(format)` cho `NATIVE_SMALL` và `NATIVE_COLLAPSIBLE`: `loadIfNeeded()` tạo kho của từng mã đang được phép rồi gọi `fill()`; `settled()` khi mọi kho đó không có lượt đang bay. Không có kho nào được phép thì `settled()` ngay.
+   - `singleAdSlotStates(...)` đọc `stopped(placement)` thay `source.closed`.
+3. **Kế hoạch mặc định** (`AdPreloadPlan.kt`): `AdPreloadPlan.fromPlacements` truyền cho `defaultPreloadPlan` định dạng của vị trí cộng `NATIVE_COLLAPSIBLE` khi có vị trí `NATIVE_SMALL` không chèn danh sách. `FIRST_GROUP` không đổi. `nativeOnly()` đã gồm cả hai định dạng, nên lượt nạp bù khi Activity quay lại (S-25) và khi mạng về (S-24) cũng nạp kho.
+4. **`AdsController`** (`AdsController.kt`):
+   - `nativeSources` nhận thêm danh sách vị trí, `unitId`, `globalFlags`; `preloader.slotsOf` thêm `nativeSources.preloadSlots(format)`.
+   - `collectPreloadTriggers()` thêm các vị trí dùng kho và hai cờ `showNativeBottom`, `showNativeCollap`: một trong chúng chuyển sang bật thì xin một lượt nạp sẵn (`PreloadReason.PLACEMENT_ENABLED`, S-20, S-26), như pool hôm nay.
+   - `nativeLoadOf(key, use, placement?)`: tạo `PlacementCell` (đặt sẵn vị trí của khe chờ nếu có), báo cáo nạp theo bước 5, `NativeAdMetrics(placement = { holder.value })`.
+   - KDoc của lớp (đoạn về native small, dòng 72 tới 90) sửa theo kho.
+5. **Số liệu** (`AdTelemetry.kt`): thêm `NativeLoadUse.PRELOAD`; `nativeLoadReport(placement: AdPlacement?, use, format)`: `PRELOAD` (vị trí `null`) ghi `ad_placement = preload`, không `load_attempt`, `latency_ms` của chính yêu cầu (`perRequestLoad`, như `REFRESH`, `POOL`). Mọi cách kho được dùng:
+   - Một khe, kho có quảng cáo: không có lượt nạp nào của khe; lượt nạp cái kế là `PRELOAD`.
+   - Một khe, kho rỗng: lượt nạp `SINGLE_AD` của khe (vị trí của khe, có `load_attempt` theo `nativeSlotKey(vị trí, định dạng)`), như hôm nay.
+   - Hai khe cùng kho (hai vị trí, hay hai khe một vị trí) chờ một lượt: khe thua nạp lại một lần với vị trí của nó (O-02), như hôm nay.
+   - Kho tự nạp (khe kế hoạch, nạp cái kế, nạp lại sau 55 phút): `PRELOAD`.
+   - Làm mới của khe lấy từ kho; kho rỗng thì lượt nạp `REFRESH` của khe (vị trí của khe), như hôm nay.
+   - Doanh thu, bấm, lượt hiển thị: vị trí của khe đã lấy quảng cáo (`holder`), kể cả khi lượt nạp ghi `preload` hay vị trí khác.
+6. **Không đổi:** `CollapsibleNativeAdLayer`, `BottomNativeSlot`, `NativeAdSlot` (vẫn gọi `ads.nativeAd(...)`), vòng làm mới `refreshingNativeAdStates` (vẫn lấy từ nguồn, nay là kho: quảng cáo chờ của lớp thu gọn là quảng cáo của kho), trễ 500 ms của khe đáy, `af_native_ad_eligible` (khe báo khi vào màn, không tính nạp sẵn). Lý do giữ vòng làm mới qua kho: hôm nay quảng cáo chờ của nguồn đã là "cái kế"; tách một chỗ giữ thứ hai sẽ sinh hai chỗ cùng giữ quảng cáo (rủi ro ticket nêu).
+7. **Tài liệu luật** (`ads-business-rules.md`, không ghi mã ticket, ADR-0044): S-22 (mặc định hai nhóm: app open và bước đầu luồng, rồi mọi khe còn lại, kể cả hai kho native; câu "Mặc định một nhóm gồm mọi khe" đã lệch code), HD-02 (kế hoạch mặc định có hai kho ở nhóm sau), O-01 và O-03 (ngoại lệ của kho), O-04 (kho hẹn mốc 55 phút), mục 5.7 (cột Nguồn quảng cáo: kho theo mã đơn vị), CL-01 (quảng cáo đầu lấy từ kho nếu có, không chờ), mục 8.2 (Vị trí của lượt nạp: lượt kho tự chạy ghi `preload`). `ads-guide.md`: mục 4 (đoạn "nguồn chung của vị trí" thành kho theo mã đơn vị; production: mỗi vị trí native nhỏ một mã, app muốn mọi màn dùng chung một kho thì đặt cùng một mã), mục 6 "Nạp sẵn và nạp lại" (hai kho trong kế hoạch, log mới), mục 8 (log nạp sẵn của staging: nhóm 2 có `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE`). `docs/ops/to-app.md` không cần sửa: app đồng bộ không phải làm gì thêm (mã đơn vị không đổi khóa).
+
+### 3.2. Danh sách file
+
+| Thao tác | Đường dẫn | Nội dung thay đổi |
+| --- | --- | --- |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdSource.kt` | Kho: không đóng khi 0 khe, `fill()`, `settled()`, mốc 55 phút, `claim(use, placement)` đặt `PlacementCell`, log mới (mục 3.1 bước 1) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdSources.kt` | Kho theo `NativePoolKey`, `stopped(placement)`, đóng kho khi mọi vị trí tắt hay rút đồng ý, `stockMayFill`, `NativeStockPreloadSlot`, `singleAdSlotStates` đọc `stopped` (bước 2) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdRefresh.kt` | `refreshingNativeAdStates` nhận luồng dừng của vị trí thay `source.closed`; truyền vị trí vào `claim` |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPreloadPlan.kt` | `fromPlacements` thêm `NATIVE_COLLAPSIBLE` khi có vị trí thanh đáy (bước 3) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | Nối kho, khe kế hoạch, lượt xin nạp sẵn khi vị trí hay cờ bật, `nativeLoadOf` với `PlacementCell`, KDoc (bước 4) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdTelemetry.kt` | `NativeLoadUse.PRELOAD`, `nativeLoadReport` nhận vị trí rỗng (bước 5) |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAd.kt` | Chỉ KDoc của `CollapsibleNativeAdLayer`: quảng cáo từ kho `native_collap` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSourceTest.kt` | Test mới của kho (mục 4); viết lại câu khẳng định cũ theo mục 3.5 |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSourcesTest.kt` | Test mới của bảng kho, khe kế hoạch, điều kiện nạp; dữ liệu dựng theo chữ ký mới; câu khẳng định theo mục 3.5 |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdRefreshTest.kt` | Dữ liệu dựng theo chữ ký mới (luồng dừng, vị trí của `claim`); câu khẳng định giữ |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPreloadPlanTest.kt` | Test thêm lớp thu gọn; viết lại `fromPlacements_coversEveryTemplateFormat` (mục 3.5) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdTelemetryTest.kt` | Test `PRELOAD` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPreloaderTest.kt` | Test `activityResumed_refillsStocks` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeNativeAds.kt` | Bộ nạp giả ghi vị trí của từng lượt nạp và trả `PlacementCell` (dùng chung cho test mới) |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerNativeStockTest.kt` | Test Robolectric trên `AdsController` thật với bộ nạp native giả (`nativeLoaderForTest`), cách dựng như `AdsControllerInScreenWindowTest` (mục 4) |
+| Sửa | `docs/ops/ads-business-rules.md` | S-22, HD-02, O-01, O-03, O-04, mục 5.7, CL-01, mục 8.2 (mục 3.1 bước 7) |
+| Sửa | `docs/ops/ads-guide.md` | Mục 4, mục 6 (Nạp sẵn và nạp lại), mục 8 (mục 3.1 bước 7) |
+| Sửa | `docs/features/ads/tickets/T-086-nap-san-native-thanh-day.md` | `status: planned`, `plan:` (khi tạo plan); phiên ghi trạng thái theo `auto-run.md` |
+
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
+
+- Cờ tính năng: Không có. Đọc khóa có sẵn `is_show_native_bottom`, `is_show_native_collap`, `is_show_<mã vị trí>`, `is_show_ads`.
+- Quảng cáo: không thêm, bớt hay dời vị trí. Đổi lúc gửi yêu cầu của native nhỏ và lớp thu gọn: nạp sẵn trong kế hoạch, giữ qua các màn (KB-33). Không có khe nạp sẵn cho banner (câu hỏi 53 của spec).
+- Sự kiện phân tích: không thêm sự kiện hay tham số. Đổi giá trị `ad_placement` của `ad_load_success`, `ad_load_fail` cho lượt nạp kho tự chạy thành `preload`, không có `load_attempt` (PL-02, mục 3.1 bước 5); doanh thu và `ad_clicked` ghi vị trí của khe đã lấy.
+- File R2: Không chạm.
+- **Quyền truy cập:** Không thêm.
+- **Thư viện và SDK:** Không thêm. Dùng lớp có sẵn của `:core:ads` (`NativePoolKey`, `PlacementCell`, `PreloadSlot`, kotlinx.coroutines đã có trên classpath của module).
+
+### 3.4. Phương án dự phòng
+
+Không có. Mọi phần là biến thể của mẫu có sẵn (`NativeAdPools`, `NativeAdSource`), kiểm được trên JVM. Nếu phần việc thực tế lớn hơn rõ rệt (điều kiện dừng 6), xem mục 7.
+
+### 3.5. Hành vi đã có bị đổi
+
+`scripts/existing-tests.py` liệt kê 281 test dùng tên của các file plan sửa; phần lớn chỉ trùng tên chung (`source`, `failed`, `sent`) hay kiểm phần plan không đổi (pool, toàn màn hình, banner, chữ log của AdsKit). Các test dưới kiểm đúng hành vi plan đổi. Mọi test khác của `NativeAdSourceTest`, `NativeAdSourcesTest`, `NativeAdRefreshTest`, `AdPreloaderTest`, `AdTelemetryTest`, `AdsControllerInScreenWindowTest`, `NativeAdSlotTest`, `BottomAdBarTest`, `CollapsibleNativeAdTest` giữ câu khẳng định; chỉ phần dựng đổi theo chữ ký mới (dữ liệu của test, ADR-0029).
+
+| Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
+| --- | --- | --- | --- |
+| Khe cuối rời màn khi lượt nạp đang bay: quảng cáo về muộn bị hủy, nguồn không còn nạp | Lượt đang bay chạy tiếp, kết quả thành quảng cáo chờ của kho (bước 1) | `NativeAdSourceTest.lastSlotDetached_whileLoading_lateAdDestroyed_sourceNotLoading` | Câu mới (đổi tên `lastSlotDetached_whileLoading_lateAdKeptAsPending`): khe chờ nhận `NoAd` khi bị hủy; quảng cáo về sau là `source.pending`, `destroyCount == 0`; không có lượt nạp thứ hai trong 60 giây. Đối chứng: `shutDown()` thay `detach()` thì quảng cáo về muộn bị hủy (giữ ý định "nguồn đóng thì hủy quảng cáo muộn" ở test `waitersGetNoAd_atOnce_whenClosed`) |
+| Khe cuối rời màn: quảng cáo chờ bị hủy, log `source closed` | Quảng cáo chờ giữ trong kho, log `kept after last slot left` | `NativeAdSourceTest.lastSlotDetached_destroysPendingAd` | Câu mới (`lastSlotDetached_keepsPendingAd`): `ad2.destroyCount == 0`, `source.pending === ad2`, quảng cáo của khe (`ad1`) không do kho hủy; log không có `source closed` |
+| Rời màn rồi vào lại: nạp mới từ đầu | Vào lại lấy ngay quảng cáo của kho, kho nạp cái kế | `NativeAdSourceTest.detachAll_thenAttach_reopensWithFreshLoad` | Câu mới (`detachAll_thenAttach_claimsKeptAd`): claim sau khi vào lại trả `ad2` ngay, lượt nạp kế là `PRELOAD` lúc 1 000 ms |
+| Lỗi về sau khi khe cuối rời màn không hẹn thử lại | Giữ ý định: lỗi của lượt kho không hẹn thử lại (kho không thử lại tự động; khe kế hoạch sau, mạng về, Activity quay lại mới nạp lại) | `NativeAdSourceTest.failureAfterClose_schedulesNoRetry` | Giữ câu khẳng định: sau `detach()` lỗi về, `NoAd`, không lượt nạp thêm tới 60 giây, `isLoading == false` |
+| Vị trí tắt thì nguồn của vị trí đóng, quảng cáo chờ bị hủy | Kho chỉ đóng khi mọi vị trí dùng nó tắt; với một vị trí thì như cũ | `NativeAdSourcesTest.placementSwitchedOff_closesSource_destroysPending`, `consentWithdrawn_closesSource_waitersGetNoAd`, `placementSwitchedOff_whileRefreshing_destroysShownAd_noMoreRefresh`, `placementOnAgain_newSlotLoadsFromScratch`, `placementOff_slotInFirstLoadRetry_sendsNothingFor60s` | Giữ: test dựng một vị trí, nên vị trí tắt là mọi vị trí tắt |
+| Lượt nạp sau khi khe lấy quảng cáo là `REFRESH` với vị trí của màn | Lượt nạp cái kế là `PRELOAD`, vị trí `preload` | `NativeAdSourcesTest.loadUse_firstSingleAd_nextLoadRefresh_loserRetrySingleAd` | Câu mới (đổi tên `loadUse_firstSingleAd_nextLoadPreload_loserRetrySingleAd`): `[SINGLE_AD, SINGLE_AD, PRELOAD]` |
+| Mỗi lượt nạp biết vị trí của nguồn (`newLoads.all { it.first == PLACEMENT }`) | Lượt nạp mang vị trí của khe chờ, hay `null` khi kho tự nạp | `NativeAdSourcesTest.twoFormatsOfOnePlacement_getSeparateSources` | Câu mới cho dòng cuối: hai lượt `SINGLE_AD` mang `PLACEMENT`, lượt nạp cái kế mang `null`; phần "hai định dạng hai nguồn" giữ |
+| Kế hoạch mặc định có đúng các định dạng của vị trí | Thêm `NATIVE_COLLAPSIBLE` khi có thanh đáy | `AdPreloadPlanTest.fromPlacements_coversEveryTemplateFormat` | Câu mới: tập định dạng của kế hoạch = định dạng của vị trí cộng `NATIVE_COLLAPSIBLE`; không định dạng nào ở hai nhóm (giữ dòng thứ hai) |
+| `AdPreloadPlanTest.templatePlan_hasAppOpenFirst`, `fromPlacements_hasRewardedInSecondGroup` | Không đổi | | Giữ |
+| Lớp thu gọn tắt lúc đang hiện: lớp bị gỡ, quảng cáo bị hủy, khe đáy còn; gói bỏ quảng cáo giữa phiên: mọi vị trí tắt | Không đổi với khe; thêm: kho `native_collap` đóng, kho của vị trí tắt hết đóng | `BottomAdBarTest.collapSwitchedOffWhileShown_layerRemovedAndAdDestroyed_slotStays`, `AdFreeGateTest.adFreeMidSession_everyPlacementSwitchOff` | Giữ |
+| Kích thước, vị trí của khe và lớp (`BottomAdBarTest.collapse_revealsSlot`, `layer_takesOnlyWidth_touchAboveReachesContent`, `NativeAdFontScaleTest`, `NativeAdSlotTest.availability_reportsFalse_whenPlacementTurnsOffAfterLoaded`) | Không đổi (plan không đổi giao diện) | các test bên trái | Giữ |
+
+## 4. Kiểm thử
+
+Test viết trước code, thất bại đúng lý do trước khi viết code. Đồng hồ giả và thời gian ảo của `runTest` như `NativeAdSourceTest`.
+
+Mọi đường dẫn tới một lượt gửi của kho (tiêu chí "không nạp khi tắt, khi chưa đồng ý, khi ở nền, khi bị che"): khe kế hoạch (`fill` từ `NativeStockPreloadSlot`), nạp cái kế sau khi lấy (`startNextLoad`), nạp lại sau 55 phút, nạp của khe chờ khi kho rỗng (`SINGLE_AD`), nạp lại một lần của khe thua (O-02), làm mới (`REFRESH`). Điều kiện được phép nạp là `stockMayFill` (một hàm thuần), điều kiện được gửi là `sendGate` có sẵn; test hàm thuần và test mỗi đường có gọi nó.
+
+| Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
+| --- | --- | --- |
+| KB-33, tiêu chí 1: cùng định dạng, cùng mã thì một kho | Unit test | `NativeAdSourcesTest.twoPlacementsSameUnit_shareOneStock`: hai vị trí `NATIVE_SMALL` giả cùng mã nhận cùng kho; đối chứng: mã khác thì hai kho |
+| KB-33, tiêu chí 1: staging một kho mỗi định dạng | Unit test | `NativeAdSourcesTest.stagingTestUnits_oneStockPerFormat`: với `GoogleTestAdUnitIds`, `SAMPLE_NATIVE_SMALL` và `GALLERY_NATIVE_SMALL` (định dạng `NATIVE_SMALL`) chung kho; lớp `NATIVE_COLLAPSIBLE` của hai vị trí chung kho; kho `NATIVE_SMALL` khác kho `NATIVE_COLLAPSIBLE` |
+| KB-33, tiêu chí 1: production mã theo vị trí | Unit test | `NativeAdSourcesTest.productionUnits_smallPerPlacement_collapShared`: `ConfiguredAdUnitIds("a=u1;b=u2;native_collap=c")` với hai vị trí giả: hai kho `NATIVE_SMALL`, một kho `NATIVE_COLLAPSIBLE`; đối chứng: `a=u1;b=u1` thì một kho |
+| KB-33, tiêu chí 2: kế hoạch mặc định | Unit test | `AdPreloadPlanTest.fromPlacements_withBottomBar_hasCollapsibleInSecondGroup`: `NATIVE_SMALL` và `NATIVE_COLLAPSIBLE` ở nhóm 2, không ở nhóm 1; đối chứng: `fromPlacements(list không có vị trí NATIVE_SMALL)` không có `NATIVE_COLLAPSIBLE`; `fromPlacements(chỉ GALLERY_INLIST_SMALL)` không có `NATIVE_COLLAPSIBLE` |
+| KB-33, tiêu chí 2: app xếp được | Unit test | `AdPreloadPlanTest.customPlan_acceptsCollapsibleFirst`: `AdPreloadPlan(listOf(setOf(NATIVE_COLLAPSIBLE), setOf(APP_OPEN)))` giữ thứ tự; `AdsControllerNativeStockTest.customPlan_collapsibleFirst_loadsBeforeAppOpen` |
+| KB-33, tiêu chí 2, 6: kho nạp trong lượt nạp sẵn | Robolectric | `AdsControllerNativeStockTest.sdkReady_preloadFillsSmallAndCollapStocks_beforeAnyScreen`: đồng ý, SDK sẵn sàng, cờ staging: bộ nạp giả nhận đúng một lượt `NATIVE_SMALL` và một lượt `NATIVE_COLLAPSIBLE`, `NativeLoadUse.PRELOAD`, chưa có màn nào |
+| KB-33, tiêu chí 3: khe hiện ngay quảng cáo của kho | Unit test | `NativeAdSourcesTest.slotWithStockAd_firstStateLoaded_noRequestBeforeIt`: kho có quảng cáo, `singleAdSlotStates` phát `Loaded(ad)` đầu tiên, số lượt nạp trước đó không tăng; lượt nạp sau là `PRELOAD` |
+| KB-33, tiêu chí 3: thanh đáy, khe đứng riêng, lớp thu gọn | Robolectric | `AdsControllerNativeStockTest.bottomBar_entersAfterPreload_slotAndLayerShowStockAds`, `standaloneSlot_entersAfterPreload_showsStockAd`: sau lượt nạp sẵn, dựng `BottomAdBarScaffold(SAMPLE_NATIVE_SMALL)` và `NativeAdSlot(GALLERY_NATIVE_SMALL)`: quảng cáo của kho được vẽ (thẻ `NativeAdTestTags`, `CollapsibleNativeAdTestTags.AD`) khi chưa có lượt nạp mới nào sau lượt nạp sẵn |
+| KB-33, tiêu chí 4: lấy thì kho nạp cái kế, mỗi quảng cáo một chỗ | Unit test | `NativeAdSourceTest.claimFromStock_startsNextPreloadLoad`; `twoPlacementsShareStock_neverSameAd`: hai khe của hai vị trí lấy liên tiếp, hai quảng cáo khác nhau |
+| KB-33, tiêu chí 4: rời màn không hủy quảng cáo trong kho, giữ kết quả lượt đang bay | Unit test | `NativeAdSourceTest.lastSlotDetached_keepsPendingAd`, `lastSlotDetached_whileLoading_lateAdKeptAsPending`, `detachAll_thenAttach_claimsKeptAd` (mục 3.5) |
+| KB-33, tiêu chí 4: quảng cáo của khe hủy khi rời màn | Unit test | `NativeAdSourcesTest.slotLeaves_destroysItsAd_notStockAd`: hủy luồng của khe: quảng cáo đang hiện `destroyCount == 1`, quảng cáo chờ của kho `0` |
+| KB-33, tiêu chí 4: rời màn rồi màn khác lấy | Robolectric | `AdsControllerNativeStockTest.leaveScreen_stockKept_nextScreenGetsIt`: màn A có thanh đáy rời đi khi kho đang nạp cái kế; quảng cáo về; màn B (vị trí khác cùng mã) vào thì hiện quảng cáo đó, không có lượt nạp nào trước khi hiện |
+| KB-33, tiêu chí 5: 55 phút | Unit test | `NativeAdSourceTest.stockAdAt55m_noSlot_destroyedAndReloaded`: không khe nào, quảng cáo chờ nạp lúc 0; lúc `MAX_AGE_MILLIS - 1` còn nguyên; lúc `MAX_AGE_MILLIS` `destroyCount == 1`, một lượt nạp `PRELOAD` mới, log `expired`. `stockAdClaimedBefore55m_noExpiryLater`: lấy lúc 54 phút, tới 56 phút không hủy quảng cáo đã lấy |
+| KB-33, tiêu chí 5: hết hạn ở nền | Unit test | `NativeAdSourcesTest.stockExpiresInBackground_reloadWaitsForForeground`: cửa sổ trong màn tắt (nền) lúc 55 phút: hủy, chưa gửi; cửa sổ mở lại: gửi đúng một lượt |
+| KB-33, tiêu chí 6: điều kiện nạp | Unit test | `NativeAdSourcesTest.stockMayFill_rules`: bảng các ca: small cần đồng ý, một vị trí bật, `showNativeBottom`; collap cần thêm `showNativeCollap`; mỗi điều kiện tắt riêng thì `false` (đối chứng mỗi dòng) |
+| KB-33, tiêu chí 6: mọi đường nạp gọi điều kiện | Unit test | `NativeAdSourcesTest.preloadSlot_notAllowed_sendsNothing_settled`, `nextLoadAfterClaim_notAllowed_sendsNothing`, `expiryReload_notAllowed_sendsNothing`: `showNativeBottom` tắt thì ba đường không gửi; đối chứng bật thì gửi |
+| KB-33, tiêu chí 6: chưa đồng ý, gói bỏ quảng cáo | Robolectric | `AdsControllerNativeStockTest.consentClosed_noStockLoad_heldUntilOpen` (S-23: lượt nạp sẵn giữ lại, chạy một lần khi cổng mở); `adFree_noStockLoad_existingStockDestroyed`: `AdFreeStatus` bật lúc kho có quảng cáo: quảng cáo bị hủy, không lượt nạp nào |
+| KB-33, tiêu chí 6: khóa tắt giữa chừng | Robolectric | `AdsControllerNativeStockTest.collapSwitchedOff_stockDestroyed_noMoreFill`: `is_show_native_collap` tắt lúc kho `native_collap` có quảng cáo: hủy, khe kế hoạch sau không nạp; bật lại: xin nạp sẵn (`PLACEMENT_ENABLED`), kho nạp. `nativeBottomOff_smallStockStopsFilling_keepsAdForStandaloneSlot`: `is_show_native_bottom` tắt: kho `native_small` không nạp nữa, quảng cáo đang giữ còn cho khe đứng riêng (câu hỏi 1) |
+| KB-33, tiêu chí 6: một vị trí tắt, vị trí khác còn bật | Unit test | `NativeAdSourcesTest.onePlacementOff_otherOn_stockKept_offSlotsEnd`: khe của vị trí tắt kết thúc, hủy quảng cáo đang hiện; kho giữ quảng cáo chờ; khe của vị trí còn bật làm mới bình thường |
+| KB-33, tiêu chí 6: không gửi ở nền, khi bị che | Unit test | `NativeAdSourcesTest.preloadFill_inBackground_waitsForForeground`, `preloadFill_whileCovered_waitsUntilUncovered` (qua `sendGate` chung, O-05, O-10) |
+| KB-33, tiêu chí 7: lượt kho ghi `preload` | Unit test | `AdTelemetryTest.preloadUse_logsPreloadPlacement_noLoadAttempt`: `nativeLoadReport(null, PRELOAD, NATIVE_SMALL)` gửi `ad_placement = preload`, không `load_attempt`, có `latency_ms`, bộ đếm không đổi |
+| KB-33, tiêu chí 7: hai yêu cầu chồng nhau | Robolectric | `AdsControllerNativeStockTest.stockFillAndSlotLoadOverlap_eachOwnPlacementAndLatency`: lượt nạp kho (gửi lúc 0) và lượt `SINGLE_AD` của khe kho khác (gửi lúc 300 ms) chồng nhau: hai `ad_load_success` có vị trí `preload` và vị trí của khe, `latency_ms` tính từ lúc gửi của chính nó, chỉ lượt của khe có `load_attempt` |
+| KB-33, tiêu chí 7: doanh thu theo màn lấy | Robolectric | `AdsControllerNativeStockTest.stockAdRevenue_goesToPlacementThatClaimed`: kho nạp sẵn (vị trí `preload`), thanh đáy `SAMPLE_NATIVE_SMALL` lấy; sự kiện doanh thu giả ghi `ad_placement = sample_native_small`; đối chứng: quảng cáo khác lấy bởi `GALLERY_NATIVE_SMALL` ghi `gallery_native_small` |
+| KB-33, tiêu chí 8: banner không nạp sẵn | Unit test | `AdPreloadPlanTest.fromPlacements_hasNoBannerLayer`: kế hoạch mặc định không có `BANNER` (lớp banner của thanh đáy) dù có thanh đáy; `NativeAdSourcesTest.preloadSlots_onlyForSmallAndCollapsible`: `preloadSlots(BANNER)`, `(BANNER_MREC)`, `(BANNER_COLLAPSIBLE)` rỗng |
+| S-25, S-24: nạp bù kho | Unit test | `AdPreloaderTest.activityResumed_refillsStocks`: kế hoạch có `NATIVE_COLLAPSIBLE`: `onActivityResumed` gọi `loadIfNeeded` của khe đó (đã có cho `NATIVE_SMALL`) |
+| Ra nền rồi trở lại khi kho đang chờ gửi | Robolectric | `AdsControllerNativeStockTest.preloadHeldInBackground_sentOnceOnResume`: `ActivityScenario.moveToState(CREATED)` lúc kho chuẩn bị nạp, rồi `RESUMED`: đúng một lượt gửi, không gửi khi ở nền |
+| Log không có mã đơn vị | Unit test | `NativeAdSourceTest.stockLogs_holdNoUnitId`: mọi dòng log của kho không chứa mã đơn vị |
+| Tài liệu S-22, HD-02, O-01, O-03, O-04, 5.7, CL-01, 8.2 và `ads-guide.md` | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các luật đã sửa, đối chiếu mục 3.1 bước 7; `scripts/history-refs.py` qua |
+| Lượt nạp sẵn thật trên staging | Kiểm tra thủ công (máy thật: quảng cáo thật) | Cài staging, đồng ý quảng cáo, mở app: log `VGL.Ads` có `Preload group 2/2 started` gồm `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE` và hai dòng `Native ... preload` trước khi vào màn mẫu; vào màn mẫu: khe đáy và lớp thu gọn hiện quảng cáo ngay, không có khung chờ thấy được; về màn trước rồi vào lại: quảng cáo mới hiện ngay, log không có `source closed` |
+
+**Ngoại lệ viết test trước:** sửa tài liệu (`ads-business-rules.md`, `ads-guide.md`) và KDoc (`AdsController.kt`, `CollapsibleNativeAd.kt`) không có test. `NativeAdSourceTest.failureAfterClose_schedulesNoRetry` giữ câu khẳng định và qua ngay trên code mới; phiên chạy nó một lần với đột biến tạm (bỏ dòng `session` trong `close`) để thấy nó còn đỏ khi ý định bị phá, ghi vào nhật ký.
+
+### 4.1. Chạy thử
+
+Không cần (E dưới 2).
+
+## 5. Chấm rủi ro
+
+**Điểm chặn bị chạm:** 1 (quảng cáo: đổi lúc nạp native nhỏ và lớp thu gọn, nạp sẵn trước màn), 4 (thu thập dữ liệu: đổi giá trị `ad_placement` của lượt nạp kho tự chạy, không thêm sự kiện), 7 (module core `:core:ads`). Không chạm 2, 3, 5, 6, 8, 9.
+
+| Tiêu chí | Điểm (0 đến 3) | Lý do |
+| --- | --- | --- |
+| A. Phạm vi thay đổi | 2 | Sáu file code trong một module `:core:ads`, đổi giao diện nội bộ của `NativeAdSource`, `NativeAdSources`, `refreshingNativeAdStates`, `nativeLoadReport`; `AdPreloadPlan.fromPlacements` (công khai) cho kết quả khác |
+| B. Độ rõ của yêu cầu | 2 | Spec đã xác nhận, câu hỏi 53, 55 đã trả lời; còn hai câu ảnh hưởng cách làm (mục 8, câu 1: khe đứng riêng khi `is_show_native_bottom` tắt; câu 2: vị trí của lượt nạp cái kế) |
+| C. Khả năng kiểm chứng tự động | 1 | Mọi luật có test JVM và Robolectric với đồng hồ giả; chỉ cảm nhận "hiện ngay" với quảng cáo thật cần nhìn trên máy |
+| D. Ảnh hưởng chéo | 2 | `AdsController.kt`, `NativeAdSource.kt`, tài liệu quảng cáo cũng do T-087, T-090 sửa; T-089 sửa `AdsController.kt` (KDoc) và tài liệu quảng cáo |
+| E. Độ mới của kỹ thuật | 1 | Biến thể của pool theo mã đơn vị và nguồn một quảng cáo có sẵn |
+| **Tổng** | 8 | **Mức: Cao** (chạm điểm chặn) |
+
+## 6. Ảnh hưởng chéo
+
+- File hoặc thành phần dùng chung bị chạm: `AdsController.kt`, `NativeAdSource.kt`, `NativeAdSources.kt`, `NativeAdRefresh.kt` (mọi khe native nhỏ và lớp thu gọn), `AdPreloadPlan.kt` (kế hoạch mặc định của mọi app), `docs/ops/ads-business-rules.md`, `docs/ops/ads-guide.md`. Không script hay workflow nào đọc các file này theo tên ngoài `scripts/history-refs.py` (đọc mọi tài liệu quy tắc; plan không ghi mã ticket vào đó); `scripts/ads-plan.py` đọc `AdPlacement.kt`, `AdsSettings` và `docs/remote-config-keys.md`, plan không đổi chúng.
+- Nơi đọc `docs/ops/ads-business-rules.md` (L-020): các test sau chỉ nhắc file trong chú thích để dẫn nguồn, không mở file lúc chạy: `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdFormatTest.kt` (MC-02, chép tay), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdNetworkResponsesTest.kt` (mục 8), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdTelemetryRulesTest.kt` (mục 8), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` (mục 10), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentGateTest.kt` (mục 1), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdGuardTest.kt` (mục 3, 4), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/LoadAttemptCounterTest.kt` (mục 8.2), `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardScreenshotTest.kt` và `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt` (kích thước của mục 5.7), `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerEventsTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerSettingsTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerSwitchesTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerTrackerTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/FirebaseAdMetricsTest.kt` (mục 8.3, 10.1). Plan không đổi MC-02, kích thước của mục 5.7, `load_attempt` của khe có bộ đếm, mục 10 hay sự kiện AppsFlyer; chỉ đổi cột nguồn quảng cáo của 5.7 và câu "Vị trí của lượt nạp" của mục 8.2 theo cách test không dựa vào.
+- Task khác có thể xung đột: T-087 (phụ thuộc T-086) sửa `NativeAdSource.kt` (`NativeAdPolicy`), `NativeAdSources.kt`, `NativeAdRefresh.kt`, `AdsController.kt`, `BottomAdBar.kt` và tài liệu quảng cáo: chạy sau T-086. T-090 (khe đáy nhường lớp nổi, sau T-087) lấy quảng cáo mới cho khe đáy "từ kho nạp sẵn nếu có" (D-07): dùng `claim` của kho này. T-092 (quảng cáo trong nội dung thắng lớp nổi) có thể thêm một điều kiện vào `stockMayFill` của kho `native_collap` (màn có quảng cáo trong nội dung không có lớp nổi, nhưng kho sống qua các màn nên điều kiện theo màn không chặn kho; plan T-092 xét). T-089 (người khác viết) sửa KDoc của `AdsController.kt`, `scripts/ads-plan.py`, `ads-business-rules.md`: khác đoạn, xung đột chỉ ở mức dòng.
+- Đề xuất thứ tự chạy: T-086, rồi T-087, rồi T-088 (cùng một danh sách chạy hay các phiên nối nhau). T-089 chạy được trước hay sau, không cùng phiên với T-086 nếu muốn tránh xung đột dòng ở `AdsController.kt`.
+
+## 7. Điều kiện dừng riêng
+
+- Một test có sẵn của pool (`NativeAdPoolTest`, `NativeAdPoolsTest`), của hàng trong danh sách (`InListAdsTest`, `AdsControllerInListRowTest`) hay của toàn màn hình đỏ: plan không đổi các đường đó; dừng thay vì sửa chúng.
+- Ảnh chuẩn screenshot nào đổi: plan không đổi giao diện; dừng.
+- Phiên thấy cần đổi `BottomAdBar.kt`, `NativeAdSlot.kt` hay `CollapsibleNativeAdLayerHost` (ngoài KDoc) để khe hiện quảng cáo của kho: dừng, vì mục 3.1 giả định đường của khe không đổi; ghi vào nhật ký.
+- Phần việc lớn hơn rõ rệt (điều kiện dừng 6), ví dụ phải viết lại hơn 3 câu khẳng định ngoài mục 3.5: dừng và đề xuất tách như ticket nêu (kho native nhỏ trước, lớp thu gọn sau).
+
+## 8. Câu hỏi cho người duyệt
+
+1. **Khe native nhỏ đứng riêng khi `is_show_native_bottom` tắt.** Code không phân biệt vị trí native nhỏ dùng làm thanh đáy hay khe đứng riêng (vị trí `gallery_native_small` dùng cho cả hai; `layerFormats` coi mọi vị trí native nhỏ là thanh đáy). AI đề xuất: mọi vị trí native nhỏ không chèn danh sách tính là thanh đáy cho điều kiện nạp sẵn, nên khi `is_show_native_bottom` tắt thì kho `native_small` không nạp sẵn và không nạp cái kế; khe đứng riêng vẫn lấy quảng cáo còn trong kho, kho rỗng thì nạp khi màn vào như hôm nay. Phương án khác: thêm thuộc tính vị trí (ví dụ `bottomBar = false`) vào `AdPlacement` để khe đứng riêng luôn được nạp sẵn: đổi khai báo vị trí, `scripts/release.sh` và `scripts/ads-plan.py` đọc dòng khai báo, nên cần plan bản 2.
+2. **Vị trí của lượt nạp cái kế.** Hôm nay lượt nạp sau khi khe lấy quảng cáo ghi vị trí của màn (`REFRESH`). Kho sống qua các màn, nên AI đề xuất mọi lượt kho tự chạy (nạp sẵn, nạp cái kế, nạp lại sau 55 phút) ghi `preload` như câu "Lượt nạp của kho ghi vị trí `preload`" của KB-33; lượt nạp do một khe đang chờ (kho rỗng) giữ vị trí của khe và `load_attempt`. Báo cáo theo vị trí của `ad_load_success`, `ad_load_fail` sẽ có ít lượt của màn hơn, nhiều lượt `preload` hơn. Anh đồng ý?
+3. **Lỗi của lượt kho tự chạy không hẹn thử lại riêng.** Kho nạp lỗi thì chờ dịp sau (khe kế hoạch kế, mạng về, Activity quay lại, khe lấy quảng cáo) thay vì thử lại theo O-05; khe vào màn khi kho rỗng vẫn thử lại 5 giây như hôm nay. Lý do: kho không có khe nào để giữ chỗ, tránh vòng thử lại chạy cả khi không màn nào cần. Anh đồng ý?
+4. **Tách ticket.** Ticket cỡ L. AI giữ một plan vì kho `native_collap` dùng cùng lớp với kho `native_small`, phần riêng chỉ là điều kiện nạp và một dòng của kế hoạch mặc định. Nếu anh muốn tách, AI soạn plan bản 2 cho kho native nhỏ và một ticket mới cho lớp thu gọn.
+
+## 9. Quyết định duyệt
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+
+## 10. Nhật ký thực hiện
