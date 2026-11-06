@@ -1,10 +1,11 @@
 ---
 id: ADR-0011
 title: Bộ công cụ build và kiểm tra code của dự án mẫu
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển]
+superseded_by: ADR-0047
 ---
 
 # ADR-0011: BỘ CÔNG CỤ BUILD VÀ KIỂM TRA CODE CỦA DỰ ÁN MẪU

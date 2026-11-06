@@ -1,12 +1,12 @@
 ---
 id: ADR-0040
 title: Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, compileSdk 37, targetSdk 36
-status: accepted             # proposed | accepted | superseded
+status: superseded           # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-30
 deciders: [Nhật]
 supersedes: ADR-0011         # chỉ thay phần "Phiên bản" của ADR-0011; các quyết định còn lại của ADR-0011 vẫn còn hiệu lực
-superseded_by:
+superseded_by: ADR-0047
 ---
 
 # ADR-0040: DỰ ÁN MẪU BUILD BẰNG GRADLE 9.3.1 VÀ AGP 9.1.0 VỚI KOTLIN DỰNG SẴN, COMPILESDK 37, TARGETSDK 36
