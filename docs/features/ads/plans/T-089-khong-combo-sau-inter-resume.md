@@ -67,7 +67,7 @@ ADR liên quan: ADR-0045 (nghiệp vụ quảng cáo theo AdsKit PARTNER, mục 
 4. **`docs/ops/ads-guide.md`.**
    - Bảng định dạng, dòng "Quảng cáo khi quay lại app": bỏ `is_show_native_after_inter` khỏi cột khóa (câu hỏi 3); vế "inter của resume nối combo khi `is_show_native_after_inter` bật lúc inter kết thúc" thành "inter của resume không nối combo, kể cả khi `is_show_native_after_inter` bật".
    - Dòng "Native toàn màn hình sau inter (combo)": "Inter lúc mở app không nối combo" thành "Inter lúc mở app và inter khi quay lại app không nối combo".
-   - Phần thử trên staging: "Đặt `resume_ad_type = inter` (Firebase staging): quay lại thì có inter rồi combo." thành "Đặt `resume_ad_type = inter` (Firebase staging): quay lại thì có inter; đóng inter thì về app ngay, không có native toàn màn hình, kể cả khi `is_show_native_after_inter` bật (log có `Interstitial shown: resume_inter`, không có dòng bắt đầu bằng `Native combo opened`)."
+   - Phần thử trên staging: "Đặt `resume_ad_type = inter` (Firebase staging): quay lại thì có inter rồi combo." thành "Đặt `resume_ad_type = inter` (Firebase staging): quay lại thì có inter; đóng inter thì về app ngay, không có native toàn màn hình, kể cả khi `is_show_native_after_inter` bật (logcat có dòng chứa `Interstitial shown: resume_inter`, không có dòng nào chứa `Native combo opened`)."
    - Tài liệu quy tắc: không ghi mã ticket hay plan (ADR-0044).
 5. **`scripts/ads-plan.py`, chỉ chữ tiếng Việt của bảng.**
    - `APP_WIDE_TEXT["resume_inter"]`: "nối native combo nếu bật" thành "không nối native combo".
@@ -133,15 +133,14 @@ Không có: một dòng code và chú thích; đường test đã có mẫu ch�
 `python3 scripts/existing-tests.py docs/features/ads/plans/T-089-khong-combo-sau-inter-resume.md`, chạy lại trên bản plan sau rà soát (2026-11-06):
 
 - 303 test dùng tên của ba file code.
-- Bản plan trước khi sửa theo rà soát: "Cần xem trước" 6, "Nên xem" 168, đã nhắc 20. Bản cuối (đã nêu tên các test đọc được): "Cần xem trước" 0, "Nên xem" 162, đã nhắc 32.
-- "Cần xem trước" qua các lần chạy, 8 test: `AdGalleryScreenTest.collapsibleCollapsed_slotAt795`, `collapsible_pinsAdAtBottom`, `RewardedActionTest.longContent_small_buttonsInsideWindow`, `noThanksText_usesOnSurfaceVariant_light_and_dark`, `realController_adFreeWhileDialogOpen_watchRunsAction`, `watchButton_is56dpHigh_fullCardWidth`, `BannerAdSizeTest.admobOrder_withMaxKey_noMaxPlatform_heightIsAdmob`, `CollapsibleNativeAdTest.layer_leavesAdChoicesTopStartCornerFree`. Chúng chỉ trùng tên chung (`start`, `AdsController`, `AdsSettings`), đo giao diện banner, native, hộp thoại rewarded; không kiểm combo, resume hay inter lúc mở app: giữ.
+- Bản cuối của plan: "Cần xem trước" 0, "Nên xem" 162, plan đã nhắc 32; 109 test chỉ dùng tên plan không nêu.
+- "Cần xem trước" ở các bản trước của plan, 8 test (nay plan đã nêu tên nên còn 0): `AdGalleryScreenTest.collapsibleCollapsed_slotAt795`, `collapsible_pinsAdAtBottom`, `RewardedActionTest.longContent_small_buttonsInsideWindow`, `noThanksText_usesOnSurfaceVariant_light_and_dark`, `realController_adFreeWhileDialogOpen_watchRunsAction`, `watchButton_is56dpHigh_fullCardWidth`, `BannerAdSizeTest.admobOrder_withMaxKey_noMaxPlatform_heightIsAdmob`, `CollapsibleNativeAdTest.layer_leavesAdChoicesTopStartCornerFree`. Chúng chỉ trùng tên chung (`start`, `AdsController`, `AdsSettings`), đo giao diện banner, native, hộp thoại rewarded; không kiểm combo, resume hay inter lúc mở app: giữ.
 - "Nên xem": đã lọc theo "inter", "combo", "resume", "startup", "fullscreen" và đọc các test khớp. Không test nào trong số đó dựng lượt resume loại inter hay `showStartupAd` với inter qua cổng và khóa combo bật, nên không test nào sẽ đỏ ngoài hai câu dưới:
   - `ResumeAdTurnsTest` (các test khác): chỉ dùng `RESUME` (app open) hay kiểm `interShows` rỗng.
   - `AdsControllerResumeTest.resumeOff_gateHasNoPlacement_foregroundRecordsNothing`, `readResumeGate_mapsControllerState`, `adFreeMidSession_resumeOff_noOpportunity`: chỉ đọc cổng, không hiện inter.
   - `AdPlacementTest.resumePlacements_areAppWide`, `nativeCombo_isAppWideNativeFullScreen`: thuộc tính vị trí, không đổi.
   - `AdsSettingsTest.resumeKey_keepsAdsKitTypo` và test kiểm mô tả khóa AdsKit không chứa "not an AdsKit key": mô tả mới không chứa chuỗi đó.
   - `AdsControllerHostTest.*`, `AdsControllerNativeComboTest.blockedAtGate_*`, `standalone_*`: inter hay native của vị trí trong app, không đổi.
-- Còn 109 test chỉ dùng tên plan không nêu.
 
 | Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
@@ -177,7 +176,7 @@ Hai câu dưới là câu mới viết sẵn trong plan theo quyết định 1 c
 
 Test JVM của `:core:ads`, Robolectric như các lớp có sẵn. Không có giao diện, không có ảnh chuẩn.
 
-Log của combo thật là `"Native combo opened (inter gone: $gone)"` (`NativeFullScreenTurns.kt`, dòng 127). Mọi test so log combo bằng `startsWith`, không so bằng:
+Log của combo thật là `"Native combo opened (inter gone: $gone)"` (`NativeFullScreenTurns.kt`, dòng 127). Test JVM so `message` của `RecordingAppLogger` bằng `startsWith`, không so bằng (kiểm logcat trên máy thì dùng "có dòng chứa", vì logcat in ngày giờ, PID, thẻ trước nội dung):
 
 - "không có combo": `assertTrue(logger.entries.none { it.message.startsWith("Native combo") })`;
 - "có combo" (đối chứng): `assertTrue(logger.entries.any { it.message.startsWith("Native combo opened") })`.
@@ -199,16 +198,22 @@ Log của combo thật là `"Native combo opened (inter gone: $gone)"` (`NativeF
 5. `controller.showStartupAd(activity, StartupAdTurn(AdPlacement.OPEN_APP_INTER)) { results += it }`, `idle()`.
 6. Kiểm: `fake.shows == 1`, `results` rỗng.
 
-**Đối chứng combo** (dùng trong test có ghi): `idleFor(45_100)` (mốc `ads_interval` do inter vừa rồi đẩy); `gallery = FakeInterstitialAd()` vào khe `GALLERY_INTERSTITIAL`; `CoroutineScope(Dispatchers.Main).launch { controller.showInterstitial(<Activity đang resume>, AdPlacement.GALLERY_INTERSTITIAL) {} }`, `idle()`; `gallery.shows == 1`; gọi kết thúc của `gallery` cùng loại với test (đóng hay lỗi hiện); ngay sau đó `assertTrue(controller.fullScreenAdShowing.value)`; `idleFor(2_100)`: `assertNotNull(controller.nativeFullScreenView.value)` và có log bắt đầu bằng `Native combo opened`. Khóa bật thật và combo vẫn chạy cho inter của vị trí trong app.
+**Đối chứng combo** (dùng trong test có ghi; khóa bật thật và combo vẫn chạy cho inter của vị trí trong app):
+
+1. `idleFor(45_100)` (mốc `ads_interval` do inter vừa rồi đẩy).
+2. `gallery = FakeInterstitialAd()` vào khe `GALLERY_INTERSTITIAL`.
+3. `CoroutineScope(Dispatchers.Main).launch { controller.showInterstitial(<Activity đang resume>, AdPlacement.GALLERY_INTERSTITIAL) {} }`, `idle()`; kiểm `gallery.shows == 1`.
+4. Gọi kết thúc của `gallery` cùng loại với test (đóng hay lỗi hiện); ngay sau đó `assertTrue(controller.fullScreenAdShowing.value)`.
+5. `idleFor(2_100)`: `assertNotNull(controller.nativeFullScreenView.value)` và `assertTrue(logger.entries.any { it.message.startsWith("Native combo opened") })`.
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
 | KB-14 tiêu chí 1, A-12: lượt resume loại inter quyết không combo (tầng `ResumeAdTurns`) | Unit test | `ResumeAdTurnsTest.interResume_showsInterstitialWithoutCombo` (câu A, mục 3.5). Kiểm thêm trong cùng test, sau câu A: `returnToApp()`, `turns.onAppActivityResumed(activity)`; `assertEquals(listOf(false, false), port.interShows.map { it.third })` (lượt sau cũng không combo) |
 | KB-14, L-A05 mở rộng: lượt sau khi đổi loại cũng không combo | Unit test | `ResumeAdTurnsTest.typeChangedBeforeResume_showsNothing` (câu B, mục 3.5) |
-| KB-14 tiêu chí 1, KB-16 tiêu chí 3: inter của resume đóng xong, khóa combo bật, không có native (đường thật của controller) | Unit test | `AdsControllerResumeTest.resumeInter_closed_comboOn_noNativeFullScreen`: "dựng resume"; `fake.callback!!.onAdDismissedFullScreenContent()`; ngay sau đó `assertFalse(controller.fullScreenAdShowing.value)` (combo giữ cờ nếu có); `idleFor(2_100)`: `assertNull(controller.nativeFullScreenView.value)`, không có log bắt đầu bằng `Native combo`; `idleFor(5_000)`: `nativeFullScreenView` vẫn `null`. Rồi "đối chứng combo" với `host.get()`, đường đóng |
-| K-01, KB-16 tiêu chí 8 (theo cách hiểu ở mục 2, câu hỏi 4): inter của resume hiện lỗi, khóa combo bật, không có native | Unit test | `AdsControllerResumeTest.resumeInter_showFailed_comboOn_noNativeFullScreen`: "dựng resume"; `fake.callback!!.onAdFailedToShowFullScreenContent(AdError(1, "Show failed.", "com.google.android.gms.ads"))`; ngay sau đó `assertFalse(controller.fullScreenAdShowing.value)`; `idleFor(2_100)`: `nativeFullScreenView` `null`, không có log bắt đầu bằng `Native combo`. Rồi "đối chứng combo" với `host.get()`, đường lỗi hiện (K-01: inter vị trí trong app hiện lỗi vẫn mở combo) |
-| KB-13 tiêu chí 4, A-02: inter lúc mở app đóng xong, khóa combo bật, không có native, người dùng đi tiếp ngay | Unit test (khóa hành vi đã có) | `AdsControllerStartupInterComboTest.startupInter_closed_comboOn_noNativeFullScreen`: "dựng mở app"; `fake.callback!!.onAdDismissedFullScreenContent()`; ngay sau đó `assertEquals(listOf(true), results)` và `assertFalse(controller.fullScreenAdShowing.value)`; `idleFor(2_100)`: `nativeFullScreenView` `null`, không có log bắt đầu bằng `Native combo`; `idleFor(5_000)`: `results` vẫn `[true]`. Rồi "đối chứng combo" với `activity`, đường đóng |
-| KB-13, K-01 (theo cách hiểu ở mục 2): inter lúc mở app qua cổng mà hiện lỗi, khóa combo bật, không có native | Unit test (khóa hành vi đã có) | `AdsControllerStartupInterComboTest.startupInter_showFailed_comboOn_noNativeFullScreen`: "dựng mở app"; `fake.callback!!.onAdFailedToShowFullScreenContent(AdError(1, "Show failed.", "com.google.android.gms.ads"))`; ngay sau đó `results == [true]` (inter đã gọi hiện), `fullScreenAdShowing` `false`; `idleFor(2_100)`: `nativeFullScreenView` `null`, không có log bắt đầu bằng `Native combo` |
+| KB-14 tiêu chí 1, KB-16 tiêu chí 3: inter của resume đóng xong, khóa combo bật, không có native (đường thật của controller) | Unit test | `AdsControllerResumeTest.resumeInter_closed_comboOn_noNativeFullScreen`: "dựng resume"; `fake.callback!!.onAdDismissedFullScreenContent()`; ngay sau đó `assertFalse(controller.fullScreenAdShowing.value)` (combo giữ cờ nếu có); `idleFor(2_100)`: `assertNull(controller.nativeFullScreenView.value)`, không có `message` log nào bắt đầu bằng `Native combo`; `idleFor(5_000)`: `nativeFullScreenView` vẫn `null`. Rồi "đối chứng combo" với `host.get()`, đường đóng |
+| K-01, KB-16 tiêu chí 8 (theo cách hiểu ở mục 2, câu hỏi 4): inter của resume hiện lỗi, khóa combo bật, không có native | Unit test | `AdsControllerResumeTest.resumeInter_showFailed_comboOn_noNativeFullScreen`: "dựng resume"; `fake.callback!!.onAdFailedToShowFullScreenContent(AdError(1, "Show failed.", "com.google.android.gms.ads"))`; ngay sau đó `assertFalse(controller.fullScreenAdShowing.value)`; `idleFor(2_100)`: `nativeFullScreenView` `null`, không có `message` log nào bắt đầu bằng `Native combo`. Rồi "đối chứng combo" với `host.get()`, đường lỗi hiện (K-01: inter vị trí trong app hiện lỗi vẫn mở combo) |
+| KB-13 tiêu chí 4, A-02: inter lúc mở app đóng xong, khóa combo bật, không có native, người dùng đi tiếp ngay | Unit test (khóa hành vi đã có) | `AdsControllerStartupInterComboTest.startupInter_closed_comboOn_noNativeFullScreen`: "dựng mở app"; `fake.callback!!.onAdDismissedFullScreenContent()`; ngay sau đó `assertEquals(listOf(true), results)` và `assertFalse(controller.fullScreenAdShowing.value)`; `idleFor(2_100)`: `nativeFullScreenView` `null`, không có `message` log nào bắt đầu bằng `Native combo`; `idleFor(5_000)`: `results` vẫn `[true]`. Rồi "đối chứng combo" với `activity`, đường đóng |
+| KB-13, K-01 (theo cách hiểu ở mục 2): inter lúc mở app qua cổng mà hiện lỗi, khóa combo bật, không có native | Unit test (khóa hành vi đã có) | `AdsControllerStartupInterComboTest.startupInter_showFailed_comboOn_noNativeFullScreen`: "dựng mở app"; `fake.callback!!.onAdFailedToShowFullScreenContent(AdError(1, "Show failed.", "com.google.android.gms.ads"))`; ngay sau đó `results == [true]` (inter đã gọi hiện), `fullScreenAdShowing` `false`; `idleFor(2_100)`: `nativeFullScreenView` `null`, không có `message` log nào bắt đầu bằng `Native combo` |
 | KB-16 tiêu chí 1: inter của vị trí trong app vẫn nối combo ở mọi đường | Unit test có sẵn | `AdsControllerNativeComboTest` (mọi test `*_opensCombo`, `capExpired_*`, `onFinished_runsOnMainThread`), `AdsControllerHostTest.interstitial_hostGone_comboOn_noNativeFullScreen` giữ nguyên và phải qua |
 | Bảng khóa sinh khớp code | Unit test có sẵn | `RemoteConfigKeysTest` (`:app`), `AdsSettingsTest` qua sau khi sinh lại |
 | Tài liệu và bảng Excel không còn nói resume inter nối combo | Kiểm tra thủ công (người: đọc tài liệu) | Đọc ba chỗ của `docs/ops/ads-guide.md` (mục 3.1 bước 4); chạy `python3 scripts/ads-plan.py --dump` và xem chữ của `resume_inter`, `native_combo`, `resume_ad_type`, `is_show_native_after_inter` |
@@ -219,13 +224,13 @@ Log của combo thật là `"Native combo opened (inter gone: $gone)"` (`NativeF
 1. Firebase staging đặt `resume_ad_type = inter`; `is_show_native_after_inter` bật sẵn ở staging.
 2. Đồng ý quảng cáo, mở app, bấm Home rồi mở lại: có inter thử của Google. Log `Resume ad NOT_READY: resume_inter` thì inter chưa nạp xong: quay lại app lần nữa.
 3. Đóng inter: về màn trước, không có native toàn màn hình.
-4. Log `adb logcat -v threadtime | grep ' VGL\.Ads'`: có `Resume ad SHOW: resume_inter`, `Resume ad shown on resume: resume_inter`, `Interstitial shown: resume_inter`; không có dòng bắt đầu bằng `Native combo opened`.
-5. Đối chứng: màn xem thử, nút "Interstitial", đóng inter thì có native toàn màn hình (dòng `Native combo opened (inter gone: ...)`).
+4. Log `adb logcat -v threadtime | grep ' VGL\.Ads'`: có dòng chứa `Resume ad SHOW: resume_inter`, `Resume ad shown on resume: resume_inter`, `Interstitial shown: resume_inter`; không có dòng nào chứa `Native combo opened`. Logcat in ngày giờ, PID và thẻ trước nội dung, nên kiểm bằng "có dòng chứa", không bằng "bắt đầu bằng".
+5. Đối chứng: màn xem thử, nút "Interstitial", đóng inter thì có native toàn màn hình (có dòng chứa `Native combo opened`).
 6. Dòng log dẫn: `ResumeAdTurns.onProcessForegroundChanged` (`Resume ad $decision: ...`), `onAppActivityResumed` (`Resume ad shown on resume: ...`), `AdsController.showInterstitialTurn` (`Interstitial shown: ...`), `NativeFullScreenTurns.afterInterstitial` (`Native combo opened (inter gone: $gone)`).
 
 Thứ tự viết test của phiên (bước 3 của `auto-run.md`):
 
-- `ResumeAdTurnsTest` (câu A, câu B, phần kiểm thêm) và hai test của `AdsControllerResumeTest` đỏ trên code hiện tại, vì lượt resume đang truyền `combo = true`: combo mở, cờ toàn màn hình còn giữ sau khi inter đóng, có `nativeFullScreenView`. Đó là lý do đúng. Lần chạy đỏ này cũng là đối chứng (điều 4 của ADR-0031) cho câu A, B: ghi kết quả vào nhật ký và mục "Test cũ viết lại (ADR-0031)" của mô tả PR. Sau bước 1 chúng xanh.
+- `ResumeAdTurnsTest` (câu A, câu B) và hai test của `AdsControllerResumeTest` đỏ trên code hiện tại, vì lượt resume đang truyền `combo = true`: combo mở, cờ toàn màn hình còn giữ sau khi inter đóng, có `nativeFullScreenView`. Đó là lý do đúng. Lần chạy đỏ này cũng là đối chứng (điều 4 của ADR-0031) cho câu A, B: ghi kết quả vào nhật ký và mục "Test cũ viết lại (ADR-0031)" của mô tả PR. Sau bước 1 chúng xanh. Phần kiểm thêm của câu A nằm sau câu A, nên chỉ chạy tới sau bước 1 (câu A đỏ thì test dừng trước nó).
 - Hai test của `AdsControllerStartupInterComboTest` khóa hành vi đã có nên qua ngay trên code hiện tại. Để chúng thất bại đúng lý do, trước khi sửa code (trước bước 1 và bước 2, để lệnh trả file không xóa phần sửa), phiên chạy chúng một lần với đột biến tạm, không commit:
   - `perl -pi -e 's/\QshowInterstitialTurn(activity, turn.placement, combo = false, finish)\E/showInterstitialTurn(activity, turn.placement, combo = true, finish)/' core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt`
   - `git diff --stat -- core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` phải thấy 1 dòng đổi (không đổi thì mẫu không khớp, lần thử không có giá trị).
@@ -245,9 +250,7 @@ Không cần (E dưới 2). Không chạy test tạm: máy soạn plan chưa có
 
 `python3 scripts/existing-tests.py docs/features/ads/plans/T-089-khong-combo-sau-inter-resume.md`, chạy lại trên bản plan sau rà soát (2026-11-06, nhánh từ `origin/main` tại `ac7335d`):
 
-- File của plan: `ResumeAdTurns.kt`, `AdsController.kt`, `AdsSettings.kt`; 303 test có sẵn dùng tên của chúng.
-- Bản trước khi sửa theo rà soát: "Cần xem trước" 6, "Nên xem" 168, plan đã nhắc 20. Bản cuối: "Cần xem trước" 0, "Nên xem" 162, plan đã nhắc 32. Cả hai: 109 test chỉ dùng tên plan không nêu.
-- Cách xếp ở mục 3.5.
+- Số liệu và cách xếp ở mục 3.5.
 
 ## 5. Chấm rủi ro
 
@@ -283,14 +286,14 @@ Không cần (E dưới 2). Không chạy test tạm: máy soạn plan chưa có
 
 1. **Giữ hay bỏ tham số `combo` của `ResumeAdPort.showInterstitial`?** Sau đổi, lượt resume luôn truyền `false`.
    - Phương án A (AI đề xuất): giữ tham số, truyền `false`. Ưu: một dòng code; `ResumeAdTurnsTest` kiểm được lựa chọn combo ở tầng thuần (câu A, B), và giá trị `true` bị bắt ở cả hai tầng; nếu sau này cần đổi lại chỉ sửa một chỗ. Nhược: tham số chỉ còn một giá trị.
-   - Phương án B: bỏ tham số; phần cài của cổng trong `AdsController` gọi `showInterstitialTurn(..., combo = false, ...)`. Ưu: chữ ký gọn. Nhược: lựa chọn combo chuyển hẳn vào phần nối trong `AdsController`, chỉ test controller bắt được; câu A, B phải đổi kiểu dữ liệu của bản giả (`Pair` thay `Triple`), thêm thay đổi cho `FakeResumeAdPort`. Chọn B thì plan lên version 2: phải sửa mục 3.1, 3.5, 4 và phần đột biến.
+   - Phương án B: bỏ tham số; phần cài của cổng trong `AdsController` gọi `showInterstitialTurn(..., combo = false, ...)`. Ưu: chữ ký gọn. Nhược: lựa chọn combo chuyển hẳn vào phần nối trong `AdsController`, chỉ test controller bắt được; câu A, B phải đổi kiểu dữ liệu của bản giả (`Pair` thay `Triple`), thêm thay đổi cho `FakeResumeAdPort`. Chọn B thì plan lên version 2: phải đổi bản giả `FakeResumeAdPort` và câu A, B, cùng mục 3.1, 3.5, 4.
    - Phương án C (để sau): suy combo từ vị trí (`AdPlacement.appWide` thì không combo) trong `beginInterstitialTurn`, bỏ tham số ở mọi chỗ. Gom luật K-01 về một chỗ, nhưng đổi nhiều test của `AdsControllerNativeComboTest`; ngoài phạm vi ticket cỡ S.
 2. **Đổi mô tả khóa `is_show_native_after_inter` trong `AdsSettings.kt` không?** Mô tả hiện tại "Shows a full-screen native ad right after an interstitial (combo)." nay không đúng hết (inter lúc mở app và khi quay lại không nối). Mô tả này vào `docs/remote-config-keys.md` và `docs/remote-config-template.json` (dev nhập vào Firebase).
    - AI đề xuất: đổi thành "Shows a full-screen native ad right after the interstitial of an in-app placement (combo); never after the startup or resume interstitial." và sinh lại hai file trong cùng PR. Khóa, kiểu, mặc định không đổi.
    - Nếu chọn giữ: bỏ ba dòng tương ứng của mục 3.2 (`AdsSettings.kt` và hai file sinh), bỏ bước 3.
 3. **Bảng định dạng của `docs/ops/ads-guide.md`, dòng "Quảng cáo khi quay lại app": bỏ `is_show_native_after_inter` khỏi cột khóa?** Spec mục 5 đã gạch khóa này khỏi dòng `resume` (2026-11-06). AI đề xuất bỏ, như spec.
 4. **KB-16 tiêu chí 8 chỉ áp cho inter của vị trí trong app?** Tiêu chí 8 ("inter đã được phép hiện nhưng không lên được màn ... và native sau inter đang bật thì vẫn có màn native") chưa có ghi chú đổi 2026-11-06. Tiêu chí 3 của KB-16 và luật K-01 nói inter lúc mở app và của resume không bao giờ nối combo.
-   - AI đề xuất: xác nhận tiêu chí 8 chỉ áp cho inter của vị trí trong app (plan viết hai test "hiện lỗi" theo cách hiểu này), và ghi chú đổi vào tiêu chí 8 của spec trong một PR tài liệu riêng, không trong PR của task.
+   - AI đề xuất: xác nhận tiêu chí 8 chỉ áp cho inter của vị trí trong app (plan viết hai test "hiện lỗi" theo cách hiểu này), và ghi chú đổi vào tiêu chí 8 của spec trong một PR tài liệu riêng, không trong PR của task; người duyệt hay AI làm sau khi duyệt, ngoài phiên tự chạy.
    - Nếu người duyệt hiểu khác (inter lúc mở app hay của resume hiện lỗi vẫn có native): plan lên version 2, vì `combo` khi đó phụ thuộc đường kết thúc.
 
 ## 9. Quyết định duyệt
