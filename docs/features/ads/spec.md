@@ -228,7 +228,7 @@ Người dùng bấm một nút có interstitial (ví dụ sang màn sau).
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình.
+- [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình. **Đổi 2026-11-06:** chỉ với interstitial của một vị trí trong app (tiêu chí 3).
 - [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở ~~góc trên phải~~ **đổi 2026-10-26:** góc trên trái, theo thiết kế T-035 (góc trên phải dành cho AdChoices; câu hỏi 10 của plan T-027); hết đếm ngược thì vòng đó thành nút đóng. **Đổi 2026-10-29 (ADR-0038, KB-32):** đếm ngược mặc định 5 giây, chỉnh từ xa bằng `time_close_native` (1 tới 30), trong vòng 48 dp, vẫn ở góc trên trái.
 - [ ] **Thêm 2026-11-06:** Chỉ interstitial của một vị trí trong app mới nối native toàn màn hình. Interstitial lúc mở app (KB-13) và khi quay lại app (KB-14) đóng xong thì người dùng đi tiếp ngay, không có native, kể cả khi native sau inter đang bật.
 - [ ] Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược.
@@ -538,7 +538,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | `show_resum_ads` | boolean | tắt | Quảng cáo khi quay lại app |
 | `resume_ad_type` | string | `aoa` | `inter` là interstitial, giá trị khác là app open |
 | `ads_interval` | long (giây) | 45 | Khoảng cách giữa hai interstitial |
-| `is_show_native_after_inter` | boolean | tắt | Native toàn màn hình sau interstitial |
+| `is_show_native_after_inter` | boolean | tắt | Native toàn màn hình sau interstitial (**đổi 2026-11-06:** của vị trí trong app, KB-16) |
 | `is_show_native_bottom` | boolean | tắt | Thanh đáy là native (bật) hay banner (tắt) |
 | `is_show_native_collap` | boolean | bật | Lớp native thu gọn trên thanh đáy khi khe đáy là native (tên do ta đặt) |
 | `time_expand_collap_ad` | long (giây) | ~~30~~ 10 (đổi 2026-10-29, ADR-0038, theo JBase) | Native thu gọn tự mở lại sau khi người dùng thu gọn; 0 là không (tên do ta đặt) |
@@ -652,7 +652,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Đề xuất của AI: độc lập hai chiều: inter của nhóm riêng chỉ đọc và ghi mốc của nhóm mình (không bị `ads_interval` chặn, không dời mốc chung); inter của nhóm mặc định không đọc mốc của nhóm riêng. App open, resume, combo luôn ở nhóm mặc định. Cổng không chồng nhau và cổng đồng ý vẫn chung.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 31. **Màn native sau inter là đích điều hướng của `:app` hay lớp phủ của `:core:ads`?** Bản đặc tả để app chủ khai báo đường mở màn (A 07:79-84).
-    - Đề xuất của AI: lớp phủ của `:core:ads`, vẽ trong một bộ chứa mà `:app` đặt một lần ở gốc giao diện (HD-05). Feature và luồng resume gọi combo mà không cần route; không đụng `AppNavHost`; `:core:ads` giữ suất chặn quảng cáo tự hiện và báo đóng cả cụm. App không dùng combo thì để `is_show_native_after_inter` tắt.
+    - Đề xuất của AI: lớp phủ của `:core:ads`, vẽ trong một bộ chứa mà `:app` đặt một lần ở gốc giao diện (HD-05). Feature và luồng resume gọi combo mà không cần route (**đổi 2026-11-06:** luồng resume không gọi combo, KB-14); không đụng `AppNavHost`; `:core:ads` giữ suất chặn quảng cáo tự hiện và báo đóng cả cụm. App không dùng combo thì để `is_show_native_after_inter` tắt.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-23).
 32. **Native ở bước của luồng: một khóa cho cả luồng hay một khóa cho mỗi bước?**
     - Đề xuất của AI: một vị trí, một khóa cho cả luồng (giống `is_show_native_onboarding` của AdsKit); bước nào có quảng cáo là thông số trong spec của app. Người vận hành cần bật riêng từng bước thì spec của app khai báo thêm vị trí.

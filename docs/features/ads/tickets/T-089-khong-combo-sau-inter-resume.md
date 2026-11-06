@@ -19,13 +19,17 @@ created: 2026-11-06
 
 ## Mô tả
 
-Khi `resume_ad_type = inter`, interstitial hiện lúc người dùng quay lại app đóng xong thì người dùng đi tiếp ngay, không có native toàn màn hình, kể cả khi `is_show_native_after_inter` bật (spec `ads`, KB-14, KB-16; luật K-01, A-12 của `docs/ops/ads-business-rules.md`). Interstitial lúc mở app đã không nối native; ticket này giữ nguyên hành vi đó và thêm test khóa nó lại nếu còn thiếu (KB-13).
+Khi `resume_ad_type = inter`, interstitial hiện lúc người dùng quay lại app đóng xong thì người dùng đi tiếp ngay, không có native toàn màn hình, kể cả khi `is_show_native_after_inter` bật (spec `ads`, KB-14, KB-16; luật K-01, A-12 của `docs/ops/ads-business-rules.md`). Interstitial lúc mở app đã không nối native; ticket này giữ nguyên hành vi đó và thêm test khóa nó lại (KB-13): test hiện có không đi qua đường mở app với inter qua được cổng.
 
 ## Phạm vi
 
 - `:core:ads`: lượt resume loại inter gọi interstitial không kèm combo (`ResumeAdTurns.kt`, chỗ gọi `showInterstitial(..., combo = true)`); sửa chú thích KDoc của `AdsController` đang nói resume inter nối combo.
-- Test viết trước: lượt resume loại inter không mở combo khi `is_show_native_after_inter` bật; câu khẳng định cũ của `ResumeAdTurnsTest` (combo `true` cho `RESUME_INTER`) viết lại theo luật mới, theo ADR-0031. Có test cho inter lúc mở app không mở combo khi khóa bật, nếu chưa có.
+- Test viết trước, ở hai tầng:
+  - `ResumeAdTurnsTest`: câu khẳng định cũ (combo `true` cho `RESUME_INTER`) viết lại theo luật mới, theo ADR-0031. Plan chọn giữ tham số `combo` của `ResumeAdPort.showInterstitial` (luôn `false`) hay bỏ hẳn.
+  - Test với `AdsController` thật, khóa `is_show_native_after_inter` bật: lượt resume loại inter đi qua cổng resume của controller rồi kết thúc, không mở native toàn màn hình.
+  - Test mới với `AdsController` thật, khóa bật: `showStartupAd(OPEN_APP_INTER)` với inter qua được cổng rồi kết thúc (đóng, hiện lỗi), không mở native toàn màn hình. Hai test hiện có không khóa được điều này: một test tự truyền `combo = false`, một test dùng inter bị chặn ở cổng.
 - `docs/ops/ads-guide.md`: dòng "Quảng cáo khi quay lại app" và dòng combo của bảng định dạng, và phần thử trên staging (`resume_ad_type = inter`: quay lại thì có inter, không có combo).
+- `scripts/ads-plan.py`: các mô tả trong file Excel đang ghi `resume_inter` nối combo (vị trí `resume_inter`, khóa `resume_ad_type`, khóa `is_show_native_after_inter`). Có thể đổi thêm mô tả khóa `is_show_native_after_inter` trong code rồi sinh lại `docs/remote-config-keys.md`.
 
 **Không bao gồm:**
 
