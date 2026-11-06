@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -11,7 +11,7 @@ requests:
   - requests/2026-11-06-quang-cao-khong-chong-nhau.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-10-30
+confirmed: 2026-11-06
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -778,3 +778,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-02 | Nhật | Thêm KB-33 (nạp sẵn native nhỏ và native thu gọn vào kho chung), KB-34 (nhịp thay quảng cáo chỉnh từ xa), năm khóa ở mục 8, câu hỏi 52 tới 55 đã trả lời; ghi chú đổi ở KB-1, KB-4, KB-18, KB-29. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-06 | Nhật | Theo yêu cầu `requests/2026-11-06-combo-chi-sau-inter-trong-app.md`: native toàn màn hình sau inter chỉ theo interstitial của vị trí trong app; interstitial lúc mở app và khi quay lại app không nối native (thêm tiêu chí ở KB-13, KB-16; đổi tiêu chí 1 của KB-14 và KB-16, hai dòng ở mục 5, dòng `is_show_native_after_inter` ở mục 8 và câu hỏi 31). Code tách thành ticket T-089. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-06 | AI | Theo yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md` và các lựa chọn của anh Nhật trong phiên (ghi ở file yêu cầu): thêm KB-35 (quảng cáo trong màn hình không chồng lên nhau), một dòng phạm vi ở mục 2, ghi chú đổi ở KB-4 tiêu chí 1, 2, KB-17 tiêu chí 1, 3, 5 và dòng `is_show_native_collap` ở mục 8. Code tách thành ticket T-090, T-091, T-092. Chuyển sang `changed`, chờ anh Nhật xác nhận |
+| 2026-11-06 | Nhật | Xác nhận KB-35 ("xác nhận KB-35"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
