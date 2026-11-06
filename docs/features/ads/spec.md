@@ -7,6 +7,7 @@ requests:
   - requests/2026-10-21-native-va-remote-config.md
   - requests/2026-10-29-hoc-tu-jbase.md
   - requests/2026-11-02-nap-san-va-nhip-lam-moi.md
+  - requests/2026-11-06-quang-cao-khong-chong-nhau.md
 design: features/ads/design/README.md
 created: 2026-10-21
 confirmed: 2026-10-30
@@ -41,6 +42,7 @@ Cũng ngày 2026-10-23 (lượt 2): theo bản đặc tả độc lập của Ad
 - **Thêm 2026-10-23:** đồng ý quảng cáo và khởi động sớm theo AdsKit; app open lúc mở app (lần đầu sau khi cài và lần thường) và khi quay lại app; interstitial nối native toàn màn hình; banner làm mới theo AdMob, banner thu gọn; rewarded với hộp thoại; native trên luồng giới thiệu; doanh thu theo vị trí ở Firebase và AppsFlyer; chặn quảng cáo tự hiện khi app mở màn của hệ thống; nạp lại khi lỗi và khi có mạng.
 - **Thêm 2026-10-29 (yêu cầu `requests/2026-10-29-hoc-tu-jbase.md`, ADR-0036):** quảng cáo trong màn hình dừng khi bị quảng cáo toàn màn hình che; quảng cáo toàn màn hình chỉ hiện khi màn hình của app còn dùng được; mã quảng cáo cho mọi lớp của thanh đáy ở production; thử mediation trên máy thật của staging; native trong danh sách thử lại khi lỗi; thanh đáy chừa chỗ lúc đang tải; banner MREC; cổng không hiện quảng cáo cho người đã mua gói bỏ quảng cáo (KB-26 tới KB-30). AppLovin MAX và Amazon APS (ADR-0037, KB-31), tiêu chí chốt sau câu hỏi 41 tới 47.
 - **Thêm 2026-11-02 (yêu cầu `requests/2026-11-02-nap-san-va-nhip-lam-moi.md`):** native nhỏ và lớp native thu gọn được nạp sẵn vào kho chung theo mã đơn vị, sống qua các màn, như mọi native khác (KB-33, câu hỏi 55); nhịp thay quảng cáo của mọi lớp trong màn hình (native nhỏ, native thu gọn, banner cố định, banner thu gọn, banner MREC) chỉnh từ xa bằng một khóa Remote Config cho mỗi lớp, banner và MREC thôi dùng tự làm mới của đơn vị (KB-34, câu hỏi 52 tới 54).
+- **Thêm 2026-11-06 (yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md`):** quảng cáo trong màn hình không chồng lên nhau: khe đáy chờ khi lớp native thu gọn đang mở, quảng cáo trong nội dung và lớp nổi không cùng màn, mỗi màn tối đa một quảng cáo neo đáy (KB-35).
 
 **Ngoài phạm vi lần này:**
 
@@ -447,6 +449,19 @@ Tiêu chí chấp nhận:
 - [ ] Banner cố định và banner MREC của AdMob và MAX được `:core:ads` tải lại theo khóa, không dùng tự làm mới của đơn vị; hướng dẫn phát hành ghi việc tắt tự làm mới trên đơn vị AdMob và MAX (câu hỏi 52).
 - [ ] Mọi luật đang có của lớp đó giữ nguyên: chỉ thay ở foreground và khi không bị quảng cáo toàn màn hình che (CL-02, B-05, B-07, D-06); thay lỗi thì giữ quảng cáo cũ; native thu gọn giữ trạng thái thu gọn (CL-02, CL-04); mỗi lượt tải lại qua cổng đồng ý (S-15).
 
+### KB-35. Quảng cáo trong màn hình không chồng lên nhau
+
+**Thêm 2026-11-06** (yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md`). Màn là một đích điều hướng. Quảng cáo neo đáy: thanh đáy, banner cố định, banner thu gọn. Lớp nổi: lớp native thu gọn của thanh đáy, banner thu gọn. Quảng cáo trong nội dung: native nhỏ đứng riêng, native medium, banner MREC, native trong tập hợp, native ở bước của luồng.
+
+Tiêu chí chấp nhận:
+
+- [ ] Khi lớp native thu gọn của thanh đáy đang mở, hay đang chờ quảng cáo đầu tiên (tối đa 10 giây, CL-01), thì khe đáy không vẽ quảng cáo, không nạp, không làm mới; nội dung vẫn chừa chỗ của khe đáy như lúc khe đang tải.
+- [ ] Khi người dùng thu gọn lớp nổi, hay lớp nổi không có quảng cáo (hết thời gian chờ, nạp lỗi), thì khe đáy nạp và hiện quảng cáo theo luật của khe đáy.
+- [ ] Khi lớp nổi mở lại (bung lại sau `time_expand_collap_ad` giây) thì khe đáy hủy quảng cáo đang có và không vẽ gì; lần thu gọn sau thì khe đáy nạp quảng cáo mới.
+- [ ] Khi một màn có vị trí quảng cáo trong nội dung đang bật thì màn đó không có lớp nổi: thanh đáy chỉ có khe đáy, như khi `is_show_native_collap` tắt; banner thu gọn không nạp, không chiếm chỗ.
+- [ ] Mỗi màn có tối đa một quảng cáo neo đáy. Khi code của một màn đặt hai cái thì cái đăng ký trước chạy; cái sau không nạp, không chiếm chỗ, và ghi một dòng cảnh báo thẻ `VGL.Ads`.
+- [ ] `:core:ads` tự áp các luật trên; feature không phải kiểm gì thêm.
+
 ## 4. Giao diện
 
 - **Thiết kế:** các cỡ native là component của hệ thống thiết kế, dựng theo token có sẵn (màu, chữ, bo góc, khoảng cách) ~~và quy chuẩn ở `docs/ops/ads-guide.md`, mục 4~~. **Đổi 2026-10-23:** kích thước theo AdsKit (`docs/ops/ads-business-rules.md`, mục 5.7), màu theo token. Thiết kế hiện có trong `design/` theo cỡ cũ; vẽ lại ở T-035 (câu hỏi 16). Xem câu hỏi 1 về việc dựng trên Figma trước.
@@ -753,3 +768,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-30 | Nhật | Theo rà soát độc lập danh sách chạy RUN-20261030-01: thêm ngoại lệ vào KB-16 tiêu chí 7 (câu hỏi 2 của plan T-055) và ghi phạm vi hôm nay của câu 14 (câu hỏi 1 của plan T-056). Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-31 | Nhật | Trả lời câu hỏi 51: khởi tạo SDK MAX không tính là yêu cầu quảng cáo, không phải đợi app ở màn trước. Không đổi tiêu chí, spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-02 | Nhật | Thêm KB-33 (nạp sẵn native nhỏ và native thu gọn vào kho chung), KB-34 (nhịp thay quảng cáo chỉnh từ xa), năm khóa ở mục 8, câu hỏi 52 tới 55 đã trả lời; ghi chú đổi ở KB-1, KB-4, KB-18, KB-29. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-06 | Nhật | Theo yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md` và sáu lựa chọn của anh Nhật trong phiên: thêm KB-35 (quảng cáo trong màn hình không chồng lên nhau) và một dòng phạm vi ở mục 2. Code tách thành ticket T-090, T-091. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
