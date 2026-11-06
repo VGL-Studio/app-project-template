@@ -1,7 +1,7 @@
 ---
 id: ADR-0045
 title: Quảng cáo theo luật nghiệp vụ một bộ (quyết định của người phụ trách sản phẩm, rồi JBase, rồi AdsKit PARTNER), qua một lớp trung gian `:core:ads`, AdMob và AppLovin MAX
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-11-01
 deciders: [Nhật]

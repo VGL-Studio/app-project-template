@@ -267,24 +267,6 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không thêm dòng vào `scripts/tests/history-refs-allow.txt`
 - PR dọn tài liệu giữ đủ mọi quy tắc của bản cũ, không nới quy tắc nào, và ghi trong mô tả PR các mã đã gỡ khỏi mỗi quy tắc
 
-## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
-
-### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
-
-- chỉ dùng gói trong `design/`
-- đặt tên screenshot test đúng tên ảnh trong `screens/`
-- ảnh `_unfolded` có screenshot test ở khung `w673dp-h841dp-xxhdpi`
-- chạy `scripts/design-compare.sh` và đưa `design/review/` vào PR khi feature có thiết kế
-- không đổi giao diện để giảm tỷ lệ khác biệt bằng cách viết cứng giá trị
-
-### [ADR-0021](adr/0021-clone-reference-apps.md): App mới có thể bắt đầu bằng việc AI khảo sát các app mẫu trên Play, đề xuất app tốt hơn, rồi thiết kế trên Figma cùng dev
-
-- làm theo `docs/CLAUDE.md`, mục Khi khảo sát app mẫu và mục Khi thiết kế trên Figma
-- chỉ điều khiển máy qua `scripts/app-explore/ax.sh`
-- không vượt bộ chặn
-- không tự chuyển trạng thái bản đề xuất hay thiết kế
-- ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
-
 ### [ADR-0045](adr/0045-quang-cao.md): Quảng cáo theo luật nghiệp vụ một bộ (quyết định của người phụ trách sản phẩm, rồi JBase, rồi AdsKit PARTNER), qua một lớp trung gian `:core:ads`, AdMob và AppLovin MAX
 
 - hành vi quảng cáo theo `docs/ops/ads-business-rules.md`, không theo trí nhớ về AdsKit hay JBase
@@ -328,3 +310,21 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - khai báo khóa mới kèm kiểu, mặc định an toàn và mô tả ở module sở hữu, rồi sinh lại bảng khóa trong cùng PR
 - không đổi tên hay đổi kiểu một khóa đã phát hành
 - không đổi giá trị trên Firebase (việc của người)
+
+## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
+
+### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
+
+- chỉ dùng gói trong `design/`
+- đặt tên screenshot test đúng tên ảnh trong `screens/`
+- ảnh `_unfolded` có screenshot test ở khung `w673dp-h841dp-xxhdpi`
+- chạy `scripts/design-compare.sh` và đưa `design/review/` vào PR khi feature có thiết kế
+- không đổi giao diện để giảm tỷ lệ khác biệt bằng cách viết cứng giá trị
+
+### [ADR-0021](adr/0021-clone-reference-apps.md): App mới có thể bắt đầu bằng việc AI khảo sát các app mẫu trên Play, đề xuất app tốt hơn, rồi thiết kế trên Figma cùng dev
+
+- làm theo `docs/CLAUDE.md`, mục Khi khảo sát app mẫu và mục Khi thiết kế trên Figma
+- chỉ điều khiển máy qua `scripts/app-explore/ax.sh`
+- không vượt bộ chặn
+- không tự chuyển trạng thái bản đề xuất hay thiết kế
+- ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
