@@ -58,12 +58,6 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không sửa script này, các workflow trong `.github/` hay nội dung kiểm tra của cổng chất lượng, trừ khi đó chính là plan rủi ro cao đã được duyệt chéo
 - thấy nhãn `main-broken` thì dừng phiên, trừ trường hợp phiên tự revert commit merge của chính phiên theo ADR-0025
 
-### [ADR-0011](adr/0011-toolchain-and-code-checks.md): Bộ công cụ build và kiểm tra code của dự án mẫu
-
-- chạy `scripts/check.sh` trước khi đẩy code
-- chạy `./gradlew ktlintFormat` khi ktlint báo lỗi, không tắt quy tắc
-- không cập nhật ảnh chuẩn screenshot ngoài plan
-
 ### [ADR-0012](adr/0012-firebase-wiring.md): Nối Firebase vào các module core, bản staging build bằng file cấu hình giả khi không có file thật
 
 - không gọi Firebase từ module feature
@@ -214,14 +208,6 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - commit đổi một file mà job `guard` gọi hay dựa vào, lần chạy tay và lần chạy lại luôn dùng `full`
 - đổi tên bước cổng chất lượng hay tên job `build-and-test` của `pr-check.yml`, hay thêm file trong `docs/` mà Gradle đọc, thì sửa `main-guard-verified.sh` và test của nó cùng PR
 
-### [ADR-0040](adr/0040-bo-build-agp-9.md): Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, compileSdk 37, targetSdk 36
-
-- không áp dụng plugin `org.jetbrains.kotlin.android`
-- trong `build-logic`, cấu hình module Android qua thuộc tính của `CommonExtension` của AGP 9
-- không đặt `android.newDsl=false` ngoài ngoại lệ của plan T-080, plugin cần DSL cũ thì nâng plugin đó
-- giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
-- nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
-
 ### [ADR-0041](adr/0041-merge-khong-cap-nhat-khi-main-chi-doi-tai-lieu.md): merge-if-green.sh merge PR code mà không cập nhật nhánh khi nhánh chính chỉ đổi tài liệu từ điểm tách, và PR nháp không chạy pr-check
 
 - `merge-if-green.sh` chỉ merge nhánh chậm hơn nhánh chính mà không cập nhật khi PR đã chạy bước cổng chất lượng `check.sh` xanh, nhánh chính từ điểm tách chỉ đổi file trong `docs/**` hay `**/*.md` không phải file Gradle đọc, không file nào đổi ở cả hai bên và GitHub báo không xung đột
@@ -310,6 +296,17 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - khai báo khóa mới kèm kiểu, mặc định an toàn và mô tả ở module sở hữu, rồi sinh lại bảng khóa trong cùng PR
 - không đổi tên hay đổi kiểu một khóa đã phát hành
 - không đổi giá trị trên Firebase (việc của người)
+
+### [ADR-0047](adr/0047-bo-build-va-kiem-tra-code.md): Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, và kiểm code bằng một cổng chất lượng `scripts/check.sh` mà AI và CI chạy như nhau
+
+- chạy `scripts/check.sh` trước khi đẩy code
+- chạy `./gradlew ktlintFormat` khi ktlint báo lỗi, không tắt quy tắc
+- không cập nhật ảnh chuẩn screenshot ngoài plan
+- không áp dụng plugin `org.jetbrains.kotlin.android`
+- trong `build-logic`, cấu hình module Android qua thuộc tính của `CommonExtension` của AGP 9
+- không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó
+- giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
+- nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
 
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
