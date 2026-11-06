@@ -500,7 +500,9 @@ Chỗ bản đặc tả độc lập tự mâu thuẫn, ta **không** theo:
 | --- | --- | --- | --- |
 | AS-01 | Bảng kết quả của resume ghi `throttled` gồm cả "cửa `ads_interval`" | Resume không có cổng `ads_interval` nên không bao giờ ra `throttled` vì lý do đó; `throttled` của resume chỉ là khóa 1 giây sau app open (A-08). Đây là vế sót từ bộ `CURRENT`; chính bản đặc tả nói resume PARTNER không có cổng thời gian | A 06:224 ngược A 04:37-41; `T/controller/ResumeAdPartnerRulesTest.kt:13` |
 
-Chỗ ta lệch có chủ đích khỏi bản đặc tả (đã ghi ở ADR-0045, ADR-0027): inter của resume không nối combo, PARTNER có nối (quyết định của người phụ trách sản phẩm, ADR-0045, mục 1.2; spec `ads`, KB-14, KB-16; K-01, A-12); luôn ghi doanh thu bằng `ad_impression_placement` (A để mặc định `ad_impression`, A 06:32); không bao giờ gửi `af_revenue` (A cho bật tùy chọn, A 06:38); mốc thời gian đo bằng đồng hồ đơn điệu (AR-01). Theo ADR-0045 (mục 7.1, JBase làm chuẩn): banner và native trong màn dừng khi quảng cáo toàn màn hình che, AdsKit không có luật này (B-07, D-06, O-10). Cũng theo ADR-0045 (mục 7.4): cổng không hiện quảng cáo cho người đã mua gói bỏ quảng cáo, AdsKit không có (ADR-0045, mục 7.4, MC-11). Cũng theo ADR-0045 (mục 7.3): định dạng `banner_mrec` (B-08).
+Theo quyết định của người phụ trách sản phẩm (ADR-0045, mục 1.2; spec `ads`, KB-14, KB-16): inter của resume không nối combo, PARTNER có nối (K-01, A-12).
+
+Chỗ ta lệch có chủ đích khỏi bản đặc tả (đã ghi ở ADR-0045, ADR-0027): luôn ghi doanh thu bằng `ad_impression_placement` (A để mặc định `ad_impression`, A 06:32); không bao giờ gửi `af_revenue` (A cho bật tùy chọn, A 06:38); mốc thời gian đo bằng đồng hồ đơn điệu (AR-01). Theo ADR-0045 (mục 7.1, JBase làm chuẩn): banner và native trong màn dừng khi quảng cáo toàn màn hình che, AdsKit không có luật này (B-07, D-06, O-10). Cũng theo ADR-0045 (mục 7.4): cổng không hiện quảng cáo cho người đã mua gói bỏ quảng cáo, AdsKit không có (ADR-0045, mục 7.4, MC-11). Cũng theo ADR-0045 (mục 7.3): định dạng `banner_mrec` (B-08).
 
 ## 13. Ghi chú cho người viết plan
 
