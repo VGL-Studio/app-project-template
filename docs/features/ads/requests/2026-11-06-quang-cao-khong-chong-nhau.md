@@ -30,3 +30,15 @@ Ghi lại từ trao đổi với AI ngày 2026-11-06.
 ## Vì sao
 
 Quảng cáo bị che mà vẫn tính lượt hiển thị có thể bị AdMob coi là xếp chồng quảng cáo; hai quảng cáo đè nhau dễ gây bấm nhầm.
+
+## Anh Nhật chọn thêm sau rà soát độc lập (2026-11-06)
+
+Thay cho các điểm tương ứng ở trên:
+
+- **Khe đáy không chờ:** vào màn thì khe đáy chạy ngay; lớp native thu gọn có quảng cáo thì mở (kể cả khi có muộn), và khe đáy hủy quảng cáo đang có, như khi lớp nổi mở lại.
+- **Trong lúc lớp nổi mở:** nội dung vẫn chừa chỗ của khe đáy; khe đáy không vẽ gì, kể cả khung chờ.
+- **"Màn có quảng cáo trong nội dung"** nghĩa là màn khai báo trước các vị trí trong nội dung, và ít nhất một vị trí đó đang bật (`is_show_<mã vị trí>`); tắt hết thì lớp nổi có lại.
+- **Màn** là một đích điều hướng; tab và trang của pager trong đích đó tính chung. Ở màn xem thử của staging, mỗi trang là một màn.
+- **Quảng cáo trong nội dung** gồm: native nhỏ đứng riêng, native medium, banner MREC, native trong tập hợp, thẻ native và trang native toàn trang ở bước của luồng. Banner cố định luôn là quảng cáo neo đáy.
+- **"Cái đăng ký trước"** là cái vào giao diện trước trong lần vào màn; nó rời giao diện thì cái đang chờ kế tiếp được chạy.
+- **Số liệu:** lượt bị chặn để không chồng nhau không phải cơ hội, không ghi số liệu nào.
