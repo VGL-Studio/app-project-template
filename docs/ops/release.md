@@ -69,7 +69,7 @@ uploadKeyAlias=upload
 appsFlyerDevKey=<khóa dev AppsFlyer>
 ```
 
-Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_native_small`. Vị trí chưa có mã thật thì bỏ khỏi `adUnits`: script tự dùng mã quảng cáo thử của Google theo định dạng của vị trí, in tên các vị trí đó ("không có doanh thu") để người phát hành biết. App được phát hành khi chưa có đủ mã thật. Vị trí dùng mã thử hiện quảng cáo thử, không có doanh thu; thêm mã thật vào `adUnits` ở bản sau. Mã ứng dụng AdMob (`admobAppId`) vẫn phải là mã thật.
+Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_native_small`. Vị trí chưa có mã thật thì bỏ khỏi `adUnits`: script tự dùng mã quảng cáo thử của Google theo định dạng của vị trí, in tên các vị trí đó ("không có doanh thu") để người phát hành biết. App được phép phát hành khi chưa có đủ mã thật. Vị trí dùng mã thử hiện quảng cáo thử, không có doanh thu; thêm mã thật vào `adUnits` ở bản sau. Mã ứng dụng AdMob (`admobAppId`) vẫn phải là mã thật.
 
 `appsFlyerDevKey` lấy ở **AppsFlyer > App settings > Dev key** (ADR-0027); script không in khóa ra, chỉ truyền cho build qua biến môi trường. Khóa chỉ bắt buộc khi app có SDK AppsFlyer (một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`); app chưa bật AppsFlyer thì bỏ dòng này, có dòng mà không có SDK thì script in CHÚ Ý và không dùng khóa. Mật khẩu khóa upload không ghi vào thư mục này, script hỏi khi chạy.
 

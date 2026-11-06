@@ -201,12 +201,12 @@ Lệnh chỉ sửa dòng Chung của phiên; commit file CSV trong PR báo cáo 
 
 Mỗi job tính tối thiểu 1 phút Actions. Ba lịch chạy cả khi không có phiên nào thì tốn khoảng 2.200 phút mỗi tháng cho một app, trong khi gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org, nên hai lịch tự tắt khi rảnh.
 
-| Workflow | Lịch | Phút mỗi tháng nếu chạy liên tục | Khi tự tắt lúc rảnh |
+| Workflow | Lịch | Phút mỗi tháng nếu không tự tắt | Hiện nay |
 | --- | --- | --- | --- |
 | `resume-run.yml` | Mỗi giờ, phút 23 | khoảng 720 | Chỉ khi có phiên hay danh sách chờ, cộng vài lần sau đó (job `idle` tự tắt), mỗi lần khoảng 2 phút |
 | `run-watchdog.yml` | Mỗi 30 phút | khoảng 1.440 | Như `resume-run.yml` |
 | `env-canary.yml` | 01:00 UTC (08:00 giờ Việt Nam) hằng ngày, 2 job | khoảng 60 | Không tự tắt: vẫn kiểm môi trường và file R2 cho phiên sau |
-| `status-page.yml`, job `schedules` | Mỗi lần merge có đổi `docs/` | không có | Khoảng 1 phút mỗi lần |
+| `status-page.yml`, job `schedules` | Mỗi lần merge có đổi `docs/` | không áp dụng | Khoảng 1 phút mỗi lần |
 
 Cách làm (`scripts/schedule-idle.py`):
 

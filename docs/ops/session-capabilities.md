@@ -21,7 +21,7 @@ Phiên biết cách mở của mình từ lời giao mở phiên (prompt của `
 | `emulator` | - | không | không | thử | Cloud không có emulator; test trên emulator và `device-session` chạy trong CI. Local có khi máy có emulator hay máy thật nối `adb` |
 | `repo-secrets` | - | không | không | không | Bí mật của repo chỉ có trong GitHub Actions. Việc cần bí mật làm bằng workflow; người tạo bí mật trước phiên |
 | `auto-resume` | - | không | có | không | Tự tiếp tục khi hết hạn mức (`resume-run.yml`; lịch được `status-page.yml` bật khi danh sách được duyệt). Cách khác: người mở lại với dòng "phiên tiếp tục" |
-| `workflow-enable` | - | thử | thử | có | Bật lịch của `resume-run.yml` và `run-watchdog.yml` bằng `scripts/schedule-idle.py --enable` ở đầu phiên (`docs/auto-run.md`, mục 2). `GITHUB_TOKEN` và `gh` của máy dev bật được; token của phiên cloud và routine chưa thử. Không được thì ghi vào Cần người kiểm tra, người bật tay. Kết quả thử: phiên đầu tiên thử được ghi vào đây |
+| `workflow-enable` | - | thử | thử | có | Bật lịch của `resume-run.yml` và `run-watchdog.yml` bằng `scripts/schedule-idle.py --enable` ở đầu phiên (`docs/auto-run.md`, mục 2). `GITHUB_TOKEN` và `gh` của máy dev bật được; token của phiên cloud và routine chưa thử. Không được thì ghi vào Cần người kiểm tra, người bật tay. Kết quả thử: phiên đầu tiên thử bật lịch ghi kết quả vào đây |
 <!-- capabilities:end -->
 
 Ô `thử` của `workflow-push` tùy tài khoản Claude và token mà mỗi app dùng, nên là giá trị riêng của app (`docs/ops/to-app.md`, mục 6). Khi một lần thử cho kết quả chắc chắn (ví dụ `scripts/push-probe.sh` qua ở hai phiên liên tiếp), người của app đổi ô `thử` thành `có` hay `không`, ghi ngày và lần chạy ở cột Ghi chú. Dự án mẫu giữ `thử`.
