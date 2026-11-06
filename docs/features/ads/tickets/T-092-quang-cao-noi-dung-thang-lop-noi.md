@@ -23,12 +23,12 @@ Màn khai báo trước các vị trí quảng cáo trong nội dung của nó (
 
 ## Phạm vi
 
-- `:core:ads`: cách màn khai báo vị trí trong nội dung, gắn với phạm vi màn của T-091, biết trước khi vẽ lớp nổi; `BottomAdBarScaffold` và `AdSlot` (banner thu gọn) đọc khai báo cùng khóa `is_show_<mã vị trí>` để quyết có lớp nổi không. Plan đề xuất cách áp khi khóa đổi lúc màn đang mở, để người duyệt plan quyết.
-- Feature có quảng cáo trong nội dung (`:feature:sample` và màn xem thử) khai báo vị trí theo cách mới; `docs/ops/ads-guide.md` (các bước thêm vị trí) ghi bước khai báo.
+- `:core:ads`: cách màn khai báo vị trí trong nội dung, gắn với phạm vi màn của T-091, biết trước khi vẽ lớp nổi; `BottomAdBarScaffold` và `AdSlot` (banner thu gọn) đọc khai báo cùng khóa `is_show_<mã vị trí>` để quyết có lớp nổi không. Quyết định có lớp nổi đọc một lần lúc vào màn; khóa đổi lúc màn đang mở thì áp ở lần vào màn sau (MC-13).
+- Màn có quảng cáo trong nội dung khai báo vị trí theo cách mới: hôm nay chỉ màn xem thử (`:feature:sample` chỉ có thanh đáy, không cần khai báo); `docs/ops/ads-guide.md` (các bước thêm vị trí) ghi bước khai báo.
 - Số liệu (MC-14): lớp nổi không có vì luật này không ghi số liệu nào.
-- Test viết trước: màn khai báo native medium (hay MREC, native trong danh sách, thẻ ở bước của luồng) đang bật thì thanh đáy không có lớp nổi và banner thu gọn không gửi yêu cầu, không chiếm chỗ, không ghi số liệu; mọi vị trí trong nội dung tắt thì lớp nổi có lại; màn không khai báo gì thì lớp nổi như thường.
+- Test viết trước: màn khai báo native medium (hay MREC, native trong danh sách, thẻ ở bước của luồng) đang bật thì thanh đáy không có lớp nổi và banner thu gọn không gửi yêu cầu, không chiếm chỗ, không ghi số liệu; mọi vị trí trong nội dung tắt thì lớp nổi có lại ở lần vào màn sau, không đổi giữa lúc màn đang mở; màn không khai báo gì thì lớp nổi như thường.
 - Màn xem thử staging: trang có quảng cáo trong nội dung và lớp nổi trên cùng trang (ví dụ "Banners" có MREC và banner thu gọn) được sắp lại; vẫn còn trang thử banner thu gọn và trang thử lớp native thu gọn.
-- `scripts/ads-plan.py` nếu cần ghi chú giới hạn theo màn trong file Excel.
+- `scripts/ads-plan.py`: dòng khóa `is_show_native_collap` ghi ngoại lệ của MC-13.
 
 **Không bao gồm:**
 
@@ -36,7 +36,7 @@ Màn khai báo trước các vị trí quảng cáo trong nội dung của nó (
 
 ## Rủi ro sơ bộ
 
-Đổi cách hiện quảng cáo (điểm chặn 1 của risk-scoring.md), chạm `:core:ads` và feature có quảng cáo (điểm chặn 7): plan rủi ro cao, người phụ trách sản phẩm biết trước khi duyệt. App có lớp nổi cạnh quảng cáo trong nội dung sẽ mất lớp nổi ở màn đó sau khi đồng bộ từ dự án mẫu.
+Đổi cách hiện quảng cáo (điểm chặn 1 của risk-scoring.md), đổi lúc ghi sự kiện phân tích của lớp nổi bị bỏ (điểm chặn 4), chạm `:core:ads` và feature có quảng cáo (điểm chặn 7): plan rủi ro cao, người phụ trách sản phẩm biết trước khi duyệt. App có lớp nổi cạnh quảng cáo trong nội dung sẽ mất lớp nổi ở màn đó sau khi đồng bộ từ dự án mẫu.
 
 ## Định nghĩa hoàn thành
 

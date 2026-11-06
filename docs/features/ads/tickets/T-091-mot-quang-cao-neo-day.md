@@ -19,14 +19,14 @@ created: 2026-11-06
 
 ## Mô tả
 
-`:core:ads` biết các quảng cáo neo đáy (thanh đáy, banner cố định, banner thu gọn) của từng màn và chỉ cho một cái chạy: cái vào giao diện trước trong lần vào màn chạy; cái sau không nạp, không chiếm chỗ, ghi cảnh báo thẻ `VGL.Ads`; cái đang chạy rời giao diện thì cái đang chờ kế tiếp được chạy. Spec `ads`, KB-35, tiêu chí 5 và 6; luật MC-12, MC-14.
+`:core:ads` biết các quảng cáo neo đáy (thanh đáy, banner cố định, banner thu gọn) của từng màn và chỉ cho một cái chạy: cái vào giao diện trước trong lần vào màn chạy; cái sau không nạp, không chiếm chỗ, ghi cảnh báo thẻ `VGL.Ads`; cái đang chạy rời giao diện thì cái đang chờ kế tiếp được chạy; chỉ cái được phép chạy mới giữ lượt. Spec `ads`, KB-35, tiêu chí 5 và 6; luật MC-12, MC-14.
 
 ## Phạm vi
 
-- `:core:ads`: một phạm vi màn (một đích điều hướng; tab và trang của pager trong đích tính chung) ghi các quảng cáo neo đáy đang đặt, theo thứ tự vào giao diện, dùng bởi `BottomAdBarScaffold` và `AdSlot` (banner cố định, banner thu gọn). Plan chọn cách gắn với màn (ví dụ theo `NavBackStackEntry`, hay một `CompositionLocal` do vỏ app cấp) và nói rõ chỗ không có phạm vi (test, preview) thì làm gì. Phạm vi này dùng lại ở T-092.
+- `:core:ads`: một phạm vi màn (một đích điều hướng; tab và trang của pager trong đích tính chung) ghi các quảng cáo neo đáy đang đặt, theo thứ tự vào giao diện, dùng bởi `BottomAdBarScaffold` và `AdSlot` (banner cố định, banner thu gọn). Plan chọn cách gắn với màn (ví dụ theo `NavBackStackEntry`, hay một `CompositionLocal` do vỏ app cấp) và nói rõ chỗ không có phạm vi (test, preview) thì làm gì. Màn xem thử là một Activity riêng, các trang là trạng thái của `AdGalleryUiState`, không có `NavHost`: plan cấp phạm vi cho từng trang. Phạm vi này dùng lại ở T-092.
 - `:app` (`AppNavHost`, `MainActivity`) nếu plan chọn cách cần vỏ app cấp phạm vi; khi đó plan có test dựng lại activity (`docs/CLAUDE.md`, Khi viết plan).
 - Số liệu (MC-14): quảng cáo neo đáy bị bỏ không ghi số liệu nào.
-- Test viết trước: hai quảng cáo neo đáy trên một màn (thanh đáy và banner thu gọn; banner cố định và banner thu gọn) thì cái sau không gửi yêu cầu, không chiếm chỗ, có dòng cảnh báo, không ghi số liệu; cái đầu rời giao diện thì cái sau chạy; hai màn khác nhau không ảnh hưởng nhau.
+- Test viết trước: hai quảng cáo neo đáy trên một màn (thanh đáy và banner thu gọn; banner cố định và banner thu gọn) thì cái sau không gửi yêu cầu, không chiếm chỗ, có dòng cảnh báo, không ghi số liệu; cái đầu rời giao diện thì cái sau chạy; cái vào trước có vị trí đang tắt hay không có mã thì cái sau chạy; hai màn khác nhau không ảnh hưởng nhau.
 - Màn xem thử staging: mỗi trang là một màn. Trang "Banners" đang có banner cố định và banner thu gọn trên một trang: plan sắp lại để vẫn thử được từng loại.
 - `docs/ops/ads-guide.md`: luật đặt quảng cáo neo đáy ở mục các bước thêm vị trí và mục kiểm trên máy thật.
 
@@ -37,7 +37,7 @@ created: 2026-11-06
 
 ## Rủi ro sơ bộ
 
-Đổi cách hiện quảng cáo (điểm chặn 1 của risk-scoring.md), chạm `:core:ads` và có thể `:app` (điểm chặn 7): plan rủi ro cao, người phụ trách sản phẩm biết trước khi duyệt. App đang đặt hai quảng cáo neo đáy trên một màn sẽ mất một cái sau khi đồng bộ từ dự án mẫu.
+Đổi cách hiện quảng cáo (điểm chặn 1 của risk-scoring.md), đổi lúc ghi sự kiện phân tích của quảng cáo bị bỏ (điểm chặn 4), chạm `:core:ads` và có thể `:app` (điểm chặn 7): plan rủi ro cao, người phụ trách sản phẩm biết trước khi duyệt. App đang đặt hai quảng cáo neo đáy trên một màn sẽ mất một cái sau khi đồng bộ từ dự án mẫu.
 
 ## Định nghĩa hoàn thành
 

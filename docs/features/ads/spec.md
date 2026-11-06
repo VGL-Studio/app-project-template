@@ -244,7 +244,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi người vận hành tắt riêng lớp thu gọn thì native nhỏ ở đáy vẫn còn.
 - [ ] Khi đang chờ quảng cáo đầu tiên thì khe native nhỏ hiện khung chờ; khi tải lỗi thì khe co về 0. **Đổi 2026-11-06 (KB-35):** khi lớp nổi đang mở thì khe không vẽ khung chờ, chỉ chừa chỗ.
 - [ ] Khi tắt native ở đáy thì đáy màn hình có banner.
-- [ ] ~~Nội dung của màn hình chừa đúng chiều cao của thanh đáy khi thanh có quảng cáo, không chừa thừa hay thiếu.~~ **Đổi 2026-10-29 (ADR-0036, câu hỏi 37):** nội dung của màn hình chừa đúng chiều cao của khe đáy từ lúc khe đang tải và khi khe có quảng cáo, nên nội dung không bị đẩy khi quảng cáo về; khi khe nạp lỗi thì không chừa gì. Không chừa thừa hay thiếu.
+- [ ] ~~Nội dung của màn hình chừa đúng chiều cao của thanh đáy khi thanh có quảng cáo, không chừa thừa hay thiếu.~~ **Đổi 2026-10-29 (ADR-0036, câu hỏi 37):** nội dung của màn hình chừa đúng chiều cao của khe đáy từ lúc khe đang tải và khi khe có quảng cáo, nên nội dung không bị đẩy khi quảng cáo về; khi khe nạp lỗi thì không chừa gì. Không chừa thừa hay thiếu. **Đổi 2026-11-06 (KB-35):** lúc lớp nổi mở, khoảng chừa giữ như đang có.
 - [ ] **Thêm 2026-10-29:** khi app phát hành bản production có thanh đáy thì khe banner và lớp native thu gọn đều có mã quảng cáo và gửi được yêu cầu, theo mã theo khe (câu hỏi 14).
 - [ ] Doanh thu và lượt bấm của thanh đáy tính cho màn hình đang hiện, không cho màn hình đầu tiên.
 
@@ -461,10 +461,10 @@ Tiêu chí chấp nhận:
 Tiêu chí chấp nhận:
 
 - [ ] Khi vào màn có thanh đáy thì khe đáy nạp và hiện quảng cáo ngay theo luật của khe đáy, không chờ lớp native thu gọn.
-- [ ] Khi lớp native thu gọn có quảng cáo và mở (lần đầu, mở muộn khi khe đáy đã có quảng cáo, hay bung lại sau `time_expand_collap_ad` giây) thì khe đáy hủy quảng cáo đang có và không vẽ gì, kể cả khung chờ; khe không nạp, không làm mới; nội dung vẫn chừa chỗ của khe đáy.
-- [ ] Khi người dùng thu gọn lớp nổi thì khe đáy hiện khung chờ và nạp quảng cáo mới.
-- [ ] Khi màn khai báo vị trí quảng cáo trong nội dung và ít nhất một vị trí đó đang bật thì màn không có lớp nổi: thanh đáy chỉ có khe đáy, như khi `is_show_native_collap` tắt; banner thu gọn không nạp, không chiếm chỗ. Khi mọi vị trí đó đều tắt thì lớp nổi hiện như thường.
-- [ ] Khi một màn đặt hai quảng cáo neo đáy thì cái vào giao diện trước trong lần vào màn đó chạy; cái sau không nạp, không chiếm chỗ, và có một dòng log cảnh báo. Khi cái đang chạy rời giao diện thì cái đang chờ kế tiếp được chạy.
+- [ ] Khi lớp native thu gọn có quảng cáo và mở (lần đầu, mở muộn khi khe đáy đã có quảng cáo, hay bung lại sau `time_expand_collap_ad` giây) thì khe đáy hủy quảng cáo đang có và không vẽ gì, kể cả khung chờ; khe không nạp, không làm mới; khoảng chừa của nội dung giữ như đang có (khe đã co về 0 vì nạp lỗi thì vẫn 0).
+- [ ] Khi người dùng thu gọn lớp nổi, hay lớp nổi đang mở mà mất quảng cáo (hết hạn, không có quảng cáo thay), thì khe đáy hiện khung chờ và nạp quảng cáo mới.
+- [ ] Khi màn khai báo vị trí quảng cáo trong nội dung và ít nhất một vị trí đó đang bật thì màn không có lớp nổi: thanh đáy chỉ có khe đáy, như khi `is_show_native_collap` tắt; banner thu gọn không nạp, không chiếm chỗ. Khi mọi vị trí đó đều tắt thì lớp nổi hiện như thường. Khóa đổi lúc màn đang mở thì áp ở lần vào màn sau.
+- [ ] Khi một màn đặt hai quảng cáo neo đáy thì cái vào giao diện trước trong lần vào màn đó chạy; cái sau không nạp, không chiếm chỗ, và có một dòng log cảnh báo. Khi cái đang chạy rời giao diện thì cái đang chờ kế tiếp được chạy. Cái không được phép chạy (vị trí đang tắt, không có mã đơn vị, banner thu gọn bị chặn theo tiêu chí 4) không giữ lượt.
 - [ ] Khi một quảng cáo bị chặn theo các tiêu chí trên thì lượt đó không phải cơ hội hiển thị: không ghi số liệu nào cho lượt bị chặn.
 
 ## 4. Giao diện
@@ -557,7 +557,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | `ads_interval` | long (giây) | 45 | Khoảng cách giữa hai interstitial |
 | `is_show_native_after_inter` | boolean | tắt | Native toàn màn hình sau interstitial |
 | `is_show_native_bottom` | boolean | tắt | Thanh đáy là native (bật) hay banner (tắt) |
-| `is_show_native_collap` | boolean | bật | Lớp native thu gọn trên thanh đáy khi khe đáy là native (tên do ta đặt) |
+| `is_show_native_collap` | boolean | bật | Lớp native thu gọn trên thanh đáy khi khe đáy là native (tên do ta đặt). **Đổi 2026-11-06 (KB-35):** không có trên màn có quảng cáo trong nội dung đang bật |
 | `time_expand_collap_ad` | long (giây) | ~~30~~ 10 (đổi 2026-10-29, ADR-0038, theo JBase) | Native thu gọn tự mở lại sau khi người dùng thu gọn; 0 là không (tên do ta đặt) |
 | `is_show_rw_get_item` | boolean | tắt | Khóa suy ra của vị trí rewarded `rw_get_item` (nhận vật phẩm), trùng chuỗi AdsKit. Vị trí rewarded khác dùng `is_show_<mã vị trí>`, ví dụ `is_show_rw_export` |
 | `is_show_native_onboarding` | boolean | tắt | Khóa suy ra của vị trí `native_onboarding` (native trên luồng giới thiệu), trùng chuỗi AdsKit |
@@ -773,4 +773,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-10-30 | Nhật | Theo rà soát độc lập danh sách chạy RUN-20261030-01: thêm ngoại lệ vào KB-16 tiêu chí 7 (câu hỏi 2 của plan T-055) và ghi phạm vi hôm nay của câu 14 (câu hỏi 1 của plan T-056). Xác nhận lại (AI ghi theo lời anh Nhật) |
 | 2026-10-31 | Nhật | Trả lời câu hỏi 51: khởi tạo SDK MAX không tính là yêu cầu quảng cáo, không phải đợi app ở màn trước. Không đổi tiêu chí, spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-02 | Nhật | Thêm KB-33 (nạp sẵn native nhỏ và native thu gọn vào kho chung), KB-34 (nhịp thay quảng cáo chỉnh từ xa), năm khóa ở mục 8, câu hỏi 52 tới 55 đã trả lời; ghi chú đổi ở KB-1, KB-4, KB-18, KB-29. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
-| 2026-11-06 | AI | Theo yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md` và các lựa chọn của anh Nhật trong phiên (ghi ở file yêu cầu): thêm KB-35 (quảng cáo trong màn hình không chồng lên nhau), một dòng phạm vi ở mục 2, ghi chú đổi ở KB-4 tiêu chí 1, 2 và KB-17 tiêu chí 1, 3. Code tách thành ticket T-090, T-091, T-092. Chuyển sang `changed`, chờ anh Nhật xác nhận |
+| 2026-11-06 | AI | Theo yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md` và các lựa chọn của anh Nhật trong phiên (ghi ở file yêu cầu): thêm KB-35 (quảng cáo trong màn hình không chồng lên nhau), một dòng phạm vi ở mục 2, ghi chú đổi ở KB-4 tiêu chí 1, 2, KB-17 tiêu chí 1, 3, 5 và dòng `is_show_native_collap` ở mục 8. Code tách thành ticket T-090, T-091, T-092. Chuyển sang `changed`, chờ anh Nhật xác nhận |

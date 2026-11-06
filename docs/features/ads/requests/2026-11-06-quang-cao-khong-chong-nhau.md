@@ -21,10 +21,10 @@ Ghi lại từ trao đổi với AI ngày 2026-11-06.
 
 ## Anh Nhật chọn (2026-11-06)
 
-- **Khe đáy chờ:** khi lớp native thu gọn đang mở thì khe đáy không vẽ quảng cáo, không nạp, không làm mới; người dùng thu gọn lớp nổi thì khe đáy mới hiện và nạp.
+- ~~**Khe đáy chờ:** khi lớp native thu gọn đang mở thì khe đáy không vẽ quảng cáo, không nạp, không làm mới; người dùng thu gọn lớp nổi thì khe đáy mới hiện và nạp.~~ (thay ở phần sau)
 - **Lớp nổi mở lại** (bung lại sau `time_expand_collap_ad` giây): khe đáy hủy quảng cáo đang có; lần thu gọn sau thì nạp quảng cáo mới.
-- **Quảng cáo trong nội dung và lớp nổi không cùng màn.** Khi cả hai được khai báo hay bật trên một màn thì quảng cáo trong nội dung thắng: thanh đáy chỉ còn khe đáy, banner thu gọn không nạp.
-- **Mỗi màn tối đa một quảng cáo neo đáy:** thanh đáy, hoặc banner cố định, hoặc banner thu gọn. Màn đặt hai cái thì cái đăng ký trước chạy; cái sau không nạp, không chiếm chỗ, ghi log cảnh báo.
+- **Quảng cáo trong nội dung và lớp nổi không cùng màn.** Quảng cáo trong nội dung thắng ("có" nghĩa là gì: xem phần sau): thanh đáy chỉ còn khe đáy, banner thu gọn không nạp.
+- **Mỗi màn tối đa một quảng cáo neo đáy:** thanh đáy, hoặc banner cố định, hoặc banner thu gọn. Màn đặt hai cái thì cái đăng ký trước chạy ("trước" nghĩa là gì: xem phần sau); cái sau không nạp, không chiếm chỗ, ghi log cảnh báo.
 - **Mức áp dụng:** ghi luật vào spec và `ads-business-rules.md`; `:core:ads` tự chặn khi chạy, có test.
 
 ## Vì sao
@@ -42,3 +42,10 @@ Thay cho các điểm tương ứng ở trên:
 - **Quảng cáo trong nội dung** gồm: native nhỏ đứng riêng, native medium, banner MREC, native trong tập hợp, thẻ native và trang native toàn trang ở bước của luồng. Banner cố định luôn là quảng cáo neo đáy.
 - **"Cái đăng ký trước"** là cái vào giao diện trước trong lần vào màn; nó rời giao diện thì cái đang chờ kế tiếp được chạy.
 - **Số liệu:** lượt bị chặn để không chồng nhau không phải cơ hội, không ghi số liệu nào.
+
+## Anh Nhật chọn thêm sau rà lại (2026-11-06)
+
+- **Khoảng chừa lúc lớp nổi mở:** giữ đúng như đang có; khe đã co về 0 vì nạp lỗi thì vẫn 0.
+- **Giữ lượt neo đáy:** chỉ cái được phép chạy mới giữ lượt; cái có vị trí đang tắt, không có mã đơn vị, hay banner thu gọn bị chặn vì quảng cáo trong nội dung thì không giữ.
+- **Khóa đổi lúc màn đang mở:** quyết định có lớp nổi đọc một lần lúc vào màn; đổi khóa áp ở lần vào màn sau.
+- **Lớp nổi mở mà mất quảng cáo:** khe đáy chạy lại như khi người dùng thu gọn.
