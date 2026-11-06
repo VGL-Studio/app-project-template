@@ -9,7 +9,7 @@ supersedes: ADR-0011, ADR-0040  # ADR hợp nhất (ADR-0044, mục 4)
 superseded_by:
 ---
 
-# ADR-0047: BỘ CÔNG CỤ BUILD VÀ KIỂM TRA CODE CỦA DỰ ÁN MẪU
+# ADR-0047: DỰ ÁN MẪU BUILD BẰNG GRADLE 9.3.1 VÀ AGP 9.1.0 VỚI KOTLIN DỰNG SẴN, KIỂM CODE BẰNG MỘT CỔNG CHẤT LƯỢNG MÀ AI VÀ CI CHẠY NHƯ NHAU
 
 ## Bối cảnh
 
@@ -109,6 +109,7 @@ Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do c
   - Mỗi lần build in cảnh báo về compileSdk 37.
   - Bản production chưa được dựng trên bộ này. Lần phát hành đầu tiên của một app trên bộ này là lần kiểm đầu tiên.
   - Cổng chất lượng chưa có phân tích tĩnh sâu (detekt).
+  - Việc nâng phiên bản công cụ phải làm chủ động, mỗi lần là một plan riêng.
   - Module mới chưa có `src/test` sẽ chạy task test mà không báo gì. Mẫu feature (`:feature:sample`) có test, nên trường hợp này chỉ xảy ra khi feature bỏ qua bước 10 của `CLAUDE.md`.
   - App nhận qua `scripts/template-sync.sh` nhận cả bộ build. App có module hay thư viện riêng phải tự dựng lại.
 - **Việc AI phải tuân thủ:** chạy `scripts/check.sh` trước khi đẩy code; chạy `./gradlew ktlintFormat` khi ktlint báo lỗi, không tắt quy tắc; không cập nhật ảnh chuẩn screenshot ngoài plan; không áp dụng plugin `org.jetbrains.kotlin.android`; trong `build-logic`, cấu hình module Android qua thuộc tính của `CommonExtension` của AGP 9; không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó; giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`; nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test.
