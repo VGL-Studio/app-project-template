@@ -297,6 +297,17 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không đổi tên hay đổi kiểu một khóa đã phát hành
 - không đổi giá trị trên Firebase (việc của người)
 
+### [ADR-0047](adr/0047-bo-build-va-kiem-tra-code.md): Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, và kiểm code bằng một cổng chất lượng `scripts/check.sh` mà AI và CI chạy như nhau
+
+- chạy `scripts/check.sh` trước khi đẩy code
+- chạy `./gradlew ktlintFormat` khi ktlint báo lỗi, không tắt quy tắc
+- không cập nhật ảnh chuẩn screenshot ngoài plan
+- không áp dụng plugin `org.jetbrains.kotlin.android`
+- trong `build-logic`, cấu hình module Android qua thuộc tính của `CommonExtension` của AGP 9
+- không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó
+- giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
+- nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
+
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
 ### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
@@ -314,14 +325,3 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không vượt bộ chặn
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
-
-### [ADR-0047](adr/0047-bo-build-va-kiem-tra-code.md): Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, và kiểm code bằng một cổng chất lượng `scripts/check.sh` mà AI và CI chạy như nhau
-
-- chạy `scripts/check.sh` trước khi đẩy code
-- chạy `./gradlew ktlintFormat` khi ktlint báo lỗi, không tắt quy tắc
-- không cập nhật ảnh chuẩn screenshot ngoài plan
-- không áp dụng plugin `org.jetbrains.kotlin.android`
-- trong `build-logic`, cấu hình module Android qua thuộc tính của `CommonExtension` của AGP 9
-- không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó
-- giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
-- nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
