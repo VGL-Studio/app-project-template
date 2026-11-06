@@ -1,24 +1,3 @@
 # Tài liệu quy tắc chưa dọn theo ADR-0044: mỗi dòng một đường dẫn hay một mã ADR-NNNN.
 # Danh sách chỉ được ngắn đi: PR dọn xóa dòng của thứ mình đã dọn, không PR nào thêm dòng.
-.claude/skills/merge-pr/SKILL.md
-.claude/skills/run-list/SKILL.md
-.claude/skills/write-plan/SKILL.md
-docs/README.md
-docs/ops/clone-study.md
-docs/ops/design-workflow.md
-docs/ops/failure-playbook.md
-docs/ops/from-app.md
-docs/ops/new-app.md
-docs/ops/pre-run-review.md
-docs/ops/release.md
-docs/ops/session-capabilities.md
-docs/ops/setup-new-app.md
-docs/ops/staging-and-runs.md
-docs/ops/test-sessions.md
-docs/ops/to-app.md
-docs/ops/token-usage.md
-docs/runs/README.md
-docs/templates/plan.md
-docs/templates/run.md
-docs/templates/ticket.md
 ADR-0040

@@ -1013,7 +1013,7 @@ expect "playbook: the help text of a failed gh call says log-hong, not khong-co"
 printf 'the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\n' > "$work/gh-esc.log"
 expect "playbook: the escape-sequence refusal of gh says log-hong" "log-hong" "$(pb_head "$work/gh-esc.log")"
 expect "playbook: a missing log exits 0" 0 "$(scripts/failure-kind.sh --playbook "$work/no-such.log" > /dev/null 2>&1; echo $?)"
-expect "playbook: the line carries the action and the source" "PB-02 cho: GitHub không cấp máy. Làm theo \`auto-run.md\` mục 4, dòng \"GitHub không chạy job\" (L-064)" \
+expect "playbook: the line carries the action and the source" "PB-02 cho: GitHub không cấp máy. Làm theo \`auto-run.md\` mục 4, dòng \"GitHub không chạy job\" (camera-pose, GitHub không chạy job vì hết hạn mức Actions (issue #106))" \
   "$(playbook $pb_dir/PB-02.log)"
 # Test tables for the parser: an escaped pipe is an alternative; a broken pattern is skipped and reported.
 cat > "$work/pb-table.md" <<'MD'

@@ -30,7 +30,7 @@ AI không làm các bước trong tài liệu này. Mọi bước có bí mật 
 
 Kiểm tra: trong thư mục repo, `scripts/check.sh` in `== Cổng chất lượng: QUA`.
 
-Lưu ý: test trên emulator (`app/src/androidTest`) chạy trong CI trên API 34. Trên emulator API 37 đã gặp lỗi `InputManager.getInstance` của bản Espresso hiện tại; muốn chạy trên máy thì dùng emulator API 34.
+Lưu ý: test trên emulator (`app/src/androidTest`) chạy trong CI trên API 34. Trên emulator API 37, bản Espresso hiện tại lỗi `InputManager.getInstance`; muốn chạy trên máy thì dùng emulator API 34.
 
 ## 2. Tạo app và repo GitHub
 
@@ -48,10 +48,10 @@ Quy tắc: mọi PR vào `main` chỉ merge bằng `scripts/merge-if-green.sh <s
 App đọc file tĩnh từ một địa chỉ https công khai (ADR-0006, ADR-0015).
 
 1. Trên Cloudflare, mục **R2**, tạo bucket cho app (hoặc dùng bucket chung của nhóm với một thư mục riêng cho app).
-2. Trong **Settings** của bucket, mục **Public access**, nối một tên miền riêng (**Custom Domains**, ví dụ `<app>-staging.vgl.io.vn`). Không dùng địa chỉ `r2.dev` cho app thật. Chọn tên miền thuộc vùng có DNSSEC ổn định: nếu bước kiểm DNSSEC của vùng lỗi, DNS công cộng như 1.1.1.1 và 8.8.8.8 từ chối trả lời, và điện thoại dùng các DNS đó không tải được file, trong khi máy dev và emulator trên GitHub vẫn tải được (L-059).
+2. Trong **Settings** của bucket, mục **Public access**, nối một tên miền riêng (**Custom Domains**, ví dụ `<app>-staging.vgl.io.vn`). Không dùng địa chỉ `r2.dev` cho app thật. Chọn tên miền thuộc vùng có DNSSEC ổn định: nếu bước kiểm DNSSEC của vùng lỗi, DNS công cộng như 1.1.1.1 và 8.8.8.8 từ chối trả lời, và điện thoại dùng các DNS đó không tải được file, trong khi máy dev và emulator trên GitHub vẫn tải được.
 3. Tải lên mọi file trong `docs/ops/required-assets.txt` theo đúng đường dẫn, ví dụ `test/v1/hello.txt` mà màn hình loading của dự án mẫu tải. Thiếu file này thì commit code app đầu tiên trên nhánh chính đỏ ở job `ui-test` của `main-guard` (ADR-0043). Không bao giờ ghi đè một file đã đưa lên; nội dung đổi thì dùng đường dẫn mới.
 4. Địa chỉ gốc (kết thúc bằng `/`) chính là tham số `--staging-assets-url` của script tạo app, nằm trong `app/build.gradle.kts`.
-5. Trên Cloudflare, mục **Caching**, **Cache Rules**, thêm một luật cho tên miền đó: **Edge TTL** theo mã trạng thái, `404` giữ khoảng 60 giây. Mặc định Cloudflare giữ phản hồi `404` của R2 tới một năm (`cache-control: max-age=31536000`), nên file tải lên sau một lần app đọc thiếu vẫn trả `404` cho tới khi purge địa chỉ đó (app camera-pose, issue #215). Đã gặp mà chưa có luật thì vào **Caching**, **Purge Cache**, purge đúng địa chỉ của file; gọi địa chỉ kèm tham số (`?x=1`) trả `200` là dấu hiệu cần purge.
+5. Trên Cloudflare, mục **Caching**, **Cache Rules**, thêm một luật cho tên miền đó: **Edge TTL** theo mã trạng thái, `404` giữ khoảng 60 giây. Mặc định Cloudflare giữ phản hồi `404` của R2 tới một năm (`cache-control: max-age=31536000`), nên file tải lên sau một lần app đọc thiếu vẫn trả `404` cho tới khi purge địa chỉ đó. Gặp lỗi này khi chưa có luật thì vào **Caching**, **Purge Cache**, purge đúng địa chỉ của file; gọi địa chỉ kèm tham số (`?x=1`) trả `200` là dấu hiệu cần purge.
 
 Kiểm tra: `scripts/setup-check.sh` in `== Thiết lập: QUA`. Script kiểm mọi file trong `docs/ops/required-assets.txt` trả `200` (`curl -I`) và tên miền phân giải được qua 1.1.1.1 và 8.8.8.8. Chạy trên máy dev, không chạy trong môi trường `claude --cloud` (proxy chặn R2).
 
@@ -123,7 +123,7 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | Báo cáo ghi "Java của môi trường không chạy được Gradle của dự án" | `scripts/cloud-env-check.sh` chạy `scripts/java-check.sh` và thấy Java ngoài khoảng Gradle hỗ trợ | Xem `JAVA_TOOL_OPTIONS` và JDK của môi trường cloud, đối chiếu với `scripts/cloud-setup.sh`; thông báo gốc của `java-check.sh` nằm trong báo cáo |
 | Báo cáo ghi "Gradle wrapper không khởi động được" | `./gradlew --version` lỗi hoặc quá 300 giây: không tải được bản phân phối Gradle qua proxy, hoặc JVM lỗi vì biến môi trường | Đọc 5 dòng cuối trong thông báo; kiểm tra proxy và `JAVA_TOOL_OPTIONS` của môi trường |
 | Phiên nhận 429 từ `repo1.maven.org` khi chạy test Robolectric | Môi trường dùng setup script cũ, chưa có mirror cho Robolectric | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6) |
-| `env-canary` hay phiên tự chạy báo `Plugin [id: '...'] was not found`, log có `429 Too Many Requests` từ `repo.maven.apache.org` | Môi trường dùng setup script trước phiên bản 4: Gradle hỏi Plugin Portal trước kho Google; Portal chuyển plugin nó không có (Android, Google services, Crashlytics) sang Maven Central, Maven Central trả 429 và Gradle dừng (L-121) | Dán lại `scripts/cloud-setup.sh` (phiên bản 4 trở lên) vào môi trường (phần 6), chạy lại `env-canary` |
+| `env-canary` hay phiên tự chạy báo `Plugin [id: '...'] was not found`, log có `429 Too Many Requests` từ `repo.maven.apache.org` | Môi trường dùng setup script trước phiên bản 4: Gradle hỏi Plugin Portal trước kho Google; Portal chuyển plugin nó không có (Android, Google services, Crashlytics) sang Maven Central, Maven Central trả 429 và Gradle dừng | Dán lại `scripts/cloud-setup.sh` (phiên bản 4 trở lên) vào môi trường (phần 6), chạy lại `env-canary` |
 | Phiên kết thúc ngay đầu phiên, báo cáo ghi "Môi trường cloud báo lỗi ở kiểm tra đầu phiên" kèm dòng "môi trường dựng từ setup script phiên bản ..." | `scripts/cloud-env-check.sh` thấy số phiên bản setup script của môi trường khác nhánh chính | Dán lại `scripts/cloud-setup.sh` vào môi trường (phần 6), lập danh sách chạy mới |
 | Gradle báo `Could not find ...kotlin-stdlib...` khi build `build-logic`, chỉ tìm ở `plugins.gradle.org` | Setup script phiên bản 1: mirror chưa phủ thư viện tải qua plugin portal | Dán lại `scripts/cloud-setup.sh` (phiên bản 2 trở lên) |
 | `start-run` báo môi trường cloud đang lỗi (issue `env-broken`) | Kiểm tra môi trường hằng ngày đỏ | Đọc log trong issue, sửa (thường là dán lại `scripts/cloud-setup.sh`), chạy lại workflow `env-canary` |

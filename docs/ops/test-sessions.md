@@ -5,7 +5,7 @@ Tài liệu này dành cho dev và người kiểm thử. Một phiên thử là
 | Nguồn | Ai chạy | Khi nào | Bắt được gì |
 | --- | --- | --- | --- |
 | Máy thật | Dev hoặc người kiểm thử | Sau khi nhận bản staging, khi muốn thử một feature | Mọi thứ người dùng thật gặp: tốc độ, giật, mạng thật, lỗi riêng của hãng máy, chỗ khó dùng |
-| Test emulator viết sẵn (job `ui-test` của `main-guard.yml`) | GitHub Actions, sau merge | Mỗi commit đổi code app trên nhánh chính | Test trong `app/src/androidTest` đỏ, app dừng khi mở (L-051); đỏ thật mở `main-broken` (ADR-0043) |
+| Test emulator viết sẵn (job `ui-test` của `main-guard.yml`) | GitHub Actions, sau merge | Mỗi commit đổi code app trên nhánh chính | Test trong `app/src/androidTest` đỏ, app dừng khi mở; đỏ thật mở `main-broken` (ADR-0043) |
 | Emulator trong CI (`device-session.yml`) | Phiên tự chạy | Cuối phiên, trước khi phát bản staging | Crash, ANR, lỗi rõ ràng trong kịch bản chuẩn và khi bấm ngẫu nhiên |
 
 Hai nguồn bổ sung cho nhau: emulator lọc lỗi rõ ràng trước khi người thử mất thời gian, máy thật tìm phần còn lại. Job `ui-test` của `main-guard` và `device-session.yml` là hai lớp emulator khác nhau: `ui-test` chạy test viết sẵn trên bản staging debug với cấu hình Firebase giả cho từng commit code app; `device-session.yml` cài bản staging release với cấu hình thật, chạy kịch bản chuẩn và bấm ngẫu nhiên cuối phiên (ADR-0043 mục 6).
@@ -33,7 +33,7 @@ scripts/device-session.sh stop
 - `start` xóa log cũ của máy, bắt đầu ghi toàn bộ logcat (mọi bộ đệm, kể cả crash và log hệ thống), tạo thư mục `test-sessions/TS-YYYYMMDD-NN/` với `session.md` (máy, Android, phiên bản app) và `notes.md` để ghi chú.
 - Trong lúc thử, ghi vào `notes.md`: định thử gì, đã làm gì lúc mấy giờ, thấy lạ lúc mấy giờ. Giờ giúp AI tìm đúng đoạn log. Không ghi dữ liệu cá nhân. `stop` nhắc nếu file còn trống.
 - Muốn thử lần mở đầu như vừa cài: `scripts/device-session.sh reset` (sau `start`). Lệnh xóa dữ liệu của app và ghi dấu `action=clear_data` vào log, để AI biết từ đâu là lần mở đầu. Đừng xóa dữ liệu bằng tay trong Cài đặt: log không ghi lại việc đó.
-- Mã phiên `TS-YYYYMMDD-NN` không trùng thư mục nào trên máy, báo cáo nào trong `docs/test-sessions/`, và mã nào được nhắc trong báo cáo phiên tự chạy `docs/runs/*.md` (phiên emulator của CI có khi chỉ được ghi trong báo cáo phiên, không có báo cáo riêng; L-026 của camera-pose). Kéo nhánh chính mới nhất trước khi `start` để script thấy các báo cáo này.
+- Mã phiên `TS-YYYYMMDD-NN` không trùng thư mục nào trên máy, báo cáo nào trong `docs/test-sessions/`, và mã nào được nhắc trong báo cáo phiên tự chạy `docs/runs/*.md` (phiên emulator của CI có khi chỉ được ghi trong báo cáo phiên, không có báo cáo riêng). Kéo nhánh chính mới nhất trước khi `start` để script thấy các báo cáo này.
 - `stop` dừng ghi, lấy thêm số liệu khung hình (`gfxinfo`), bộ nhớ (`meminfo`), crash và ANR của hệ thống, rồi viết `summary.md` đếm crash, ANR, lỗi của app. Lệnh trả mã 1 khi có crash hay ANR.
 
 Muốn chạy kịch bản chuẩn trên chính máy này (khởi động nguội ba lần, mở lần đầu khi mất mạng, bấm ngẫu nhiên vài phút), giữa `start` và `stop`:
@@ -44,7 +44,7 @@ scripts/device-session.sh scenarios --yes
 
 Lệnh này **xóa dữ liệu của app** và bật, tắt chế độ máy bay; chỉ chạy trên máy thử.
 
-**Quyền của app trong kịch bản chuẩn.** Xóa dữ liệu cũng thu hồi các quyền runtime (camera, micro, thông báo...). App hỏi quyền ở màn đầu thì hộp hỏi quyền còn mở sau một lần mở nguội sẽ che lần mở sau: lần đo trả `total_ms=0` và log không có dòng nào của app (L-009 của camera-pose). Vì vậy, sau mỗi lần xóa dữ liệu, kịch bản cấp sẵn mọi quyền runtime mà app khai báo (đọc mục `runtime permissions:` của `adb shell dumpsys package <gói>`, rồi `adb shell pm grant <gói> <quyền>` cho từng quyền) và ghi vào `scenarios.txt` một dòng `permissions granted=CAMERA,...`. Quyền nào máy từ chối cấp thì ghi ở `failed=...`; khi đó các lần mở nguội có thể vẫn bị hộp hỏi quyền che.
+**Quyền của app trong kịch bản chuẩn.** Xóa dữ liệu cũng thu hồi các quyền runtime (camera, micro, thông báo...). App hỏi quyền ở màn đầu thì hộp hỏi quyền còn mở sau một lần mở nguội sẽ che lần mở sau: lần đo trả `total_ms=0` và log không có dòng nào của app. Vì vậy, sau mỗi lần xóa dữ liệu, kịch bản cấp sẵn mọi quyền runtime mà app khai báo (đọc mục `runtime permissions:` của `adb shell dumpsys package <gói>`, rồi `adb shell pm grant <gói> <quyền>` cho từng quyền) và ghi vào `scenarios.txt` một dòng `permissions granted=CAMERA,...`. Quyền nào máy từ chối cấp thì ghi ở `failed=...`; khi đó các lần mở nguội có thể vẫn bị hộp hỏi quyền che.
 
 Muốn thử chính luồng hỏi quyền (người dùng đồng ý, từ chối, từ chối hẳn) thì chạy `scripts/device-session.sh scenarios --yes --ask-permissions`: kịch bản không cấp quyền, `scenarios.txt` ghi `permissions ask`. Khi đó số đo khởi động nguội sau lần đầu không dùng được. Thử tay luồng này thì dùng `reset` (lệnh này không cấp quyền), rồi ghi lựa chọn của mình vào `notes.md`.
 
@@ -71,18 +71,18 @@ Người xem báo cáo trước khi commit, nhất là các trích đoạn log.
 
 Cuối mỗi phiên tự chạy có task được merge, trước `staging.yml`, phiên khởi động `device-session.yml` (`docs/auto-run.md`, mục 4). Workflow build đúng bản staging sẽ phát, cài lên emulator API 34, chạy `start`, `scenarios --yes` (cấp sẵn quyền runtime, mục 2), `stop`, và lưu thư mục phiên thành artifact `device-session` trong 7 ngày.
 
-- **Có crash hoặc ANR:** workflow đỏ, phiên không phát bản staging, ghi phát hiện vào báo cáo phiên và soạn sẵn phản hồi mức chặn. ANR chỉ nằm trong màn quảng cáo của SDK (`com.google.android.gms.ads.AdActivity`, quảng cáo thử khi monkey chạm vào) được đếm riêng ở mức `xem`, không chặn: nó lặp lại trên emulator không GPU mà không do code của app (FB-20261025-02). ANR ở activity của app vẫn chặn.
+- **Có crash hoặc ANR:** workflow đỏ, phiên không phát bản staging, ghi phát hiện vào báo cáo phiên và soạn sẵn phản hồi mức chặn. ANR chỉ nằm trong màn quảng cáo của SDK (`com.google.android.gms.ads.AdActivity`, quảng cáo thử khi monkey chạm vào) được đếm riêng ở mức `xem`, không chặn: nó lặp lại trên emulator không GPU mà không do code của app. ANR ở activity của app vẫn chặn.
 - **Không có:** phiên phát staging, ghi tóm tắt và các phát hiện khác (lỗi đã bắt, lệch kịch bản) vào báo cáo phiên.
-- Kịch bản mất mạng tắt chế độ máy bay, Wi-Fi và dữ liệu di động, rồi chờ tới khi máy không còn mạng mặc định mới mở app (L-031). Không tắt được thì kịch bản bị bỏ qua: `scenarios.txt` ghi `network=still_on skipped`, `summary.md` có dòng "Kịch bản mất mạng bị bỏ qua", và không có `offline.png`. Không dùng ảnh hay log của lần đó làm bằng chứng cho trạng thái lỗi.
+- Kịch bản mất mạng tắt chế độ máy bay, Wi-Fi và dữ liệu di động, rồi chờ tới khi máy không còn mạng mặc định mới mở app. Không tắt được thì kịch bản bị bỏ qua: `scenarios.txt` ghi `network=still_on skipped`, `summary.md` có dòng "Kịch bản mất mạng bị bỏ qua", và không có `offline.png`. Không dùng ảnh hay log của lần đó làm bằng chứng cho trạng thái lỗi.
 - **Kịch bản theo plan:** sau kịch bản chuẩn, `scenarios` chạy mọi tệp `feature/*/src/deviceScenarios/*.txt` và `app/src/deviceScenarios/*.txt` qua `scripts/device-scenario.py` (mục 5), mỗi tệp từ trạng thái mới cài. `summary.md` có bảng "Kịch bản theo plan". Một tệp `lỗi` là phát hiện để phân tích, không chặn phát staging; `bỏ qua (môi trường)` (thiếu camera, không tắt được mạng) không phải lỗi của app. Crash và ANR trong lúc chạy kịch bản vẫn chặn như mọi crash.
 - Số liệu thời gian và khung hình trên emulator không có GPU chỉ để so giữa các lần chạy, không dùng để chặn.
-- Hành vi đã biết của emulator: sau khi xóa dữ liệu, các lần mở trước khi tải cấu hình xong lần đầu (thường là lần đầu, có khi cả lần thứ hai) hết 10 giây tải cấu hình (TS-20261017-01, TS-20261018-01); trên máy thật không lặp lại (TS-20261017-02, FB-20261017-02). Không ghi thành phát hiện mới, trừ khi xảy ra sau khi app đã tải cấu hình xong một lần.
+- Hành vi đã biết của emulator: sau khi xóa dữ liệu, các lần mở trước khi tải cấu hình xong lần đầu (thường là lần đầu, có khi cả lần thứ hai) hết 10 giây tải cấu hình; trên máy thật không lặp lại. Không ghi thành phát hiện mới, trừ khi xảy ra sau khi app đã tải cấu hình xong một lần.
 
 Chạy tay: **Actions > device-session > Run workflow** trên `main`. Mỗi lần khoảng 25 phút CI.
 
 ## 5. Kịch bản theo plan
 
-Tiêu chí kiểm thủ công chạy được trên emulator thì viết thành tệp kịch bản (L-085). Tệp nằm ngoài `docs/` để `pr-check` và `main-guard` chạy khi tệp hay `testTag` bị đổi: `feature/<feature>/src/deviceScenarios/<T-NNN>-<tên>.txt`, hoặc `app/src/deviceScenarios/` cho luồng của vỏ app. Gradle không đọc thư mục này.
+Tiêu chí kiểm thủ công chạy được trên emulator thì viết thành tệp kịch bản, để nó chạy ở cuối phiên thay vì chờ người kiểm. Tệp nằm ngoài `docs/` để `pr-check` và `main-guard` chạy khi tệp hay `testTag` bị đổi: `feature/<feature>/src/deviceScenarios/<T-NNN>-<tên>.txt`, hoặc `app/src/deviceScenarios/` cho luồng của vỏ app. Gradle không đọc thư mục này.
 
 **Cách chạy.** Cuối phiên tự chạy, `device-session.yml` tự chạy chúng. Trên máy dev:
 
@@ -122,7 +122,7 @@ Bộ lọc thêm: `in=<testTag>` (trong cây con của phần tử có tag đó)
 - chính nút đó, nếu nút chạm được (`clickable="true"`);
 - nếu nút không chạm được: chính nó, rồi tối đa 2 nút cha gần nhất, dừng ngay sau nút cha chạm được đầu tiên.
 
-Lý do: chữ của chip Compose nằm trong một nút con, còn `selected` nằm ở nút cha (dump thật của app camera-pose).
+Lý do: chữ của chip Compose nằm trong một nút con, còn `selected` nằm ở nút cha.
 
 **Ngoặc kép.** Giá trị có dấu cách ghi trong ngoặc kép, `wait text="Hands in Pockets" 5`: dấu cách trong ngoặc được giữ, số sau ngoặc đóng là số giây hay số lần. Mọi giá trị `text=` hay `desc=` không có ngoặc trên một dòng kết thúc bằng một số là mơ hồ, kể cả một từ (`wait text=Page 2` là chữ "Page 2" hay chờ 2 giây? `wait desc=Back 10` cũng vậy), nên là lỗi tệp: ghi giá trị trong ngoặc kép, ví dụ `wait desc="Back" 10`. Quy tắc này cũng bắt `count text=A b 2` và `wait text=A b selected=true 5`: ghi `text="A b"`.
 
@@ -130,7 +130,7 @@ Lý do: chữ của chip Compose nằm trong một nút con, còn `selected` n�
 
 | Lệnh | Việc |
 | --- | --- |
-| `fresh` | Dừng app, xóa dữ liệu, cấp quyền runtime, mở app bằng `am start -W` rồi chờ tiến trình của app (`pidof`, chỉ nhận đầu ra toàn số). Không có tiến trình thì ghi `note`; bộ đệm crash có tên app thì `FAIL app crash ở lần mở đầu`, không thì dừng app và mở lại một lần. Vẫn không có thì `FAIL app không chạy sau 2 lần mở`. Tệp đứng sau một lần trả máy thì chờ `DEVICE_SCENARIO_STOP_SETTLE` giây (mặc định 3) sau khi dừng app rồi mới mở: dừng app khi Activity còn đang dựng lại sau lần trả máy làm hệ thống giết lần mở ngay sau đó (`Destroy timeout of remove-task`). Cũng chờ sau khi dừng app khi tệp đã có lệnh `device` trước đó. Trước khi mở, đặt ngôn ngữ riêng của app là tiếng Anh (`en`), vì `str=` đọc `res/values/` (tiếng Anh); dưới Android 13 máy phải để tiếng Anh, không thì tệp `bỏ qua (môi trường)` (camera-pose T-054). Ngay trước khi mở, đóng bảng của hệ thống (`cmd statusbar collapse`, camera-pose T-070) |
+| `fresh` | Dừng app, xóa dữ liệu, cấp quyền runtime, mở app bằng `am start -W` rồi chờ tiến trình của app (`pidof`, chỉ nhận đầu ra toàn số). Không có tiến trình thì ghi `note`; bộ đệm crash có tên app thì `FAIL app crash ở lần mở đầu`, không thì dừng app và mở lại một lần. Vẫn không có thì `FAIL app không chạy sau 2 lần mở`. Tệp đứng sau một lần trả máy thì chờ `DEVICE_SCENARIO_STOP_SETTLE` giây (mặc định 3) sau khi dừng app rồi mới mở: dừng app khi Activity còn đang dựng lại sau lần trả máy làm hệ thống giết lần mở ngay sau đó (`Destroy timeout of remove-task`). Cũng chờ sau khi dừng app khi tệp đã có lệnh `device` trước đó. Trước khi mở, đặt ngôn ngữ riêng của app là tiếng Anh (`en`), vì `str=` đọc `res/values/` (tiếng Anh); dưới Android 13 máy phải để tiếng Anh, không thì tệp `bỏ qua (môi trường)`. Ngay trước khi mở, đóng bảng của hệ thống (`cmd statusbar collapse`, xem Bảng của hệ thống, dưới) |
 | `consent decline [giây]` | Chạm nút từ chối của hộp thoại đồng ý quảng cáo (ADR-0045, mục 3) khi nó hiện, rồi chờ hộp thoại đóng; hoặc thấy luôn app mà không có hộp thoại. "Thấy app" là bộ chọn `DEVICE_SCENARIO_FIRST_SCREENS`, mặc định `id=app_root` (tag của `Surface` gốc trong `MainActivity`); app có màn đầu riêng thì đặt bộ chọn theo màn đó. App hỏi đồng ý không đồng bộ nên hộp thoại có thể hiện sau màn đầu vài giây: thấy app rồi, lệnh vẫn tìm hộp thoại thêm `DEVICE_SCENARIO_CONSENT_GRACE` giây (mặc định 8) và từ chối nếu nó hiện. Hộp thoại hiện muộn hơn nữa: xem Hộp thoại đồng ý, dưới |
 | `wait <bộ chọn> [giây]` | Chờ tới khi khớp (mặc định 20 giây) |
 | `need <bộ chọn> [giây]` | Như `wait`, nhưng hết giờ thì tệp kết thúc `bỏ qua (môi trường)`. Dùng cho điều kiện mà emulator CI có thể không có (camera) |
@@ -139,7 +139,7 @@ Lý do: chữ của chip Compose nằm trong một nút con, còn `selected` n�
 | `expect`, `expect_no`, `count <bộ chọn> <n>` | Kiểm có, không có, hay đúng n phần tử, sau một lần dump |
 | `network off\|on` | Tắt hay bật cả Wi-Fi và dữ liệu, rồi chờ (có giới hạn) tới khi máy hết hay có lại mạng mặc định; không được thì `bỏ qua (môi trường)` |
 | `device rotate landscape\|portrait`, `device night on\|off` | Xoay màn hình, chế độ tối |
-| `device unfold`, `device fold` | Giả lập gập mở bằng đổi kích thước (673 × 841 dp, khung `_unfolded`) rồi trả về như cũ. Trên màn nhỏ, Android cắt kích thước ép ở 3 lần cạnh dài của màn thật (màn 320x640 cắt `1766x2208` thành `1766x1920`), nên `device unfold` dùng kích thước nhỏ hơn với cùng khung dp (`1536x1919` ở 365 dpi). `device unfold` cũng tắt hộp thoại giới thiệu đóng khung của hệ thống ("See and do more"): lần chạm đầu sau khi mở gập chỉ đóng hộp thoại này, và `uiautomator` không thấy nó (camera-pose FB-20261025-01). Trả máy đặt cài đặt giới thiệu về mặc định của máy, kể cả trên máy thật mà dev đã tự đổi nó |
+| `device unfold`, `device fold` | Giả lập gập mở bằng đổi kích thước (673 × 841 dp, khung `_unfolded`) rồi trả về như cũ. Trên màn nhỏ, Android cắt kích thước ép ở 3 lần cạnh dài của màn thật (màn 320x640 cắt `1766x2208` thành `1766x1920`), nên `device unfold` dùng kích thước nhỏ hơn với cùng khung dp (`1536x1919` ở 365 dpi). `device unfold` cũng tắt hộp thoại giới thiệu đóng khung của hệ thống ("See and do more"): lần chạm đầu sau khi mở gập chỉ đóng hộp thoại này, và `uiautomator` không thấy nó. Trả máy đặt cài đặt giới thiệu về mặc định của máy, kể cả trên máy thật mà dev đã tự đổi nó |
 | `device locale <thẻ>` | Ngôn ngữ riêng của app (Android 13 trở lên). Mỗi `fresh` đặt lại `en` |
 | `back`, `shot <tên>` | Phím Back; chụp màn hình |
 
@@ -151,7 +151,7 @@ Sau mỗi lệnh `device`, trình chạy đọc màn hình tới khi hai lần d
 - Tệp chưa có bước `consent decline` (hoặc vừa `fresh`) thì trình chạy không chạm hộp thoại, nên vẫn viết được kịch bản kiểm chính hộp thoại.
 - Trạng thái này không đi qua ranh giới tệp, và `fresh` đặt lại nó.
 
-**Bảng của hệ thống.** Monkey chạy ngay trước các tệp kịch bản và có thể vuốt từ mép trên, để bảng thông báo hay cài đặt nhanh mở đè lên app; khi đó mọi lần dump chỉ có node của `com.android.systemui` (camera-pose FB-20261027-02). Màn hình khóa cũng chỉ có node của `com.android.systemui`: khi đó lệnh đóng bảng không có tác dụng, dòng `note` vẫn ghi, và tệp lỗi như trước.
+**Bảng của hệ thống.** Monkey chạy ngay trước các tệp kịch bản và có thể vuốt từ mép trên, để bảng thông báo hay cài đặt nhanh mở đè lên app; khi đó mọi lần dump chỉ có node của `com.android.systemui`. Màn hình khóa cũng chỉ có node của `com.android.systemui`: khi đó lệnh đóng bảng không có tác dụng, dòng `note` vẫn ghi, và tệp vẫn lỗi.
 - `fresh` đóng bảng (`adb shell cmd statusbar collapse`) trước khi mở app.
 - Một lần dump chỉ có node của `com.android.systemui`: trình chạy đóng bảng một lần, đọc lại màn hình và ghi `note ... bảng của hệ thống che app, đã đóng (cmd statusbar collapse)` (một lần mỗi bước). Bảng vẫn còn thì bước xử lý màn hình đọc lại như mọi màn hình không có phần tử nó tìm.
 
@@ -176,7 +176,7 @@ shot landscape
 - Mỗi tệp có `min(timeout của tệp, thời gian còn lại - DEVICE_SCENARIO_RESET_LIMIT - DEVICE_SCENARIO_EVIDENCE_RESERVE)`. Phần chừa cuối (mặc định 20 giây) dành cho dấu log đầu tệp và `fail.png`. Còn lại không dương thì tệp `bỏ qua (hết thời gian)`.
 - Tệp mới làm tổng thời gian của các tệp (cộng 80 giây mỗi tệp cho trả máy và bằng chứng) vượt `DEVICE_SCENARIOS_BUDGET` thì plan của tệp đó tăng ngân sách (mặc định ở `scripts/device-scenario.py` và `scripts/device-session.sh`) cùng lúc. Plan không làm thì phiên tự nâng, có trần, theo ADR-0032/L1.
 - `device-session.sh` gọi trình chạy qua `timeout -k 30` với ngân sách cộng 120 giây. Khi nhận SIGTERM, trình chạy giết lệnh `adb` đang chạy (cả nhóm tiến trình), tệp đang chạy ghi `lỗi`, trả máy về gốc trong 25 giây, ghi `plan runner_terminated` và thoát mã 143. Trình chạy hỏng thì `scenarios` ghi dòng `plan runner_error` và vẫn kết thúc bình thường.
-- **App bị hệ thống giết theo tiến trình khác** (camera-pose FB-20261025-03, T-054): bước lỗi mà `logcat.txt` có `Killing ...: depends on provider ... in dying proc ...` của app sau dấu của tệp ghi `RETRY`; trình chạy chạy lại tệp một lần (bằng chứng của lần đầu là `fail-1.png`, `fail-1.xml`). Lần chạy lại cũng bị giết, hay không còn thời gian, thì `SKIP` và `bỏ qua (môi trường)`. Thường gặp trên emulator: Google Play services tự cập nhật hay khởi động lại, và Android giết mọi app đang giữ provider phông chữ của nó. Máy chạy kịch bản dưới Android 13 phải để tiếng Anh.
+- **App bị hệ thống giết theo tiến trình khác:** bước lỗi mà `logcat.txt` có `Killing ...: depends on provider ... in dying proc ...` của app sau dấu của tệp ghi `RETRY`; trình chạy chạy lại tệp một lần (bằng chứng của lần đầu là `fail-1.png`, `fail-1.xml`). Lần chạy lại cũng bị giết, hay không còn thời gian, thì `SKIP` và `bỏ qua (môi trường)`. Thường gặp trên emulator: Google Play services tự cập nhật hay khởi động lại, và Android giết mọi app đang giữ provider phông chữ của nó. Máy chạy kịch bản dưới Android 13 phải để tiếng Anh.
 
 Các biến khác (test đặt nhỏ để chạy nhanh): `DEVICE_SCENARIO_START_WAIT` (hạn của `am start -W`, mặc định 15 giây; hết hạn mà app có tiến trình thì vẫn tính là đã mở), `DEVICE_SCENARIO_PROCESS_WAIT` (chờ tiến trình của app, mặc định 5 giây), `DEVICE_SCENARIO_CONSENT_CLOSE` (chờ hộp thoại đồng ý đóng sau khi chạm, mặc định 5 giây), `DEVICE_SCENARIO_POLL` (giữa hai lần dump, mặc định 1 giây), `DEVICE_SCENARIO_SETTLE` (chờ màn hình ổn định sau lệnh `device`, mặc định 10 giây), `DEVICE_SCENARIO_STOP_SETTLE` (`fresh` sau một lần trả máy chờ sau khi dừng app, mặc định 3 giây), `DEVICE_SCENARIO_ROOT` (gốc repo mà `check` đọc, mặc định repo này).
 
