@@ -71,7 +71,7 @@ appsFlyerDevKey=<khóa dev AppsFlyer>
 
 Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_native_small`. Vị trí chưa có mã thật thì bỏ khỏi `adUnits`: script tự dùng mã quảng cáo thử của Google theo định dạng của vị trí, in tên các vị trí đó ("không có doanh thu") để người phát hành biết (anh Nhật chốt 2026-10-26: phát hành trước khi có đủ mã thật). Vị trí dùng mã thử hiện quảng cáo thử, không có doanh thu; thêm mã thật vào `adUnits` ở bản sau. Mã ứng dụng AdMob (`admobAppId`) vẫn phải là mã thật.
 
-`appsFlyerDevKey` lấy ở **AppsFlyer > App settings > Dev key** (ADR-0027); script không in khóa ra, chỉ truyền cho build qua biến môi trường. Khóa chỉ bắt buộc khi app có SDK AppsFlyer (một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`); app chưa bật AppsFlyer thì bỏ dòng này, có dòng mà không có SDK thì script in CHÚ Ý và không dùng khóa (L-119). Mật khẩu khóa upload không ghi vào thư mục này, script hỏi khi chạy.
+`appsFlyerDevKey` lấy ở **AppsFlyer > App settings > Dev key** (ADR-0027); script không in khóa ra, chỉ truyền cho build qua biến môi trường. Khóa chỉ bắt buộc khi app có SDK AppsFlyer (một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`); app chưa bật AppsFlyer thì bỏ dòng này, có dòng mà không có SDK thì script in CHÚ Ý và không dùng khóa. Mật khẩu khóa upload không ghi vào thư mục này, script hỏi khi chạy.
 
 ### 2.3. Chạy script
 
@@ -82,7 +82,7 @@ scripts/release.sh --config <thư mục>   # thư mục phát hành ở chỗ kh
 scripts/release.sh --check-only         # chỉ kiểm bước 1 tới 3, không hỏi mật khẩu, không build
 ```
 
-Nên chạy `--check-only` một lần trước ngày phát hành: script kiểm thư mục phát hành, commit và đối chiếu cấu hình như lúc phát hành thật, in phần tóm tắt rồi dừng, không tạo tag (L-125). Lệnh không kiểm bước 4: mật khẩu và tên khóa `uploadKeyAlias` trong `upload.jks` chỉ được kiểm lúc phát hành thật. Lệnh vẫn cần mạng, `gh` đã đăng nhập, `jq` và `keytool`.
+Nên chạy `--check-only` một lần trước ngày phát hành: script kiểm thư mục phát hành, commit và đối chiếu cấu hình như lúc phát hành thật, in phần tóm tắt rồi dừng, không tạo tag. Lệnh không kiểm bước 4: mật khẩu và tên khóa `uploadKeyAlias` trong `upload.jks` chỉ được kiểm lúc phát hành thật. Lệnh vẫn cần mạng, `gh` đã đăng nhập, `jq` và `keytool`.
 
 Script làm theo thứ tự, dừng ngay khi có điều kiện không đạt:
 
