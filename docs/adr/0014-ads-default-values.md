@@ -1,10 +1,11 @@
 ---
 id: ADR-0014
 title: Giá trị mặc định của tham số quảng cáo, thay bảng mặc định trong ADR-0013
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-15
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
+superseded_by: ADR-0045
 ---
 
 # ADR-0014: GIÁ TRỊ MẶC ĐỊNH CỦA THAM SỐ QUẢNG CÁO, THAY BẢNG MẶC ĐỊNH TRONG ADR-0013

@@ -1,10 +1,11 @@
 ---
 id: ADR-0004
 title: Dùng AdMob làm nền tảng điều phối mediation, quảng cáo qua một lớp trung gian
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-14
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
+superseded_by: ADR-0045
 ---
 
 # ADR-0004: DÙNG ADMOB LÀM NỀN TẢNG ĐIỀU PHỐI MEDIATION, QUẢNG CÁO QUA MỘT LỚP TRUNG GIAN

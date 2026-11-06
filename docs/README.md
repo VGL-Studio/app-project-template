@@ -27,7 +27,7 @@ docs/
 ├── templates/               các mẫu tài liệu
 ├── borrowed-assets.md       app clone: tài sản mượn tạm từ app mẫu, phải thay hết trước khi phát hành
 ├── foundation.md            quy tắc nền tảng, sinh từ các ADR bởi scripts/foundation.py, không sửa tay
-├── remote-config-keys.md    bảng khóa Remote Config, sinh từ code bởi RemoteConfigKeysTest, không sửa tay (ADR-0023)
+├── remote-config-keys.md    bảng khóa Remote Config, sinh từ code bởi RemoteConfigKeysTest, không sửa tay (ADR-0046)
 ├── remote-config-template.json  file mẫu Remote Config cho project Firebase mới, sinh cùng bảng khóa
 ├── STATUS.md                trang tiến độ, sinh bởi scripts/status.py; không có trong git, bản đọc được trên nhánh status (status-page.yml)
 ├── auto-run.md              quy trình phiên AI tự chạy

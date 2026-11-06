@@ -2416,7 +2416,8 @@ else
     app3="$work/sync-app3"
     "$tpl/scripts/new-app.sh" --dest "$app3" --package com.example.notes --name "Ghi chú" \
       --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
-    adr4="$(cd "$tpl" && ls docs/adr/0004-*.md)"
+    # Any ADR still in force at the template's head: the sync below supersedes it.
+    adr4="$(cd "$tpl" && ls docs/adr/0005-*.md)"
     sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr4" && rm "$tpl/$adr4.bak"
     git -C "$tpl" commit --quiet -am "template v5"
     mkdir -p "$work/broken-python"

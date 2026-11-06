@@ -80,7 +80,7 @@ Không ghi vào file: mã đơn vị quảng cáo thật, khóa SDK (AppLovin...
 ## 5. Một vòng làm việc
 
 1. **Hoạch định.** Nhóm kinh doanh điền vị trí, khóa, sự kiện mới trên file, trạng thái `Đề xuất`. Sửa hết ô đỏ của cột Kiểm tra.
-2. **Vào spec.** Dev hay AI chép các dòng đã chốt vào spec của feature: vị trí vào mục 5 (Quảng cáo), sự kiện vào mục 6. Người phụ trách sản phẩm duyệt spec. Đổi trạng thái trên file thành `Đã duyệt trong spec`. Chưa có trong spec đã duyệt thì không code (ADR-0004).
+2. **Vào spec.** Dev hay AI chép các dòng đã chốt vào spec của feature: vị trí vào mục 5 (Quảng cáo), sự kiện vào mục 6. Người phụ trách sản phẩm duyệt spec. Đổi trạng thái trên file thành `Đã duyệt trong spec`. Chưa có trong spec đã duyệt thì không code (ADR-0045, mục 4.6).
 3. **Code.** Theo [ads-guide.md](ads-guide.md), mục 5: mỗi vị trí một dòng trong `AdPlacement`, sinh lại bảng khóa. Sau khi merge, sinh lại file (bước 4).
 4. **Sinh lại file**, giữ phần đã điền:
 

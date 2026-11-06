@@ -21,5 +21,4 @@ docs/runs/README.md
 docs/templates/plan.md
 docs/templates/run.md
 docs/templates/ticket.md
-ADR-0026
 ADR-0040
