@@ -44,7 +44,7 @@ Nội dung giao việc tối thiểu: "Rà soát danh sách chạy `<đường d
 - Mỗi tiêu chí chấp nhận có test sẽ **thất bại nếu hành vi sai**, không chỉ kiểm điều code đang làm. Đọc từng tên test và điều nó khẳng định: nếu bỏ phần code chính đi thì test này có đỏ không?
 - Test kiểm kết quả mà người dùng thấy hay dữ liệu được ghi lại, không chỉ kiểm rằng một hàm được gọi.
 - Có test cho nhánh lỗi, giá trị biên, trạng thái rỗng, lần thử lại, khi spec nêu các trường hợp đó.
-- Tiêu chí về hình ảnh (màu, viền, vị trí) phải kiểm bằng hình ảnh hay số đo, không chỉ bằng cây ngữ nghĩa. Nút chữ trên nền khác màu có test đo màu chữ.
+- Tiêu chí về hình ảnh (màu, viền, vị trí) phải kiểm bằng hình ảnh hay số đo, không chỉ bằng cây ngữ nghĩa. Nút chữ trên nền khác màu có test đo màu chữ, vì ảnh chuẩn ghi lại cả màu sai.
 - Test kiểm giá trị mặc định có bước đối chứng, để không qua ngay trên khung rỗng.
 - Khung test tái hiện được nơi phát hiện lỗi: cùng chiều rộng, chiều cao, chế độ đồ họa (`docs/CLAUDE.md`, mục Khi viết plan).
 - **Nguy cơ chập chờn:**
@@ -61,7 +61,7 @@ Nội dung giao việc tối thiểu: "Rà soát danh sách chạy `<đường d
 - **Cách mở phiên (bắt buộc, trả lời cho từng plan):** với `open_with` của danh sách, phiên làm được mọi bước của plan không: đẩy file (`.github/workflows/` cần quyền `workflow`), mạng (R2 hay máy chủ ngoài qua proxy bị 403), bí mật (chỉ có trong GitHub Actions), công cụ (emulator chỉ có trong CI), đọc repo khác, tự tiếp tục khi hết hạn mức. Đối chiếu `docs/ops/session-capabilities.md`, cả với bước không có đường dẫn ở mục 3.2 (lệnh, workflow phải chạy, file phải đọc). Bước không làm được mà plan không có cách thay ở mục 3.4 là mức chặn.
 - Kỹ thuật lần đầu dùng (tiêu chí E từ 2) đã chạy thử bằng `scripts/check.sh`, ghi ở mục 4.1.
 - Plan sửa code Kotlin có mục 3.5 đủ: chạy `scripts/existing-tests.py <plan>`, xem từng test của nhóm "Cần xem trước" mà mục 3.5 chưa nói tới; câu khẳng định nào sẽ đỏ với hành vi mới mà plan chưa viết sẵn câu mới là điểm chặn (ADR-0031).
-- Điểm còn chưa chắc có phương án dự phòng ở mục 3.4 với điều kiện chuyển cụ thể.
+- Điểm còn chưa chắc có phương án dự phòng ở mục 3.4 với điều kiện chuyển cụ thể, để phiên chuyển sang thay vì dừng task.
 - Plan không dùng cách mà `scripts/check.sh` từ chối.
 - Quyền và thư viện đã được quyết trong mục 3.3:
   - mỗi API Android mà plan gọi có quyền cần thiết trên mọi phiên bản từ `minSdk` tới `targetSdk`;

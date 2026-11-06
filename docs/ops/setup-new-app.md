@@ -30,7 +30,7 @@ AI không làm các bước trong tài liệu này. Mọi bước có bí mật 
 
 Kiểm tra: trong thư mục repo, `scripts/check.sh` in `== Cổng chất lượng: QUA`.
 
-Lưu ý: test trên emulator (`app/src/androidTest`) chạy trong CI trên API 34. Trên emulator API 37 đã gặp lỗi `InputManager.getInstance` của bản Espresso hiện tại; muốn chạy trên máy thì dùng emulator API 34.
+Lưu ý: test trên emulator (`app/src/androidTest`) chạy trong CI trên API 34. Trên emulator API 37, bản Espresso hiện tại lỗi `InputManager.getInstance`; muốn chạy trên máy thì dùng emulator API 34.
 
 ## 2. Tạo app và repo GitHub
 
@@ -51,7 +51,7 @@ App đọc file tĩnh từ một địa chỉ https công khai (ADR-0006, ADR-00
 2. Trong **Settings** của bucket, mục **Public access**, nối một tên miền riêng (**Custom Domains**, ví dụ `<app>-staging.vgl.io.vn`). Không dùng địa chỉ `r2.dev` cho app thật. Chọn tên miền thuộc vùng có DNSSEC ổn định: nếu bước kiểm DNSSEC của vùng lỗi, DNS công cộng như 1.1.1.1 và 8.8.8.8 từ chối trả lời, và điện thoại dùng các DNS đó không tải được file, trong khi máy dev và emulator trên GitHub vẫn tải được.
 3. Tải lên mọi file trong `docs/ops/required-assets.txt` theo đúng đường dẫn, ví dụ `test/v1/hello.txt` mà màn hình loading của dự án mẫu tải. Thiếu file này thì commit code app đầu tiên trên nhánh chính đỏ ở job `ui-test` của `main-guard` (ADR-0043). Không bao giờ ghi đè một file đã đưa lên; nội dung đổi thì dùng đường dẫn mới.
 4. Địa chỉ gốc (kết thúc bằng `/`) chính là tham số `--staging-assets-url` của script tạo app, nằm trong `app/build.gradle.kts`.
-5. Trên Cloudflare, mục **Caching**, **Cache Rules**, thêm một luật cho tên miền đó: **Edge TTL** theo mã trạng thái, `404` giữ khoảng 60 giây. Mặc định Cloudflare giữ phản hồi `404` của R2 tới một năm (`cache-control: max-age=31536000`), nên file tải lên sau một lần app đọc thiếu vẫn trả `404` cho tới khi purge địa chỉ đó (app camera-pose, issue #215). Đã gặp mà chưa có luật thì vào **Caching**, **Purge Cache**, purge đúng địa chỉ của file; gọi địa chỉ kèm tham số (`?x=1`) trả `200` là dấu hiệu cần purge.
+5. Trên Cloudflare, mục **Caching**, **Cache Rules**, thêm một luật cho tên miền đó: **Edge TTL** theo mã trạng thái, `404` giữ khoảng 60 giây. Mặc định Cloudflare giữ phản hồi `404` của R2 tới một năm (`cache-control: max-age=31536000`), nên file tải lên sau một lần app đọc thiếu vẫn trả `404` cho tới khi purge địa chỉ đó. Gặp lỗi này khi chưa có luật thì vào **Caching**, **Purge Cache**, purge đúng địa chỉ của file; gọi địa chỉ kèm tham số (`?x=1`) trả `200` là dấu hiệu cần purge.
 
 Kiểm tra: `scripts/setup-check.sh` in `== Thiết lập: QUA`. Script kiểm mọi file trong `docs/ops/required-assets.txt` trả `200` (`curl -I`) và tên miền phân giải được qua 1.1.1.1 và 8.8.8.8. Chạy trên máy dev, không chạy trong môi trường `claude --cloud` (proxy chặn R2).
 

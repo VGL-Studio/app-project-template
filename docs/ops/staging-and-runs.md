@@ -110,8 +110,8 @@ Mã này chỉ kích hoạt được đúng routine đó, không đọc được
 1. Danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md` có trạng thái `approved` đã được merge vào nhánh chính.
    Lịch của `resume-run` và `run-watchdog` tự tắt khi không có phiên; `status-page.yml` bật lại chúng khi danh sách `approved` lên nhánh chính (mục 2.8). GitHub có lúc không phát sự kiện push của một lần merge, nên kiểm `gh workflow list --all` thấy cả hai ở `active` (lệnh không có `--all` ẩn workflow đã tắt); không thì chạy `scripts/schedule-idle.py --enable` trên máy.
 2. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy.
-3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4), hoặc `main-guard` chưa qua trên commit gần nhất có đổi code của nhánh chính (`scripts/main-guard-status.sh`). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8; kiểm tra riêng của app (`scripts/setup-check-app.sh`, nếu app có) báo lỗi. Một lần R2 trả 429, 5xx hay không kết nối được thì script hỏi lại một lần. File trả 404 mà hỏi lại kèm tham số chống bộ nhớ đệm thì trả `200`: dòng lỗi nói CDN còn giữ câu trả lời cũ, xóa bộ nhớ đệm của URL đó. Kiểm tra xanh thì workflow đóng issue `setup-broken` đang mở trước khi kích hoạt routine, để phiên không dừng vì issue cũ. Các lỗi này trước đây chỉ lộ ra ở cuối phiên, khi phát bản staging. Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
-4. Bị từ chối vì `main-guard` chưa chạy hay chưa có kết quả (`CHƯA KIỂM`, thường vì GitHub không phát sự kiện push sau một lần merge; cũng báo khi lần chạy thất bại mà không có issue `main-broken`, tức lỗi hạ tầng): **Actions > main-guard > Run workflow** trên `main`, **Re-run all jobs** trên lần chạy thất bại, hoặc lệnh mà thông báo in ra,, chờ xanh, rồi chạy lại `start-run`. Đang chạy (`CHỜ`): chờ xong rồi chạy lại.
+3. Workflow từ chối nếu danh sách chưa `approved`, nhánh chính đang đỏ (có issue `main-broken` đang mở), môi trường cloud đang lỗi (có issue `env-broken` đang mở, mục 2.4), hoặc `main-guard` chưa qua trên commit gần nhất có đổi code của nhánh chính (`scripts/main-guard-status.sh`). Workflow cũng chạy `scripts/setup-check.sh --staging` trên máy của GitHub và từ chối khi: bí mật `STAGING_GOOGLE_SERVICES_JSON` thiếu, là file giả (`fake-staging-project`) hay không có app `<applicationId>.staging`; một nhóm trong `STAGING_TESTER_GROUPS` (mặc định `team`) chưa có trên App Distribution; một file trong `docs/ops/required-assets.txt` không trả `200`; tên miền file tĩnh không phân giải được qua 1.1.1.1 hay 8.8.8.8; kiểm tra riêng của app (`scripts/setup-check-app.sh`, nếu app có) báo lỗi. Một lần R2 trả 429, 5xx hay không kết nối được thì script hỏi lại một lần. File trả 404 mà hỏi lại kèm tham số chống bộ nhớ đệm thì trả `200`: dòng lỗi nói CDN còn giữ câu trả lời cũ, xóa bộ nhớ đệm của URL đó. Kiểm tra xanh thì workflow đóng issue `setup-broken` đang mở trước khi kích hoạt routine, để phiên không dừng vì issue cũ. Nhờ vậy các lỗi này lộ ra trước khi phiên bắt đầu, không phải ở cuối phiên khi phát bản staging. Nhóm người test được kiểm bằng API của App Distribution với tài khoản dịch vụ ở mục 1.1; API không trả lời (ví dụ thiếu quyền) thì chỉ báo chú ý. Khi thành công, phần tóm tắt của workflow có đường dẫn tới phiên.
+4. Bị từ chối vì `main-guard` chưa chạy hay chưa có kết quả (`CHƯA KIỂM`, thường vì GitHub không phát sự kiện push sau một lần merge; cũng báo khi lần chạy thất bại mà không có issue `main-broken`, tức lỗi hạ tầng): **Actions > main-guard > Run workflow** trên `main`, **Re-run all jobs** trên lần chạy thất bại, hoặc lệnh mà thông báo in ra, chờ xanh, rồi chạy lại `start-run`. Đang chạy (`CHỜ`): chờ xong rồi chạy lại.
 
 Lưu ý:
 
@@ -121,7 +121,7 @@ Lưu ý:
 
 ### 2.4. Kiểm tra môi trường hằng ngày (`env-canary.yml`)
 
-Lỗi môi trường (setup script cũ, kho thư viện chặn) từng làm hai phiên qua đêm kết thúc mà không làm được gì. Mỗi sáng 08:00 (giờ Việt Nam), workflow `env-canary` kích hoạt một routine nhỏ chạy `scripts/env-canary.sh` trên nhánh chính trong cùng môi trường cloud: `scripts/cloud-env-check.sh`, rồi `scripts/check.sh` (đỏ thì thử lại một lần, tải lại thư viện). Đỏ thì mở issue `env-broken` kèm 80 dòng log cuối; `start-run.yml` không bắt đầu phiên khi issue này còn mở. Xanh thì tự đóng issue. Workflow bỏ qua ngày có phiên tự chạy đang chạy.
+Lỗi môi trường (setup script cũ, kho thư viện chặn) làm phiên qua đêm kết thúc mà không làm được gì, nên cần thấy trước phiên. Mỗi sáng 08:00 (giờ Việt Nam), workflow `env-canary` kích hoạt một routine nhỏ chạy `scripts/env-canary.sh` trên nhánh chính trong cùng môi trường cloud: `scripts/cloud-env-check.sh`, rồi `scripts/check.sh` (đỏ thì thử lại một lần, tải lại thư viện). Đỏ thì mở issue `env-broken` kèm 80 dòng log cuối; `start-run.yml` không bắt đầu phiên khi issue này còn mở. Xanh thì tự đóng issue. Workflow bỏ qua ngày có phiên tự chạy đang chạy.
 
 Thiết lập một lần:
 
@@ -159,7 +159,7 @@ Không cần thiết lập thêm: workflow dùng hai bí mật `ROUTINE_FIRE_URL
 
 ### 2.7. Mở phiên bằng `claude --cloud` khi còn cloud session credits
 
-Routine không dùng được cloud session credits: phiên của routine luôn tính vào hạn mức của tài khoản. Phiên mở bằng `claude --cloud` từ terminal thì trừ vào credit trước (L-020 của camera-pose, [bài hỗ trợ của Anthropic](https://support.claude.com/en/articles/17152539-cloud-sessions-bonus-credit-promotion)). Khi tài khoản còn credit, nhất là khi hạn mức tuần sắp hết, mở phiên tự chạy theo cách này. Còn lại thì dùng `start-run.yml` (mục 2.3): chỉ phiên của routine được `resume-run.yml` tự tiếp tục (`docs/auto-run.md`, mục 1).
+Routine không dùng được cloud session credits: phiên của routine luôn tính vào hạn mức của tài khoản. Phiên mở bằng `claude --cloud` từ terminal thì trừ vào credit trước ([bài hỗ trợ của Anthropic](https://support.claude.com/en/articles/17152539-cloud-sessions-bonus-credit-promotion)). Khi tài khoản còn credit, nhất là khi hạn mức tuần sắp hết, mở phiên tự chạy theo cách này. Còn lại thì dùng `start-run.yml` (mục 2.3): chỉ phiên của routine được `resume-run.yml` tự tiếp tục (`docs/auto-run.md`, mục 1).
 
 **Trước khi mở.** Không có `start-run.yml` nên người tự làm các kiểm tra của workflow đó:
 
@@ -180,7 +180,7 @@ Nhánh: không làm việc trên nhánh mặc định của phiên này. Tạo n
 Ghi vào mục Kiểm tra đầu phiên: phiên mở bằng claude --cloud để dùng cloud session credits.
 ```
 
-Worktree riêng cho nhánh báo cáo: thư mục chính luôn ở nhánh của task đang làm, nên ghi nhật ký và báo cáo trong `../report` không đổi file dưới một bản build hay `check.sh` đang chạy (L-008 của camera-pose). `scripts/token-usage.py` chạy trong worktree đó vẫn thấy transcript của phiên: script nhận mọi worktree của repo và mọi thư mục mang tên repo, không cần đặt `TOKEN_USAGE_ROOT` (`docs/ops/token-usage.md`, mục 1).
+Worktree riêng cho nhánh báo cáo: thư mục chính luôn ở nhánh của task đang làm, nên ghi nhật ký và báo cáo trong `../report` không đổi file dưới một bản build hay `check.sh` đang chạy. `scripts/token-usage.py` chạy trong worktree đó vẫn thấy transcript của phiên: script nhận mọi worktree của repo và mọi thư mục mang tên repo, không cần đặt `TOKEN_USAGE_ROOT` (`docs/ops/token-usage.md`, mục 1).
 
 **Khi phiên bị ngắt.** Không có `resume-run.yml` cho kiểu phiên này: hết hạn mức, hết credit hay mất kết nối thì phiên dừng hẳn. Phần đã đẩy lên còn nguyên (`docs/auto-run.md`, mục 3, bước 3). Người tiếp tục như sau:
 
@@ -199,13 +199,13 @@ Lệnh chỉ sửa dòng Chung của phiên; commit file CSV trong PR báo cáo 
 
 ### 2.8. Phút Actions của các lịch định kỳ
 
-Mỗi job tính tối thiểu 1 phút Actions. Trước T-051, ba lịch chạy cả khi không có phiên nào, khoảng 2.200 phút mỗi tháng cho một app, trong khi gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org.
+Mỗi job tính tối thiểu 1 phút Actions. Ba lịch chạy cả khi không có phiên nào thì tốn khoảng 2.200 phút mỗi tháng cho một app, trong khi gói GitHub Free có 2.000 phút mỗi tháng cho mọi repo private của org, nên hai lịch tự tắt khi rảnh.
 
-| Workflow | Lịch | Phút mỗi tháng, trước T-051 | Sau T-051 |
+| Workflow | Lịch | Phút mỗi tháng nếu chạy liên tục | Khi tự tắt lúc rảnh |
 | --- | --- | --- | --- |
 | `resume-run.yml` | Mỗi giờ, phút 23 | khoảng 720 | Chỉ khi có phiên hay danh sách chờ, cộng vài lần sau đó (job `idle` tự tắt), mỗi lần khoảng 2 phút |
 | `run-watchdog.yml` | Mỗi 30 phút | khoảng 1.440 | Như `resume-run.yml` |
-| `env-canary.yml` | 01:00 UTC (08:00 giờ Việt Nam) hằng ngày, 2 job | khoảng 60 | Không đổi: vẫn kiểm môi trường và file R2 cho phiên sau |
+| `env-canary.yml` | 01:00 UTC (08:00 giờ Việt Nam) hằng ngày, 2 job | khoảng 60 | Không tự tắt: vẫn kiểm môi trường và file R2 cho phiên sau |
 | `status-page.yml`, job `schedules` | Mỗi lần merge có đổi `docs/` | không có | Khoảng 1 phút mỗi lần |
 
 Cách làm (`scripts/schedule-idle.py`):
