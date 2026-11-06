@@ -1,11 +1,11 @@
 ---
 id: ADR-0047
-title: Bộ công cụ build và kiểm tra code của dự án mẫu: Gradle 9.3.1, AGP 9.1.0 với Kotlin dựng sẵn, cổng chất lượng scripts/check.sh
+title: Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, và kiểm code bằng một cổng chất lượng `scripts/check.sh` mà AI và CI chạy như nhau
 status: proposed             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
-date: 2026-11-06
+date: 2026-11-05
 deciders: [Nhật]
-supersedes: ADR-0011, ADR-0040
+supersedes: ADR-0011, ADR-0040  # ADR hợp nhất (ADR-0044, mục 4)
 superseded_by:
 ---
 
@@ -15,7 +15,7 @@ superseded_by:
 
 Quyết định về bộ công cụ build nằm ở hai ADR còn hiệu lực. ADR-0011 chốt bộ công cụ build, cổng chất lượng `scripts/check.sh`, định dạng code, screenshot test và phản hồi từ CI. ADR-0040 thay riêng phần phiên bản của ADR-0011, khi dự án mẫu lên AGP 9 cùng bộ đã chạy thật ở app Photune. ADR-0044, mục 4, yêu cầu hợp nhất: một ADR chép lại mọi quy tắc còn đúng, ADR cũ chuyển `superseded`.
 
-ADR-0040 còn một ngoại lệ tạm: được đặt cờ `android.newDsl=false` trong lúc Roborazzi 1.43 cần DSL cũ, tới khi Roborazzi được nâng. Roborazzi nay là 1.77.0 và repo không còn đặt cờ này, nên ngoại lệ đó hết hiệu lực và không được chép lại. Ngoài ngoại lệ đó, ADR này không đổi quyết định nào; nó gộp hai ADR lại.
+ADR-0040 còn một ngoại lệ tạm: được đặt cờ `android.newDsl=false` trong lúc Roborazzi 1.43 cần DSL cũ, tới khi Roborazzi được nâng. Dự án mẫu đã nâng Roborazzi lên 1.77.0 cùng lúc lên AGP 9, nên cờ này chưa từng được đặt; ngoại lệ không còn chỗ dùng và không được chép lại. Ngoài ngoại lệ đó, ADR này không đổi quyết định nào; nó gộp hai ADR lại.
 
 Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do của mục 2 và 3:
 
@@ -55,7 +55,7 @@ Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do c
 ### 5. Định dạng code và ngôn ngữ
 
 - **5.1** ktlint theo kiểu Android Studio, cho phép dấu phẩy cuối danh sách, độ dài dòng tối đa 120 ký tự (`.editorconfig`). Chạy `./gradlew ktlintFormat` để tự sửa; không tắt quy tắc.
-- **5.2** Chú thích trong code, script và workflow viết bằng tiếng Anh. Thông báo in ra cho nhóm viết bằng tiếng Việt.
+- **5.2** Chú thích trong script và workflow viết bằng tiếng Anh, như code. Thông báo in ra cho nhóm viết bằng tiếng Việt.
 
 ### 6. Screenshot test
 
@@ -70,9 +70,9 @@ Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do c
 - **7.2** Khi job đỏ, CI bình luận vào PR các dòng lỗi và đoạn cuối log.
 - **7.3** CI luôn ghi chú thích tóm tắt số test, do `scripts/test-summary.sh` tạo cho cả test JVM và test emulator: đếm cả `failures` và `errors`; test emulator mà không có test nào chạy thì tính là đỏ. Cả hai đọc được qua API GitHub, không cần tải log.
 
-### Bảng tra từ ADR cũ
+### Mục mới ← ADR cũ
 
-| Mục mới | ADR cũ |
+| Mục mới | Nguồn |
 | --- | --- |
 | 1.1 tới 1.3 | ADR-0040, Phiên bản (thay phần Phiên bản của ADR-0011) |
 | 1.4 | ADR-0040, Việc AI phải tuân thủ |
@@ -83,9 +83,9 @@ Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do c
 | 4.2 | ADR-0011, Một lần gọi Gradle |
 | 4.3 | ADR-0011, Kiểm thử script |
 | 4.4 | ADR-0011, Chưa dùng detekt |
-| 5.1 | ADR-0011, Định dạng code |
+| 5.1 | ADR-0011, Định dạng code và Việc AI phải tuân thủ |
 | 5.2 | ADR-0011, Chú thích trong script và workflow |
-| 6.1 tới 6.4 | ADR-0011, Screenshot test |
+| 6.1 tới 6.4 | ADR-0011, Screenshot test và Việc AI phải tuân thủ |
 | 7.1 | ADR-0011, Bắt buộc `pipefail` trong CI |
 | 7.2, 7.3 | ADR-0011, Phản hồi từ CI |
 
@@ -93,9 +93,9 @@ Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do c
 
 | Phương án | Ưu điểm | Nhược điểm |
 | --- | --- | --- |
-| Hợp nhất ADR-0011 và ADR-0040, bỏ ngoại lệ đã hết (đã chọn) | Quy tắc bộ build đọc từ một ADR; `foundation.md` không còn vế nhắc ngoại lệ không còn | Thêm một ADR cần duyệt |
+| Hợp nhất ADR-0011 và ADR-0040, bỏ ngoại lệ đã hết (đã chọn, về cách hợp nhất) | Quy tắc bộ build đọc từ một ADR; `foundation.md` không còn vế nhắc ngoại lệ không còn | Thêm một ADR cần duyệt |
 | Để ADR-0040 trong danh sách chưa dọn | Không tốn công lúc này | Vế quy tắc nhắc một ngoại lệ không còn; quy tắc vẫn nằm ở hai ADR |
-| AGP 9.1.0, Gradle 9.3.1, DSL mới (phương án của ADR-0040, đã chọn) | Đúng bộ đã chạy thật ở Photune; không dùng cờ sắp bỏ | AGP 9.1.0 chưa được kiểm với compileSdk 37 (có cảnh báo) |
+| AGP 9.1.0, Gradle 9.3.1, DSL mới (đã chọn, về phiên bản) | Đúng bộ đã chạy thật ở Photune; không dùng cờ sắp bỏ | AGP 9.1.0 chưa được kiểm với compileSdk 37 (có cảnh báo) |
 | AGP 9.5 hay mới hơn | Có thể đã kiểm với compileSdk 37 | Chưa app nào của nhóm chạy |
 | Ở lại AGP 8.13, Gradle 8.14.3 | Không đổi gì | App mới bắt đầu từ bộ cũ; Photune không về được khung của mẫu |
 
@@ -107,6 +107,7 @@ Những điều của AGP 9 và Gradle 9 mà dự án chạm tới, là lý do c
   - Quy tắc bộ build đọc từ một ADR.
 - **Phải chấp nhận:**
   - Mỗi lần build in cảnh báo về compileSdk 37.
+  - Bản production chưa được dựng trên bộ này. Lần phát hành đầu tiên của một app trên bộ này là lần kiểm đầu tiên.
   - Cổng chất lượng chưa có phân tích tĩnh sâu (detekt).
   - Module mới chưa có `src/test` sẽ chạy task test mà không báo gì. Mẫu feature (`:feature:sample`) có test, nên trường hợp này chỉ xảy ra khi feature bỏ qua bước 10 của `CLAUDE.md`.
   - App nhận qua `scripts/template-sync.sh` nhận cả bộ build. App có module hay thư viện riêng phải tự dựng lại.

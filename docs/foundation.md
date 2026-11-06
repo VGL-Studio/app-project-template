@@ -315,7 +315,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không tự chuyển trạng thái bản đề xuất hay thiết kế
 - ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
 
-### [ADR-0047](adr/0047-bo-build-va-kiem-tra-code.md): Bộ công cụ build và kiểm tra code của dự án mẫu: Gradle 9.3.1, AGP 9.1.0 với Kotlin dựng sẵn, cổng chất lượng scripts/check.sh
+### [ADR-0047](adr/0047-bo-build-va-kiem-tra-code.md): Dự án mẫu build bằng Gradle 9.3.1 và AGP 9.1.0 với Kotlin dựng sẵn, và kiểm code bằng một cổng chất lượng `scripts/check.sh` mà AI và CI chạy như nhau
 
 - chạy `scripts/check.sh` trước khi đẩy code
 - chạy `./gradlew ktlintFormat` khi ktlint báo lỗi, không tắt quy tắc
