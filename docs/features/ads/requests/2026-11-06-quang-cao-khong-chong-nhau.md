@@ -23,7 +23,7 @@ Ghi lại từ trao đổi với AI ngày 2026-11-06.
 
 - ~~**Khe đáy chờ:** khi lớp native thu gọn đang mở thì khe đáy không vẽ quảng cáo, không nạp, không làm mới; người dùng thu gọn lớp nổi thì khe đáy mới hiện và nạp.~~ (thay ở phần sau)
 - **Lớp nổi mở lại** (bung lại sau `time_expand_collap_ad` giây): khe đáy hủy quảng cáo đang có; lần thu gọn sau thì nạp quảng cáo mới.
-- **Quảng cáo trong nội dung và lớp nổi không cùng màn.** Quảng cáo trong nội dung thắng ("có" nghĩa là gì: xem phần sau): thanh đáy chỉ còn khe đáy, banner thu gọn không nạp.
+- **Quảng cáo trong nội dung và lớp nổi không cùng màn.** Khi cả hai được khai báo hay bật trên một màn thì quảng cáo trong nội dung thắng (xem phần sau): thanh đáy chỉ còn khe đáy, banner thu gọn không nạp.
 - **Mỗi màn tối đa một quảng cáo neo đáy:** thanh đáy, hoặc banner cố định, hoặc banner thu gọn. Màn đặt hai cái thì cái đăng ký trước chạy ("trước" nghĩa là gì: xem phần sau); cái sau không nạp, không chiếm chỗ, ghi log cảnh báo.
 - **Mức áp dụng:** ghi luật vào spec và `ads-business-rules.md`; `:core:ads` tự chặn khi chạy, có test.
 
@@ -47,5 +47,11 @@ Thay cho các điểm tương ứng ở trên:
 
 - **Khoảng chừa lúc lớp nổi mở:** giữ đúng như đang có; khe đã co về 0 vì nạp lỗi thì vẫn 0.
 - **Giữ lượt neo đáy:** chỉ cái được phép chạy mới giữ lượt; cái có vị trí đang tắt, không có mã đơn vị, hay banner thu gọn bị chặn vì quảng cáo trong nội dung thì không giữ.
-- **Khóa đổi lúc màn đang mở:** quyết định có lớp nổi đọc một lần lúc vào màn; đổi khóa áp ở lần vào màn sau.
+- ~~**Khóa đổi lúc màn đang mở:** quyết định có lớp nổi đọc một lần lúc vào màn; đổi khóa áp ở lần vào màn sau.~~ (thay ở phần sau)
 - **Lớp nổi mở mà mất quảng cáo:** khe đáy chạy lại như khi người dùng thu gọn.
+
+## Anh Nhật chọn theo đề xuất của AI sau rà lại vòng 2 (2026-11-06)
+
+- **Vị trí trong nội dung đổi lúc màn đang mở:** được bật thì áp ngay, lớp nổi bị bỏ và hủy quảng cáo, để không bao giờ chồng; mọi vị trí bị tắt thì lớp nổi có lại ở lần vào màn sau.
+- **Một quảng cáo neo đáy, khóa đổi lúc màn đang mở:** không đổi lượt tới lần vào màn sau.
+- **Khe đáy đã co về 0 vì nạp lỗi**, lớp nổi mở rồi thu gọn: khe không hiện khung chờ, chỉ nạp; có quảng cáo mới chiếm chỗ.

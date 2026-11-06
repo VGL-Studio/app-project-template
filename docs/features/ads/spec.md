@@ -242,7 +242,7 @@ Tiêu chí chấp nhận:
 
 - [ ] Khi bật native ở đáy thì đáy màn hình có native nhỏ 80 dp và lớp native thu gọn 250 dp nổi trên (KB-4). **Đổi 2026-10-29 (ADR-0038):** chiều cao theo KB-32. **Đổi 2026-11-06 (KB-35):** lớp nổi và quảng cáo của khe đáy không hiện cùng lúc; màn có quảng cáo trong nội dung không có lớp nổi.
 - [ ] Khi người vận hành tắt riêng lớp thu gọn thì native nhỏ ở đáy vẫn còn.
-- [ ] Khi đang chờ quảng cáo đầu tiên thì khe native nhỏ hiện khung chờ; khi tải lỗi thì khe co về 0. **Đổi 2026-11-06 (KB-35):** khi lớp nổi đang mở thì khe không vẽ khung chờ, chỉ chừa chỗ.
+- [ ] Khi đang chờ quảng cáo đầu tiên thì khe native nhỏ hiện khung chờ; khi tải lỗi thì khe co về 0. **Đổi 2026-11-06 (KB-35):** khi lớp nổi đang mở thì khe không vẽ khung chờ, chỉ giữ khoảng chừa như đang có (tiêu chí 5).
 - [ ] Khi tắt native ở đáy thì đáy màn hình có banner.
 - [ ] ~~Nội dung của màn hình chừa đúng chiều cao của thanh đáy khi thanh có quảng cáo, không chừa thừa hay thiếu.~~ **Đổi 2026-10-29 (ADR-0036, câu hỏi 37):** nội dung của màn hình chừa đúng chiều cao của khe đáy từ lúc khe đang tải và khi khe có quảng cáo, nên nội dung không bị đẩy khi quảng cáo về; khi khe nạp lỗi thì không chừa gì. Không chừa thừa hay thiếu. **Đổi 2026-11-06 (KB-35):** lúc lớp nổi mở, khoảng chừa giữ như đang có.
 - [ ] **Thêm 2026-10-29:** khi app phát hành bản production có thanh đáy thì khe banner và lớp native thu gọn đều có mã quảng cáo và gửi được yêu cầu, theo mã theo khe (câu hỏi 14).
@@ -462,9 +462,9 @@ Tiêu chí chấp nhận:
 
 - [ ] Khi vào màn có thanh đáy thì khe đáy nạp và hiện quảng cáo ngay theo luật của khe đáy, không chờ lớp native thu gọn.
 - [ ] Khi lớp native thu gọn có quảng cáo và mở (lần đầu, mở muộn khi khe đáy đã có quảng cáo, hay bung lại sau `time_expand_collap_ad` giây) thì khe đáy hủy quảng cáo đang có và không vẽ gì, kể cả khung chờ; khe không nạp, không làm mới; khoảng chừa của nội dung giữ như đang có (khe đã co về 0 vì nạp lỗi thì vẫn 0).
-- [ ] Khi người dùng thu gọn lớp nổi, hay lớp nổi đang mở mà mất quảng cáo (hết hạn, không có quảng cáo thay), thì khe đáy hiện khung chờ và nạp quảng cáo mới.
-- [ ] Khi màn khai báo vị trí quảng cáo trong nội dung và ít nhất một vị trí đó đang bật thì màn không có lớp nổi: thanh đáy chỉ có khe đáy, như khi `is_show_native_collap` tắt; banner thu gọn không nạp, không chiếm chỗ. Khi mọi vị trí đó đều tắt thì lớp nổi hiện như thường. Khóa đổi lúc màn đang mở thì áp ở lần vào màn sau.
-- [ ] Khi một màn đặt hai quảng cáo neo đáy thì cái vào giao diện trước trong lần vào màn đó chạy; cái sau không nạp, không chiếm chỗ, và có một dòng log cảnh báo. Khi cái đang chạy rời giao diện thì cái đang chờ kế tiếp được chạy. Cái không được phép chạy (vị trí đang tắt, không có mã đơn vị, banner thu gọn bị chặn theo tiêu chí 4) không giữ lượt.
+- [ ] Khi người dùng thu gọn lớp nổi, hay lớp nổi đang mở mà mất quảng cáo (hết hạn, không có quảng cáo thay), thì khe đáy hiện khung chờ và nạp quảng cáo mới; khe đã co về 0 vì nạp lỗi thì không hiện khung chờ, chỉ nạp, có quảng cáo mới chiếm chỗ.
+- [ ] Khi màn khai báo vị trí quảng cáo trong nội dung và ít nhất một vị trí đó đang bật thì màn không có lớp nổi: thanh đáy chỉ có khe đáy, như khi `is_show_native_collap` tắt; banner thu gọn không nạp, không chiếm chỗ. Khi mọi vị trí đó đều tắt thì lớp nổi hiện như thường. Khi một vị trí trong nội dung được bật lúc màn đang mở thì lớp nổi bị bỏ ngay; khi mọi vị trí bị tắt lúc màn đang mở thì lớp nổi có lại ở lần vào màn sau.
+- [ ] Khi một màn đặt hai quảng cáo neo đáy thì cái vào giao diện trước trong lần vào màn đó chạy; cái sau không nạp, không chiếm chỗ, và có một dòng log cảnh báo. Khi cái đang chạy rời giao diện thì cái đang chờ kế tiếp được chạy. Cái không được phép chạy (vị trí đang tắt, không có mã đơn vị, banner thu gọn bị chặn theo tiêu chí 4) không giữ lượt. Khóa đổi lúc màn đang mở không đổi lượt tới lần vào màn sau: cái đang chạy bị tắt thì thôi hiện, cái đang chờ chưa được chạy.
 - [ ] Khi một quảng cáo bị chặn theo các tiêu chí trên thì lượt đó không phải cơ hội hiển thị: không ghi số liệu nào cho lượt bị chặn.
 
 ## 4. Giao diện
