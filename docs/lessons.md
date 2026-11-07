@@ -1098,3 +1098,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** đầu ra của bốn lần `merge-if-green.sh` (dòng thời gian của RUN-20261107-01, 11:49, 13:31, 14:32, 15:44); `git ls-remote --heads origin` còn 6 nhánh lúc 15:35.
 - **Đề xuất sửa:** `scripts/merge-if-green.sh`: khi lệnh xóa nhánh bị proxy từ chối, đọc lại nhánh vài lần trong khoảng ngắn (ví dụ 3 lần, mỗi 5 giây) trước khi cảnh báo; nhánh đã mất thì không in gì. Thêm test của script với nhánh mất ở lần đọc thứ hai.
 - **Trạng thái:** proposed
+
+### L-150. Rà soát độc lập xếp chặn một lần sửa chi tiết test viết trước mà `auto-run.md` bước 4 cho phép
+
+- **Ngày, nguồn:** 2026-11-07, RUN-20261101-02 (T-076, PR #408, commit a2a19a5)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** sau commit test, hàm phụ trợ awk của một test viết trước có lỗi luồng (`sub()` đổi `$0`, quy tắc sau tắt cờ đọc) nên chỉ đọc khóa đầu; phiên sửa một chữ (`next`), chuỗi mong đợi giữ nguyên. Rà soát độc lập xếp mức chặn vì việc sửa không có mã lệch L1 tới L12 của ADR-0032 và bước 6 ghi "lệch ngoài danh sách là mức chặn". Bước 4 của `docs/auto-run.md` lại cho phép: "test sai ở chi tiết không làm thay đổi điều nó kiểm tra … được sửa và ghi lý do vào nhật ký". Phiên phải giao xét lại, dẫn đúng câu đó; rà soát lần hai xếp ghi chú. Hai quy tắc đọc riêng thì có vẻ mâu thuẫn, và phiên dễ dừng task oan hay tự chọn bên.
+- **Bằng chứng:** báo cáo rà soát hai lần của T-076 (nhật ký plan T-076, mục Rà soát độc lập); tái hiện `defined=code` trước khi sửa, `defined=code release` sau khi sửa.
+- **Đề xuất sửa:** `docs/auto-run.md` bước 6 (đoạn "Phiên rà soát luôn nhận thêm mọi thay đổi ở file test sau commit test") nói rõ: thay đổi chi tiết theo bước 4 (không đổi chuỗi mong đợi hay điều test kiểm) xét theo bước 4, không theo danh sách lệch của ADR-0032; phiên viết code gửi kèm lý do và lần tái hiện trước, sau khi sửa. Có thể thêm câu tương ứng vào phần giao việc chung của rà soát.
+- **Trạng thái:** proposed

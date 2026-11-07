@@ -1,7 +1,7 @@
 ---
 ticket: T-076
 title: pr-check bỏ job changes riêng
-status: approved
+status: done
 version: 2
 risk_score: 7
 risk_level: high
@@ -322,3 +322,27 @@ Phiên bản 1:
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30, sau khi T-075 merge (PR #324, bb7f7fc). Câu 1: AI đối chiếu `pr-check.yml`, `merge-if-green.sh` và `scripts/tests/run.sh` của nhánh chính lúc duyệt với mục 3.1, 3.5, 4: khớp (hai job `changes`, `build-and-test`, không còn bộ lọc `ui`; `REQUIRED_CHECKS=("changes" "build-and-test")`, không còn `SKIPPABLE_CHECKS`; `pr_missing_jobs` mong `names=2`; `code_runs` và test 21 tới 23 đúng tên; `green_runs`, `mig_run`, `MIG_CHANGES` như mục 3.5). Lệch nhỏ, không đổi cách làm: dữ liệu job của test `wait-run: a red PR check names the failed job` trên nhánh chính là `ui-test` đỏ cạnh `changes` xanh; task vẫn thay bằng một job `build-and-test` đỏ như mục 3.5. Không cần phiên bản 2. Câu 2 tới 6 theo đề xuất của plan: bỏ bộ lọc không ai đọc (T-075 đã bỏ `ui`, không còn việc); giữ bước kiểm kết quả lọc; merge PR task bằng `merge-if-green.sh` của nhánh task, chỉ khi không có phiên tự chạy `running` hay tạm dừng (lúc duyệt RUN-20261030-01 đang chạy: làm task được, merge chờ phiên xong), sau merge báo anh Nhật và Tuấn kéo nhánh chính; không ADR mới; chấp nhận chi phí chuyển tiếp. Câu 7: dòng bảng tra lỗi cho `chưa thấy kiểm tra 'changes'` làm ở một PR quy trình riêng ngay sau khi T-076 merge, không gộp vào T-076; ghi vào mục Việc còn lại của nhật ký. Task làm có người (`auto_run: false`).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261101-02, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #408, commit d83c392, 2026-11-07 17:09 UTC)
+- **Nhánh, PR:** `claude/T-076-pr-check-mot-job`, https://github.com/VGL-Studio/app-project-template/pull/408. `merge-if-green.sh` báo CHÚ Ý không xóa được nhánh, nhưng lúc 17:20 nhánh đã mất (GitHub tự xóa, như L-149): không cần dọn.
+- **Đã làm:** `pr-check.yml` bỏ job `changes`; bước `Lọc đường dẫn (dorny/paths-filter)` (`id: filter`, khối `filters` chép nguyên, kể cả chú thích) và bước `Kiểm kết quả lọc đường dẫn` ở đầu `build-and-test` (cách chính, bước lọc đứng đầu, không cần phương án dự phòng của mục 3.4); năm điều kiện đọc `steps.filter.outputs`; chú thích đầu file theo mục 3.1. `merge-if-green.sh`: `REQUIRED_CHECKS=("build-and-test")` và một dòng chú thích. `scripts/tests/run.sh`: P1 tới P6d, G1, M1 tới M7, W1 và các câu viết lại của mục 3.5.
+- **Test viết trước:** commit ab925e3; 76 câu thất bại đúng lý do trước khi có code (workflow chưa có bước `id: filter` trong `build-and-test`: P1 tới P6c, P6d(1), các câu viết lại của `pr_docs_steps`, `pr_gradle_gated`, `pr_docs_step_tools`, `pr_missing_jobs`; `merge-if-green.sh` cũ chờ check `changes`, mã 2: M1, M3, M4, M5, M7 và các test có sẵn dùng dữ liệu một job). Qua cả trên code cũ, đúng ngoại lệ của mục 4: M2, M6, W1, G1, bản sao perl, P6d(2), P6d(3), đối chứng "a green changes check alone is not enough".
+- **Rà soát độc lập:** agent con ngữ cảnh mới, chỉ đọc. Lần đầu: 1 chặn, 0 nên sửa, 2 ghi chú. Điểm chặn: commit a2a19a5 sửa hàm phụ trợ của test viết trước sau commit test, không có mã lệch L1 tới L12. Phiên giao xét lại theo `docs/auto-run.md` bước 4 (sửa chi tiết không đổi điều test kiểm, ghi nhật ký); rà soát kết luận ghi chú, không còn chặn (ADR-0032 chỉ áp cho lệch khỏi plan). Kết quả cuối: 0 chặn, 0 nên sửa, 3 ghi chú (dưới).
+- **Kết quả CI:** `pr-check` lần chạy 42393364214 xanh. DoD 1 trên GitHub thật (lệnh `gh api` của mục 4): đúng một job `build-and-test`; `Lọc đường dẫn` `success`, `Kiểm kết quả lọc đường dẫn` `success`, `Cổng chất lượng (scripts/check.sh)` `success`, nhánh tài liệu `skipped`, `Build bản release (R8)` `success` (PR đổi `pr-check.yml`, thuộc bộ lọc `release`). Trên máy: `scripts/check.sh` QUA (1842 test JVM, 0 lỗi). `main-guard` của commit merge (lần chạy 42394934256): xanh, `guard` `success`, `ui-test` `skipped`.
+- **Merge:** bằng `scripts/merge-if-green.sh 408 --update` chạy trong worktree ở nhánh task (mục 3.1, Chuyển tiếp). Kiểm lúc 17:09 UTC: `git ls-remote --heads origin 'claude/RUN-*-report'` chỉ có `claude/RUN-20261101-02-report` (chính phiên này), không có phiên khác `running`.
+- **Lệch so với plan:**
+  - Commit a2a19a5 (sau commit test): hàm phụ trợ `pr_filter_outputs` của P4, awk `print` thành `print; next`. `sub()` đổi `$0` nên quy tắc kế tiếp đặt `f = 0`, hàm chỉ đọc khóa đầu của khối `filters`. Căn cứ `docs/auto-run.md` bước 4 ("test sai ở chi tiết không làm thay đổi điều nó kiểm tra … được sửa và ghi lý do vào nhật ký"). Tái hiện: trước khi sửa `reads=code release defined=code other=0` trên workflow đúng, sau khi sửa `defined=code release`; chuỗi mong đợi giữ nguyên, hai bản sao hỏng của P4 vẫn `no`. Hoàn tác: `git revert a2a19a5`.
+  - Cách viết của vài test chặt hơn chữ của plan, không đổi điều kiểm: P5 so cả số dòng `build.log` cho ba ca lỗi (plan chỉ nêu ca `'' false`); P6a so cả chuỗi tóm tắt các bước; bản sao hai job của P1 thêm một job `extra` ở cuối file thay vì chép nguyên `build-and-test`; M4 dùng một lần chạy `in_progress` để script không coi job là trễ trạng thái.
+  - File ngoài mục 3.2: không có.
+- **Ghi chú của rà soát (để người xem):**
+  - `pr_sim` bỏ qua im lặng dòng mẫu không có nháy đơn (ví dụ `- docs/**`): lệch theo chiều P6a đỏ, nhưng P6b có thể xanh nhầm. Đề xuất: dòng không rỗng, không phải chú thích hay khóa mà không khớp `- '...'` thì in `ERROR mẫu chưa hỗ trợ`.
+  - `pr_filter_check` ngừng đọc khối `run` ở dòng trống đầu tiên: khối `run` sau này có dòng trống thì P5 đỏ với thông báo khó hiểu (sai theo chiều an toàn).
+- **Token:** 12.0M (ước tính 5.4M, 2,2 lần), `scripts/token-usage.py report --since 2026-11-07T16:31:00Z`; gồm hai lần chạy toàn bộ `scripts/tests/run.sh`, một `check.sh` và hai vòng của rà soát độc lập.
+- **Việc còn lại:**
+  - Báo anh Nhật và Tuấn kéo nhánh chính (`git pull`) trước lần merge kế tiếp: bản `merge-if-green.sh` cũ chờ check `changes` mãi (mã 2).
+  - PR tài liệu kế tiếp: đã kiểm trên PR báo cáo #409 (lần chạy 42397352236): một job `build-and-test`, nhánh tài liệu `success`, `Cổng chất lượng` `skipped`, đúng mục 4.
+  - Mục 8 câu 7: dòng bảng tra lỗi cho `chưa thấy kiểm tra 'changes'` làm ở một PR quy trình riêng.
+  - Mục 9 (câu 5): AI thêm một dòng ghi chú vào ADR-0043 trong một PR riêng, không thuộc T-076.
+- **Cần người xem:** commit a2a19a5 (sửa chi tiết hàm phụ trợ sau commit test, căn cứ bước 4); hai ghi chú của rà soát ở trên.
