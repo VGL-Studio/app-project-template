@@ -237,7 +237,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi đóng màn native thì người dùng đi tiếp tới màn đã chọn, và khoảng cách `ads_interval` tính từ lúc này.
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
 - [ ] Khi interstitial bị chặn ngay từ đầu (chưa có, chưa qua khoảng cách, đang có quảng cáo khác) thì người dùng đi tiếp ngay, không có native.
-- [ ] Khi interstitial đã được phép hiện nhưng không lên được màn (mất quảng cáo, lỗi hiển thị) và native sau inter đang bật thì vẫn có màn native toàn màn hình. **Đổi 2026-10-30:** trừ khi interstitial không được gọi hiện vì màn hình của app không còn dùng được (KB-26 tiêu chí 3): khi đó không có native, người dùng đi tiếp ngay (câu hỏi 2 của plan T-055).
+- [ ] Khi interstitial đã được phép hiện nhưng không lên được màn (mất quảng cáo, lỗi hiển thị) và native sau inter đang bật thì vẫn có màn native toàn màn hình. **Đổi 2026-10-30:** trừ khi interstitial không được gọi hiện vì màn hình của app không còn dùng được (KB-26 tiêu chí 3): khi đó không có native, người dùng đi tiếp ngay (câu hỏi 2 của plan T-055). **Đổi 2026-11-07:** tiêu chí này chỉ áp cho interstitial của một vị trí trong app (tiêu chí 3); interstitial lúc mở app hay khi quay lại app không lên được màn thì người dùng đi tiếp ngay, không có native (câu hỏi 4 của plan T-089).
 
 ### KB-17. Thanh quảng cáo ở đáy màn hình
 
@@ -785,3 +785,5 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-06 | Nhật | Xác nhận KB-35 ("xác nhận KB-35"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-07 | AI | Theo lựa chọn của anh Nhật khi duyệt plan T-086 (câu hỏi 1 của plan, "Sửa spec trước"): thêm điều kiện nạp kho `native_small` vào tiêu chí 6 của KB-33 (khe native nhỏ đứng riêng chỉ được nạp sẵn khi `is_show_native_bottom` bật), ghi chú đổi ở tiêu chí 3, 5 và câu hỏi 53, thêm câu hỏi 56. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-07 | Nhật | Xác nhận KB-33 ("xác nhận KB-33"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-07 | AI | Theo lời duyệt plan T-089 của anh Nhật (câu hỏi 4 của plan) và lựa chọn "Làm trước phiên" khi rà soát RUN-20261107-01: ghi chú đổi ở KB-16 tiêu chí 8 (chỉ áp cho interstitial của vị trí trong app), khớp tiêu chí 3 đã xác nhận ngày 2026-11-06. Chuyển sang `changed`, chờ anh Nhật xác nhận |
+| 2026-11-07 | Nhật | Xác nhận KB-16 ("Xác nhận KB-16"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
