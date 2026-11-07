@@ -1,12 +1,12 @@
 ---
 id: ADR-0023
 title: Khóa Remote Config phẳng, có kiểu, khai báo một chỗ trong code, sinh bảng khóa và file mẫu; staging có giá trị cục bộ
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-21
 deciders: [Nhóm phát triển, Người phụ trách sản phẩm]
 supersedes:
-superseded_by:
+superseded_by: ADR-0046
 ---
 
 # ADR-0023: KHÓA REMOTE CONFIG PHẲNG, CÓ KIỂU, KHAI BÁO MỘT CHỖ TRONG CODE, SINH BẢNG KHÓA VÀ FILE MẪU; STAGING CÓ GIÁ TRỊ CỤC BỘ

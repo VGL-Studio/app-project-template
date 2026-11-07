@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.ads.AdView
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -50,8 +51,9 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  *
  * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0038), refreshed by the SDK at the
  *   rate of its ad unit in AdMob; the app only retries after a failure (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a
- *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads 30 s after each load, each time
- *   as a new expanded banner (B-03); place it at the bottom of the screen. Any other format throws
+ *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads after each load at the interval
+ *   of `time_reload_banner_collap` (30 s by default; 0 keeps the banner), each time as a new expanded banner (B-03,
+ *   KB-34); place it at the bottom of the screen. Any other format throws
  *   [IllegalArgumentException]. The size comes from [bannerAdSize].
  * - [AdFormat.BANNER_MREC]: a 300 x 250 dp banner centred in the content of the screen, refreshed by its ad unit
  *   (B-08). Its frame keeps 250 dp while it loads and takes no space when a load fails before it had any ad (it still
@@ -99,6 +101,10 @@ private fun BannerSlot(
     // The platforms of the frame (plan T-071, KB-31): a new order or unit builds a new frame (question 7 of the plan).
     val platforms = remember(format, order, admobUnit, maxUnit) { bannerPlatforms(format, order, admobUnit, maxUnit) }
     val frameKey = remember(platforms, admobUnit, maxUnit) { bannerSlotUnitKey(platforms, admobUnit, maxUnit) }
+    // The reload interval by hand of a collapsible banner; a banner refreshed by its ad unit is never reloaded.
+    val reloadMillis = remember(format, refresh) {
+        if (refresh == BannerRefresh.MANUAL) ads.reloadIntervalMillis(format) else MutableStateFlow(0L)
+    }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val visible = remember(lifecycle) { lifecycle.resumedFlow() }
     val currentOnHeight by rememberUpdatedState(onHeight)
@@ -135,6 +141,7 @@ private fun BannerSlot(
                 covered = ads.fullScreenAdShowing,
                 mayRequestNow = ads::mayRequestNow,
                 retryResets = ads.retryResets,
+                reloadMillis = reloadMillis,
                 logger = ads.logger,
                 placementKey = nativeSlotKey(placement, format),
                 newView = {
@@ -210,6 +217,7 @@ internal fun BannerSlotHost(
     covered: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
+    reloadMillis: StateFlow<Long>,
     logger: AppLogger,
     placementKey: String,
     newView: () -> BannerAdView,
@@ -247,6 +255,7 @@ internal fun BannerSlotHost(
                 visible = window,
                 mayRequestNow = mayRequestNow,
                 retryResets = retryResets,
+                reloadMillis = reloadMillis,
                 logger = logger,
                 placementKey = placementKey,
                 newView = newView,
@@ -272,6 +281,7 @@ private fun BannerFrameContent(
     visible: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
+    reloadMillis: StateFlow<Long>,
     logger: AppLogger,
     placementKey: String,
     newView: () -> BannerAdView,
@@ -309,6 +319,7 @@ private fun BannerFrameContent(
                 visible = visible,
                 mayRequestNow = { currentMayRequestNow() },
                 retryResets = retryResets,
+                reloadMillis = reloadMillis,
                 onLoaded = { currentOnLoaded() },
                 logger = logger,
                 placementKey = placementKey,

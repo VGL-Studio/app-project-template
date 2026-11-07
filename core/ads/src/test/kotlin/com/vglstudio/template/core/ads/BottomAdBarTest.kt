@@ -144,6 +144,7 @@ class BottomAdBarTest {
                         covered = MutableStateFlow(false),
                         mayRequestNow = { canRequest },
                         retryResets = MutableStateFlow(0),
+                        reloadMillis = MutableStateFlow(0L),
                         logger = RecordingAppLogger(),
                         placementKey = placement.key,
                         newView = banners::newView,

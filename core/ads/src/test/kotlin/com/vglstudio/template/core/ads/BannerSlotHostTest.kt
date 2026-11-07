@@ -58,6 +58,9 @@ class BannerSlotHostTest {
     /** A full-screen ad drawn over the app (KB-27, plan T-054). */
     private val covered = MutableStateFlow(false)
     private val retryResets = MutableStateFlow(0)
+
+    /** The reload interval of a collapsible banner (time_reload_banner_collap, plan T-087): 30 s by default. */
+    private val reloadMillis = MutableStateFlow(30_000L)
     private val logger = RecordingAppLogger()
 
     private var gateOpen by mutableStateOf(true)
@@ -97,6 +100,7 @@ class BannerSlotHostTest {
                         covered = covered,
                         mayRequestNow = { gateOpen },
                         retryResets = retryResets,
+                        reloadMillis = reloadMillis,
                         logger = logger,
                         placementKey = placementKey,
                         newView = newViewOverride ?: views::newView,
@@ -116,6 +120,7 @@ class BannerSlotHostTest {
                             covered = covered,
                             mayRequestNow = { gateOpen },
                             retryResets = retryResets,
+                            reloadMillis = reloadMillis,
                             logger = logger,
                             placementKey = placementKey,
                             newView = secondNewViewOverride ?: secondViews::newView,
@@ -420,6 +425,32 @@ class BannerSlotHostTest {
         assertEquals(2, view.sendCount)
         advanceTo(start + 101_000)
         assertEquals(2, view.sendCount)
+    }
+
+    @Test
+    fun collapsible_reloadMillisChangedOnScreen_reachesLoop() {
+        refresh = BannerRefresh.MANUAL
+        setTimedHost()
+        val start = composeRule.mainClock.currentTime
+        val view = views.last
+        assertEquals(1, view.sendCount)
+        timedUpdate { view.emitLoaded() }
+        // Control (L-055): the first reload by hand is 30 s after the load.
+        advanceTo(start + 29_000)
+        assertEquals(1, view.sendCount)
+        advanceTo(start + 30_000)
+        assertEquals(2, view.sendCount)
+
+        // The key changes on screen after the first reload: the loop of the frame reads it from its next count.
+        timedUpdate { reloadMillis.value = 90_000 }
+        val reloaded = composeRule.mainClock.currentTime
+        timedUpdate { view.emitLoaded() }
+        advanceTo(reloaded + 60_000)
+        assertEquals(2, view.sendCount)
+        advanceTo(reloaded + 89_000)
+        assertEquals(2, view.sendCount)
+        advanceTo(reloaded + 91_000)
+        assertEquals(3, view.sendCount)
     }
 
     @Test

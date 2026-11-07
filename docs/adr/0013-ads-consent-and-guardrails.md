@@ -1,10 +1,11 @@
 ---
 id: ADR-0013
 title: Quảng cáo AdMob chỉ khởi động sau hộp thoại đồng ý UMP, mã quảng cáo production đưa vào lúc build phát hành
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-15
 deciders: [Nhóm phát triển]
+superseded_by: ADR-0045
 ---
 
 # ADR-0013: QUẢNG CÁO ADMOB CHỈ KHỞI ĐỘNG SAU HỘP THOẠI ĐỒNG Ý UMP, MÃ QUẢNG CÁO PRODUCTION ĐƯA VÀO LÚC BUILD PHÁT HÀNH

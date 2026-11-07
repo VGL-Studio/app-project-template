@@ -106,14 +106,19 @@ class ResumeAdTurnsTest {
     }
 
     @Test
-    fun interResume_showsInterstitialWithCombo() {
+    fun interResume_showsInterstitialWithoutCombo() {
         port.gate = ALL_PASS.copy(placement = AdPlacement.RESUME_INTER)
         port.placementNow = AdPlacement.RESUME_INTER
         launched()
         returnToApp()
         turns.onAppActivityResumed(activity)
-        assertEquals(listOf(Triple(activity, AdPlacement.RESUME_INTER, true)), port.interShows)
+        // KB-14, criterion 1, A-12: the resume interstitial never opens the combo.
+        assertEquals(listOf(Triple(activity, AdPlacement.RESUME_INTER, false)), port.interShows)
         assertTrue(port.appOpenShows.isEmpty())
+        // The next turn opens no combo either.
+        returnToApp()
+        turns.onAppActivityResumed(activity)
+        assertEquals(listOf(false, false), port.interShows.map { it.third })
     }
 
     @Test
@@ -357,7 +362,7 @@ class ResumeAdTurnsTest {
         port.gate = ALL_PASS.copy(placement = AdPlacement.RESUME_INTER)
         returnToApp()
         turns.onAppActivityResumed(activity)
-        assertEquals(listOf(Triple(activity, AdPlacement.RESUME_INTER, true)), port.interShows)
+        assertEquals(listOf(Triple(activity, AdPlacement.RESUME_INTER, false)), port.interShows)
         assertTrue(port.appOpenShows.isEmpty())
     }
 

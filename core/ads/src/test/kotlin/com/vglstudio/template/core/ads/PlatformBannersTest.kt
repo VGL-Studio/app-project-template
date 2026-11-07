@@ -412,6 +412,7 @@ class PlatformBannersTest {
                 visible = MutableStateFlow(true),
                 mayRequestNow = { true },
                 retryResets = MutableStateFlow(0),
+                reloadMillis = MutableStateFlow(0L),
                 onLoaded = { loads++ },
                 logger = logger,
                 placementKey = KEY,

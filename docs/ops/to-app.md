@@ -2,7 +2,7 @@
 
 Chiều ngược của [from-app.md](from-app.md). App nhận sửa lỗi quy trình, script, CI và module core mới của dự án mẫu qua một PR đồng bộ, dựng bằng `scripts/template-sync.sh` của dự án mẫu (ADR-0030).
 
-Người làm: AI trong phiên có người theo dõi, trên máy có cả repo dự án mẫu và repo app, theo yêu cầu của người phụ trách. Phiên tự chạy của app không làm việc này: nó không đọc được repo mẫu (L-101).
+Người làm: AI trong phiên có người theo dõi, trên máy có cả repo dự án mẫu và repo app, theo yêu cầu của người phụ trách. Phiên tự chạy của app không làm việc này: nó không đọc được repo mẫu.
 
 ## 1. Khi nào đồng bộ
 
@@ -19,7 +19,7 @@ Người làm: AI trong phiên có người theo dõi, trên máy có cả repo 
 | Cả hai cùng sửa | `CLAUDE.md`, `docs/CLAUDE.md`, `README.md`, `.gitignore`, `:app`, `:core:designsystem`, `:core:config`, `:core:analytics`, `AdPlacement.kt`, `feature/sample`, `feature/loading`, cấu hình build ở gốc | Gộp tay: lấy phần mới của mẫu, giữ phần riêng của app (module, vị trí quảng cáo, cờ, màu) |
 | Chỉ của app | Feature của app, module core riêng của app, ADR từ 1001, `scripts/setup-check-app.sh`, `scripts/tests/app.sh` (mục 6), kịch bản thử tay trên máy thật `docs/ops/manual-test.md` (theo nghiệp vụ của app, mẫu không có file này) | Không xảy ra: dự án mẫu không có các file này |
 
-Test và ảnh chuẩn của `:core:ads` vẽ trong theme cố định của test (`AdsTestTheme`, chép giá trị của dự án mẫu, phông Inter riêng trong `src/test/resources/ads-test-fonts/`), không theo `AppTheme` của app (T-084, L-143). App giữ tên và chữ ký `AppTheme(darkTheme, content)`: `AdsTestThemeMatchTest.kt` vẫn được biên dịch ở app dù bị bỏ qua. App đổi màu, chữ hay phông trong `:core:designsystem` không cần ghi lại ảnh của `:core:ads`; xung đột ở các ảnh đó lấy bản của mẫu như phần còn lại của module. Còn phụ thuộc: `Spacing` (mã chính của `:core:ads` dùng). App đổi giá trị `Spacing` thì ghi lại ảnh của `:core:ads` và ghi ngoại lệ trong ADR của app. Ảnh của `:app` có quảng cáo (`AdGalleryScreen_*`) vẫn theo theme của app.
+Test và ảnh chuẩn của `:core:ads` vẽ trong theme cố định của test (`AdsTestTheme`, chép giá trị của dự án mẫu, phông Inter riêng trong `src/test/resources/ads-test-fonts/`), không theo `AppTheme` của app. App giữ tên và chữ ký `AppTheme(darkTheme, content)`: `AdsTestThemeMatchTest.kt` vẫn được biên dịch ở app dù bị bỏ qua. App đổi màu, chữ hay phông trong `:core:designsystem` không cần ghi lại ảnh của `:core:ads`; xung đột ở các ảnh đó lấy bản của mẫu như phần còn lại của module. Còn phụ thuộc: `Spacing` (mã chính của `:core:ads` dùng). App đổi giá trị `Spacing` thì ghi lại ảnh của `:core:ads` và ghi ngoại lệ trong ADR của app. Ảnh của `:app` có quảng cáo (`AdGalleryScreen_*`) vẫn theo theme của app.
 
 ADR `superseded` của dự án mẫu không đồng bộ (ADR-0044). Script bỏ chúng ở cả hai phía theo trạng thái ở commit của mỗi phía, nên ADR vừa bị thay bị xóa khỏi app. Sau khi gộp, script xóa thêm ở app mọi ADR của dự án mẫu đã `superseded` ở mốc đích mà app còn giữ. Đây là chỗ duy nhất được xóa tài liệu ở app. Script in thêm danh sách tài liệu quy tắc của app còn nhắc mã ADR vừa xóa; PR đồng bộ sửa các chỗ đó sang ADR thay nó. ADR mà app đã sửa vẫn bị xóa; script in tên nó với dòng `CHÚ Ý`, và mô tả PR đồng bộ ghi phần sửa đã mất. ADR riêng của app (từ 1001) không bao giờ bị đụng.
 
@@ -95,4 +95,4 @@ Kiểm tra và test riêng của app không đặt trong file của mẫu. Mẫu
 
 - Tài liệu lấy từ dự án mẫu dẫn số bài học của dự án mẫu (`L-0NN`), khác số trong sổ bài học của app. Tra ở `docs/lessons.md` của repo dự án mẫu.
 - Bảng ở mục 2 khớp với `NEVER_SYNCED` và `TEMPLATE_OWNED` trong `scripts/template-sync.sh`. Đổi một chỗ thì đổi cả hai.
-- `SETUP_VERSION` của `scripts/cloud-setup.sh`: đợt đồng bộ có đổi file này, kể cả khi không xung đột, mà app đã từng tăng số riêng, thì đặt số bằng số lớn nhất app từng dùng cộng một, rồi dán lại script (`docs/ops/staging-and-runs.md`, mục 2.1). Hai bên cùng tăng lên một số với nội dung khác thì git gộp êm, số không đổi, và `cloud-env-check.sh` không báo phải dán lại (L-121).
+- `SETUP_VERSION` của `scripts/cloud-setup.sh`: đợt đồng bộ có đổi file này, kể cả khi không xung đột, mà app đã từng tăng số riêng, thì đặt số bằng số lớn nhất app từng dùng cộng một, rồi dán lại script (`docs/ops/staging-and-runs.md`, mục 2.1). Hai bên cùng tăng lên một số với nội dung khác thì git gộp êm, số không đổi, và `cloud-env-check.sh` không báo phải dán lại.

@@ -1,12 +1,12 @@
 ---
 id: ADR-0026
 title: Hành vi kinh doanh của quảng cáo theo bộ PARTNER của AdsKit, cách làm kỹ thuật theo cấu trúc của dự án mẫu
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-23
 deciders: [Người phụ trách sản phẩm]
 supersedes: ADR-0022       # thay phần lớn ADR-0022 và một phần ADR-0004, ADR-0013, ADR-0014, ADR-0023; xem mục "Thay gì"
-superseded_by:
+superseded_by: ADR-0045
 ---
 
 # ADR-0026: HÀNH VI KINH DOANH CỦA QUẢNG CÁO THEO BỘ PARTNER CỦA ADSKIT, CÁCH LÀM KỸ THUẬT THEO CẤU TRÚC CỦA DỰ ÁN MẪU

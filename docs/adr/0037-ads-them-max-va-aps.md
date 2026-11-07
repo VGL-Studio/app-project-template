@@ -1,12 +1,12 @@
 ---
 id: ADR-0037
 title: Thêm AppLovin MAX làm nền tảng quảng cáo thứ hai bên cạnh AdMob; Amazon APS đi kèm MAX khi có tài khoản
-status: accepted             # proposed | accepted | superseded
+status: superseded           # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-29
 deciders: [Nhật]
 supersedes:                  # thay vế "AdMob là nền tảng điều phối mediation" của ADR-0004 và mục M-01, M-03 của docs/ops/ads-business-rules.md (xem mục Quyết định)
-superseded_by:
+superseded_by: ADR-0045
 ---
 
 # ADR-0037: THÊM APPLOVIN MAX LÀM NỀN TẢNG QUẢNG CÁO THỨ HAI BÊN CẠNH ADMOB

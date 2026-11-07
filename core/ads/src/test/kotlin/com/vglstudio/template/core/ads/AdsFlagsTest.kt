@@ -282,6 +282,29 @@ class AdsFlagsTest {
     }
 
     @Test
+    fun reloadKeys_defaults_60_60_30() = runTest {
+        // Plan T-087, KB-34 criterion 2: nothing set, the defaults of the three keys.
+        val defaults = flags.global.first()
+        assertEquals(60L, defaults.nativeSmallReloadSeconds)
+        assertEquals(60L, defaults.collapReloadSeconds)
+        assertEquals(30L, defaults.bannerCollapReloadSeconds)
+
+        // Control (L-055): each key is read, by the rule of reloadSeconds (45 kept, 10 to 30, negative the default, 0).
+        val keys = listOf<Triple<String, Long, (AdsGlobalFlags) -> Long>>(
+            Triple("time_reload_native_small", 60L) { it.nativeSmallReloadSeconds },
+            Triple("time_reload_collap_ad", 60L) { it.collapReloadSeconds },
+            Triple("time_reload_banner_collap", 30L) { it.bannerCollapReloadSeconds },
+        )
+        keys.forEach { (name, default, read) ->
+            mapOf(45L to 45L, 10L to 30L, -5L to default, 0L to 0L).forEach { (remote, expected) ->
+                settings.set(name, remote)
+                assertEquals("$name=$remote", expected, read(flags.global.first()))
+            }
+            assertTrue(settings.readNames.toString(), name in settings.readNames)
+        }
+    }
+
+    @Test
     fun negativeSeconds_areReadAsZero() = runTest {
         // Control: the defaults before any value is set.
         assertEquals(45L, flags.global.first().adsIntervalSeconds)

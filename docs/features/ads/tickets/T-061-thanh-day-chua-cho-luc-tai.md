@@ -25,7 +25,7 @@ Nội dung của màn có thanh đáy chừa chỗ ngay lúc khe đáy đang t�
 
 - Đổi `BottomAdBar.kt` (khoảng chừa hôm nay chỉ có khi khe đã có quảng cáo, dòng 68-72) theo câu hỏi 37: chiều cao khe theo KB-32 (câu hỏi 49), banner bằng chiều cao khung; nạp lại sau lỗi không chừa lại tới khi có quảng cáo.
 - Viết lại câu khẳng định cũ của D-04 theo ADR-0031; ghi lại ảnh chuẩn bị đổi (liệt kê trong plan).
-- Sửa `ads-business-rules.md` D-04 và mục 12, `ads-guide.md` (dòng về khoảng chừa của thanh đáy).
+- `ads-business-rules.md` D-04 và `ads-guide.md` (khoảng chừa của thanh đáy) đã ghi luật đích theo ADR-0045, mục 7.2; plan đối chiếu lại khi code xong, sửa nếu còn lệch.
 
 **Không bao gồm:**
 

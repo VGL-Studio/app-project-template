@@ -32,7 +32,11 @@ class AdPreloadPlanTest {
     fun fromPlacements_coversEveryTemplateFormat() {
         val plan = AdPreloadPlan.fromPlacements()
 
-        assertEquals(AdPlacement.entries.map { it.format }.toSet(), plan.groups.flatten().toSet())
+        // The formats of the placements, and the collapsible layer of their bottom bars (KB-33).
+        assertEquals(
+            AdPlacement.entries.map { it.format }.toSet() + AdFormat.NATIVE_COLLAPSIBLE,
+            plan.groups.flatten().toSet(),
+        )
         assertEquals(plan.groups.sumOf { it.size }, plan.groups.flatten().toSet().size)
     }
 
@@ -46,6 +50,47 @@ class AdPreloadPlanTest {
         // Control (L-055): without the rewarded placement of the gallery, no group has REWARDED.
         val withoutRewarded = AdPreloadPlan.fromPlacements(AdPlacement.entries - AdPlacement.GALLERY_RW_ACTION)
         assertTrue(AdFormat.REWARDED !in withoutRewarded.groups.flatten())
+    }
+
+    @Test
+    fun fromPlacements_withBottomBar_hasCollapsibleInSecondGroup() {
+        val groups = AdPreloadPlan.fromPlacements().groups
+
+        assertEquals(2, groups.size)
+        assertTrue(AdFormat.NATIVE_SMALL in groups[1])
+        assertTrue(AdFormat.NATIVE_COLLAPSIBLE in groups[1])
+        assertTrue(AdFormat.NATIVE_SMALL !in groups[0])
+        assertTrue(AdFormat.NATIVE_COLLAPSIBLE !in groups[0])
+        // Control (L-055): with no native small placement, or only one inside a list, no group has the layer.
+        val noSmall = AdPreloadPlan.fromPlacements(AdPlacement.entries.filter { it.format != AdFormat.NATIVE_SMALL })
+        assertTrue(AdFormat.NATIVE_COLLAPSIBLE !in noSmall.groups.flatten())
+        val listOnly = AdPreloadPlan.fromPlacements(listOf(AdPlacement.GALLERY_INLIST_SMALL))
+        assertTrue(AdFormat.NATIVE_COLLAPSIBLE !in listOnly.groups.flatten())
+    }
+
+    @Test
+    fun customPlan_acceptsCollapsibleFirst() {
+        // An app may preload the layer of its bottom bar before anything else (HD-02).
+        val plan = AdPreloadPlan(listOf(setOf(AdFormat.NATIVE_COLLAPSIBLE), setOf(AdFormat.NATIVE_SMALL)))
+
+        assertEquals(listOf(setOf(AdFormat.NATIVE_COLLAPSIBLE), setOf(AdFormat.NATIVE_SMALL)), plan.groups)
+    }
+
+    @Test
+    fun fromPlacements_hasNoBannerLayer() {
+        // One bottom bar, no banner placement: its banner layer is never preloaded (KB-33, criterion 8).
+        val formats = AdPreloadPlan.fromPlacements(listOf(AdPlacement.SAMPLE_NATIVE_SMALL)).groups.flatten().toSet()
+
+        assertEquals(setOf(AdFormat.NATIVE_SMALL, AdFormat.NATIVE_COLLAPSIBLE), formats)
+        assertTrue(AdFormat.BANNER !in formats)
+    }
+
+    @Test
+    fun nativeOnly_keepsCollapsible() {
+        // S-24, S-25: the refill when an activity comes back fills the stock of the layer too.
+        val refill = AdPreloadPlan.fromPlacements(listOf(AdPlacement.SAMPLE_NATIVE_SMALL)).nativeOnly()
+
+        assertTrue(AdFormat.NATIVE_COLLAPSIBLE in refill.groups.flatten())
     }
 
     @Test

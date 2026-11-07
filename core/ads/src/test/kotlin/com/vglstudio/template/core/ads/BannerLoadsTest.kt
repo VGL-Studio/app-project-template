@@ -5,6 +5,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -26,21 +27,29 @@ class BannerLoadsTest {
     private var mayRequest = true
     private var loadedCalls = 0
 
+    /** The reload interval by hand (time_reload_banner_collap, plan T-087): 30 s by default. */
+    private val reload = MutableStateFlow(30_000L)
+
     private fun TestScope.fakeView() = FakeBannerAdView(clock = { testScheduler.currentTime })
 
-    private fun TestScope.run(refresh: BannerRefresh, view: FakeBannerAdView, placementKey: String = KEY): Job =
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            runBannerLoads(
-                refresh = refresh,
-                view = view,
-                visible = visible,
-                mayRequestNow = { mayRequest },
-                retryResets = retryResets,
-                onLoaded = { loadedCalls++ },
-                logger = logger,
-                placementKey = placementKey,
-            )
-        }
+    private fun TestScope.run(
+        refresh: BannerRefresh,
+        view: FakeBannerAdView,
+        placementKey: String = KEY,
+        reloadMillis: StateFlow<Long> = reload,
+    ): Job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+        runBannerLoads(
+            refresh = refresh,
+            view = view,
+            visible = visible,
+            mayRequestNow = { mayRequest },
+            retryResets = retryResets,
+            reloadMillis = reloadMillis,
+            onLoaded = { loadedCalls++ },
+            logger = logger,
+            placementKey = placementKey,
+        )
+    }
 
     /** Moves the virtual clock to [millis] after the start and runs what is due. */
     private fun TestScope.at(millis: Long) {
@@ -160,6 +169,186 @@ class BannerLoadsTest {
     }
 
     @Test
+    fun manual_reloadsAfterKeySeconds() = runTest {
+        reload.value = 45_000
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitLoaded()
+        runCurrent()
+
+        at(30_000)
+        assertEquals(listOf(0L), view.sendTimes)
+        at(44_999)
+        assertEquals(listOf(0L), view.sendTimes)
+        at(45_000)
+        assertEquals(listOf(0L, 45_000L), view.sendTimes)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY reload in 45000 ms" })
+    }
+
+    @Test
+    fun manual_reloadChangedMidCount_appliesNext() = runTest {
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitLoaded()
+        runCurrent()
+
+        at(10_000)
+        reload.value = 60_000
+        runCurrent()
+        // The count under way keeps its 30 s.
+        at(30_000)
+        assertEquals(listOf(0L, 30_000L), view.sendTimes)
+        view.emitLoaded()
+        runCurrent()
+
+        // The next count reads 60 s.
+        at(89_999)
+        assertEquals(listOf(0L, 30_000L), view.sendTimes)
+        at(90_000)
+        assertEquals(listOf(0L, 30_000L, 90_000L), view.sendTimes)
+    }
+
+    @Test
+    fun manual_reloadZeroToPositive_countsFromReceipt() = runTest {
+        reload.value = 0
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitLoaded()
+        runCurrent()
+
+        at(300_000)
+        assertEquals(listOf(0L), view.sendTimes)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY reload off" })
+
+        reload.value = 30_000
+        runCurrent()
+        at(329_999)
+        assertEquals(listOf(0L), view.sendTimes)
+        at(330_000)
+        assertEquals(listOf(0L, 330_000L), view.sendTimes)
+    }
+
+    @Test
+    fun manual_reloadZeroDuringRetryAfterLoaded_keepsBanner() = runTest {
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitLoaded()
+        runCurrent()
+        at(30_000)
+        assertEquals(listOf(0L, 30_000L), view.sendTimes)
+        // The reload fails: a retry is due 2 s later, at 32 s.
+        view.emitFailed(3)
+        runCurrent()
+
+        at(31_000)
+        reload.value = 0
+        runCurrent()
+        at(600_000)
+        assertEquals(listOf(0L, 30_000L), view.sendTimes)
+        assertEquals(0, view.destroyCount)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY reload off, keeping ad" })
+
+        reload.value = 30_000
+        runCurrent()
+        at(629_999)
+        assertEquals(listOf(0L, 30_000L), view.sendTimes)
+        at(630_000)
+        assertEquals(listOf(0L, 30_000L, 630_000L), view.sendTimes)
+
+        // Control (L-055): the same failure with the key kept sends its retry 2 s later.
+        val start = testScheduler.currentTime
+        val kept = fakeView()
+        run(BannerRefresh.MANUAL, kept, reloadMillis = MutableStateFlow(30_000L))
+        kept.emitLoaded()
+        runCurrent()
+        at(start + 30_000)
+        kept.emitFailed(3)
+        runCurrent()
+        at(start + 32_000)
+        assertEquals(listOf(0L, 30_000L, 32_000L), kept.sendTimes.map { it - start })
+    }
+
+    @Test
+    fun manual_neverLoaded_twoFailures_thenZero_keepsRetrying() = runTest {
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitFailed(3)
+        runCurrent()
+        at(2_000)
+        assertEquals(listOf(0L, 2_000L), view.sendTimes)
+        // Second failure: the next retry is due 4 s later, at 6 s.
+        view.emitFailed(3)
+        runCurrent()
+
+        at(3_000)
+        reload.value = 0
+        runCurrent()
+        // No ad in this loop yet: it still retries (KB-34, criterion 4).
+        at(6_000)
+        assertEquals(listOf(0L, 2_000L, 6_000L), view.sendTimes)
+        view.emitLoaded()
+        runCurrent()
+
+        at(600_000)
+        assertEquals(listOf(0L, 2_000L, 6_000L), view.sendTimes)
+    }
+
+    @Test
+    fun manual_loadedThenTwoFailures_thenZero_keepsBanner() = runTest {
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitLoaded()
+        runCurrent()
+        at(30_000)
+        view.emitFailed(3)
+        runCurrent()
+        at(32_000)
+        assertEquals(listOf(0L, 30_000L, 32_000L), view.sendTimes)
+        // Second failure: the next retry is due 4 s later, at 36 s.
+        view.emitFailed(3)
+        runCurrent()
+
+        at(33_000)
+        reload.value = 0
+        runCurrent()
+        at(36_000)
+        assertEquals(listOf(0L, 30_000L, 32_000L), view.sendTimes)
+        at(600_000)
+        assertEquals(listOf(0L, 30_000L, 32_000L), view.sendTimes)
+
+        reload.value = 30_000
+        runCurrent()
+        at(630_000)
+        assertEquals(listOf(0L, 30_000L, 32_000L, 630_000L), view.sendTimes)
+        // The failure count went back to 0: the first failure in a row again, retried 2 s later.
+        view.emitFailed(3)
+        runCurrent()
+        at(631_999)
+        assertEquals(listOf(0L, 30_000L, 32_000L, 630_000L), view.sendTimes)
+        at(632_000)
+        assertEquals(listOf(0L, 30_000L, 32_000L, 630_000L, 632_000L), view.sendTimes)
+    }
+
+    @Test
+    fun manual_reloadZero_retriesUntilLoaded_thenKeeps() = runTest {
+        reload.value = 0
+        val view = fakeView()
+        run(BannerRefresh.MANUAL, view)
+        view.emitFailed(3)
+        runCurrent()
+        at(2_000)
+        view.emitFailed(3)
+        runCurrent()
+        at(6_000)
+        assertEquals(listOf(0L, 2_000L, 6_000L), view.sendTimes)
+        view.emitLoaded()
+        runCurrent()
+
+        at(600_000)
+        assertEquals(listOf(0L, 2_000L, 6_000L), view.sendTimes)
+    }
+
+    @Test
     fun firstSend_gateClosed_sendsNothingAndNeverRetries() = runTest {
         mayRequest = false
         val blocked = fakeView()
@@ -257,6 +446,7 @@ class BannerLoadsTest {
                 visible = visible,
                 mayRequestNow = { mayRequest },
                 retryResets = retryResets,
+                reloadMillis = reload,
                 onLoaded = { loadedCalls++ },
                 logger = logger,
                 placementKey = KEY,
@@ -396,6 +586,7 @@ class BannerLoadsTest {
                 visible = visible,
                 mayRequestNow = { mayRequest },
                 retryResets = retryResets,
+                reloadMillis = reload,
                 onLoaded = { loadedCalls++ },
                 logger = logger,
                 placementKey = KEY,

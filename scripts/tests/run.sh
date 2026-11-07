@@ -1013,7 +1013,7 @@ expect "playbook: the help text of a failed gh call says log-hong, not khong-co"
 printf 'the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\n' > "$work/gh-esc.log"
 expect "playbook: the escape-sequence refusal of gh says log-hong" "log-hong" "$(pb_head "$work/gh-esc.log")"
 expect "playbook: a missing log exits 0" 0 "$(scripts/failure-kind.sh --playbook "$work/no-such.log" > /dev/null 2>&1; echo $?)"
-expect "playbook: the line carries the action and the source" "PB-02 cho: GitHub không cấp máy. Làm theo \`auto-run.md\` mục 4, dòng \"GitHub không chạy job\" (L-064)" \
+expect "playbook: the line carries the action and the source" "PB-02 cho: GitHub không cấp máy. Làm theo \`auto-run.md\` mục 4, dòng \"GitHub không chạy job\" (camera-pose, GitHub không chạy job vì hết hạn mức Actions (issue #106))" \
   "$(playbook $pb_dir/PB-02.log)"
 # Test tables for the parser: an escaped pipe is an alternative; a broken pattern is skipped and reported.
 cat > "$work/pb-table.md" <<'MD'
@@ -2416,7 +2416,8 @@ else
     app3="$work/sync-app3"
     "$tpl/scripts/new-app.sh" --dest "$app3" --package com.example.notes --name "Ghi chú" \
       --staging-assets-url https://notes.example.vn/staging/ > /dev/null 2>&1
-    adr4="$(cd "$tpl" && ls docs/adr/0004-*.md)"
+    # Any ADR still in force at the template's head: the sync below supersedes it.
+    adr4="$(cd "$tpl" && ls docs/adr/0005-*.md)"
     sed -i.bak 's/^status: accepted/status: superseded/' "$tpl/$adr4" && rm "$tpl/$adr4.bak"
     git -C "$tpl" commit --quiet -am "template v5"
     mkdir -p "$work/broken-python"
@@ -5595,6 +5596,30 @@ import runpy
 plan = runpy.run_path("scripts/ads-plan.py")
 rows = {row[0]: row for row in plan["FORMATS"]}
 print("banner_mrec" in plan["PLACEMENT_FORMATS"], rows["banner_mrec"][6] if "banner_mrec" in rows else None)
+PY
+)"
+  # The reload keys of KB-34 (plan T-087), read from the key table of this repo.
+  expect "ads-plan: reload keys go in their groups" "Thanh đáy Thanh đáy Banner" \
+    "$(python3 -I scripts/ads-plan.py --dump | python3 -I -c '
+import json, sys
+K = {k["key"]: group for group, keys in json.load(sys.stdin)["keys"].items() for k in keys}
+print(*(K.get(n) for n in ("time_reload_native_small", "time_reload_collap_ad", "time_reload_banner_collap")))')"
+  # Control: time_reload_bottom_ad is still listed, so the list is read.
+  expect "ads-plan: time_reload_collap_ad is not an unused AdsKit key" "False True" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+names = {key for key, _ in plan["UNUSED_ADSKIT_KEYS"]}
+print("time_reload_collap_ad" in names, "time_reload_bottom_ad" in names)
+PY
+)"
+  expect "ads-plan: the constants sheet has no reload interval" "False False True" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+names = [name for name, _ in plan["CONSTANTS"]]
+print(any(n.startswith("Làm mới native") for n in names), any(n.startswith("Nạp lại banner thu gọn") for n in names),
+      ("Mức sàn của nhịp làm mới", "30 giây") in plan["CONSTANTS"])
 PY
 )"
 fi
