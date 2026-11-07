@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -11,7 +11,7 @@ requests:
   - requests/2026-11-06-quang-cao-khong-chong-nhau.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-11-06
+confirmed: 2026-11-07
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -784,3 +784,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-06 | AI | Theo yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md` và các lựa chọn của anh Nhật trong phiên (ghi ở file yêu cầu): thêm KB-35 (quảng cáo trong màn hình không chồng lên nhau), một dòng phạm vi ở mục 2, ghi chú đổi ở KB-4 tiêu chí 1, 2, KB-17 tiêu chí 1, 3, 5 và dòng `is_show_native_collap` ở mục 8. Code tách thành ticket T-090, T-091, T-092. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-06 | Nhật | Xác nhận KB-35 ("xác nhận KB-35"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-07 | AI | Theo lựa chọn của anh Nhật khi duyệt plan T-086 (câu hỏi 1 của plan, "Sửa spec trước"): thêm điều kiện nạp kho `native_small` vào tiêu chí 6 của KB-33 (khe native nhỏ đứng riêng chỉ được nạp sẵn khi `is_show_native_bottom` bật), ghi chú đổi ở tiêu chí 3, 5 và câu hỏi 53, thêm câu hỏi 56. Chuyển sang `changed`, chờ anh Nhật xác nhận |
+| 2026-11-07 | Nhật | Xác nhận KB-33 ("xác nhận KB-33"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
