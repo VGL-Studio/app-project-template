@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -797,3 +797,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-07 | AI | Theo lời duyệt plan T-089 của anh Nhật (câu hỏi 4 của plan) và lựa chọn "Làm trước phiên" khi rà soát RUN-20261107-01: ghi chú đổi ở KB-16 tiêu chí 8 (chỉ áp cho interstitial của vị trí trong app), khớp tiêu chí 3 đã xác nhận ngày 2026-11-06. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-07 | Nhật | Xác nhận KB-16 ("Xác nhận KB-16"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-07 | AI | Theo phân loại hai phản hồi mà anh Nhật đồng ý trong phiên ("Đồng ý"): KB-9 tiêu chí 2 đổi cách kiểm (bản build sau R8 có đủ chín adapter, không đọc log trạng thái trên staging), theo FB-20261024-02 và lần kiểm APK của AI; KB-28 thêm tiêu chí thông điệp lỗi trong log lỗi tải của bản staging, có che mã đơn vị, theo FB-20261023-02 (ticket T-093); gạch câu đầu của KB-9 tiêu chí 2 (đã được thay từ 2026-10-24); thêm câu hỏi 57, 58. Chuyển sang `changed`, chờ anh Nhật xác nhận |
+| 2026-11-07 | Nhật | Xác nhận KB-9 tiêu chí 2 và KB-28 cùng trả lời câu hỏi 57, 58 ("Đồng ý" với đề xuất "Xác nhận KB-9 và KB-28"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
