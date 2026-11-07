@@ -1,16 +1,16 @@
 ---
 ticket: T-088
 title: Banner cố định và MREC (AdMob và MAX) tải lại theo Remote Config
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 22.2M        # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-11-06, trung vị 22 task M); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-07
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -208,8 +208,10 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt"), sau khi xem tóm tắt plan và kết quả rà soát độc lập (vòng 1, rà lại 1, rà lại 2 vòng cuối: 0 chặn, 3 nên sửa, 6 ghi chú; đã sửa theo lời cho phép "Cho sửa theo đề xuất"). Trả lời câu hỏi ở mục 8: (1) anh Nhật chọn "Bỏ bước thử, duyệt luôn": không thử MAX trên máy trước khi duyệt; kiểm MAX tay sau merge (mục 4), không được thì mở plan phiên bản mới; (2) theo đề xuất của AI: lượt nạp lại lỗi khi quảng cáo cũ còn hiện thử lại theo B-02; chấp nhận hệ quả của phương án (b) (đơn vị AdMob chưa tắt tự làm mới mà khóa là 0 thì lượt tự làm mới lỗi vẫn thử lại); (3) phương án (a): không đụng ADR-0045 trong ticket này, ghi trong mô tả PR rằng mục 8.1 lệch nhưng mục 1.2 phân xử. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
