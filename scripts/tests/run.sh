@@ -376,7 +376,7 @@ pr_filter_outputs() { # <workflow>; the filter outputs read, the filters defined
   reads="$(grep -oE 'steps\.filter\.outputs\.[A-Za-z0-9_-]+' "$1" | sed 's/.*\.//' | sort -u | tr '\n' ' ' | sed 's/ $//')"
   defined="$(awk '/^  build-and-test:$/ { j = 1; next } j && /^  [^ ]/ { j = 0 }
     j && /^      - / { s = 0 } j && /^(      - |        )id: filter$/ { s = 1 }
-    j && s && /^          filters: \|$/ { f = 1; next } j && s && f && /^            [A-Za-z0-9_-]+:$/ { sub(/^ +/, ""); sub(/:$/, ""); print }
+    j && s && /^          filters: \|$/ { f = 1; next } j && s && f && /^            [A-Za-z0-9_-]+:$/ { sub(/^ +/, ""); sub(/:$/, ""); print; next }
     j && s && f && !/^             / && !/^            [A-Za-z0-9_-]+:$/ { f = 0 }' "$1" | sort -u | tr '\n' ' ' | sed 's/ $//')"
   other="$(grep -oE 'steps\.[A-Za-z0-9_-]+\.outputs' "$1" | grep -vc '^steps\.filter\.outputs$' || true)"
   echo "reads=$reads defined=$defined other=$other"
