@@ -277,7 +277,7 @@ pr_steps() { # <workflow>; prints each step of build-and-test on one line, its l
     END { if (s != "") print s }' "$1"
 }
 pr_docs_steps() { # <workflow>; counts the steps that run scripts/tests/run.sh only when the PR changes no code
-  pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -cF 'scripts/tests/run.sh 2>&1 | tee build.log' || true
+  pr_steps "$1" | grep -F "if: steps.filter.outputs.code != 'true'" | grep -cF 'scripts/tests/run.sh 2>&1 | tee build.log' || true
 }
 pr_unconditional() { # <workflow> <uses>; "yes" when the step with that action has no if:, "missing" with no such step
   local step
@@ -285,14 +285,16 @@ pr_unconditional() { # <workflow> <uses>; "yes" when the step with that action h
   if [[ -z "$step" ]]; then echo missing; elif grep -q 'if:' <<<"$step"; then echo no; else echo yes; fi
 }
 pr_gradle_gated() { # <workflow>; "yes" when every step using Gradle or the Android SDK runs only for code
+  # The path filter step runs for every PR and its patterns name gradlew and scripts/check.sh: skip that step only.
   local bad tab=$'\t'
-  bad="$(pr_steps "$1" | grep -E 'setup-gradle|gradlew|scripts/check\.sh|ANDROID_HOME|android-emulator-runner' \
-    | grep -vcE "if: [^$tab]*needs\.changes\.outputs\.code == 'true'" || true)"
+  bad="$(pr_steps "$1" | grep -vE "(^      - |$tab        )uses: dorny/paths-filter@v3($tab|$)" \
+    | grep -E 'setup-gradle|gradlew|scripts/check\.sh|ANDROID_HOME|android-emulator-runner' \
+    | grep -vcE "if: [^$tab]*steps\.filter\.outputs\.code == 'true'" || true)"
   [[ "$bad" == 0 ]] && echo yes || echo no
 }
 pr_docs_step_tools() { # <workflow>; the docs-only step checks its tools and has its own timeout
   local step
-  step="$(pr_steps "$1" | grep -F "if: needs.changes.outputs.code != 'true'" | grep -F 'scripts/tests/run.sh' || true)"
+  step="$(pr_steps "$1" | grep -F "if: steps.filter.outputs.code != 'true'" | grep -F 'scripts/tests/run.sh' || true)"
   local t n=0
   for t in 'command -v' python3 jq java 'timeout-minutes: 10'; do
     grep -qF -- "$t" <<<"$step" && n=$((n + 1))
@@ -324,20 +326,230 @@ mkdir -p "$work/prwf"
 grep -v 'uses: actions/setup-java@v5' "$pr_wf" > "$work/prwf/no-java.yml"
 expect "pr-check: the unconditional check names a step that is missing" missing \
   "$(pr_unconditional "$work/prwf/no-java.yml" actions/setup-java@v5)"
-perl -0pe "s/- if: needs.changes.outputs.code == 'true'\n        uses: gradle\/actions\/setup-gradle/- uses: gradle\/actions\/setup-gradle/" \
+perl -0pe "s/- if: steps.filter.outputs.code == 'true'\n        uses: gradle\/actions\/setup-gradle/- uses: gradle\/actions\/setup-gradle/" \
   "$pr_wf" > "$work/prwf/gradle.yml"
 expect "pr-check: the Gradle check fails on a copy whose setup-gradle runs for every PR" no "$(pr_gradle_gated "$work/prwf/gradle.yml")"
 expect "pr-check: the docs-only step checks python3, jq and java first and has its own timeout" 5 "$(pr_docs_step_tools "$pr_wf")"
 expect "pr-check: build-and-test has no job-level if" 0 "$(pr_job_if "$pr_wf")"
-awk '/^  build-and-test:$/ { j = 1 } { print } j && /^    needs: changes$/ { print "    if: needs.changes.outputs.code == '\''true'\''"; j = 0 }' \
+awk '{ print } /^  build-and-test:$/ { print "    if: github.event_name == '\''pull_request'\''" }' \
   "$pr_wf" > "$work/prwf/job-if.yml"
 expect "pr-check: the job-level if check fails on a copy that skips build-and-test" 1 "$(pr_job_if "$work/prwf/job-if.yml")"
 expect "pr-check: the failure comment of build-and-test also runs for docs-only PRs" yes "$(pr_failure_comment "$pr_wf")"
-expect "pr-check: every check merge-if-green.sh requires or may skip is a job of pr-check.yml" "names=2 missing= none" \
+expect "pr-check: every check merge-if-green.sh requires or may skip is a job of pr-check.yml" "names=1 missing= none" \
   "$(pr_missing_jobs "$pr_wf")"
 sed 's/^  build-and-test:$/  build:/' "$pr_wf" > "$work/prwf/renamed.yml"
-expect "pr-check: the job name check names a renamed job" "names=2 missing= build-and-test" \
+expect "pr-check: the job name check names a renamed job" "names=1 missing= build-and-test" \
   "$(pr_missing_jobs "$work/prwf/renamed.yml")"
+
+# pr-check has one job (T-076): the path filter (id: filter) is the first step of build-and-test, or comes right after
+# checkout, and every later step reads steps.filter.outputs. A filter output that is empty or odd stops the job.
+pr_jobs() { # <workflow>; names of the jobs, separated by spaces
+  awk '/^jobs:$/ { j = 1; next } j && /^[^ #]/ { j = 0 } j && /^  [A-Za-z0-9_-]+:$/ { sub(/:$/, ""); sub(/^  /, ""); printf "%s%s", (n++ ? " " : ""), $0 } END { print "" }' "$1"
+}
+pr_step_has() { # <step line> <key: value regex>; true when a key line of the step matches
+  local tab=$'\t'
+  grep -qE "(^      - |$tab        )$2($tab|$)" <<<"$1"
+}
+pr_filter_order() { # <workflow>; "(a) (b) (c) (d) <steps reading the filter>", or "missing" without a filter step
+  local steps=() i fi=-1 a=no b=no c=yes d=yes n=0
+  mapfile -t steps < <(pr_steps "$1")
+  for i in "${!steps[@]}"; do
+    if pr_step_has "${steps[$i]}" 'id: filter'; then fi=$i; break; fi
+  done
+  [[ "$fi" -ge 0 ]] || { echo missing; return; }
+  if pr_step_has "${steps[$fi]}" 'uses: dorny/paths-filter@v3' && ! pr_step_has "${steps[$fi]}" 'if: .*'; then a=yes; fi
+  if [[ $((fi + 1)) -lt ${#steps[@]} ]] && pr_step_has "${steps[$((fi + 1))]}" 'name: Kiểm kết quả lọc đường dẫn' \
+    && ! pr_step_has "${steps[$((fi + 1))]}" 'if: .*'; then b=yes; fi
+  for ((i = 0; i < fi; i++)); do
+    pr_step_has "${steps[$i]}" 'uses: actions/checkout@v5' || c=no
+  done
+  for i in "${!steps[@]}"; do
+    if grep -qF 'steps.filter.outputs' <<<"${steps[$i]}"; then
+      n=$((n + 1))
+      [[ "$i" -gt "$fi" ]] || d=no
+    fi
+  done
+  echo "$a $b $c $d $n"
+}
+pr_filter_outputs() { # <workflow>; the filter outputs read, the filters defined, and other step outputs read
+  local reads defined other
+  reads="$(grep -oE 'steps\.filter\.outputs\.[A-Za-z0-9_-]+' "$1" | sed 's/.*\.//' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+  defined="$(awk '/^  build-and-test:$/ { j = 1; next } j && /^  [^ ]/ { j = 0 }
+    j && /^      - / { s = 0 } j && /^(      - |        )id: filter$/ { s = 1 }
+    j && s && /^          filters: \|$/ { f = 1; next } j && s && f && /^            [A-Za-z0-9_-]+:$/ { sub(/^ +/, ""); sub(/:$/, ""); print }
+    j && s && f && !/^             / && !/^            [A-Za-z0-9_-]+:$/ { f = 0 }' "$1" | sort -u | tr '\n' ' ' | sed 's/ $//')"
+  other="$(grep -oE 'steps\.[A-Za-z0-9_-]+\.outputs' "$1" | grep -vc '^steps\.filter\.outputs$' || true)"
+  echo "reads=$reads defined=$defined other=$other"
+}
+pr_filter_check() { # <workflow> <code> <release>; runs the filter check step like GitHub; the exit code, plus the lines
+  # of build.log when it fails
+  local dir script code=0
+  dir="$(mktemp -d "$work/filter-check.XXXXXX")"
+  script="$(awk '/^      - / { s = 0 } /^      - name: Kiểm kết quả lọc đường dẫn$/ { s = 1; next }
+    s && /^        run: \|$/ { r = 1; next } r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$1")"
+  (cd "$dir" && CODE="$2" RELEASE="$3" bash -eo pipefail -c "$script") > /dev/null 2>&1 || code=$?
+  if [[ "$code" == 0 ]]; then echo 0; else echo "$code $(wc -l < "$dir/build.log" 2>/dev/null | tr -d ' ' || echo 0)"; fi
+}
+pr_sim() { # <workflow> <path>...; the filter outputs for a sample PR and the steps of build-and-test that run
+  python3 -I - "$@" << 'PY'
+import re, sys
+lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
+paths = sys.argv[2:]
+steps, job = [], False
+for line in lines:
+    if line == "  build-and-test:":
+        job = True; continue
+    if job and re.match(r"^  [^ ]", line):
+        break
+    if not job:
+        continue
+    if line.startswith("      - "):
+        steps.append([line[8:]])
+    elif steps and line.startswith("        "):
+        steps[-1].append(line[8:])
+def key(step, name):
+    for l in step:
+        m = re.match(r"^" + name + r": (.*)$", l)
+        if m:
+            return m.group(1)
+    return None
+flt = [s for s in steps if key(s, "id") == "filter"]
+if not flt:
+    print("ERROR không có bước id: filter trong build-and-test"); sys.exit(0)
+filters, cur, inside = {}, None, False
+for l in flt[0]:
+    if l.strip() == "filters: |":
+        inside = True; continue
+    if not inside or l.strip().startswith("#") or not l.strip():
+        continue
+    m = re.match(r"^\s+([A-Za-z0-9_-]+):$", l)
+    if m:
+        cur = m.group(1); filters[cur] = []; continue
+    m = re.match(r"^\s+- '(.+)'$", l)
+    if m and cur:
+        filters[cur].append(m.group(1))
+special = set("*?[]{}!")
+def to_regex(p):
+    if p.endswith("/**") and not special & set(p[:-3]):
+        return "^" + re.escape(p[:-3]) + "/.+$"
+    if p.startswith("**/") and not special & set(p[3:]) and "/" not in p[3:]:
+        return "^(.*/)?" + re.escape(p[3:]) + "$"
+    if p.startswith("*") and "/" not in p and not special & set(p[1:]):
+        return "^[^/]*" + re.escape(p[1:]) + "$"
+    if not special & set(p):
+        return "^" + re.escape(p) + "$"
+    return None
+values = {}
+for name, pats in filters.items():
+    regs = []
+    for p in pats:
+        r = to_regex(p)
+        if r is None:
+            print("ERROR mẫu chưa hỗ trợ: " + p); sys.exit(0)
+        regs.append(r)
+    values[name] = "true" if any(re.match(r, path) for r in regs for path in paths) else "false"
+out = ["code=%s release=%s" % (values.get("code", ""), values.get("release", ""))]
+for s in steps:
+    cond = key(s, "if")
+    if cond is not None:
+        expr = re.sub(r"steps\.filter\.outputs\.([A-Za-z0-9_-]+)", lambda m: repr(values.get(m.group(1), "")), cond)
+        expr = expr.replace("always()", "True").replace("failure()", "False").replace("&&", " and ").replace("||", " or ")
+        rest = re.sub(r"'[^']*'|==|!=|\band\b|\bor\b|\bTrue\b|\bFalse\b|[() ]", "", expr)
+        if rest:
+            print("ERROR điều kiện lạ: " + cond); sys.exit(0)
+        if not eval(expr, {"__builtins__": {}}, {}):
+            continue
+    label = key(s, "name") or key(s, "uses") or key(s, "run") or s[0]
+    out.append(label)
+print("\n".join(out))
+PY
+}
+pr_sim_summary() { # <workflow> <path>...; "code=.. release=.. gate=.. gradle=.. docs=.. r8=.." or the ERROR line
+  local out
+  out="$(pr_sim "$@")"
+  if grep -q '^ERROR' <<<"$out"; then grep -m1 '^ERROR' <<<"$out"; return; fi
+  printf '%s gate=%s gradle=%s docs=%s r8=%s\n' "$(head -n1 <<<"$out")" \
+    "$(grep -qxF 'Cổng chất lượng (scripts/check.sh)' <<<"$out" && echo yes || echo no)" \
+    "$(grep -qF 'setup-gradle' <<<"$out" && echo yes || echo no)" \
+    "$(grep -qxF 'Test của script và tài liệu (scripts/tests/run.sh)' <<<"$out" && echo yes || echo no)" \
+    "$(grep -qxF 'Build bản release (R8)' <<<"$out" && echo yes || echo no)"
+}
+# P1, P2
+expect "pr-check: has exactly one job, build-and-test" build-and-test "$(pr_jobs "$pr_wf")"
+{ cat "$pr_wf"; printf '%s\n' '' '  extra:' '    runs-on: ubuntu-latest' '    steps:' '      - run: "true"'; } > "$work/prwf/two-jobs.yml"
+expect "pr-check: the job count check names a second job" "build-and-test extra" "$(pr_jobs "$work/prwf/two-jobs.yml")"
+pr_needs() { grep -cE '^    needs:|needs\.[a-z_-]+\.outputs' "$1" || true; }
+expect "pr-check: no job needs another and no step reads needs outputs" 0 "$(pr_needs "$pr_wf")"
+awk '{ print } /^  build-and-test:$/ { print "    needs: changes" }' "$pr_wf" > "$work/prwf/needs.yml"
+expect "pr-check: the needs check fails on a copy whose build-and-test needs a job" 1 "$(pr_needs "$work/prwf/needs.yml")"
+# P3: the filter, then its check, before every step reading them; only checkout may come before (fallback, plan 3.4).
+expect "pr-check: the path filter and its check come before every step that reads them" "yes yes yes yes 6" \
+  "$(pr_filter_order "$pr_wf")"
+awk '/^  build-and-test:$/ { j = 1 } j && /^      - name: Lọc đường dẫn/ { m = 1 } m && /^      - name: Kiểm kết quả lọc đường dẫn$/ { m = 0 }
+  m { held = held $0 "\n"; next } { print } END { printf "%s", held }' "$pr_wf" > "$work/prwf/filter-last.yml"
+expect "pr-check: the order check fails on a copy with the filter at the end of the job" no \
+  "$(pr_filter_order "$work/prwf/filter-last.yml" | cut -d' ' -f4)"
+awk '/^      - name: Lọc đường dẫn/ && !d { print "      - uses: actions/setup-java@v5"; print "        with:"; print "          java-version: 17"; print ""; d = 1 } { print }' \
+  "$pr_wf" > "$work/prwf/java-first.yml"
+expect "pr-check: the order check fails on a copy with setup-java before the filter" no \
+  "$(pr_filter_order "$work/prwf/java-first.yml" | cut -d' ' -f3)"
+awk '{ print } /^      - name: Kiểm kết quả lọc đường dẫn$/ { print "        if: always()" }' "$pr_wf" > "$work/prwf/check-if.yml"
+expect "pr-check: the order check fails on a copy whose filter check has an if" no \
+  "$(pr_filter_order "$work/prwf/check-if.yml" | cut -d' ' -f2)"
+# P4
+expect "pr-check: every filter output read is defined, and every filter is read" \
+  "reads=code release defined=code release other=0" "$(pr_filter_outputs "$pr_wf")"
+sed '0,/steps\.filter\.outputs\.code/s//steps.filter.outputs.cod/' "$pr_wf" > "$work/prwf/cod.yml"
+expect "pr-check: the filter output check fails on a copy reading an undefined output" no \
+  "$([[ "$(pr_filter_outputs "$work/prwf/cod.yml")" == "reads=code release defined=code release other=0" ]] && echo yes || echo no)"
+sed 's/^        id: filter$/        id: paths/' "$pr_wf" > "$work/prwf/paths-id.yml"
+expect "pr-check: the filter output check fails on a copy whose filter step has another id" no \
+  "$([[ "$(pr_filter_outputs "$work/prwf/paths-id.yml")" == "reads=code release defined=code release other=0" ]] && echo yes || echo no)"
+# P5
+expect "pr-check: the filter check stops the job unless both outputs are true or false" "0 0 0 1 1 1 1 1 1" \
+  "$(pr_filter_check "$pr_wf" true false) $(pr_filter_check "$pr_wf" false true) $(pr_filter_check "$pr_wf" false false) $(pr_filter_check "$pr_wf" '' false) $(pr_filter_check "$pr_wf" true '') $(pr_filter_check "$pr_wf" yes false)"
+expect "pr-check: the filter check reads both filter outputs" "1 1" \
+  "$(pr_steps "$pr_wf" | grep -F 'name: Kiểm kết quả lọc đường dẫn' | grep -cF 'CODE: ${{ steps.filter.outputs.code }}' || true) $(pr_steps "$pr_wf" | grep -F 'name: Kiểm kết quả lọc đường dẫn' | grep -cF 'RELEASE: ${{ steps.filter.outputs.release }}' || true)"
+# P6: sample PRs through the real filter of the workflow.
+expect "pr-check: a PR touching app code runs check.sh, not the docs-only path" \
+  "code=true release=false gate=yes gradle=yes docs=no r8=no" "$(pr_sim_summary "$pr_wf" app/src/main/java/A.kt)"
+for p in core/ads/src/main/A.kt feature/sample/src/test/B.kt build-logic/convention/C.kt gradle/libs.versions.toml \
+  settings.gradle.kts gradle.properties gradlew .editorconfig scripts/merge-if-green.sh scripts/tests/run.sh \
+  .github/workflows/pr-check.yml; do
+  expect "pr-check: a PR touching $p runs check.sh" "code=true gate=yes docs=no" \
+    "$(pr_sim_summary "$pr_wf" "$p" | sed -E 's/ release=[a-z]*//; s/ gradle=[a-z]*//; s/ r8=[a-z]*//')"
+done
+expect "pr-check: a docs-only PR runs only scripts/tests/run.sh" \
+  "code=false release=false gate=no gradle=no docs=yes r8=no" "$(pr_sim_summary "$pr_wf" docs/a.md README.md)"
+expect "pr-check: a PR changing another workflow is not code" \
+  "code=false release=false gate=no gradle=no docs=yes r8=no" "$(pr_sim_summary "$pr_wf" .github/workflows/staging.yml)"
+expect "pr-check: a PR changing a build file also builds the release" \
+  "code=true release=true gate=yes gradle=yes docs=no r8=yes code=true release=true gate=yes gradle=yes docs=no r8=yes code=true release=true gate=yes gradle=yes docs=no r8=yes" \
+  "$(pr_sim_summary "$pr_wf" app/build.gradle.kts) $(pr_sim_summary "$pr_wf" app/proguard-rules.pro) $(pr_sim_summary "$pr_wf" build.gradle.kts)"
+expect "pr-check: **/ also matches a file at the root, *.gradle.kts only at the root" \
+  "code=false release=true gate=no gradle=no docs=yes r8=no code=false release=false gate=no gradle=no docs=yes r8=no" \
+  "$(pr_sim_summary "$pr_wf" proguard-rules.pro) $(pr_sim_summary "$pr_wf" docs/x.gradle.kts)"
+expect "pr-check: one code file among docs makes the PR a code PR" \
+  "code=true release=false gate=yes gradle=yes docs=no r8=no" "$(pr_sim_summary "$pr_wf" docs/a.md app/src/main/java/A.kt)"
+awk '{ print } /^            code:$/ { print "              - '\''app/{a,b}/**'\''" }' "$pr_wf" > "$work/prwf/brace.yml"
+expect "pr-check: the sample PR check refuses a pattern it does not support" "ERROR mẫu chưa hỗ trợ: app/{a,b}/**" \
+  "$(pr_sim_summary "$work/prwf/brace.yml" docs/a.md)"
+# P6d: controls on broken copies.
+grep -vxF "              - 'scripts/**'" "$pr_wf" > "$work/prwf/no-scripts.yml"
+expect "pr-check: the sample PR check sees a pattern removed from the code filter" "code=false" \
+  "$(pr_sim_summary "$work/prwf/no-scripts.yml" scripts/merge-if-green.sh | cut -d' ' -f1)"
+sed 's/steps\.filter\.outputs/needs.changes.outputs/g' "$pr_wf" > "$work/prwf/needs-outputs.yml"
+expect "pr-check: the sample PR check refuses conditions on needs outputs" ERROR \
+  "$(pr_sim_summary "$work/prwf/needs-outputs.yml" docs/a.md | cut -d' ' -f1)"
+grep -vE '^(      - |        )id: filter$' "$pr_wf" > "$work/prwf/no-filter-id.yml"
+expect "pr-check: the sample PR check refuses a workflow without the filter step" ERROR \
+  "$(pr_sim_summary "$work/prwf/no-filter-id.yml" docs/a.md | cut -d' ' -f1)"
+# G1: skipping the filter step must not make the Gradle check always pass.
+awk '/^      - name: Kiểm kết quả lọc đường dẫn$/ { k = 1; print; next }
+  k && /^      - / { print "      - name: Thử Gradle"; print "        run: ./gradlew help"; print ""; k = 0 } { print }' \
+  "$pr_wf" > "$work/prwf/gradle-after-filter.yml"
+expect "pr-check: the Gradle check still fails on a copy with an unconditional gradlew step after the filter" no \
+  "$(pr_gradle_gated "$work/prwf/gradle-after-filter.yml")"
 # The emulator runs after the merge, in the ui-test job of main-guard.yml (ADR-0043): no PR runs it.
 pr_no_emulator() { # <workflow>: "yes" when it has no ui-test job, no emulator step, no ui output and no ui filter
   if grep -qE '^  ui-test:$|android-emulator-runner|ui: \$\{\{|^            ui:$' "$1"; then echo no; else echo yes; fi
@@ -737,7 +949,6 @@ merge_run() { # <args...>; prints the exit code, keeps the output in $work/mg.ou
   echo "$code"
 }
 green_runs='{"check_runs": [
-  {"name": "changes", "status": "completed", "conclusion": "success", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}},
   {"name": "build-and-test", "status": "completed", "conclusion": "success", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}},
   {"name": "ui-test", "status": "completed", "conclusion": "skipped", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}}]}'
 lagging_runs="${green_runs/\"status\": \"completed\", \"conclusion\": \"success\"/\"status\": \"in_progress\", \"conclusion\": null}"
@@ -749,7 +960,7 @@ expect "merge-if-green: a PR with docs/STATUS.md gets a warning" 1 "$(grep -c 'P
 # 2026-10-18T02:00:00Z is 1792288800; three minutes later.
 expect "merge-if-green: a commit pushed minutes ago gets a warning" 1 \
   "$(NOW_EPOCH=1792288980 merge_run 12 --dry-run > /dev/null; grep -c 'mới 3 phút trước' "$work/mg.out")"
-# A docs-only PR has this shape: changes green, build-and-test runs scripts/tests/run.sh, ui-test skipped. A red or
+# A docs-only PR has this shape: build-and-test runs scripts/tests/run.sh, ui-test skipped (left from before). A red or
 # skipped build-and-test is refused; the same fixture with build-and-test green is ready (L-040).
 red_docs_runs="${green_runs/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"success\"/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"failure\"}"
 skipped_docs_runs="${green_runs/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"success\"/\"build-and-test\", \"status\": \"completed\", \"conclusion\": \"skipped\"}"
@@ -761,10 +972,10 @@ expect "merge-if-green: a docs-only PR whose build-and-test failed is refused" "
 merge_routes claude/template-x '{"behind_by": 0}' "$skipped_docs_runs"
 expect "merge-if-green: a skipped build-and-test is refused" "1 1" \
   "$(merge_run 12 --dry-run) $(grep -c "kiểm tra 'build-and-test' kết thúc với kết quả 'skipped'" "$work/mg.out" || true)"
-# The emulator left pr-check (ADR-0043): a code PR has only changes and build-and-test. An ui-test check run left from
+# The emulator left pr-check (ADR-0043) and pr-check has one job (T-076): a code PR has only build-and-test, the same
+# data as one_job_runs below. An ui-test check run left from
 # before is not waited for, but a red one is still refused like any red check.
 code_runs='{"check_runs": [
-  {"name": "changes", "status": "completed", "conclusion": "success", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}},
   {"name": "build-and-test", "status": "completed", "conclusion": "success", "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}}]}'
 ui_running_runs="${code_runs%]\}}, {\"name\": \"ui-test\", \"status\": \"in_progress\", \"conclusion\": null, \"started_at\": \"2026-10-18T02:01:00Z\", \"check_suite\": {\"id\": 5}}]}"
 ui_red_runs="${code_runs%]\}}, {\"name\": \"ui-test\", \"status\": \"completed\", \"conclusion\": \"failure\", \"started_at\": \"2026-10-18T02:01:00Z\", \"check_suite\": {\"id\": 5}}]}"
@@ -775,6 +986,48 @@ expect "merge-if-green: a running ui-test is not waited for" 0 "$(merge_run 12 -
 merge_routes claude/template-x '{"behind_by": 0}' "$ui_red_runs"
 expect "merge-if-green: a red ui-test left from before is still refused" "1 1" \
   "$(merge_run 12 --dry-run) $(grep -c 'có kiểm tra không qua: ui-test\.' "$work/mg.out" || true)"
+# pr-check has one job (T-076): a PR whose only check is build-and-test goes through every check of the script (L-058).
+one_job_runs="$code_runs"
+one_job_with() { # <name> <status> <conclusion>; one_job_runs with build-and-test replaced by the given check
+  printf '{"check_runs": [{"name": "%s", "status": "%s", "conclusion": %s, "started_at": "2026-10-18T02:01:00Z", "check_suite": {"id": 5}}]}' "$@"
+}
+merge_routes claude/template-x '{"behind_by": 0}' "$one_job_runs"
+expect "merge-if-green: a PR whose only check is build-and-test is ready" 0 "$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' "$(one_job_with build-and-test completed '"failure"')"
+expect "merge-if-green: a red build-and-test is refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c 'có kiểm tra không qua: build-and-test\.' "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' "$(one_job_with build-and-test completed '"skipped"')"
+expect "merge-if-green: a skipped build-and-test is refused in the one-job shape" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c "kiểm tra 'build-and-test' kết thúc với kết quả 'skipped'" "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' "$(one_job_with build-and-test in_progress null)" \
+  ', "actions/runs?head_sha=abc1234&per_page=50": {"workflow_runs": [{"id": 77, "check_suite_id": 5, "status": "in_progress", "conclusion": null}]}'
+expect "merge-if-green: build-and-test still running waits" "2 1" \
+  "$(merge_run 12 --dry-run) $(grep -c 'đang ở trạng thái in_progress' "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' '{"check_runs": []}'
+expect "merge-if-green: no check yet names build-and-test" "2 1" \
+  "$(merge_run 12 --dry-run) $(grep -c "chưa thấy kiểm tra 'build-and-test'" "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 0}' "$(one_job_with changes completed '"success"')"
+expect "merge-if-green: a green changes check alone is not enough" "2 0" \
+  "$(merge_run 12) $(cat "$work/mg.json.writes" 2> /dev/null | grep -c 'PUT pulls/12/merge' || true)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "${one_job_runs%]\}}, $(one_job_with changes completed '"failure"' | sed -E 's/^\{"check_runs": \[//; s/\]\}$//')]}"
+expect "merge-if-green: a leftover red changes check still refuses" "1 1" \
+  "$(merge_run 12 --dry-run) $(grep -c 'có kiểm tra không qua: changes\.' "$work/mg.out" || true)"
+merge_routes claude/template-x '{"behind_by": 2}' "$one_job_runs" ',
+  "compare/main...def5678": {"behind_by": 0},
+  "commits/def5678/check-runs?per_page=100": {"__sequence__": [{"check_runs": []}, '"$one_job_runs"']},
+  "commits/def5678": {"commit": {"committer": {"date": "2026-10-18T02:30:00Z"}, "message": "Merge main"}}'
+python3 -I - "$work/mg.json" << 'PY2'
+import json, sys
+fx = json.load(open(sys.argv[1]))
+first = fx["routes"]["pulls/12"]
+second = json.loads(json.dumps(first)); second["head"]["sha"] = "def5678"
+fx["routes"]["pulls/12"] = {"__sequence__": [first, second]}
+json.dump(fx, open(sys.argv[1], "w"))
+PY2
+expect "merge-if-green --update: merges once the single build-and-test check of the new commit is green" \
+  "0 PUT pulls/12/update-branch;PUT pulls/12/merge;DELETE git/refs/heads/claude/template-x;" \
+  "$(merge_run 12 --update) $(tr '\n' ';' < "$work/mg.json.writes")"
 merge_routes claude/RUN-20261018-01-report '{"behind_by": 0}' "$green_runs"
 merge_run 12 --dry-run > /dev/null
 # The page is not in git (status-page.yml builds it on the status branch, L-066): no PR carries it, the report PR neither.
@@ -848,8 +1101,7 @@ mig_other_tree='[{"sha": "d111111d111111", "commit": {"message": "t (#12)", "tre
 mig_other_title='[{"sha": "e222222e222222", "commit": {"message": "other (#99)", "tree": {"sha": "tree1"}}}]'
 mig_run() { # <extra arg or empty>; reads MIG_*; prints the exit code, output in $work/mig.out
   local checks='{"check_runs": [
-    {"name": "changes", "status": "completed", "conclusion": "'"${MIG_CHANGES:-success}"'", "started_at": "2026-10-23T08:00:00Z", "check_suite": {"id": 77}},
-    {"name": "build-and-test", "status": "completed", "conclusion": "success", "started_at": "2026-10-23T08:00:10Z", "check_suite": {"id": 77}},
+    {"name": "build-and-test", "status": "completed", "conclusion": "'"${MIG_BUILD:-success}"'", "started_at": "2026-10-23T08:00:10Z", "check_suite": {"id": 77}},
     {"name": "ui-test", "status": "completed", "conclusion": "skipped", "started_at": "2026-10-23T08:00:10Z", "check_suite": {"id": 77}}]}'
   local main_route=""
   [ -z "${MIG_MAIN:-}" ] || main_route='"commits?sha=main&per_page=30": '"$MIG_MAIN"','
@@ -875,7 +1127,7 @@ JSON
 }
 mig_writes() { cat "$work/mig.json.writes" 2> /dev/null | grep -c -- "$1" || true; }
 mig_reads() { jq -r '."commits?sha=main&per_page=30" // 0' "$work/mig.json.seen" 2>/dev/null || echo 0; }
-mig_reset() { unset MIG_MAIN MIG_STATE MIG_DRAFT MIG_BASE MIG_LABELS MIG_ISSUES MIG_RUN MIG_BEHIND MIG_FAIL MIG_CHANGES MIG_DATE; }
+mig_reset() { unset MIG_MAIN MIG_STATE MIG_DRAFT MIG_BASE MIG_LABELS MIG_ISSUES MIG_RUN MIG_BEHIND MIG_FAIL MIG_BUILD MIG_DATE; }
 mig_reset
 
 # A PR that is already on main: reported, never merged twice, no other write.
@@ -903,7 +1155,7 @@ expect "merge-if-green still refuses a person's PR not on main while a run is ru
 expect "merge-if-green does not update a PR already on main" 0 "$(MIG_BEHIND=2 mig_run --update)"
 expect "merge-if-green does not call update-branch for a PR already on main" 0 "$(mig_writes update-branch)"
 expect "merge-if-green does not merge a red PR when the API fails" 1 \
-  "$(MIG_MAIN='[]' MIG_CHANGES=failure MIG_FAIL='["PUT pulls/12/merge"]' mig_run)"
+  "$(MIG_MAIN='[]' MIG_BUILD=failure MIG_FAIL='["PUT pulls/12/merge"]' mig_run)"
 expect "merge-if-green does not reach the merge of a red PR" 0 "$(mig_writes PUT)"
 
 # The merge itself: GitHub answers with an error although the squash commit reached main.
@@ -1488,7 +1740,10 @@ red='{"workflow_runs": [{"id": 91, "status": "completed", "conclusion": "failure
 sequence='{"__sequence__": [{"workflow_runs": []}, '"$pending, $green"']}'
 expect "wait-run: waits until the PR check turns green" "0 XANH" "$(wait_run "$(pr_routes "$sequence")" --pr 7)"
 expect "wait-run: a red PR check names the failed job" "1 ĐỎ" \
-  "$(wait_run "$(pr_routes "$red" '{"jobs": [{"name": "ui-test", "conclusion": "failure"}, {"name": "changes", "conclusion": "success"}]}')" --pr 7)"
+  "$(wait_run "$(pr_routes "$red" '{"jobs": [{"name": "build-and-test", "conclusion": "failure"}]}')" --pr 7)"
+expect "wait-run: the red line names build-and-test" 1 \
+  "$(pr_routes "$red" '{"jobs": [{"name": "build-and-test", "conclusion": "failure"}]}' > "$work/wait.json"; \
+     PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 scripts/wait-run.sh --pr 7 2>&1 | grep -c 'job: build-and-test')"
 expect "wait-run: the red line names ui-test" 1 \
   "$(pr_routes "$red" '{"jobs": [{"name": "ui-test", "conclusion": "failure"}]}' > "$work/wait.json"; \
      PATH="$work/bin:$PATH" FIXTURE="$work/wait.json" WAIT_RUN_POLL_SECONDS=0 scripts/wait-run.sh --pr 7 2>&1 | grep -c 'job: ui-test')"
