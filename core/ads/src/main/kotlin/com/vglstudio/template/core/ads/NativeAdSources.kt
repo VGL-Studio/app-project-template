@@ -227,7 +227,8 @@ internal fun singleAdSlotStates(
     clock: MonotonicClock,
     logger: AppLogger,
     placementKey: String,
-    firstTickDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+    intervalMillis: StateFlow<Long>,
+    firstTickExtraMillis: Long = 0,
 ): Flow<NativeAdState> = flow {
     // Read once, before the first claim: a stop while the slot waits still ends its refresh.
     val since = stopped.value
@@ -253,7 +254,8 @@ internal fun singleAdSlotStates(
                         clock,
                         logger,
                         placementKey,
-                        firstTickDelayMillis,
+                        intervalMillis,
+                        firstTickExtraMillis,
                         since,
                     )
                 },

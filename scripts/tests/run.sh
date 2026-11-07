@@ -5598,6 +5598,30 @@ rows = {row[0]: row for row in plan["FORMATS"]}
 print("banner_mrec" in plan["PLACEMENT_FORMATS"], rows["banner_mrec"][6] if "banner_mrec" in rows else None)
 PY
 )"
+  # The reload keys of KB-34 (plan T-087), read from the key table of this repo.
+  expect "ads-plan: reload keys go in their groups" "Thanh đáy Thanh đáy Banner" \
+    "$(python3 -I scripts/ads-plan.py --dump | python3 -I -c '
+import json, sys
+K = {k["key"]: group for group, keys in json.load(sys.stdin)["keys"].items() for k in keys}
+print(*(K.get(n) for n in ("time_reload_native_small", "time_reload_collap_ad", "time_reload_banner_collap")))')"
+  # Control: time_reload_bottom_ad is still listed, so the list is read.
+  expect "ads-plan: time_reload_collap_ad is not an unused AdsKit key" "False True" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+names = {key for key, _ in plan["UNUSED_ADSKIT_KEYS"]}
+print("time_reload_collap_ad" in names, "time_reload_bottom_ad" in names)
+PY
+)"
+  expect "ads-plan: the constants sheet has no reload interval" "False False True" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+names = [name for name, _ in plan["CONSTANTS"]]
+print(any(n.startswith("Làm mới native") for n in names), any(n.startswith("Nạp lại banner thu gọn") for n in names),
+      ("Mức sàn của nhịp làm mới", "30 giây") in plan["CONSTANTS"])
+PY
+)"
 fi
 if python3 -I -c 'import openpyxl' 2> /dev/null; then
   ads_plan --out "$work/ap-1.xlsx" > /dev/null

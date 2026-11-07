@@ -209,14 +209,14 @@ internal fun NativeAdSlotContent(
 
 /**
  * The native slot of a bottom bar ([BottomAdBarScaffold], D-02): like [NativeAdSlot] for native small (gate, 80 dp
- * placeholder, nothing with no ad, availability reported), with its first refresh [firstRefreshDelayMillis] after
+ * placeholder, nothing with no ad, availability reported), with its first refresh [firstRefreshExtraMillis] after
  * the first ad (section 5.7). The stream is built once per placement: a new delay (the layer turned on or off) applies
  * from the next slot, without destroying the ad or loading again.
  */
 @Composable
 internal fun BottomNativeSlot(
     placement: AdPlacement,
-    firstRefreshDelayMillis: Long,
+    firstRefreshExtraMillis: Long,
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -232,7 +232,7 @@ internal fun BottomNativeSlot(
         BottomNativeSlotHost(
             allowed = nativeSlotAllowed(canRequestAds, enabled, unitId),
             newStates = { delay -> ads.nativeAd(placement, AdFormat.NATIVE_SMALL, delay) },
-            firstRefreshDelayMillis = firstRefreshDelayMillis,
+            firstRefreshExtraMillis = firstRefreshExtraMillis,
             onAdAvailabilityChange = onAdAvailabilityChange,
             modifier = modifier,
         )
@@ -243,14 +243,14 @@ internal fun BottomNativeSlot(
 @Composable
 internal fun BottomNativeSlotHost(
     allowed: Boolean,
-    newStates: (firstRefreshDelayMillis: Long) -> Flow<NativeAdState>,
-    firstRefreshDelayMillis: Long,
+    newStates: (firstRefreshExtraMillis: Long) -> Flow<NativeAdState>,
+    firstRefreshExtraMillis: Long,
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     adContent: @Composable (LoadedNativeAd) -> Unit = { BoundNativeAd(it, NativeAdSize.SMALL) },
 ) {
     // A cold flow: nothing loads until the gate opens and the host collects it.
-    val states = remember { newStates(firstRefreshDelayMillis) }
+    val states = remember { newStates(firstRefreshExtraMillis) }
     NativeAdSlotGate(
         allowed = allowed,
         states = states,

@@ -75,8 +75,8 @@ internal fun bottomBarReservation(slot: BottomSlotKind?, slotHasAd: Boolean, ban
  * The first refresh of the native bottom slot (section 5.7): 500 ms after the one of the collapsible layer above it,
  * so both requests are not sent together; the plain 60 s without the layer.
  */
-internal fun bottomSlotFirstRefreshDelayMillis(collapsible: Boolean): Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS +
-    if (collapsible) NativeAdPolicy.BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS else 0L
+@Suppress("UNUSED_PARAMETER")
+internal fun bottomSlotFirstRefreshExtraMillis(collapsible: Boolean): Long = 0L // Skeleton (plan T-087, step 3).
 
 /** Sizes of the bottom bar, from design/context/AdGalleryScreen_collapsible-*.md. */
 object BottomAdBarDimens {
@@ -224,7 +224,7 @@ internal fun rememberBottomAdBarLayers(
 @Composable
 internal fun BottomAdBarHost(
     layers: BottomAdBarLayers?,
-    nativeSlot: @Composable (firstRefreshDelayMillis: Long, onAvailability: (Boolean) -> Unit, Modifier) -> Unit,
+    nativeSlot: @Composable (firstRefreshExtraMillis: Long, onAvailability: (Boolean) -> Unit, Modifier) -> Unit,
     bannerSlot: @Composable (onAvailability: (Boolean) -> Unit, onHeight: (Dp) -> Unit, Modifier) -> Unit,
     layer: @Composable (Modifier) -> Unit,
     modifier: Modifier = Modifier,
@@ -244,7 +244,7 @@ internal fun BottomAdBarHost(
         null -> null
         BottomSlotKind.NATIVE -> { slotModifier ->
             key(kind) {
-                nativeSlot(bottomSlotFirstRefreshDelayMillis(layers.collapsible), onAvailability, slotModifier)
+                nativeSlot(bottomSlotFirstRefreshExtraMillis(layers.collapsible), onAvailability, slotModifier)
             }
         }
         BottomSlotKind.BANNER -> { slotModifier ->

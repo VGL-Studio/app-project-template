@@ -378,7 +378,7 @@ class NativeAdSlotTest {
                 BottomNativeSlotHost(
                     allowed = true,
                     newStates = { feed.states() },
-                    firstRefreshDelayMillis = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+                    firstRefreshExtraMillis = 0,
                     onAdAvailabilityChange = { reports += it },
                     modifier = Modifier.width(CARD_WIDTH).testTag(SLOT),
                     adContent = { NativeAdCard(it.assets, NativeAdSize.SMALL) },
@@ -411,20 +411,20 @@ class NativeAdSlotTest {
         assertEquals(listOf(false), reports)
     }
 
-    /** Builds the bar with a native slot that records the first refresh delay it asks its stream for. */
+    /** Builds the bar with a native slot that records the first refresh extra it asks its stream for (plan T-087). */
     private fun setBarRecordingDelay(collapsible: () -> Boolean, feed: FakeNativeFeed, asked: MutableList<Long>) {
         composeRule.setContent {
             AdsTestTheme {
                 BottomAdBarHost(
                     layers = BottomAdBarLayers(BottomSlotKind.NATIVE, collapsible = collapsible()),
-                    nativeSlot = { delay, onAvailability, modifier ->
+                    nativeSlot = { extra, onAvailability, modifier ->
                         BottomNativeSlotHost(
                             allowed = true,
                             newStates = { first ->
                                 asked += first
                                 feed.states()
                             },
-                            firstRefreshDelayMillis = delay,
+                            firstRefreshExtraMillis = extra,
                             onAdAvailabilityChange = onAvailability,
                             modifier = modifier,
                             adContent = { NativeAdCard(it.assets, NativeAdSize.SMALL) },
@@ -440,25 +440,25 @@ class NativeAdSlotTest {
     }
 
     @Test
-    fun bottomNativeSlot_withLayer_firstRefreshAt60500ms() {
+    fun bottomNativeSlot_withLayer_firstRefreshExtra500ms() {
         val asked = mutableListOf<Long>()
         val feed = FakeNativeFeed()
         var collapsible by mutableStateOf(true)
         setBarRecordingDelay({ collapsible }, feed, asked)
-        assertEquals(listOf(60_500L), asked)
+        assertEquals(listOf(500L), asked)
 
         // Turning the layer off does not build the stream again (the slot keeps its ad, nothing loads again).
         collapsible = false
         composeRule.waitForIdle()
-        assertEquals(listOf(60_500L), asked)
+        assertEquals(listOf(500L), asked)
         assertEquals(1, feed.collections)
     }
 
     @Test
-    fun bottomNativeSlot_withoutLayer_firstRefreshAt60000ms() {
+    fun bottomNativeSlot_withoutLayer_firstRefreshExtra0ms() {
         val asked = mutableListOf<Long>()
         setBarRecordingDelay({ false }, FakeNativeFeed(), asked)
-        assertEquals(listOf(60_000L), asked)
+        assertEquals(listOf(0L), asked)
     }
 
     private companion object {

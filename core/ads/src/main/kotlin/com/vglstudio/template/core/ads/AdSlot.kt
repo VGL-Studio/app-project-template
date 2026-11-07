@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.ads.AdView
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -99,6 +100,10 @@ private fun BannerSlot(
     // The platforms of the frame (plan T-071, KB-31): a new order or unit builds a new frame (question 7 of the plan).
     val platforms = remember(format, order, admobUnit, maxUnit) { bannerPlatforms(format, order, admobUnit, maxUnit) }
     val frameKey = remember(platforms, admobUnit, maxUnit) { bannerSlotUnitKey(platforms, admobUnit, maxUnit) }
+    // The reload interval by hand of a collapsible banner; a banner refreshed by its ad unit is never reloaded.
+    val reloadMillis = remember(format, refresh) {
+        if (refresh == BannerRefresh.MANUAL) ads.reloadIntervalMillis(format) else MutableStateFlow(0L)
+    }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val visible = remember(lifecycle) { lifecycle.resumedFlow() }
     val currentOnHeight by rememberUpdatedState(onHeight)
@@ -135,6 +140,7 @@ private fun BannerSlot(
                 covered = ads.fullScreenAdShowing,
                 mayRequestNow = ads::mayRequestNow,
                 retryResets = ads.retryResets,
+                reloadMillis = reloadMillis,
                 logger = ads.logger,
                 placementKey = nativeSlotKey(placement, format),
                 newView = {
@@ -210,6 +216,7 @@ internal fun BannerSlotHost(
     covered: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
+    reloadMillis: StateFlow<Long>,
     logger: AppLogger,
     placementKey: String,
     newView: () -> BannerAdView,
@@ -247,6 +254,7 @@ internal fun BannerSlotHost(
                 visible = window,
                 mayRequestNow = mayRequestNow,
                 retryResets = retryResets,
+                reloadMillis = reloadMillis,
                 logger = logger,
                 placementKey = placementKey,
                 newView = newView,
@@ -272,6 +280,7 @@ private fun BannerFrameContent(
     visible: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
+    reloadMillis: StateFlow<Long>,
     logger: AppLogger,
     placementKey: String,
     newView: () -> BannerAdView,
@@ -309,6 +318,7 @@ private fun BannerFrameContent(
                 visible = visible,
                 mayRequestNow = { currentMayRequestNow() },
                 retryResets = retryResets,
+                reloadMillis = reloadMillis,
                 onLoaded = { currentOnLoaded() },
                 logger = logger,
                 placementKey = placementKey,

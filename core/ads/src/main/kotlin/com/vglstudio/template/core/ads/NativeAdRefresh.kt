@@ -39,7 +39,8 @@ internal fun refreshingNativeAdStates(
     clock: MonotonicClock,
     logger: AppLogger,
     placementKey: String,
-    firstTickDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+    intervalMillis: StateFlow<Long>,
+    firstTickExtraMillis: Long = 0,
     /** The value of [stopped] when the slot came on screen: a stop before the first ad ends the refresh too. */
     since: Long = stopped.value,
 ): Flow<NativeAdState> = flow {
@@ -47,7 +48,7 @@ internal fun refreshingNativeAdStates(
     var shown = first.ad
     try {
         emit(first)
-        var wait = firstTickDelayMillis
+        var wait = NativeAdPolicy.REFRESH_INTERVAL_MILLIS
         ticks@ while (true) {
             stopped.untilMoved(since) { delay(wait) } ?: break@ticks
             wait = NativeAdPolicy.REFRESH_INTERVAL_MILLIS

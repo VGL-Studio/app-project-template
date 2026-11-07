@@ -72,6 +72,7 @@ internal suspend fun runBannerLoads(
     visible: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
+    reloadMillis: StateFlow<Long>,
     onLoaded: () -> Unit,
     logger: AppLogger,
     placementKey: String,

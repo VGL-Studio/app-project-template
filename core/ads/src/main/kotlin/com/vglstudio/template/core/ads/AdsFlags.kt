@@ -64,6 +64,12 @@ data class AdsGlobalFlags(
     val closeNativeCountdownSeconds: Long,
     /** ads_mediation_order, read as written; [AdsController.mediationOrder] applies the SDK key. */
     val mediationOrder: MediationOrder = MediationOrder.DEFAULT,
+    /** time_reload_native_small by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val nativeSmallReloadSeconds: Long = 60,
+    /** time_reload_collap_ad by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val collapReloadSeconds: Long = 60,
+    /** time_reload_banner_collap by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val bannerCollapReloadSeconds: Long = 30,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */

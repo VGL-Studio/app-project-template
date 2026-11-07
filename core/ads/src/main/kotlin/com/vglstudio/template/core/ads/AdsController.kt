@@ -242,6 +242,10 @@ class AdsController @Inject internal constructor(
         .stateIn(scope, SharingStarted.Eagerly, latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS)
     private val online = MutableStateFlow(true)
 
+    /** Skeleton (plan T-087, step 3 of auto-run.md): not written yet. */
+    @Suppress("UNUSED_PARAMETER")
+    internal fun reloadIntervalMillis(format: AdFormat): StateFlow<Long> = MutableStateFlow(0L)
+
     /** Starts AppLovin MAX after the consent gate and AdMob (plan T-068). */
     private val maxStarter = MaxSdkStarter(maxConfig, maxPlatform, logger) { gate.state.value.allowed }
 
@@ -1706,7 +1710,7 @@ class AdsController @Inject internal constructor(
     internal fun nativeAd(
         placement: AdPlacement,
         format: AdFormat = placement.format,
-        firstRefreshDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+        firstRefreshExtraMillis: Long = 0,
     ): Flow<NativeAdState> {
         val size = requireNotNull(format.nativeLoadSize()) { "${placement.key} is not a native placement" }
         if (format == placement.format && format.usesPool) return pooledCell(placement)
@@ -1728,7 +1732,8 @@ class AdsController @Inject internal constructor(
                         clock = clock,
                         logger = logger,
                         placementKey = nativeSlotKey(placement, format),
-                        firstTickDelayMillis = firstRefreshDelayMillis,
+                        intervalMillis = reloadIntervalMillis(format),
+                        firstTickExtraMillis = firstRefreshExtraMillis,
                     ),
                 )
                 return@flow
