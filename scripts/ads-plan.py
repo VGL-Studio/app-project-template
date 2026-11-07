@@ -165,9 +165,10 @@ APP_WIDE_TEXT = {
                        "mốc. Không nối native combo", "Khóa chung: open_ad_type = inter"),
     "resume": ("Mọi màn", "App quay lại foreground (từ màn hình chính, app khác, mở khóa máy), trừ lần đầu của "
                "process. Bấm quảng cáo thì bỏ lượt resume kế tiếp", "Khóa chung: show_resum_ads, resume_ad_type khác inter"),
-    "resume_inter": ("Mọi màn", "Như resume khi resume_ad_type = inter. Không bị ads_interval chặn, vẫn đẩy mốc; nối "
-                     "native combo nếu bật", "Khóa chung: show_resum_ads, resume_ad_type = inter"),
-    "native_combo": ("Sau inter", "Ngay sau mọi inter của feature đã qua cổng (kể cả khi inter không lên màn). Đếm "
+    "resume_inter": ("Mọi màn", "Như resume khi resume_ad_type = inter. Không bị ads_interval chặn, vẫn đẩy mốc; không "
+                     "nối native combo", "Khóa chung: show_resum_ads, resume_ad_type = inter"),
+    "native_combo": ("Sau inter", "Ngay sau mọi inter của feature đã qua cổng (kể cả khi inter không lên màn); không sau "
+                     "inter lúc mở app hay khi quay lại app. Đếm "
                      "ngược time_close_native giây (mặc định 5) rồi mới đóng được", "Khóa chung: is_show_native_after_inter"),
 }
 KNOWN_PLACEMENTS = {"sample_native_small": ("Màn mẫu (:feature:sample)", "Thanh đáy của màn mẫu")}
@@ -204,14 +205,15 @@ KNOWN_KEYS = {
                        "Hiện quảng cáo khi người dùng quay lại app (trừ lần đầu của process).",
                        "Giữ đúng lỗi chính tả của AdsKit. Không có cổng thời gian, không bị ads_interval chặn.", "AdsKit"),
     "resume_ad_type": ("Quay lại app", "aoa", "aoa / inter", "Chỉ đúng inter mới là interstitial; mọi giá trị khác là app open.",
-                       "inter thì nối native combo khi is_show_native_after_inter bật.", "AdsKit"),
+                       "Inter khi quay lại app không nối native combo.", "AdsKit"),
     "ads_interval": ("Interstitial", "45", "giây, từ 0",
                      "Khoảng tối thiểu từ lúc inter gần nhất (nhóm mặc định) rời màn tới inter sau.",
                      "Inter đầu tiên của process không bị chặn. App open và rewarded không đẩy mốc.", "AdsKit"),
     "is_show_native_after_inter": ("Interstitial", "false", "true / false",
                                    "Combo: native toàn màn hình (vị trí native_combo) ngay sau inter, đếm ngược theo "
                                    "time_close_native.",
-                                   "Đọc lúc inter kết thúc. Áp cho mọi inter của feature và resume_inter.", "AdsKit"),
+                                   "Đọc lúc inter kết thúc. Chỉ áp cho inter của vị trí trong app; inter lúc mở app và "
+                                   "resume_inter không nối.", "AdsKit"),
     "time_close_native": ("Interstitial", "5", "giây, 1 tới 30; giá trị khác dùng 5",
                           "Đếm ngược trước khi đóng được native toàn màn hình (combo và lượt độc lập).",
                           "Đọc lúc màn native mở. Chỉ đặt quá 5 giây khi đã kiểm chính sách của AdMob.", "JBase"),
