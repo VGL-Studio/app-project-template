@@ -5617,7 +5617,7 @@ import runpy
 plan = runpy.run_path("scripts/ads-plan.py")
 rows = {row[0]: row for row in plan["FORMATS"]}
 banner, mrec = rows["banner"][5], rows["banner_mrec"][5]
-print("Tự làm mới theo đơn vị" not in banner, "time_reload_banner " in banner + " ",
+print("Tự làm mới theo đơn vị" not in banner, "time_reload_banner" in banner.replace("time_reload_banner_", ""),
       "Tự làm mới theo đơn vị" not in mrec, "time_reload_banner_mrec" in mrec,
       "Nạp lại tay" in rows["banner_collapsible"][5])
 PY
