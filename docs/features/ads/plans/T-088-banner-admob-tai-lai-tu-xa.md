@@ -2,7 +2,7 @@
 ticket: T-088
 title: Banner cố định và MREC (AdMob và MAX) tải lại theo Remote Config
 status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 22.2M        # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-11-06, trung vị 22 task M); không chỉnh
@@ -17,6 +17,8 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 # PLAN T-088: BANNER CỐ ĐỊNH VÀ MREC (ADMOB VÀ MAX) TẢI LẠI THEO REMOTE CONFIG
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-11-07).** Bản 1 đã duyệt ngày 2026-11-07 (anh Nhật). Rà soát độc lập danh sách chạy RUN-20261107-01 thấy dòng `AdsControllerReloadIntervalTest.kt` ở mục 3.2 nói viết lại câu khẳng định "`BANNER` ném lỗi" của T-087, nhưng T-087 không có test cho vế `require` đó và mục 3.5 không có dòng này. Thay đổi duy nhất so với bản 1: bỏ vế đó khỏi mục 3.2; vế `require` của T-087 trong `reloadIntervalMillis` đổi theo mục 3.1 mà không có câu khẳng định cũ nào phải viết lại. Plan dựa vào T-087 phiên bản 2, chỉ khác bản 1 ở hai test của T-087, không đổi lớp, hàm hay chữ ký. Câu hỏi 1 tới 3 ở mục 8 đã có trả lời ở phiên bản 1 và giữ nguyên.
 
 Banner cố định (cả lớp banner của thanh đáy) và banner MREC thôi dựa vào tự làm mới của đơn vị: `runBannerLoads` tải lại mọi banner bằng tay sau mỗi lần có quảng cáo, chờ nhịp bằng `awaitReloadTick` của T-087 với luồng của `time_reload_banner` hay `time_reload_banner_mrec` (mặc định 60 giây). Enum `BannerRefresh` bị bỏ: "ai làm mới" luôn là `:core:ads`, còn "yêu cầu thu gọn" (`collapsible=bottom`, `collapsible_request_id`) chỉ theo định dạng `BANNER_COLLAPSIBLE`. View MAX không bao giờ tự làm mới (dừng ngay khi dựng, `resume()` không bật lại). Kiểm chứng bằng unit test JVM cho vòng nạp, khung hai nền tảng và view MAX giả, Compose UI test cho `BannerSlotHost` (bị che, ra nền, đổi khóa giữa chừng), và một lần kiểm trên máy thật có mã MAX.
 
@@ -82,7 +84,7 @@ Plan dựa trên kết quả của T-087: `ReloadInterval.kt` (`reloadSeconds`, 
 | Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/ReloadInterval.kt` | Chỉ KDoc (nhịp áp cho năm lớp) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` | Test hai khóa; dữ liệu `globalKeys_matchAdsKitTable` (21 khóa) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsFlagsTest.kt` | Test hai trường |
-| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerReloadIntervalTest.kt` | Test `BANNER`, `BANNER_MREC`; câu khẳng định "`BANNER` ném lỗi" của T-087 viết lại (mục 3.5) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerReloadIntervalTest.kt` | Test `BANNER`, `BANNER_MREC` (T-087 không có câu khẳng định nào cho vế `require`, nên không có câu cũ phải viết lại) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/BannerLoadsTest.kt` | Test nạp lại tay của mọi banner; viết lại hai test theo mục 3.5; dữ liệu dựng (bỏ `refresh`) |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/SdkBannerAdViewTest.kt` | Test yêu cầu không thu gọn của banner cố định, MREC; dữ liệu dựng |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/MaxBannerAdViewTest.kt` | Test dừng khi dựng, không bật lại; viết lại hai test theo mục 3.5 |
@@ -207,6 +209,12 @@ Không cần (E dưới 2).
 3. **ADR-0045 mục 8.1 ghi "banner cố định dùng đơn vị tự làm mới trên AdMob".** ADR đã `accepted`, plan không sửa nó. ADR-0045 mục 1.2 đã phân xử: quyết định của người phụ trách sản phẩm trong spec `ads` (KB-34, câu hỏi 52) đứng trước; mục 1.7 để luật chi tiết ở `ads-business-rules.md`. Phương án: (a, AI đề xuất) không đụng ADR trong ticket này; ghi trong mô tả PR rằng mục 8.1 lệch nhưng mục 1.2 phân xử, và lần hợp nhất ADR quảng cáo sau sửa; (b) viết một ADR hợp nhất toàn phần thay ADR-0045 (chép mọi quy tắc còn đúng, `supersedes`, ADR-0045 sang `superseded`, theo ADR-0044 mục 4) trong một PR riêng, kèm đổi mã ở mọi tài liệu đang nhắc ADR-0045 (`grep -rln ADR-0045 docs core app scripts` trên nhánh chính cho biết số file). Anh chọn?
 
 ## 9. Quyết định duyệt
+
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-11-07):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt phiên bản 2 trong phiên có người ngày 2026-11-07 (lời anh Nhật: "Duyệt bản 2"), sau khi xem thay đổi so với bản 1 và kết quả rà soát độc lập của PR #399 (vòng 1: 0 chặn, 4 nên sửa, 6 ghi chú; rà lại 1: 0 chặn, 1 nên sửa, 5 ghi chú; đã sửa). Phiên bản 2 soạn theo rà soát độc lập danh sách chạy RUN-20261107-01 và lựa chọn của anh Nhật ("Soạn T-087 bản 2", "Soạn bản 2 cho cả hai"). Câu hỏi ở mục 8 giữ trả lời của phiên bản 1. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 
