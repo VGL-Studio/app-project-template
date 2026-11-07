@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-34, KB-18, KB-29, KB-31]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-087]
 sprint:
-plan:
+plan: features/ads/plans/T-088-banner-admob-tai-lai-tu-xa.md
 auto_run: 
 created: 2026-11-02
 ---
