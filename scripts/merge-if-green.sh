@@ -26,7 +26,8 @@ BASE_BRANCH="main"
 # Checks that must be green. Names match the job names in .github/workflows/pr-check.yml. The emulator tests run after
 # the merge, in the ui-test job of main-guard.yml (ADR-0043): a PR has no ui-test to wait for, but a red one left from
 # before is still refused below like any red check.
-REQUIRED_CHECKS=("changes" "build-and-test")
+# pr-check has one job (T-076): the path filter is a step of build-and-test.
+REQUIRED_CHECKS=("build-and-test")
 # Waiting with --update; tests shorten both.
 UPDATE_TIMEOUT_SECONDS="${MERGE_UPDATE_TIMEOUT_SECONDS:-1800}"
 POLL_SECONDS="${MERGE_POLL_SECONDS:-30}"

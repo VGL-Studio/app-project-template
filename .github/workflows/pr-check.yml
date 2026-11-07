@@ -1,5 +1,7 @@
 # Quality gate for every PR into main (ADR-0002, ADR-0010).
-# Job names (changes, build-and-test) are checked by scripts/merge-if-green.sh: rename in both places.
+# One job on purpose (T-076): a job is billed at least one minute, so the path filter is the first step of
+# build-and-test (id: filter) and later steps read steps.filter.outputs. The job name build-and-test is checked by
+# scripts/merge-if-green.sh: rename in both places.
 # The emulator tests run after the merge, in the job ui-test of main-guard.yml (ADR-0043), not on PRs.
 # scripts/main-guard-verified.sh reads the job build-and-test and its step "Cổng chất lượng (scripts/check.sh)" (ADR-0039):
 # renaming either means changing GATE_JOB or GATE_STEP there in the same PR.
@@ -26,15 +28,14 @@ permissions:
   pull-requests: write
 
 jobs:
-  changes:
+  build-and-test:
     runs-on: ubuntu-latest
-    outputs:
-      code: ${{ steps.filter.outputs.code }}
-      release: ${{ steps.filter.outputs.release }}
-    # No checkout needed: on pull_request events paths-filter reads the changed files from the API.
+    timeout-minutes: 45
     steps:
-      - uses: dorny/paths-filter@v3
+      # On pull_request events paths-filter reads the changed files from the API (pull-requests: read), no checkout.
+      - name: Lọc đường dẫn (dorny/paths-filter)
         id: filter
+        uses: dorny/paths-filter@v3
         with:
           # code: anything that affects the build or the quality gate itself.
           # release: what can break the release build (R8) while the debug build passes: libraries, build files and
@@ -64,11 +65,25 @@ jobs:
               - '**/consumer-rules.pro'
               - '.github/workflows/pr-check.yml'
 
-  build-and-test:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
+      # An empty or odd output (a renamed step id, a changed action) would send a PR with code down the docs-only
+      # path below, which passes without check.sh: stop the job instead. It cannot catch a code file that no pattern
+      # matches (code=false is valid); the sample-PR tests of scripts/tests/run.sh keep the patterns right.
+      # The message also goes to build.log, which the failure comment prints.
+      - name: Kiểm kết quả lọc đường dẫn
+        env:
+          CODE: ${{ steps.filter.outputs.code }}
+          RELEASE: ${{ steps.filter.outputs.release }}
+        run: |
+          for value in "code=$CODE" "release=$RELEASE"; do
+            case "${value#*=}" in
+              true | false) ;;
+              *)
+                echo "Bộ lọc đường dẫn trả '${value#*=}' cho ${value%%=*}, cần true hoặc false." | tee -a build.log
+                echo "::error::Bộ lọc đường dẫn trả '${value#*=}' cho ${value%%=*}, cần true hoặc false."
+                exit 1 ;;
+            esac
+          done
+
       - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v5
@@ -80,7 +95,7 @@ jobs:
       # check the docs: lesson numbers, foundation.md, status.py, secret scan, the latest run list (L-040).
       # No Gradle and no Android SDK here.
       - name: Test của script và tài liệu (scripts/tests/run.sh)
-        if: needs.changes.outputs.code != 'true'
+        if: steps.filter.outputs.code != 'true'
         timeout-minutes: 10
         run: |
           for tool in python3 jq java; do
@@ -88,11 +103,11 @@ jobs:
           done
           scripts/tests/run.sh 2>&1 | tee build.log
 
-      - if: needs.changes.outputs.code == 'true'
+      - if: steps.filter.outputs.code == 'true'
         uses: gradle/actions/setup-gradle@v4
 
       - name: Cổng chất lượng (scripts/check.sh)
-        if: needs.changes.outputs.code == 'true'
+        if: steps.filter.outputs.code == 'true'
         run: scripts/check.sh 2>&1 | tee build.log
 
       # The quality gate builds debug only; R8 runs in the release build, so a library without its keep rules
@@ -101,11 +116,11 @@ jobs:
       # The full release.log is uploaded with the reports, since the PR comment keeps only part of it.
       - name: Build bản release (R8)
         id: release
-        if: needs.changes.outputs.code == 'true' && needs.changes.outputs.release == 'true'
+        if: steps.filter.outputs.code == 'true' && steps.filter.outputs.release == 'true'
         run: ./gradlew --console=plain :app:assembleStagingRelease 2>&1 | tee release.log
 
       - name: Lưu báo cáo test và ảnh screenshot
-        if: always() && needs.changes.outputs.code == 'true'
+        if: always() && steps.filter.outputs.code == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: build-and-test-reports
