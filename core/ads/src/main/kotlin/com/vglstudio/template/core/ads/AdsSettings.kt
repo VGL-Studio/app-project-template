@@ -96,7 +96,8 @@ object AdsSettings {
     val IS_SHOW_NATIVE_AFTER_INTER = booleanKey(
         name = "is_show_native_after_inter",
         default = false,
-        description = "Shows a full-screen native ad right after an interstitial (combo).",
+        description = "Shows a full-screen native ad right after the interstitial of an in-app placement (combo); " +
+            "never after the startup or resume interstitial.",
     )
 
     val TIME_CLOSE_NATIVE = longKey(
