@@ -2,7 +2,7 @@
 ticket: T-086
 title: Kho nạp sẵn cho native nhỏ và native thu gọn
 status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 30.0M        # cỡ L, số gợi ý 30.0M (tạm, chưa đủ 5 task L) của scripts/token-usage.py estimate (2026-11-06); không chỉnh
@@ -17,6 +17,8 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 # PLAN T-086: KHO NẠP SẴN CHO NATIVE NHỎ VÀ NATIVE THU GỌN
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-11-07).** Bản 1 đã duyệt ngày 2026-11-07 (anh Nhật). Rà soát độc lập danh sách chạy RUN-20261107-01 thấy test `AdsControllerNativeStockTest.preloadHeldInBackground_sentOnceOnResume` dựa vào `ActivityScenario` để đưa app ra nền, trong khi phần dựng chung đặt foreground bằng `setAppForegroundForTest(true)`: hai nguồn foreground có thể lệch, và mốc "lúc kho chuẩn bị nạp" chưa rõ. Thay đổi duy nhất so với bản 1 là test này (mục 4): chỉ dùng `setAppForegroundForTest`, phần dựng chung dừng ở `admobReadyForTest()` rồi ra nền trước `requestPreloadForTest()`, và câu khẳng định là một lượt `unit-native_small` cộng một lượt `unit-native_collap` (thay một lượt `NATIVE_SMALL`). Phần còn lại giữ nguyên; câu hỏi 1 tới 4 ở mục 8 đã có trả lời ở phiên bản 1 và giữ nguyên.
 
 Nguồn một quảng cáo của native (`NativeAdSource`) đổi từ "một nguồn cho mỗi cặp vị trí và định dạng, hủy khi khe cuối rời màn" thành "một kho cho mỗi cặp định dạng và mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn" cho `NATIVE_SMALL` và `NATIVE_COLLAPSIBLE`. Mỗi định dạng có một khe trong kế hoạch nạp sẵn (`NativeStockPreloadSlot`, cạnh `FullScreenPreloadSlot` và khe của pool), ở nhóm sau nhóm đầu; `NATIVE_COLLAPSIBLE` được thêm vào kế hoạch mặc định khi có vị trí thanh đáy. Kiểm chứng bằng unit test JVM trên `NativeAdSource`, `NativeAdSources`, `AdPreloadPlan`, `AdTelemetry` với đồng hồ giả, và test Robolectric trên `AdsController` thật với bộ nạp native giả (như `AdsControllerInScreenWindowTest`).
 
@@ -191,7 +193,7 @@ Mọi đường dẫn tới một lượt gửi của kho (tiêu chí "không n�
 | KB-33, tiêu chí 7: doanh thu theo màn lấy | Unit test | `NativeAdSourceTest.claim_setsHolderToClaimer`: kho có quảng cáo nạp sẵn kèm `PlacementCell` rỗng; khe của `SAMPLE_NATIVE_SMALL` lấy: `holder.value == SAMPLE_NATIVE_SMALL`; quảng cáo kế lấy bởi `GALLERY_NATIVE_SMALL`: holder của nó là `GALLERY_NATIVE_SMALL`. `NativeAdMetrics` đọc vị trí từ `holder` (bước 4) là phần nối, kiểm bằng rà soát code |
 | KB-33, tiêu chí 8: banner không nạp sẵn | Unit test | `AdPreloadPlanTest.fromPlacements_hasNoBannerLayer`: `AdPreloadPlan.fromPlacements(listOf(SAMPLE_NATIVE_SMALL))` (chỉ một thanh đáy, không vị trí banner nào) có `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE`, không có `BANNER` (đỏ trên code cũ vì thiếu `NATIVE_COLLAPSIBLE`); `NativeAdSourcesTest.preloadSlots_onlyForSmallAndCollapsible`: `preloadSlots(BANNER)`, `(BANNER_MREC)`, `(BANNER_COLLAPSIBLE)` rỗng |
 | S-25, S-24: nạp bù kho | Unit test | `AdPreloadPlanTest.nativeOnly_keepsCollapsible`: `AdPreloadPlan.fromPlacements(listOf(SAMPLE_NATIVE_SMALL)).nativeOnly()` có `NATIVE_COLLAPSIBLE` (đỏ trên code cũ). `AdPreloaderTest.activityResumed_refillsStocks` (qua ngay, ngoại lệ) |
-| Ra nền rồi trở lại khi kho đang chờ gửi | Robolectric | `AdsControllerNativeStockTest.preloadHeldInBackground_sentOnceOnResume`: `ActivityScenario.moveToState(CREATED)` lúc kho chuẩn bị nạp, rồi `RESUMED`: đúng một lượt gửi, không gửi khi ở nền |
+| Ra nền rồi trở lại khi kho đang chờ gửi | Robolectric | `AdsControllerNativeStockTest.preloadHeldInBackground_sentOnceOnResume`: phần dựng chung tới `admobReadyForTest()` (không gọi `setAppForegroundForTest(true)` của phần dựng chung), rồi `setAppForegroundForTest(false)`, `requestPreloadForTest()`, chạy bộ lập lịch: 0 lượt gửi của kho; `setAppForegroundForTest(true)`, chạy bộ lập lịch: đúng một lượt `unit-native_small` và một lượt `unit-native_collap` (`is_show_native_collap` mặc định bật); không khẳng định tổng số lượt gửi bằng 1. Foreground chỉ đặt bằng `setAppForegroundForTest`, không dùng `ActivityScenario.moveToState` trong test này |
 | Log không có mã đơn vị | Unit test | `NativeAdSourceTest.stockLogs_holdNoUnitId`: mọi dòng log của kho không chứa mã đơn vị |
 | Tài liệu S-22, HD-02, O-01, O-03, O-04, 5.7, CL-01, 8.2 và `ads-guide.md` | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các luật đã sửa, đối chiếu mục 3.1 bước 7; `scripts/history-refs.py` qua |
 | Lượt nạp sẵn thật trên staging | Kiểm tra thủ công (máy thật: quảng cáo thật) | Cài staging, đồng ý quảng cáo, mở app: log `VGL.Ads` có `Preload group 2/2 started` gồm `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE` và hai dòng `Native ... preload` trước khi vào màn mẫu; vào màn mẫu: lớp thu gọn hiện quảng cáo ngay; thu gọn lớp: khe đáy có quảng cáo (hiện ngay nếu khe đã lấy từ kho lúc vào màn; nếu T-090 đã merge thì khe nạp mới lúc thu gọn, theo D-07); về màn trước rồi vào lại: quảng cáo hiện ngay, log có `kept after last slot left`, không có `source closed` |
@@ -246,6 +248,12 @@ Không cần (E dưới 2).
 4. **Tách ticket.** Ticket cỡ L. AI giữ một plan vì kho `native_collap` dùng cùng lớp với kho `native_small`, phần riêng chỉ là điều kiện nạp và một dòng của kế hoạch mặc định. Nếu anh muốn tách, AI soạn plan bản 2 cho kho native nhỏ và một ticket mới cho lớp thu gọn.
 
 ## 9. Quyết định duyệt
+
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-11-07):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt phiên bản 2 trong phiên có người ngày 2026-11-07 (lời anh Nhật: "Duyệt bản 2"), sau khi xem thay đổi so với bản 1 và kết quả rà soát độc lập của PR #399 (vòng 1: 0 chặn, 4 nên sửa, 6 ghi chú; rà lại 1: 0 chặn, 1 nên sửa, 5 ghi chú; đã sửa). Phiên bản 2 soạn theo rà soát độc lập danh sách chạy RUN-20261107-01 và lựa chọn của anh Nhật ("Soạn T-087 bản 2", "Soạn bản 2 cho cả hai"). Câu hỏi ở mục 8 giữ trả lời của phiên bản 1. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 
