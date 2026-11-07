@@ -51,7 +51,8 @@ class NativeAdRefreshTest {
     ): NativeAdSource {
         loads = FakeNativeLoads(loader, { testScheduler.currentTime }, logger)
         source = NativeAdSource(
-            load = load ?: { use -> loads.load(use) },
+            // A load given by the test answers for itself; the default one records the slot it is for (plan T-086).
+            load = { use, placement -> load?.let { NativeSourceLoad(it(use)) } ?: loads.load(use, placement) },
             sendGate = { awaitSendAllowed(gate) { mayRequest } },
             clock = { testScheduler.currentTime },
             scope = backgroundScope,
@@ -77,6 +78,9 @@ class NativeAdRefreshTest {
                         refreshingNativeAdStates(
                             NativeAdState.Loaded(ad0),
                             source,
+                            PLACEMENT,
+                            // The slot stops when the source is shut down, as when its only placement is off.
+                            source.closed,
                             gate,
                             { mayRequest },
                             retryResets,
@@ -466,7 +470,7 @@ class NativeAdRefreshTest {
     }
 
     @Test
-    fun cancelledBetweenClaimAndEmit_destroysNewAd() = runTest {
+    fun cancelledBetweenClaimAndEmit_newAdKeptByStock() = runTest {
         lateinit var job: Job
         val ad1 = FakeLoadedNativeAd()
         newSource(
@@ -483,7 +487,9 @@ class NativeAdRefreshTest {
 
         assertTrue(collection.isCancelled)
         assertEquals(1, states.size)
-        assertEquals(1, ad1.destroyCount)
+        // Never shown by the slot that left, never lost: the stock keeps it for the next claim (KB-33).
+        assertEquals(0, ad1.destroyCount)
+        assertSame(ad1, source.pending)
         assertEquals(1, ad0.destroyCount)
     }
 
@@ -500,8 +506,9 @@ class NativeAdRefreshTest {
 
         assertEquals(1, ad1.destroyCount)
         assertEquals(1, ad0.destroyCount)
-        // The pending ad goes with the source once the last slot is gone.
-        assertEquals(1, ad2.destroyCount)
+        // The pending ad stays in the stock once the last slot is gone (KB-33).
+        assertEquals(0, ad2.destroyCount)
+        assertSame(ad2, source.pending)
     }
 
     @Test
@@ -602,5 +609,6 @@ class NativeAdRefreshTest {
 
     private companion object {
         const val KEY = "sample_native_small"
+        val PLACEMENT = AdPlacement.SAMPLE_NATIVE_SMALL
     }
 }
