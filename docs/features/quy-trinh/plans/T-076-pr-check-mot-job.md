@@ -342,7 +342,7 @@ Phiên bản 1:
 - **Token:** 12.0M (ước tính 5.4M, 2,2 lần), `scripts/token-usage.py report --since 2026-11-07T16:31:00Z`; gồm hai lần chạy toàn bộ `scripts/tests/run.sh`, một `check.sh` và hai vòng của rà soát độc lập.
 - **Việc còn lại:**
   - Báo anh Nhật và Tuấn kéo nhánh chính (`git pull`) trước lần merge kế tiếp: bản `merge-if-green.sh` cũ chờ check `changes` mãi (mã 2).
-  - PR tài liệu kế tiếp (PR báo cáo của phiên) kiểm DoD 1 nhánh tài liệu bằng cùng lệnh `gh api` (mục 4); kết quả ghi trong báo cáo phiên.
+  - PR tài liệu kế tiếp: đã kiểm trên PR báo cáo #409 (lần chạy 42397352236): một job `build-and-test`, nhánh tài liệu `success`, `Cổng chất lượng` `skipped`, đúng mục 4.
   - Mục 8 câu 7: dòng bảng tra lỗi cho `chưa thấy kiểm tra 'changes'` làm ở một PR quy trình riêng.
   - Mục 9 (câu 5): AI thêm một dòng ghi chú vào ADR-0043 trong một PR riêng, không thuộc T-076.
 - **Cần người xem:** commit a2a19a5 (sửa chi tiết hàm phụ trợ sau commit test, căn cứ bước 4); hai ghi chú của rà soát ở trên.
