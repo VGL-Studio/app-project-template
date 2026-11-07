@@ -278,11 +278,13 @@ class PlatformBannersTest {
         runCurrent()
         assertEquals(listOf(TryNext, Loaded, Failed(3), Loaded), got)
         assertEquals(1, sdk.loadCount)
-        assertEquals(0, sdk.stopCount)
+        // Plan T-088, section 3.5: a new MAX view stops its auto refresh around its first load.
+        assertEquals(2, sdk.stopCount)
 
         view.pause()
-        assertEquals(1, sdk.stopCount)
+        assertEquals(3, sdk.stopCount)
         assertEquals(FakeMaxBannerSdkView.STOP, sdk.calls.last())
+        assertEquals(0, sdk.startCount)
     }
 
     @Test
@@ -404,14 +406,14 @@ class PlatformBannersTest {
     private var loads = 0
     private var failures = 0
 
-    private fun TestScope.runLoads(view: BannerAdView) {
+    private fun TestScope.runLoads(view: BannerAdView, reloadMillis: Long = 0L) {
         backgroundScope.launch {
             runBannerLoads(
-                refresh = BannerRefresh.BY_AD_UNIT,
                 view = view,
                 visible = MutableStateFlow(true),
                 mayRequestNow = { true },
                 retryResets = MutableStateFlow(0),
+                reloadMillis = MutableStateFlow(reloadMillis),
                 onLoaded = { loads++ },
                 logger = logger,
                 placementKey = KEY,
@@ -679,6 +681,79 @@ class PlatformBannersTest {
         runCurrent()
         assertEquals(2, failures)
         assertEquals(2, logger.entries.count { it.message == "Banner $KEY ADMOB refresh failed, waiting for MAX" })
+    }
+
+    /** Through the real send loop with the key at 60 s: MAX had no ad and AdMob shows, loaded at 0. */
+    private fun TestScope.admobShownAfterMaxFailed(view: BannerAdView) {
+        runLoads(view, reloadMillis = 60_000L)
+        runCurrent()
+        assertEquals(1, max.sendCount)
+        max.emitFailed(204)
+        runCurrent()
+        assertEquals(1, admob.sendCount)
+        admob.emitLoaded()
+        runCurrent()
+        assertEquals(1, loads)
+    }
+
+    @Test
+    fun reload_bothFail_shownChildKept_oneFailure() = runTest {
+        // Plan T-088, KB-34 criterion 6: a reload that fails on both platforms is one failure; AdMob keeps showing.
+        val view = ordered(MAX to max, ADMOB to admob)
+        admobShownAfterMaxFailed(view)
+
+        advanceTimeBy(59_999)
+        runCurrent()
+        assertEquals(1, max.sendCount)
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals("the reload asks MAX first", 2, max.sendCount)
+        max.emitFailed(204)
+        runCurrent()
+        assertEquals(2, admob.sendCount)
+        admob.emitFailed(3)
+        runCurrent()
+        assertEquals(1, failures)
+        assertEquals(0, admob.destroyCount)
+
+        // The ad shown is still the one of AdMob: a resume of the frame runs AdMob only.
+        view.pause()
+        view.resume()
+        assertTrue("AdMob is shown", admob.isRunning)
+        assertFalse("MAX is not shown", max.isRunning)
+
+        // The retry of B-02, 2 s later, starts again from MAX.
+        advanceTimeBy(2_001)
+        runCurrent()
+        assertEquals(3, max.sendCount)
+        assertEquals(2, admob.sendCount)
+    }
+
+    @Test
+    fun reload_asksFirstPlatformAgain() = runTest {
+        // Plan T-088, KB-34 criterion 5, KB-31: each reload asks the platforms in the order of ads_mediation_order.
+        val view = ordered(MAX to max, ADMOB to admob)
+        admobShownAfterMaxFailed(view)
+
+        advanceTimeBy(60_001)
+        runCurrent()
+        assertEquals(2, max.sendCount)
+        assertEquals(1, admob.sendCount)
+        max.emitLoaded()
+        runCurrent()
+        assertEquals(2, loads)
+        assertEquals("AdMob is paused once MAX shows", 1, admob.pauseCount)
+        assertEquals(0, failures)
+
+        // Control: the order admob asks AdMob only, at each reload.
+        val admob2 = FakeBannerAdView(tag = "admob")
+        runLoads(ordered(ADMOB to admob2), reloadMillis = 60_000L)
+        runCurrent()
+        admob2.emitLoaded()
+        runCurrent()
+        advanceTimeBy(60_001)
+        runCurrent()
+        assertEquals(2, admob2.sendCount)
     }
 
     @Test

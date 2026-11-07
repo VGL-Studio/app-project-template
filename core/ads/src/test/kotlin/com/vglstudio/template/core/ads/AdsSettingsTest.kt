@@ -49,6 +49,11 @@ class AdsSettingsTest {
             Triple("is_show_native_bottom", RemoteKey.Type.BOOLEAN, false),
             Triple("is_show_native_collap", RemoteKey.Type.BOOLEAN, true),
             Triple("time_expand_collap_ad", RemoteKey.Type.LONG, 10L),
+            Triple("time_reload_native_small", RemoteKey.Type.LONG, 60L),
+            Triple("time_reload_collap_ad", RemoteKey.Type.LONG, 60L),
+            Triple("time_reload_banner_collap", RemoteKey.Type.LONG, 30L),
+            Triple("time_reload_banner", RemoteKey.Type.LONG, 60L),
+            Triple("time_reload_banner_mrec", RemoteKey.Type.LONG, 60L),
             Triple("is_enable_consent_shortcut", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_fullscreen_events", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_slot_events", RemoteKey.Type.BOOLEAN, false),
@@ -56,7 +61,7 @@ class AdsSettingsTest {
         )
         val global = AdsSettings.all().filterNot { isDerived(it.name) }
             .map { Triple(it.name, it.type, it.default) }
-        assertEquals(16, expected.size)
+        assertEquals(21, expected.size)
         assertEquals(expected, global.toSet())
         assertEquals(global.size, global.toSet().size)
     }
@@ -101,8 +106,43 @@ class AdsSettingsTest {
         val names = AdsSettings.all().map { it.name }
         // Control: the list is the new one (the master switch is there), so an empty or old list cannot pass.
         assertTrue(names.toString(), "is_show_ads" in names)
-        listOf("time_reload_collap_ad", "resume_ads_interval", "time_reload_bottom_ad").forEach {
+        // time_reload_collap_ad has effect since plan T-087 (section 3.5): declared, no longer a dropped key.
+        assertTrue(names.toString(), "time_reload_collap_ad" in names)
+        listOf("resume_ads_interval", "time_reload_bottom_ad").forEach {
             assertFalse("$it must not be declared", it in names)
+        }
+    }
+
+    @Test
+    fun reloadKeys_declaredWithDefaults() {
+        // Plan T-087, KB-34 criterion 1: one reload key per layer, in seconds.
+        val keys = AdsSettings.all().associateBy { it.name }
+        val expected = listOf(
+            "time_reload_native_small" to 60L,
+            "time_reload_collap_ad" to 60L,
+            "time_reload_banner_collap" to 30L,
+        )
+        expected.forEach { (name, default) ->
+            val key = keys[name] ?: error("$name is missing from ${keys.keys}")
+            assertEquals(name, RemoteKey.Type.LONG, key.type)
+            assertEquals(name, default, key.default)
+        }
+        val templateNote = "Name set by the template, not an AdsKit key."
+        assertTrue(keys.getValue("time_reload_native_small").description.endsWith(templateNote))
+        assertTrue(keys.getValue("time_reload_banner_collap").description.endsWith(templateNote))
+        // An AdsKit name: no note (control of the two checks above).
+        assertFalse(keys.getValue("time_reload_collap_ad").description.contains("not an AdsKit key"))
+    }
+
+    @Test
+    fun bannerReloadKeys_declaredWithDefaults() {
+        // Plan T-088, KB-34 criterion 1: the fixed banner and the MREC reload by hand at their own key, in seconds.
+        val keys = AdsSettings.all().associateBy { it.name }
+        listOf("time_reload_banner", "time_reload_banner_mrec").forEach { name ->
+            val key = keys[name] ?: error("$name is missing from ${keys.keys}")
+            assertEquals(name, RemoteKey.Type.LONG, key.type)
+            assertEquals(name, 60L, key.default)
+            assertTrue(key.description, key.description.endsWith("Name set by the template, not an AdsKit key."))
         }
     }
 

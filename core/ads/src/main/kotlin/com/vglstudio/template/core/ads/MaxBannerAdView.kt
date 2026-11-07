@@ -104,8 +104,9 @@ internal fun maxBannerHeightDp(context: Context, kind: BannerSizeKind, widthDp: 
  * - The SDK view is built by [newSdkView] on the first [send] only (question 6 of the plan, G2): the frame sends to
  *   MAX only once MAX is ready and the send passed the screen and consent checks, so no `MaxAdView` exists before.
  *   The wrapper never gets the ad unit: it lives in [newSdkView] only, so no log line can hold it.
- * - [pause] stops the auto refresh of MAX, [resume] starts it (B-06, B-07, KB-27); a pause before the view exists is
- *   kept, and the view built later stops its auto refresh right after its first load.
+ * - MAX never refreshes by itself: a new view stops its auto refresh around its first load; [pause] stops it again,
+ *   [resume] calls nothing (B-06, B-07, B-09, KB-27, KB-34). Each reload by :core:ads ([runBannerLoads]) is one more
+ *   [send], one `loadAd` on the same view.
  * - Loads and clicks go to [telemetry] like those of AdMob: the load counter of MAX is `<slot key>/max`, apart from
  *   AdMob in the same frame (L-068); a failure is labelled by [maxLoadStateAfterError]; a click skips the next resume
  *   ad (A-14). Revenue of MAX is T-072.
@@ -129,9 +130,6 @@ internal class MaxBannerAdView(
 
     private var sdk by mutableStateOf<MaxBannerSdkView?>(null)
 
-    /** The last of [pause] and [resume] was a pause. */
-    private var wantPaused = false
-
     override fun send() {
         val existing = sdk
         val view = existing ?: newSdkView().also { built ->
@@ -140,19 +138,19 @@ internal class MaxBannerAdView(
             logger.info(TAG, "Banner $placementKey MAX view created")
         }
         telemetry.requestSent(maxSlot, now())
+        // Loading by hand (question 1 of plan T-088): stopped before the first load, and again right after it in case
+        // the SDK starts the refresh with that load.
+        if (existing == null) view.stopAutoRefresh()
         view.loadAd()
-        if (existing == null && wantPaused) view.stopAutoRefresh()
+        if (existing == null) view.stopAutoRefresh()
     }
 
     override fun pause() {
-        wantPaused = true
         sdk?.stopAutoRefresh()
     }
 
-    override fun resume() {
-        wantPaused = false
-        sdk?.startAutoRefresh()
-    }
+    /** Nothing: MAX never refreshes by itself; the next reload is a [send]. */
+    override fun resume() = Unit
 
     override fun destroy() {
         sdk?.destroy()

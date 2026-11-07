@@ -79,9 +79,13 @@ internal const val MAX_NOT_READY = -9000
  *   [runBannerLoads]; after a pause of the frame the next turn starts again from the first platform). A MAX child that
  *   failed is paused, so MAX never refreshes or sends by itself outside the send step; an AdMob child is not, as
  *   before T-071.
+ * - Each reload by :core:ads ([runBannerLoads]) is one [send], so it asks the platforms in order like the first send
+ *   (`ads_mediation_order`, B-09): the first platform without an ad hands the turn to the second one at once, and a
+ *   failure of both is one Failed while the ad shown stays.
  * - The refreshes of the child shown pass through (Failed is retried from the first platform), except the first Failed
  *   of a send while another child asked has not answered: that answer decides the turn; a second Failed of the same
- *   send passes, so a child that never answers does not stop the retries (B-09). Other children are ignored.
+ *   send passes, so a child that never answers does not stop the retries (B-09). Other children are ignored. MAX never
+ *   refreshes by itself ([MaxBannerAdView]); only an AdMob ad unit that still has its auto refresh on can send one.
  *   [pause] pauses every child; [resume] resumes the child shown and the one asked.
  * - [results] has one inbox per collection, and every child is subscribed before the collection first suspends, so a
  *   result given inside [send] (the turn of MAX skipped, an SDK that fails at once) is never lost. The children's
