@@ -1,16 +1,16 @@
 ---
 ticket: T-087
 title: Nhịp làm mới native nhỏ, native thu gọn, banner thu gọn theo Remote Config
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 22.2M        # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-11-06, trung vị 22 task M); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-07
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -207,11 +207,11 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-Phiên bản 2:
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-11-07):
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt phiên bản 2 trong phiên có người ngày 2026-11-07 (lời anh Nhật: "Duyệt bản 2"), sau khi xem thay đổi so với bản 1 và kết quả rà soát độc lập của PR #399 (vòng 1: 0 chặn, 4 nên sửa, 6 ghi chú; rà lại 1: 0 chặn, 1 nên sửa, 5 ghi chú; đã sửa). Phiên bản 2 soạn theo rà soát độc lập danh sách chạy RUN-20261107-01 và lựa chọn của anh Nhật ("Soạn T-087 bản 2", "Soạn bản 2 cho cả hai"). Câu hỏi ở mục 8 giữ trả lời của phiên bản 1. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 
