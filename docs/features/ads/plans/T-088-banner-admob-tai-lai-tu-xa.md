@@ -210,7 +210,7 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-Phiên bản 2: chờ duyệt.
+Phiên bản 2:
 
 - **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
 - **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>

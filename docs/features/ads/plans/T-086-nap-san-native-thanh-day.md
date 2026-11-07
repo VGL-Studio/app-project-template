@@ -193,7 +193,7 @@ Mọi đường dẫn tới một lượt gửi của kho (tiêu chí "không n�
 | KB-33, tiêu chí 7: doanh thu theo màn lấy | Unit test | `NativeAdSourceTest.claim_setsHolderToClaimer`: kho có quảng cáo nạp sẵn kèm `PlacementCell` rỗng; khe của `SAMPLE_NATIVE_SMALL` lấy: `holder.value == SAMPLE_NATIVE_SMALL`; quảng cáo kế lấy bởi `GALLERY_NATIVE_SMALL`: holder của nó là `GALLERY_NATIVE_SMALL`. `NativeAdMetrics` đọc vị trí từ `holder` (bước 4) là phần nối, kiểm bằng rà soát code |
 | KB-33, tiêu chí 8: banner không nạp sẵn | Unit test | `AdPreloadPlanTest.fromPlacements_hasNoBannerLayer`: `AdPreloadPlan.fromPlacements(listOf(SAMPLE_NATIVE_SMALL))` (chỉ một thanh đáy, không vị trí banner nào) có `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE`, không có `BANNER` (đỏ trên code cũ vì thiếu `NATIVE_COLLAPSIBLE`); `NativeAdSourcesTest.preloadSlots_onlyForSmallAndCollapsible`: `preloadSlots(BANNER)`, `(BANNER_MREC)`, `(BANNER_COLLAPSIBLE)` rỗng |
 | S-25, S-24: nạp bù kho | Unit test | `AdPreloadPlanTest.nativeOnly_keepsCollapsible`: `AdPreloadPlan.fromPlacements(listOf(SAMPLE_NATIVE_SMALL)).nativeOnly()` có `NATIVE_COLLAPSIBLE` (đỏ trên code cũ). `AdPreloaderTest.activityResumed_refillsStocks` (qua ngay, ngoại lệ) |
-| Ra nền rồi trở lại khi kho đang chờ gửi | Robolectric | `AdsControllerNativeStockTest.preloadHeldInBackground_sentOnceOnResume`: phần dựng chung, rồi `setAppForegroundForTest(false)` trước `requestPreloadForTest()`; chạy bộ lập lịch: 0 lượt gửi của kho; `setAppForegroundForTest(true)`, chạy bộ lập lịch: đúng một lượt gửi `NATIVE_SMALL`. Foreground chỉ đặt bằng `setAppForegroundForTest`, không dùng `ActivityScenario.moveToState` trong test này |
+| Ra nền rồi trở lại khi kho đang chờ gửi | Robolectric | `AdsControllerNativeStockTest.preloadHeldInBackground_sentOnceOnResume`: phần dựng chung tới `admobReadyForTest()` (không gọi `setAppForegroundForTest(true)` của phần dựng chung), rồi `setAppForegroundForTest(false)`, `requestPreloadForTest()`, chạy bộ lập lịch: 0 lượt gửi của kho; `setAppForegroundForTest(true)`, chạy bộ lập lịch: đúng một lượt `unit-native_small` và một lượt `unit-native_collap` (`is_show_native_collap` mặc định bật); không khẳng định tổng số lượt gửi bằng 1. Foreground chỉ đặt bằng `setAppForegroundForTest`, không dùng `ActivityScenario.moveToState` trong test này |
 | Log không có mã đơn vị | Unit test | `NativeAdSourceTest.stockLogs_holdNoUnitId`: mọi dòng log của kho không chứa mã đơn vị |
 | Tài liệu S-22, HD-02, O-01, O-03, O-04, 5.7, CL-01, 8.2 và `ads-guide.md` | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các luật đã sửa, đối chiếu mục 3.1 bước 7; `scripts/history-refs.py` qua |
 | Lượt nạp sẵn thật trên staging | Kiểm tra thủ công (máy thật: quảng cáo thật) | Cài staging, đồng ý quảng cáo, mở app: log `VGL.Ads` có `Preload group 2/2 started` gồm `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE` và hai dòng `Native ... preload` trước khi vào màn mẫu; vào màn mẫu: lớp thu gọn hiện quảng cáo ngay; thu gọn lớp: khe đáy có quảng cáo (hiện ngay nếu khe đã lấy từ kho lúc vào màn; nếu T-090 đã merge thì khe nạp mới lúc thu gọn, theo D-07); về màn trước rồi vào lại: quảng cáo hiện ngay, log có `kept after last slot left`, không có `source closed` |
@@ -249,7 +249,7 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-Phiên bản 2: chờ duyệt.
+Phiên bản 2:
 
 - **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
 - **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
