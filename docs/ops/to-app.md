@@ -93,6 +93,7 @@ Kiểm tra và test riêng của app không đặt trong file của mẫu. Mẫu
 
 ## 7. Lưu ý
 
+- Banner cố định (cả lớp banner của thanh đáy), MREC và banner thu gọn do `:core:ads` tải lại theo Remote Config (`time_reload_banner`, `time_reload_banner_mrec`, `time_reload_banner_collap`), không theo tự làm mới của đơn vị. Đợt đồng bộ đưa thay đổi này về app thì người ở app kiểm và tắt tự làm mới trên từng đơn vị production của AdMob và MAX trước bản phát hành sau (`ads-guide.md`, mục 9), vì mã thử ở staging không cho thấy lỗi làm mới hai lần.
 - Tài liệu lấy từ dự án mẫu dẫn số bài học của dự án mẫu (`L-0NN`), khác số trong sổ bài học của app. Tra ở `docs/lessons.md` của repo dự án mẫu.
 - Bảng ở mục 2 khớp với `NEVER_SYNCED` và `TEMPLATE_OWNED` trong `scripts/template-sync.sh`. Đổi một chỗ thì đổi cả hai.
 - `SETUP_VERSION` của `scripts/cloud-setup.sh`: đợt đồng bộ có đổi file này, kể cả khi không xung đột, mà app đã từng tăng số riêng, thì đặt số bằng số lớn nhất app từng dùng cộng một, rồi dán lại script (`docs/ops/staging-and-runs.md`, mục 2.1). Hai bên cùng tăng lên một số với nội dung khác thì git gộp êm, số không đổi, và `cloud-env-check.sh` không báo phải dán lại.
