@@ -71,6 +71,10 @@ data class AdsGlobalFlags(
     val collapReloadSeconds: Long = 60,
     /** time_reload_banner_collap by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
     val bannerCollapReloadSeconds: Long = 30,
+    /** Skeleton (T-088 tests first). */
+    val bannerReloadSeconds: Long = 0,
+    /** Skeleton (T-088 tests first). */
+    val bannerMrecReloadSeconds: Long = 0,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */

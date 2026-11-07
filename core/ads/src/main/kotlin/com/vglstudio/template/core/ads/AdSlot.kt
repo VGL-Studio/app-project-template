@@ -135,7 +135,6 @@ private fun BannerSlot(
                 enabled = enabled,
                 unitId = frameKey,
                 heightDp = heightDp,
-                refresh = refresh,
                 visible = visible,
                 // The published flag: no gap while an interstitial hands over to its native ad (KB-27).
                 covered = ads.fullScreenAdShowing,
@@ -155,7 +154,7 @@ private fun BannerSlot(
                                 }
                                 SdkBannerAdView(
                                     adView = adView,
-                                    refresh = refresh,
+                                    collapsible = refresh == BannerRefresh.MANUAL,
                                     placement = placement,
                                     unitId = id,
                                     telemetry = ads.telemetry,
@@ -212,7 +211,6 @@ internal fun BannerSlotHost(
     enabled: Boolean,
     unitId: String?,
     heightDp: Int,
-    refresh: BannerRefresh,
     visible: Flow<Boolean>,
     covered: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
@@ -247,11 +245,10 @@ internal fun BannerSlotHost(
     val slotHeightDp = bannerSlotHeightDp(frame, kind, heightDp, failedBeforeAd)
     Box(modifier = modifier.height(slotHeightDp.dp), contentAlignment = Alignment.TopCenter) {
         // One ad view per placement, refresh kind and ad unit: two placements may share a unit (staging test ids).
-        key(placementKey, refresh, unitId) {
+        key(placementKey, unitId) {
             BannerFrameContent(
                 frame = frame,
                 heightDp = heightDp,
-                refresh = refresh,
                 visible = window,
                 mayRequestNow = mayRequestNow,
                 retryResets = retryResets,
@@ -277,7 +274,6 @@ internal fun BannerSlotHost(
 private fun BannerFrameContent(
     frame: BannerFrame,
     heightDp: Int,
-    refresh: BannerRefresh,
     visible: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
@@ -314,7 +310,6 @@ private fun BannerFrameContent(
     LaunchedEffect(view, active) {
         if (active) {
             runBannerLoads(
-                refresh = refresh,
                 view = view,
                 visible = visible,
                 mayRequestNow = { currentMayRequestNow() },

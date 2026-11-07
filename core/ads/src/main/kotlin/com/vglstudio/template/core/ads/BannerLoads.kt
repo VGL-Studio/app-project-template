@@ -31,6 +31,9 @@ internal fun bannerRefreshOf(format: AdFormat): BannerRefresh = when (format) {
     else -> throw IllegalArgumentException("$format is not a banner format")
 }
 
+/** Skeleton (T-088 tests first). */
+internal fun bannerRequestIsCollapsible(format: AdFormat): Boolean = false
+
 /** One result of a banner load, sent by the app or refreshed by the SDK. */
 internal sealed interface BannerLoadResult {
     data object Loaded : BannerLoadResult
@@ -66,7 +69,6 @@ internal sealed interface BannerLoadResult {
  * - Waits are coroutine delays: a monotonic clock, not the wall clock (AR-01). No unit id is logged.
  */
 internal suspend fun runBannerLoads(
-    refresh: BannerRefresh,
     view: BannerAdView,
     visible: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
@@ -77,6 +79,8 @@ internal suspend fun runBannerLoads(
     placementKey: String,
     onFailed: () -> Unit = {},
 ): Unit = coroutineScope {
+    // Skeleton (T-088 tests first): the old path of a fixed banner.
+    val refresh = BannerRefresh.BY_AD_UNIT
     val inbox = Channel<BannerLoadResult>(Channel.UNLIMITED)
     // Undispatched: the collector subscribes before the first send, so a result given during send() is not lost.
     val collector = launch(start = CoroutineStart.UNDISPATCHED) { view.results.collect { inbox.send(it) } }

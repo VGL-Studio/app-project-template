@@ -5604,6 +5604,24 @@ PY
 import json, sys
 K = {k["key"]: group for group, keys in json.load(sys.stdin)["keys"].items() for k in keys}
 print(*(K.get(n) for n in ("time_reload_native_small", "time_reload_collap_ad", "time_reload_banner_collap")))')"
+  # The reload keys of the fixed banner and the MREC (plan T-088), read from the key table of this repo.
+  expect "ads-plan: banner reload keys go in the Banner group" "Banner Banner" \
+    "$(python3 -I scripts/ads-plan.py --dump | python3 -I -c '
+import json, sys
+K = {k["key"]: group for group, keys in json.load(sys.stdin)["keys"].items() for k in keys}
+print(*(K.get(n) for n in ("time_reload_banner", "time_reload_banner_mrec")))')"
+  # Control: the collapsible banner row already says reload by hand, so the check reads the refresh column.
+  expect "ads-plan: banner and MREC formats say reload by hand" "True True True True True" \
+    "$(python3 -I - << 'PY'
+import runpy
+plan = runpy.run_path("scripts/ads-plan.py")
+rows = {row[0]: row for row in plan["FORMATS"]}
+banner, mrec = rows["banner"][5], rows["banner_mrec"][5]
+print("Tự làm mới theo đơn vị" not in banner, "time_reload_banner " in banner + " ",
+      "Tự làm mới theo đơn vị" not in mrec, "time_reload_banner_mrec" in mrec,
+      "Nạp lại tay" in rows["banner_collapsible"][5])
+PY
+)"
   # Control: time_reload_bottom_ad is still listed, so the list is read.
   expect "ads-plan: time_reload_collap_ad is not an unused AdsKit key" "False True" \
     "$(python3 -I - << 'PY'

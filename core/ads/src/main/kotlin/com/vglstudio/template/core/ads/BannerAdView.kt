@@ -38,9 +38,9 @@ internal interface BannerAdView {
  * new [requestId] each time, so every reload opens as a new expanded banner (B-03); the same id would count as the
  * same expansion.
  */
-internal fun bannerAdRequest(refresh: BannerRefresh, requestId: () -> String): AdRequest = when (refresh) {
-    BannerRefresh.BY_AD_UNIT -> AdRequest.Builder().build()
-    BannerRefresh.MANUAL -> {
+internal fun bannerAdRequest(collapsible: Boolean, requestId: () -> String): AdRequest = when (collapsible) {
+    false -> AdRequest.Builder().build()
+    true -> {
         val extras = Bundle().apply {
             putString(COLLAPSIBLE_KEY, COLLAPSIBLE_BOTTOM)
             putString(COLLAPSIBLE_REQUEST_ID_KEY, requestId())
@@ -62,7 +62,7 @@ private const val COLLAPSIBLE_REQUEST_ID_KEY = "collapsible_request_id"
  */
 internal class SdkBannerAdView(
     private val adView: AdView,
-    private val refresh: BannerRefresh,
+    private val collapsible: Boolean,
     private val placement: AdPlacement,
     private val unitId: String,
     private val telemetry: AdTelemetry,
@@ -86,7 +86,7 @@ internal class SdkBannerAdView(
 
     override fun send() {
         telemetry.requestSent(slotKey, now())
-        load(bannerAdRequest(refresh, newRequestId))
+        load(bannerAdRequest(collapsible, newRequestId))
     }
 
     override fun pause() = adView.pause()
