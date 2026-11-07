@@ -50,5 +50,5 @@ Không có. Log ở artifact `device-session` của lần chạy 39955967527.
 
 - **Loại:** góp ý mới (AI đề xuất, anh Nhật đồng ý trong phiên ngày 2026-11-07)
 - **Xử lý:** đưa vào backlog
-- **Lý do:** không trái spec: lỗi tải được bắt, vùng quảng cáo thu lại, app không dừng. Mã 0 là lỗi nội bộ của SDK; RUN-20261025-01 thấy SDK tự ghi "Incorrect native ad response. Click actions were not properly specified", tức native thử của Google không chạy được trên emulator, và các plan sau ghi kiểm native trên máy thật. Phần đáng làm là ý của phản hồi: dòng log lỗi tải chỉ có mã, không có lý do. Spec thêm tiêu chí ở KB-28 (câu hỏi 58).
+- **Lý do:** không trái spec: lỗi tải được bắt, vùng quảng cáo thu lại, app không dừng. Mã 0 là lỗi nội bộ của SDK; RUN-20261025-01 (dòng Ghi chú của phần kiểm thử trên máy ảo) thấy SDK tự ghi "Incorrect native ad response. Click actions were not properly specified" cho native toàn màn hình `gallery_native_full_screen`, một định dạng khác nhưng cùng lỗi mã 0, tức native thử của Google không chạy được trên emulator, và các plan sau ghi kiểm native trên máy thật. Phần đáng làm là ý của phản hồi: dòng log lỗi tải chỉ có mã, không có lý do. Spec thêm tiêu chí ở KB-28 cho bản staging, có che mã đơn vị, vì thông điệp lỗi của SDK có thể chứa mã đơn vị (câu hỏi 58).
 - **Liên kết:** T-010; T-093 (thông điệp lỗi trong log lỗi tải)

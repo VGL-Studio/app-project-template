@@ -6,8 +6,8 @@ spec: features/ads/spec.md
 scenarios: [KB-28]      # kịch bản trong spec mà ticket này xử lý
 owner: Nhật
 status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
-risk: low                    # đánh giá sơ bộ: low | medium | high
-size: S                      # S | M | L, xem giải thích ở cuối
+risk: high                   # đánh giá sơ bộ: low | medium | high
+size: M                      # S | M | L, xem giải thích ở cuối
 depends_on: []               # các ticket phải xong trước, ví dụ [T-NNN]
 sprint:                      # điền khi được chọn vào sprint
 plan:                        # đường dẫn plan khi đã có
@@ -19,21 +19,26 @@ created: 2026-11-07
 
 ## Mô tả
 
-Khi một lượt tải quảng cáo thất bại, dòng log lỗi có thêm thông điệp lỗi của SDK cạnh mã lỗi, để người đọc log biết lý do mà không phải tìm trong log riêng của SDK. Spec `ads`, KB-28, tiêu chí thêm ngày 2026-11-07 (câu hỏi 58). Từ phản hồi FB-20261023-02: native thử lỗi mã 0 trên emulator lặp ở nhiều phiên mà log chỉ có mã.
+Ở bản staging, khi SDK trả lỗi cho một lượt tải quảng cáo, dòng log lỗi tải có thêm thông điệp lỗi của SDK cạnh mã lỗi, đã che chuỗi dạng mã đơn vị, để người đọc log biết lý do mà không phải tìm trong log riêng của SDK. Spec `ads`, KB-28, tiêu chí thêm ngày 2026-11-07 (câu hỏi 58). Từ phản hồi FB-20261023-02: native thử lỗi mã 0 trên emulator lặp ở nhiều phiên mà log chỉ có mã.
 
 ## Phạm vi
 
-- `:core:ads`: mọi dòng log lỗi tải của từng định dạng (ví dụ `Native <vị trí> failed: <mã>` ở `NativeAdLoading.kt`, và dòng tương ứng của banner, interstitial, native toàn màn hình, app open, quảng cáo có thưởng, MAX) ghi thêm thông điệp lỗi mà SDK trả. Plan liệt kê đủ các dòng.
-- Thông điệp chỉ vào log (`AppLogger`), không vào sự kiện phân tích (`ad_load_fail` giữ `load_error_code`, luật mục 8 của `docs/ops/ads-business-rules.md`). Không ghi mã đơn vị.
-- Test viết trước: lượt tải thất bại với mã và thông điệp giả thì `RecordingAppLogger` có dòng mang cả hai, cho từng định dạng; sự kiện `ad_load_fail` không có thông điệp.
+- `:core:ads`, chỉ ở biến thể staging: các dòng log lỗi tải mà SDK trả lỗi ghi thêm thông điệp lỗi, qua một hàm che chuỗi dạng mã đơn vị (`ca-app-pub-…`, mã đơn vị MAX). Các dòng đã thấy trên nhánh chính ngày 2026-11-07 (plan đối chiếu lại):
+  - native: `NativeAdLoading.kt` (`Native <vị trí> failed: <mã>`; `onFailed` hôm nay chỉ nhận mã, nên sửa cả đường từ `SdkNativeAdLoader`), dòng thử lại ở `NativeAdRefresh.kt`; kho `NativeAdPool.kt` (dòng lỗi hôm nay không có mã);
+  - quảng cáo toàn màn hình (interstitial, native toàn màn hình, app open, có thưởng): các dòng lỗi tải ở `AdsController.kt` và `FullScreenReloads.kt`;
+  - banner AdMob: dòng thử lại có mã ở `BannerLoads.kt`, `PlatformBanners.kt` (`BannerLoadResult.Failed` hôm nay chỉ mang mã, `BannerAdView.kt`); banner và MREC của MAX: `MaxBannerAdView.kt`.
+- Bản production giữ dòng log chỉ có mã. Thông điệp không vào sự kiện phân tích (`ad_load_fail` giữ `load_error_code`, luật mục 8 của `docs/ops/ads-business-rules.md`).
+- Test viết trước: ở staging, lượt tải lỗi với mã và thông điệp giả thì `RecordingAppLogger` có dòng mang cả hai, cho từng định dạng; thông điệp có mã đơn vị mẫu thì dòng log không có `ca-app-pub`; ở production dòng log không có thông điệp; sự kiện `ad_load_fail` không có thông điệp.
+- Giữ các test của log từng mạng (`AdNetworkResponsesTest`: không đọc thông điệp, dòng `Network …` không có chữ của thông điệp); thông điệp chỉ ghi ở dòng lỗi tải, không qua `AdNetworkLog`.
 
 **Không bao gồm:**
 
+- Dòng `failed: 0 (request not built)`, dòng chỉ ghi tên lớp ngoại lệ (ADR-0019), dòng lỗi lúc hiện (`failed to show`): giữ nguyên.
 - Kiểm adapter có trong bản build sau R8 (KB-9 tiêu chí 2, câu hỏi 57 của spec): chờ trả lời câu hỏi đó.
 
 ## Rủi ro sơ bộ
 
-Chỉ đổi chuỗi log, không đổi cách nạp hay hiện quảng cáo. Chạm `:core:ads` (module core): plan chấm theo `risk-scoring.md`. Chờ spec `ads` được xác nhận lại (câu hỏi 58) trước khi viết plan.
+Không đổi cách nạp hay hiện quảng cáo, nhưng chạm `:core:ads` (điểm chặn 7 của `risk-scoring.md`) và dữ liệu lỗi của SDK có thể chứa mã đơn vị (gần điểm chặn 4): rủi ro cao. Nối thông điệp qua nhiều đường tải nên cỡ M. Chờ spec `ads` được xác nhận lại (câu hỏi 58) trước khi viết plan.
 
 ## Định nghĩa hoàn thành
 
