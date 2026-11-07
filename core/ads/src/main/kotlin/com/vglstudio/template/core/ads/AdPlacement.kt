@@ -7,8 +7,9 @@ package com.vglstudio.template.core.ads
  */
 enum class AdFormat(val code: String) {
     /**
-     * Fixed banner shown inside a screen with [AdSlot]. The SDK refreshes it at the rate set on its ad unit in AdMob
-     * (auto refresh on); the app only retries after a failure (B-02).
+     * Fixed banner shown inside a screen with [AdSlot]. :core:ads loads it again after each load every
+     * `time_reload_banner` seconds (60 s by default), retries after a failure (B-02); its ad unit has auto refresh off
+     * on AdMob and MAX.
      */
     BANNER("banner"),
 
@@ -73,8 +74,9 @@ enum class AdFormat(val code: String) {
     NATIVE_IN_COLLECTION("native_in_collection"),
 
     /**
-     * Banner of 300 x 250 dp placed in the content of a screen with [AdSlot], refreshed by its ad unit in AdMob like
-     * [BANNER] (B-08); never in the bottom bar, never a list row.
+     * Banner of 300 x 250 dp placed in the content of a screen with [AdSlot], loaded again by :core:ads every
+     * `time_reload_banner_mrec` seconds (60 s by default) like [BANNER] (B-08); never in the bottom bar, never a list
+     * row.
      */
     BANNER_MREC("banner_mrec"),
 }

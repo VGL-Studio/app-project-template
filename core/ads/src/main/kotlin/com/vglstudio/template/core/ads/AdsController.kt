@@ -88,8 +88,8 @@ import kotlinx.coroutines.withContext
  * and record their opportunity (P-07). A load of a pool logs `ad_placement = pool` (PL-02).
  *
  * Banners follow B-01 to B-06 (plan T-029): [AdSlot] keeps every send in one loop ([runBannerLoads]) that waits for
- * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads at the interval of
- * `time_reload_banner_collap` (B-03, KB-34).
+ * the screen to show and asks [mayRequestNow] right before it sends; every banner reloads by hand at the interval of
+ * its key: `time_reload_banner`, `time_reload_banner_collap`, `time_reload_banner_mrec` (B-02, B-03, B-08, KB-34).
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
  *
@@ -249,7 +249,8 @@ class AdsController @Inject internal constructor(
     /**
      * The reload interval of a layer, in milliseconds, from its key (KB-34, plan T-087): native small (bottom slot and
      * standalone slot) `time_reload_native_small`, the collapsible layer `time_reload_collap_ad`, the collapsible
-     * banner `time_reload_banner_collap`; 0 means no reload. One flow per format, read by [awaitReloadTick]. Another
+     * banner `time_reload_banner_collap`, the fixed banner (also the banner layer of a bottom bar) `time_reload_banner`,
+     * the MREC `time_reload_banner_mrec` (plan T-088); 0 means no reload. One flow per format, read by [awaitReloadTick]. Another
      * format throws [IllegalArgumentException]. Main thread only.
      */
     internal fun reloadIntervalMillis(format: AdFormat): StateFlow<Long> = reloadIntervals.getOrPut(format) {
@@ -257,6 +258,8 @@ class AdsController @Inject internal constructor(
             AdFormat.NATIVE_SMALL -> AdsGlobalFlags::nativeSmallReloadSeconds
             AdFormat.NATIVE_COLLAPSIBLE -> AdsGlobalFlags::collapReloadSeconds
             AdFormat.BANNER_COLLAPSIBLE -> AdsGlobalFlags::bannerCollapReloadSeconds
+            AdFormat.BANNER -> AdsGlobalFlags::bannerReloadSeconds
+            AdFormat.BANNER_MREC -> AdsGlobalFlags::bannerMrecReloadSeconds
             else -> throw IllegalArgumentException("$format has no reload key")
         }
         globalFlags.map { seconds(it) * 1_000 }

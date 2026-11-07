@@ -147,6 +147,21 @@ object AdsSettings {
             "an ad, 1 to 29 use 30, negative uses the default.",
     )
 
+    val TIME_RELOAD_BANNER = longKey(
+        name = "time_reload_banner",
+        default = 60L,
+        description =
+        "Time from a load of a fixed banner (also the banner of a bottom bar) to its reload, in seconds; " +
+            "0 means none once it has an ad, 1 to 29 use 30, negative uses the default.",
+    )
+
+    val TIME_RELOAD_BANNER_MREC = longKey(
+        name = "time_reload_banner_mrec",
+        default = 60L,
+        description = "Time from a load of an MREC banner to its reload, in seconds; 0 means none once it has an ad, " +
+            "1 to 29 use 30, negative uses the default.",
+    )
+
     val IS_ENABLE_CONSENT_SHORTCUT = booleanKey(
         name = "is_enable_consent_shortcut",
         default = false,
@@ -258,6 +273,8 @@ object AdsSettings {
         TIME_RELOAD_NATIVE_SMALL,
         TIME_RELOAD_COLLAP_AD,
         TIME_RELOAD_BANNER_COLLAP,
+        TIME_RELOAD_BANNER,
+        TIME_RELOAD_BANNER_MREC,
         IS_ENABLE_CONSENT_SHORTCUT,
         IS_LOG_AD_FULLSCREEN_EVENTS,
         IS_LOG_AD_SLOT_EVENTS,

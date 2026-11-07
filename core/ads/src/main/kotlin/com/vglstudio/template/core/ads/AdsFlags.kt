@@ -71,6 +71,10 @@ data class AdsGlobalFlags(
     val collapReloadSeconds: Long = 60,
     /** time_reload_banner_collap by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
     val bannerCollapReloadSeconds: Long = 30,
+    /** time_reload_banner by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val bannerReloadSeconds: Long = 60,
+    /** time_reload_banner_mrec by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val bannerMrecReloadSeconds: Long = 60,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */
@@ -119,6 +123,8 @@ internal class DefaultAdsFlags @Inject constructor(
             settings.value(AdsSettings.TIME_RELOAD_NATIVE_SMALL),
             settings.value(AdsSettings.TIME_RELOAD_COLLAP_AD),
             settings.value(AdsSettings.TIME_RELOAD_BANNER_COLLAP),
+            settings.value(AdsSettings.TIME_RELOAD_BANNER),
+            settings.value(AdsSettings.TIME_RELOAD_BANNER_MREC),
         ),
     ) { values ->
         val adsEnabled = values[0] as Boolean
@@ -143,6 +149,8 @@ internal class DefaultAdsFlags @Inject constructor(
             nativeSmallReloadSeconds = reload(values[16] as Long, AdsSettings.TIME_RELOAD_NATIVE_SMALL),
             collapReloadSeconds = reload(values[17] as Long, AdsSettings.TIME_RELOAD_COLLAP_AD),
             bannerCollapReloadSeconds = reload(values[18] as Long, AdsSettings.TIME_RELOAD_BANNER_COLLAP),
+            bannerReloadSeconds = reload(values[19] as Long, AdsSettings.TIME_RELOAD_BANNER),
+            bannerMrecReloadSeconds = reload(values[20] as Long, AdsSettings.TIME_RELOAD_BANNER_MREC),
         )
     }.distinctUntilChanged()
 

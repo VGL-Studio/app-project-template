@@ -305,6 +305,27 @@ class AdsFlagsTest {
     }
 
     @Test
+    fun bannerReloadKeys_rules() = runTest {
+        // Plan T-088, KB-34 criterion 2: nothing set, 60 s for the fixed banner and for the MREC.
+        val defaults = flags.global.first()
+        assertEquals(60L, defaults.bannerReloadSeconds)
+        assertEquals(60L, defaults.bannerMrecReloadSeconds)
+
+        // Control (L-055): each key is read by the rule of reloadSeconds (90 kept, 10 to 30, negative 60, 0 kept).
+        val keys = listOf<Pair<String, (AdsGlobalFlags) -> Long>>(
+            "time_reload_banner" to { it.bannerReloadSeconds },
+            "time_reload_banner_mrec" to { it.bannerMrecReloadSeconds },
+        )
+        keys.forEach { (name, read) ->
+            mapOf(90L to 90L, 10L to 30L, -1L to 60L, 0L to 0L).forEach { (remote, expected) ->
+                settings.set(name, remote)
+                assertEquals("$name=$remote", expected, read(flags.global.first()))
+            }
+            assertTrue(settings.readNames.toString(), name in settings.readNames)
+        }
+    }
+
+    @Test
     fun negativeSeconds_areReadAsZero() = runTest {
         // Control: the defaults before any value is set.
         assertEquals(45L, flags.global.first().adsIntervalSeconds)

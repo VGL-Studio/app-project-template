@@ -1,7 +1,7 @@
 ---
 ticket: T-087
 title: Nhịp làm mới native nhỏ, native thu gọn, banner thu gọn theo Remote Config
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -220,3 +220,15 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt"), sau khi xem tóm tắt plan và kết quả rà soát độc lập (vòng 1, rà lại 1, rà lại 2 vòng cuối: 0 chặn, 2 nên sửa, 4 ghi chú; đã sửa theo lời cho phép "Cho sửa theo đề xuất"). Trả lời câu hỏi ở mục 8 theo đề xuất của AI: (1) giữ 500 ms, nhịp đầu khe đáy là nhịp của `time_reload_native_small` cộng 500 ms khi có lớp; xét bỏ ở T-090 nếu cần; (2) thêm nhóm "Banner" sau "Thanh đáy" trong sheet Remote Config của `ads-plan.py`; (3) cảnh báo `time_reload_collap_ad` chỉ ghi ở `ads-guide.md`, không sửa `to-app.md`; (4) khóa về 0 trong lúc thử lại: native và banner thu gọn đã có quảng cáo thôi thử lại, giữ quảng cáo đang hiện; banner chưa từng có quảng cáo vẫn thử lại tới khi có. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261107-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #404, commit `ffc8b47` trên nhánh chính, 2026-11-07 14:32 UTC).
+- **Nhánh, PR:** `claude/T-087-nhip-lam-moi`, https://github.com/VGL-Studio/app-project-template/pull/404. Commit test `3859c3d` (có khung rỗng trong code), commit code `6be1801`, sửa theo rà soát `963f0e2`. Nhánh chưa xóa được sau merge (L-092): người xóa tay.
+- **Đã làm:** ba khóa nhịp làm mới (native nhỏ, lớp native thu gọn `time_reload_collap_ad`, banner thu gọn `time_reload_banner_collap`), luật giá trị trong `reloadSeconds`, `awaitReloadTick`, `reloadIntervalMillis(format)`, phần cộng thêm cho nhịp đầu của khe đáy, `runBannerLoads(reloadMillis)`, bỏ hai hằng nhịp cố định, bảng khóa sinh lại, `ads-plan.py` và test script, tài liệu theo bước 10. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-087`; N1 do phiên chính sửa.
+- **Test viết trước:** 28 test JVM và 3 test script đỏ đúng lý do trên khung rỗng. `bottomNativeSlot_withoutLayer_firstRefreshExtra0ms` qua ngay (cặp đối chứng như plan). 1 test viết chặt bằng đối chứng (`AdsFlagsTest.reloadKeys_defaults_60_60_30`). Test JVM mọi module ở bước 3: chỉ 28 test trên đỏ; `scripts/tests/run.sh`: chỉ 3 test mới đỏ.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 6 ghi chú; rà soát chạy năm đột biến, mỗi cái có test đỏ. N1 (`963f0e2`): `docs/ops/ads-guide.md` hai câu cũ về nhịp 30 giây và 60 giây viết lại theo khóa (tài liệu, file của mục 3.2, plan miễn test viết trước). Rà soát lại vòng 1: 0 chặn, 0 nên sửa, 1 ghi chú.
+- **Kết quả CI:** `pr-check` xanh vòng đầu (lần chạy 42381130162). `scripts/check.sh` cục bộ sau phần sửa: QUA, 1822 test JVM, 0 lỗi, không ảnh chuẩn nào đổi, test script qua.
+- **Lệch so với plan:** nối chữ ký với code của T-086 (`intervalMillis` không mặc định, `since` giữ; test của T-086 chỉ thêm `intervalMillis` vào phần dựng). Mô tả ba khóa rút ngắn vì giới hạn 256 ký tự của Firebase. `AdsFlags` chặn trên giá trị bằng `MAX_SECONDS` (tránh tràn số khi đổi ra mili giây). Chữ log `Native <khóa> refresh off, keeping ad` do AI đặt. Ngoài mục 3.2 (ADR-0029): `NativeSendGate.kt` chỉ KDoc "the 60 s refresh tick" thành "the refresh tick". Câu khẳng định cũ viết lại: tất cả trong mục 3.5; ba test đổi tên theo mục 3.5. Tệp test không đổi sau commit test.
+- **Việc còn lại:** bước kiểm tay trên Firebase staging của mục 4.
+- **Cần người xem:** chữ mới ở `ads-business-rules.md` mục 10.1 (luật giá trị, cảnh báo `time_reload_collap_ad`), CL-02 và `ads-guide.md` mục 9; ghi chú của rà soát trong PR #404.

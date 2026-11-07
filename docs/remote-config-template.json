@@ -181,9 +181,19 @@
       "description": "Time after the user collapses the collapsible native ad before it expands again, in seconds; 0 means never. Name set by the template, not an AdsKit key.",
       "valueType": "NUMBER"
     },
+    "time_reload_banner": {
+      "defaultValue": { "value": "60" },
+      "description": "Time from a load of a fixed banner (also the banner of a bottom bar) to its reload, in seconds; 0 means none once it has an ad, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key.",
+      "valueType": "NUMBER"
+    },
     "time_reload_banner_collap": {
       "defaultValue": { "value": "30" },
       "description": "Time from a load of a collapsible banner to its reload, in seconds; 0 means none once it has an ad, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key.",
+      "valueType": "NUMBER"
+    },
+    "time_reload_banner_mrec": {
+      "defaultValue": { "value": "60" },
+      "description": "Time from a load of an MREC banner to its reload, in seconds; 0 means none once it has an ad, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key.",
       "valueType": "NUMBER"
     },
     "time_reload_collap_ad": {

@@ -32,7 +32,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.ads.AdView
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -49,14 +48,15 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
 /**
  * Shows the banner of [placement] in a screen. Features call this, never an ads SDK directly.
  *
- * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0038), refreshed by the SDK at the
- *   rate of its ad unit in AdMob; the app only retries after a failure (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a
+ * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0038), loaded again by :core:ads after
+ *   each load at the interval of `time_reload_banner` (60 s by default; 0 keeps the banner), never by the refresh of
+ *   its ad unit; a failure is retried (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a
  *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads after each load at the interval
  *   of `time_reload_banner_collap` (30 s by default; 0 keeps the banner), each time as a new expanded banner (B-03,
  *   KB-34); place it at the bottom of the screen. Any other format throws
  *   [IllegalArgumentException]. The size comes from [bannerAdSize].
- * - [AdFormat.BANNER_MREC]: a 300 x 250 dp banner centred in the content of the screen, refreshed by its ad unit
- *   (B-08). Its frame keeps 250 dp while it loads and takes no space when a load fails before it had any ad (it still
+ * - [AdFormat.BANNER_MREC]: a 300 x 250 dp banner centred in the content of the screen, loaded again by :core:ads at
+ *   the interval of `time_reload_banner_mrec` (60 s by default; 0 keeps the banner; B-08). Its frame keeps 250 dp while it loads and takes no space when a load fails before it had any ad (it still
  *   retries); in a place narrower than 300 dp it is not shown at all.
  * - It takes no space until ads are allowed (consent given, placement switched on remotely, a unit id; B-01, B-04).
  *   The height is reserved before the ad loads, so the screen does not jump when it appears.
@@ -87,7 +87,7 @@ private fun BannerSlot(
     onAdAvailabilityChange: (Boolean) -> Unit = {},
     onHeight: (Dp) -> Unit = {},
 ) {
-    val refresh = bannerRefreshOf(format)
+    val collapsible = bannerRequestIsCollapsible(format)
     val ads = LocalAdsController.current
     if (ads == null) {
         Box(modifier = modifier)
@@ -101,10 +101,8 @@ private fun BannerSlot(
     // The platforms of the frame (plan T-071, KB-31): a new order or unit builds a new frame (question 7 of the plan).
     val platforms = remember(format, order, admobUnit, maxUnit) { bannerPlatforms(format, order, admobUnit, maxUnit) }
     val frameKey = remember(platforms, admobUnit, maxUnit) { bannerSlotUnitKey(platforms, admobUnit, maxUnit) }
-    // The reload interval by hand of a collapsible banner; a banner refreshed by its ad unit is never reloaded.
-    val reloadMillis = remember(format, refresh) {
-        if (refresh == BannerRefresh.MANUAL) ads.reloadIntervalMillis(format) else MutableStateFlow(0L)
-    }
+    // The reload interval by hand of the format: every banner is reloaded by :core:ads (B-02, B-03, B-08, KB-34).
+    val reloadMillis = remember(format) { ads.reloadIntervalMillis(format) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val visible = remember(lifecycle) { lifecycle.resumedFlow() }
     val currentOnHeight by rememberUpdatedState(onHeight)
@@ -135,7 +133,6 @@ private fun BannerSlot(
                 enabled = enabled,
                 unitId = frameKey,
                 heightDp = heightDp,
-                refresh = refresh,
                 visible = visible,
                 // The published flag: no gap while an interstitial hands over to its native ad (KB-27).
                 covered = ads.fullScreenAdShowing,
@@ -155,7 +152,7 @@ private fun BannerSlot(
                                 }
                                 SdkBannerAdView(
                                     adView = adView,
-                                    refresh = refresh,
+                                    collapsible = collapsible,
                                     placement = placement,
                                     unitId = id,
                                     telemetry = ads.telemetry,
@@ -212,7 +209,6 @@ internal fun BannerSlotHost(
     enabled: Boolean,
     unitId: String?,
     heightDp: Int,
-    refresh: BannerRefresh,
     visible: Flow<Boolean>,
     covered: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
@@ -246,12 +242,12 @@ internal fun BannerSlotHost(
     }
     val slotHeightDp = bannerSlotHeightDp(frame, kind, heightDp, failedBeforeAd)
     Box(modifier = modifier.height(slotHeightDp.dp), contentAlignment = Alignment.TopCenter) {
-        // One ad view per placement, refresh kind and ad unit: two placements may share a unit (staging test ids).
-        key(placementKey, refresh, unitId) {
+        // One ad view per placement key (placement and format of the layer) and ad unit: two placements may share a
+        // unit (staging test ids).
+        key(placementKey, unitId) {
             BannerFrameContent(
                 frame = frame,
                 heightDp = heightDp,
-                refresh = refresh,
                 visible = window,
                 mayRequestNow = mayRequestNow,
                 retryResets = retryResets,
@@ -277,7 +273,6 @@ internal fun BannerSlotHost(
 private fun BannerFrameContent(
     frame: BannerFrame,
     heightDp: Int,
-    refresh: BannerRefresh,
     visible: Flow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
@@ -314,7 +309,6 @@ private fun BannerFrameContent(
     LaunchedEffect(view, active) {
         if (active) {
             runBannerLoads(
-                refresh = refresh,
                 view = view,
                 visible = visible,
                 mayRequestNow = { currentMayRequestNow() },
@@ -333,7 +327,8 @@ private fun BannerFrameContent(
 
 /**
  * The banner slot of a bottom bar ([BottomAdBarScaffold], D-01): the fixed banner at the anchored adaptive size
- * (refreshed by the SDK, B-01, B-02, ADR-0038) as a layer of the bar's [placement], with the unit of [AdFormat.BANNER] for it; no unit (production without the `banner` slot key) sends
+ * (loaded again by :core:ads at the interval of `time_reload_banner`, B-01, B-02, ADR-0038) as a layer of the bar's
+ * [placement], with the unit of [AdFormat.BANNER] for it; no unit (production without the `banner` slot key) sends
  * nothing and takes no space (B-04). [onHeight] gets the frame's height for the space the bar keeps.
  */
 @Composable

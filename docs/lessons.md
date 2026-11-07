@@ -1065,8 +1065,9 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** PR #364 có `pr-check` xanh (lần chạy 41226424017). Lệnh của phiên chính gộp đọc kết quả `wait-run.sh` với `scripts/merge-if-green.sh 364` bị bộ phân loại quyền của auto mode từ chối, không nêu lý do ("The server-side auto mode classifier judged this action dangerous"). L-070 và L-081 chỉ nói về lệnh đẩy; `auto-run.md` bước 9 chỉ nói khi chính script từ chối ("dừng task, ghi lý do"), không nói khi môi trường chặn lệnh merge. Phiên làm theo cách gần nhất: không gọi lại, không merge cách khác, dừng task ở bước 9, giữ plan và ticket `approved` như "Khi không đẩy được" ý 3, báo người qua thông báo. Không chạy được `device-session` và `staging` vì không có task merge; PR báo cáo cũng cần `merge-if-green.sh` nên để người merge.
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 18:03; PR #364.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: thêm trường hợp "lệnh `merge-if-green.sh` của phiên bị môi trường từ chối": không gọi lại dưới dạng khác, dừng task với plan và ticket giữ `approved` (không phải lỗi của plan), không bắt đầu task phụ thuộc, ghi PR vào Cần người kiểm tra để người merge, và để PR báo cáo mở. Cân nhắc gọi `merge-if-green.sh` thành một lệnh riêng (không gộp với lệnh khác) để bộ phân loại thấy rõ việc merge là bước của danh sách chạy đã duyệt.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #376: `docs/auto-run.md` bước 9 (gọi `merge-if-green.sh` thành lệnh riêng; lệnh merge bị môi trường từ chối thì dừng task, giữ `approved`, để người merge, task độc lập làm tiếp, lệnh merge của task sau cũng bị từ chối thì kết thúc phiên), mục 4 (dòng mới của bảng Kết thúc phiên; ý 4, PR báo cáo).
+- **Kiểm chứng:** RUN-20261107-01: phiên chính gọi `scripts/merge-if-green.sh <số PR>` thành lệnh riêng cho cả bốn PR task (#402, #403, #404, #406); không lần nào bị bộ phân loại quyền từ chối, cả bốn merge ngay sau `wait-run.sh` xanh. Có hiệu quả.
 
 ### L-147. Lệnh nền không đặt `timeout` bị dừng sau 30 phút, kể cả `push-on-commit.sh --minutes 180`
 
@@ -1075,8 +1076,9 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên chính chạy nền `scripts/push-on-commit.sh claude/T-071-banner-mrec-max --minutes 180` mà không đặt `timeout` của công cụ; công cụ dừng lệnh sau giới hạn mặc định 30 phút (`killed`), dù script còn 150 phút. Không mất commit (hai commit đã đẩy trước đó), phiên chạy lại với `timeout` dài. Lệnh nền của công cụ có giới hạn tối đa khoảng 2 giờ, nên `--minutes` lớn hơn cũng bị cắt.
 - **Bằng chứng:** dòng thời gian của RUN-20261031-01, 17:13; đầu ra của lệnh nền kết thúc bằng `[killed]` sau dòng `ĐÃ ĐẨY ... tại f8c19bc (17:12Z)`.
 - **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con: chạy `push-on-commit.sh` nền với `timeout` của công cụ lớn hơn `--minutes` (tối đa 120 phút), và chạy lại khi nhận thông báo lệnh bị dừng mà phiên con chưa xong.
-- **Trạng thái:** applied
+- **Trạng thái:** verified
 - **Áp dụng:** PR #376: `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con (`push-on-commit.sh` nền với `timeout` lớn hơn `--minutes`, `--minutes` không quá 115, chạy lại khi bị dừng; cùng quy tắc cho mọi lệnh nền dài), mục Chờ workflow của bước 8 (mọi lệnh chờ chạy nền đặt `timeout` lớn hơn thời gian chờ của script) và `.claude/skills/merge-pr/SKILL.md` bước 3.
+- **Kiểm chứng:** RUN-20261107-01: `push-on-commit.sh --minutes 115` (và 90, 60) chạy nền với `timeout` của công cụ lớn hơn `--minutes` cho cả bốn task; không lần nào bị dừng giữa chừng, mọi commit của phiên con lên GitHub trong khoảng một phút. Có hiệu quả.
 
 ### L-148. Lệnh `rm -f $BIEN/*.bak` trong lệnh của plan bị bộ kiểm an toàn của môi trường chặn
 
@@ -1087,3 +1089,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan (cạnh ý về `${TMPDIR:-/tmp}` và `sleep`): lệnh đổi tạm tệp đã có trong git dùng `sed -i` không đuôi và trả về bằng `git checkout -- <tệp>`, không tạo rồi xóa tệp `.bak`; lệnh `rm` trong plan không dùng biến làm đích, hay dùng `"${BIEN:?}"`. Cân nhắc thêm quy tắc vào `scripts/plan-check.py` dò `rm` có đích bắt đầu bằng `$`.
 - **Trạng thái:** applied
 - **Áp dụng:** PR #376: `docs/CLAUDE.md`, mục Khi viết plan (đổi tạm tệp bằng `perl -pi -e` với `\Q...\E` và kiểm `git diff --stat`, hay `sed -i` không đuôi trên Linux, rồi `git checkout`, `rm` không dùng biến làm đích); không thêm quy tắc vào `scripts/plan-check.py` (lệnh trong plan là chữ tự do, dò `rm $` dễ báo nhầm; để sau nếu lặp lại).
+
+### L-149. `merge-if-green.sh` báo "không xóa được nhánh" dù GitHub đã tự xóa nhánh sau merge
+
+- **Ngày, nguồn:** 2026-11-07, RUN-20261107-01 (PR #402, #403, #404, #406)
+- **Loại, phạm vi:** script, dự án mẫu
+- **Chuyện gì:** sau cả bốn lần merge của phiên, `scripts/merge-if-green.sh` in `CHÚ Ý: không xóa được nhánh '<nhánh>' sau khi merge; người xóa tay để số nhánh không tăng (L-092).` Repo đã bật "Automatically delete head branches", nên GitHub tự xóa nhánh: lúc kiểm sau đó `git ls-remote --heads origin 'claude/T-08*'` chỉ còn nhánh của PR vừa merge (chưa kịp xóa), ba nhánh trước đã mất. Cảnh báo sai làm người đọc báo cáo tưởng phải dọn tay, và báo cáo phiên phải giải thích lại.
+- **Bằng chứng:** đầu ra của bốn lần `merge-if-green.sh` (dòng thời gian của RUN-20261107-01, 11:49, 13:31, 14:32, 15:44); `git ls-remote --heads origin` còn 6 nhánh lúc 15:35.
+- **Đề xuất sửa:** `scripts/merge-if-green.sh`: khi lệnh xóa nhánh bị proxy từ chối, đọc lại nhánh vài lần trong khoảng ngắn (ví dụ 3 lần, mỗi 5 giây) trước khi cảnh báo; nhánh đã mất thì không in gì. Thêm test của script với nhánh mất ở lần đọc thứ hai.
+- **Trạng thái:** proposed
