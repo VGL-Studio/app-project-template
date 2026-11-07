@@ -144,6 +144,17 @@ internal class NativeAdSource(
         closedCount.value += 1
     }
 
+    /**
+     * The slots of [placement] stop (it was switched off, the stock stays open for another placement): their waiting
+     * claims get [NativeClaim.Blocked] at once; the load they waited on goes on, its ad for the stock.
+     */
+    fun release(placement: AdPlacement) {
+        val gone = waiters.filter { it.placement == placement }
+        if (gone.isEmpty()) return
+        waiters.removeAll(gone)
+        gone.forEach { it.continuation.resume(NativeClaim.Blocked) }
+    }
+
     /** One ad for one showing by a slot of [placement]; see the class rules. */
     suspend fun claim(use: NativeLoadUse, placement: AdPlacement): NativeClaim {
         if (!allowed(placement)) return NativeClaim.Blocked

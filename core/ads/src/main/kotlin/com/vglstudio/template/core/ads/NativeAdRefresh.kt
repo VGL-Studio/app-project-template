@@ -40,8 +40,9 @@ internal fun refreshingNativeAdStates(
     logger: AppLogger,
     placementKey: String,
     firstTickDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+    /** The value of [stopped] when the slot came on screen: a stop before the first ad ends the refresh too. */
+    since: Long = stopped.value,
 ): Flow<NativeAdState> = flow {
-    val since = stopped.value
     fun isClosed() = stopped.value != since
     var shown = first.ad
     try {

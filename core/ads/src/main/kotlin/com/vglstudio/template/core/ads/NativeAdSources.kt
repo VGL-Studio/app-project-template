@@ -120,11 +120,12 @@ internal class NativeAdSources(
         (key.format != AdFormat.NATIVE_COLLAPSIBLE || flags.showNativeCollap)
 
     private fun onChanged(switches: List<Boolean>, consent: Boolean, flags: AdsGlobalFlags) {
-        users.zip(switches).forEach { (placement, on) ->
+        val stopping = users.zip(switches).mapNotNull { (placement, on) ->
             enabledNow[placement] = on
             val allowed = on && consent
-            if (!allowed && allowedNow[placement] != false) stopsOf(placement).value += 1
+            val stopsNow = !allowed && allowedNow[placement] != false
             allowedNow[placement] = allowed
+            placement.takeIf { stopsNow }
         }
         stocks.forEach { (key, stock) ->
             if (mayOpen(key, consent, flags)) {
@@ -133,6 +134,14 @@ internal class NativeAdSources(
                 stock.shutDown()
             }
         }
+        // After the closes: a closed stock already gave its waiters NoAd; an open one blocks those of the placement.
+        stopping.forEach(::stop)
+    }
+
+    /** Stops the slots of [placement]: [stopped] moves, and their claims waiting on a stock end. */
+    private fun stop(placement: AdPlacement) {
+        stopsOf(placement).value += 1
+        stocks.values.forEach { it.release(placement) }
     }
 
     /**
@@ -220,6 +229,8 @@ internal fun singleAdSlotStates(
     placementKey: String,
     firstTickDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
 ): Flow<NativeAdState> = flow {
+    // Read once, before the first claim: a stop while the slot waits still ends its refresh.
+    val since = stopped.value
     source.attach()
     try {
         emitAll(
@@ -243,6 +254,7 @@ internal fun singleAdSlotStates(
                         logger,
                         placementKey,
                         firstTickDelayMillis,
+                        since,
                     )
                 },
             ),
