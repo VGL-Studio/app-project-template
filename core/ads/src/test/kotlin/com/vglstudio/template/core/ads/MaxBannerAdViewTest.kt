@@ -25,8 +25,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The banner of AppLovin MAX (plan T-071, KB-31): built lazily on its first send (G2), callbacks as results, pause and
- * resume as the auto refresh of MAX, load metrics and clicks through [AdTelemetry], no ad unit in a log line; and the
+ * The banner of AppLovin MAX (plan T-071, KB-31): built lazily on its first send (G2), callbacks as results, no auto
+ * refresh of MAX (plan T-088), load metrics and clicks through [AdTelemetry], no ad unit in a log line; and the
  * real `MaxAdView` built in the JVM.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -95,15 +95,16 @@ class MaxBannerAdViewTest {
     }
 
     @Test
-    fun pauseResume_mapToAutoRefresh() {
+    fun pauseStops_resumeNeverStartsAutoRefresh() {
+        // Plan T-088, section 3.5: MAX never refreshes by itself; running the frame again does not start it.
         val view = banner()
         view.send()
+        val stops = sdk.stopCount
         view.pause()
-        assertEquals(1, sdk.stopCount)
-        assertEquals(0, sdk.startCount)
+        assertEquals(stops + 1, sdk.stopCount)
         view.resume()
-        assertEquals(1, sdk.startCount)
-        assertEquals(1, sdk.stopCount)
+        assertEquals(0, sdk.startCount)
+        assertEquals(stops + 1, sdk.stopCount)
         // Neither sends a request.
         assertEquals(1, sdk.loadCount)
     }
@@ -173,22 +174,29 @@ class MaxBannerAdViewTest {
     }
 
     @Test
-    fun pauseBeforeBuild_stopsRightAfterBuild() {
+    fun newView_stopsAutoRefreshAroundFirstLoad_pausedOrNot() {
+        // Plan T-088, section 3.5: a MAX view never refreshes by itself, built while the frame is paused or running.
+        val stopAroundLoad = listOf(
+            FakeMaxBannerSdkView.BUILD,
+            FakeMaxBannerSdkView.STOP,
+            FakeMaxBannerSdkView.LOAD,
+            FakeMaxBannerSdkView.STOP,
+        )
         val view = banner()
         view.pause()
         view.send()
-        assertEquals(
-            listOf(FakeMaxBannerSdkView.BUILD, FakeMaxBannerSdkView.LOAD, FakeMaxBannerSdkView.STOP),
-            sdk.calls.filter { it != FakeMaxBannerSdkView.CALLBACKS },
-        )
+        assertEquals(stopAroundLoad, sdk.calls.filter { it != FakeMaxBannerSdkView.CALLBACKS })
+        assertEquals(0, sdk.startCount)
 
-        // Control: with no pause before, the build is followed by loadAd only.
+        // Control: a view built while the frame runs stops the same way; its next send is one more load.
         val other = FakeMaxBannerSdkView()
-        banner(sdkView = other).send()
-        assertEquals(
-            listOf(FakeMaxBannerSdkView.BUILD, FakeMaxBannerSdkView.LOAD),
-            other.calls.filter { it != FakeMaxBannerSdkView.CALLBACKS },
-        )
+        val running = banner(sdkView = other)
+        running.send()
+        assertEquals(stopAroundLoad, other.calls.filter { it != FakeMaxBannerSdkView.CALLBACKS })
+        val loads = other.loadCount
+        running.send()
+        assertEquals(loads + 1, other.loadCount)
+        assertEquals(0, other.startCount)
     }
 
     @Test

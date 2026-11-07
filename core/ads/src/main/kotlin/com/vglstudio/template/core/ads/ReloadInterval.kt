@@ -21,7 +21,8 @@ internal fun reloadSeconds(raw: Long, defaultSeconds: Long): Long = when {
 
 /**
  * Waits for the next reload tick of a slot whose interval is [intervalMillis] (KB-34, criterion 3), the one wait of
- * every reload by key (native refresh, collapsible banner reload):
+ * every reload by key (native refresh of the small slot and the collapsible layer, reload by hand of the fixed,
+ * collapsible and MREC banners):
  *
  * - The value read when a count starts sets it, plus [extraMillis]; a new positive value that comes meanwhile applies
  *   from the next count, the one under way is not set again.

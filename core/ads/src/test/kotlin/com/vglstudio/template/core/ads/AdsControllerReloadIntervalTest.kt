@@ -118,6 +118,26 @@ class AdsControllerReloadIntervalTest {
     }
 
     @Test
+    fun bannerLayers_followTheirKeys() {
+        // Plan T-088, KB-34 criterion 1: the fixed banner (also the banner layer of a bottom bar) and the MREC read
+        // their own key.
+        settings.set(TIME_RELOAD_BANNER, 45L)
+        settings.set(TIME_RELOAD_BANNER_MREC, 90L)
+        settings.set(TIME_RELOAD_BANNER_COLLAP, 50L)
+        start()
+
+        assertEquals(45_000L, controller.reloadIntervalMillis(AdFormat.BANNER).value)
+        assertEquals(90_000L, controller.reloadIntervalMillis(AdFormat.BANNER_MREC).value)
+        // Control (L-055): the collapsible banner keeps its own key.
+        assertEquals(50_000L, controller.reloadIntervalMillis(AdFormat.BANNER_COLLAPSIBLE).value)
+
+        settings.set(TIME_RELOAD_BANNER, 0L)
+        idle()
+        assertEquals(0L, controller.reloadIntervalMillis(AdFormat.BANNER).value)
+        assertEquals(90_000L, controller.reloadIntervalMillis(AdFormat.BANNER_MREC).value)
+    }
+
+    @Test
     fun nativeSmallSlot_keyChangedOnScreen_nextTickUsesNew() {
         start()
         show { NativeAdSlot(AdPlacement.GALLERY_NATIVE_SMALL) }
@@ -181,5 +201,7 @@ class AdsControllerReloadIntervalTest {
         val TIME_RELOAD_NATIVE_SMALL = RemoteKey.long("time_reload_native_small", 0L, "Test key.")
         val TIME_RELOAD_COLLAP_AD = RemoteKey.long("time_reload_collap_ad", 0L, "Test key.")
         val TIME_RELOAD_BANNER_COLLAP = RemoteKey.long("time_reload_banner_collap", 0L, "Test key.")
+        val TIME_RELOAD_BANNER = RemoteKey.long("time_reload_banner", 0L, "Test key.")
+        val TIME_RELOAD_BANNER_MREC = RemoteKey.long("time_reload_banner_mrec", 0L, "Test key.")
     }
 }
