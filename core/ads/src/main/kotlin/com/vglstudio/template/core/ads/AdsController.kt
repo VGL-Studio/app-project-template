@@ -1699,9 +1699,9 @@ class AdsController @Inject internal constructor(
      * the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
      * (T-023). A native small slot or collapsible layer ([usesSingleAdSource]) claims its ad from its stock (plan
      * T-086) and replaces it in place every 60 s in foreground, the first time [firstRefreshDelayMillis] after the
-     * first ad (plan T-040);
-     * a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats keep their ad, destroyed
-     * when the collection is cancelled. The caller checks consent and [isEnabled] first, like [NativeAdSlot].
+     * first ad (plan T-040); a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats
+     * keep their ad, destroyed when the collection is cancelled. The caller checks consent and [isEnabled] first, like
+     * [NativeAdSlot].
      */
     internal fun nativeAd(
         placement: AdPlacement,
