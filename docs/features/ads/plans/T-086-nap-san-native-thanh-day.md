@@ -1,16 +1,16 @@
 ---
 ticket: T-086
 title: Kho nạp sẵn cho native nhỏ và native thu gọn
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 30.0M        # cỡ L, số gợi ý 30.0M (tạm, chưa đủ 5 task L) của scripts/token-usage.py estimate (2026-11-06); không chỉnh
 blocking_points: [ads, analytics, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-07
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -91,7 +91,7 @@ Theo mẫu có sẵn: `NativeAdPools` (kho theo `NativePoolKey`, khe kế hoạc
    - Làm mới của khe lấy từ kho; kho rỗng thì lượt nạp `REFRESH` của khe (vị trí của khe), như hôm nay.
    - Doanh thu, bấm, lượt hiển thị: vị trí của khe đã lấy quảng cáo (`holder`), kể cả khi lượt nạp ghi `preload` hay vị trí khác.
 6. **Không đổi:** `CollapsibleNativeAdLayer`, `BottomNativeSlot`, `NativeAdSlot` (vẫn gọi `ads.nativeAd(...)`), vòng làm mới `refreshingNativeAdStates` (vẫn lấy từ nguồn, nay là kho: quảng cáo chờ của lớp thu gọn là quảng cáo của kho), trễ 500 ms của khe đáy, `af_native_ad_eligible` (khe báo khi vào màn, không tính nạp sẵn). Lý do giữ vòng làm mới qua kho: hôm nay quảng cáo chờ của nguồn đã là "cái kế"; tách một chỗ giữ thứ hai sẽ sinh hai chỗ cùng giữ quảng cáo (rủi ro ticket nêu).
-7. **Tài liệu luật** (`ads-business-rules.md`, không ghi mã ticket, ADR-0044): S-22 (mặc định hai nhóm: app open và bước đầu luồng, rồi mọi khe còn lại, kể cả hai kho native; câu "Mặc định một nhóm gồm mọi khe" đã lệch code), HD-02 (kế hoạch mặc định có hai kho ở nhóm sau), O-01 và O-03 (ngoại lệ của kho: quảng cáo trong kho và lượt nạp của kho đang bay không bị hủy khi rời màn), D-07 (thêm một mệnh đề ngắn sau "yêu cầu đang bay theo O-03": "lượt của kho nạp sẵn giữ theo ngoại lệ của O-03"; phần còn lại của D-07 để T-090, mục 6), O-04 (kho hẹn mốc 55 phút), mục 5.7 (cột Nguồn quảng cáo: kho theo mã đơn vị), CL-01 (quảng cáo đầu lấy từ kho nếu có, không chờ), mục 8.2 (Vị trí của lượt nạp: lượt kho tự chạy ghi `preload`). `ads-guide.md`: mục 4 (đoạn "nguồn chung của vị trí" thành kho theo mã đơn vị; production: mỗi vị trí native nhỏ một mã, app muốn mọi màn dùng chung một kho thì đặt cùng một mã), mục 6 "Nạp sẵn và nạp lại" (hai kho trong kế hoạch, log mới), mục 8 (log nạp sẵn của staging: nhóm 2 có `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE`). `docs/ops/to-app.md` không cần sửa: app đồng bộ không phải làm gì thêm (mã đơn vị không đổi khóa).
+7. **Tài liệu luật** (`ads-business-rules.md`, không ghi mã ticket, ADR-0044): S-22 (mặc định hai nhóm: app open và bước đầu luồng, rồi mọi khe còn lại, kể cả hai kho native; câu "Mặc định một nhóm gồm mọi khe" đã lệch code), HD-02 (kế hoạch mặc định có hai kho ở nhóm sau; điều kiện nạp của kho theo KB-33 tiêu chí 6: ngoài cổng đồng ý, vị trí bật và gói bỏ quảng cáo, kho `native_small` chỉ nạp khi `is_show_native_bottom` bật hoặc có khe native nhỏ đang trên màn; kho `native_collap` chỉ nạp khi thanh đáy là native và lớp thu gọn bật), O-01 và O-03 (ngoại lệ của kho: quảng cáo trong kho và lượt nạp của kho đang bay không bị hủy khi rời màn), D-07 (thêm một mệnh đề ngắn sau "yêu cầu đang bay theo O-03": "lượt của kho nạp sẵn giữ theo ngoại lệ của O-03"; phần còn lại của D-07 để T-090, mục 6), O-04 (kho hẹn mốc 55 phút), mục 5.7 (cột Nguồn quảng cáo: kho theo mã đơn vị), CL-01 (quảng cáo đầu lấy từ kho nếu có, không chờ), mục 8.2 (Vị trí của lượt nạp: lượt kho tự chạy ghi `preload`). `ads-guide.md`: mục 4 (đoạn "nguồn chung của vị trí" thành kho theo mã đơn vị; production: mỗi vị trí native nhỏ một mã, app muốn mọi màn dùng chung một kho thì đặt cùng một mã), mục 6 "Nạp sẵn và nạp lại" (hai kho trong kế hoạch, log mới), mục 8 (log nạp sẵn của staging: nhóm 2 có `NATIVE_SMALL`, `NATIVE_COLLAPSIBLE`). `docs/ops/to-app.md` không cần sửa: app đồng bộ không phải làm gì thêm (mã đơn vị không đổi khóa).
 
 ### 3.2. Danh sách file
 
@@ -112,7 +112,7 @@ Theo mẫu có sẵn: `NativeAdPools` (kho theo `NativePoolKey`, khe kế hoạc
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdPreloaderTest.kt` | Test `activityResumed_refillsStocks` |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FakeNativeAds.kt` | Bộ nạp giả ghi vị trí của từng lượt nạp và trả `PlacementCell` (dùng chung cho test mới) |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerNativeStockTest.kt` | Test Robolectric trên `AdsController` thật với bộ nạp native giả (`nativeLoaderForTest`), cách dựng như `AdsControllerInScreenWindowTest` (mục 4) |
-| Sửa | `docs/ops/ads-business-rules.md` | S-22, HD-02, O-01, O-03, D-07 (một mệnh đề), O-04, mục 5.7, CL-01, mục 8.2 (mục 3.1 bước 7) |
+| Sửa | `docs/ops/ads-business-rules.md` | S-22, HD-02 (kèm điều kiện nạp của hai kho, KB-33 tiêu chí 6), O-01, O-03, D-07 (một mệnh đề), O-04, mục 5.7, CL-01, mục 8.2 (mục 3.1 bước 7) |
 | Sửa | `docs/ops/ads-guide.md` | Mục 4, mục 6 (Nạp sẵn và nạp lại), mục 8 (mục 3.1 bước 7) |
 | Sửa | `docs/features/ads/tickets/T-086-nap-san-native-thanh-day.md` | `status: planned`, `plan:` (khi tạo plan); phiên ghi trạng thái theo `auto-run.md` |
 
@@ -247,8 +247,10 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt", rồi "Sửa spec trước", "xác nhận KB-33", "cho sửa T-086"), sau khi xem tóm tắt plan và kết quả rà soát độc lập (vòng 1, rà lại 1, rà lại 2 vòng cuối: 1 chặn, 4 nên sửa, 4 ghi chú; đã sửa theo lời cho phép "Cho sửa theo đề xuất"). Trả lời câu hỏi ở mục 8: (1) theo đề xuất của AI: kho `native_small` nạp khi có khe đang trên màn hoặc khi `is_show_native_bottom` bật; spec `ads` đã sửa KB-33 (tiêu chí 6 thêm điều kiện nạp, ghi chú đổi ở tiêu chí 3, 5, câu hỏi 56) và anh Nhật đã xác nhận lại ngày 2026-11-07 trước khi duyệt; mục 3.1 bước 7 và mục 3.2 thêm điều kiện nạp này vào HD-02 của `ads-business-rules.md` (theo lời cho phép "cho sửa T-086", phát hiện khi rà soát PR spec); (2) mọi lượt kho tự chạy ghi `preload`; (3) lỗi của lượt kho tự chạy không hẹn thử lại riêng; (4) giữ một plan, không tách ticket; câu 2 tới 4 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
