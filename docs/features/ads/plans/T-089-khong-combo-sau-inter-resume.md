@@ -1,16 +1,16 @@
 ---
 ticket: T-089
 title: Inter khi quay lại app không nối native toàn màn hình
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 7.2M         # cỡ S, số gợi ý 7.2M của scripts/token-usage.py estimate (2026-11-06, trung vị 19 task S); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-07
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -298,8 +298,10 @@ Không cần (E dưới 2). Không chạy test tạm: máy soạn plan chưa có
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt"), sau khi xem tóm tắt plan, kết quả rà soát độc lập và bốn câu hỏi ở mục 8 kèm đề xuất của AI. Trả lời câu hỏi theo đề xuất của AI: (1) giữ tham số `combo`, lượt resume truyền `false` (phương án A); (2) đổi mô tả khóa `is_show_native_after_inter` và sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json`; (3) bỏ `is_show_native_after_inter` khỏi dòng "Quảng cáo khi quay lại app" của `docs/ops/ads-guide.md`; (4) KB-16 tiêu chí 8 chỉ áp cho inter của vị trí trong app; ghi chú đổi vào spec làm bằng một PR tài liệu riêng, ngoài phiên tự chạy. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
