@@ -1,16 +1,16 @@
 ---
 ticket: T-087
 title: Nhịp làm mới native nhỏ, native thu gọn, banner thu gọn theo Remote Config
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 22.2M        # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-11-06, trung vị 22 task M); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-07
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -203,8 +203,10 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt"), sau khi xem tóm tắt plan và kết quả rà soát độc lập (vòng 1, rà lại 1, rà lại 2 vòng cuối: 0 chặn, 2 nên sửa, 4 ghi chú; đã sửa theo lời cho phép "Cho sửa theo đề xuất"). Trả lời câu hỏi ở mục 8 theo đề xuất của AI: (1) giữ 500 ms, nhịp đầu khe đáy là nhịp của `time_reload_native_small` cộng 500 ms khi có lớp; xét bỏ ở T-090 nếu cần; (2) thêm nhóm "Banner" sau "Thanh đáy" trong sheet Remote Config của `ads-plan.py`; (3) cảnh báo `time_reload_collap_ad` chỉ ghi ở `ads-guide.md`, không sửa `to-app.md`; (4) khóa về 0 trong lúc thử lại: native và banner thu gọn đã có quảng cáo thôi thử lại, giữ quảng cáo đang hiện; banner chưa từng có quảng cáo vẫn thử lại tới khi có. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
