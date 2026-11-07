@@ -1,7 +1,7 @@
 ---
 ticket: T-088
 title: Banner cố định và MREC (AdMob và MAX) tải lại theo Remote Config
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -223,3 +223,15 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt"), sau khi xem tóm tắt plan và kết quả rà soát độc lập (vòng 1, rà lại 1, rà lại 2 vòng cuối: 0 chặn, 3 nên sửa, 6 ghi chú; đã sửa theo lời cho phép "Cho sửa theo đề xuất"). Trả lời câu hỏi ở mục 8: (1) anh Nhật chọn "Bỏ bước thử, duyệt luôn": không thử MAX trên máy trước khi duyệt; kiểm MAX tay sau merge (mục 4), không được thì mở plan phiên bản mới; (2) theo đề xuất của AI: lượt nạp lại lỗi khi quảng cáo cũ còn hiện thử lại theo B-02; chấp nhận hệ quả của phương án (b) (đơn vị AdMob chưa tắt tự làm mới mà khóa là 0 thì lượt tự làm mới lỗi vẫn thử lại); (3) phương án (a): không đụng ADR-0045 trong ticket này, ghi trong mô tả PR rằng mục 8.1 lệch nhưng mục 1.2 phân xử. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261107-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #406, commit `4a4d67d` trên nhánh chính, 2026-11-07 15:44 UTC).
+- **Nhánh, PR:** `claude/T-088-banner-tai-lai`, https://github.com/VGL-Studio/app-project-template/pull/406. Commit test `d5bcf05` (có khung rỗng trong code), code `85635fc`, tài liệu `c065961`, sửa test script `8af03b3`, sửa theo rà soát `eedcdc0`.
+- **Đã làm:** banner cố định và MREC nạp lại tay theo `time_reload_banner`, `time_reload_banner_mrec` (mặc định 60 giây), `reloadIntervalMillis` cho mọi định dạng banner, `bannerRequestIsCollapsible` thay `bannerRefreshOf`, MAX không tự làm mới, kết quả tự làm mới của đơn vị AdMob tới lúc chờ nhịp vẫn được nghe, bảng khóa sinh lại, `ads-plan.py` và 2 test script, tài liệu theo bước 10. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-088`; N1 do phiên chính sửa.
+- **Test viết trước:** 27 test JVM mới hay viết lại và 2 test script. 25 test JVM đỏ đúng lý do trên khung rỗng; 4 test qua ngay như plan nói, 3 trong số đó có đột biến đỏ (`reloadSends_eachHasLatency`, `fixedAndMrecReloads_haveNoCollapsibleExtras`, `otherPlacementSameUnit_newView`). Test JVM mọi module ở bước 3: chỉ đỏ ở `:core:ads` (gồm 13 test có sẵn của banner thu gọn đỏ tạm vì khung rỗng, qua lại sau code); `scripts/tests/run.sh`: chỉ 2 test mới đỏ.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 12 ghi chú; ba đột biến của rà soát đều có test đỏ. N1 (`eedcdc0`): B-02 thêm hệ quả đã duyệt ở câu hỏi 2 (chuỗi thử lại mở từ lỗi tự làm mới gửi tiếp kể cả khi khóa 0; tắt tự làm mới của đơn vị là bắt buộc). Rà soát lại vòng 1: 0 chặn, 0 nên sửa, 2 ghi chú.
+- **Kết quả CI:** `pr-check` xanh vòng đầu (lần chạy 42386721965). `scripts/check.sh` cục bộ sau phần sửa: QUA, 1842 test JVM, 0 lỗi, không ảnh chuẩn nào đổi.
+- **Lệch so với plan:** cách đọc mục 3.1 bước 2 "lượt thử lại sinh từ `Failed` tới lúc chờ nhịp" là cả chuỗi tới `Loaded` kế (đọc theo từng `Failed` làm đỏ 2 trong 6 test có sẵn mà plan buộc giữ; rà soát tự đọc ra cùng cách hiểu). `reload_bothFail_shownChildKept_oneFailure` kiểm `showing` bằng `pause()`/`resume()` thay vì vẽ `Content` (cách quan sát tương đương). Thay đổi file test sau commit test: `scripts/tests/run.sh` (`8af03b3`), câu tìm `"time_reload_banner "` không khớp dòng đúng chữ plan; đổi cách so, cùng điều kiểm, vẫn đỏ với nhánh chính. Mô tả hai khóa do AI đặt. Sửa thêm trong file của mục 3.2 (`ads-plan.md` dòng Hằng số, ví dụ log, KDoc). Câu khẳng định cũ viết lại: tất cả trong mục 3.5; năm test đổi tên theo mục 3.5. Không có file ngoài mục 3.2.
+- **Việc còn lại:** kiểm MAX nạp tay trên máy có mã MAX; kiểm log `reload in 60000 ms` của banner cố định và MREC trên staging; ADR-0045 mục 8.1 lệch theo phương án (a).
+- **Cần người xem:** cách đọc chuỗi thử lại ở trên; câu mới của B-02.
