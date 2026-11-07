@@ -720,6 +720,29 @@ class NativeAdSourcesTest {
     }
 
     @Test
+    fun placementOff_slotWaitingOnSharedStock_endsWithoutAd_adKept() = runTest {
+        val sources = newSources(placements = listOf(PLACEMENT, OTHER))
+        val (states, job) = collectSlot(sources, PLACEMENT)
+        assertEquals(1, loads.sent.size)
+
+        // The placement of the slot is switched off while its first load flies; the other one of the stock is on.
+        enabledOf(PLACEMENT).value = false
+        runCurrent()
+        val ad = deliver()
+
+        assertTrue(job.isCompleted)
+        assertFalse(states.any { it is NativeAdState.Loaded })
+        assertEquals(NativeAdState.Unavailable, states.last())
+        // The ad is not lost: the stock keeps it, and a slot of the placement still on takes it at once.
+        assertSame(ad, sources.source(PLACEMENT).pending)
+        assertEquals(0, ad.destroyCount)
+        val (other, _) = collectSlot(sources, OTHER)
+        assertSame(ad, (other.last() as NativeAdState.Loaded).ad)
+        // Then only the next load of the stock, after that claim.
+        assertEquals(2, loads.sent.size)
+    }
+
+    @Test
     fun preloadFill_inBackground_waitsForForeground() = runTest {
         globalFlags.value = COLLAP_ON_FLAGS
         foreground.value = false
