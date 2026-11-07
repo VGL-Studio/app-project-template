@@ -743,6 +743,28 @@ class NativeAdSourcesTest {
     }
 
     @Test
+    fun stockLogs_holdNoUnitId_ofStock() = runTest {
+        globalFlags.value = COLLAP_ON_FLAGS
+        val sources = newSources()
+        sources.preloadSlots(AdFormat.NATIVE_SMALL).single().loadIfNeeded()
+        runCurrent()
+        deliver()
+        val (_, job) = collectSlot(sources)
+        deliver()
+        job.cancel()
+        runCurrent()
+        at(NativeAdPolicy.MAX_AGE_MILLIS)
+
+        val messages = logger.entries.map { it.message }
+        // Control (L-055): the stock did log its preload, the slot leaving and the expiry.
+        assertTrue(messages.toString(), messages.any { it.endsWith(" preload") })
+        assertTrue(messages.toString(), messages.any { it.endsWith(" kept after last slot left") })
+        assertTrue(messages.toString(), messages.any { it.endsWith(" expired") })
+        // The ad units of this test are "unit-<format code>": none is ever logged (ADR-0019).
+        assertFalse(messages.toString(), messages.any { it.contains("unit-") })
+    }
+
+    @Test
     fun preloadFill_inBackground_waitsForForeground() = runTest {
         globalFlags.value = COLLAP_ON_FLAGS
         foreground.value = false
