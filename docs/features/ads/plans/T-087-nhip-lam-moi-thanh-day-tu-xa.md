@@ -1,22 +1,24 @@
 ---
 ticket: T-087
 title: Nhịp làm mới native nhỏ, native thu gọn, banner thu gọn theo Remote Config
-status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+status: draft                # draft | approved | stopped | done
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 22.2M        # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-11-06, trung vị 22 task M); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer: Nhật               # người duyệt
-cross_reviewer: Nhật         # bắt buộc khi risk_level là high
-approved_at: 2026-11-07
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
 # PLAN T-087: NHỊP LÀM MỚI NATIVE NHỎ, NATIVE THU GỌN, BANNER THU GỌN THEO REMOTE CONFIG
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-11-07).** Bản 1 đã duyệt ngày 2026-11-07 (anh Nhật). Rà soát độc lập danh sách chạy RUN-20261107-01 thấy (1) chặn: test viết trước `NativeAdRefreshTest.skippedTick_nextCountUsesLatestValue` mong nhịp sau lúc 150 giây, trái mục 3.1 bước 3, 4 (lần chờ sau bắt đầu từ nhịp bị bỏ và đọc giá trị lúc bắt đầu; giá trị dương mới tới giữa chừng áp từ lần đếm sau) và hai test `positiveChangedMidCount_currentTickKept_nextUsesNew`, `intervalChangedOnScreen_appliesFromNextTick`; (2) phần dựng của `AdsControllerReloadIntervalTest.collapsibleLayer_refreshesAtCollapKey_staysCollapsed` thiếu `is_show_native_bottom` bật (mặc định tắt, thanh đáy là banner, không có lớp thu gọn) và `time_expand_collap_ad = 0` (mặc định 10 giây, lớp tự bung lại trước 45 giây). Thay đổi so với bản 1: sửa kỳ vọng của test (1) theo luật hiện có của plan (nhịp lúc 120 giây, nhịp kế lúc 210 giây), thêm hai giá trị vào phần dựng của test (2); luật và các bước của mục 3.1 không đổi. Câu hỏi 1 tới 4 ở mục 8 đã có trả lời ở phiên bản 1 và giữ nguyên.
 
 Hai hằng số nhịp, `NativeAdPolicy.REFRESH_INTERVAL_MILLIS` (dùng chung cho native nhỏ và lớp thu gọn) và `COLLAPSIBLE_BANNER_RELOAD_MILLIS`, thay bằng ba khóa Remote Config `time_reload_native_small` (60), `time_reload_collap_ad` (60), `time_reload_banner_collap` (30), đọc qua `AdsGlobalFlags` thành một `StateFlow` mili giây cho mỗi lớp. Một hàm chờ nhịp dùng chung (`awaitReloadTick`, file mới `ReloadInterval.kt`) áp luật của KB-34: giá trị mới áp từ nhịp sau, 0 sang dương thì đếm từ lúc nhận, dương sang 0 thì bỏ lần đang đếm. Kiểm chứng bằng unit test JVM với thời gian ảo cho hàm thuần, cho từng đường dùng nó (làm mới native, nạp lại banner thu gọn) và cho cách `AdsController` chọn khóa theo lớp; T-088 dùng lại hàm này cho banner cố định và MREC.
 
@@ -142,10 +144,10 @@ Mọi đường chờ nhịp đi qua một hàm (`awaitReloadTick`): lần chờ
 | KB-34, tiêu chí 1, KB-1: native nhỏ theo khóa | Unit test | `NativeAdRefreshTest.interval90s_firstTickAt90s_notAt60s`: luồng 90 000: không nạp lúc 60 giây, nạp lúc 90 giây, lần sau lúc 180 giây |
 | KB-34, tiêu chí 3: đổi giữa chừng trong vòng làm mới | Unit test | `NativeAdRefreshTest.intervalChangedOnScreen_appliesFromNextTick`: luồng 60 000, lúc 30 giây đổi 120 000: nhịp lúc 60 giây, nhịp sau lúc 180 giây. `intervalZero_keepsAd_noClaim`: luồng 0: tới 10 phút không có lượt lấy, quảng cáo đầu không bị hủy |
 | KB-34, tiêu chí 3: dương sang 0 trong lúc thử lại sau lỗi | Unit test | `NativeAdRefreshTest.intervalZeroDuringRetry_stopsReplacing`: luồng 60 000; nhịp lúc 60 giây, lượt lấy lỗi (`fail()`), hẹn thử lại 2 giây; lúc 61 giây đổi 0: tới 10 phút không có lượt gửi nào nữa, quảng cáo đầu vẫn hiện, không bị hủy; đổi lại 60 000 lúc 700 giây: lượt sau lúc 760 giây. Đối chứng: không đổi 0 thì lượt thử lại gửi lúc 62 giây |
-| KB-34, tiêu chí 6: bỏ nhịp ở nền, bị che | Unit test có sẵn, chạy với luồng | `NativeAdRefreshTest.tickInBackground_isSkipped_nextTickAt120s`, `tickWhileCovered_isSkipped_keepsAd_nextTickAt120s`, `backToForeground_noImmediateRefresh`, `refreshFails_keepsOldAd_retriesAt2s4s8s` giữ câu khẳng định với luồng 60 000; thêm `skippedTick_nextCountUsesLatestValue`: nhịp lúc 60 giây bị bỏ (nền), lúc 70 giây đổi 90 000: nhịp sau lúc 150 giây |
+| KB-34, tiêu chí 6: bỏ nhịp ở nền, bị che | Unit test có sẵn, chạy với luồng | `NativeAdRefreshTest.tickInBackground_isSkipped_nextTickAt120s`, `tickWhileCovered_isSkipped_keepsAd_nextTickAt120s`, `backToForeground_noImmediateRefresh`, `refreshFails_keepsOldAd_retriesAt2s4s8s` giữ câu khẳng định với luồng 60 000; thêm `skippedTick_nextCountUsesLatestValue`: luồng 60 000; nhịp lúc 60 giây bị bỏ (nền), lần chờ sau bắt đầu ngay lúc 60 giây với giá trị 60 000; lúc 70 giây đổi 90 000 (dương giữa chừng, áp từ lần đếm sau), trở lại foreground: nhịp sau lúc 120 giây, nhịp kế lúc 210 giây |
 | KB-34, tiêu chí 1: khe đứng riêng và khe đáy đọc khóa native nhỏ, lớp đọc khóa lớp | Robolectric | `AdsControllerReloadIntervalTest.reloadIntervalMillis_followsKeyOfEachLayer`: `FakeRemoteSettings` đặt native nhỏ 40, lớp 100, banner thu gọn 50: luồng của `NATIVE_SMALL` là 40 000, `NATIVE_COLLAPSIBLE` 100 000, `BANNER_COLLAPSIBLE` 50 000; đổi native nhỏ thành 0 thì luồng thành 0 (sau `controller.start()` và chạy bộ lập lịch của test cho tới khi `globalFlags` phát giá trị mới, như cách các test `realController_*` có sẵn chờ cờ) |
 | KB-34, tiêu chí 3: đổi lúc màn đang mở, cả đường thật | Robolectric | `AdsControllerReloadIntervalTest.nativeSmallSlot_keyChangedOnScreen_nextTickUsesNew`: `NativeAdSlot(GALLERY_NATIVE_SMALL)` với bộ nạp giả, khóa 60; lúc 30 giây đặt 120: quảng cáo hiện đổi lúc 60 giây, đổi lần sau lúc 180 giây (đếm lần đổi quảng cáo trên màn, hay dòng log `Native gallery_native_small refresh: loaded`; không đếm theo loại lượt nạp, vì sau T-086 lượt nạp cái kế là `PRELOAD` của kho) |
-| KB-4, KB-34 tiêu chí 1, 6: lớp thu gọn theo khóa, giữ thu gọn | Robolectric | `AdsControllerReloadIntervalTest.collapsibleLayer_refreshesAtCollapKey_staysCollapsed`: `BottomAdBarScaffold(SAMPLE_NATIVE_SMALL)` với bộ nạp giả, `time_reload_collap_ad = 45`, `time_reload_native_small = 120`; người dùng thu gọn lúc 10 giây: lượt làm mới `NATIVE_COLLAPSIBLE` lúc 45 giây, lớp vẫn thu gọn (không có `CollapsibleNativeAdTestTags.AD`), không có lượt làm mới `NATIVE_SMALL` trước 120 giây |
+| KB-4, KB-34 tiêu chí 1, 6: lớp thu gọn theo khóa, giữ thu gọn | Robolectric | `AdsControllerReloadIntervalTest.collapsibleLayer_refreshesAtCollapKey_staysCollapsed`: `BottomAdBarScaffold(SAMPLE_NATIVE_SMALL)` với bộ nạp giả, `is_show_native_bottom = true` (mặc định tắt thì thanh đáy là banner, không có lớp thu gọn), `time_expand_collap_ad = 0` (không tự bung lại, mặc định 10 giây theo CL-03), `time_reload_collap_ad = 45`, `time_reload_native_small = 120`; người dùng thu gọn lúc 10 giây: lượt làm mới `NATIVE_COLLAPSIBLE` lúc 45 giây, lớp vẫn thu gọn (không có `CollapsibleNativeAdTestTags.AD`), không có lượt làm mới `NATIVE_SMALL` trước 120 giây |
 | Trễ 500 ms của khe đáy | Compose UI test (Robolectric) và unit test | `NativeAdSlotTest.bottomNativeSlot_withLayer_firstRefreshExtra500ms`, `bottomNativeSlot_withoutLayer_firstRefreshExtra0ms` (mục 3.5); `NativeAdRefreshTest.firstTickExtra_appliesToFirstTickOnly` (mục 3.5) |
 | KB-18 tiêu chí 6, KB-34 tiêu chí 1: banner thu gọn theo khóa | Unit test | `BannerLoadsTest.manual_reloadsAfterKeySeconds`: luồng 45 000: gửi lại lúc 45 giây sau `Loaded`, không lúc 30 giây |
 | KB-34, tiêu chí 3 cho banner thu gọn | Unit test | `BannerLoadsTest.manual_reloadChangedMidCount_appliesNext`: luồng 30 000, lúc 10 giây sau `Loaded` đổi 60 000: gửi lúc 30 giây, lần sau 60 giây sau `Loaded` kế; `manual_reloadZeroToPositive_countsFromReceipt` |
@@ -202,6 +204,12 @@ Không cần (E dưới 2).
 4. **Khóa về 0 trong lúc thử lại sau lỗi.** KB-34 tiêu chí 3: "khi đổi từ số dương sang 0 thì lần đang đếm bị bỏ, không thay nữa". Tiêu chí 4: "khi khóa của banner là 0 thì banner vẫn thử lại sau lỗi cho tới khi có quảng cáo, có rồi thì giữ, không tải lại". Ca chưa rõ: lớp đã có quảng cáo, một lượt thay (native) hay nạp lại (banner) lỗi, đang chờ thử lại thì khóa về 0. AI đề xuất (đã viết vào mục 3.1 bước 4 và 7): cả native lẫn banner thu gọn thôi thử lại, giữ quảng cáo đang hiện; banner chưa từng có quảng cáo thì vẫn thử lại tới khi có (tiêu chí 4). Phương án khác: vẫn thử lại tới khi thay được, rồi mới dừng. Anh chọn?
 
 ## 9. Quyết định duyệt
+
+Phiên bản 2: chờ duyệt.
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
 
 Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 
