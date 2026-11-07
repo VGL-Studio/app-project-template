@@ -11,7 +11,7 @@ size: L
 depends_on: [T-076, T-077]
 sprint:
 plan: features/quy-trinh/plans/T-078-runner-tu-host.md
-auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy RUN-20261101-02 (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"); trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
+auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy RUN-20261101-02 (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"); không chạy ở RUN-20261101-02 mà ở phiên sau, chỉ với plan phiên bản 2 đã duyệt (soạn sau khi T-076 merge); trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
 created: 2026-10-29
 ---
 

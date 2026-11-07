@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là requests/2026-10-29-giam-phut-actions.md, không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: approved
+status: planned
 risk: high
 size: S
 depends_on: [T-075]
