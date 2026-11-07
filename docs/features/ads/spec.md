@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -786,3 +786,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-07 | AI | Theo lựa chọn của anh Nhật khi duyệt plan T-086 (câu hỏi 1 của plan, "Sửa spec trước"): thêm điều kiện nạp kho `native_small` vào tiêu chí 6 của KB-33 (khe native nhỏ đứng riêng chỉ được nạp sẵn khi `is_show_native_bottom` bật), ghi chú đổi ở tiêu chí 3, 5 và câu hỏi 53, thêm câu hỏi 56. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-07 | Nhật | Xác nhận KB-33 ("xác nhận KB-33"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-07 | AI | Theo lời duyệt plan T-089 của anh Nhật (câu hỏi 4 của plan) và lựa chọn "Làm trước phiên" khi rà soát RUN-20261107-01: ghi chú đổi ở KB-16 tiêu chí 8 (chỉ áp cho interstitial của vị trí trong app), khớp tiêu chí 3 đã xác nhận ngày 2026-11-06. Chuyển sang `changed`, chờ anh Nhật xác nhận |
+| 2026-11-07 | Nhật | Xác nhận KB-16 ("Xác nhận KB-16"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
