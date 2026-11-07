@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed                # draft | confirmed | changed
+status: changed                  # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -432,7 +432,7 @@ Tiêu chí chấp nhận:
 
 - [ ] Mỗi định dạng native một quảng cáo (`native_small`, `native_collap`) có một kho nạp sẵn theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn; vị trí cùng định dạng và cùng mã đơn vị dùng chung một kho (câu hỏi 55). `native_collap` dùng một mã cho mọi thanh đáy nên luôn chỉ có một kho; native nhỏ ở production lấy mã theo vị trí (M-05), nên số kho bằng số mã khác nhau: app muốn mọi màn dùng chung một kho thì đặt cùng một mã cho các vị trí native nhỏ, `ads-guide.md` ghi rõ điều này.
 - [ ] Hai kho có trong kế hoạch nạp sẵn mặc định ở nhóm sau nhóm đầu (HD-02: app open hiện trước màn đầu tiên có thanh đáy, nên nhóm đầu giữ cho app open và bước đầu của luồng); kho `native_collap` chỉ có khi có vị trí thanh đáy. App đặt kế hoạch riêng thì xếp được chúng như mọi khe khác.
-- [ ] Khi kho đã có quảng cáo và người dùng vào bất kỳ màn nào có khe native nhỏ (thanh đáy hay đứng riêng) hoặc lớp thu gọn thì khe hiện ngay quảng cáo của kho, không chờ một yêu cầu mới.
+- [ ] ~~Khi kho đã có quảng cáo và người dùng vào bất kỳ màn nào có khe native nhỏ (thanh đáy hay đứng riêng) hoặc lớp thu gọn thì khe hiện ngay quảng cáo của kho, không chờ một yêu cầu mới.~~ **Đổi 2026-11-07 (câu hỏi 56):** khi kho đã có quảng cáo và người dùng vào màn có khe native nhỏ (thanh đáy hay đứng riêng) hoặc lớp thu gọn thì khe hiện ngay quảng cáo của kho, không chờ một yêu cầu mới. Kho `native_small` được nạp khi `is_show_native_bottom` bật, hoặc khi có khe native nhỏ đang trên màn. Nên khi `is_show_native_bottom` tắt (mặc định), khe đứng riêng không được nạp sẵn trước màn: vào màn mà kho rỗng thì khe nạp khi màn vào, và kho không nạp cái kế hay nạp lại sau 55 phút khi không còn khe nào trên màn.
 - [ ] Khi một khe lấy quảng cáo của kho thì kho nạp cái tiếp theo; mỗi quảng cáo chỉ hiện ở một chỗ (O-01). Quảng cáo đã lấy ra thuộc khe đó và bị hủy khi rời màn như hôm nay; quảng cáo còn trong kho không bị hủy khi rời màn, và yêu cầu của kho đang bay lúc rời màn vẫn giữ kết quả (ngoại lệ của O-01 và O-03).
 - [ ] Khi quảng cáo trong kho đủ 55 phút mà chưa dùng thì bỏ, nạp cái mới (O-04).
 - [ ] Vị trí thanh đáy chỉ tính là dùng kho `native_small` khi `is_show_native_bottom` bật. Khi mọi vị trí dùng kho đều tắt, cổng đồng ý đóng, hay người dùng đã mua gói bỏ quảng cáo (KB-30) thì kho không nạp; kho `native_collap` không nạp khi thanh đáy dùng banner (`is_show_native_bottom` tắt) hay lớp thu gọn tắt (`is_show_native_collap`).
@@ -750,6 +750,10 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Bối cảnh: nguồn native một quảng cáo đi theo cặp vị trí và định dạng, bị hủy khi khe cuối của vị trí rời màn (O-03). Nạp sẵn theo vị trí thì app có N màn có thanh đáy nạp N cặp quảng cáo lúc mở app, và chỉ màn đầu tiên được lợi.
     - Đề xuất của AI: mỗi định dạng một kho theo mã đơn vị, giữ tối đa một quảng cáo, sống qua các màn; khe lấy từ kho, kho nạp cái kế; quảng cáo trong kho không bị hủy khi rời màn, và yêu cầu của kho đang bay lúc rời màn vẫn giữ kết quả (ngoại lệ của O-01 và O-03).
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-02).
+56. **Khe native nhỏ đứng riêng có được nạp sẵn khi `is_show_native_bottom` tắt?** (KB-33 tiêu chí 3, plan T-086 câu hỏi 1)
+    - Bối cảnh: `is_show_native_bottom` mặc định tắt; khi đó thanh đáy dùng banner. Code không phân biệt vị trí native nhỏ dùng làm thanh đáy hay khe đứng riêng, nên kho không biết có khe đứng riêng nào cần nạp sẵn.
+    - Đề xuất của AI: kho `native_small` nạp khi có khe native nhỏ đang trên màn, hoặc khi `is_show_native_bottom` bật. Phương án khác: nạp khi có vị trí native nhỏ bật, bất kể `is_show_native_bottom` (nạp sẵn quảng cáo không ai hiện khi app chỉ có thanh đáy); hoặc thêm thuộc tính vị trí vào `AdPlacement` để phân biệt.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-07). Tiêu chí 3 của KB-33 đổi theo.
 
 ## 10. Lịch sử
 
@@ -779,3 +783,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-06 | Nhật | Theo yêu cầu `requests/2026-11-06-combo-chi-sau-inter-trong-app.md`: native toàn màn hình sau inter chỉ theo interstitial của vị trí trong app; interstitial lúc mở app và khi quay lại app không nối native (thêm tiêu chí ở KB-13, KB-16; đổi tiêu chí 1 của KB-14 và KB-16, hai dòng ở mục 5, dòng `is_show_native_after_inter` ở mục 8 và câu hỏi 31). Code tách thành ticket T-089. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-06 | AI | Theo yêu cầu `requests/2026-11-06-quang-cao-khong-chong-nhau.md` và các lựa chọn của anh Nhật trong phiên (ghi ở file yêu cầu): thêm KB-35 (quảng cáo trong màn hình không chồng lên nhau), một dòng phạm vi ở mục 2, ghi chú đổi ở KB-4 tiêu chí 1, 2, KB-17 tiêu chí 1, 3, 5 và dòng `is_show_native_collap` ở mục 8. Code tách thành ticket T-090, T-091, T-092. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-06 | Nhật | Xác nhận KB-35 ("xác nhận KB-35"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-07 | AI | Theo lựa chọn của anh Nhật khi duyệt plan T-086 (câu hỏi 1 của plan, "Sửa spec trước"): đổi tiêu chí 3 của KB-33 (khe native nhỏ đứng riêng chỉ được nạp sẵn khi `is_show_native_bottom` bật), thêm câu hỏi 56. Chuyển sang `changed`, chờ anh Nhật xác nhận |
