@@ -73,9 +73,12 @@ import kotlinx.coroutines.withContext
  * and native refill goes through the plan ([AdPreloadPlan], [AdPreloader]) once the SDK is ready. Failed loads retry
  * by F-05 and O-05 ([FullScreenReloads], [retryingNativeAdStates]).
  *
- * A native small slot (plan T-040) takes its ad from the single-ad source of its placement ([NativeAdSources],
- * O-01 to O-04) and replaces it in place every 60 s in foreground ([refreshingNativeAdStates], CL-02); every send of
- * it goes through one gate ([awaitSendAllowed], L-072). Native ads are not shown 55 minutes after loading (O-04).
+ * A native small slot and the collapsible layer of a bottom bar take their ad from a stock (plan T-086, KB-33): one
+ * [NativeAdSource] per (format, ad unit), managed by [NativeAdSources], kept across screens, filled by the preload
+ * plan before any screen and after each claim, under the fill rule of [stockMayFill] (O-01 to O-04). A slot replaces
+ * its ad in place every 60 s in foreground ([refreshingNativeAdStates], CL-02); every send goes through one gate
+ * ([awaitSendAllowed], L-072). Native ads are not shown 55 minutes after loading (O-04). A load of a stock itself logs
+ * `ad_placement = preload` (PL-02); its revenue, clicks and impressions the placement of the slot that took the ad.
  *
  * Native medium and in-collection cards come from pools (plan T-028, P-01 to P-08): one [NativeAdPool] per (format,
  * ad unit), managed by [NativeAdPools], filled one request at a time through the same send gate and by the preload
@@ -521,8 +524,12 @@ class AdsController @Inject internal constructor(
     private val preloader = AdPreloader(
         scope = scope,
         runner = PreloadPlanRunner(clock, logger),
-        // Full-screen placements, then the slot of each native pool (HD-02, S-22); a pool slot is asked lazily.
-        slotsOf = { format -> preloadSlots.filter { it.format == format } + nativePools.preloadSlots(format) },
+        // Full-screen placements, then the slot of each native pool and stock (HD-02, S-22), asked lazily.
+        slotsOf = { format ->
+            preloadSlots.filter { it.format == format } +
+                nativePools.preloadSlots(format) +
+                nativeSources.preloadSlots(format)
+        },
         gate = {
             PreloadGate(
                 sdkStarted = sdkStarted.value,
@@ -610,15 +617,18 @@ class AdsController @Inject internal constructor(
             }
         }
         collectPreloadTriggers()
+        // Made now, not by the first preload: the stocks must know the switch of each placement by then (KB-33).
+        nativeSources
     }
 
     /**
-     * What asks the plan for a preload besides the SDK getting ready: a full-screen placement switched on remotely
-     * (S-20), a change of the gate for a held preload (S-23), Internet back (S-24).
+     * What asks the plan for a preload besides the SDK getting ready: a full-screen, pooled or stock placement, or
+     * `is_show_native_bottom` or `is_show_native_collap`, switched on remotely (S-20, S-26), a change of the gate for a
+     * held preload (S-23), Internet back (S-24).
      */
     private fun collectPreloadTriggers() {
-        // Full-screen placements and pooled ones: switching either on remotely asks for a preload (S-20).
-        val placements = fullScreenPlacements() + pooledPlacements()
+        // Full-screen placements, pooled ones and those of a native stock: switching one on asks for a preload (S-20).
+        val placements = fullScreenPlacements() + pooledPlacements() + stockPlacements()
         scope.launch {
             combine(placements.map { placement -> isEnabled(placement).map { placement to it } }) { it.toMap() }
                 .collect { switches ->
@@ -626,6 +636,15 @@ class AdsController @Inject internal constructor(
                     enabledNow.putAll(switches)
                     if (switchedOn) preloader.request(PreloadReason.PLACEMENT_ENABLED)
                 }
+        }
+        // The flags the stocks fill by (KB-33, criterion 6): either switched on asks for a preload too.
+        scope.launch {
+            var before: Pair<Boolean, Boolean>? = null
+            flags.global.map { it.showNativeBottom to it.showNativeCollap }.distinctUntilChanged().collect { now ->
+                val switchedOn = (now.first && before?.first != true) || (now.second && before?.second != true)
+                before = now
+                if (switchedOn) preloader.request(PreloadReason.PLACEMENT_ENABLED)
+            }
         }
         scope.launch {
             combine(canRequestAds, sdkReady, consentPath, foregroundState) { _, _, _, _ -> }
@@ -894,6 +913,11 @@ class AdsController @Inject internal constructor(
     private fun fullScreenPlacements() = AdPlacement.entries.filter { it.format.hasFullScreenSlot }
 
     private fun pooledPlacements() = AdPlacement.entries.filter { it.format.usesPool }
+
+    /** The placements whose native small slot or collapsible layer comes from a stock (plan T-086). */
+    private fun stockPlacements() = AdPlacement.entries.filter {
+        it.usesStock(AdFormat.NATIVE_SMALL) || it.usesStock(AdFormat.NATIVE_COLLAPSIBLE)
+    }
 
     /**
      * Opens AdMob's Ad Inspector ([rememberOpenAdInspector], staging ad gallery only). Google opens it only on an
@@ -1318,6 +1342,10 @@ class AdsController @Inject internal constructor(
         inScreenAdWindowState.onForeground(foreground)
     }
 
+    /** Tests only: the preload of S-21, which the SDK's init callback asks for (plan T-086). */
+    @VisibleForTesting
+    internal fun requestPreloadForTest() = preloader.request(PreloadReason.SDK_READY)
+
     /** Tests only: the SDK reported its initialization (S-21). */
     @VisibleForTesting
     internal fun markSdkReadyForTest() {
@@ -1566,15 +1594,18 @@ class AdsController @Inject internal constructor(
     internal var maxBannerHeightForTest: ((BannerSizeKind, Int) -> Int)? = null
 
     /**
-     * The single-ad sources of native small slots (plan T-040), one per (placement, format), shut down when the
-     * placement is switched off ([isEnabled]) or consent withdrawn ([canRequestAds]). Each load gets fresh metrics
-     * events with the use the source gives it.
+     * The stocks of native small slots and collapsible layers (plan T-086), one per (format, ad unit), closed when
+     * consent is withdrawn ([canRequestAds]), every placement of a stock is switched off ([isEnabled]) or the layer is
+     * off ([globalFlags]). Each load gets fresh metrics events with the use and placement the stock gives it.
      */
     private val nativeSources by lazy {
         NativeAdSources(
+            placements = AdPlacement.entries,
+            unitId = { placement, format -> unitIds.of(placement, format) },
             enabled = ::isEnabled,
             canRequestAds = canRequestAds,
-            newLoad = { placement, format, use -> nativeLoadOf(placement, format, use) },
+            globalFlags = globalFlags,
+            newLoad = { key, use, placement -> nativeLoadOf(key, use, placement) },
             sendGate = inScreenSendGate,
             clock = clock,
             scope = scope,
@@ -1666,10 +1697,11 @@ class AdsController @Inject internal constructor(
      * The states of one native ad of [placement], drawn as [format], for a slot on screen: loading, then loaded, or
      * unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back cuts
      * the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
-     * (T-023). A native small slot ([usesSingleAdSource]) claims its ad from the source of its placement and replaces
-     * it in place every 60 s in foreground, the first time [firstRefreshDelayMillis] after the first ad (plan T-040);
-     * a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats keep their ad, destroyed
-     * when the collection is cancelled. The caller checks consent and [isEnabled] first, like [NativeAdSlot].
+     * (T-023). A native small slot or collapsible layer ([usesSingleAdSource]) claims its ad from its stock (plan
+     * T-086) and replaces it in place every 60 s in foreground, the first time [firstRefreshDelayMillis] after the
+     * first ad (plan T-040); a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats
+     * keep their ad, destroyed when the collection is cancelled. The caller checks consent and [isEnabled] first, like
+     * [NativeAdSlot].
      */
     internal fun nativeAd(
         placement: AdPlacement,
@@ -1688,6 +1720,8 @@ class AdsController @Inject internal constructor(
                 emitAll(
                     singleAdSlotStates(
                         source = nativeSources.source(placement, format),
+                        placement = placement,
+                        stopped = nativeSources.stopped(placement),
                         foreground = inScreenAdWindow,
                         mayRequestNow = ::mayRequestNow,
                         retryResets = preloader.nativeRetryResets,
@@ -1720,25 +1754,38 @@ class AdsController @Inject internal constructor(
         }
     }
 
-    /** One load of a single-ad source: [nativeLoadOnce] with fresh metrics events of [use] (L-A07). */
+    /**
+     * One load of the stock of [key]: [nativeLoadOnce] with fresh metrics events of [use] (L-A07), and a fresh
+     * [PlacementCell] holding [placement], the slot waiting for it (null for a load of the stock itself); the stock
+     * sets it to the slot that takes the ad (PL-03).
+     */
     private fun nativeLoadOf(
-        placement: AdPlacement,
-        format: AdFormat,
+        key: NativePoolKey,
         use: NativeLoadUse,
-    ): suspend () -> NativeAdState {
-        val unitId = unitId(placement, format) ?: return { NativeAdState.Unavailable }
-        val size = format.nativeLoadSize() ?: return { NativeAdState.Unavailable }
+        placement: AdPlacement?,
+    ): suspend () -> NativeSourceLoad {
+        val holder = PlacementCell().apply { value = placement }
+        val size = key.format.nativeLoadSize() ?: return { NativeSourceLoad(NativeAdState.Unavailable, holder) }
         // The collapsible layer has the collapse button in its top right corner: AdChoices goes top left (T-030).
-        val options = if (format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
-        return nativeLoadOnce(
-            newEvents = { nativeAdMetrics(placement, unitId, use, format) },
-            newLoader = { events -> newNativeLoader(events, options, nativeSlotKey(placement, format)) },
-            unitId = unitId,
+        val options = if (key.format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
+        val logKey = placement?.let { nativeSlotKey(it, key.format) } ?: "$PRELOAD/${key.format.code}"
+        val load = nativeLoadOnce(
+            newEvents = {
+                NativeAdMetrics(
+                    format = key.format,
+                    unitId = key.unitId,
+                    load = telemetry.nativeLoadReport(placement, use, key.format),
+                    placement = { holder.value },
+                )
+            },
+            newLoader = { events -> newNativeLoader(events, options, logKey) },
+            unitId = key.unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
             logger = logger,
-            placementKey = nativeSlotKey(placement, format),
+            placementKey = logKey,
         )
+        return { NativeSourceLoad(load(), holder) }
     }
 
     /**
