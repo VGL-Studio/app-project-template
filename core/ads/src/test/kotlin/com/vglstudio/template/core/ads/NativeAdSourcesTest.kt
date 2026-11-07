@@ -396,8 +396,15 @@ class NativeAdSourcesTest {
 
     @Test
     fun productionUnits_smallPerPlacement_collapShared() = runTest {
-        val units = ConfiguredAdUnitIds("sample_native_small=u1;gallery_native_small=u2;native_collap=c")
-        val sources = newSources(placements = listOf(PLACEMENT, OTHER), unitId = { p, f -> units.of(p, f) })
+        // Gallery placements are staging only, so ConfiguredAdUnitIds gives them no unit: each placement reads the
+        // production table of its own, as two shipped placements would (`<key>=u1` and `<key>=u2`, one native_collap).
+        val sources = newSources(
+            placements = listOf(PLACEMENT, OTHER),
+            unitId = productionUnits(
+                "sample_native_small=u1;native_collap=c",
+                "sample_native_small=u2;native_collap=c",
+            ),
+        )
 
         assertNotSame(sources.source(PLACEMENT, AdFormat.NATIVE_SMALL), sources.source(OTHER, AdFormat.NATIVE_SMALL))
         assertSame(
@@ -406,8 +413,13 @@ class NativeAdSourcesTest {
         )
 
         // Control (L-055): the same unit for both placements gives one stock.
-        val same = ConfiguredAdUnitIds("sample_native_small=u1;gallery_native_small=u1;native_collap=c")
-        val shared = newSources(placements = listOf(PLACEMENT, OTHER), unitId = { p, f -> same.of(p, f) })
+        val shared = newSources(
+            placements = listOf(PLACEMENT, OTHER),
+            unitId = productionUnits(
+                "sample_native_small=u1;native_collap=c",
+                "sample_native_small=u1;native_collap=c",
+            ),
+        )
         assertSame(shared.source(PLACEMENT, AdFormat.NATIVE_SMALL), shared.source(OTHER, AdFormat.NATIVE_SMALL))
     }
 
@@ -759,6 +771,12 @@ class NativeAdSourcesTest {
             ),
             newLoads,
         )
+    }
+
+    /** [PLACEMENT] reads [first], [OTHER] reads [second], each as the shipped sample placement reads its table. */
+    private fun productionUnits(first: String, second: String): (AdPlacement, AdFormat) -> String? {
+        val units = mapOf(PLACEMENT to ConfiguredAdUnitIds(first), OTHER to ConfiguredAdUnitIds(second))
+        return { placement, format -> units.getValue(placement).of(PLACEMENT, format) }
     }
 
     private class Case(

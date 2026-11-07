@@ -470,7 +470,7 @@ class NativeAdRefreshTest {
     }
 
     @Test
-    fun cancelledBetweenClaimAndEmit_destroysNewAd() = runTest {
+    fun cancelledBetweenClaimAndEmit_newAdKeptByStock() = runTest {
         lateinit var job: Job
         val ad1 = FakeLoadedNativeAd()
         newSource(
@@ -487,7 +487,9 @@ class NativeAdRefreshTest {
 
         assertTrue(collection.isCancelled)
         assertEquals(1, states.size)
-        assertEquals(1, ad1.destroyCount)
+        // Never shown by the slot that left, never lost: the stock keeps it for the next claim (KB-33).
+        assertEquals(0, ad1.destroyCount)
+        assertSame(ad1, source.pending)
         assertEquals(1, ad0.destroyCount)
     }
 
@@ -504,8 +506,9 @@ class NativeAdRefreshTest {
 
         assertEquals(1, ad1.destroyCount)
         assertEquals(1, ad0.destroyCount)
-        // The pending ad goes with the source once the last slot is gone.
-        assertEquals(1, ad2.destroyCount)
+        // The pending ad stays in the stock once the last slot is gone (KB-33).
+        assertEquals(0, ad2.destroyCount)
+        assertSame(ad2, source.pending)
     }
 
     @Test

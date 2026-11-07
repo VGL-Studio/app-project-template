@@ -76,8 +76,11 @@ class AdsControllerNativeStockTest {
         idle()
     }
 
-    /** Long enough for both preload groups: the first one moves on once settled, or after 6 s (S-22). */
-    private fun runPreload() = idleFor(10_000)
+    /**
+     * Long enough for both preload groups (each moves on once settled, or after 6 s, S-22), and shorter than the 10 s
+     * a native load waits for its ad, so the requests sent are still open for the test to answer.
+     */
+    private fun runPreload() = idleFor(7_000)
 
     /** The setup of section 4 of the plan: in foreground, then the preload of S-21. */
     private fun startAndPreload() {

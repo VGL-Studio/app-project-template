@@ -601,6 +601,7 @@ class NativeAdSourceTest {
         val source = newSource()
         // The preload of the stock, with no slot on screen yet (KB-33).
         source.fill()
+        runCurrent()
         assertEquals(listOf(NativeLoadUse.PRELOAD), loads.uses)
         assertEquals(listOf<AdPlacement?>(null), loads.placements)
         val ad1 = deliver()
@@ -620,6 +621,7 @@ class NativeAdSourceTest {
     fun twoPlacementsShareStock_neverSameAd() = runTest {
         val source = newSource()
         source.fill()
+        runCurrent()
         assertEquals(1, loads.sent.size)
         val ad1 = deliver()
         repeat(2) { source.attach() }
@@ -640,6 +642,7 @@ class NativeAdSourceTest {
     fun claim_setsHolderToClaimer() = runTest {
         val source = newSource()
         source.fill()
+        runCurrent()
         assertEquals(1, loads.holders.size)
         // A load of the stock itself is for no screen yet.
         assertNull(loads.holders[0].value)
@@ -661,6 +664,7 @@ class NativeAdSourceTest {
     fun stockAdAt55m_noSlot_destroyedAndReloaded() = runTest {
         val source = newSource()
         source.fill()
+        runCurrent()
         assertEquals(1, loads.sent.size)
         val ad = deliver()
 
@@ -681,6 +685,7 @@ class NativeAdSourceTest {
     fun stockAdClaimedBefore55m_noExpiryLater() = runTest {
         val source = newSource()
         source.fill()
+        runCurrent()
         assertEquals(1, loads.sent.size)
         val ad = deliver()
 
@@ -697,6 +702,7 @@ class NativeAdSourceTest {
     fun stockLogs_holdNoUnitId() = runTest {
         val source = newSource()
         source.fill()
+        runCurrent()
         deliver()
         source.attach()
         claim(source)
