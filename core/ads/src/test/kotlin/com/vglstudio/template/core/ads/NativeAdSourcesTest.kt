@@ -4,6 +4,8 @@ import com.vglstudio.template.core.analytics.AdMetricEvent
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -740,6 +742,58 @@ class NativeAdSourcesTest {
         assertSame(ad, (other.last() as NativeAdState.Loaded).ad)
         // Then only the next load of the stock, after that claim.
         assertEquals(2, loads.sent.size)
+    }
+
+    @Test
+    fun placementOffRightAfterAdHandedToSlot_slotEndsAndDestroysIt() = runTest {
+        val sources = newSources(placements = listOf(PLACEMENT, OTHER))
+        val states = mutableListOf<NativeAdState>()
+        // The slot runs only when the test lets it: the ad can be handed to it before it runs again.
+        val slotThread = HeldDispatcher()
+        val job = backgroundScope.launch(slotThread) {
+            singleAdSlotStates(
+                sources.source(PLACEMENT),
+                PLACEMENT,
+                sources.stopped(PLACEMENT),
+                foreground,
+                { mayRequest },
+                retryResets,
+                { testScheduler.currentTime },
+                logger,
+                PLACEMENT.key,
+            ).collect { states += it }
+        }
+        slotThread.runAll()
+        runCurrent()
+        assertEquals(1, loads.sent.size)
+
+        // The load hands its ad to the waiting slot; the placement is switched off (the other placement keeps the
+        // stock open) before the slot runs again.
+        val ad = deliver()
+        assertTrue("the ad was not handed to the slot", sources.source(PLACEMENT).pending == null)
+        enabledOf(PLACEMENT).value = false
+        runCurrent()
+        repeat(5) {
+            slotThread.runAll()
+            runCurrent()
+        }
+
+        assertTrue(job.isCompleted)
+        assertEquals(NativeAdState.Unavailable, states.last())
+        assertEquals(1, ad.destroyCount)
+    }
+
+    /** Runs what is dispatched to it only on [runAll]. */
+    private class HeldDispatcher : CoroutineDispatcher() {
+        private val tasks = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            tasks.addLast(block)
+        }
+
+        fun runAll() {
+            while (tasks.isNotEmpty()) tasks.removeFirst().run()
+        }
     }
 
     @Test
