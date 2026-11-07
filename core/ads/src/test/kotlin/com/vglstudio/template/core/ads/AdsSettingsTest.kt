@@ -52,6 +52,8 @@ class AdsSettingsTest {
             Triple("time_reload_native_small", RemoteKey.Type.LONG, 60L),
             Triple("time_reload_collap_ad", RemoteKey.Type.LONG, 60L),
             Triple("time_reload_banner_collap", RemoteKey.Type.LONG, 30L),
+            Triple("time_reload_banner", RemoteKey.Type.LONG, 60L),
+            Triple("time_reload_banner_mrec", RemoteKey.Type.LONG, 60L),
             Triple("is_enable_consent_shortcut", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_fullscreen_events", RemoteKey.Type.BOOLEAN, false),
             Triple("is_log_ad_slot_events", RemoteKey.Type.BOOLEAN, false),
@@ -59,7 +61,7 @@ class AdsSettingsTest {
         )
         val global = AdsSettings.all().filterNot { isDerived(it.name) }
             .map { Triple(it.name, it.type, it.default) }
-        assertEquals(19, expected.size)
+        assertEquals(21, expected.size)
         assertEquals(expected, global.toSet())
         assertEquals(global.size, global.toSet().size)
     }
@@ -130,6 +132,18 @@ class AdsSettingsTest {
         assertTrue(keys.getValue("time_reload_banner_collap").description.endsWith(templateNote))
         // An AdsKit name: no note (control of the two checks above).
         assertFalse(keys.getValue("time_reload_collap_ad").description.contains("not an AdsKit key"))
+    }
+
+    @Test
+    fun bannerReloadKeys_declaredWithDefaults() {
+        // Plan T-088, KB-34 criterion 1: the fixed banner and the MREC reload by hand at their own key, in seconds.
+        val keys = AdsSettings.all().associateBy { it.name }
+        listOf("time_reload_banner", "time_reload_banner_mrec").forEach { name ->
+            val key = keys[name] ?: error("$name is missing from ${keys.keys}")
+            assertEquals(name, RemoteKey.Type.LONG, key.type)
+            assertEquals(name, 60L, key.default)
+            assertTrue(key.description, key.description.endsWith("Name set by the template, not an AdsKit key."))
+        }
     }
 
     @Test

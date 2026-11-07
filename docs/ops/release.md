@@ -26,6 +26,8 @@ Cất vào trình quản lý mật khẩu, mỗi app một mục:
 | Mã quảng cáo của từng vị trí, dạng `ca-app-pub-<số>/<số>` | AdMob, mục Ad units. Mỗi vị trí trong `AdPlacement` một mã |
 | Địa chỉ gốc của file trên R2 production, kết thúc bằng `/` | Cloudflare R2, tên miền công khai của bucket production |
 
+Đơn vị banner cố định, MREC và banner thu gọn trên AdMob và MAX tắt tự làm mới khi tạo mã: `:core:ads` tự nạp lại theo Remote Config; chi tiết ở [ads-guide.md](ads-guide.md), mục 9.
+
 ### 1.3. Google Play
 
 Tạo app trong Play Console, bật Play App Signing (mặc định với app mới), khai báo Data safety (ADR-0012) và đối tượng người dùng (ADR-0005).

@@ -33,13 +33,11 @@ class BannerLoadsTest {
     private fun TestScope.fakeView() = FakeBannerAdView(clock = { testScheduler.currentTime })
 
     private fun TestScope.run(
-        refresh: BannerRefresh,
         view: FakeBannerAdView,
         placementKey: String = KEY,
         reloadMillis: StateFlow<Long> = reload,
     ): Job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
         runBannerLoads(
-            refresh = refresh,
             view = view,
             visible = visible,
             mayRequestNow = { mayRequest },
@@ -68,32 +66,43 @@ class BannerLoadsTest {
     }
 
     @Test
-    fun refreshOf_bannerByAdUnit_collapsibleManual_othersThrow() {
-        assertEquals(BannerRefresh.BY_AD_UNIT, bannerRefreshOf(AdFormat.BANNER))
-        assertEquals(BannerRefresh.MANUAL, bannerRefreshOf(AdFormat.BANNER_COLLAPSIBLE))
-        assertEquals(BannerRefresh.BY_AD_UNIT, bannerRefreshOf(AdFormat.BANNER_MREC))
+    fun requestIsCollapsible_onlyCollapsible_othersThrow() {
+        // Plan T-088, section 3.5: every banner reloads by hand; only the collapsible banner asks to collapse.
+        assertEquals(false, bannerRequestIsCollapsible(AdFormat.BANNER))
+        assertEquals(false, bannerRequestIsCollapsible(AdFormat.BANNER_MREC))
+        assertEquals(true, bannerRequestIsCollapsible(AdFormat.BANNER_COLLAPSIBLE))
         val others = AdFormat.entries - AdFormat.BANNER - AdFormat.BANNER_COLLAPSIBLE - AdFormat.BANNER_MREC
         assertTrue(others.isNotEmpty())
         others.forEach { format ->
-            assertThrows(format.name, IllegalArgumentException::class.java) { bannerRefreshOf(format) }
+            assertThrows(format.name, IllegalArgumentException::class.java) { bannerRequestIsCollapsible(format) }
         }
     }
 
     @Test
-    fun byAdUnit_afterLoaded_appNeverSendsAgain() = runTest {
-        val sdkRefreshed = sendTimesAfterSdkRefreshes(BannerRefresh.BY_AD_UNIT)
-        assertEquals(listOf(0L), sdkRefreshed)
+    fun afterLoaded_sendsOnlyOnReloadTick() = runTest {
+        // Plan T-088, section 3.5: a result the SDK refreshes by itself never makes the app send; with the key at 0
+        // the app never sends again.
+        val off = sendTimesAfterSdkRefreshes(MutableStateFlow(0L))
+        assertEquals(listOf(0L), off)
 
-        // Control (L-055): the same story by hand sends again 30 s after the first load.
-        val manual = sendTimesAfterSdkRefreshes(BannerRefresh.MANUAL)
-        assertTrue("$manual", 30_500L in manual)
+        // Control (L-055): with the key at 60 s the app sends on its tick only, 60 s after each load; the loads the SDK
+        // refreshes at 60 000 and 120 000 fall inside a count, so they neither reset it nor send.
+        val byKey = sendTimesAfterSdkRefreshes(MutableStateFlow(60_000L))
+        assertEquals(
+            listOf(0L, 60_500L, 120_500L, 180_500L, 240_500L, 300_500L, 360_500L, 420_500L, 480_500L, 540_500L),
+            byKey,
+        )
     }
 
-    /** Sends at 0, Loaded at 500, then the SDK refreshes (Loaded) at 60 000 and 120 000; sends up to 600 000. */
-    private fun TestScope.sendTimesAfterSdkRefreshes(refresh: BannerRefresh): List<Long> {
+    /**
+     * Sends at 0, Loaded at 500, then the SDK refreshes (Loaded) at 60 000 and 120 000; sends up to 600 000. From the
+     * second send on, the fake answers each send with Loaded at once.
+     */
+    private fun TestScope.sendTimesAfterSdkRefreshes(reloadMillis: StateFlow<Long>): List<Long> {
         val start = testScheduler.currentTime
         val view = fakeView()
-        val job = run(refresh, view)
+        view.onSend = { if (view.sendCount >= 2) view.emitLoaded() }
+        val job = run(view, reloadMillis = reloadMillis)
         at(start + 500)
         view.emitLoaded()
         runCurrent()
@@ -109,9 +118,102 @@ class BannerLoadsTest {
     }
 
     @Test
+    fun fixed_reloadsByHandAfterKeySeconds() = runTest {
+        // Plan T-088, KB-34 criterion 1, KB-18 criterion 1: a fixed banner reloads by hand at its key, 60 s.
+        val view = fakeView()
+        run(view, reloadMillis = MutableStateFlow(60_000L))
+        view.emitLoaded()
+        runCurrent()
+
+        at(59_999)
+        assertEquals(listOf(0L), view.sendTimes)
+        at(60_000)
+        assertEquals(listOf(0L, 60_000L), view.sendTimes)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY reload in 60000 ms" })
+    }
+
+    @Test
+    fun tryNextWhileWaitingTick_sendsAtOnce_noFailure() = runTest {
+        // Plan T-088, section 3.1 step 2: TryNext while the loop waits for its tick drops the count and sends at once.
+        val view = fakeView()
+        runCountingFailures(view, reloadMillis = MutableStateFlow(60_000L))
+        view.emitLoaded()
+        runCurrent()
+
+        at(10_000)
+        view.emitTryNext()
+        runCurrent()
+        assertEquals(listOf(0L, 10_000L), view.sendTimes)
+        assertEquals(0, failedCalls)
+
+        at(10_500)
+        view.emitLoaded()
+        runCurrent()
+        at(60_000)
+        assertEquals(listOf(0L, 10_000L), view.sendTimes)
+        at(70_499)
+        assertEquals(listOf(0L, 10_000L), view.sendTimes)
+        at(70_500)
+        assertEquals(listOf(0L, 10_000L, 70_500L), view.sendTimes)
+        assertEquals(0, failedCalls)
+    }
+
+    @Test
+    fun reloadZero_fixedBanner_retriesUntilLoaded_thenKeeps() = runTest {
+        // Plan T-088, KB-34 criterion 4: key 0, no ad yet: retries until an ad comes (B-02), then keeps it.
+        val off = failTwiceThenLoad(MutableStateFlow(0L))
+        assertEquals(listOf(0L, 2_000L, 6_000L), off)
+
+        // Control (L-055): the same story with the key at 60 s reloads 60 s after the load at 6 s.
+        val byKey = failTwiceThenLoad(MutableStateFlow(60_000L))
+        assertTrue("$byKey", 66_000L in byKey)
+        assertEquals(listOf(0L, 2_000L, 6_000L), byKey.take(3))
+    }
+
+    /** Failed at 0 and at 2 000, Loaded at 6 000; the send times up to 600 000. */
+    private fun TestScope.failTwiceThenLoad(reloadMillis: StateFlow<Long>): List<Long> {
+        val start = testScheduler.currentTime
+        val view = fakeView()
+        val job = run(view, reloadMillis = reloadMillis)
+        view.emitFailed(3)
+        runCurrent()
+        at(start + 2_000)
+        view.emitFailed(3)
+        runCurrent()
+        at(start + 6_000)
+        view.emitLoaded()
+        runCurrent()
+        at(start + 600_000)
+        job.cancel()
+        return view.sendTimes.map { it - start }
+    }
+
+    @Test
+    fun fixedReload_gateClosedAtSend_sendsNothingAndStops() = runTest {
+        // Plan T-088, KB-34 criterion 6, S-15: the reload by hand asks the consent gate right before it sends.
+        val view = fakeView()
+        val job = run(view, reloadMillis = MutableStateFlow(60_000L))
+        view.emitLoaded()
+        runCurrent()
+        // Control: the loop waits for its tick.
+        assertTrue(job.isActive)
+
+        at(59_000)
+        mayRequest = false
+        at(60_000)
+        assertEquals(listOf(0L), view.sendTimes)
+        assertTrue("the loop has ended", job.isCompleted)
+        assertTrue(logger.entries.any { it.message == "Banner $KEY request blocked" })
+
+        mayRequest = true
+        at(600_000)
+        assertEquals(listOf(0L), view.sendTimes)
+    }
+
+    @Test
     fun retryDueWhileHidden_waitsForNextVisible() = runTest {
         val view = fakeView()
-        run(BannerRefresh.BY_AD_UNIT, view)
+        run(view, reloadMillis = MutableStateFlow(0L))
         view.emitFailed(3)
         runCurrent()
 
@@ -128,7 +230,7 @@ class BannerLoadsTest {
     @Test
     fun manualReloadDueWhileHidden_waitsForNextVisible() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
 
@@ -146,7 +248,7 @@ class BannerLoadsTest {
     fun firstSend_waitsUntilVisible() = runTest {
         visible.value = false
         val view = fakeView()
-        run(BannerRefresh.BY_AD_UNIT, view)
+        run(view, reloadMillis = MutableStateFlow(0L))
 
         at(60_000)
         assertEquals(emptyList<Long>(), view.sendTimes)
@@ -160,7 +262,7 @@ class BannerLoadsTest {
     fun manual_reloadsEvery30sAfterLoaded() = runTest {
         val view = fakeView()
         loadAfter(view, 300)
-        run(BannerRefresh.MANUAL, view)
+        run(view)
 
         at(95_000)
 
@@ -172,7 +274,7 @@ class BannerLoadsTest {
     fun manual_reloadsAfterKeySeconds() = runTest {
         reload.value = 45_000
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
 
@@ -188,7 +290,7 @@ class BannerLoadsTest {
     @Test
     fun manual_reloadChangedMidCount_appliesNext() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
 
@@ -212,7 +314,7 @@ class BannerLoadsTest {
     fun manual_reloadZeroToPositive_countsFromReceipt() = runTest {
         reload.value = 0
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
 
@@ -231,7 +333,7 @@ class BannerLoadsTest {
     @Test
     fun manual_reloadZeroDuringRetryAfterLoaded_keepsBanner() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
         at(30_000)
@@ -258,7 +360,7 @@ class BannerLoadsTest {
         // Control (L-055): the same failure with the key kept sends its retry 2 s later.
         val start = testScheduler.currentTime
         val kept = fakeView()
-        run(BannerRefresh.MANUAL, kept, reloadMillis = MutableStateFlow(30_000L))
+        run(kept, reloadMillis = MutableStateFlow(30_000L))
         kept.emitLoaded()
         runCurrent()
         at(start + 30_000)
@@ -271,7 +373,7 @@ class BannerLoadsTest {
     @Test
     fun manual_neverLoaded_twoFailures_thenZero_keepsRetrying() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitFailed(3)
         runCurrent()
         at(2_000)
@@ -296,7 +398,7 @@ class BannerLoadsTest {
     @Test
     fun manual_loadedThenTwoFailures_thenZero_keepsBanner() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
         at(30_000)
@@ -333,7 +435,7 @@ class BannerLoadsTest {
     fun manual_reloadZero_retriesUntilLoaded_thenKeeps() = runTest {
         reload.value = 0
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitFailed(3)
         runCurrent()
         at(2_000)
@@ -352,7 +454,7 @@ class BannerLoadsTest {
     fun firstSend_gateClosed_sendsNothingAndNeverRetries() = runTest {
         mayRequest = false
         val blocked = fakeView()
-        val blockedJob = run(BannerRefresh.BY_AD_UNIT, blocked)
+        val blockedJob = run(blocked, reloadMillis = MutableStateFlow(0L))
 
         at(120_000)
         assertEquals(emptyList<Long>(), blocked.sendTimes)
@@ -363,7 +465,7 @@ class BannerLoadsTest {
         mayRequest = true
         val start = testScheduler.currentTime
         val open = fakeView()
-        run(BannerRefresh.BY_AD_UNIT, open)
+        run(open, reloadMillis = MutableStateFlow(0L))
         runCurrent()
         assertEquals(listOf(start), open.sendTimes)
     }
@@ -371,7 +473,7 @@ class BannerLoadsTest {
     @Test
     fun retry_gateClosedAtSend_sendsNothingAndStops() = runTest {
         val view = fakeView()
-        val job = run(BannerRefresh.BY_AD_UNIT, view)
+        val job = run(view, reloadMillis = MutableStateFlow(0L))
         view.emitFailed(3)
         runCurrent()
 
@@ -389,7 +491,7 @@ class BannerLoadsTest {
     @Test
     fun manualReload_gateClosedAtSend_sendsNothingAndStops() = runTest {
         val view = fakeView()
-        val job = run(BannerRefresh.MANUAL, view)
+        val job = run(view)
         view.emitLoaded()
         runCurrent()
         assertEquals(1, loadedCalls)
@@ -405,7 +507,7 @@ class BannerLoadsTest {
     @Test
     fun manual_failure_retriesThenBackTo30s() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitFailed(3)
         runCurrent()
 
@@ -424,7 +526,7 @@ class BannerLoadsTest {
     fun failures_retryAt2_4_6_8_10_10s() = runTest {
         val view = fakeView()
         view.onSend = { view.emitFailed(3) }
-        run(BannerRefresh.BY_AD_UNIT, view)
+        run(view, reloadMillis = MutableStateFlow(0L))
 
         at(40_000)
 
@@ -441,12 +543,11 @@ class BannerLoadsTest {
         view.onSend = { if (view.sendCount <= 2) view.emitFailed(3) else view.emitLoaded() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             runBannerLoads(
-                refresh = BannerRefresh.BY_AD_UNIT,
                 view = view,
                 visible = visible,
                 mayRequestNow = { mayRequest },
                 retryResets = retryResets,
-                reloadMillis = reload,
+                reloadMillis = MutableStateFlow(0L),
                 onLoaded = { loadedCalls++ },
                 logger = logger,
                 placementKey = KEY,
@@ -468,7 +569,7 @@ class BannerLoadsTest {
         val start = testScheduler.currentTime
         val plain = fakeView()
         plain.onSend = { if (plain.sendCount <= 2) plain.emitFailed(3) else plain.emitLoaded() }
-        run(BannerRefresh.BY_AD_UNIT, plain)
+        run(plain, reloadMillis = MutableStateFlow(0L))
         at(start + 10_000)
         assertEquals(withOnFailed, plain.sendTimes.map { it - start })
     }
@@ -476,7 +577,7 @@ class BannerLoadsTest {
     @Test
     fun loaded_resetsFailureCount() = runTest {
         val view = fakeView()
-        run(BannerRefresh.BY_AD_UNIT, view)
+        run(view, reloadMillis = MutableStateFlow(0L))
         view.emitFailed(3)
         runCurrent()
         at(2_000)
@@ -497,7 +598,7 @@ class BannerLoadsTest {
     fun networkBack_cutsRetryWaitShort() = runTest {
         val view = fakeView()
         view.onSend = { view.emitFailed(2) }
-        run(BannerRefresh.BY_AD_UNIT, view)
+        run(view, reloadMillis = MutableStateFlow(0L))
         at(20_000)
         assertEquals(listOf(0L, 2_000L, 6_000L, 12_000L, 20_000L), view.sendTimes)
         view.onSend = {}
@@ -512,7 +613,7 @@ class BannerLoadsTest {
     @Test
     fun manual_networkBack_doesNotShortenReload() = runTest {
         val view = fakeView()
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         view.emitLoaded()
         runCurrent()
 
@@ -528,13 +629,13 @@ class BannerLoadsTest {
     fun twoSlotsSamePlacement_countFailuresApart() = runTest {
         val a = fakeView()
         a.onSend = { a.emitFailed(3) }
-        run(BannerRefresh.BY_AD_UNIT, a)
+        run(a, reloadMillis = MutableStateFlow(0L))
         at(6_000)
         assertEquals(listOf(0L, 2_000L, 6_000L), a.sendTimes)
 
         val b = fakeView()
         b.onSend = { b.emitFailed(3) }
-        run(BannerRefresh.BY_AD_UNIT, b)
+        run(b, reloadMillis = MutableStateFlow(0L))
         runCurrent()
         at(8_000)
 
@@ -548,7 +649,7 @@ class BannerLoadsTest {
         val view = fakeView()
         // A result of an earlier run (before the gate closed) comes before this run collects.
         view.emitFailed(3)
-        run(BannerRefresh.MANUAL, view)
+        run(view)
         at(100)
         view.emitLoaded()
         runCurrent()
@@ -562,7 +663,7 @@ class BannerLoadsTest {
     @Test
     fun cancelled_sendsNothingMore() = runTest {
         val view = fakeView()
-        val job = run(BannerRefresh.BY_AD_UNIT, view)
+        val job = run(view, reloadMillis = MutableStateFlow(0L))
         view.emitFailed(3)
         runCurrent()
         // Control: the loop is waiting for its retry.
@@ -578,21 +679,22 @@ class BannerLoadsTest {
     /** [run] with a count of [runBannerLoads]' onFailed calls (plan T-071). */
     private var failedCalls = 0
 
-    private fun TestScope.runCountingFailures(view: FakeBannerAdView): Job =
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            runBannerLoads(
-                refresh = BannerRefresh.BY_AD_UNIT,
-                view = view,
-                visible = visible,
-                mayRequestNow = { mayRequest },
-                retryResets = retryResets,
-                reloadMillis = reload,
-                onLoaded = { loadedCalls++ },
-                logger = logger,
-                placementKey = KEY,
-                onFailed = { failedCalls++ },
-            )
-        }
+    private fun TestScope.runCountingFailures(
+        view: FakeBannerAdView,
+        reloadMillis: StateFlow<Long> = MutableStateFlow(0L),
+    ): Job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+        runBannerLoads(
+            view = view,
+            visible = visible,
+            mayRequestNow = { mayRequest },
+            retryResets = retryResets,
+            reloadMillis = reloadMillis,
+            onLoaded = { loadedCalls++ },
+            logger = logger,
+            placementKey = KEY,
+            onFailed = { failedCalls++ },
+        )
+    }
 
     @Test
     fun tryNext_sendsAtOnce_noFailureCounted_noOnFailed() = runTest {

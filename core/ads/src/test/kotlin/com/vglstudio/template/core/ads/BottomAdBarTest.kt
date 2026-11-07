@@ -139,7 +139,6 @@ class BottomAdBarTest {
                         enabled = barEnabled,
                         unitId = layerUnitIds.of(placement, AdFormat.BANNER),
                         heightDp = BANNER_HEIGHT_DP,
-                        refresh = BannerRefresh.BY_AD_UNIT,
                         visible = MutableStateFlow(true),
                         covered = MutableStateFlow(false),
                         mayRequestNow = { canRequest },
