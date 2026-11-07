@@ -27,6 +27,9 @@ internal sealed interface NativeClaim {
     data object Blocked : NativeClaim
 }
 
+/** One load of a [NativeAdSource]: its result, and the cell its metrics read the placement from (PL-03). */
+internal class NativeSourceLoad(val state: NativeAdState, val holder: PlacementCell = PlacementCell())
+
 /** The slot state of a claim; null when the claim was blocked (like "request blocked" of [retryingNativeAdStates]). */
 internal fun NativeClaim.toStateOrNull(): NativeAdState? = when (this) {
     is NativeClaim.Ad -> NativeAdState.Loaded(ad)
@@ -68,16 +71,22 @@ internal object NativeAdPolicy {
  * Main thread only ([scope] runs on the main thread).
  */
 internal class NativeAdSource(
-    private val load: suspend (NativeLoadUse) -> NativeAdState,
+    private val load: suspend (NativeLoadUse, AdPlacement?) -> NativeSourceLoad,
     private val sendGate: suspend () -> Boolean,
     private val clock: MonotonicClock,
     private val scope: CoroutineScope,
     private val logger: AppLogger,
     private val placementKey: String,
     /** Latest switch of the placement and consent; false makes every claim [NativeClaim.Blocked] (L-061). */
-    private val allowed: () -> Boolean = { true },
+    private val allowed: (AdPlacement) -> Boolean = { true },
+    /** Whether the stock may start a load of its own; [slotOnScreen] is true while a slot of it is attached. */
+    private val mayFill: (slotOnScreen: Boolean) -> Boolean = { true },
 ) {
-    private class Waiter(val use: NativeLoadUse, val continuation: CancellableContinuation<NativeClaim>) {
+    private class Waiter(
+        val use: NativeLoadUse,
+        val placement: AdPlacement,
+        val continuation: CancellableContinuation<NativeClaim>,
+    ) {
         /** Lost a load to another claimer: the load now flying, or the next one, is its one retry (O-02). */
         var lost = false
     }
@@ -98,6 +107,9 @@ internal class NativeAdSource(
     private val waiters = ArrayDeque<Waiter>()
 
     val isLoading: Boolean get() = inFlight != null
+
+    /** At least one slot of this source is on screen. */
+    val hasSlots: Boolean get() = slots > 0
 
     /** The ad loaded for the next claim, if any. */
     val pending: LoadedNativeAd? get() = pendingAd?.ad
@@ -121,20 +133,26 @@ internal class NativeAdSource(
     }
 
     /** One ad for one showing; see the class rules. */
-    suspend fun claim(use: NativeLoadUse): NativeClaim {
-        if (!allowed()) return NativeClaim.Blocked
+    suspend fun claim(use: NativeLoadUse, placement: AdPlacement): NativeClaim {
+        if (!allowed(placement)) return NativeClaim.Blocked
         takeFresh()?.let { ad ->
             logger.info(TAG, "Native $placementKey claimed")
             startNextLoad()
             return NativeClaim.Ad(ad)
         }
         return suspendCancellableCoroutine { continuation ->
-            val waiter = Waiter(use, continuation)
+            val waiter = Waiter(use, placement, continuation)
             waiters.addLast(waiter)
             continuation.invokeOnCancellation { waiters.remove(waiter) }
-            if (inFlight == null) startLoad(use)
+            if (inFlight == null) startLoad(use, placement)
         }
     }
+
+    /** Skeleton of the stock preload (plan T-086): nothing yet. */
+    fun fill() = Unit
+
+    /** No load in flight. */
+    fun settled(): Boolean = inFlight == null
 
     private fun takeFresh(): LoadedNativeAd? {
         val kept = pendingAd ?: return null
@@ -148,15 +166,15 @@ internal class NativeAdSource(
     private fun startNextLoad() {
         if (inFlight != null || slots == 0 || waiters.isNotEmpty()) return
         logger.info(TAG, "Native $placementKey next load")
-        startLoad(NativeLoadUse.REFRESH)
+        startLoad(NativeLoadUse.REFRESH, null)
     }
 
-    private fun startLoad(use: NativeLoadUse) {
+    private fun startLoad(use: NativeLoadUse, placement: AdPlacement?) {
         if (inFlight != null) return
         val opening = session
         // Started after it is kept in inFlight: a load that ends without suspending still clears it.
         val job = scope.launch(start = CoroutineStart.LAZY) {
-            val result = sendAndLoad(use)
+            val result = sendAndLoad(use, placement)
             if (session != opening) {
                 (result as? NativeAdState.Loaded)?.ad?.let(::destroyLate)
                 return@launch
@@ -173,8 +191,8 @@ internal class NativeAdSource(
     }
 
     /** The load of [use] through the gate; null when the gate is closed. Never throws but for cancellation. */
-    private suspend fun sendAndLoad(use: NativeLoadUse): NativeAdState? = try {
-        if (sendGate()) load(use) else null
+    private suspend fun sendAndLoad(use: NativeLoadUse, placement: AdPlacement?): NativeAdState? = try {
+        if (sendGate()) load(use, placement).state else null
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -198,7 +216,7 @@ internal class NativeAdSource(
         }
         waiters.forEach { it.lost = true }
         logger.info(TAG, "Native $placementKey claim lost, retry once")
-        startLoad(waiters.first().use)
+        waiters.first().let { startLoad(it.use, it.placement) }
     }
 
     private fun failed() {
@@ -207,7 +225,7 @@ internal class NativeAdSource(
         val done = waiters.filter { it === head || !it.lost }
         waiters.removeAll(done)
         done.forEach { it.continuation.resume(NativeClaim.NoAd) }
-        waiters.firstOrNull()?.let { startLoad(it.use) }
+        waiters.firstOrNull()?.let { startLoad(it.use, it.placement) }
     }
 
     private fun blockAll() {

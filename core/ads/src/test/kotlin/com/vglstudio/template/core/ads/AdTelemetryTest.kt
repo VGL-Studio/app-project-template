@@ -490,6 +490,57 @@ class AdTelemetryTest {
     }
 
     @Test
+    fun preloadUse_logsPreloadPlacement_noLoadAttempt() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        // Loads of the native small stock itself (fail, then success), each with a new report (PL-02, KB-33).
+        listOf(false, true).forEachIndexed { i, success ->
+            val load = telemetry.nativeLoadReport(null, NativeLoadUse.PRELOAD, AdFormat.NATIVE_SMALL)
+            load.sent(i * 100L)
+            if (success) load.succeeded(i * 100L + 10) else load.failed(3, null, i * 100L + 20)
+        }
+
+        assertEquals(listOf<Int?>(null, null), metrics.events.map { it.loadAttemptOrMissing() })
+        assertEquals(
+            listOf("preload", "preload"),
+            metrics.events.map {
+                when (it) {
+                    is AdMetricEvent.LoadSuccess -> it.adPlacement
+                    is AdMetricEvent.LoadFail -> it.adPlacement
+                    else -> null
+                }
+            },
+        )
+        assertEquals(listOf(20L, 10L), metrics.events.map { it.latencyOrMissing() })
+        assertTrue(metrics.events.all { it.adFormat == "NATIVE_SMALL" })
+        assertEquals(0, counter.failuresInARow("sample_native_small"))
+        assertEquals(0, counter.failuresInARow(AdFormat.NATIVE_SMALL.code))
+    }
+
+    @Test
+    fun preloadAndSingleAdOverlap_eachOwnPlacementAndLatency() {
+        val telemetry = telemetry()
+        logSlot = true
+        serving = true
+
+        // The stock loads by itself while a slot of the sample screen waits on a load of its own.
+        val preload = telemetry.nativeLoadReport(null, NativeLoadUse.PRELOAD, AdFormat.NATIVE_SMALL)
+        val single = telemetry.nativeLoadReport(AdPlacement.SAMPLE_NATIVE_SMALL, NativeLoadUse.SINGLE_AD)
+        preload.sent(0)
+        single.sent(300)
+        preload.succeeded(900)
+        single.succeeded(1_000)
+
+        val successes = metrics.events.filterIsInstance<AdMetricEvent.LoadSuccess>()
+        assertEquals(2, successes.size)
+        assertEquals(listOf("preload", "sample_native_small"), successes.map { it.adPlacement })
+        assertEquals(listOf(900L, 700L), successes.map { it.latencyMs })
+        assertEquals(listOf<Int?>(null, 1), successes.map { it.loadAttempt })
+    }
+
+    @Test
     fun poolCellOpportunity_shownReady_notReadyIdle() {
         val telemetry = telemetry()
         logSlot = true
@@ -726,6 +777,12 @@ class AdTelemetryTest {
     }
 
     /** `load_attempt` of a load event; any other event is a test error. */
+    private fun AdMetricEvent.latencyOrMissing(): Long? = when (this) {
+        is AdMetricEvent.LoadSuccess -> latencyMs
+        is AdMetricEvent.LoadFail -> latencyMs
+        else -> throw AssertionError("Not a load event: $this")
+    }
+
     private fun AdMetricEvent.loadAttemptOrMissing(): Int? = when (this) {
         is AdMetricEvent.LoadSuccess -> loadAttempt
         is AdMetricEvent.LoadFail -> loadAttempt

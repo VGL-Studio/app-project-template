@@ -1318,6 +1318,10 @@ class AdsController @Inject internal constructor(
         inScreenAdWindowState.onForeground(foreground)
     }
 
+    /** Tests only: the preload of S-21, which the SDK's init callback asks for (plan T-086). */
+    @VisibleForTesting
+    internal fun requestPreloadForTest() = preloader.request(PreloadReason.SDK_READY)
+
     /** Tests only: the SDK reported its initialization (S-21). */
     @VisibleForTesting
     internal fun markSdkReadyForTest() {
@@ -1572,9 +1576,12 @@ class AdsController @Inject internal constructor(
      */
     private val nativeSources by lazy {
         NativeAdSources(
+            placements = AdPlacement.entries,
+            unitId = { placement, format -> unitIds.of(placement, format) },
             enabled = ::isEnabled,
             canRequestAds = canRequestAds,
-            newLoad = { placement, format, use -> nativeLoadOf(placement, format, use) },
+            globalFlags = globalFlags,
+            newLoad = { key, use, placement -> nativeLoadOf(key, use, placement) },
             sendGate = inScreenSendGate,
             clock = clock,
             scope = scope,
@@ -1688,6 +1695,8 @@ class AdsController @Inject internal constructor(
                 emitAll(
                     singleAdSlotStates(
                         source = nativeSources.source(placement, format),
+                        placement = placement,
+                        stopped = nativeSources.stopped(placement),
                         foreground = inScreenAdWindow,
                         mayRequestNow = ::mayRequestNow,
                         retryResets = preloader.nativeRetryResets,
@@ -1720,25 +1729,38 @@ class AdsController @Inject internal constructor(
         }
     }
 
-    /** One load of a single-ad source: [nativeLoadOnce] with fresh metrics events of [use] (L-A07). */
+    /**
+     * One load of the stock of [key]: [nativeLoadOnce] with fresh metrics events of [use] (L-A07), and a fresh
+     * [PlacementCell] holding [placement], the slot waiting for it (null for a load of the stock itself); the stock
+     * sets it to the slot that takes the ad (PL-03).
+     */
     private fun nativeLoadOf(
-        placement: AdPlacement,
-        format: AdFormat,
+        key: NativePoolKey,
         use: NativeLoadUse,
-    ): suspend () -> NativeAdState {
-        val unitId = unitId(placement, format) ?: return { NativeAdState.Unavailable }
-        val size = format.nativeLoadSize() ?: return { NativeAdState.Unavailable }
+        placement: AdPlacement?,
+    ): suspend () -> NativeSourceLoad {
+        val holder = PlacementCell().apply { value = placement }
+        val size = key.format.nativeLoadSize() ?: return { NativeSourceLoad(NativeAdState.Unavailable, holder) }
         // The collapsible layer has the collapse button in its top right corner: AdChoices goes top left (T-030).
-        val options = if (format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
-        return nativeLoadOnce(
-            newEvents = { nativeAdMetrics(placement, unitId, use, format) },
-            newLoader = { events -> newNativeLoader(events, options, nativeSlotKey(placement, format)) },
-            unitId = unitId,
+        val options = if (key.format == AdFormat.NATIVE_COLLAPSIBLE) collapsibleNativeRequestOptions() else null
+        val logKey = placement?.let { nativeSlotKey(it, key.format) } ?: "$PRELOAD/${key.format.code}"
+        val load = nativeLoadOnce(
+            newEvents = {
+                NativeAdMetrics(
+                    format = key.format,
+                    unitId = key.unitId,
+                    load = telemetry.nativeLoadReport(placement, use, key.format),
+                    placement = { holder.value },
+                )
+            },
+            newLoader = { events -> newNativeLoader(events, options, logKey) },
+            unitId = key.unitId,
             size = size,
             timeoutMillis = NATIVE_LOAD_TIMEOUT_MILLIS,
             logger = logger,
-            placementKey = nativeSlotKey(placement, format),
+            placementKey = logKey,
         )
+        return { NativeSourceLoad(load(), holder) }
     }
 
     /**

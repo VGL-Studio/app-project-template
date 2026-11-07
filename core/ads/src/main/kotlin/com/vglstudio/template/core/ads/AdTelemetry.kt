@@ -303,7 +303,7 @@ internal interface LoadReport {
  * single-ad slot, which also covers the next load after a claim (plan T-040, section 8.2), or one load of a pool
  * (plan T-028, P-04, PL-02).
  */
-internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH, POOL }
+internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH, POOL, PRELOAD }
 
 /**
  * The load report of a native [placement] drawn as [format] and used as [use]; the choice of [AdsController],
@@ -312,14 +312,15 @@ internal enum class NativeLoadUse { SINGLE_AD, LIST_ROW, REFRESH, POOL }
  * per request: no `load_attempt`, latency from the send of that request, and the counter is not touched.
  */
 internal fun AdTelemetry.nativeLoadReport(
-    placement: AdPlacement,
+    placement: AdPlacement?,
     use: NativeLoadUse,
-    format: AdFormat = placement.format,
+    format: AdFormat = requireNotNull(placement) { "A native load with no placement names its format" }.format,
 ): LoadReport {
     // A list row keeps the placement key of its screen (question 7); a load of a pool logs `pool` (PL-02).
     val loadPlacement = loadPlacementOf(format, placement)
     return when (use) {
-        NativeLoadUse.SINGLE_AD -> countedLoad(format, nativeSlotKey(placement, format), loadPlacement)
+        NativeLoadUse.SINGLE_AD, NativeLoadUse.PRELOAD ->
+            countedLoad(format, placement?.let { nativeSlotKey(it, format) } ?: format.code, loadPlacement)
         NativeLoadUse.LIST_ROW, NativeLoadUse.REFRESH, NativeLoadUse.POOL -> perRequestLoad(format, loadPlacement)
     }
 }

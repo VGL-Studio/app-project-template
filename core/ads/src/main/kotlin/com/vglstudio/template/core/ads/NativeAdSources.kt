@@ -3,6 +3,7 @@ package com.vglstudio.template.core.ads
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -18,9 +19,12 @@ import kotlinx.coroutines.launch
  * for the life of the process; placements are a fixed enum, so there are few. Main thread only.
  */
 internal class NativeAdSources(
+    private val placements: List<AdPlacement>,
+    private val unitId: (AdPlacement, AdFormat) -> String?,
     private val enabled: (AdPlacement) -> Flow<Boolean>,
     private val canRequestAds: StateFlow<Boolean>,
-    private val newLoad: (AdPlacement, AdFormat, NativeLoadUse) -> suspend () -> NativeAdState,
+    private val globalFlags: StateFlow<AdsGlobalFlags>,
+    private val newLoad: (NativePoolKey, NativeLoadUse, AdPlacement?) -> suspend () -> NativeSourceLoad,
     private val sendGate: suspend () -> Boolean,
     private val clock: MonotonicClock,
     private val scope: CoroutineScope,
@@ -31,17 +35,28 @@ internal class NativeAdSources(
     /** Latest switch and consent per watched placement; not known yet counts as allowed (the slot checked both). */
     private val allowedNow = mutableMapOf<AdPlacement, Boolean>()
 
+    private val stops = mutableMapOf<AdPlacement, MutableStateFlow<Long>>()
+
+    /** Moves each time [placement] is switched off or consent withdrawn: its slots stop. */
+    fun stopped(placement: AdPlacement): StateFlow<Long> = stops.getOrPut(placement) { MutableStateFlow(0L) }
+
+    /** Skeleton of the stock preload slots (plan T-086): none yet. */
+    fun preloadSlots(format: AdFormat): List<PreloadSlot> = emptyList()
+
     fun source(placement: AdPlacement, format: AdFormat = placement.format): NativeAdSource {
         sources[placement to format]?.let { return it }
         val watched = sources.keys.any { it.first == placement }
         val source = NativeAdSource(
-            load = { use -> newLoad(placement, format, use)() },
+            load = { use, claimer ->
+                newLoad(NativePoolKey(format, unitId(placement, format).orEmpty()), use, claimer)()
+            },
             sendGate = sendGate,
             clock = clock,
             scope = scope,
             logger = logger,
             placementKey = nativeSlotKey(placement, format),
             allowed = { canRequestAds.value && allowedNow[placement] != false },
+            mayFill = { true },
         )
         sources[placement to format] = source
         if (!watched) watch(placement)
@@ -56,11 +71,22 @@ internal class NativeAdSources(
                     allowedNow[placement] = allowed
                     if (!allowed) {
                         sources.filterKeys { it.first == placement }.values.forEach { it.shutDown() }
+                        (stopped(placement) as MutableStateFlow<Long>).value += 1
                     }
                 }
         }
     }
 }
+
+/** Skeleton of the fill rule of a stock (plan T-086). */
+@Suppress("UNUSED_PARAMETER")
+internal fun stockMayFill(
+    format: AdFormat,
+    consent: Boolean,
+    flags: AdsGlobalFlags,
+    membersOn: Boolean,
+    slotOnScreen: Boolean,
+): Boolean = false
 
 /**
  * The formats whose slot goes through a [NativeAdSource] and refreshes in place: native small (plan T-040) and the
@@ -80,6 +106,8 @@ internal fun nativeSlotKey(placement: AdPlacement, format: AdFormat): String =
  */
 internal fun singleAdSlotStates(
     source: NativeAdSource,
+    placement: AdPlacement,
+    stopped: StateFlow<Long>,
     foreground: StateFlow<Boolean>,
     mayRequestNow: () -> Boolean,
     retryResets: StateFlow<Int>,
@@ -92,7 +120,7 @@ internal fun singleAdSlotStates(
     try {
         emitAll(
             retryingNativeAdStates(
-                load = { source.claim(NativeLoadUse.SINGLE_AD).toStateOrNull() },
+                load = { source.claim(NativeLoadUse.SINGLE_AD, placement).toStateOrNull() },
                 foreground = foreground,
                 mayRequestNow = mayRequestNow,
                 retryResets = retryResets,
@@ -102,6 +130,8 @@ internal fun singleAdSlotStates(
                     refreshingNativeAdStates(
                         first,
                         source,
+                        placement,
+                        stopped,
                         foreground,
                         mayRequestNow,
                         retryResets,

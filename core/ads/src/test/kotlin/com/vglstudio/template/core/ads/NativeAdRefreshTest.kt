@@ -51,7 +51,8 @@ class NativeAdRefreshTest {
     ): NativeAdSource {
         loads = FakeNativeLoads(loader, { testScheduler.currentTime }, logger)
         source = NativeAdSource(
-            load = load ?: { use -> loads.load(use) },
+            // A load given by the test answers for itself; the default one records the slot it is for (plan T-086).
+            load = { use, placement -> load?.let { NativeSourceLoad(it(use)) } ?: loads.load(use, placement) },
             sendGate = { awaitSendAllowed(gate) { mayRequest } },
             clock = { testScheduler.currentTime },
             scope = backgroundScope,
@@ -77,6 +78,9 @@ class NativeAdRefreshTest {
                         refreshingNativeAdStates(
                             NativeAdState.Loaded(ad0),
                             source,
+                            PLACEMENT,
+                            // The slot stops when the source is shut down, as when its only placement is off.
+                            source.closed,
                             gate,
                             { mayRequest },
                             retryResets,
@@ -602,5 +606,6 @@ class NativeAdRefreshTest {
 
     private companion object {
         const val KEY = "sample_native_small"
+        val PLACEMENT = AdPlacement.SAMPLE_NATIVE_SMALL
     }
 }
