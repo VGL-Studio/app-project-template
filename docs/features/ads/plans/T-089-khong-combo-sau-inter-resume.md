@@ -1,7 +1,7 @@
 ---
 ticket: T-089
 title: Inter khi quay lại app không nối native toàn màn hình
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -305,3 +305,15 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt"), sau khi xem tóm tắt plan, kết quả rà soát độc lập và bốn câu hỏi ở mục 8 kèm đề xuất của AI. Trả lời câu hỏi theo đề xuất của AI: (1) giữ tham số `combo`, lượt resume truyền `false` (phương án A); (2) đổi mô tả khóa `is_show_native_after_inter` và sinh lại `docs/remote-config-keys.md`, `docs/remote-config-template.json`; (3) bỏ `is_show_native_after_inter` khỏi dòng "Quảng cáo khi quay lại app" của `docs/ops/ads-guide.md`; (4) KB-16 tiêu chí 8 chỉ áp cho inter của vị trí trong app; ghi chú đổi vào spec làm bằng một PR tài liệu riêng, ngoài phiên tự chạy. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261107-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #402, commit `a219651` trên nhánh chính, 2026-11-07 11:49 UTC).
+- **Nhánh, PR:** `claude/T-089-khong-combo-resume`, https://github.com/VGL-Studio/app-project-template/pull/402. Commit test `677790f`, commit code `5a290af`. Nhánh chưa xóa được sau merge (chú ý của `merge-if-green.sh`, L-092): người xóa tay.
+- **Đã làm:** `ResumeAdTurns.kt` gọi interstitial với `combo = false` ở nhánh inter, KDoc của `ResumeAdPort.showInterstitial`; `AdsController.kt` chỉ chú thích (bốn chỗ); mô tả `is_show_native_after_inter` trong `AdsSettings.kt` và sinh lại hai file bảng khóa (mỗi file một dòng); `docs/ops/ads-guide.md` ba chỗ; `scripts/ads-plan.py` bốn chuỗi. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-089`.
+- **Test viết trước:** 6 test. 4 test đỏ đúng lý do trên code cũ: `ResumeAdTurnsTest.interResume_showsInterstitialWithoutCombo`, `typeChangedBeforeResume_showsNothing` (`but was:<[(..., RESUME_INTER, true)]>`), `AdsControllerResumeTest.resumeInter_closed_comboOn_noNativeFullScreen`, `resumeInter_showFailed_comboOn_noNativeFullScreen` (`fullScreenAdShowing` còn `true`). 2 test `AdsControllerStartupInterComboTest` qua ngay như plan nêu (khóa hành vi đã có); đột biến bằng lệnh perl của plan làm cả hai đỏ, đã trả file. Số test viết chặt bằng đối chứng: 0. Test JVM mọi module ở bước 3: chỉ 4 test trên đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú (chuỗi `native_combo` của `ads-plan.py` ngắt dòng lạc, nội dung đúng; hàm `assertInAppInterOpensCombo` lặp ở hai file test; test resume inter chỉ đi qua hai đường kết thúc thật, các đường khác theo lập luận mục 3.1; chữ mục 2 và câu hỏi 4 của plan đã cũ vì PR #400). Rà soát chạy lại test và hai đột biến.
+- **Kết quả CI:** `pr-check` xanh vòng đầu (lần chạy 42368981787). `scripts/check.sh` cục bộ: QUA, 1752 test JVM, 0 lỗi, không ảnh chuẩn nào đổi.
+- **Lệch so với plan:** ADR-0032/L5: `ktlintFormat` ngắt một dòng trong `AdsControllerResumeTest` trước commit test. Import thêm `Activity`, `assertSame`, `ActivityController`, cần để biên dịch. Câu khẳng định cũ viết lại (ADR-0031): 2 câu, đúng câu A, B của mục 3.5 (xem PR). Không có file ngoài mục 3.2.
+- **Việc còn lại:** hai dòng kiểm thủ công của mục 4 (người: đọc tài liệu; máy thật: Remote Config `resume_ad_type = inter`).
+- **Cần người xem:** hai câu khẳng định viết lại (ADR-0031) trong `ResumeAdTurnsTest`; bước kiểm tay trên staging của mục 4.
