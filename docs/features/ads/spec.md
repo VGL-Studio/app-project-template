@@ -762,7 +762,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 58. **Thông điệp lỗi của SDK trong log lỗi tải: ở biến thể nào?** (KB-28, phản hồi FB-20261023-02)
     - Bối cảnh: dòng log lỗi tải hôm nay chỉ có mã (ví dụ `Native sample_native_small failed: 0`), nên khó biết lý do. Thông điệp thật chỉ thấy ở log riêng của SDK (ví dụ "Incorrect native ad response. Click actions were not properly specified" của native toàn màn hình trên emulator, RUN-20261025-01). Thông điệp lỗi của SDK có thể chứa mã đơn vị. Vì vậy luật số liệu không gửi nó (`docs/ops/ads-business-rules.md`, mục 8), log không ghi mã đơn vị (mục 13), Crashlytics chỉ nhận tên loại lỗi, không nhận thông điệp (ADR-0019), và log từng mạng của staging cố ý không đọc thông điệp. Bản staging dựng với cấu hình Firebase giả, nên log của nó chỉ ở logcat, không gửi đi đâu.
     - Đề xuất của AI: chỉ ở staging, chỉ với lượt mà SDK trả lỗi (không áp cho dòng "request not built" hay dòng ngoại lệ), và thay chuỗi dạng mã đơn vị (`ca-app-pub-…`, mã đơn vị MAX) bằng dấu che trước khi ghi. Cách này khớp tên KB-28 (thử trên bản staging), không đổi mục 8, mục 13 hay ADR-0019. Phương án khác: (a) mọi biến thể, có che mã đơn vị: phải sửa mục 13 và ghi chú vào ADR-0019 cùng lúc, và thông điệp ra khỏi máy qua Crashlytics; (b) giữ như cũ, đóng phản hồi là `wontfix`.
-    - Trả lời:
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-07, "Đồng ý" với đề xuất đã sửa sau rà soát độc lập): chỉ ở bản staging, chỉ với lượt mà SDK trả lỗi, che chuỗi dạng mã đơn vị trước khi ghi; bản production giữ dòng log chỉ có mã; thông điệp không vào sự kiện phân tích. Ticket T-093.
 
 ## 10. Lịch sử
 
