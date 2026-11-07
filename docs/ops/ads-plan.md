@@ -73,7 +73,7 @@ Từng sheet:
 - **Remote Config.** Mọi khóa của app, chia theo nhóm (mở app, quay lại app, interstitial, thanh đáy, số liệu...). Chỉ điền cột **Giá trị phát hành**: giá trị dự định đặt trên Firebase production. Cột Mặc định trong code là giá trị khi app chưa tải được cấu hình. Khóa riêng của app chưa có trong code thì thêm ở nhóm Khóa của app. Cuối sheet là các khóa theo vị trí, tự sinh từ sheet Vị trí QC.
 - **Sự kiện.** Phần đầu là sự kiện quảng cáo mà `:core:ads` và `:core:analytics` tự gửi cho mọi vị trí: dev không làm thêm gì, chỉ cần biết tên và tham số để đọc số liệu. Phần cuối là sự kiện của app: dòng xanh lá đọc từ hằng `EVENT_` trong code; sự kiện mới thêm vào dòng vàng, ghi khi nào gửi, tham số, và câu hỏi kinh doanh mà nó trả lời.
 - **Định dạng.** Danh sách đóng các định dạng của `:core:ads`, kích thước, cách làm mới, mã `ad_format` trong số liệu. Cần định dạng không có ở đây thì đề xuất về dự án mẫu ([from-app.md](from-app.md)), không tự thêm.
-- **Hằng số.** Giá trị cố định trong code (thời gian chờ, hạn dùng, nhịp làm mới). Không đổi được qua Remote Config; muốn đổi phải sửa dự án mẫu.
+- **Hằng số.** Giá trị cố định trong code (thời gian chờ, hạn dùng, mức sàn của nhịp làm mới). Không đổi được qua Remote Config; muốn đổi phải sửa dự án mẫu. Nhịp làm mới của native nhỏ, lớp thu gọn và banner thu gọn là khóa Remote Config, nằm ở sheet Remote Config.
 
 Không ghi vào file: mã đơn vị quảng cáo thật, khóa SDK (AppLovin...), khóa AppsFlyer, dữ liệu người dùng.
 

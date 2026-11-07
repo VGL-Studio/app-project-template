@@ -213,9 +213,9 @@ internal fun nativeSlotKey(placement: AdPlacement, format: AdFormat): String =
 
 /**
  * The states of one single-ad slot of [source] on screen: attached while collected; the first ad through
- * [retryingNativeAdStates] (claims of `SINGLE_AD`, 5 s retries with no ad), then [refreshingNativeAdStates] (60 s
- * refresh in foreground), each claim for [placement]. Ends, with nothing more sent, once [stopped] moves (the
- * placement off or consent withdrawn).
+ * [retryingNativeAdStates] (claims of `SINGLE_AD`, 5 s retries with no ad), then [refreshingNativeAdStates] (refresh
+ * in foreground at [intervalMillis], the first count longer by [firstTickExtraMillis]), each claim for [placement].
+ * Ends, with nothing more sent, once [stopped] moves (the placement off or consent withdrawn).
  */
 internal fun singleAdSlotStates(
     source: NativeAdSource,

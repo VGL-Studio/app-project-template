@@ -38,13 +38,13 @@ internal fun NativeClaim.toStateOrNull(): NativeAdState? = when (this) {
     NativeClaim.Blocked -> null
 }
 
-/** Times of the native single-ad rules (docs/ops/ads-business-rules.md, O-04, CL-02, section 5.7). */
+/**
+ * Times of the native single-ad rules (docs/ops/ads-business-rules.md, O-04, CL-02, section 5.7). The refresh interval
+ * is a key of each layer ([AdsController.reloadIntervalMillis], KB-34).
+ */
 internal object NativeAdPolicy {
     /** O-04: a native ad is not shown from 55 minutes after it was loaded. */
     const val MAX_AGE_MILLIS = 55 * 60 * 1_000L
-
-    /** CL-02: a single-ad native slot replaces its ad every 60 s in foreground. */
-    const val REFRESH_INTERVAL_MILLIS = 60_000L
 
     /** CL-02: a refresh waits at most 10 s for an ad, then keeps the old one. */
     const val REFRESH_WAIT_MILLIS = 10_000L

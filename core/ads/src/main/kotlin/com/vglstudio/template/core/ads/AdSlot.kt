@@ -51,8 +51,9 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  *
  * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0038), refreshed by the SDK at the
  *   rate of its ad unit in AdMob; the app only retries after a failure (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a
- *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads 30 s after each load, each time
- *   as a new expanded banner (B-03); place it at the bottom of the screen. Any other format throws
+ *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads after each load at the interval
+ *   of `time_reload_banner_collap` (30 s by default; 0 keeps the banner), each time as a new expanded banner (B-03,
+ *   KB-34); place it at the bottom of the screen. Any other format throws
  *   [IllegalArgumentException]. The size comes from [bannerAdSize].
  * - [AdFormat.BANNER_MREC]: a 300 x 250 dp banner centred in the content of the screen, refreshed by its ad unit
  *   (B-08). Its frame keeps 250 dp while it loads and takes no space when a load fails before it had any ad (it still

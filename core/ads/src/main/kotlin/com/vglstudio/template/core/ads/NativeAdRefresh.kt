@@ -2,7 +2,6 @@ package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.logging.AppLogger
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
@@ -17,14 +16,17 @@ private const val TAG = "Ads"
 /**
  * The in-place refresh of a single-ad native slot that shows [first] (CL-02, O-05; plan T-040):
  *
- * - A tick [firstTickDelayMillis] after the first ad, then 60 s after each swap. A tick that comes while [foreground]
- *   is false (in background, or covered by a full-screen ad when it is the in-screen window, KB-27) is skipped, not
- *   saved: the next one is 60 s later, nothing runs when the app comes back or the cover goes (L-A19).
+ * - Each tick waits [awaitReloadTick] on [intervalMillis], the interval of the slot's key (KB-34, plan T-087): the first
+ *   one after the first ad, longer by [firstTickExtraMillis], then one after each swap; 0 means no refresh. A tick
+ *   that comes while [foreground] is false (in background, or covered by a full-screen ad when it is the in-screen
+ *   window, KB-27) is skipped, not saved: the next count starts from it, nothing runs when the app comes back or the
+ *   cover goes (L-A19).
  * - A tick in foreground asks the gate ([awaitSendAllowed]), then claims from [source] for at most 10 s. An ad is
  *   emitted, then the old one destroyed; the failure count goes back to 0.
  * - No ad, 10 s gone or an error keep the old ad and retry after `nativeDelayMillis(n, holdsAd = true)` (2, 4, 8, 16,
  *   32 then 60 s), cut short by [retryResets] (S-24); the retry waits for foreground and asks the gate. A closed gate
- *   or a blocked claim keeps the ad, counts no failure and waits for the next tick.
+ *   or a blocked claim keeps the ad, counts no failure and waits for the next tick. So does [intervalMillis] at 0 when
+ *   a retry is due: no more replacing, the ad is kept (KB-34, criterion 3).
  * - [stopped] moving (the placement of the slot off, consent withdrawn) destroys the ad shown, emits Unavailable and
  *   ends. Cancelling the collection destroys the ad shown.
  */
@@ -48,10 +50,10 @@ internal fun refreshingNativeAdStates(
     var shown = first.ad
     try {
         emit(first)
-        var wait = NativeAdPolicy.REFRESH_INTERVAL_MILLIS
+        var extra = firstTickExtraMillis
         ticks@ while (true) {
-            stopped.untilMoved(since) { delay(wait) } ?: break@ticks
-            wait = NativeAdPolicy.REFRESH_INTERVAL_MILLIS
+            stopped.untilMoved(since) { awaitReloadTick(intervalMillis, extra) } ?: break@ticks
+            extra = 0
             if (!foreground.value) {
                 logger.info(TAG, "Native $placementKey refresh: skipped (background)")
                 continue@ticks
@@ -97,6 +99,10 @@ internal fun refreshingNativeAdStates(
                 val allowed = stopped.untilMoved(since) { awaitSendAllowed(foreground, mayRequestNow) } ?: break@ticks
                 if (!allowed) {
                     logger.info(TAG, "Native $placementKey refresh: blocked")
+                    break@tries
+                }
+                if (intervalMillis.value == 0L) {
+                    logger.info(TAG, "Native $placementKey refresh off, keeping ad")
                     break@tries
                 }
             }

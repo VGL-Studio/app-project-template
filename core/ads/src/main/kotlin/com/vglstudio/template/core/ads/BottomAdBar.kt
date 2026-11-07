@@ -72,11 +72,12 @@ internal fun bottomBarReservation(slot: BottomSlotKind?, slotHasAd: Boolean, ban
 }
 
 /**
- * The first refresh of the native bottom slot (section 5.7): 500 ms after the one of the collapsible layer above it,
- * so both requests are not sent together; the plain 60 s without the layer.
+ * What the first refresh count of the native bottom slot adds to the interval of its key (section 5.7, plan T-087):
+ * 500 ms with the collapsible layer above it, so both requests are not sent together when both keys are equal; none
+ * without the layer.
  */
-@Suppress("UNUSED_PARAMETER")
-internal fun bottomSlotFirstRefreshExtraMillis(collapsible: Boolean): Long = 0L // Skeleton (plan T-087, step 3).
+internal fun bottomSlotFirstRefreshExtraMillis(collapsible: Boolean): Long =
+    if (collapsible) NativeAdPolicy.BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS else 0L
 
 /** Sizes of the bottom bar, from design/context/AdGalleryScreen_collapsible-*.md. */
 object BottomAdBarDimens {
@@ -171,8 +172,8 @@ fun BottomAdBarScaffold(
     val bar = rememberBottomAdBarState(ads, placement)
     BottomAdBarHost(
         layers = bar.choice.layers,
-        nativeSlot = { delay, onAvailability, slotModifier ->
-            BottomNativeSlot(placement, delay, onAvailability, slotModifier)
+        nativeSlot = { extra, onAvailability, slotModifier ->
+            BottomNativeSlot(placement, extra, onAvailability, slotModifier)
         },
         bannerSlot = { onAvailability, onHeight, slotModifier ->
             BottomBannerSlot(placement, onAvailability, onHeight, slotModifier)

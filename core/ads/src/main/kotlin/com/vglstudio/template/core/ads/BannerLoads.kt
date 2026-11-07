@@ -4,7 +4,6 @@ import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -18,7 +17,7 @@ internal enum class BannerRefresh {
     /** The SDK, at the refresh rate set on the ad unit in AdMob; the app only retries after a failure. */
     BY_AD_UNIT,
 
-    /** :core:ads, every [COLLAPSIBLE_BANNER_RELOAD_MILLIS], each time with a new collapsible request id. */
+    /** :core:ads, at the interval of its key (`time_reload_banner_collap`), each time with a new collapsible request id. */
     MANUAL,
 }
 
@@ -45,9 +44,6 @@ internal sealed interface BannerLoadResult {
     data object TryNext : BannerLoadResult
 }
 
-/** B-03, section 11 of docs/ops/ads-business-rules.md: a collapsible banner loads again 30 s after it loaded. */
-internal const val COLLAPSIBLE_BANNER_RELOAD_MILLIS = 30_000L
-
 /**
  * The sends of one banner slot (B-02 to B-06), until cancelled or until the consent gate is closed at a send.
  *
@@ -57,13 +53,16 @@ internal const val COLLAPSIBLE_BANNER_RELOAD_MILLIS = 30_000L
  * - [view] results are collected from before the first send; a result that came before this loop is dropped, and so
  *   is one still queued when a new request goes out.
  * - Loaded: the failure count goes back to 0 and [onLoaded] runs. [BannerRefresh.BY_AD_UNIT] sends nothing more (the
- *   SDK refreshes, its results come through [BannerAdView.results] too); [BannerRefresh.MANUAL] sends again
- *   [COLLAPSIBLE_BANNER_RELOAD_MILLIS] later.
+ *   SDK refreshes, its results come through [BannerAdView.results] too) and reads no [reloadMillis];
+ *   [BannerRefresh.MANUAL] sends again after [awaitReloadTick] on [reloadMillis], the interval of its key (B-03,
+ *   KB-34): a new value applies from the next count, 0 keeps the banner.
  * - TryNext (a frame of two platforms whose first one had no ad, plan T-071): sent again at once through the same
  *   step, with no failure counted, no [onFailed] and no wait; only a failure of every platform is Failed.
  * - Failed: [onFailed] runs, then a retry after min(n x 2 s, 10 s) for the n-th failure in a row (B-02), cut short
  *   when [retryResets] changes (S-24). The count belongs to this loop, so two slots of one placement count apart
- *   (L-068).
+ *   (L-068). [BannerRefresh.MANUAL] once this loop had an ad: a retry due while [reloadMillis] is 0 is not sent, the
+ *   banner is kept, the count goes back to 0 and the loop waits for the next reload tick (KB-34, criteria 3, 4);
+ *   before any ad it retries whatever the key.
  * - Waits are coroutine delays: a monotonic clock, not the wall clock (AR-01). No unit id is logged.
  */
 internal suspend fun runBannerLoads(
@@ -94,19 +93,33 @@ internal suspend fun runBannerLoads(
         return true
     }
 
+    suspend fun reloadWhenDue(): Boolean {
+        val millis = reloadMillis.value
+        logger.info(
+            TAG,
+            if (millis >
+                0
+            ) {
+                "Banner $placementKey reload in $millis ms"
+            } else {
+                "Banner $placementKey reload off"
+            },
+        )
+        awaitReloadTick(reloadMillis)
+        return sendWhenAllowed()
+    }
+
     try {
         var failures = 0
+        var hadAd = false
         var sending = sendWhenAllowed()
         while (sending) {
             when (val result = inbox.receive()) {
                 BannerLoadResult.Loaded -> {
                     failures = 0
+                    hadAd = true
                     onLoaded()
-                    if (refresh == BannerRefresh.MANUAL) {
-                        logger.info(TAG, "Banner $placementKey reload in $COLLAPSIBLE_BANNER_RELOAD_MILLIS ms")
-                        delay(COLLAPSIBLE_BANNER_RELOAD_MILLIS)
-                        sending = sendWhenAllowed()
-                    }
+                    if (refresh == BannerRefresh.MANUAL) sending = reloadWhenDue()
                 }
 
                 // The next platform of the frame, at once, through the same step (S-15, KB-27, L-072).
@@ -122,7 +135,13 @@ internal suspend fun runBannerLoads(
                         "Banner $placementKey retry in $wait ms (failures $failures, code ${result.code})",
                     )
                     withTimeoutOrNull(wait) { retryResets.first { it != generation } }
-                    sending = sendWhenAllowed()
+                    sending = if (refresh == BannerRefresh.MANUAL && hadAd && reloadMillis.value == 0L) {
+                        logger.info(TAG, "Banner $placementKey reload off, keeping ad")
+                        failures = 0
+                        reloadWhenDue()
+                    } else {
+                        sendWhenAllowed()
+                    }
                 }
             }
         }

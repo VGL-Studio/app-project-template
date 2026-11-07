@@ -209,9 +209,9 @@ internal fun NativeAdSlotContent(
 
 /**
  * The native slot of a bottom bar ([BottomAdBarScaffold], D-02): like [NativeAdSlot] for native small (gate, 80 dp
- * placeholder, nothing with no ad, availability reported), with its first refresh [firstRefreshExtraMillis] after
- * the first ad (section 5.7). The stream is built once per placement: a new delay (the layer turned on or off) applies
- * from the next slot, without destroying the ad or loading again.
+ * placeholder, nothing with no ad, availability reported), with its first refresh [firstRefreshExtraMillis] later
+ * than the interval of `time_reload_native_small` (section 5.7). The stream is built once per placement: a new extra
+ * (the layer turned on or off) applies from the next slot, without destroying the ad or loading again.
  */
 @Composable
 internal fun BottomNativeSlot(
@@ -231,7 +231,7 @@ internal fun BottomNativeSlot(
     key(placement) {
         BottomNativeSlotHost(
             allowed = nativeSlotAllowed(canRequestAds, enabled, unitId),
-            newStates = { delay -> ads.nativeAd(placement, AdFormat.NATIVE_SMALL, delay) },
+            newStates = { extra -> ads.nativeAd(placement, AdFormat.NATIVE_SMALL, extra) },
             firstRefreshExtraMillis = firstRefreshExtraMillis,
             onAdAvailabilityChange = onAdAvailabilityChange,
             modifier = modifier,
@@ -239,7 +239,7 @@ internal fun BottomNativeSlot(
     }
 }
 
-/** [BottomNativeSlot] without an ads controller: [newStates] builds the stream once, with the delay given then. */
+/** [BottomNativeSlot] without an ads controller: [newStates] builds the stream once, with the extra given then. */
 @Composable
 internal fun BottomNativeSlotHost(
     allowed: Boolean,

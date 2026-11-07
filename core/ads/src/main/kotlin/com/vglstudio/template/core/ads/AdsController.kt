@@ -76,7 +76,8 @@ import kotlinx.coroutines.withContext
  * A native small slot and the collapsible layer of a bottom bar take their ad from a stock (plan T-086, KB-33): one
  * [NativeAdSource] per (format, ad unit), managed by [NativeAdSources], kept across screens, filled by the preload
  * plan before any screen and after each claim, under the fill rule of [stockMayFill] (O-01 to O-04). A slot replaces
- * its ad in place every 60 s in foreground ([refreshingNativeAdStates], CL-02); every send goes through one gate
+ * its ad in place in foreground at the interval of its key ([reloadIntervalMillis], [refreshingNativeAdStates], CL-02,
+ * KB-34); every send goes through one gate
  * ([awaitSendAllowed], L-072). Native ads are not shown 55 minutes after loading (O-04). A load of a stock itself logs
  * `ad_placement = preload` (PL-02); its revenue, clicks and impressions the placement of the slot that took the ad.
  *
@@ -87,7 +88,8 @@ import kotlinx.coroutines.withContext
  * and record their opportunity (P-07). A load of a pool logs `ad_placement = pool` (PL-02).
  *
  * Banners follow B-01 to B-06 (plan T-029): [AdSlot] keeps every send in one loop ([runBannerLoads]) that waits for
- * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads every 30 s.
+ * the screen to show and asks [mayRequestNow] right before it sends; a collapsible banner reloads at the interval of
+ * `time_reload_banner_collap` (B-03, KB-34).
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
  *
@@ -242,9 +244,24 @@ class AdsController @Inject internal constructor(
         .stateIn(scope, SharingStarted.Eagerly, latestGlobalFlags.value ?: DEFAULT_GLOBAL_FLAGS)
     private val online = MutableStateFlow(true)
 
-    /** Skeleton (plan T-087, step 3 of auto-run.md): not written yet. */
-    @Suppress("UNUSED_PARAMETER")
-    internal fun reloadIntervalMillis(format: AdFormat): StateFlow<Long> = MutableStateFlow(0L)
+    private val reloadIntervals = mutableMapOf<AdFormat, StateFlow<Long>>()
+
+    /**
+     * The reload interval of a layer, in milliseconds, from its key (KB-34, plan T-087): native small (bottom slot and
+     * standalone slot) `time_reload_native_small`, the collapsible layer `time_reload_collap_ad`, the collapsible
+     * banner `time_reload_banner_collap`; 0 means no reload. One flow per format, read by [awaitReloadTick]. Another
+     * format throws [IllegalArgumentException]. Main thread only.
+     */
+    internal fun reloadIntervalMillis(format: AdFormat): StateFlow<Long> = reloadIntervals.getOrPut(format) {
+        val seconds: (AdsGlobalFlags) -> Long = when (format) {
+            AdFormat.NATIVE_SMALL -> AdsGlobalFlags::nativeSmallReloadSeconds
+            AdFormat.NATIVE_COLLAPSIBLE -> AdsGlobalFlags::collapReloadSeconds
+            AdFormat.BANNER_COLLAPSIBLE -> AdsGlobalFlags::bannerCollapReloadSeconds
+            else -> throw IllegalArgumentException("$format has no reload key")
+        }
+        globalFlags.map { seconds(it) * 1_000 }
+            .stateIn(scope, SharingStarted.Eagerly, seconds(globalFlags.value) * 1_000)
+    }
 
     /** Starts AppLovin MAX after the consent gate and AdMob (plan T-068). */
     private val maxStarter = MaxSdkStarter(maxConfig, maxPlatform, logger) { gate.state.value.allowed }
@@ -1702,8 +1719,8 @@ class AdsController @Inject internal constructor(
      * unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back cuts
      * the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
      * (T-023). A native small slot or collapsible layer ([usesSingleAdSource]) claims its ad from its stock (plan
-     * T-086) and replaces it in place every 60 s in foreground, the first time [firstRefreshDelayMillis] after the
-     * first ad (plan T-040); a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats
+     * T-086) and replaces it in place in foreground at the interval of its key ([reloadIntervalMillis], KB-34), the
+     * first count longer by [firstRefreshExtraMillis] (plan T-040, T-087); a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats
      * keep their ad, destroyed when the collection is cancelled. The caller checks consent and [isEnabled] first, like
      * [NativeAdSlot].
      */
@@ -2299,6 +2316,9 @@ class AdsController @Inject internal constructor(
             logFullScreenEvents = AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS.default,
             logSlotEvents = AdsSettings.IS_LOG_AD_SLOT_EVENTS.default,
             closeNativeCountdownSeconds = nativeCloseCountdownSeconds(AdsSettings.TIME_CLOSE_NATIVE.default),
+            nativeSmallReloadSeconds = AdsSettings.TIME_RELOAD_NATIVE_SMALL.default,
+            collapReloadSeconds = AdsSettings.TIME_RELOAD_COLLAP_AD.default,
+            bannerCollapReloadSeconds = AdsSettings.TIME_RELOAD_BANNER_COLLAP.default,
         )
 
         /** Host of a full-screen ad drawn by the composition; `System.identityHashCode` gives 0 only for null. */
