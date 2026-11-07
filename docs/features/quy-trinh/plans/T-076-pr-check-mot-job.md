@@ -1,16 +1,16 @@
 ---
 ticket: T-076
 title: pr-check bỏ job changes riêng
-status: draft
+status: approved
 version: 2
 risk_score: 7
 risk_level: high
 token_estimate: 5.4M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-07
 lane:
 ---
 
@@ -309,11 +309,11 @@ Không cần (E dưới 2): `dorny/paths-filter@v3` đã dùng ở job `changes`
 
 ## 9. Quyết định duyệt
 
-Phiên bản 2:
+Phiên bản 2 (AI ghi theo lời anh Nhật, 2026-11-07):
 
-- **Quyết định:**
-- **Người duyệt:** , **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** Duyệt phiên bản 2 trong phiên có người ngày 2026-11-07 (lời anh Nhật: "Đồng ý" với đề xuất "Duyệt T-076 bản 2 (câu 4, 5 theo đề xuất)"). Anh Nhật xem thay đổi so với bản 1 cùng kết quả rà soát độc lập danh sách chạy (1 chặn, chính là điểm bản 2 sửa) và rà soát plan phiên bản 2 (0 chặn, 4 nên sửa, đã sửa). Câu 1 đến 3 và câu 6, 7 của mục 8 giữ trả lời của phiên bản 1. Câu 4: theo đề xuất, "không có phiên `running`" không tính chính phiên chạy T-076; thấy phiên khác thì dừng task trước khi merge, plan và ticket giữ `approved`, người merge sau. Câu 5: theo đề xuất, không ADR mới; sau khi T-076 merge, AI thêm một dòng ghi chú vào ADR-0043 trong một PR riêng (không thuộc phạm vi của T-076). Task chạy trong phiên tự chạy RUN-20261101-02 (quyết định ngày 2026-11-01). Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 Phiên bản 1:
 
