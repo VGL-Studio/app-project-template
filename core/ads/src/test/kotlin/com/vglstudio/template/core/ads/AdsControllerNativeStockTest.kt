@@ -299,18 +299,15 @@ class AdsControllerNativeStockTest {
     }
 
     /**
-     * One test unit per in-screen native format of the stocks, so a request tells its format; no other format has a
-     * unit, so no full-screen ad, banner or pool of this test sends anything.
+     * One test unit per format (section 4 of plan T-086), so a request tells its format: Google's test units give
+     * the collapsible and medium formats the same one.
      */
     private object StockUnitIds : AdUnitIds {
         fun unitFor(format: AdFormat): String = "unit-${format.code}"
 
-        override fun of(placement: AdPlacement): String? = of(placement, placement.format)
+        override fun of(placement: AdPlacement): String = of(placement, placement.format)
 
-        override fun of(placement: AdPlacement, format: AdFormat): String? = when (format) {
-            AdFormat.NATIVE_SMALL, AdFormat.NATIVE_COLLAPSIBLE -> unitFor(format)
-            else -> null
-        }
+        override fun of(placement: AdPlacement, format: AdFormat): String = unitFor(format)
     }
 
     private companion object {
