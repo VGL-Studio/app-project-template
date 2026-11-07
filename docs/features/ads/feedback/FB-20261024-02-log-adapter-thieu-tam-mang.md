@@ -7,7 +7,7 @@ build: 0.1.0-staging, commit 507cac5
 feature: ads
 ticket: T-034
 severity: nang
-status: new
+status: triaged
 created: 2026-10-24
 ---
 
@@ -41,3 +41,12 @@ KB-9 tiêu chí 2 vế 1: log trạng thái liệt kê đủ chín adapter (ki�
 ## Ảnh chụp, video
 
 Không có. Log ở artifact `device-session` của lần chạy 40102285160 (`app-log.txt` dòng 224 đến 227).
+
+## Phân loại
+
+<!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
+
+- **Loại:** thay đổi yêu cầu (AI đề xuất, anh Nhật đồng ý trong phiên ngày 2026-11-07)
+- **Xử lý:** sửa spec trước (KB-9 tiêu chí 2, câu hỏi 57 của spec), chờ anh Nhật xác nhận; không sửa code
+- **Lý do:** giả thuyết 1 đúng; giả thuyết 2 bị loại. AI dựng bản staging release từ nhánh chính `ffc8b47` (`./gradlew :app:assembleStagingRelease`, có R8) ngày 2026-11-07 và liệt kê lớp trong APK bằng `dexdump`: có đủ chín adapter (`AppLovinMediationAdapter`, `FacebookMediationAdapter`, `FyberMediationAdapter`, `InMobiMediationAdapter`, `IronSourceMediationAdapter`, `MintegralMediationAdapter`, `MolocoMediationAdapter`, `PangleMediationAdapter`, `UnityMediationAdapter`) cùng `com.applovin.mediation.adapters.GoogleMediationAdapter` của MAX. Luật giữ lớp mà SDK mang theo (`-keep class * implements com.google.android.gms.ads.mediation.MediationAdapter`) giữ chúng. Bản build không có adapter AdColony hay Vungle, vậy mà log trạng thái vẫn liệt kê hai mạng này, nên danh sách lấy theo cấu hình mediation máy chủ gửi cho mã app thử. Vế 1 của KB-9 tiêu chí 2 vì thế không đạt được trên staging dù code đúng; tiêu chí đổi thành kiểm bản build sau R8.
+- **Liên kết:** T-034; spec `ads` KB-9, câu hỏi 57

@@ -7,7 +7,7 @@ build: 0.1.0-staging (commit 95f8673)
 feature: ads
 ticket: T-010
 severity: nhe                # chan | nang | nhe | gop-y
-status: new                  # new | triaged | planned | fixed | wontfix
+status: triaged              # new | triaged | planned | fixed | wontfix
 created: 2026-10-23
 ---
 
@@ -48,7 +48,7 @@ Không có. Log ở artifact `device-session` của lần chạy 39955967527.
 
 <!-- Chủ feature điền, có thể nhờ AI đề xuất. -->
 
-- **Loại:**
-- **Xử lý:**
-- **Lý do:**
-- **Liên kết:** T-010
+- **Loại:** góp ý mới (AI đề xuất, anh Nhật đồng ý trong phiên ngày 2026-11-07)
+- **Xử lý:** đưa vào backlog
+- **Lý do:** không trái spec: lỗi tải được bắt, vùng quảng cáo thu lại, app không dừng. Mã 0 là lỗi nội bộ của SDK; RUN-20261025-01 thấy SDK tự ghi "Incorrect native ad response. Click actions were not properly specified", tức native thử của Google không chạy được trên emulator, và các plan sau ghi kiểm native trên máy thật. Phần đáng làm là ý của phản hồi: dòng log lỗi tải chỉ có mã, không có lý do. Spec thêm tiêu chí ở KB-28 (câu hỏi 58).
+- **Liên kết:** T-010; T-093 (thông điệp lỗi trong log lỗi tải)

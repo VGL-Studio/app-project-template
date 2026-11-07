@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed                # draft | confirmed | changed
+status: changed                  # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -147,7 +147,7 @@ Tiêu chí chấp nhận:
 Tiêu chí chấp nhận:
 
 - [ ] Khi đơn vị quảng cáo có AppLovin trong nhóm mediation trên AdMob thì app nhận được quảng cáo của AppLovin mà không đổi code. **Đổi 2026-10-23:** đúng với cả chín mạng: AppLovin, Meta Audience Network, DT Exchange, InMobi, ironSource, Mintegral, Moloco, Pangle, Unity Ads.
-- [ ] Khi mở Ad Inspector trên staging thì thấy adapter AppLovin đã khởi tạo. ~~**Đổi 2026-10-23:** thấy cả chín adapter đã khởi tạo.~~ **Đổi 2026-10-24 (plan T-034, câu hỏi 1):** khi mở staging thì log trạng thái (và Ad Inspector khi mở được) liệt kê đủ chín adapter; mã app thử của Google không có cấu hình mediation nên trên staging adapter báo `NOT_READY`.
+- [ ] Khi mở Ad Inspector trên staging thì thấy adapter AppLovin đã khởi tạo. ~~**Đổi 2026-10-23:** thấy cả chín adapter đã khởi tạo.~~ ~~**Đổi 2026-10-24 (plan T-034, câu hỏi 1):** khi mở staging thì log trạng thái (và Ad Inspector khi mở được) liệt kê đủ chín adapter; mã app thử của Google không có cấu hình mediation nên trên staging adapter báo `NOT_READY`.~~ **Đổi 2026-11-07 (phản hồi FB-20261024-02, câu hỏi 57):** khi dựng bản staging đã thu gọn như bản phát hành (R8) thì bản build có đủ adapter của chín mạng. Log trạng thái trên staging không dùng để kiểm tiêu chí này: nó chỉ liệt kê các mạng có trong cấu hình mediation mà máy chủ gửi cho mã app thử của Google (AdColony, AppLovin, Vungle), không theo adapter có trong bản build.
 - [ ] **Thêm 2026-10-24:** khi một app có mã AdMob thật và nhóm mediation đủ chín mạng thì Ad Inspector thấy cả chín adapter đã khởi tạo.
 - [ ] **Thêm 2026-10-23:** khóa SDK của AppLovin không nằm trong repo; bản staging chạy được khi không có khóa đó. **Đổi 2026-10-24 (plan T-034, câu hỏi 2):** khóa cũng không nằm trong app; chỉ nhập trong ánh xạ nguồn quảng cáo "AppLovin (Bidding)" trên AdMob.
 - **Thêm 2026-10-29:** AppLovin MAX và Amazon APS là nguồn quảng cáo thứ hai bên cạnh AdMob (ADR-0037, KB-31). Khi ADR-0037 được chấp nhận, vế "khóa không nằm trong app" ở trên chỉ còn đúng cho adapter AppLovin của AdMob; khóa SDK MAX đi vào app lúc build phát hành (câu hỏi 43).
@@ -371,6 +371,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi dev khai báo máy của mình là máy thử trong cấu hình trên máy dev (không trong repo) thì bản staging gửi yêu cầu như máy thử và Ad Inspector mở được trên máy đó (câu hỏi 40).
 - [ ] Khi không khai báo máy thử thì bản staging chạy như hiện tại; bản production không bao giờ có máy thử.
 - [ ] Mỗi lượt tải quảng cáo ở staging ghi log từng mạng đã thử (tên mạng, thời gian, lỗi), không ghi mã đơn vị.
+- [ ] **Thêm 2026-11-07 (phản hồi FB-20261023-02, câu hỏi 58):** khi một lượt tải quảng cáo thất bại thì dòng log lỗi có cả mã lỗi và thông điệp lỗi của SDK, ở mọi định dạng và mọi biến thể; không ghi mã đơn vị. Thông điệp lỗi chỉ vào log, không vào sự kiện phân tích.
 
 ### KB-29. Banner MREC
 
@@ -754,6 +755,14 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Bối cảnh: `is_show_native_bottom` mặc định tắt; khi đó thanh đáy dùng banner. Code không phân biệt vị trí native nhỏ dùng làm thanh đáy hay khe đứng riêng, nên kho không biết có khe đứng riêng nào cần nạp sẵn.
     - Đề xuất của AI: kho `native_small` nạp khi có khe native nhỏ đang trên màn, hoặc khi `is_show_native_bottom` bật. Phương án khác: nạp khi có vị trí native nhỏ bật, bất kể `is_show_native_bottom` (nạp sẵn quảng cáo không ai hiện khi app chỉ có thanh đáy); hoặc thêm thuộc tính vị trí vào `AdPlacement` để phân biệt.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-07). Tiêu chí 6 của KB-33 thêm điều kiện nạp; tiêu chí 3, 5 có ghi chú đổi.
+57. **Kiểm thế nào rằng bản build có đủ adapter của chín mạng?** (KB-9 tiêu chí 2, phản hồi FB-20261024-02)
+    - Bối cảnh: log trạng thái trên staging liệt kê mạng theo cấu hình mediation của mã app thử, nên không kiểm được tiêu chí. AI đã kiểm tay ngày 2026-11-07: bản staging release dựng từ nhánh chính `ffc8b47` có đủ chín lớp adapter sau R8, vì luật giữ lớp mà SDK quảng cáo mang theo giữ mọi lớp adapter. Test hiện có chỉ kiểm adapter có trên classpath của test JVM, chưa qua R8.
+    - Đề xuất của AI: không thêm kiểm tự động. Tiêu chí đạt nhờ test classpath cộng lần kiểm tay này, ghi vào phản hồi. Mỗi lần thêm hay bỏ mạng mediation, plan của lần đó kiểm lại bản build sau R8 (danh sách lớp trong APK). Phương án khác: thêm một bước vào `pr-check` khi PR đổi thư viện hay luật R8 (bộ lọc `release`), đọc danh sách lớp trong APK đã thu gọn và đòi đủ chín adapter. Phương án này tự động, nhưng sửa `.github/workflows/` nên là plan rủi ro cao, và tăng vài phút cho các PR đó.
+    - Trả lời:
+58. **Thông điệp lỗi của SDK trong log lỗi tải: ở biến thể nào?** (KB-28, phản hồi FB-20261023-02)
+    - Bối cảnh: dòng log lỗi tải hôm nay chỉ có mã (ví dụ `Native sample_native_small failed: 0`), nên khó biết lý do. Mã 0 trên emulator là lỗi nội bộ; thông điệp thật ("Incorrect native ad response. Click actions were not properly specified") chỉ thấy ở log riêng của SDK. Luật số liệu (`docs/ops/ads-business-rules.md`, mục 8) chỉ gửi mã lỗi vào sự kiện phân tích. Log của app đi cả vào Crashlytics (ADR-0019), và dòng log trạng thái adapter đã ghi mô tả của SDK.
+    - Đề xuất của AI: mọi biến thể, vì lỗi trên máy người dùng thật cũng cần lý do. Thông điệp của SDK không chứa dữ liệu cá nhân. Chỉ vào log, không vào sự kiện phân tích. Việc làm ở ticket T-093. Phương án khác: chỉ ở staging.
+    - Trả lời:
 
 ## 10. Lịch sử
 
@@ -787,3 +796,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-07 | Nhật | Xác nhận KB-33 ("xác nhận KB-33"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-07 | AI | Theo lời duyệt plan T-089 của anh Nhật (câu hỏi 4 của plan) và lựa chọn "Làm trước phiên" khi rà soát RUN-20261107-01: ghi chú đổi ở KB-16 tiêu chí 8 (chỉ áp cho interstitial của vị trí trong app), khớp tiêu chí 3 đã xác nhận ngày 2026-11-06. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-07 | Nhật | Xác nhận KB-16 ("Xác nhận KB-16"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-07 | AI | Theo phân loại hai phản hồi mà anh Nhật đồng ý trong phiên ("Đồng ý"): KB-9 tiêu chí 2 đổi cách kiểm (bản build sau R8 có đủ chín adapter, không đọc log trạng thái trên staging), theo FB-20261024-02 và lần kiểm APK của AI; KB-28 thêm tiêu chí thông điệp lỗi trong log lỗi tải, theo FB-20261023-02 (ticket T-093); thêm câu hỏi 57, 58. Chuyển sang `changed`, chờ anh Nhật xác nhận |
