@@ -1,7 +1,7 @@
 ---
 ticket: T-086
 title: Kho nạp sẵn cho native nhỏ và native thu gọn
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -262,3 +262,20 @@ Phiên bản 1 (AI ghi theo lời anh Nhật, 2026-11-07):
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-11-07 (lời anh Nhật: "duyệt", rồi "Sửa spec trước", "xác nhận KB-33", "cho sửa T-086"), sau khi xem tóm tắt plan và kết quả rà soát độc lập (vòng 1, rà lại 1, rà lại 2 vòng cuối: 1 chặn, 4 nên sửa, 4 ghi chú; đã sửa theo lời cho phép "Cho sửa theo đề xuất"). Trả lời câu hỏi ở mục 8: (1) theo đề xuất của AI: kho `native_small` nạp khi có khe đang trên màn hoặc khi `is_show_native_bottom` bật; spec `ads` đã sửa KB-33 (tiêu chí 6 thêm điều kiện nạp, ghi chú đổi ở tiêu chí 3, 5, câu hỏi 56) và anh Nhật đã xác nhận lại ngày 2026-11-07 trước khi duyệt; mục 3.1 bước 7 và mục 3.2 thêm điều kiện nạp này vào HD-02 của `ads-business-rules.md` (theo lời cho phép "cho sửa T-086", phát hiện khi rà soát PR spec); (2) mọi lượt kho tự chạy ghi `preload`; (3) lỗi của lượt kho tự chạy không hẹn thử lại riêng; (4) giữ một plan, không tách ticket; câu 2 tới 4 theo đề xuất của AI. Anh Nhật vừa duyệt vừa duyệt chéo vì nhóm chỉ có một dev (`risk-scoring.md`, mục 3).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261107-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #403, commit `bd58a76` trên nhánh chính, 2026-11-07 13:31 UTC).
+- **Nhánh, PR:** `claude/T-086-nap-san-native`, https://github.com/VGL-Studio/app-project-template/pull/403. Commit test `fdf6a72` (có khung rỗng của code chính), commit code `4b62bbc`, sửa theo rà soát `3eed931`, `52be4c4`, `dfd149b`, `0bfcbc2`, `e3f4da3`, `6701608`. Nhánh chưa xóa được sau merge (L-092): người xóa tay.
+- **Đã làm:** kho theo mã đơn vị cho native nhỏ và native thu gọn, không đóng khi 0 khe, nạp sẵn qua khe kế hoạch và lượt xin nạp khi vị trí hay cờ bật, mốc 55 phút, `stopped(placement)`, đóng kho khi mọi vị trí tắt hay rút đồng ý, `NativeLoadUse.PRELOAD`, `AdPreloadPlan` thêm `NATIVE_COLLAPSIBLE`, luật và hướng dẫn theo mục 3.1 bước 7. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-086`.
+- **Test viết trước:** 44 test mới và 13 câu viết sẵn theo mục 3.5. 50 test đỏ trên khung rỗng, đều vì chức năng chưa có. 7 test qua ngay, mỗi test có đột biến tạm và đỏ (5 test ngoại lệ của plan, test chặn `customPlan_acceptsCollapsibleFirst`, `twoFormatsOfOnePlacement_getSeparateSources`); đột biến `isNative` của plan không biên dịch (`when` hết đầy đủ) nên thay bằng chuyển `NATIVE_COLLAPSIBLE` sang nhánh `false`. 2 test viết chặt bằng đối chứng (`preloadSlots_onlyForSmallAndCollapsible`, `twoPlacementsShareStock_neverSameAd`). Test JVM mọi module ở bước 3: 50 đỏ, đều là test viết trước.
+- **Rà soát độc lập:** vòng 1: 1 chặn, 2 nên sửa, 6 ghi chú. Rà soát lại vòng 1: 0 chặn, 1 nên sửa mới, 2 ghi chú. Rà soát lại vòng 2 (vòng cuối): 0 chặn, 0 nên sửa, 4 ghi chú. Đã sửa:
+  - C1 (`3eed931`): bộ mã đơn vị của `AdsControllerNativeStockTest` đưa về `unit-${format.code}` cho mọi định dạng như mục 4.
+  - N1 (test `52be4c4`, code `dfd149b`): khe của vị trí vừa tắt, đang chờ kho dùng chung, vẫn nhận quảng cáo và không dừng (trái mục 3.1 bước 2). Test `NativeAdSourcesTest.placementOff_slotWaitingOnSharedStock_endsWithoutAd_adKept` đỏ trên code trước. Sửa bằng `NativeAdSource.release(placement)`, thứ tự đóng kho rồi `stopped`, `since` đọc một lần.
+  - N2 (`0bfcbc2`): `NativeAdSourcesTest.stockLogs_holdNoUnitId_ofStock`, qua ngay; đột biến khóa log là `key.unitId` đỏ.
+  - N3 (`6701608`): `NativeAdSourcesTest.placementOffRightAfterAdHandedToSlot_slotEndsAndDestroysIt` cho phần `since`; đột biến xóa `since,` đỏ.
+  - L12 (`e3f4da3`): gộp đoạn KDoc của `nativeAd`.
+- **Kết quả CI:** `pr-check` xanh vòng đầu (lần chạy 42376527487). `scripts/check.sh` cục bộ: QUA, 1799 test JVM, 0 lỗi, không ảnh chuẩn nào đổi.
+- **Lệch so với plan:** ADR-0031 quyết định 2: 2 câu ngoài mục 3.5 viết lại trong `NativeAdRefreshTest` (`cancelled_destroysShownAd`; `cancelledBetweenClaimAndEmit_destroysNewAd` đổi tên `cancelledBetweenClaimAndEmit_newAdKeptByStock`), căn cứ mục 3.1 bước 1, rà soát xác nhận đủ sáu điều. ADR-0029: `twoFormatsOfOnePlacement_getSeparateSources` đặt `globalFlags = COLLAP_ON_FLAGS`. `productionUnits_smallPerPlacement_collapShared` dùng hai bảng production (cách của rà soát trước phiên không chạy vì `gallery_*` chỉ có trên staging), câu khẳng định giữ. Thay đổi file test sau commit test: `runCurrent()` sau `fill()`, `runPreload()` 7 giây thay 10 giây (trùng hết giờ nạp), C1, ba test mới, L5. Không có file ngoài mục 3.2.
+- **Việc còn lại:** hai dòng kiểm thủ công của mục 4 (người: đọc luật đã sửa; máy thật: lượt nạp sẵn thật trên staging).
+- **Cần người xem:** hai câu khẳng định viết lại ngoài mục 3.5 (ADR-0031); ghi chú của rà soát trong mô tả PR #403 (khe trong danh sách không có bộ theo dõi `stopped`, lượt nạp `SINGLE_AD` của vị trí vừa tắt vẫn chạy cho kho, `release` cùng `failed()` với O-02).
