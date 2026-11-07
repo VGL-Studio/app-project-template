@@ -42,6 +42,9 @@ Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu đ
 | `show_resum_ads` | boolean | `false` | `:core:ads` | Shows an ad when the user comes back to the app. Name kept with the AdsKit typo. |
 | `time_close_native` | long | `5` | `:core:ads` | Countdown before the full-screen native ad can be closed, in seconds; 1 to 30, any other value uses 5. Name from JBase, not an AdsKit key. |
 | `time_expand_collap_ad` | long | `10` | `:core:ads` | Time after the user collapses the collapsible native ad before it expands again, in seconds; 0 means never. Name set by the template, not an AdsKit key. |
+| `time_reload_banner_collap` | long | `30` | `:core:ads` | Time from a load of a collapsible banner to its reload, in seconds; 0 means none once it has an ad, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key. |
+| `time_reload_collap_ad` | long | `60` | `:core:ads` | Time between two in-place refreshes of the collapsible native layer, which stays collapsed, in seconds; 0 means none, 1 to 29 use 30, negative uses the default. |
+| `time_reload_native_small` | long | `60` | `:core:ads` | Time between two in-place refreshes of a single-ad native small slot (bottom, standalone; not a list row), in seconds; 0 means none, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key. |
 | `is_log_af_ad_revenue` | boolean | `true` | `:core:analytics` | Sends af_ad_revenue for every paid ad impression. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
 | `is_log_af_inters_ad_eligible` | boolean | `true` | `:core:analytics` | Sends af_inters_ad_eligible. AppsFlyer event switch. Name set by the template, not an AdsKit key. |
 | `is_log_af_inters_api_called` | boolean | `true` | `:core:analytics` | Sends af_inters_api_called. AppsFlyer event switch. Name set by the template, not an AdsKit key. |

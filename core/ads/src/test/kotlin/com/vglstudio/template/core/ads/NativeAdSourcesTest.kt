@@ -96,6 +96,7 @@ class NativeAdSourcesTest {
                 { testScheduler.currentTime },
                 logger,
                 placement.key,
+                intervalMillis = MutableStateFlow(60_000L),
             ).collect { states += it }
         }
         runCurrent()
@@ -319,10 +320,11 @@ class NativeAdSourcesTest {
 
     @Test
     fun bottomRefreshDelay_is500ms() {
-        // Section 5.7: the bottom slot refreshes 500 ms after the collapsible layer above it.
+        // Section 5.7: the bottom slot refreshes 500 ms after the collapsible layer above it; the count itself is the
+        // key's (plan T-087, section 3.5), so only the extra is set here.
         assertEquals(500L, NativeAdPolicy.BOTTOM_REFRESH_DELAY_AFTER_COLLAPSIBLE_MILLIS)
-        assertEquals(60_500L, bottomSlotFirstRefreshDelayMillis(collapsible = true))
-        assertEquals(60_000L, bottomSlotFirstRefreshDelayMillis(collapsible = false))
+        assertEquals(500L, bottomSlotFirstRefreshExtraMillis(collapsible = true))
+        assertEquals(0L, bottomSlotFirstRefreshExtraMillis(collapsible = false))
     }
 
     @Test
@@ -487,6 +489,7 @@ class NativeAdSourcesTest {
                 { testScheduler.currentTime },
                 logger,
                 PLACEMENT.key,
+                intervalMillis = MutableStateFlow(60_000L),
             ).collect {
                 sentAt += loads.sent.size
                 states += it
@@ -761,6 +764,7 @@ class NativeAdSourcesTest {
                 { testScheduler.currentTime },
                 logger,
                 PLACEMENT.key,
+                intervalMillis = MutableStateFlow(60_000L),
             ).collect { states += it }
         }
         slotThread.runAll()

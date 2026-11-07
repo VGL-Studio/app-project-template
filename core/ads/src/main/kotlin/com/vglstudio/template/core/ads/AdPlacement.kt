@@ -54,8 +54,9 @@ enum class AdFormat(val code: String) {
     REWARDED("rewarded"),
 
     /**
-     * Banner that the user collapses, shown at the bottom of a screen with [AdSlot]. :core:ads loads it again 30 s after
-     * each load, each time as a new expanded banner (B-03); its ad unit has auto refresh off.
+     * Banner that the user collapses, shown at the bottom of a screen with [AdSlot]. :core:ads loads it again after each
+     * load at the interval of `time_reload_banner_collap` (30 s by default), each time as a new expanded banner (B-03);
+     * its ad unit has auto refresh off.
      */
     BANNER_COLLAPSIBLE("banner_collapsible"),
 

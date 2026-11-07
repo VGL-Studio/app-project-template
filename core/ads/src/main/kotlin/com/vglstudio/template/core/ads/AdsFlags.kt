@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import com.vglstudio.template.core.config.RemoteKey
 import com.vglstudio.template.core.config.RemoteSettings
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -64,6 +65,12 @@ data class AdsGlobalFlags(
     val closeNativeCountdownSeconds: Long,
     /** ads_mediation_order, read as written; [AdsController.mediationOrder] applies the SDK key. */
     val mediationOrder: MediationOrder = MediationOrder.DEFAULT,
+    /** time_reload_native_small by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val nativeSmallReloadSeconds: Long = 60,
+    /** time_reload_collap_ad by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val collapReloadSeconds: Long = 60,
+    /** time_reload_banner_collap by [reloadSeconds]: 0 means no reload, otherwise at least 30 s. */
+    val bannerCollapReloadSeconds: Long = 30,
 )
 
 /** The ad shown when the app opens or comes back (open_ad_type, resume_ad_type). */
@@ -109,6 +116,9 @@ internal class DefaultAdsFlags @Inject constructor(
             settings.value(AdsSettings.IS_LOG_AD_SLOT_EVENTS),
             settings.value(AdsSettings.TIME_CLOSE_NATIVE),
             settings.value(AdsSettings.ADS_MEDIATION_ORDER),
+            settings.value(AdsSettings.TIME_RELOAD_NATIVE_SMALL),
+            settings.value(AdsSettings.TIME_RELOAD_COLLAP_AD),
+            settings.value(AdsSettings.TIME_RELOAD_BANNER_COLLAP),
         ),
     ) { values ->
         val adsEnabled = values[0] as Boolean
@@ -129,7 +139,10 @@ internal class DefaultAdsFlags @Inject constructor(
             logFullScreenEvents = values[12] as Boolean,
             logSlotEvents = values[13] as Boolean,
             closeNativeCountdownSeconds = nativeCloseCountdownSeconds(values[14] as Long),
-            mediationOrder = MediationOrder.of(values.last() as String),
+            mediationOrder = MediationOrder.of(values[15] as String),
+            nativeSmallReloadSeconds = reload(values[16] as Long, AdsSettings.TIME_RELOAD_NATIVE_SMALL),
+            collapReloadSeconds = reload(values[17] as Long, AdsSettings.TIME_RELOAD_COLLAP_AD),
+            bannerCollapReloadSeconds = reload(values[18] as Long, AdsSettings.TIME_RELOAD_BANNER_COLLAP),
         )
     }.distinctUntilChanged()
 
@@ -150,6 +163,10 @@ internal class DefaultAdsFlags @Inject constructor(
         val key = AdsSettings.nativeEvery(declaration) ?: return flowOf(null)
         return settings.value(key).distinctUntilChanged()
     }
+
+    /** A reload key by [reloadSeconds], with the cap of [seconds]. */
+    private fun reload(value: Long, key: RemoteKey<Long>): Long =
+        reloadSeconds(value, key.default).coerceAtMost(MAX_SECONDS)
 
     /** Negative remote values count as 0; the cap keeps a conversion to milliseconds from overflowing. */
     private fun seconds(value: Long): Long = value.coerceIn(0, MAX_SECONDS)

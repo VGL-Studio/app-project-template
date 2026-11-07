@@ -213,9 +213,9 @@ internal fun nativeSlotKey(placement: AdPlacement, format: AdFormat): String =
 
 /**
  * The states of one single-ad slot of [source] on screen: attached while collected; the first ad through
- * [retryingNativeAdStates] (claims of `SINGLE_AD`, 5 s retries with no ad), then [refreshingNativeAdStates] (60 s
- * refresh in foreground), each claim for [placement]. Ends, with nothing more sent, once [stopped] moves (the
- * placement off or consent withdrawn).
+ * [retryingNativeAdStates] (claims of `SINGLE_AD`, 5 s retries with no ad), then [refreshingNativeAdStates] (refresh
+ * in foreground at [intervalMillis], the first count longer by [firstTickExtraMillis]), each claim for [placement].
+ * Ends, with nothing more sent, once [stopped] moves (the placement off or consent withdrawn).
  */
 internal fun singleAdSlotStates(
     source: NativeAdSource,
@@ -227,7 +227,8 @@ internal fun singleAdSlotStates(
     clock: MonotonicClock,
     logger: AppLogger,
     placementKey: String,
-    firstTickDelayMillis: Long = NativeAdPolicy.REFRESH_INTERVAL_MILLIS,
+    intervalMillis: StateFlow<Long>,
+    firstTickExtraMillis: Long = 0,
 ): Flow<NativeAdState> = flow {
     // Read once, before the first claim: a stop while the slot waits still ends its refresh.
     val since = stopped.value
@@ -253,7 +254,8 @@ internal fun singleAdSlotStates(
                         clock,
                         logger,
                         placementKey,
-                        firstTickDelayMillis,
+                        intervalMillis,
+                        firstTickExtraMillis,
                         since,
                     )
                 },

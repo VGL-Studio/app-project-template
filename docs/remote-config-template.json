@@ -181,6 +181,21 @@
       "description": "Time after the user collapses the collapsible native ad before it expands again, in seconds; 0 means never. Name set by the template, not an AdsKit key.",
       "valueType": "NUMBER"
     },
+    "time_reload_banner_collap": {
+      "defaultValue": { "value": "30" },
+      "description": "Time from a load of a collapsible banner to its reload, in seconds; 0 means none once it has an ad, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key.",
+      "valueType": "NUMBER"
+    },
+    "time_reload_collap_ad": {
+      "defaultValue": { "value": "60" },
+      "description": "Time between two in-place refreshes of the collapsible native layer, which stays collapsed, in seconds; 0 means none, 1 to 29 use 30, negative uses the default.",
+      "valueType": "NUMBER"
+    },
+    "time_reload_native_small": {
+      "defaultValue": { "value": "60" },
+      "description": "Time between two in-place refreshes of a single-ad native small slot (bottom, standalone; not a list row), in seconds; 0 means none, 1 to 29 use 30, negative uses the default. Name set by the template, not an AdsKit key.",
+      "valueType": "NUMBER"
+    },
     "is_log_af_ad_revenue": {
       "defaultValue": { "value": "true" },
       "description": "Sends af_ad_revenue for every paid ad impression. AppsFlyer event switch. Name set by the template, not an AdsKit key.",
