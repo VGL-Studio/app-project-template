@@ -9,6 +9,7 @@
 # the code filter) runs only scripts/tests/run.sh, without Gradle or the Android SDK (L-040). The job is skipped only
 # for draft PRs (ADR-0041), by its one job-level if; merge-if-green.sh refuses drafts anyway, and a PR marked ready
 # for review gets a run on its head.
+# build-and-test runs on the runner the repository variable HEAVY_RUNNER names, else on ubuntu-latest (ADR-0042).
 # Changing this file is a high-risk plan and needs cross-review.
 name: pr-check
 
@@ -33,7 +34,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}
     if: github.event.pull_request.draft == false
     timeout-minutes: 45
     steps:
@@ -90,6 +91,14 @@ jobs:
           done
 
       - uses: actions/checkout@v5
+
+      # A self-hosted runner must be one-shot and clean before anything is set up or built (ADR-0042). Only a check
+      # for configuration mistakes: a PR can change the script.
+      - name: Kiểm runner tự host (scripts/runner-check.sh)
+        if: runner.environment == 'self-hosted'
+        env:
+          REPO_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: scripts/runner-check.sh
 
       - uses: actions/setup-java@v5
         with:

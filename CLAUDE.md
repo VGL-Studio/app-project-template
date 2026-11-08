@@ -40,6 +40,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Xem trước trang tiến độ `docs/STATUS.md` trên máy: `scripts/status.py`. Trang không có trong git; `status-page.yml` sinh nó trên nhánh `status` sau mỗi lần merge tài liệu (`docs/CLAUDE.md`, mục Trang tiến độ).
 - Sinh file Excel kế hoạch quảng cáo, Remote Config và sự kiện của app từ code (`AdPlacement`, `docs/remote-config-keys.md`, hằng `EVENT_`): `scripts/ads-plan.py`, ghi vào `build/ads-plan/`; `--keep <file cũ>` giữ phần nhóm đã điền (`docs/ops/ads-plan.md`).
 - Kiểm thiết lập của app (file R2 bắt buộc, DNS của tên miền file tĩnh): `scripts/setup-check.sh`; danh sách file ở `docs/ops/required-assets.txt`.
+- Kiểm máy runner tự host trước khi build (job nặng của CI tự gọi, chỉ trên runner tự host): `scripts/runner-check.sh [--emulator]`; dựng máy và chọn máy bằng biến `HEAVY_RUNNER` của repo theo `docs/ops/self-hosted-runner.md` (ADR-0042).
 - Merge khi nhánh chậm hơn nhánh chính: `scripts/merge-if-green.sh <số PR> --update` tự cập nhật nhánh, chờ CI rồi merge; nhánh chính từ điểm tách chỉ đổi tài liệu và PR đã chạy `check.sh` thì script merge không cập nhật (ADR-0041). PR nháp không chạy `pr-check`.
 - Liệt kê test có sẵn kiểm hành vi mà plan đổi, cho mục 3.5 của plan: `scripts/existing-tests.py <plan>` (ADR-0031).
 - Kiểm tra cả danh sách chạy trước khi duyệt (spec đã chốt, phụ thuộc, kịch bản có test, plan cùng sửa một file): `scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md` (`docs/ops/pre-run-review.md`).

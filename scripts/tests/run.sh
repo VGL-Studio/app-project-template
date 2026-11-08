@@ -409,6 +409,7 @@ pr_filter_check() { # <workflow> <code> <release>; runs the filter check step li
   if [[ "$code" == 0 ]]; then echo 0; else echo "$code $(wc -l < "$dir/build.log" 2>/dev/null | tr -d ' ' || echo 0)"; fi
 }
 pr_sim() { # <workflow> <path>...; the filter outputs for a sample PR and the steps of build-and-test that run
+  # PR_SIM_RUNNER (github-hosted by default, or self-hosted) stands for runner.environment (ADR-0042).
   python3 -I - "$@" << 'PY'
 import os, re, sys
 lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
@@ -468,6 +469,9 @@ for name, pats in filters.items():
             print("ERROR mẫu chưa hỗ trợ: " + p); sys.exit(0)
         regs.append(r)
     values[name] = "true" if any(re.match(r, path) for r in regs for path in paths) else "false"
+runner = os.environ.get("PR_SIM_RUNNER", "github-hosted")
+if runner not in ("github-hosted", "self-hosted"):
+    print("ERROR PR_SIM_RUNNER lạ: " + runner); sys.exit(0)
 out = ["code=%s release=%s" % (values.get("code", ""), values.get("release", ""))]
 # The only job-level condition understood is the draft one (ADR-0041); PR_SIM_DRAFT=true makes the sample PR a draft.
 if len(job_ifs) > 1:
@@ -480,6 +484,7 @@ for s in steps:
     cond = key(s, "if")
     if cond is not None:
         expr = re.sub(r"steps\.filter\.outputs\.([A-Za-z0-9_-]+)", lambda m: repr(values.get(m.group(1), "")), cond)
+        expr = re.sub(r"\brunner\.environment\b", repr(runner), expr)
         expr = expr.replace("always()", "True").replace("failure()", "False").replace("&&", " and ").replace("||", " or ")
         rest = re.sub(r"'[^']*'|==|!=|\band\b|\bor\b|\bTrue\b|\bFalse\b|[() ]", "", expr)
         if rest:
@@ -587,6 +592,38 @@ awk '/^      - name: Kiểm kết quả lọc đường dẫn$/ { k = 1; print; 
   "$pr_wf" > "$work/prwf/gradle-after-filter.yml"
 expect "pr-check: the Gradle check still fails on a copy with an unconditional gradlew step after the filter" no \
   "$(pr_gradle_gated "$work/prwf/gradle-after-filter.yml")"
+# The runner check of build-and-test runs only on a self-hosted runner, right after checkout (ADR-0042).
+pr_sim_has() { # <workflow> <step name> <path>...; how many lines of the pr_sim output are that step, or the ERROR line
+  local wf="$1" name="$2" out
+  shift 2
+  out="$(pr_sim "$wf" "$@")"
+  if grep -q '^ERROR' <<<"$out"; then grep -m1 '^ERROR' <<<"$out"; return; fi
+  grep -cxF "$name" <<<"$out" || true
+}
+pr_runner_step='Kiểm runner tự host (scripts/runner-check.sh)'
+expect "pr-check: the sample PR runs the runner check only on a self-hosted runner" "0 1 1" \
+  "$(pr_sim_has "$pr_wf" "$pr_runner_step" app/src/main/java/A.kt) $(PR_SIM_RUNNER=self-hosted pr_sim_has "$pr_wf" "$pr_runner_step" app/src/main/java/A.kt) $(PR_SIM_RUNNER=self-hosted pr_sim_has "$pr_wf" "$pr_runner_step" docs/a.md)"
+expect "pr-check: on a self-hosted runner the runner check is the step right after checkout" "$pr_runner_step" \
+  "$(PR_SIM_RUNNER=self-hosted pr_sim "$pr_wf" app/src/main/java/A.kt | awk 'p { print; exit } $0 == "actions/checkout@v5" { p = 1 }')"
+expect "pr-check: a self-hosted runner does not change what a PR with code runs" \
+  "code=true release=false gate=yes gradle=yes docs=no r8=no" \
+  "$(PR_SIM_RUNNER=self-hosted pr_sim_summary "$pr_wf" app/src/main/java/A.kt)"
+pr_runner_copy() { # <copy> <condition>: the workflow with one more runner check step, under that condition, after checkout
+  COND="$2" awk '{ print } !d && $0 == "      - uses: actions/checkout@v5" { print ""; print "      - name: Kiểm runner tự host (scripts/runner-check.sh)"; print "        if: " ENVIRON["COND"]; print "        run: scripts/runner-check.sh"; d = 1 }' \
+    "$pr_wf" > "$work/prwf/$1"
+}
+pr_runner_copy runner-typo.yml "runner.enviroment == 'self-hosted'"
+pr_runner_copy runner-os.yml "runner.os == 'Linux'"
+pr_runner_copy runner-github.yml "runner.environment == 'github-hosted'"
+expect "pr-check: the sample PR check refuses a misspelt runner condition" \
+  "ERROR điều kiện lạ: runner.enviroment == 'self-hosted'" \
+  "$(pr_sim_has "$work/prwf/runner-typo.yml" "$pr_runner_step" app/src/main/java/A.kt)"
+expect "pr-check: the sample PR check refuses another runner property" "ERROR điều kiện lạ: runner.os == 'Linux'" \
+  "$(pr_sim_has "$work/prwf/runner-os.yml" "$pr_runner_step" app/src/main/java/A.kt)"
+expect "pr-check: the sample PR check refuses an unknown PR_SIM_RUNNER" "ERROR PR_SIM_RUNNER lạ: mac" \
+  "$(PR_SIM_RUNNER=mac pr_sim_has "$pr_wf" "$pr_runner_step" app/src/main/java/A.kt)"
+expect "pr-check: the sample PR check sees a runner check that runs on GitHub runners" 1 \
+  "$(pr_sim_has "$work/prwf/runner-github.yml" "$pr_runner_step" app/src/main/java/A.kt)"
 # The emulator runs after the merge, in the ui-test job of main-guard.yml (ADR-0043): no PR runs it.
 pr_no_emulator() { # <workflow>: "yes" when it has no ui-test job, no emulator step, no ui output and no ui filter
   if grep -qE '^  ui-test:$|android-emulator-runner|ui: \$\{\{|^            ui:$' "$1"; then echo no; else echo yes; fi
@@ -721,7 +758,7 @@ expect "main-guard-verified: a commit unknown to git is full, exit 0" "0 full" \
 
 mgv_gate_files=(.github/workflows/pr-check.yml .github/workflows/main-guard.yml scripts/check.sh scripts/failure-kind.sh
   scripts/find-breaking-commit.sh scripts/main-guard-verified.sh scripts/tests/run.sh scripts/tests/fake-gh
-  scripts/ui-test-needed.sh)
+  scripts/ui-test-needed.sh scripts/runner-check.sh)
 gate_full=0
 for f in "${mgv_gate_files[@]}"; do
   mgv_setup "$f=changed"
@@ -1385,6 +1422,17 @@ expect "playbook: PB-15 the emulator package failed to download and no test ran 
   "$(pb_head $pb_dir/PB-15.log)"
 expect "playbook: PB-16 a job cancelled at its time limit during the release build -> chay-lai, not PB-08" "PB-16 chay-lai" \
   "$(pb_head $pb_dir/PB-16.log)"
+# A self-hosted runner that is off, gone or set up wrong is for a person to fix, not a code failure (ADR-0042). The
+# same words from a GitHub runner are not these rows.
+expect "playbook: PB-17 waiting for a self-hosted runner -> nguoi" "PB-17 nguoi" "$(pb_head $pb_dir/PB-17.log)"
+expect "playbook: PB-18 a self-hosted runner lost communication -> nguoi" "PB-18 nguoi" "$(pb_head $pb_dir/PB-18.log)"
+expect "playbook: PB-19 runner not usable -> nguoi" "PB-19 nguoi" "$(pb_head $pb_dir/PB-19.log)"
+printf '%s\n' 'The hosted runner: GitHub Actions 2 lost communication with the server.' > "$work/pb-hosted-lost.log"
+printf '%s\n' 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.' > "$work/pb-shutdown.log"
+printf '%s\n' 'No space left on device' > "$work/pb-no-space.log"
+expect "playbook: a GitHub runner losing the server, a shutdown signal and a full disk are not PB-17 to PB-19" \
+  "khong-co khong-co khong-co" \
+  "$(pb_head "$work/pb-hosted-lost.log") $(pb_head "$work/pb-shutdown.log") $(pb_head "$work/pb-no-space.log")"
 # R8 prints "WARNING: R8: Missing class ... (referenced from ...)" on a green release build; only its errors are PB-08 (L-138).
 grep 'WARNING: R8' $pb_dir/PB-16.log > "$work/pb-r8-warning.log"
 expect "playbook: an R8 missing-class warning alone is not PB-08" khong-co "$(pb_head "$work/pb-r8-warning.log")"
@@ -1508,7 +1556,7 @@ uin_count() { # <expected output> <event> <file>...: how many files, each change
 }
 uin_code=(app/x.kt core/c/x.kt feature/f/x.kt build-logic/x.kts gradle/libs.versions.toml build.gradle.kts
   settings.gradle.kts gradle.properties gradlew scripts/test-summary.sh scripts/ui-test-on-emulator.sh
-  scripts/ui-test-verdict.sh scripts/ui-test-needed.sh .github/workflows/main-guard.yml)
+  scripts/ui-test-verdict.sh scripts/ui-test-needed.sh scripts/runner-check.sh .github/workflows/main-guard.yml)
 expect "ui-test-needed: a commit changing app code is yes" "${#uin_code[@]}" "$(uin_count '0 yes' push "${uin_code[@]}")"
 uin_other=(scripts/status.py docs/a.md README.md .github/workflows/pr-check.yml featurex/a.kt appendix.txt docs/app/x.kt)
 expect "ui-test-needed: a commit without app code is no" "${#uin_other[@]}" "$(uin_count '0 no' push "${uin_other[@]}")"
@@ -2320,9 +2368,59 @@ expect "wait-run: no run after --since is not finished" "2 CHƯA" \
 expect "wait-run: rejects a time without a zone" "3 LỖI" \
   "$(wait_run "$dispatch_routes" --workflow staging.yml --since '2026-10-18 02:20')"
 
+# A job waiting for a self-hosted runner while nothing of its run is going: exit 7 once it has waited
+# WAIT_RUN_RUNNER_QUEUE_MINUTES (default 75) since it could start (ADR-0042, section 5). WAIT_RUN_NOW fixes the clock
+# at T = 2026-11-08T12:00:00Z; rw_at gives the time some minutes before T.
+rw_now="$(python3 -c 'import datetime as d; print(int(d.datetime(2026, 11, 8, 12, tzinfo=d.timezone.utc).timestamp()))')"
+rw_at() { python3 -c "import datetime as d; print((d.datetime(2026,11,8,12,tzinfo=d.timezone.utc)-d.timedelta(minutes=$1)).strftime('%Y-%m-%dT%H:%M:%SZ'))"; }
+rw_job() { # <name> <status> <labels JSON> <created minutes before T> [<runner name JSON> [<completed minutes before T>]]
+  local completed=""
+  [[ -z "${6:-}" ]] || completed=", \"completed_at\": \"$(rw_at "$6")\""
+  printf '{"id": 120, "name": "%s", "status": "%s", "runner_name": %s, "labels": %s, "created_at": "%s"%s}' \
+    "$1" "$2" "${5:-null}" "$3" "$(rw_at "$4")" "$completed"
+}
+rw_queued="$(rw_job build-and-test queued '["vgl-android"]' 90)"
+rw_jobs() { printf '{"jobs": [%s]}' "$1"; }
+rw_code() { WAIT_RUN_NOW="$rw_now" wait_code "$@"; }
+rw_main_line="$(WAIT_RUN_NOW="$rw_now" wait_line "$(pr_routes "$pending" "$(rw_jobs "$rw_queued")")" 2 --pr 7)"
+expect "wait-run: a job waiting for a self-hosted runner with nothing running is CHỜ RUNNER" "7 CHỜ" \
+  "$(rw_code "$(pr_routes "$pending" "$(rw_jobs "$rw_queued")")" 2 --pr 7)"
+expect "wait-run: the CHỜ RUNNER line names the wait, the label and the run" "1 1 1" \
+  "$(grep -c 'chờ runner tự host' <<<"$rw_main_line" || true) $(grep -c 'vgl-android' <<<"$rw_main_line" || true) $(grep -c 'lần chạy 91' <<<"$rw_main_line" || true)"
+rw_needs_late="$(rw_job guard completed '["vgl-android"]' 95 '"vgl-android-1"' 10), $(rw_job ui-test queued '["vgl-android"]' 90)"
+rw_needs_early="$(rw_job guard completed '["vgl-android"]' 95 '"vgl-android-1"' 80), $(rw_job ui-test queued '["vgl-android"]' 90)"
+expect "wait-run: a job waits from the time the last job of its run finished" "2 CHƯA 7 CHỜ" \
+  "$(rw_code "$(pr_routes "$pending" "$(rw_jobs "$rw_needs_late")")" 2 --pr 7) $(rw_code "$(pr_routes "$pending" "$(rw_jobs "$rw_needs_early")")" 2 --pr 7)"
+expect "wait-run: a job queued for 30 minutes is still waited for" "2 CHƯA" \
+  "$(rw_code "$(pr_routes "$pending" "$(rw_jobs "$(rw_job build-and-test queued '["vgl-android"]' 30)")")" 2 --pr 7)"
+expect "wait-run: a job waiting for a GitHub runner is not CHỜ RUNNER" "2 CHƯA" \
+  "$(rw_code "$(pr_routes "$pending" "$(rw_jobs "$(rw_job build-and-test queued '["ubuntu-latest"]' 90)")")" 2 --pr 7)"
+expect "wait-run: a waiting job while another job runs is not CHỜ RUNNER" "2 CHƯA" \
+  "$(rw_code "$(pr_routes "$pending" "$(rw_jobs "$rw_queued, $(rw_job guard in_progress '["vgl-android"]' 95 '"vgl-android-1"')")")" 2 --pr 7)"
+expect "wait-run: a queued job that already has a runner is not CHỜ RUNNER" "2 CHƯA" \
+  "$(rw_code "$(pr_routes "$pending" "$(rw_jobs "$(rw_job build-and-test queued '["vgl-android"]' 90 '"vgl-android-1"')")")" 2 --pr 7)"
+expect "wait-run: WAIT_RUN_RUNNER_QUEUE_MINUTES sets how long a job may wait" "2 CHƯA" \
+  "$(WAIT_RUN_RUNNER_QUEUE_MINUTES=120 rw_code "$(pr_routes "$pending" "$(rw_jobs "$rw_queued")")" 2 --pr 7)"
+rw_jobs_error="$(pr_routes "$pending" "$(rw_jobs "$rw_queued")" | jq -c '.errors = {"actions/runs/91/jobs?per_page=50": "HTTP 500: Server Error"}')"
+expect "wait-run: an unreadable or odd job list keeps waiting" "2 CHƯA 2 CHƯA" \
+  "$(rw_code "$rw_jobs_error" 2 --pr 7) $(rw_code "$(pr_routes "$pending" '{}')" 2 --pr 7)"
+expect "wait-run: WAIT_RUN_RUNNER_QUEUE_MINUTES must be a number" "3 LỖI" \
+  "$(WAIT_RUN_RUNNER_QUEUE_MINUTES=abc rw_code "$(pr_routes "$pending" "$(rw_jobs "$rw_queued")")" 2 --pr 7)"
+rw_workflow="{\"routes\": {\"actions/workflows/main-guard.yml/runs?branch=main&per_page=20\": {\"workflow_runs\": [{\"id\": 91, \"created_at\": \"$(rw_at 95)\", \"status\": \"in_progress\", \"conclusion\": null, \"html_url\": \"u\"}]}, \"actions/runs/91/jobs?per_page=50\": $(rw_jobs "$(rw_job ui-test queued '["vgl-android"]' 90)")}}"
+expect "wait-run: --workflow also says CHỜ RUNNER" "7 CHỜ" \
+  "$(rw_code "$rw_workflow" 2 --workflow main-guard.yml --since "$(rw_at 100)")"
+# The draft and conflict checks come first (ADR-0041, L-064).
+rw_draft="$(draft_routes "$(draft_pr true)" "$pending" | jq -c --argjson j "$(rw_jobs "$rw_queued")" '.routes["actions/runs/91/jobs?per_page=50"] = $j')"
+rw_conflict="$(conflict_routes dirty "$no_runs" | jq -c --argjson j "$(rw_jobs "$rw_queued")" '.routes["actions/runs/91/jobs?per_page=50"] = $j')"
+expect "wait-run: a draft PR and a conflicting PR without a run still stop first" "6 NHÁP 5 XUNG" \
+  "$(rw_code "$rw_draft" 2 --pr 7) $(rw_code "$rw_conflict" 2 --pr 7)"
+
 # resume-check.py finds a session that stopped in the middle (quota used up) so resume-run.yml can start it again.
 resume_check() { # <run status> <minutes since the last commit> [extra routes JSON]; prints the run file or nothing
-  local last
+  # RESUME_QUEUED and RESUME_IN_PROGRESS answer the Actions runs not finished (none by default), RESUME_ROUTES adds
+  # routes (starting with a comma), RESUME_ERRORS the failed reads, RESUME_ERR keeps stderr. Returns the exit code.
+  local last empty='{"total_count": 0, "workflow_runs": []}' errors="${RESUME_ERRORS:-}"
+  [[ -n "$errors" ]] || errors='{}'
   last="$(python3 -c "import datetime as d; print((d.datetime(2026,10,18,3,0,tzinfo=d.timezone.utc)-d.timedelta(minutes=$2)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
   cat > "$work/resume.json" << JSON
 {"routes": {
@@ -2332,11 +2430,13 @@ resume_check() { # <run status> <minutes since the last commit> [extra routes JS
   "commits/claude/T-007-x": {"commit": {"committer": {"date": "$last"}}},
   "commits/claude/T-099-other": {"commit": {"committer": {"date": "2026-10-18T02:59:00Z"}}},
   "issues?state=open&labels=main-broken&per_page=10": ${3:-[]},
-  "issues?state=open&labels=env-broken&per_page=10": []
-}}
+  "issues?state=open&labels=env-broken&per_page=10": [],
+  "actions/runs?status=queued&per_page=20": ${RESUME_QUEUED:-$empty},
+  "actions/runs?status=in_progress&per_page=20": ${RESUME_IN_PROGRESS:-$empty}${RESUME_ROUTES:-}
+}, "errors": $errors}
 JSON
   PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z \
-    python3 -I scripts/resume-check.py 2> /dev/null
+    python3 -I scripts/resume-check.py 2> "${RESUME_ERR:-/dev/null}"
 }
 expect "resume-check: a running session silent for 2 hours is continued" docs/runs/RUN-20261018-01.md "$(resume_check running 120)"
 expect "resume-check: a session with a recent task commit is left alone" "" "$(resume_check running 30)"
@@ -2354,6 +2454,42 @@ json.dump(fx, open(sys.argv[1], "w"))
 PY
 expect "resume-check: finds a report branch on page 2 of the branches" docs/runs/RUN-20261018-01.md \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z python3 -I scripts/resume-check.py 2> /dev/null)"
+# A job of the repository waits for a self-hosted runner: the session may still be waiting for it, so it is not
+# continued, however long the job has waited (ADR-0042). A read that fails is exit 1, nothing continued.
+rs_job() { # <status> <labels JSON> <created at>
+  printf '{"id": 120, "name": "build-and-test", "status": "%s", "runner_name": null, "labels": %s, "created_at": "%s"}' "$1" "$2" "$3"
+}
+rs_run91='{"total_count": 1, "workflow_runs": [{"id": 91}]}'
+rs_resume() { # <where run 91 is: queued or in_progress> <job JSON>; "<exit code>|<stdout>|<stderr lines about the wait>"
+  local code=0 out
+  if [[ "$1" == queued ]]; then
+    out="$(RESUME_QUEUED="$rs_run91" RESUME_ROUTES=", \"actions/runs/91/jobs?per_page=50\": {\"jobs\": [$2]}" \
+      RESUME_ERR="$work/resume.err" resume_check running 120)" || code=$?
+  else
+    out="$(RESUME_IN_PROGRESS="$rs_run91" RESUME_ROUTES=", \"actions/runs/91/jobs?per_page=50\": {\"jobs\": [$2]}" \
+      RESUME_ERR="$work/resume.err" resume_check running 120)" || code=$?
+  fi
+  echo "$code|$out|$(grep -c 'đang chờ runner tự host' "$work/resume.err" || true)"
+}
+expect "resume-check: no resume while a job waits for a self-hosted runner" "0||1" \
+  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)")"
+expect "resume-check: a job queued a minute ago on a self-hosted runner also stops the resume" "0||1" \
+  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T02:59:00Z)")"
+expect "resume-check: a waiting job of a run in progress also stops the resume" "0||1" \
+  "$(rs_resume in_progress "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)")"
+rs_file="0|docs/runs/RUN-20261018-01.md|0"
+expect "resume-check: a job waiting for a GitHub runner, without labels or running does not stop the resume" \
+  "$rs_file $rs_file $rs_file" \
+  "$(rs_resume queued "$(rs_job queued '["ubuntu-latest"]' 2026-10-18T01:30:00Z)") $(rs_resume queued "$(rs_job queued '[]' 2026-10-18T01:30:00Z)") $(rs_resume queued "$(rs_job in_progress '["vgl-android"]' 2026-10-18T01:30:00Z)")"
+rs_code=0
+rs_out="$(RESUME_ERR="$work/resume.err" resume_check running 120)" || rs_code=$?
+expect "resume-check: no run waiting on GitHub continues the session" "$rs_file" "$rs_code|$rs_out|$(grep -c 'đang chờ runner tự host' "$work/resume.err" || true)"
+rs_code=0
+rs_out="$(RESUME_ERRORS='{"actions/runs?status=queued&per_page=20": "HTTP 500"}' resume_check running 120)" || rs_code=$?
+expect "resume-check: unreadable Actions runs continue nothing, exit 1" "1|" "$rs_code|$rs_out"
+rs_code=0
+rs_out="$(RESUME_QUEUED=null resume_check running 120)" || rs_code=$?
+expect "resume-check: an odd answer for the Actions runs continues nothing, exit 1" "1|" "$rs_code|$rs_out"
 
 # run-watchdog.py opens an issue when a running session has no commit for 60 minutes, so a person can
 # continue a `claude --cloud` session that resume-run.yml does not continue (L-044, L-109).
@@ -2654,6 +2790,368 @@ expect "start-run: enables both schedules before firing the routine" "yes" \
 expect "start-run: only the fire job writes Actions" "1" "$(grep -c 'actions: write' .github/workflows/start-run.yml)"
 expect "status-page: a separate job enables the schedules for a pending run list" "yes 0 0" \
   "$(wf_job .github/workflows/status-page.yml schedules | grep -q '^      actions: write$' && wf_job .github/workflows/status-page.yml schedules | grep -qF 'python3 -I scripts/schedule-idle.py --enable-if-pending' && echo yes || echo no) $(wf_job .github/workflows/status-page.yml page | grep -c 'actions: write') $(wf_level .github/workflows/status-page.yml | grep -c 'actions: write')"
+
+# Self-hosted runner for the heavy jobs (ADR-0042). A heavy job runs scripts/check.sh, ./gradlew or the emulator and
+# reads no secret: it runs on the runner the repository variable HEAVY_RUNNER names, else on ubuntu-latest. Every
+# other job stays on ubuntu-latest. Each check takes a directory or a workflow, so it also runs on broken copies.
+heavy_runs_on="    runs-on: \${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}"
+job_kind() { # <workflow> <job>; secret, heavy or light (comment lines do not count)
+  local body
+  body="$(wf_job "$1" "$2" | grep -vE '^[[:space:]]*#' || true)"
+  if grep -qF 'secrets.' <<<"$body"; then
+    echo secret
+  elif grep -qE 'scripts/check\.sh|\./gradlew|android-emulator-runner' <<<"$body"; then
+    echo heavy
+  else
+    echo light
+  fi
+}
+wf_jobs() { # <workflow>; the names of its jobs, one per line
+  awk '/^jobs:$/ { j = 1; next } j && /^[^ #]/ { j = 0 } j && /^  [A-Za-z0-9_-]+:$/ { sub(/:$/, ""); sub(/^  /, ""); print }' "$1"
+}
+heavy_jobs() { # [<directory>]; "<file> <job>" of every heavy job, sorted
+  local f j
+  for f in "${1:-.github/workflows}"/*.yml; do
+    for j in $(wf_jobs "$f"); do
+      if [[ "$(job_kind "$f" "$j")" == heavy ]]; then echo "$(basename "$f") $j"; fi
+    done
+  done | sort
+}
+runner_rule() { # [<directory>]; "yes", or "no" and every <file>:<job> whose runs-on is wrong
+  local f j want bad=""
+  for f in "${1:-.github/workflows}"/*.yml; do
+    for j in $(wf_jobs "$f"); do
+      want="    runs-on: ubuntu-latest"
+      if [[ "$(job_kind "$f" "$j")" == heavy ]]; then want="$heavy_runs_on"; fi
+      [[ "$(wf_job "$f" "$j" | grep -E '^    runs-on:' || true)" == "$want" ]] || bad="$bad $(basename "$f"):$j"
+    done
+  done
+  if [[ -n "$bad" ]]; then echo "no$bad"; else echo yes; fi
+}
+rwf_copy() { # <name>; a copy of every workflow in $work/rwf/<name>, printed
+  rm -rf "$work/rwf/$1"
+  mkdir -p "$work/rwf/$1"
+  cp .github/workflows/*.yml "$work/rwf/$1/"
+  echo "$work/rwf/$1"
+}
+expect "runners: heavy jobs read HEAVY_RUNNER, every other job stays on ubuntu-latest" yes "$(runner_rule)"
+rwd="$(rwf_copy a)"
+perl -pi -e "s/^    runs-on: ubuntu-latest\$/    runs-on: \\\${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}/" "$rwd/staging.yml"
+expect "runners: the runner check fails on a copy whose staging job reads HEAVY_RUNNER" "no staging.yml:distribute" \
+  "$(runner_rule "$rwd")"
+rwd="$(rwf_copy b)"
+awk '/^  guard:$/ { g = 1 } /^  ui-test:$/ { g = 0 } g && /^    runs-on:/ { print "    runs-on: ubuntu-latest"; next } { print }' \
+  .github/workflows/main-guard.yml > "$rwd/main-guard.yml"
+expect "runners: the runner check fails on a copy whose guard job stays on ubuntu-latest" "no main-guard.yml:guard" \
+  "$(runner_rule "$rwd")"
+mkdir -p "$work/rwf/kind"
+printf '%s\n' 'jobs:' '  x:' '    runs-on: ubuntu-latest' '    steps:' '      # ./gradlew build' '      - run: echo hi' \
+  > "$work/rwf/kind/comment.yml"
+printf '%s\n' 'jobs:' '  x:' '    runs-on: ubuntu-latest' '    steps:' '      - run: ./gradlew build' > "$work/rwf/kind/gradle.yml"
+expect "runners: ./gradlew in a comment does not make a job heavy, in a step it does" "light heavy" \
+  "$(job_kind "$work/rwf/kind/comment.yml" x) $(job_kind "$work/rwf/kind/gradle.yml" x)"
+expect "runners: the heavy jobs are build-and-test, guard and ui-test" \
+  "main-guard.yml guard
+main-guard.yml ui-test
+pr-check.yml build-and-test" "$(heavy_jobs)"
+mkdir -p "$work/rwf/light"
+cp .github/workflows/status-page.yml "$work/rwf/light/"
+expect "runners: on a directory without heavy jobs the runner check passes and the heavy job list is empty" "yes|" \
+  "$(runner_rule "$work/rwf/light")|$(heavy_jobs "$work/rwf/light")"
+
+# Steps of one job, parsed for the order and sudo checks below.
+cat > "$work/wf-steps.py" << 'PY'
+import re, sys
+mode, wf, job = sys.argv[1:4]
+body, inside = [], False
+for line in open(wf, encoding="utf-8").read().split("\n"):
+    if line == "  " + job + ":":
+        inside = True; continue
+    if inside and (re.match(r"^  [^ #]", line) or re.match(r"^[^ #]", line)):
+        break
+    if inside:
+        body.append(line)
+steps, in_steps = [], False
+for line in body:
+    if line == "    steps:":
+        in_steps = True; continue
+    if re.match(r"^    [^ ]", line):
+        in_steps = False; continue
+    if not in_steps:
+        continue
+    if line.startswith("      - "):
+        steps.append([line[8:]])
+    elif steps and line.startswith("        "):
+        steps[-1].append(line[8:])
+def parse(step):
+    keys, cur = {}, None
+    for l in step:
+        m = re.match(r"^([A-Za-z0-9_-]+):(?: (.*))?$", l)
+        if m:
+            cur = m.group(1); keys[cur] = [m.group(2) or ""]
+        elif cur is not None:
+            keys[cur].append(l)
+    return keys
+def text(keys, k):
+    if k not in keys:
+        return None
+    first, rest = keys[k][0], keys[k][1:]
+    lines = rest if first.strip() in ("|", "|-", ">", ">-") else [first] + rest
+    return "\n".join(x.strip() for x in lines if x.strip() and not re.match(r"^\s*#", x))
+parsed = [parse(s) for s in steps]
+def label(p):
+    return text(p, "name") or text(p, "uses") or text(p, "run") or "?"
+def done(answer):
+    print(answer); sys.exit(0)
+if mode == "sudo":
+    bad = [label(p) for p in parsed if re.search(r"\bsudo ", text(p, "run") or "")
+           and "runner.environment == 'github-hosted'" not in (text(p, "if") or "")]
+    done("no " + ", ".join(bad) if bad else "yes")
+CHECK = "Kiểm runner tự host (scripts/runner-check.sh)"
+checkout = [i for i, p in enumerate(parsed) if (text(p, "uses") or "").startswith("actions/checkout@")]
+if not checkout:
+    done("no checkout")
+check = [i for i, p in enumerate(parsed) if text(p, "name") == CHECK]
+if not check:
+    done("no runner check")
+c, k = checkout[0], check[0]
+p = parsed[k]
+emulator = any("android-emulator-runner" in l for l in body if not re.match(r"^\s*#", l))
+if text(p, "if") != "runner.environment == 'self-hosted'":
+    done("no runner check if")
+if "REPO_VISIBILITY: ${{ github.event.repository.visibility }}" not in (text(p, "env") or "").split("\n"):
+    done("no REPO_VISIBILITY")
+if text(p, "run") != ("scripts/runner-check.sh --emulator" if emulator else "scripts/runner-check.sh"):
+    done("no runner check run: " + (text(p, "run") or ""))
+def builds(p):
+    uses, run = text(p, "uses") or "", text(p, "run") or ""
+    return (uses.startswith(("actions/setup-java@", "gradle/actions/setup-gradle@")) or text(p, "id") == "mode"
+            or "gradlew" in run or re.search(r"(?<!runner-)check\.sh", run) or "tests/run.sh" in run)
+for i in range(c + 1, k):
+    if builds(parsed[i]):
+        done("no runner check after " + label(parsed[i]))
+if k != c + 1:
+    done("no runner check not right after checkout")
+ALLOWED = {'"$GITHUB_OUTPUT"', '"$GITHUB_STEP_SUMMARY"', "build.log", "/dev/null"}
+for i in range(k):
+    p = parsed[i]
+    uses = text(p, "uses")
+    if uses is not None:
+        if uses.startswith(("actions/checkout@", "dorny/paths-filter@")):
+            continue
+        done("no before the runner check: " + uses)
+    extra = sorted(set(p) - {"name", "id", "if", "env", "run"})
+    if "run" not in p or extra:
+        done("no before the runner check: " + label(p) + " has " + (", ".join(extra) or "no run"))
+    run = text(p, "run")
+    for word in ("gradle", "$HOME", "${HOME}", "~/", "/home/", "/root/"):
+        if word in run:
+            done("no before the runner check: " + word)
+    m = re.search(r"(^|[^A-Za-z0-9_-])(cp|mv|mkdir|touch|ln|install|wget|dd)([^A-Za-z0-9_-]|$)", run, re.M)
+    if m:
+        done("no before the runner check: " + m.group(2))
+    if re.search(r"\bcurl\b[^\n]*\s(-[A-Za-z]*[oO]|--output|--remote-name)\b", run):
+        done("no before the runner check: curl -o")
+    if re.search(r"\bsed\b[^\n]*\s(-[A-Za-z]*i|--in-place)", run):
+        done("no before the runner check: sed in place")
+    targets = [t for _, t in re.findall(r"(>>?)\s*(&\d|[^\s;|&()]+)", run)]
+    targets += [t for t in re.findall(r"\btee\b(?:\s+-[A-Za-z]+)*\s+([^\s;|&()]+)", run)]
+    for t in targets:
+        if t not in ALLOWED and not re.match(r"^&\d$", t):
+            done("no before the runner check: writes " + t)
+done("yes")
+PY
+runner_order() { python3 -I "$work/wf-steps.py" order "$1" "$2"; } # <workflow> <job>; "yes" or "no <why>"
+runner_order_all() { # [<directory>]; "yes" when runner_order is yes for every heavy job, else the first "<job>: no ..."
+  local dir="${1:-.github/workflows}" f j r
+  while read -r f j; do
+    [[ -n "$f" ]] || continue
+    r="$(runner_order "$dir/$f" "$j")"
+    [[ "$r" == yes ]] || { echo "$j: $r"; return; }
+  done <<<"$(heavy_jobs "$dir")"
+  echo yes
+}
+expect "runners: every heavy job checks the runner right after checkout" "yes 3" \
+  "$(runner_order_all) $(heavy_jobs | grep -c .)"
+expect "runners: the order check passes on pr-check (filter steps before checkout), guard and ui-test" "yes yes yes" \
+  "$(runner_order "$pr_wf" build-and-test) $(runner_order "$guard_wf" guard) $(runner_order "$guard_wf" ui-test)"
+rwd="$(rwf_copy order)"
+# Broken copies, each with one change: the runner check moved after setup-gradle, without --emulator, without if.
+awk '/^  guard:$/ { g = 1 } /^  ui-test:$/ { g = 0 }
+  g && $0 == "      - name: Kiểm runner tự host (scripts/runner-check.sh)" { h = 1 }
+  h { if ($0 == "") { h = 0 } else { held = held $0 "\n" } ; next }
+  { print } g && held != "" && $0 == "        uses: gradle/actions/setup-gradle@v4" { printf "\n%s", held; held = "" }' \
+  "$guard_wf" > "$rwd/guard-late.yml"
+expect "runners: the order check fails when the runner check comes after setup-gradle" \
+  "no runner check after Chọn cách kiểm (scripts/main-guard-verified.sh)" "$(runner_order "$rwd/guard-late.yml" guard)"
+sed 's|run: scripts/runner-check.sh --emulator$|run: scripts/runner-check.sh|' "$guard_wf" > "$rwd/no-emulator.yml"
+expect "runners: the order check fails when ui-test checks the runner without --emulator" \
+  "no runner check run: scripts/runner-check.sh" "$(runner_order "$rwd/no-emulator.yml" ui-test)"
+grep -vxF "        if: runner.environment == 'self-hosted'" "$pr_wf" > "$rwd/no-if.yml" || true
+expect "runners: the order check fails when the runner check has no if" "no runner check if" \
+  "$(runner_order "$rwd/no-if.yml" build-and-test)"
+rwf_before_checkout() { # <copy name> <step line>...; pr-check.yml with that step before checkout; prints its order
+  STEP="$(printf '%s\n' "${@:2}")" awk '!d && $0 == "      - uses: actions/checkout@v5" { print ENVIRON["STEP"]; print ""; d = 1 } { print }' \
+    "$pr_wf" > "$rwd/$1.yml"
+  runner_order "$rwd/$1.yml" build-and-test
+}
+expect "runners: the order check refuses a step before the check that writes ~/.gradle" "no before the runner check: gradle" \
+  "$(rwf_before_checkout gradle-home '      - name: x' '        run: echo x > ~/.gradle/init.d/a.gradle')"
+expect "runners: the order check refuses a step before the check that writes \$HOME" 'no before the runner check: $HOME' \
+  "$(rwf_before_checkout home '      - name: x' '        run: echo x > "$HOME/build.log"')"
+expect "runners: the order check refuses a step before the check that writes \${HOME}" 'no before the runner check: ${HOME}' \
+  "$(rwf_before_checkout home-braces '      - name: x' '        run: echo x > "${HOME}/a"')"
+expect "runners: the order check refuses curl -o and curl -O before the check" \
+  "no before the runner check: curl -o|no before the runner check: curl -o" \
+  "$(rwf_before_checkout curl-o '      - name: x' '        run: curl -sS -o a.txt https://example.com/a')|$(rwf_before_checkout curl-big-o '      - name: x' '        run: curl -sSL -O https://example.com/a')"
+expect "runners: the order check refuses cp and install before the check" \
+  "no before the runner check: cp|no before the runner check: install" \
+  "$(rwf_before_checkout cp '      - name: x' '        run: cp a b')|$(rwf_before_checkout install '      - name: x' '        run: install -m 644 a b')"
+expect "runners: the order check refuses a redirection to another file before the check" \
+  "no before the runner check: writes /tmp/a" "$(rwf_before_checkout tmp '      - name: x' '        run: echo x > /tmp/a')"
+expect "runners: the order check refuses working-directory before the check" \
+  "no before the runner check: x has working-directory" \
+  "$(rwf_before_checkout workdir '      - name: x' '        working-directory: /home/runner/.gradle/init.d' '        run: echo x')"
+expect "runners: the order check refuses setup-gradle before checkout" \
+  "no before the runner check: gradle/actions/setup-gradle@v4" \
+  "$(rwf_before_checkout setup-gradle '      - uses: gradle/actions/setup-gradle@v4')"
+expect "runners: the order check matches whole words: add-on and copy-ok to build.log pass" "yes|yes" \
+  "$(rwf_before_checkout add-on '      - name: x' '        run: echo add-on | tee -a build.log')|$(rwf_before_checkout copy-ok '      - name: x' '        run: echo copy-ok >> build.log')"
+
+# sudo exists on GitHub runners only: the steps of heavy jobs that use it run only there.
+sudo_rule() { # [<directory>]; "yes", or "no" and the offending steps
+  local dir="${1:-.github/workflows}" f j r bad=""
+  while read -r f j; do
+    [[ -n "$f" ]] || continue
+    r="$(python3 -I "$work/wf-steps.py" sudo "$dir/$f" "$j")"
+    [[ "$r" == yes ]] || bad="$bad $j: ${r#no }"
+  done <<<"$(heavy_jobs "$dir")"
+  if [[ -n "$bad" ]]; then echo "no$bad"; else echo yes; fi
+}
+expect "runners: sudo steps of heavy jobs run only on GitHub runners" yes "$(sudo_rule)"
+rwd="$(rwf_copy sudo)"
+awk '{ print } $0 == "      - name: Bật KVM cho emulator" { getline; if ($0 !~ /^        if: /) print }' "$guard_wf" > "$rwd/main-guard.yml"
+expect "runners: the sudo check fails on a copy whose KVM step has no if" "no ui-test: Bật KVM cho emulator" \
+  "$(sudo_rule "$rwd")"
+expect "runners: device-session (a job with secrets) keeps its sudo steps and is not checked" \
+  "secret no" "$(job_kind .github/workflows/device-session.yml emulator) $(python3 -I "$work/wf-steps.py" sudo .github/workflows/device-session.yml emulator | cut -d' ' -f1)"
+
+# A self-hosted runner starts every job from a fresh checkout.
+heavy_clean() { # [<directory>]; "yes" when no heavy job sets clean: false
+  local dir="${1:-.github/workflows}" f j body bad=""
+  while read -r f j; do
+    [[ -n "$f" ]] || continue
+    # Read whole first: under pipefail, grep -q stopping early would make the pipeline fail.
+    body="$(wf_job "$dir/$f" "$j" | grep -vE '^[[:space:]]*#' || true)"
+    if grep -qE '^[[:space:]]+clean: false' <<<"$body"; then bad="$bad $f:$j"; fi
+  done <<<"$(heavy_jobs "$dir")"
+  if [[ -n "$bad" ]]; then echo "no$bad"; else echo yes; fi
+}
+expect "runners: heavy jobs keep the default clean checkout" yes "$(heavy_clean)"
+rwd="$(rwf_copy clean)"
+awk '{ print } /^  guard:$/ { g = 1 } g && $0 == "          fetch-depth: 50" { print "          clean: false"; g = 0 }' \
+  "$guard_wf" > "$rwd/main-guard.yml"
+expect "runners: the clean check fails on a copy whose guard checkout keeps old files" "no main-guard.yml:guard" \
+  "$(heavy_clean "$rwd")"
+
+# resume-check.py reads the Actions runs that wait (ADR-0042).
+expect "resume-run: the workflow may read Actions runs" "1 0" \
+  "$(wf_level .github/workflows/resume-run.yml | grep -cx '  actions: read' || true) $(wf_level .github/workflows/resume-run.yml | grep -c 'actions: write' || true)"
+grep -vx '  actions: read' .github/workflows/resume-run.yml > "$work/rwf/resume-run.yml" || true
+expect "resume-run: the Actions read check fails on a copy without it" "0 0" \
+  "$(wf_level "$work/rwf/resume-run.yml" | grep -cx '  actions: read' || true) $(wf_level "$work/rwf/resume-run.yml" | grep -c 'actions: write' || true)"
+
+# scripts/runner-check.sh catches a self-hosted runner set up wrong, before anything is built (ADR-0042). Not a safety
+# fence: a PR can change it. Each case runs it in a temporary repo, with a temporary HOME and no variable of this
+# machine (GRADLE_USER_HOME, ANDROID_HOME); rc_* variables set the case: rc_vis (REPO_VISIBILITY, default private),
+# rc_eph (VGL_RUNNER_EPHEMERAL, default 1, empty: not set), rc_guh (GRADLE_USER_HOME), rc_ah (ANDROID_HOME, set when
+# the variable is set), rc_kvm (RUNNER_CHECK_KVM), rc_min (RUNNER_CHECK_MIN_FREE_GB, default 0), rc_dir (the directory).
+rc_script="$PWD/scripts/runner-check.sh"
+rc_repo="$work/rc"
+rc_home="$work/rc-home"
+git init -q -b main "$rc_repo"
+printf 'build/\n' > "$rc_repo/.gitignore"
+echo a > "$rc_repo/a.txt"
+git -C "$rc_repo" add -A && git -C "$rc_repo" commit -q -m init
+rc_reset() { # a clean repo and an empty HOME
+  git -C "$rc_repo" clean -q -fdx
+  rm -rf "$rc_home" "$work/gh"
+  mkdir -p "$rc_home"
+}
+rc() { # [args]; "<exit code> <lines RUNNER KHÔNG DÙNG ĐƯỢC>"; the output is in $work/rc.out
+  local vars=(HOME="$rc_home" GIT_CEILING_DIRECTORIES="$work" REPO_VISIBILITY="${rc_vis-private}"
+    RUNNER_CHECK_MIN_FREE_GB="${rc_min-0}") code=0
+  [[ -z "${rc_eph-1}" ]] || vars+=(VGL_RUNNER_EPHEMERAL="${rc_eph-1}")
+  [[ -z "${rc_guh:-}" ]] || vars+=(GRADLE_USER_HOME="$rc_guh")
+  [[ -z "${rc_ah+set}" ]] || vars+=(ANDROID_HOME="$rc_ah")
+  [[ -z "${rc_kvm:-}" ]] || vars+=(RUNNER_CHECK_KVM="$rc_kvm")
+  (cd "${rc_dir:-$rc_repo}" && env -u GRADLE_USER_HOME -u ANDROID_HOME -u VGL_RUNNER_EPHEMERAL -u REPO_VISIBILITY \
+    -u RUNNER_CHECK_MIN_FREE_GB -u RUNNER_CHECK_KVM "${vars[@]}" "$rc_script" "$@") > "$work/rc.out" 2>&1 || code=$?
+  echo "$code $(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC: .* (docs/ops/self-hosted-runner.md)\.$' "$work/rc.out" || true)"
+}
+rc_reset
+expect "runner-check: a clean one-shot container of a private repo is usable" "0 0 1" \
+  "$(rc) $(grep -c '^RUNNER DÙNG ĐƯỢC: repo private, đĩa trống [0-9]* GB\.$' "$work/rc.out" || true)"
+expect "runner-check: a public repo, or no visibility, is refused; internal is usable" "1 1|1 1|0 0" \
+  "$(rc_vis=public rc)|$(rc_vis='' rc)|$(rc_vis=internal rc)"
+expect "runner-check: a container without the one-shot mark is refused" "1 1" "$(rc_eph='' rc)"
+rc_unmarked_line="$(rc_eph='' rc > /dev/null; cat "$work/rc.out")"
+rc_gradle=""
+for f in init.d/x.gradle init.gradle init.gradle.kts gradle.properties; do
+  rc_reset
+  mkdir -p "$(dirname "$rc_home/.gradle/$f")"
+  echo x > "$rc_home/.gradle/$f"
+  rc_gradle="$rc_gradle$(rc)|"
+done
+expect "runner-check: an init script or gradle.properties in ~/.gradle is refused" "1 1|1 1|1 1|1 1|" "$rc_gradle"
+rc_reset
+mkdir -p "$work/gh/init.d"
+expect "runner-check: GRADLE_USER_HOME with init.d is refused" "1 1" "$(rc_guh="$work/gh" rc)"
+rc_reset
+mkdir -p "$rc_home/.gradle/init.d" "$work/gh"
+expect "runner-check: only GRADLE_USER_HOME counts when it is set" "0 0" "$(rc_guh="$work/gh" rc)"
+rc_reset
+mkdir -p "$rc_home/.gradle/caches"
+expect "runner-check: caches in ~/.gradle are allowed" "0 0" "$(rc)"
+rc_reset
+mkdir -p "$rc_repo/build" "$rc_repo/core/x/src/test/screenshots"
+echo x > "$rc_repo/build/x"
+rc_ignored="$(rc)"
+rm -rf "$rc_repo/build"
+echo x > "$rc_repo/core/x/src/test/screenshots/a.png"
+expect "runner-check: an ignored or an untracked file in the work directory is refused" "1 1|1 1|1" \
+  "$rc_ignored|$(rc)|$(grep -c 'thư mục làm việc có file ngoài git: core/' "$work/rc.out" || true)"
+rc_reset
+mkdir -p "$work/rc-nogit"
+expect "runner-check: a work directory that is not a git repo is refused" "1 1" "$(rc_dir="$work/rc-nogit" rc)"
+expect "runner-check: too little free disk is refused" "1 1" "$(rc_min=999999 rc)"
+rc_reset
+mkdir -p "$work/rc-sdk"
+: > "$work/rc-kvm"
+expect "runner-check --emulator: no KVM is refused; KVM and a writable ANDROID_HOME are usable" "1 1|0 0|1" \
+  "$(rc_kvm="$work/nokvm" rc_ah="$work/rc-sdk" rc --emulator)|$(rc_kvm="$work/rc-kvm" rc_ah="$work/rc-sdk" rc --emulator)|$(grep -c '^RUNNER DÙNG ĐƯỢC: .*, KVM và ANDROID_HOME dùng được\.$' "$work/rc.out" || true)"
+expect "runner-check: without --emulator KVM is not checked" "0 0" "$(rc_kvm="$work/nokvm" rc)"
+expect "runner-check --emulator: an empty ANDROID_HOME is refused" "1 1" "$(rc_kvm="$work/rc-kvm" rc_ah='' rc --emulator)"
+if [[ "$(id -u)" == 0 ]]; then
+  echo "skip - runner-check --emulator: a read-only ANDROID_HOME is refused (root writes everywhere)"
+else
+  mkdir -p "$work/rc-sdk-ro"
+  chmod 555 "$work/rc-sdk-ro"
+  expect "runner-check --emulator: a read-only ANDROID_HOME is refused" "1 1" \
+    "$(rc_kvm="$work/rc-kvm" rc_ah="$work/rc-sdk-ro" rc --emulator)"
+  chmod 755 "$work/rc-sdk-ro"
+fi
+rc_reset
+mkdir -p "$rc_home/.gradle/init.d"
+expect "runner-check: every problem is reported, not only the first" "1 3" "$(rc_vis=public rc_eph='' rc)"
+rc_reset
+expect "runner-check: refuses other arguments with exit 2" "2 2" \
+  "$(rc --emu | cut -d' ' -f1) $(rc --emulator x | cut -d' ' -f1)"
+expect "runner-check: the script is executable in git" 100755 "$(git ls-files -s scripts/runner-check.sh | cut -c1-6)"
+
+# The log files of the playbook rows are what the scripts print.
+expect "playbook: PB-17.log is what wait-run.sh prints" "7 $(head -n1 "$pb_dir/PB-17.log") u" "$rw_main_line"
+expect "playbook: PB-19.log is what runner-check.sh prints" "$(head -n1 "$pb_dir/PB-19.log")" "$rc_unmarked_line"
 
 # DesignCompare: an identical image differs by 0%, a design without a screenshot is reported missing.
 java_cmd="java"

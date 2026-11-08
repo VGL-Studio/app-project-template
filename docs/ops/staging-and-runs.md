@@ -4,6 +4,8 @@ Tài liệu này dành cho người phụ trách. Nó liệt kê những việc 
 
 Bí mật thêm ở **Settings > Secrets and variables > Actions > Secrets** của repo. Biến thường thêm ở tab **Variables** cùng trang.
 
+Biến `HEAVY_RUNNER` (tùy chọn, chỉ repo private) chọn runner tự host cho các job nặng của CI; không đặt thì mọi job chạy trên runner của GitHub. Dựng máy và đặt biến theo `docs/ops/self-hosted-runner.md`.
+
 ## 1. Bản staging (`staging.yml`)
 
 ### 1.1. Firebase staging
