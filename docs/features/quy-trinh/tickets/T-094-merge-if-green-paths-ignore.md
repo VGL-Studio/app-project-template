@@ -35,7 +35,7 @@ Ba sửa nhỏ cho các script của cổng merge, gom từ retro của RUN-2026
 **Không bao gồm:**
 
 - Đổi `paths-ignore` của `main-guard.yml` hay `GRADLE_READ_DOCS`.
-- Quy tắc cho người viết plan về hai quy tắc này (đã làm ở `docs/CLAUDE.md`, mục Khi viết plan, ngày 2026-11-08).
+- Quy tắc cho người viết plan về hai quy tắc này (`docs/CLAUDE.md`, mục Khi viết plan, PR #420).
 
 ## Rủi ro sơ bộ
 
