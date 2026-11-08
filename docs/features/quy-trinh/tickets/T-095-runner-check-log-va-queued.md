@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: nguồn là ghi chú rà soát T-078 (báo cáo RUN-20261108-01); không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # sửa .github/workflows/: plan rủi ro cao, duyệt chéo
 size: S
 depends_on: [T-078]
 sprint:
-plan:
+plan: docs/features/quy-trinh/plans/T-095-runner-check-log-va-queued.md
 auto_run:                    # để trống
 created: 2026-11-08
 ---
@@ -40,5 +40,5 @@ Sửa `.github/workflows/`: điểm chặn 7 (`ci`), plan rủi ro cao, duyệt 
 ## Định nghĩa hoàn thành
 
 - [ ] Bình luận lỗi trên PR có dòng `RUNNER KHÔNG DÙNG ĐƯỢC:` khi bước kiểm runner đỏ.
-- [ ] `resume-check.py` xử lý job `queued` quá ngưỡng, có test kèm đối chứng.
+- [ ] `run-watchdog.py` xử lý job `queued` quá ngưỡng, có test kèm đối chứng (sửa theo câu 1 của plan, anh Nhật duyệt 2026-11-08).
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính, `main-guard` xanh.
