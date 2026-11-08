@@ -17,6 +17,8 @@
 #             3 wrong arguments or the PR cannot be read
 #             4 GitHub never started the failed jobs (no runner: spending limit, billing): not a code failure (L-064)
 #             5 (--pr) no run, and the PR conflicts with main: GitHub runs no pull_request workflow for it (L-064)
+#             6 (--pr) the PR is a draft: pr-check does not run for drafts (ADR-0041)
+# A run of the PR that ended skipped (left from when the PR was a draft) is not a result: the wait goes on.
 # Prints one line at the end. Uses only the REST API through `gh api` (gh pr is blocked in the cloud environment).
 # WAIT_RUN_POLL_SECONDS (default 30) and WAIT_RUN_TIMEOUT_SECONDS override the waits (tests); so does
 # WAIT_RUN_CANCEL_RECHECKS (default 3), how many rounds the head is read again after its run shows "cancelled".
@@ -57,22 +59,26 @@ remote_url="$(git config --get remote.origin.url)"
 repo="$(echo "$remote_url" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
 [[ "$repo" =~ ^[^/]+/[^/]+$ ]] || die "không xác định được repo từ remote: $remote_url"
 
-state=""
+state="" draft="false"
 set_pr_query() {
   query="actions/workflows/$workflow/runs?head_sha=$sha&per_page=10"
   what="$workflow của PR #$pr (commit ${sha:0:7})"
 }
-# Reads the head of the PR and its mergeable state in one call. A read that fails or gives no commit keeps the old
-# values, so a network error does not turn into a query for head_sha= (empty).
+# Reads the head of the PR, whether it is a draft and its mergeable state in one call. A read that fails or gives no
+# commit keeps the old values, so a network error does not turn into a query for head_sha= (empty). The draft flag
+# comes before the state, which may be empty: read splits on tabs and would merge two empty fields.
 read_head() {
-  local answer new_sha new_state
-  answer="$(gh api "repos/$repo/pulls/$pr" --jq '[.head.sha, (.mergeable_state // "")] | @tsv' 2> /dev/null)" || return 0
-  IFS=$'\t' read -r new_sha new_state <<< "$answer"
+  local answer new_sha new_draft new_state
+  answer="$(gh api "repos/$repo/pulls/$pr" --jq '[.head.sha, (.draft // false | tostring), (.mergeable_state // "")] | @tsv' \
+    2> /dev/null)" || return 0
+  IFS=$'\t' read -r new_sha new_draft new_state <<< "$answer"
   [[ "${new_sha:-}" =~ ^[0-9a-f]{7,40}$ ]] || return 0
-  sha="$new_sha" state="${new_state:-}"
+  sha="$new_sha" draft="${new_draft:-false}" state="${new_state:-}"
 }
 if [ -n "$pr" ]; then
-  sha="$(gh api "repos/$repo/pulls/$pr" --jq .head.sha 2> /dev/null)" || die "không đọc được PR #$pr."
+  answer="$(gh api "repos/$repo/pulls/$pr" --jq '[.head.sha, (.draft // false | tostring)] | @tsv' 2> /dev/null)" ||
+    die "không đọc được PR #$pr."
+  IFS=$'\t' read -r sha draft <<< "$answer"
   [[ "$sha" =~ ^[0-9a-f]{7,40}$ ]] || die "không đọc được commit của PR #$pr."
   workflow="pr-check.yml"
   # Runs come newest first; a re-run of the same commit replaces the older one.
@@ -94,6 +100,11 @@ while :; do
   if [ -n "$pr" ]; then
     # The head can move while we wait (a push, merge-if-green.sh --update): follow it (L-087).
     read_head
+    # Checked on every round, before the run and before the deadline (ADR-0041).
+    if [ "$draft" = "true" ]; then
+      echo "NHÁP: PR #$pr là bản nháp, pr-check không chạy cho PR nháp (ADR-0041). Chuyển PR sang sẵn sàng rồi gọi lại."
+      exit 6
+    fi
     if [ -n "$want" ]; then
       if [[ "$sha" == "$want"* ]]; then
         seen_want=1
@@ -106,6 +117,10 @@ while :; do
       run="" waiting_for_push=1
     else
       run="$(gh api "repos/$repo/$query" --jq "$pick | {id, status, conclusion, html_url} | @json" 2> /dev/null || true)"
+      # The run of the PR while it was a draft: wait for the run of ready_for_review.
+      if [ -n "$run" ] && [ "$(jq -r '"\(.status) \(.conclusion)"' <<< "$run")" = "completed skipped" ]; then
+        run=""
+      fi
     fi
   else
     run="$(gh api "repos/$repo/$query" --jq "$pick | {id, status, conclusion, html_url} | @json" 2> /dev/null || true)"
