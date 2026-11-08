@@ -10,7 +10,7 @@ risk: high                   # sửa scripts/merge-if-green.sh: plan rủi ro ca
 size: M
 depends_on: [T-077]
 sprint:
-plan:
+plan: docs/features/quy-trinh/plans/T-094-merge-if-green-paths-ignore.md
 auto_run:                    # để trống: chạy trong phiên tự chạy, như T-077
 created: 2026-11-08
 ---
