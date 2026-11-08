@@ -40,7 +40,7 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - Xem trước trang tiến độ `docs/STATUS.md` trên máy: `scripts/status.py`. Trang không có trong git; `status-page.yml` sinh nó trên nhánh `status` sau mỗi lần merge tài liệu (`docs/CLAUDE.md`, mục Trang tiến độ).
 - Sinh file Excel kế hoạch quảng cáo, Remote Config và sự kiện của app từ code (`AdPlacement`, `docs/remote-config-keys.md`, hằng `EVENT_`): `scripts/ads-plan.py`, ghi vào `build/ads-plan/`; `--keep <file cũ>` giữ phần nhóm đã điền (`docs/ops/ads-plan.md`).
 - Kiểm thiết lập của app (file R2 bắt buộc, DNS của tên miền file tĩnh): `scripts/setup-check.sh`; danh sách file ở `docs/ops/required-assets.txt`.
-- Merge khi nhánh chậm hơn nhánh chính: `scripts/merge-if-green.sh <số PR> --update` tự cập nhật nhánh, chờ CI rồi merge.
+- Merge khi nhánh chậm hơn nhánh chính: `scripts/merge-if-green.sh <số PR> --update` tự cập nhật nhánh, chờ CI rồi merge; nhánh chính từ điểm tách chỉ đổi tài liệu và PR đã chạy `check.sh` thì script merge không cập nhật (ADR-0041). PR nháp không chạy `pr-check`.
 - Liệt kê test có sẵn kiểm hành vi mà plan đổi, cho mục 3.5 của plan: `scripts/existing-tests.py <plan>` (ADR-0031).
 - Kiểm tra cả danh sách chạy trước khi duyệt (spec đã chốt, phụ thuộc, kịch bản có test, plan cùng sửa một file): `scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md` (`docs/ops/pre-run-review.md`).
 - Chờ một workflow GitHub Actions xong trong một lệnh: `scripts/wait-run.sh --pr <số> [--sha <commit>]` hoặc `--workflow <file.yml> --since <giờ UTC>` (`docs/auto-run.md`, bước 8).
