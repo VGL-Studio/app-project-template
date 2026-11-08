@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-28]      # kịch bản trong spec mà ticket này xử lý
 owner: Nhật
-status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: on-staging              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đánh giá sơ bộ: low | medium | high
 size: M                      # S | M | L, xem giải thích ở cuối
 depends_on: []               # các ticket phải xong trước, ví dụ [T-NNN]
