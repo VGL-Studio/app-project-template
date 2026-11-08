@@ -11,7 +11,7 @@ size: L
 depends_on: [T-076, T-077]
 sprint:
 plan: features/quy-trinh/plans/T-078-runner-tu-host.md
-auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy RUN-20261101-02 (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"); không chạy ở RUN-20261101-02 mà ở phiên sau, chỉ với plan phiên bản 2 đã duyệt (soạn sau khi T-076 merge); trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
+auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"), chỉ với plan phiên bản 2 đã duyệt; plan phiên bản 2 đã soạn (2026-11-08, draft, viết trên T-076 đã merge và T-077 phiên bản 2), anh Nhật duyệt và duyệt chéo ngày 2026-11-08; trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
 created: 2026-10-29
 ---
 
@@ -24,7 +24,7 @@ Sau T-074 tới T-077, phút còn lại chủ yếu là `build-and-test` của P
 ## Phạm vi
 
 - Người: chọn máy (câu hỏi bên dưới), cài runner cho cả tổ chức với nhãn riêng (ví dụ `vgl-android`), giới hạn cho các repo app; ghi cách cài vào `docs/ops/self-hosted-runner.md`.
-- Các job nặng đọc nhãn runner từ biến tổ chức (ví dụ `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`): máy hỏng hay bảo trì thì xóa biến là quay về runner của GitHub, không sửa workflow. Job nhẹ (lịch định kỳ, `start-run`, `status-page`) giữ runner của GitHub.
+- Các job nặng đọc nhãn runner từ biến của từng repo (ví dụ `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}`): máy hỏng hay bảo trì thì xóa biến là quay về runner của GitHub, không sửa workflow. Job nhẹ (lịch định kỳ, `start-run`, `status-page`) giữ runner của GitHub.
 - Bước của workflow giả định máy sạch (giải phóng đĩa, bật KVM bằng `sudo`, cài Java) chạy được trên cả hai loại máy, hoặc bỏ qua trên máy tự host.
 - `scripts/check.sh` không để lại trạng thái giữa hai lần chạy (thư mục `build/`, ảnh screenshot) làm lệch kết quả; mỗi job chạy trong thư mục làm việc sạch.
 - An toàn: runner chạy lâu dùng chung máy cho code của PR (`pr-check`) và job có quyền ghi hay bí mật (`main-guard` có `contents: write`, `issues: write`; `staging` dùng `STAGING_KEYSTORE_*`, `STAGING_APP_DISTRIBUTION_CREDENTIALS`). PR có thể để lại init script trong `~/.gradle` làm sai cổng chất lượng hay đọc bí mật của job sau. Plan chọn: runner chạy một lần (ephemeral), hay dọn `~/.gradle` và thư mục làm việc sau mỗi job, hay tách runner của job có bí mật và quyền ghi; `staging` giữ runner của GitHub nếu không tách được.
@@ -41,6 +41,8 @@ Sau T-074 tới T-077, phút còn lại chủ yếu là `build-and-test` của P
 3. Kiểm lại chính sách giá của GitHub cho runner tự host lúc làm ticket (có thời điểm GitHub công bố thu phí nền tảng theo phút rồi hoãn).
 4. Gói GitHub Free có cho tạo nhóm runner (runner group) để giới hạn runner theo repo không? Không có thì runner của tổ chức dùng được cho mọi repo, kể cả repo công khai nếu có.
 
+Ghi chú 2026-11-08: biến tổ chức đổi thành biến của từng repo (gói Free không cho repo private đọc biến cấp tổ chức; quyết định khi duyệt plan bản 1, ADR-0042).
+
 ## Rủi ro sơ bộ
 
 Sửa nhiều file `.github/workflows/`: plan rủi ro cao, duyệt chéo. Máy tự host tắt thì mọi job nặng chờ mãi: cần biến quay về và cảnh báo (`run-watchdog` hay `wait-run.sh` báo job chờ runner quá lâu). Máy giữ mã nguồn và token tạm của các repo private: chỉ người trong tổ chức dùng, không cho repo công khai dùng runner này.
@@ -48,6 +50,6 @@ Sửa nhiều file `.github/workflows/`: plan rủi ro cao, duyệt chéo. Máy 
 ## Định nghĩa hoàn thành
 
 - [ ] Các job nặng chạy trên runner tự host; lịch sử tính tiền không còn phút của chúng.
-- [ ] Xóa biến tổ chức thì các job đó chạy lại trên runner của GitHub (thử một lần, ghi vào plan).
+- [ ] Xóa biến của repo thì các job đó chạy lại trên runner của GitHub (thử một lần, ghi vào plan).
 - [ ] Tài liệu cài và vận hành máy, dòng bảng tra lỗi.
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính.
