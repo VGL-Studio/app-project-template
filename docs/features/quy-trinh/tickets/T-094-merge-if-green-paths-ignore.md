@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: nguồn là báo cáo RUN-20261108-01 (điểm nên sửa của T-077), bài học L-149, L-152 và ghi chú rà soát T-076; không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # sửa scripts/merge-if-green.sh: plan rủi ro cao, duyệt chéo
 size: M
 depends_on: [T-077]
 sprint:
-plan:
+plan: docs/features/quy-trinh/plans/T-094-merge-if-green-paths-ignore.md
 auto_run:                    # để trống: chạy trong phiên tự chạy, như T-077
 created: 2026-11-08
 ---
