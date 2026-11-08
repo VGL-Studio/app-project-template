@@ -5,13 +5,13 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là requests/2026-10-29-giam-phut-actions.md, không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: planned
+status: approved
 risk: high
 size: L
 depends_on: [T-076, T-077]
 sprint:
 plan: features/quy-trinh/plans/T-078-runner-tu-host.md
-auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"), chỉ với plan phiên bản 2 đã duyệt; plan phiên bản 2 đã soạn (2026-11-08, draft, viết trên T-076 đã merge và T-077 phiên bản 2), chờ duyệt; trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
+auto_run:                    # để trống từ 2026-11-01: anh Nhật quyết chạy trong phiên tự chạy (lời anh: "Không, hãy chạy phiên"; chọn "Cả ba, nối tiếp"), chỉ với plan phiên bản 2 đã duyệt; plan phiên bản 2 đã soạn (2026-11-08, draft, viết trên T-076 đã merge và T-077 phiên bản 2), anh Nhật duyệt và duyệt chéo ngày 2026-11-08; trước đó false: làm có người vì phiên dựa vào chính cổng chất lượng mà ticket sửa
 created: 2026-10-29
 ---
 

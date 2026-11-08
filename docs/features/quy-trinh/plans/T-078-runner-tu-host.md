@@ -1,16 +1,16 @@
 ---
 ticket: T-078
 title: Runner tự host cho các job nặng, có đường quay về runner của GitHub
-status: draft
+status: approved
 version: 2
 risk_score: 12
 risk_level: high
 token_estimate: 30.0M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-08
 lane:
 ---
 
@@ -624,9 +624,9 @@ Câu 1 tới 8 của bản 1 đã được trả lời (mục 9, bản 1) và gi
 
 Phiên bản 2:
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-093 (câu 3 chọn b), T-077 bản 2 và T-078 bản 2 theo đề xuất; câu 4 của T-078: H4–H6 làm sau trên repo app private. Chấp nhận a2a19a5, cách đọc của T-088 và hai câu viết lại của T-086." Duyệt cùng T-077 bản 2 ở commit 9f7d8de (PR #411), không đổi. Trả lời mục 8 (bản 2), theo đề xuất: (1) duyệt sau T-077 bản 2; T-077 bản 2 đổi thì AI đối chiếu lại plan này trước khi chạy; (2) đồng ý `pr_sim` chỉ đọc `runner.environment`, không sửa phần cấp job của T-077; (3) task chạy trong phiên tự chạy, phiên kiểm DoD 4 bằng `gh api`; H1 tới H6 là việc của người sau merge; (4) H4 tới H6 làm sau trên một repo app private; task vẫn merge được, ghi điều này vào nhật ký khi merge, DoD 1, 2 của ticket mở tới lúc đó, ticket `done` sau H6; (5) PB-18 bỏ mẫu "shutdown signal"; (6) thêm `runner-check.sh` vào `GATE_FILES` và `UI_PATHS`, không thêm vào `own_job_changed` của `ui-test-verdict.sh`; (7) xác nhận A=3, B=2, tổng 12; (8) kiểm `sudo`, `gh`, `jq` trong `runner-check.sh` để ticket sau; (9) chấp nhận; action emulator đổi thì ghim theo commit hay sửa image, ticket riêng; (10) đồng ý các thiết lập bảo mật máy, H5 kiểm và ghi quyền còn thiếu; (11) ưu tiên runner cấp tổ chức; cấp repo chỉ khi gói Free không giới hạn được nhóm runner, token chỉ cho đúng repo, hạn tối đa 90 ngày; thêm dòng ghi chú vào ADR-0042 như mục 3.1 G, không viết ADR mới; (12) giữ `token_estimate` 30.0M. Câu 1 tới 8 của bản 1 giữ nguyên.
 
 Phiên bản 1:
 
