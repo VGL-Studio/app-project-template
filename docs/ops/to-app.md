@@ -61,7 +61,7 @@ Chỉ PR đồng bộ được sửa `base=` và `hold=`. Script tự sửa, tro
 6. **Đẩy nhánh, mở PR** trong repo app.
    - Mô tả PR ghi khoảng commit của dự án mẫu và cách gộp từng file xung đột (lấy bản mẫu, gộp tay giữ gì, áp lại gì).
    - Ghi thêm phần riêng của app bị thay theo quyết định của dự án mẫu (ví dụ ADR của app bị ADR mới của mẫu thay).
-   - Người phụ trách app duyệt. Merge bằng `scripts/merge-if-green.sh` của app.
+   - Người phụ trách app duyệt. Merge bằng `scripts/merge-if-green.sh` của chính nhánh đồng bộ, chạy trong worktree của nhánh đó: khi đợt đồng bộ đổi `pr-check.yml`, bản script trên nhánh chính của app còn đòi kiểm tra cũ và chờ mãi.
 
 ## 5. Phần lớn: giữ lại rồi đưa vào bằng plan
 
