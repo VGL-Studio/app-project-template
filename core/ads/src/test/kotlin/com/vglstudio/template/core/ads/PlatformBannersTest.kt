@@ -317,6 +317,95 @@ class PlatformBannersTest {
     }
 
     @Test
+    fun lastPlatformFailed_keepsMessage() = runTest {
+        // Plan T-093, KB-28: the Failed of the last platform reaches the send loop with its message.
+        val view = ordered(ADMOB to admob)
+        val got = collect(view)
+        view.send()
+        admob.emitFailed(3, "No fill.")
+        runCurrent()
+        assertEquals(listOf<BannerLoadResult>(Failed(3, "No fill.")), got)
+
+        // Control: of two platforms, the result is the one of the last platform, with its own message.
+        val max2 = FakeBannerAdView(tag = "max")
+        val admob2 = FakeBannerAdView(tag = "admob")
+        val view2 = ordered(MAX to max2, ADMOB to admob2)
+        val got2 = collect(view2)
+        view2.send()
+        max2.emitFailed(204, "x")
+        runCurrent()
+        view2.send()
+        admob2.emitFailed(3, "No fill.")
+        runCurrent()
+        assertEquals(listOf(TryNext, Failed(3, "No fill.")), got2)
+    }
+
+    @Test
+    fun notLastFailed_staging_tryingLineHasCodeAndMessage() = runTest {
+        // Plan T-093, KB-28, answer (b) of question 3: the failure of a platform that is not the last has its line.
+        val view = ordered(ADMOB to admob, MAX to max)
+        val got = collect(view)
+        view.send()
+        admob.emitFailed(3, "No fill.")
+        runCurrent()
+        assertEquals(listOf<BannerLoadResult>(TryNext), got)
+        val messages = logger.entries.map { it.message }
+        assertTrue(messages.toString(), "Banner $KEY ADMOB no ad, trying MAX (code 3 \"No fill.\")" in messages)
+
+        // Control: without a message (production) the line is today's.
+        val quiet = RecordingAppLogger()
+        val admob2 = FakeBannerAdView(tag = "admob")
+        val view2 =
+            OrderedBannerAdView(listOf(ADMOB to admob2, MAX to FakeBannerAdView(tag = "max")), { ready }, quiet, KEY)
+        collect(view2)
+        view2.send()
+        admob2.emitFailed(3)
+        runCurrent()
+        assertEquals(listOf("Banner $KEY ADMOB no ad, trying MAX"), quiet.entries.map { it.message })
+    }
+
+    @Test
+    fun pausedMidSend_staging_lineHasCodeAndMessage() = runTest {
+        // Plan T-093, KB-28, answer (b) of question 3: a failure just after a pause of the frame has its line.
+        val view = ordered(ADMOB to admob, MAX to max)
+        val got = collect(view)
+        view.send()
+        view.pause()
+        admob.emitFailed(3, "No fill.")
+        runCurrent()
+        assertEquals(listOf<BannerLoadResult>(TryNext), got)
+        val messages = logger.entries.map { it.message }
+        assertTrue(messages.toString(), "Banner $KEY ADMOB no ad (code 3 \"No fill.\"), from first" in messages)
+
+        // Control: without a message (production) the frame stays silent, as today.
+        val quiet = RecordingAppLogger()
+        val admob2 = FakeBannerAdView(tag = "admob")
+        val view2 =
+            OrderedBannerAdView(listOf(ADMOB to admob2, MAX to FakeBannerAdView(tag = "max")), { ready }, quiet, KEY)
+        val got2 = collect(view2)
+        view2.send()
+        view2.pause()
+        admob2.emitFailed(3)
+        runCurrent()
+        assertEquals(listOf<BannerLoadResult>(TryNext), got2)
+        assertTrue(quiet.entries.toString(), quiet.entries.none { "no ad (code" in it.message })
+    }
+
+    @Test
+    fun heldRefreshFailure_staging_lineHasCodeAndMessage() = runTest {
+        // Plan T-093, KB-28, answer (b) of question 3: a failed refresh held while MAX is asked has its line.
+        val got = showAdmobThenAskMax(ordered(MAX to max, ADMOB to admob), max, admob)
+        admob.emitFailed(3, "No fill.")
+        runCurrent()
+        assertEquals(listOf(TryNext, Loaded, Failed(3)), got)
+        val messages = logger.entries.map { it.message }
+        assertTrue(
+            messages.toString(),
+            "Banner $KEY ADMOB refresh failed, waiting for MAX (code 3 \"No fill.\")" in messages,
+        )
+    }
+
+    @Test
     fun pauseAfterTryNext_resetsToFirst() = runTest {
         val view = ordered(MAX to max, ADMOB to admob)
         collect(view)

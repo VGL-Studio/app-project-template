@@ -165,7 +165,7 @@ class AdsControllerInListRowTest {
             unitId: String,
             size: NativeAdSize,
             onLoaded: (LoadedNativeAd) -> Unit,
-            onFailed: (code: Int) -> Unit,
+            onFailed: (code: Int, logMessage: String?) -> Unit,
         ) {
             calls++
             throw IllegalStateException("request not built")

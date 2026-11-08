@@ -60,7 +60,8 @@ private const val COLLAPSIBLE_REQUEST_ID_KEY = "collapsible_request_id"
  * under the bar's placement (plan T-030, D-05). Its paid events, load results and clicks go to the ad metrics (plan
  * T-023): no zero-value fallback for banners (T-02); only the first result after a send has a latency, so every
  * reload by :core:ads has one and only a refresh of an ad unit that still refreshes by itself has none (A 06:157). Load results also go to [results] for [runBannerLoads], and their networks to
- * [networkLog] at staging (plan T-058).
+ * [networkLog] at staging (plan T-058). A failure carries the SDK message through [loadErrorLog] (masked, staging
+ * only, plan T-093), for the retry line.
  */
 internal class SdkBannerAdView(
     private val adView: AdView,
@@ -73,6 +74,7 @@ internal class SdkBannerAdView(
     private val newRequestId: () -> String = { UUID.randomUUID().toString() },
     private val format: AdFormat = placement.format,
     private val networkLog: AdNetworkLog = AdNetworkLog.OFF,
+    private val loadErrorLog: LoadErrorLog = LoadErrorLog.CODE_ONLY,
 ) : BannerAdView {
     // Callbacks come one at a time; the buffer keeps tryEmit from dropping a result the loop has not read yet.
     private val emitted = MutableSharedFlow<BannerLoadResult>(extraBufferCapacity = RESULT_BUFFER)
@@ -131,7 +133,7 @@ internal class SdkBannerAdView(
             override fun onAdFailedToLoad(error: LoadAdError) {
                 networkLog.failed(slot, error)
                 telemetry.loadFailed(format, slot, loadPlacement, error.code, error.message, now())
-                emitted.tryEmit(BannerLoadResult.Failed(error.code))
+                emitted.tryEmit(BannerLoadResult.Failed(error.code, loadErrorLog.messageOf(error.message)))
             }
 
             override fun onAdClicked() = telemetry.clicked(format, placement)

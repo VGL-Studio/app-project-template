@@ -260,6 +260,26 @@ class AdTelemetryTest {
     }
 
     @Test
+    fun loadFailed_sdkMessage_neverInEvents() {
+        // Plan T-093, KB-28: the SDK message goes to the staging log only, never into an event (section 8.2).
+        logFullScreen = true
+        serving = true
+
+        telemetry().loadFailed(AdFormat.INTERSTITIAL, SLOT, "preload", 3, "No fill. $ADMOB_UNIT_MESSAGE", 0)
+
+        // Control: the failure did record its event.
+        val fail = metrics.events.filterIsInstance<AdMetricEvent.LoadFail>().single()
+        assertEquals("3", fail.loadErrorCode)
+        assertEquals("no_fill", fail.loadState)
+        val recorded = metrics.events.map { it.toString() } + funnel.events.map { it.toString() }
+        recorded.forEach { event ->
+            assertFalse(event, "No fill" in event)
+            assertFalse(event, "No ad for" in event)
+            assertFalse(event, "ca-app-pub" in event)
+        }
+    }
+
+    @Test
     fun throwingMetrics_isSwallowedAndLogged() {
         val throwing = object : AdMetrics {
             override fun log(event: AdMetricEvent) = throw IllegalStateException("secret detail")

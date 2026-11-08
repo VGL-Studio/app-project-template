@@ -152,6 +152,9 @@ class AdsController @Inject internal constructor(
     /** One log line per network of every load the SDK answers, at staging only (plan T-058, KB-28). */
     internal val networkLog = AdNetworkLog(debugOptions.logNetworkResponses, logger)
 
+    /** The SDK message in the load error line of every format, at staging only (plan T-093, KB-28). */
+    internal val loadErrorLog = LoadErrorLog(debugOptions.logLoadErrorMessages)
+
     // Touched on the main thread only.
     private val clock: MonotonicClock = SystemMonotonicClock
     private val guard = FullScreenAdGuard()
@@ -1350,14 +1353,23 @@ class AdsController @Inject internal constructor(
 
     /**
      * The loader of one in-screen native load: [nativeLoaderForTest] when set, else the SDK's, which logs its networks
-     * under [logKey], the key the load logs under (plan T-058).
+     * under [logKey], the key the load logs under (plan T-058), and hands the masked SDK message of a failure to its
+     * load error line at staging (plan T-093).
      */
     private fun newNativeLoader(
         events: NativeAdEvents?,
         options: NativeRequestOptions?,
         logKey: String,
     ): NativeAdLoader = nativeLoaderForTest
-        ?: SdkNativeAdLoader(context, adRequest(), events, options, networkLog = networkLog, logKey = logKey)
+        ?: SdkNativeAdLoader(
+            context,
+            adRequest(),
+            events,
+            options,
+            networkLog = networkLog,
+            logKey = logKey,
+            loadErrorLog = loadErrorLog,
+        )
 
     /** Tests only: the app comes to foreground or goes to background, as [AdsActivityTracker] reports it. */
     @VisibleForTesting
@@ -2035,7 +2047,11 @@ class AdsController @Inject internal constructor(
                         object : AdListener() {
                             override fun onAdFailedToLoad(error: LoadAdError) {
                                 networkLog.failed(placement.key, error)
-                                logger.warn(TAG, "Native full-screen ${placement.key} failed to load: ${error.code}")
+                                logger.warn(
+                                    TAG,
+                                    "Native full-screen ${placement.key} " +
+                                        "failed to load: ${loadErrorLog.text(error.code, error.message)}",
+                                )
                                 onNativeFullScreenLoadFailed(placement, events, error.code, error.message)
                             }
 
@@ -2120,7 +2136,11 @@ class AdsController @Inject internal constructor(
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     networkLog.failed(placement.key, error)
-                    logger.warn(TAG, "Interstitial ${placement.key} failed to load: ${error.code}")
+                    logger.warn(
+                        TAG,
+                        "Interstitial ${placement.key} " +
+                            "failed to load: ${loadErrorLog.text(error.code, error.message)}",
+                    )
                     onInterstitialLoadFailed(placement, slot, loadPlacement, error.code, error.message)
                 }
             }
@@ -2184,7 +2204,11 @@ class AdsController @Inject internal constructor(
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     networkLog.failed(placement.key, error)
-                    logger.warn(TAG, "App open ${placement.key} failed to load: ${error.code}")
+                    logger.warn(
+                        TAG,
+                        "App open ${placement.key} " +
+                            "failed to load: ${loadErrorLog.text(error.code, error.message)}",
+                    )
                     onFullScreenLoadFailed(AdFormat.APP_OPEN, placement, slot, loadPlacement, error.code, error.message)
                 }
             }
@@ -2236,7 +2260,11 @@ class AdsController @Inject internal constructor(
 
             override fun onAdFailedToLoad(error: LoadAdError) {
                 networkLog.failed(placement.key, error)
-                logger.warn(TAG, "Rewarded ${placement.key} failed to load: ${error.code}")
+                logger.warn(
+                    TAG,
+                    "Rewarded ${placement.key} " +
+                        "failed to load: ${loadErrorLog.text(error.code, error.message)}",
+                )
                 onRewardedLoadFailed(placement, slot, loadPlacement, error.code, error.message)
             }
         }

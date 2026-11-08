@@ -30,7 +30,8 @@ internal fun bannerRequestIsCollapsible(format: AdFormat): Boolean = when (forma
 internal sealed interface BannerLoadResult {
     data object Loaded : BannerLoadResult
 
-    data class Failed(val code: Int) : BannerLoadResult
+    /** [logMessage]: the SDK message, already safe to log ([LoadErrorLog], plan T-093), or null. */
+    data class Failed(val code: Int, val logMessage: String? = null) : BannerLoadResult
 
     /**
      * The platform asked had no ad, and the frame has another platform to ask in this same turn (plan T-071, KB-31):
@@ -153,7 +154,8 @@ internal suspend fun runBannerLoads(
                     val wait = AdRetryPolicy.fullScreenDelayMillis(failures)
                     logger.info(
                         TAG,
-                        "Banner $placementKey retry in $wait ms (failures $failures, code ${result.code})",
+                        "Banner $placementKey retry in $wait ms " +
+                            "(failures $failures, code ${loadErrorText(result.code, result.logMessage)})",
                     )
                     withTimeoutOrNull(wait) { retryResets.first { it != generation } }
                     if (!fromRefresh && hadAd && reloadMillis.value == 0L) {
