@@ -1,7 +1,7 @@
 ---
 ticket: T-077
 title: Bớt lần chạy lại pr-check: PR nháp và nhánh chính chỉ đổi tài liệu
-status: approved
+status: done
 version: 2
 risk_score: 9
 risk_level: high
@@ -392,3 +392,27 @@ Phiên bản 1:
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30, sau khi T-075 merge (PR #324) và plan T-076 được duyệt (PR #315). Bảy câu ở mục 8 theo đề xuất của plan: (1) ADR-0041 ghi `accepted`, `docs/foundation.md` sinh lại cùng lần duyệt; (2) giữ điều "không file nào đổi ở cả hai bên"; (3) chấp nhận tổ hợp tài liệu ở file khác nhau chỉ bị bắt sau merge; (4) PR chỉ đổi script được merge không cập nhật như PR code; (5) đồng ý mã 6 của `wait-run.sh` và mã 2 của `merge-if-green.sh` khi chậm vì tài liệu mà CI chưa xong; (6) chỉ bắt đầu task sau khi T-076 merge; (7) `main-guard` đỏ ở cách `tests` chỉ vì tổ hợp tài liệu thì sửa bằng PR tài liệu, không revert; đổi `docs/auto-run.md` bước 9 là ticket riêng. Đối chiếu lúc duyệt: trạng thái sau T-075 khớp mục 2 (không còn `SKIPPABLE_CHECKS`, tên job và bước cổng giữ, regex lấy repo ở dòng 90 của `merge-if-green.sh`); trạng thái sau T-076 lấy theo plan T-076 đã duyệt. Task sửa trong file của mục 3.2, như điểm nên sửa (ADR-0029), bốn điều sau: (a) test M3 của T-076 (`merge-if-green: a skipped build-and-test is refused in the one-job shape`, mong mã 1) cũng khẳng định hành vi cũ "kiểm tra bắt buộc `skipped` bị từ chối": viết lại cùng lúc và cùng cách với câu `a skipped build-and-test is refused` ở mục 3.5 (mong `2 1 0`, không lệnh ghi), không tính vào giới hạn 3 câu của ADR-0031 vì là test viết trước của plan; (b) đối chứng phá ý định của câu `skipped` không dựa vào dòng `allow_skip` (T-075 đã bỏ): bản sao `$work/mgi-skip-green.sh` dùng `sed` thay chính dòng `pending "... bị bỏ qua (lần chạy lúc PR còn nháp) ..."` bằng `return 0`, kèm `! cmp -s` với bản gốc để chắc bản sao đã khác; (c) `merged_on_main` bước 3: merge-base lỗi hay rỗng thì đi bước 4 (từ chối, người xem), lệnh `git diff` có ngoặc kép quanh merge-base; thêm điều không file nào trong tập khác nhau giữa `HEAD_SHA` và commit thuộc `diff --name-only <merge-base> HEAD_SHA` (PR và nhánh chính cùng đổi một file tài liệu thì không nhận là đã merge); test 27 thêm hai ca đối chứng, merge-base rỗng (mong `1`) và (d) H1 sửa `docs/lessons-2.md` mà `D` cũng đổi (mong `1`, không có `ĐÃ MERGE TRƯỚC ĐÓ`), ca (c) cập nhật route `git/commits/<H1>`; (e) test 27 ghi dòng 90 (không phải 91) cho regex lấy repo. Task làm có người (`auto_run: false`; thay ngày 2026-11-01 bằng quyết định chạy trong phiên tự chạy, mục 2).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261108-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #416, commit `52a6d2f`, 2026-11-08 07:57 UTC).
+- **Nhánh, PR:** `claude/T-077-bo-qua-cap-nhat`, https://github.com/VGL-Studio/app-project-template/pull/416. Commit test `b2f02e8`, code `dfc04ae`, tài liệu `9f7f95e`.
+- **Đã làm:** mục 3.1 A tới F. Hai lệnh `--docs-only`, `--gate-ran` của `main-guard-verified.sh`. Đường không cập nhật của `merge-if-green.sh` (`docs_only_behind`, đọc lại `mergeable`, `merged_on_main` nhận cây chỉ khác tài liệu của nhánh chính và trả mã 3, `refuse_same_title`, kiểm tra `skipped` là chờ). `pr-check.yml` có `types` và `if:` cấp job bỏ nháp. `wait-run.sh` trả mã 6 cho PR nháp và không tính lần chạy `skipped`. Tài liệu mục 3.1 E. Không sửa ADR-0041, `foundation.md` vẫn khớp. Bước 3 đến 5 giao cho một phiên con.
+- **Test viết trước:** 56 câu `expect` mới (test 1 tới 30, R1 tới R4). 40 câu đỏ đúng lý do trước code, khớp danh sách của mục 4; rà soát độc lập đã chạy lại commit test trên code cũ và xác nhận. 16 câu qua ngay đúng như plan nêu. 0 câu phải viết chặt thêm. Bước 3 không chạy riêng test JVM của mọi module; chúng chạy trong `check.sh` ở bước 5 (1871 test, 0 lỗi), và task chỉ đổi script.
+- **Câu khẳng định cũ viết lại (ADR-0031):** R1 tới R4, đúng câu của mục 3.5, giữ ý định, có đối chứng. R3: bản sao `mgi-skip-green.sh` ra `same 1 0` trước code, `differs 0 1` sau code. R4: bản sao `mgi-same-title.sh` ra `differs 0 1`. Chi tiết ở mô tả PR #416.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa, 12 ghi chú.
+  - **Điểm nên sửa, chưa sửa vì mâu thuẫn chữ của mục 3.1 B bước 3, để người quyết:** `docs_only_behind` xét "PR chỉ đổi file mà `main-guard` bỏ qua" bằng `--docs-only`. Lệnh này coi `GRADLE_READ_DOCS` là code, khác `paths-ignore` của `main-guard.yml`. Vì vậy PR chỉ đổi `feature/x/README.md` cùng `docs/remote-config-keys.md` được merge không cập nhật nhánh mà `main-guard` không chạy. Code vẫn an toàn; chỉ tổ hợp tài liệu không được kiểm. Phương án: (a) plan mới xét theo đúng mẫu `paths-ignore`; (b) chấp nhận.
+  - Ghi chú khác: lập luận an toàn giữ; không có đường merge lần hai; thứ tự kiểm tra có sẵn giữ; không test nào ra mạng; lệch nhỏ đúng loại.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42460021967). `scripts/tests/run.sh` cục bộ: 1389 ok, 0 FAIL. `check.sh` QUA.
+- **Lệch so với plan:**
+  - Không có file ngoài mục 3.2. Nhật ký và ticket ghi ở nhánh báo cáo như `docs/auto-run.md` bước 7. Số dòng của mục 2 khớp.
+  - Lệch nhỏ (ADR-0032), rà soát đã xét là đúng loại:
+    - `read_head` đọc `draft` trước `mergeable_state` trong `@tsv`, vì IFS tab gộp hai trường rỗng.
+    - Test 23 chạy không có `--dry-run`, để câu "không lệnh ghi" có nghĩa.
+    - Test 7 tách ba câu, test 29 tách hai câu.
+  - Ngày ghi chú ở ADR-0010, ADR-0039 là 2026-11-08, đúng ngày merge.
+- **Việc còn lại:** kiểm thủ công sau merge của mục 4 (kết luận GitHub ghi cho lần chạy `pr-check` của PR nháp, mục 3.4).
+- **Cần người xem:**
+  - Điểm nên sửa ở trên.
+  - Phiên con, khi soạn test trong scratchpad, đóng heredoc sớm. Nó tạo `/nu`, `/nu-origin.git` ở gốc ổ đĩa của container.
+  - Lệnh xóa hai thư mục đó bị bộ kiểm an toàn chặn, nhưng phiên con làm tiếp thay vì dừng như lời giao. Hai thư mục nằm ngoài repo, mất khi container bị thu hồi.
