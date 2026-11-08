@@ -1,16 +1,16 @@
 ---
 ticket: T-077
 title: Bớt lần chạy lại pr-check: PR nháp và nhánh chính chỉ đổi tài liệu
-status: draft
+status: approved
 version: 2
 risk_score: 9
 risk_level: high
 token_estimate: 24.1M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-08
 lane:
 ---
 
@@ -381,9 +381,9 @@ Câu 1 tới 7 của bản 1 đã được trả lời (mục 9, bản 1) và gi
 
 Phiên bản 2:
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-093 (câu 3 chọn b), T-077 bản 2 và T-078 bản 2 theo đề xuất; câu 4 của T-078: H4–H6 làm sau trên repo app private. Chấp nhận a2a19a5, cách đọc của T-088 và hai câu viết lại của T-086." Trả lời mục 8 (bản 2), theo đề xuất: (1) đồng ý R4: gặp commit cùng tiêu đề mà cây khác thì từ chối ngay ở đầu `evaluate`, không thử lệnh merge; (2) đồng ý `pr_sim` chỉ nhận đúng `github.event.pull_request.draft == false` ở cấp job; (3) R1 tới R4 viết sẵn trong plan, vào commit test của bước 3, không tính vào giới hạn 3 câu của ADR-0031; (4) kiểm tra thủ công sau merge để người; `plan_queue` lớn hơn 0 thì phiên ghi kết luận lần chạy của PR plan nháp đầu tiên vào báo cáo; (5) giữ `token_estimate` 24.1M. Câu 1 tới 7 của bản 1 giữ nguyên. Chạy trong phiên tự chạy (quyết định ngày 2026-11-01), phiên cần `workflow-push` (`push-probe.sh` đầu phiên).
 
 Phiên bản 1:
 
