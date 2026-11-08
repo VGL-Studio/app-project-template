@@ -1427,6 +1427,11 @@ expect "playbook: PB-16 a job cancelled at its time limit during the release bui
 expect "playbook: PB-17 waiting for a self-hosted runner -> nguoi" "PB-17 nguoi" "$(pb_head $pb_dir/PB-17.log)"
 expect "playbook: PB-18 a self-hosted runner lost communication -> nguoi" "PB-18 nguoi" "$(pb_head $pb_dir/PB-18.log)"
 expect "playbook: PB-19 runner not usable -> nguoi" "PB-19 nguoi" "$(pb_head $pb_dir/PB-19.log)"
+expect "playbook: PB-20 an old merge-if-green.sh waits for the changes check -> chay-lai" "PB-20 chay-lai" \
+  "$(pb_head $pb_dir/PB-20.log)"
+printf '%s\n' "Chờ: chưa thấy kiểm tra 'build-and-test' trên commit abc1234: CI chưa chạy trên commit này." \
+  > "$work/pb20-other-check.log"
+expect "playbook: waiting for the build-and-test check is not PB-20" "" "$(pb_head "$work/pb20-other-check.log" | grep PB-20)"
 printf '%s\n' 'The hosted runner: GitHub Actions 2 lost communication with the server.' > "$work/pb-hosted-lost.log"
 printf '%s\n' 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.' > "$work/pb-shutdown.log"
 printf '%s\n' 'No space left on device' > "$work/pb-no-space.log"
