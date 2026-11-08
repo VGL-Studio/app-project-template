@@ -6,13 +6,17 @@
 # scripts/main-guard-verified.sh reads the job build-and-test and its step "Cổng chất lượng (scripts/check.sh)" (ADR-0039):
 # renaming either means changing GATE_JOB or GATE_STEP there in the same PR.
 # build-and-test has two paths: a PR with code runs scripts/check.sh; a PR without code (docs only, or files outside
-# the code filter) runs only scripts/tests/run.sh, without Gradle or the Android SDK (L-040). The job is never skipped.
+# the code filter) runs only scripts/tests/run.sh, without Gradle or the Android SDK (L-040). The job is skipped only
+# for draft PRs (ADR-0041), by its one job-level if; merge-if-green.sh refuses drafts anyway, and a PR marked ready
+# for review gets a run on its head.
 # Changing this file is a high-risk plan and needs cross-review.
 name: pr-check
 
 on:
   pull_request:
     branches: [main]
+    # Declaring types drops the default set: synchronize must stay, or new commits go unchecked (ADR-0041).
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: pr-check-${{ github.event.pull_request.number }}
@@ -30,6 +34,7 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
     timeout-minutes: 45
     steps:
       # On pull_request events paths-filter reads the changed files from the API (pull-requests: read), no checkout.
