@@ -10,7 +10,7 @@ risk: high                   # sửa .github/workflows/: plan rủi ro cao, duy�
 size: S
 depends_on: [T-078]
 sprint:
-plan:
+plan: docs/features/quy-trinh/plans/T-095-runner-check-log-va-queued.md
 auto_run:                    # để trống
 created: 2026-11-08
 ---
