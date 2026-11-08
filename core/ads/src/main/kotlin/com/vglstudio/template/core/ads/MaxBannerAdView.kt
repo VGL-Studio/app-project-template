@@ -24,7 +24,7 @@ private const val TAG = "Ads"
 internal interface MaxBannerSdkView {
     val view: View
 
-    fun setCallbacks(onLoaded: () -> Unit, onFailed: (code: Int) -> Unit, onClicked: () -> Unit)
+    fun setCallbacks(onLoaded: () -> Unit, onFailed: (code: Int, message: String?) -> Unit, onClicked: () -> Unit)
 
     fun loadAd()
 
@@ -57,12 +57,16 @@ internal class AppLovinMaxBannerView(unitId: String, kind: BannerSizeKind, width
 
     override val view: View get() = adView
 
-    override fun setCallbacks(onLoaded: () -> Unit, onFailed: (code: Int) -> Unit, onClicked: () -> Unit) {
+    override fun setCallbacks(
+        onLoaded: () -> Unit,
+        onFailed: (code: Int, message: String?) -> Unit,
+        onClicked: () -> Unit,
+    ) {
         adView.setListener(
             object : MaxAdViewAdListener {
                 override fun onAdLoaded(ad: MaxAd) = onLoaded()
 
-                override fun onAdLoadFailed(adUnitId: String, error: MaxError) = onFailed(error.code)
+                override fun onAdLoadFailed(adUnitId: String, error: MaxError) = onFailed(error.code, null)
 
                 override fun onAdClicked(ad: MaxAd) = onClicked()
 
@@ -118,6 +122,7 @@ internal class MaxBannerAdView(
     private val telemetry: AdTelemetry,
     private val now: () -> Long,
     private val logger: AppLogger,
+    private val loadErrorLog: LoadErrorLog = LoadErrorLog.CODE_ONLY,
 ) : BannerAdView {
     // Callbacks come one at a time; the buffer keeps tryEmit from dropping a result the loop has not read yet.
     private val emitted = MutableSharedFlow<BannerLoadResult>(extraBufferCapacity = RESULT_BUFFER)
@@ -174,7 +179,7 @@ internal class MaxBannerAdView(
         emitted.tryEmit(BannerLoadResult.Loaded)
     }
 
-    private fun onFailed(code: Int) {
+    private fun onFailed(code: Int, message: String?) {
         logger.info(TAG, "Banner $placementKey MAX failed (code $code)")
         telemetry.maxLoadFailed(format, maxSlot, loadPlacement, code, now())
         emitted.tryEmit(BannerLoadResult.Failed(code))

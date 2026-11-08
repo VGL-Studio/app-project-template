@@ -250,6 +250,47 @@ class SdkBannerAdViewTest {
     }
 
     @Test
+    fun loadFailed_staging_resultCarriesMaskedMessage_networkLinesDoNot() = runTest {
+        // Plan T-093, KB-28: the result carries the masked SDK message for the retry line; no other line holds it.
+        val logger = RecordingAppLogger()
+        val loggingTelemetry = AdTelemetry(
+            metrics = metrics,
+            funnel = RecordingAdFunnel(),
+            lifecycleSwitches = { DEFAULT_FLAGS.copy(logSlotEvents = true) },
+            serving = { true },
+            offline = { false },
+            counter = LoadAttemptCounter(),
+            logger = logger,
+        )
+        val view = SdkBannerAdView(
+            adView = adView,
+            collapsible = false,
+            placement = AdPlacement.SAMPLE_NATIVE_SMALL,
+            unitId = "unit",
+            telemetry = loggingTelemetry,
+            now = { nowMillis },
+            load = { requests += it },
+            networkLog = AdNetworkLog(true, logger),
+            loadErrorLog = LoadErrorLog(true),
+        )
+        val results = mutableListOf<BannerLoadResult>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { view.results.collect { results += it } }
+
+        view.send()
+        adView.adListener.onAdFailedToLoad(
+            LoadAdError(3, ADMOB_UNIT_MESSAGE, "com.google.android.gms.ads", null, null),
+        )
+
+        assertEquals(listOf<BannerLoadResult>(BannerLoadResult.Failed(3, "No ad for <ad unit>.")), results)
+        // Control: the network log did write its line for this failure.
+        assertTrue(logger.entries.toString(), logger.entries.any { it.message.startsWith("Network ") })
+        assertTrue(
+            logger.entries.toString(),
+            logger.entries.none { "No ad for" in it.message || "ca-app-pub" in it.message },
+        )
+    }
+
+    @Test
     fun networkLog_defaultOff_logsNothing() {
         val logger = RecordingAppLogger()
         val quietTelemetry = AdTelemetry(

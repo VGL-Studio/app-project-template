@@ -45,12 +45,13 @@ internal class SdkNativeAdLoader(
     private val options: NativeRequestOptions? = null,
     private val networkLog: AdNetworkLog = AdNetworkLog.OFF,
     private val logKey: String = "",
+    private val loadErrorLog: LoadErrorLog = LoadErrorLog.CODE_ONLY,
 ) : NativeAdLoader {
     override fun load(
         unitId: String,
         size: NativeAdSize,
         onLoaded: (LoadedNativeAd) -> Unit,
-        onFailed: (code: Int) -> Unit,
+        onFailed: (code: Int, logMessage: String?) -> Unit,
     ) {
         val options = (options ?: nativeRequestOptions(size)).toNativeAdOptions()
         val listener = NativeAdLoadListener(
@@ -86,7 +87,8 @@ internal class SdkNativeAdLoader(
 internal class NativeAdLoadListener(
     private val events: NativeAdEvents?,
     private val onLoadFailedResponse: (LoadAdError) -> Unit = {},
-    private val onFailed: (Int) -> Unit,
+    private val loadErrorLog: LoadErrorLog = LoadErrorLog.CODE_ONLY,
+    private val onFailed: (code: Int, logMessage: String?) -> Unit,
 ) : AdListener() {
     /** The ad of this load, set as soon as the SDK returns it. */
     var loaded: SdkLoadedNativeAd? = null
@@ -94,7 +96,7 @@ internal class NativeAdLoadListener(
     override fun onAdFailedToLoad(error: LoadAdError) {
         onLoadFailedResponse(error)
         events?.onFailed(error.code, error.message)
-        onFailed(error.code)
+        onFailed(error.code, null)
     }
 
     override fun onAdImpression() {

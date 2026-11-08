@@ -30,7 +30,7 @@ internal fun bannerRequestIsCollapsible(format: AdFormat): Boolean = when (forma
 internal sealed interface BannerLoadResult {
     data object Loaded : BannerLoadResult
 
-    data class Failed(val code: Int) : BannerLoadResult
+    data class Failed(val code: Int, val logMessage: String? = null) : BannerLoadResult
 
     /**
      * The platform asked had no ad, and the frame has another platform to ask in this same turn (plan T-071, KB-31):

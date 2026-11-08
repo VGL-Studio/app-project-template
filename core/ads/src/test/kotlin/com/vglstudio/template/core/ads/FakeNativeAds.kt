@@ -42,7 +42,7 @@ internal class FakeNativeAdLoader : NativeAdLoader {
         val unitId: String,
         val size: NativeAdSize,
         val onLoaded: (LoadedNativeAd) -> Unit,
-        val onFailed: (Int) -> Unit,
+        val onFailed: (Int, String?) -> Unit,
     )
 
     val requests = mutableListOf<Request>()
@@ -57,7 +57,7 @@ internal class FakeNativeAdLoader : NativeAdLoader {
         unitId: String,
         size: NativeAdSize,
         onLoaded: (LoadedNativeAd) -> Unit,
-        onFailed: (code: Int) -> Unit,
+        onFailed: (code: Int, logMessage: String?) -> Unit,
     ) {
         requests += Request(unitId, size, onLoaded, onFailed)
         open++
@@ -76,10 +76,10 @@ internal class FakeNativeAdLoader : NativeAdLoader {
         requests.last().onLoaded(ad)
     }
 
-    /** Answers the last request with an SDK error [code]. */
-    fun fail(code: Int) {
+    /** Answers the last request with an SDK error [code] and the [logMessage] the loader hands over (plan T-093). */
+    fun fail(code: Int, logMessage: String? = null) {
         open--
-        requests.last().onFailed(code)
+        requests.last().onFailed(code, logMessage)
     }
 }
 

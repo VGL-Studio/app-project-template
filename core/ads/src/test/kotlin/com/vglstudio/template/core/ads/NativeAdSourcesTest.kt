@@ -272,9 +272,9 @@ class NativeAdSourcesTest {
                             report.succeeded(testScheduler.currentTime)
                             onLoaded(it)
                         },
-                        {
-                            report.failed(it, null, testScheduler.currentTime)
-                            onFailed(it)
+                        { code, message ->
+                            report.failed(code, null, testScheduler.currentTime)
+                            onFailed(code, message)
                         },
                     )
                 }

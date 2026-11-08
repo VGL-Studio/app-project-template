@@ -8,7 +8,11 @@ import com.vglstudio.template.core.logging.AppLogger
  * Staging uses [staging]: the developer's own phones as AdMob test devices (key `ads.testDeviceIds` of the developer's
  * local.properties, never in git) and one log line per network of each load ([AdNetworkLog]). Production uses [NONE].
  */
-data class AdsDebugOptions(val testDeviceIds: List<String>, val logNetworkResponses: Boolean) {
+data class AdsDebugOptions(
+    val testDeviceIds: List<String>,
+    val logNetworkResponses: Boolean,
+    val logLoadErrorMessages: Boolean = false,
+) {
     companion object {
         /** No test device, no per-network log. */
         val NONE = AdsDebugOptions(emptyList(), false)

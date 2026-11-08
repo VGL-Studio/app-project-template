@@ -152,6 +152,8 @@ class AdsController @Inject internal constructor(
     /** One log line per network of every load the SDK answers, at staging only (plan T-058, KB-28). */
     internal val networkLog = AdNetworkLog(debugOptions.logNetworkResponses, logger)
 
+    internal val loadErrorLog = LoadErrorLog.CODE_ONLY
+
     // Touched on the main thread only.
     private val clock: MonotonicClock = SystemMonotonicClock
     private val guard = FullScreenAdGuard()
