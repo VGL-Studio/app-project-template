@@ -39,6 +39,7 @@ Thay đổi khác so với bản 1:
 8. **Image cần `gh`** (bước bình luận lỗi của `pr-check`, các bước issue của `main-guard` gọi `gh`) và phải gỡ `sudo` của image runner chính thức; bản 1 thiếu cả hai.
 9. **`wait-run.sh`:** biểu thức đọc job chịu được câu trả lời không có `jobs` (`(.jobs // [])`), đã chạy thử; kiểm `WAIT_RUN_RUNNER_QUEUE_MINUTES` là số.
 10. **`resume_check` của `scripts/tests/run.sh`** nhận thêm dữ liệu cho hai đường `actions/runs?status=...` (mục 3.5).
+11. **Sau rà soát độc lập PR #412 (2026-11-08):** mục 3.4 ghi mã nguồn của action emulator (không `sudo`); tài liệu mới thêm `no-new-privileges`, `--cap-drop ALL`, chặn mạng của container, đánh đổi quyền token cấp repo, và một dòng ghi chú ADR-0042; lệnh `gh api` của DoD 4 ra khối code; test 3 dò lệnh ghi theo từ nguyên vẹn, có chạy thử; test 6 bỏ biến của máy bằng `env -u`; mã 7 thêm ở `docs/auto-run.md` mục 2, docstring `resume-check.py`, `docs/ops/setup-new-app.md`; thân ticket đổi "biến tổ chức" thành biến của repo.
 
 Không đổi cách làm của bản 1: phân loại job, phương án an toàn, các điều `runner-check.sh` kiểm, mã 7 và bốn điều của nó, luật của `resume-check.py`, `actions: read` cho `resume-run.yml`, bước của người. Câu hỏi 1 tới 8 của bản 1 đã được trả lời (mục 9, bản 1) và giữ; mục 8 chỉ còn câu hỏi về phần đổi của bản 2.
 
@@ -233,7 +234,7 @@ Hệ quả khi bước kiểm runner đỏ: ở `guard`, các bước sau không
   end
 ```
 
-  với `--argjson now "${WAIT_RUN_NOW:-$(date -u +%s)}" --argjson min "$queue_minutes"`. Nghĩa là đủ bốn điều của ADR-0042 mục 5: không job nào `in_progress`; một job `queued` chưa có runner; mang ít nhất một nhãn không phải của GitHub; được phép chạy (lúc muộn nhất mà một job của lần chạy xong, hay `created_at` của job khi chưa job nào xong) từ `queue_minutes` phút trở lên. Ra một dòng thì in rồi thoát 7:
+  với `--argjson now "${WAIT_RUN_NOW:-$(date -u +%s)}" --argjson min "$queue_minutes"`. Nghĩa là đủ bốn điều của ADR-0042 mục 5: không job nào `in_progress`; một job `queued` chưa có runner; mang ít nhất một nhãn không phải của GitHub; được phép chạy (lúc muộn nhất mà một job của lần chạy xong, hay `created_at` của job khi chưa job nào xong) từ `queue_minutes` phút trở lên. Mốc lấy `completed_at` muộn nhất của mọi job đã xong trong lần chạy, không chỉ job trong `needs` của job đang chờ: với lần chạy có job khác xong muộn hơn, mã 7 chỉ ra muộn hơn, không sớm hơn; chấp nhận. Ra một dòng thì in rồi thoát 7:
 
   `CHỜ RUNNER: job <tên> của <what>, lần chạy <id>, chờ runner tự host (nhãn <nhãn>) từ <mốc>, không còn job nào của lần chạy đang chạy. Không phải lỗi của code: không sửa code, không chạy lại, không revert; ghi vào "Cần người kiểm tra": máy runner hay biến HEAVY_RUNNER của repo (docs/ops/self-hosted-runner.md, mục 8); phiên làm theo docs/auto-run.md, mục 4 (ADR-0042). <url>`
 - Đọc job lỗi hay `jq` lỗi (câu trả lời lạ) thì bỏ qua lượt kiểm này, chờ tiếp như cũ (`|| true`). AI đã chạy biểu thức trên với mười câu trả lời mẫu (mục 4.1).
@@ -246,7 +247,7 @@ Hệ quả khi bước kiểm runner đỏ: ở `guard`, các bước sau không
 - Hàm mới `waiting_job()`: với `status` lần lượt `queued`, `in_progress`, đọc `api(f"actions/runs?status={status}&per_page=20")`, rồi với mỗi lần chạy `api(f"actions/runs/{id}/jobs?per_page=50")`. Trả `(tên job, mã lần chạy)` của job đầu tiên có `status == "queued"` và ít nhất một nhãn không khớp `^(ubuntu|windows|macos)-`; không có thì `None`. Câu trả lời không phải object có `workflow_runs` / `jobs` là danh sách thì `raise LookupError(path)`.
 - Trong `main()`, sau kiểm `env-broken` (dòng 124 tới 126), trước dòng `since = ...`: có job thì `say(f"Không tiếp tục: job {name} (lần chạy {run_id}) đang chờ runner tự host (ADR-0042).")` rồi `continue`. Không có ngưỡng thời gian: phiên bị coi đứng im sau 90 phút không commit, còn mốc của mã 7 tính từ lúc job được phép chạy; và phiên cũ có thể vẫn đang chờ chính job đó.
 - Đọc lỗi thì `LookupError` như mọi lỗi đọc có sẵn: thoát 1, không tiếp tục, không đổi gì; `resume-run.yml` thử lại giờ sau. Đây là đường lỗi mới (mục 3.5). Thiếu quyền `actions: read` cũng rơi vào đây (test 11 chặn).
-- Docstring: câu "Nor while main is red (main-broken) or the cloud environment is broken (env-broken)." thêm ", or while a job of the repository waits for a self-hosted runner (ADR-0042)".
+- Docstring: câu "Nor while main is red (main-broken) or the cloud environment is broken (env-broken)." thêm ", or while a job of the repository waits for a self-hosted runner (ADR-0042)"; câu "and its longest wait (CI, emulator) is shorter than that." (dòng 11 tới 12) thành "and its longest wait (CI, emulator) is shorter than that, except a job waiting for a self-hosted runner, which this script checks on its own."
 
 **F. Bảng tra lỗi `docs/ops/failure-playbook.md`.** Ba dòng thêm ở cuối bảng, ngay trước `<!-- playbook:end -->`, nguyên văn (mã lấy số kế tiếp lúc làm task; đã có người dùng thì theo ADR-0032/L10):
 
@@ -286,13 +287,13 @@ Tài liệu này dành cho người phụ trách hạ tầng: dựng một máy 
 
 - Linux x86_64 có KVM: máy chủ riêng, hay máy ảo có bật ảo hóa lồng. Emulator x86_64 của job `ui-test` cần KVM, nên Mac Apple Silicon không dùng được.
 - Đề xuất: 8 nhân, 32 tới 64 GB RAM, 500 GB SSD, Ubuntu LTS, Docker. Hai container chạy cùng lúc; một `ui-test` dùng khoảng 4 nhân và 8 GB RAM.
-- Luật udev trên máy chủ: `/dev/kvm` thuộc nhóm `kvm`, quyền `0660`.
+- Luật udev trên máy chủ: `/dev/kvm` thuộc nhóm `kvm`, quyền `0660`. Ghi lại GID số của nhóm `kvm` trên máy chủ; container dùng số đó (mục 4).
 
 ## 3. Image của container
 
 - Nền là image runner chính thức của GitHub (`ghcr.io/actions/actions-runner`).
 - Người dùng của runner không có `sudo`. Image chính thức cho người dùng `runner` dùng `sudo` không cần mật khẩu, nên image của nhóm gỡ quyền đó.
-- Android SDK với các gói mà `scripts/cloud-setup.sh` cài, cộng gói `emulator` và `system-images;android-34;google_apis;x86_64` cài sẵn. `ANDROID_HOME` trỏ tới SDK đó, và người dùng của runner ghi được vào đó.
+- Android SDK với các gói mà `scripts/cloud-setup.sh` cài, cộng gói `emulator` và `system-images;android-34;google_apis;x86_64` cài sẵn. `ANDROID_HOME` trỏ tới SDK đó và thuộc người dùng của runner (chủ sở hữu), vì bước emulator gọi `sdkmanager` ghi vào đó.
 - Công cụ mà workflow và script gọi: `git`, `gh`, `jq`, `python3`, `curl`, `unzip`.
 - `ENV VGL_RUNNER_EPHEMERAL=1`: dấu cho biết container dựng theo tài liệu này. `scripts/runner-check.sh` đòi dấu này; dấu không bảo đảm runner chạy một lần.
 - Không đặt sẵn gì trong `~/.gradle` (`init.d/`, `init.gradle`, `init.gradle.kts`, `gradle.properties`).
@@ -301,9 +302,13 @@ Tài liệu này dành cho người phụ trách hạ tầng: dựng một máy 
 
 - Một dịch vụ `systemd` chạy N bản (đề xuất 2) của cùng một vòng lặp:
   1. xin cấu hình runner chạy một lần (just-in-time): `POST /orgs/<tổ chức>/actions/runners/generate-jitconfig` với nhãn `vgl-android`, hay `POST /repos/<tổ chức>/<repo>/actions/runners/generate-jitconfig` khi đăng ký runner cho một repo;
-  2. chạy `docker run --rm --device /dev/kvm --group-add <gid của nhóm kvm trên máy chủ>` với cấu hình đó, có giới hạn CPU và RAM, không mount socket Docker;
+  2. chạy `docker run --rm --network runners --device /dev/kvm --group-add <GID số của nhóm kvm trên máy chủ> --security-opt no-new-privileges --cap-drop ALL --cpus <n> --memory <m>` với cấu hình đó, không mount socket Docker;
   3. container thoát sau một job thì quay lại bước 1.
-- Token xin cấu hình là fine-grained token chỉ có quyền "Self-hosted runners: write" của tổ chức, hay "Administration: write" của repo khi đăng ký cấp repo. Lưu trong tệp chỉ người dùng của dịch vụ đọc được; token không bao giờ vào container.
+- Emulator: người dùng của runner trong container phải mở được `/dev/kvm` để đọc và ghi. `--device /dev/kvm` đưa thiết bị vào container, `--group-add` với đúng GID số của nhóm `kvm` trên máy chủ cho người dùng quyền đó (tên nhóm trong container có thể khác). Action emulator kiểm quyền này trước khi chạy và không dùng `sudo`; `scripts/runner-check.sh --emulator` cũng kiểm. `--cap-drop ALL` chưa thử với emulator: emulator cần thêm quyền nào thì chỉ thêm đúng quyền đó (`--cap-add`) và ghi lại ở đây.
+- Mạng: container chạy trong mạng Docker riêng (`docker network create --subnet <dải riêng> runners`) và không tới được máy chủ, mạng nội bộ hay địa chỉ dữ liệu máy (`169.254.169.254`). Ví dụ với iptables: `iptables -I DOCKER-USER -s <dải riêng> -d 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16 -j DROP` (chặn mạng nội bộ và địa chỉ dữ liệu máy) và `iptables -I INPUT -s <dải riêng> -j DROP` (chặn tới chính máy chủ, kể cả cổng của cầu Docker); máy chủ DNS nằm trong mạng nội bộ thì mở riêng cổng 53 tới máy đó trước luật chặn. Lưu luật để còn sau khi khởi động lại.
+- Token xin cấu hình: lưu trong tệp chỉ người dùng của dịch vụ đọc được, ngoài container; token không bao giờ vào container. Vòng lặp xin cấu hình cho mỗi job, nên token nằm trên máy suốt thời gian dịch vụ chạy.
+  - Runner cấp tổ chức: fine-grained token chỉ có quyền "Self-hosted runners: write" của tổ chức. Đây là cách nên dùng.
+  - Runner cấp repo (khi gói Free không giới hạn được nhóm runner): API cấp repo đòi quyền "Administration: write" của repo, rộng hơn quản lý runner (đổi cài đặt repo, kể cả cài đặt Actions). Đánh đổi chấp nhận khi không có cách khác: token fine-grained chỉ cho đúng repo đó, hạn ngắn (tối đa 90 ngày) và thay khi hết hạn, không quyền nào khác; máy chỉ người phụ trách đăng nhập được.
 
 ## 5. Cài đặt GitHub, bắt buộc trước khi đặt biến
 
@@ -320,7 +325,8 @@ Ghi lệnh, mã lần chạy và kết quả của từng bước vào nhật k�
 3. Cách ly giữa job: trên một PR thử không merge, thêm tạm vào `build-and-test` một bước ghi `~/.gradle/init.d/probe.gradle`. Rồi chạy một job nặng khác: bước kiểm runner của job sau vẫn in `RUNNER DÙNG ĐƯỢC` (container mới). Đóng PR thử.
 4. Quay về runner của GitHub: `gh variable delete HEAVY_RUNNER --repo <tổ chức>/<repo>`, rồi `gh workflow run main-guard.yml --repo <tổ chức>/<repo> --ref main`. Job có `labels` là `["ubuntu-latest"]`, `runner_name` bắt đầu bằng `GitHub Actions`, bước kiểm runner bị bỏ qua, bước bật KVM chạy khi `ui-test` chạy. Đặt lại biến.
 5. Máy tắt: dừng dịch vụ tạo runner, đẩy một PR code. `WAIT_RUN_RUNNER_QUEUE_MINUTES=5 scripts/wait-run.sh --pr <số>` trả mã 7 (`CHỜ RUNNER`); `python3 scripts/resume-check.py` ghi "đang chờ runner tự host" khi có danh sách chạy `running`. Dừng một container giữa job đang chạy và ghi lại dòng log của GitHub cho bảng tra lỗi. Rồi làm như mục 8, ghi lại lần chạy lại nhận nhãn mới hay giữ nhãn cũ.
-6. Sau vài ngày: bảng tính tiền của tổ chức cho thấy phút `Actions Linux` của repo giảm tương ứng với các job đã lên máy.
+6. Mạng và quyền: từ một container của dịch vụ, `curl -m 5 http://169.254.169.254/` và `curl -m 5 http://<IP của máy chủ trên cầu Docker>/` đều thất bại; `cat /proc/self/status | grep CapEff` ra toàn số 0 (hay chỉ quyền đã ghi ở mục 4); bước 2 vẫn xanh.
+7. Sau vài ngày: bảng tính tiền của tổ chức cho thấy phút `Actions Linux` của repo giảm tương ứng với các job đã lên máy.
 
 ## 7. Vận hành
 
@@ -342,6 +348,7 @@ Ghi lệnh, mã lần chạy và kết quả của từng bước vào nhật k�
 
 - `docs/ops/staging-and-runs.md`: sau đoạn dòng 5 ("Bí mật thêm ở ... Biến thường thêm ở tab **Variables** cùng trang."), thêm một đoạn: "Biến `HEAVY_RUNNER` (tùy chọn, chỉ repo private) chọn runner tự host cho các job nặng của CI; không đặt thì mọi job chạy trên runner của GitHub. Dựng máy và đặt biến theo `docs/ops/self-hosted-runner.md`."
 - `docs/auto-run.md`:
+  - mục 2, bảng kiểm tra đầu phiên, dòng "Nhánh chính đang xanh", cột xử lý: sau "(không muộn hơn giờ đó, để không bỏ sót lần chạy đang chạy), rồi gọi lại script." thêm "Lần chờ trả mã 7 (`CHỜ RUNNER`): không chạy task nào, kết thúc phiên theo mục 4, dòng "Job chờ runner tự host"."
   - bước 8, mục Chờ workflow: "6 PR là bản nháp (`NHÁP`)." (câu của T-077) thành "6 PR là bản nháp (`NHÁP`), 7 job đang chờ runner tự host (`CHỜ RUNNER`)."
   - bước 8, sau ý "Mã 6 (`NHÁP`): ..." của T-077 (hay sau ý mã 5 nếu ý mã 6 nằm chỗ khác), thêm ý: "- Mã 7 (`CHỜ RUNNER`): một job chờ runner tự host quá lâu mà không còn job nào của lần chạy đang chạy (ADR-0042); máy runner tắt hay bận, không phải lỗi của code. Không sửa code, không chạy lại, không revert, không tính vào 3 lần sửa: làm theo mục 4, dòng "Job chờ runner tự host"."
   - bước 9, sau câu "Lần chờ này trả mã 4 thì nhánh chính chưa được kiểm, không phải đỏ: không revert (ADR-0025 chỉ áp dụng khi có issue `main-broken`), làm theo mục 4, dòng "GitHub không chạy job"." thêm "Mã 7 cũng chưa phải đỏ: làm theo mục 4, dòng "Job chờ runner tự host"."
@@ -350,6 +357,8 @@ Ghi lệnh, mã lần chạy và kết quả của từng bước vào nhật k�
   - cùng mục, ý 3: "nhánh chính đỏ (`main-broken`), môi trường lỗi (`env-broken`)." thành "nhánh chính đỏ (`main-broken`), môi trường lỗi (`env-broken`), repo còn job chờ runner tự host (`queued`, nhãn không phải của GitHub, ADR-0042)."
   - cùng mục, Phiên tiếp tục làm như sau, bước 3: sau câu "...lần chạy `main-guard` thì kết thúc phiên, báo cáo ghi lần chạy cần người chạy lại." thêm "Dòng thời gian ghi mã 7 (job chờ runner tự host): đọc lại lần chạy đó, `gh api "repos/{owner}/{repo}/actions/runs/<id>" --jq .status`. Còn `queued` hay `in_progress`: kết thúc phiên như lần trước, không chạy lại. Đã `completed`: xử lý kết quả như thường (bước 8). Bị hủy: chạy lại một lần như mã 4."
 - `.claude/skills/merge-pr/SKILL.md`: bước 2, sau câu mã 6 của T-077 ("Mã 6 (PR nháp, `pr-check` không chạy): báo dev; người chuyển PR sang sẵn sàng rồi gọi lại.") thêm "Mã 7 (`CHỜ RUNNER`, job chờ runner tự host): không chạy lại, không sửa code; báo dev kiểm máy runner hay xóa biến `HEAVY_RUNNER` của repo (`docs/ops/self-hosted-runner.md`, mục 8)."; bước 4, sau "PR chỉ đổi tài liệu thì `main-guard` không chạy." thêm "Lần chờ này trả mã 7: như bước 2."
+- `docs/ops/setup-new-app.md`, bảng lỗi: dòng mới ngay sau dòng mã 6 của T-077 ("| `wait-run.sh` trả mã 6, báo `NHÁP` | ..."; chưa có thì ngay sau dòng `needs-human`): "| `wait-run.sh` trả mã 7, báo `CHỜ RUNNER` | Một job chờ runner tự host quá lâu: máy tắt, dịch vụ tạo container dừng hay máy bận (ADR-0042) | Kiểm máy hay xóa biến `HEAVY_RUNNER` của repo, rồi hủy và chạy lại lần chạy đang chờ (`docs/ops/self-hosted-runner.md`, mục 8) |".
+- `docs/adr/0042-runner-tu-host-cho-job-nang.md`, một dòng ghi chú ngay dưới tiêu đề (không đổi nội dung đã `accepted`, không đổi `status`): "> Ghi chú <ngày merge>: đăng ký runner ở cấp repo cần token có quyền "Administration: write" của repo, rộng hơn câu "Token chỉ có quyền quản lý runner" ở mục Hệ quả; cách giới hạn và đánh đổi ở `docs/ops/self-hosted-runner.md`, mục 4."
 - `CLAUDE.md`, mục Lệnh, dòng mới ngay sau dòng "Kiểm thiết lập của app ... `scripts/setup-check.sh`; danh sách file ở `docs/ops/required-assets.txt`.": "- Kiểm máy runner tự host trước khi build (job nặng của CI tự gọi, chỉ trên runner tự host): `scripts/runner-check.sh [--emulator]`; dựng máy và chọn máy bằng biến `HEAVY_RUNNER` của repo theo `docs/ops/self-hosted-runner.md` (ADR-0042)."
 - `docs/foundation.md`: không đổi (ADR-0042 đã `accepted`, `scripts/foundation.py --check` khớp ngày 2026-11-08); sinh lại chỉ khi rà soát độc lập thấy dòng quy tắc của ADR-0042 phải sửa.
 
@@ -360,7 +369,7 @@ Câu mới trong script và workflow (thông báo, chú thích) không phải t�
 - `pr_sim` (bản sau T-077): `import os, re, sys` (T-077 đã thêm `os`); ngay trước dòng `out = ["code=%s release=%s" ...]`: `runner = os.environ.get("PR_SIM_RUNNER", "github-hosted")`, giá trị khác `github-hosted`, `self-hosted` thì in `ERROR PR_SIM_RUNNER lạ: <giá trị>` và thoát; trong vòng các bước, ngay sau dòng thay `steps.filter.outputs.*`: `expr = re.sub(r"\brunner\.environment\b", repr(runner), expr)`. Phần còn lại giữ: điều kiện có tên khác (`runner.os`, `runner.enviroment`) vẫn còn lại sau khi thay, nên vẫn `ERROR điều kiện lạ`. Chú thích của hàm thêm "PR_SIM_RUNNER (github-hosted by default, or self-hosted) stands for runner.environment". `pr_sim_summary` không đổi (không thêm trường).
 - Hàm mới `pr_sim_has <workflow> <step name> <path>...`: in số dòng của đầu ra `pr_sim` đúng bằng tên bước (`grep -cxF`), hay dòng `ERROR` khi có.
 - Hàm mới, đặt sau test `pr-check: has no emulator job`: `job_kind <workflow> <job>` (in `secret` khi phần job, bỏ dòng `^[[:space:]]*#`, có `secrets.`; `heavy` khi có `scripts/check.sh`, `./gradlew` hay `android-emulator-runner` mà không có `secrets.`; `light` khi khác); `wf_jobs <workflow>` (tên các job của khối `jobs:`, như `pr_jobs`); `heavy_jobs [<thư mục>]` (mọi cặp `<tệp> <job>` loại `heavy` trong `<thư mục>/*.yml`, mặc định `.github/workflows`); `runner_order <workflow> <job>` (test 3). Chúng dùng `wf_job` (dòng 2177), nên khối test 1 tới 5 đặt sau định nghĩa `wf_job` (sau câu `status-page: a separate job enables the schedules`), hay `wf_job` được dời lên trước; chọn đặt khối sau.
-- `resume_check` (dòng 1868): heredoc thêm hai đường `"actions/runs?status=queued&per_page=20": ${RESUME_QUEUED:-<rỗng>}` và `"actions/runs?status=in_progress&per_page=20": ${RESUME_IN_PROGRESS:-<rỗng>}`, với `<rỗng>` là một biến cục bộ `{"total_count": 0, "workflow_runs": []}`, và thêm `${RESUME_ROUTES:-}` (các đường thêm, bắt đầu bằng dấu phẩy) trước dấu đóng của `routes`; thêm khóa `errors` lấy từ `RESUME_ERRORS` (mặc định `{}`, qua một biến cục bộ). Không đặt biến nào thì dữ liệu như nay cộng hai câu trả lời rỗng.
+- `resume_check` (dòng 1868): heredoc thêm hai đường `"actions/runs?status=queued&per_page=20": ${RESUME_QUEUED:-<rỗng>}` và `"actions/runs?status=in_progress&per_page=20": ${RESUME_IN_PROGRESS:-<rỗng>}`, với `<rỗng>` là một biến cục bộ `{"total_count": 0, "workflow_runs": []}`, và thêm `${RESUME_ROUTES:-}` (các đường thêm, bắt đầu bằng dấu phẩy) trước dấu đóng của `routes`; thêm khóa `errors` lấy từ `RESUME_ERRORS` (mặc định `{}`, qua một biến cục bộ). Không đặt biến nào thì dữ liệu như nay cộng hai câu trả lời rỗng. Dòng gọi script đổi `2> /dev/null` thành `2> "${RESUME_ERR:-/dev/null}"` (test 10 đặt `RESUME_ERR="$work/resume.err"`). Hàm trả mã thoát của script (lệnh cuối), nên test lấy mã bằng `code=0; out="$(RESUME_... resume_check running 120)" || code=$?` (dưới `set -e`, không dùng `$?` sau một phép gán trần).
 - Dữ liệu `mgv_gate_files` (dòng 685) thêm `scripts/runner-check.sh`; `uin_code` (dòng 1361) thêm `scripts/runner-check.sh` (test 13, 14).
 
 Không sửa: `scripts/merge-if-green.sh` (cấm sửa; không thêm dòng `  return 3` nào), `scripts/check.sh`, `scripts/find-breaking-commit.sh`, `scripts/main-guard-status.sh`, `scripts/ui-test-verdict.sh`, `scripts/tests/fake-gh` (mọi đường mới là đường đọc có tên cố định), `scripts/release.sh`.
@@ -391,10 +400,11 @@ Không sửa: `scripts/merge-if-green.sh` (cấm sửa; không thêm dòng `  re
 | Tạo | `scripts/tests/playbook/PB-19.log` | Đầu ra `runner-check.sh` |
 | Tạo | `docs/ops/self-hosted-runner.md` | Dựng và vận hành máy runner, toàn văn ở mục 3.1 G |
 | Sửa | `docs/ops/staging-and-runs.md` | Một đoạn về biến `HEAVY_RUNNER` (mục 3.1 G) |
-| Sửa | `docs/auto-run.md` | Bước 8, 9: mã 7; mục 4: dòng Job chờ runner tự host; mục Tiếp tục phiên ý 1, ý 3, bước 3 (mục 3.1 G) |
+| Sửa | `docs/auto-run.md` | Mục 2: mã 7 khi chờ `main-guard`; bước 8, 9: mã 7; mục 4: dòng Job chờ runner tự host; mục Tiếp tục phiên ý 1, ý 3, bước 3 (mục 3.1 G) |
 | Sửa | `.claude/skills/merge-pr/SKILL.md` | Mã 7 của `wait-run.sh` (mục 3.1 G) |
 | Sửa | `CLAUDE.md` | Mục Lệnh: một dòng `runner-check.sh` (mục 3.1 G) |
-| Sửa | `docs/adr/0042-runner-tu-host-cho-job-nang.md` | Chỉ khi rà soát độc lập thấy ADR lệch với code đã làm; không đổi `status` |
+| Sửa | `docs/ops/setup-new-app.md` | Bảng lỗi: dòng mã 7 của `wait-run.sh` (mục 3.1 G) |
+| Sửa | `docs/adr/0042-runner-tu-host-cho-job-nang.md` | Một dòng ghi chú về quyền của token khi đăng ký runner cấp repo (mục 3.1 G); sửa thêm chỉ khi rà soát độc lập thấy ADR lệch với code đã làm; không đổi `status` |
 | Sửa | `docs/foundation.md` | Sinh lại bằng `scripts/foundation.py` chỉ khi dòng quy tắc của ADR-0042 đổi |
 | Sửa | `docs/features/quy-trinh/plans/T-078-runner-tu-host.md` | Nhật ký thực hiện; kết quả H3 tới H6 sau này |
 | Sửa | `docs/features/quy-trinh/tickets/T-078-runner-tu-host.md` | Trạng thái ticket |
@@ -409,7 +419,7 @@ Nơi đọc file bị đổi, tìm ngày 2026-11-08 bằng `grep -rln -e pr-chec
 - `.github/workflows/resume-run.yml` gọi `resume-check.py`: đầu ra và mã thoát giữ nguyên nghĩa; quyền `actions: read` thêm ở cùng PR.
 - `scripts/check.sh`, `scripts/plan-check.py`, `scripts/push-probe.sh`, `scripts/is-exact-revert.sh`, `scripts/cloud-env-check.sh`: chỉ nhắc tên workflow, script hay bảng tra lỗi trong chú thích, thông báo hay danh sách tên file rủi ro cao. Không sửa.
 - `scripts/tests/playbook/PB-02.log` có tên `pr-check.yml`: log mẫu, không đổi.
-- `.claude/skills/quick-lane/SKILL.md`, `.claude/skills/whatnow/SKILL.md`, `docs/ops/release.md`, `docs/ops/setup-new-app.md`, `docs/ops/pre-run-review.md`, `docs/ops/test-sessions.md`, `docs/ops/token-usage.md`, `docs/ops/quick-lane.md`, `docs/ops/session-capabilities.md`, `docs/ops/to-app.md`: nhắc `pr-check`, `main-guard` hay `wait-run.sh` mà không nói máy chạy hay mã 7. Không sửa.
+- `.claude/skills/quick-lane/SKILL.md`, `.claude/skills/whatnow/SKILL.md`, `docs/ops/release.md`, `docs/ops/pre-run-review.md`, `docs/ops/test-sessions.md`, `docs/ops/token-usage.md`, `docs/ops/quick-lane.md`, `docs/ops/session-capabilities.md`, `docs/ops/to-app.md`: nhắc `pr-check`, `main-guard` hay `wait-run.sh` mà không nói máy chạy hay mã 7. Không sửa.
 - Workflow không sửa mà test 1 đọc: `.github/workflows/status-page.yml`, `.github/workflows/start-run.yml`, `.github/workflows/device-session.yml`, `.github/workflows/staging.yml`, `.github/workflows/run-watchdog.yml`, `.github/workflows/env-canary.yml`.
 - `scripts/template-sync.sh` chép workflow và script về app; biến đặt riêng ở từng repo.
 - Test "every skill names ... real files" đọc đường dẫn trong skill `merge-pr`: `docs/ops/self-hosted-runner.md` có trong cùng commit.
@@ -421,6 +431,7 @@ Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì ch�
 - dẫn `CLAUDE.md`: `.github/ISSUE_TEMPLATE/from-app.yml`, `scripts/new-app.sh` (thay tên app, dòng mới không có tên app), `scripts/local-setup.sh`, `scripts/run-watchdog.py`, `app/src/androidTest/kotlin/com/vglstudio/template/AppLaunchTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeFullScreenOverlayScreenshotTest.kt`;
 - dẫn `docs/ops/staging-and-runs.md`: `scripts/env-canary.sh`, `scripts/setup-check.sh`; plan chỉ thêm một đoạn sau dòng 5;
 - dẫn `docs/ops/failure-playbook.md`: `scripts/push-probe.sh` (PB-14);
+- dẫn `docs/ops/setup-new-app.md`: `.github/workflows/env-canary.yml`, `.github/workflows/start-run.yml`, `scripts/java-check.sh`, `scripts/new-app.sh`, `scripts/setup-check.sh`; plan chỉ thêm một dòng vào bảng lỗi;
 - `scripts/local-setup.sh` nhắc `scripts/tests/run.sh`: không phụ thuộc test mới.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
@@ -434,7 +445,7 @@ Các file khác nhắc tới file plan sửa, không bị ảnh hưởng vì ch�
 
 ### 3.4. Phương án dự phòng
 
-- **Điểm chưa chắc:** ba action chạy trong container không có `sudo` chưa chạy thử được vì chưa có máy: `setup-java`, `setup-gradle` cài vào thư mục người dùng; `android-emulator-runner` ghi vào `ANDROID_HOME` và cần `/dev/kvm`. Phần này chỉ lộ ra ở H5, sau khi task merge; trong phiên mọi job chạy trên runner của GitHub.
+- **Điểm chưa chắc:** ba action chạy trong container không có `sudo` chưa chạy thử được vì chưa có máy: `setup-java`, `setup-gradle` cài vào thư mục người dùng; `android-emulator-runner` ghi vào `ANDROID_HOME` và cần `/dev/kvm`. Mã nguồn của `reactivecircus/android-emulator-runner` ở ref `v2`, đọc ngày 2026-11-08 (người điều phối phiên soạn plan, qua raw.githubusercontent.com: `src/sdk-installer.ts`, `src/emulator-manager.ts`, `src/main.ts`): không có lệnh `sudo` nào; action chỉ kiểm `/dev/kvm` đọc ghi được (`accessSync('/dev/kvm', R_OK | W_OK)`, `main.ts` dòng 32) rồi gọi `sdkmanager`, `emulator`, `adb`. Vì vậy điều kiện là `/dev/kvm` đọc ghi được cho người dùng runner (`--device /dev/kvm`, `--group-add` đúng GID) và `ANDROID_HOME` thuộc người dùng runner; tài liệu mới ghi cả hai (mục 3, 4), `runner-check.sh --emulator` kiểm cả hai. Thêm: `--cap-drop ALL`, `no-new-privileges` của tài liệu mới chưa thử với emulator. Phần này chỉ lộ ra ở H5, sau khi task merge; trong phiên mọi job chạy trên runner của GitHub.
 - **Điều kiện chuyển:** ở H5, job nặng đỏ trên runner tự host ở một bước cài đặt hay khởi động emulator, trong khi cùng commit xanh trên runner của GitHub.
 - **Cách làm thay:** sửa image hay cấu hình container theo `docs/ops/self-hosted-runner.md`, không sửa workflow: cài sẵn JDK 17, đặt `RUNNER_TOOL_CACHE` ghi được, cài sẵn gói emulator và ảnh hệ thống, kiểm `--group-add`. Không sửa được bằng image thì xóa biến và mở ticket mới. Tiêu chí và test của mục 4 giữ nguyên.
 
@@ -476,11 +487,21 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3),
 | Mô phỏng PR mẫu hiểu bước kiểm runner (điểm chặn 1) | Test PR mẫu | 12. `pr-check: the sample PR runs the runner check only on a self-hosted runner` (chi tiết dưới bảng) |
 | `GATE_FILES` có `runner-check.sh` (điểm chặn 2) | Test của script | 13. Câu có sẵn `main-guard-verified: a commit changing a file the guard job runs is full` với `mgv_gate_files` thêm `scripts/runner-check.sh`: mong 10, trước code ra 9 |
 | `UI_PATHS` có `runner-check.sh` (điểm chặn 2) | Test của script | 14. Câu có sẵn `ui-test-needed: a commit changing app code is yes` với `uin_code` thêm `scripts/runner-check.sh`: mong 15, trước code ra 14 |
-| DoD 4: không đổi gì khi chưa có biến, trên GitHub thật | Kiểm trong phiên (lệnh `gh api` trên GitHub thật) | Trước khi gọi `merge-if-green.sh` cho PR của task: `scripts/wait-run.sh --pr <số>` xanh, rồi `gh api "repos/{owner}/{repo}/actions/runs/<id>/jobs?per_page=50" --jq '.jobs[] \| {name, labels, steps: [.steps[] \| select(.name \| test("Kiểm runner\|Cổng chất lượng")) \| {name, conclusion}]}'`: `build-and-test` có `labels` `["ubuntu-latest"]`, bước `Kiểm runner tự host (scripts/runner-check.sh)` `skipped`, `Cổng chất lượng (scripts/check.sh)` `success`. Sau merge: `main-guard` của commit merge xanh (`full`; `ui-test` chạy vì đổi `main-guard.yml`); lệnh `jobs` tương tự cho `guard`, `ui-test`: nhãn `["ubuntu-latest"]`, bước kiểm runner `skipped`, `Giải phóng đĩa cho emulator` và `Bật KVM cho emulator` `success`. Ghi vào nhật ký |
+| DoD 4: không đổi gì khi chưa có biến, trên GitHub thật | Kiểm trong phiên (lệnh `gh api` trên GitHub thật) | Các lệnh ở khối "DoD 4 trên GitHub thật" ngay dưới bảng: trước khi gọi `merge-if-green.sh`, `build-and-test` của PR task có `labels` `["ubuntu-latest"]`, bước kiểm runner `skipped`, bước `Cổng chất lượng (scripts/check.sh)` `success`; sau merge, `main-guard` xanh và `guard`, `ui-test` có nhãn `["ubuntu-latest"]`, bước kiểm runner `skipped`, hai bước `sudo` `success`. Ghi vào nhật ký |
 | Tài liệu đúng và đủ (DoD 3) | Kiểm tra thủ công (người: đọc tài liệu khi dựng máy) | Người dựng đúng theo `docs/ops/self-hosted-runner.md` ở H3; chỗ thiếu ghi vào nhật ký, sửa tài liệu bằng PR nhỏ. Ghi kết quả kiểm nhóm runner trước H4 |
 | H4: runner nhận job | Kiểm tra thủ công (người: máy runner chưa có trước khi duyệt) | Mục 6, bước 1 của tài liệu mới, trên một repo app private |
-| H5: `ui-test` và cách ly giữa job (DoD 1) | Kiểm tra thủ công (người: máy runner chưa có trước khi duyệt) | Mục 6, bước 2, 3 và 6 của tài liệu mới |
+| H5: `ui-test` và cách ly giữa job (DoD 1) | Kiểm tra thủ công (người: máy runner chưa có trước khi duyệt) | Mục 6, bước 2, 3, 6 và 7 của tài liệu mới; emulator đỏ chỉ vì `--cap-drop ALL` thì thêm đúng quyền thiếu và ghi vào tài liệu |
 | H6: xóa biến thì quay về runner của GitHub (DoD 2), máy tắt | Kiểm tra thủ công (người: chỉ thấy trên GitHub thật) | Mục 6, bước 4, 5 của tài liệu mới; ghi lần chạy lại sau khi xóa biến nhận nhãn mới hay giữ nhãn cũ, và câu log thật của PB-18 |
+
+**DoD 4 trên GitHub thật** (phiên chạy, mỗi lệnh một dòng; `<id>` là mã lần chạy mà `wait-run.sh` in):
+
+```bash
+scripts/wait-run.sh --pr <số PR> --sha "$(git rev-parse HEAD)"
+gh api "repos/{owner}/{repo}/actions/runs/<id>/jobs?per_page=50" --jq '.jobs[] | {name, labels, steps: [.steps[] | select(.name | test("Kiểm runner|Cổng chất lượng")) | {name, conclusion}]}'
+# after merge-if-green.sh merged the PR:
+scripts/wait-run.sh --workflow main-guard.yml --since <giờ merge UTC>
+gh api "repos/{owner}/{repo}/actions/runs/<id>/jobs?per_page=50" --jq '.jobs[] | {name, labels, steps: [.steps[] | select(.name | test("Kiểm runner|Giải phóng đĩa|Bật KVM")) | {name, conclusion}]}'
+```
 
 **Test 3, `runners: every heavy job checks the runner right after checkout`.** Hàm `runner_order <workflow> <job>` in `yes` hay `no <lý do>`. Trong mỗi job nặng:
 
@@ -489,13 +510,13 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3),
 - Các bước đứng trước bước kiểm, kể cả trước checkout:
   - chỉ được là `actions/checkout`, bước `uses: dorny/paths-filter@...` (nguyên khối, không xét nội dung), hay bước `run:`; bước `uses:` khác (ví dụ `setup-gradle`) là `no`;
   - bước `run:` chỉ có các khóa `name`, `id`, `if`, `env`, `run` (không `working-directory`, `shell`);
-  - nội dung `run:` (bỏ dòng chú thích) không chứa `gradle`, `$HOME`, `${HOME}`, `~/`, `/home/`, `/root/`; không có lệnh ghi tệp `cp`, `mv`, `mkdir`, `touch`, `ln`, `install`, `curl -o`, `curl -O`, `wget`, `sed -i`, `dd`; và mọi chuyển hướng `>`, `>>`, `tee` chỉ tới `"$GITHUB_OUTPUT"`, `"$GITHUB_STEP_SUMMARY"`, `build.log` (đường tương đối) hay `/dev/null`.
-- Bản sao hỏng, mong `no` mỗi bản: bước kiểm đứng sau `setup-gradle` (`guard`); thiếu `--emulator` ở `ui-test`; thiếu `if:`; một bước trước checkout có `run: echo x > ~/.gradle/init.d/a.gradle`; một bước trước checkout có `run: echo x > "$HOME/build.log"`; có `run: echo x > "${HOME}/a"`; có `run: curl -o a.gradle https://example.com/a`; có `working-directory: /home/runner/.gradle/init.d`; `uses: gradle/actions/setup-gradle@v4` trước checkout.
+  - nội dung `run:` (bỏ dòng chú thích) không chứa `gradle`, `$HOME`, `${HOME}`, `~/`, `/home/`, `/root/`; không có lệnh ghi tệp `cp`, `mv`, `mkdir`, `touch`, `ln`, `install`, `wget`, `dd` (dò theo từ nguyên vẹn: `(^|[^A-Za-z0-9_-])(cp|mv|mkdir|touch|ln|install|wget|dd)([^A-Za-z0-9_-]|$)`, nên `add-on`, `copy` không khớp), `curl ... -o`/`-O`, `sed ... -i`; và mọi chuyển hướng `>`, `>>`, `tee` chỉ tới `"$GITHUB_OUTPUT"`, `"$GITHUB_STEP_SUMMARY"`, `build.log` (đường tương đối) hay `/dev/null`.
+- Bản sao hỏng, mong `no` mỗi bản: bước kiểm đứng sau `setup-gradle` (`guard`); thiếu `--emulator` ở `ui-test`; thiếu `if:`; một bước trước checkout có `run: echo x > ~/.gradle/init.d/a.gradle`; một bước trước checkout có `run: echo x > "$HOME/build.log"`; có `run: echo x > "${HOME}/a"`; có `run: curl -sS -o a.txt https://example.com/a`; có `run: cp a b`; có `run: echo x > /tmp/a`; có `working-directory: /home/runner/.gradle/init.d`; `uses: gradle/actions/setup-gradle@v4` trước checkout.
 - Đối chứng, mong `yes`: `pr-check.yml` trên nhánh chính sau khi code của task vào (hai bước lọc trước checkout, chú thích có `scripts/check.sh` và `gradlew`, `tee -a build.log` trên đường lỗi); `guard`, `ui-test` của `main-guard.yml`.
 
 **Test 6, `runner-check: ...`.**
 
-- Dựng: repo git tạm `"$work/rc"` (một commit, `.gitignore` có `build/`); `HOME` tạm; `GRADLE_USER_HOME` không đặt; `VGL_RUNNER_EPHEMERAL=1`; `REPO_VISIBILITY=private`; `RUNNER_CHECK_MIN_FREE_GB=0`. Hàm `rc [args]` chạy script trong `"$work/rc"`, in `<mã thoát> <số dòng RUNNER KHÔNG DÙNG ĐƯỢC>`.
+- Dựng: repo git tạm `"$work/rc"` (một commit, `.gitignore` có `build/`); `HOME` tạm; `GRADLE_USER_HOME` không đặt; `VGL_RUNNER_EPHEMERAL=1`; `REPO_VISIBILITY=private`; `RUNNER_CHECK_MIN_FREE_GB=0`. Hàm `rc [args]` chạy script trong `"$work/rc"` bằng `env -u GRADLE_USER_HOME -u ANDROID_HOME <biến của ca> scripts/runner-check.sh` (biến của máy CI không làm lệch ca (a), (d), (g)), in `<mã thoát> <số dòng RUNNER KHÔNG DÙNG ĐƯỢC>`.
 - Ca: (a) đủ điều kiện → `0 0`, có dòng `RUNNER DÙNG ĐƯỢC`; (b) `REPO_VISIBILITY` `public`, rồi rỗng → `1 1` mỗi lần; `internal` → `0 0`; (c) `VGL_RUNNER_EPHEMERAL` không đặt → `1 1`; (d) lần lượt `$HOME/.gradle/init.d/x.gradle`, `init.gradle`, `init.gradle.kts`, `gradle.properties` → `1 1` mỗi lần; `GRADLE_USER_HOME="$work/gh"` có `init.d/` → `1 1`; `$HOME/.gradle/init.d` có mà `GRADLE_USER_HOME` trỏ thư mục sạch → `0 0`; `$HOME/.gradle/caches/` có → `0 0`; (e) `build/x` (bị bỏ qua), rồi `core/x/src/test/screenshots/a.png` chưa track → `1 1` mỗi lần; chạy trong thư mục không phải repo git → `1 1`; (f) `RUNNER_CHECK_MIN_FREE_GB=999999` → `1 1`; (g) `--emulator`: `RUNNER_CHECK_KVM="$work/nokvm"` (không có) → `1 1`; tệp tạm đọc ghi được và `ANDROID_HOME` thư mục tạm ghi được → `0 0`; không `--emulator` mà `RUNNER_CHECK_KVM` không có → `0 0`; KVM được mà `ANDROID_HOME` rỗng → `1 1`; KVM được mà `ANDROID_HOME` chỉ đọc (`chmod 555`) → `1 1`, bỏ qua ca này khi `id -u` là 0; (h) ba lỗi cùng lúc (public, không ephemeral, `init.d`) → `1 3`; (i) tham số lạ (`--emu`, `--emulator x`) → mã 2; (j) `git ls-files -s scripts/runner-check.sh` có `100755`.
 
 **Test 7, `wait-run: a job waiting for a self-hosted runner with nothing running is CHỜ RUNNER`.** Đặt cuối khối `wait-run` (sau test của T-077).
@@ -510,7 +531,7 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3),
 
 **Test 10, `resume-check: no resume while a job waits for a self-hosted runner`.**
 
-- Dựng: `resume_check running 120` (dữ liệu của câu "a running session silent for 2 hours is continued") với `RESUME_QUEUED='{"total_count": 1, "workflow_runs": [{"id": 91}]}'` và `RESUME_ROUTES=', "actions/runs/91/jobs?per_page=50": {"jobs": [<job như ca chính test 7>]}'`; stderr ghi vào `$work/resume.err` (hàm thêm biến cho đường stderr, mặc định `/dev/null`).
+- Dựng: `resume_check running 120` (dữ liệu của câu "a running session silent for 2 hours is continued") với `RESUME_QUEUED='{"total_count": 1, "workflow_runs": [{"id": 91}]}'` và `RESUME_ROUTES=', "actions/runs/91/jobs?per_page=50": {"jobs": [<job như ca chính test 7>]}'`; `RESUME_ERR="$work/resume.err"`; mã thoát lấy như mục 3.1 H.
 - Ca chính: đầu ra rỗng, stderr có `đang chờ runner tự host`, mã 0. Job cùng nhãn tạo <T - 1 phút> → cũng rỗng (không có ngưỡng). Lần chạy 91 trong `RESUME_IN_PROGRESS` thay vì `RESUME_QUEUED` → rỗng.
 - Đối chứng, mỗi ca in `docs/runs/RUN-20261018-01.md`: job nhãn `["ubuntu-latest"]`; job `"labels": []`; job nhãn `vgl-android` mà `in_progress`; không có lần chạy chưa xong. Đọc lỗi: `RESUME_ERRORS='{"actions/runs?status=queued&per_page=20": "HTTP 500"}'` → đầu ra rỗng, mã 1; câu trả lời `null` cho đường đó → mã 1.
 
@@ -523,7 +544,7 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3),
 
 **Test viết trước thất bại đúng lý do (bước 3).** Đỏ trên code hiện tại: 1 (hai workflow chưa dùng biến), 3, 4, 6 (script chưa có), 7, 8 (PB-17 tới PB-19 chưa có dòng), 9, 10, 11, 12 (số đếm `1` của ca `self-hosted`), 13, 14, câu `every row has a log file`. Qua cả trước code, đúng dự kiến vì là đối chứng hay kiểm hành vi cũ: 2, 5, các ca đối chứng của 1, 3, 7, 8, 10, 12, mọi câu P6, `mg_wiring`, `ui_wiring`. Ca nào khác danh sách này thì ghi vào nhật ký (ADR-0032/L4).
 
-**Ngoại lệ viết test trước:** tài liệu (`docs/ops/self-hosted-runner.md`, `docs/ops/staging-and-runs.md`, `docs/auto-run.md`, `.claude/skills/merge-pr/SKILL.md`, `CLAUDE.md`), dòng chú thích của ba workflow và hai script cổng: không có hành vi để kiểm; câu tài liệu được `scripts/history-refs.py` (trong `scripts/tests/run.sh`) kiểm sau khi viết. Các bước H3 tới H6 cần máy thật.
+**Ngoại lệ viết test trước:** tài liệu (`docs/ops/self-hosted-runner.md`, `docs/ops/staging-and-runs.md`, `docs/ops/setup-new-app.md`, ghi chú ADR-0042, `docs/auto-run.md`, `.claude/skills/merge-pr/SKILL.md`, `CLAUDE.md`), dòng chú thích của ba workflow và hai script cổng: không có hành vi để kiểm; câu tài liệu được `scripts/history-refs.py` (trong `scripts/tests/run.sh`) kiểm sau khi viết. Các bước H3 tới H6 cần máy thật.
 
 ### 4.1. Chạy thử
 
@@ -532,6 +553,7 @@ Mọi test nằm trong `scripts/tests/run.sh`, viết trước code (bước 3),
   - bản sao `main-guard.yml` sửa đúng như diff mục 3.1 B: `mg_wiring` mười `yes`, `ui_wiring` chín `yes`, `mg_own_issues` `yes yes`;
   - biểu thức `jq` của mục 3.1 D trên mười câu trả lời mẫu (ca chính, mới tạo, `needs` hai mốc, nhãn GitHub, job khác `in_progress`, có runner, nhãn rỗng, `jobs` rỗng, `{}`): ra đúng ca chính và ca `needs` xong lâu, rỗng ở các ca còn lại, `{}` lỗi `jq` khi chưa có `(.jobs // [])` nên bản cuối dùng `(.jobs // [])`;
   - bảng tra lỗi có ba dòng mới qua `scripts/failure-kind.sh --playbook` (mục 3.1 F);
+  - bản dự kiến của `job_kind`, `wf_jobs`, `heavy_jobs`, `runner_order` (test 1 tới 3, viết bằng bash trong thư mục tạm): `job_kind` trên mọi workflow của nhánh chính ra `heavy` đúng ba job (`pr-check.yml build-and-test`, `main-guard.yml guard`, `main-guard.yml ui-test`), `secret` cho `device-session`, `env-canary`, `resume`, `staging`, `start-run` (`check`, `fire`), `light` cho các job còn lại; job tạm chỉ có `./gradlew` trong chú thích ra `light`; thư mục chỉ có `status-page.yml` cho `heavy_jobs` rỗng. `runner_order` trên bản sao đã sửa: `yes` cho ba job; trên `pr-check.yml` hôm nay `no` (chưa có bước kiểm). Bản sao hỏng đều `no`: `~/.gradle`, `$HOME`, `${HOME}` (đường), `curl -sS -o a.txt`, `curl -O`, `cp a b`, `install -m 644` (lệnh ghi), `echo x > /tmp/a` (chuyển hướng), `working-directory`, `setup-gradle` trước checkout, bước kiểm sau `setup-gradle`, thiếu `--emulator`, thiếu `if:`; bước `echo add-on | tee -a build.log` và `echo copy-ok >> build.log` vẫn `yes` (dò theo từ nguyên vẹn);
   - các câu tài liệu của mục 3.1 G qua `scripts/history-refs.py` (mục 3.1 G).
 - **Bản 1, 2026-10-30:** `actionlint -shellcheck=` (1.7.12) trên bản sao có `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}` và `if: runner.environment == ...`: mã 0; đối chứng `secrets.` trong `runs-on` và `runner.enviroment`: mã 1 với `context "secrets" is not allowed here` và `property "enviroment" is not defined`. Máy soạn bản 2 không có `actionlint`, nên không chạy lại.
 - **Lệnh:** chưa chạy `scripts/check.sh` trên runner tự host vì chưa có máy (H4, H5 sau merge). Trong phiên, `scripts/check.sh` chạy như mọi task (bước 5) trên máy của phiên; thay đổi không đổi hành vi trên máy dev hay runner của GitHub.
@@ -582,7 +604,10 @@ Câu 1 tới 8 của bản 1 đã được trả lời (mục 9, bản 1) và gi
 6. **`GATE_FILES` và `UI_PATHS` thêm `runner-check.sh`; không thêm vào `own_job_changed` của `ui-test-verdict.sh`** (mục 3.1 B, C). Đề xuất đồng ý.
 7. **Điểm rủi ro:** A từ 2 lên 3, B từ 3 xuống 2, tổng giữ 12 (mục 5). Xác nhận.
 8. **Kiểm thêm trong `runner-check.sh`** (người dùng có `sudo`, thiếu `gh`, `jq`) không làm ở bản 2, vì ADR-0042 mục 3 liệt kê đủ các điều kiểm; tài liệu mới dặn image gỡ `sudo` và cài `gh`. Muốn kiểm thì ticket sau, kèm ghi chú ADR. Đồng ý?
-9. **`token_estimate` 30.0M** theo cỡ L (`scripts/token-usage.py estimate`: một task cỡ L đã đo, 49.0M; số tạm 30.0M). Task có khoảng 14 nhóm test mới, một script mới và bốn script sửa; theo `docs/CLAUDE.md` không nâng tay.
+9. **Action emulator đổi sau này.** Mã nguồn `v2` hôm nay không dùng `sudo` (mục 3.4). `runner-check.sh` không bắt được nếu một bản `v2` sau thêm `sudo`: bước emulator sẽ đỏ trên runner tự host (`ui-test-verdict.sh` kết luận `infra` khi không có log, trừ commit đổi chính job). Đề xuất: chấp nhận; khi gặp thì ghim action theo commit hay sửa image, ticket riêng. Đồng ý?
+10. **Bảo mật máy (tài liệu mới, mục 4).** Container chạy với `--security-opt no-new-privileges`, `--cap-drop ALL`, mạng riêng chặn tới máy chủ, mạng nội bộ và `169.254.169.254` (ví dụ iptables `DOCKER-USER` và `INPUT`). Chưa thử với emulator; H5 kiểm và ghi quyền còn thiếu. Đồng ý?
+11. **Token khi đăng ký runner cấp repo** cần "Administration: write" của repo, rộng hơn câu "Token chỉ có quyền quản lý runner" ở ADR-0042, mục Hệ quả, và phải nằm trên máy suốt thời gian dịch vụ chạy (cấu hình just-in-time xin theo từng job). Đề xuất: ưu tiên runner cấp tổ chức ("Self-hosted runners: write"); chỉ dùng cấp repo khi gói Free không giới hạn được nhóm runner, với token chỉ cho đúng repo, hạn tối đa 90 ngày; thêm một dòng ghi chú vào ADR-0042 (nguyên văn ở mục 3.1 G), không đổi nội dung đã `accepted`. Đồng ý, hay muốn viết ADR mới?
+12. **`token_estimate` 30.0M** theo cỡ L (`scripts/token-usage.py estimate`: một task cỡ L đã đo, 49.0M; số tạm 30.0M). Task có khoảng 14 nhóm test mới, một script mới và bốn script sửa; theo `docs/CLAUDE.md` không nâng tay.
 
 ## 9. Quyết định duyệt
 
