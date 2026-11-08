@@ -134,6 +134,7 @@ Khi có bản đầu tiên lên Google Play: `docs/ops/release.md` (khóa upload
 | Mọi PR tài liệu xung đột ở `docs/STATUS.md` | PR commit trang tiến độ (ví dụ `git add -f`) | Bỏ file khỏi PR (`git rm --cached docs/STATUS.md`); trang không có trong git, `status-page.yml` sinh nó trên nhánh `status` (`docs/CLAUDE.md`, mục Trang tiến độ) |
 | `merge-if-green.sh` báo PR mang nhãn `needs-human` | PR do phiên tự chạy soạn sẵn khi task dừng | Xem PR, sửa nếu cần, gỡ nhãn, đổi sang sẵn sàng, chờ `pr-check` chạy (PR nháp không chạy CI) rồi merge |
 | `wait-run.sh` trả mã 6, báo `NHÁP` | PR đang là bản nháp; `pr-check` không chạy cho PR nháp (ADR-0041) | Chuyển PR sang sẵn sàng (Ready for review), rồi gọi lại |
+| `wait-run.sh` trả mã 7, báo `CHỜ RUNNER` | Một job chờ runner tự host quá lâu: máy tắt, dịch vụ tạo container dừng hay máy bận (ADR-0042) | Kiểm máy hay xóa biến `HEAVY_RUNNER` của repo, rồi hủy và chạy lại lần chạy đang chờ (`docs/ops/self-hosted-runner.md`, mục 8) |
 | `merge-if-green.sh` báo "phiên ... đang chạy" | Có phiên tự chạy đang chạy; chỉ PR của phiên đó được merge | Chờ phiên kết thúc |
 | Phiên làm việc trên nhánh `claude/<tên ngẫu nhiên>` | Prompt routine thiếu dòng "Nhánh" | Chép lại prompt ở `docs/ops/staging-and-runs.md`, mục 2.1 |
 | `start-run` báo lỗi 401 | Mã kích hoạt sai hoặc đã tạo lại | Tạo mã mới trong routine, cập nhật `ROUTINE_FIRE_TOKEN` |

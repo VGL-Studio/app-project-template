@@ -18,10 +18,13 @@
 #             4 GitHub never started the failed jobs (no runner: spending limit, billing): not a code failure (L-064)
 #             5 (--pr) no run, and the PR conflicts with main: GitHub runs no pull_request workflow for it (L-064)
 #             6 (--pr) the PR is a draft: pr-check does not run for drafts (ADR-0041)
+#             7 a job waits for a self-hosted runner for WAIT_RUN_RUNNER_QUEUE_MINUTES (default 75) and nothing of the
+#               run is going: a person must act, not a code failure (ADR-0042)
 # A run of the PR that ended skipped (left from when the PR was a draft) is not a result: the wait goes on.
 # Prints one line at the end. Uses only the REST API through `gh api` (gh pr is blocked in the cloud environment).
 # WAIT_RUN_POLL_SECONDS (default 30) and WAIT_RUN_TIMEOUT_SECONDS override the waits (tests); so does
 # WAIT_RUN_CANCEL_RECHECKS (default 3), how many rounds the head is read again after its run shows "cancelled".
+# WAIT_RUN_RUNNER_QUEUE_MINUTES sets the wait of code 7; WAIT_RUN_NOW (Unix seconds) fixes the clock for the tests.
 # Messages are in Vietnamese for the team; comments are in English.
 
 set -euo pipefail
@@ -42,6 +45,8 @@ while [ "$#" -gt 0 ]; do
   shift 2
 done
 [[ "$timeout_minutes" =~ ^[0-9]+$ ]] || die "--timeout phải là số phút."
+queue_minutes="${WAIT_RUN_RUNNER_QUEUE_MINUTES:-75}"
+[[ "$queue_minutes" =~ ^[0-9]+$ ]] || die "WAIT_RUN_RUNNER_QUEUE_MINUTES phải là số phút."
 if [ -n "$want" ]; then
   [[ "$want" =~ ^[0-9a-f]{7,40}$ ]] || die "--sha phải là mã commit (7 đến 40 ký tự hex)."
   [ -n "$pr" ] && [ -z "$workflow" ] || die "--sha chỉ dùng cùng --pr."
@@ -141,6 +146,27 @@ while :; do
   if [ -z "$run" ] && [ -n "$pr" ] && [ "$waiting_for_push" = 0 ] && [ "$state" = "dirty" ]; then
     echo "XUNG ĐỘT: PR #$pr xung đột với nhánh chính, GitHub không chạy pr-check cho PR này. Gộp nhánh chính vào nhánh (git merge origin/main), sửa xung đột, đẩy, rồi gọi lại (L-064)."
     exit 5
+  fi
+  # A job queued for a self-hosted runner, while no job of the run is going, for queue_minutes since it could start:
+  # the latest end of a finished job of the run, else the job's creation (ADR-0042, section 5). A failed read or an
+  # odd answer skips this round.
+  if [ -n "$run" ] && [ "$(jq -r .status <<< "$run")" != "completed" ]; then
+    waiting="$(gh api "repos/$repo/actions/runs/$(jq -r .id <<< "$run")/jobs?per_page=50" 2> /dev/null |
+      jq -r --argjson now "${WAIT_RUN_NOW:-$(date -u +%s)}" --argjson min "$queue_minutes" '
+        (.jobs // []) as $j
+        | if any($j[]; .status == "in_progress") then empty else
+          ([$j[] | select(.status == "completed") | .completed_at // empty] | max) as $done
+          | [$j[] | select(.status == "queued" and ((.runner_name // "") == "")
+              and any(.labels[]?; test("^(ubuntu|windows|macos)-") | not))
+            | . + {since: ($done // .created_at)}
+            | select((.since | fromdateiso8601) <= ($now - $min * 60))]
+          | first // empty | "\(.name)\t\(.labels | join(","))\t\(.since)"
+          end' 2> /dev/null || true)"
+    if [ -n "$waiting" ]; then
+      IFS=$'\t' read -r job_name job_labels job_since <<< "$waiting"
+      echo "CHỜ RUNNER: job $job_name của $what, lần chạy $(jq -r .id <<< "$run"), chờ runner tự host (nhãn $job_labels) từ $job_since, không còn job nào của lần chạy đang chạy. Không phải lỗi của code: không sửa code, không chạy lại, không revert; ghi vào \"Cần người kiểm tra\": máy runner hay biến HEAVY_RUNNER của repo (docs/ops/self-hosted-runner.md, mục 8); phiên làm theo docs/auto-run.md, mục 4 (ADR-0042). $(jq -r .html_url <<< "$run")"
+      exit 7
+    fi
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
     if [ "$waiting_for_push" = 1 ]; then
