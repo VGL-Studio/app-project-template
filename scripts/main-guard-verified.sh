@@ -20,7 +20,8 @@
 #   - the event is push and this is the first attempt of the run (a re-run is someone asking for a real check, for
 #     example to close main-broken, ADR-0025 point 2);
 #   - the commit changes no file the guard job runs or relies on (GATE_FILES, with scripts/ui-test-needed.sh that its
-#     step ui runs, ADR-0043): a changed gate first runs for real here;
+#     step ui runs, ADR-0043, and scripts/runner-check.sh that checks a self-hosted runner, ADR-0042): a changed gate
+#     first runs for real here;
 #   - the commit is the merge commit of a PR into main;
 #   - the newest pr-check run on the PR head is green and its GATE_JOB ran the step GATE_STEP with success (a PR
 #     without code only runs scripts/tests/run.sh there, L-040);
@@ -38,7 +39,7 @@ set -euo pipefail
 
 GATE_FILES=(.github/workflows/pr-check.yml .github/workflows/main-guard.yml scripts/check.sh scripts/failure-kind.sh
   scripts/find-breaking-commit.sh scripts/main-guard-verified.sh scripts/tests/run.sh scripts/tests/fake-gh
-  scripts/ui-test-needed.sh)
+  scripts/ui-test-needed.sh scripts/runner-check.sh)
 GATE_JOB="build-and-test"
 GATE_STEP="Cổng chất lượng (scripts/check.sh)"
 # The docs files that a Gradle test reads (rootProject.file("docs/...") in a *.gradle.kts); scripts/tests/run.sh keeps
