@@ -3,7 +3,7 @@ ticket: T-094
 title: merge-if-green.sh xét "main-guard có chạy không" theo paths-ignore, không cảnh báo sai khi xóa nhánh; hai chỗ hở của pr_sim
 status: draft                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
-risk_score: 6
+risk_score: 7
 risk_level: high
 token_estimate: 22.2M
 blocking_points: [ci]
@@ -65,6 +65,20 @@ ADR liên quan:
 - Đáp `yes` thì giữ nguyên lý do `PR chỉ đổi file mà main-guard bỏ qua`.
 - Chú thích đầu file (đoạn ADR-0041) thêm: PR chỉ gồm file mà `paths-ignore` của `main-guard.yml` bỏ qua thì luôn cập nhật nhánh.
 
+Mọi kiểm tra có sẵn mà ca mới (PR chỉ gồm file `paths-ignore` bỏ qua, nhánh chậm, nhánh chính chỉ đổi tài liệu) đi qua (`docs/CLAUDE.md`, mục Khi viết plan):
+
+| Kiểm tra | Ca mới | Test |
+| --- | --- | --- |
+| PR `closed`, nháp, `needs-human`, base khác, `main-broken`, phiên `running` | Chặn như nay, trước bước cập nhật | T8 |
+| `merged_on_main` (L-080) | Chạy đầu `evaluate`, trước mọi kiểm tra; ca mới không đổi nó | Test 19, 27 có sẵn |
+| Nhánh chậm, không có `--update` (cả `--dry-run`) | Mã 3, như PR code chậm vì code | T4 |
+| `--update`: `update-branch` | Cập nhật | T5 |
+| `update-branch` bị GitHub từ chối | Từ chối (mã 1), như nay | Đường chung của vòng chính, không phụ thuộc lý do chậm; câu có sẵn của `--update` giữ |
+| "GitHub chưa cập nhật xong" (head chưa đổi) | Chờ như nay | Đường chung; câu có sẵn giữ |
+| `MAX_UPDATES` | Như nay | Đường chung; câu có sẵn giữ |
+| CI trên head mới: đỏ / chưa xong / `skipped` | Từ chối / chờ (mã 2) / chờ | T9, T19; `skipped` theo câu có sẵn của `check_one` |
+| Merge ghim vào head đã kiểm, xóa nhánh | Như nay | T5 |
+
 **C. `scripts/merge-if-green.sh`, bước xóa nhánh sau merge.**
 - Thêm hai cấu hình ở đầu file:
   - `BRANCH_GONE_TRIES="${MERGE_BRANCH_TRIES:-3}"`;
@@ -105,9 +119,11 @@ Mẫu có sẵn mà plan làm theo:
 | Sửa | `scripts/main-guard-verified.sh` | Mục A: `ignored_reason`, lệnh `--guard-ignores`, chú thích đầu file |
 | Sửa | `scripts/merge-if-green.sh` | Mục B: `docs_only_behind` bước 3 hỏi `--guard-ignores`, chỉ `no` mới đi tiếp. Mục C: đọc lại nhánh sau lệnh xóa thất bại. Chú thích đầu file |
 | Sửa | `scripts/tests/fake-gh` | Mục D: phần tử `__error__` của `__sequence__` |
-| Sửa | `scripts/tests/run.sh` | Mục E, F, G và các test của mục 4 |
+| Sửa | `scripts/tests/run.sh` | Mục E, F, G và các test của mục 4; chú thích trên `mgv_docs_only` ("asks main-guard-verified.sh two questions") thành ba câu hỏi |
 | Sửa | `docs/adr/0041-merge-khong-cap-nhat-khi-main-chi-doi-tai-lieu.md` | Thêm một dòng ghi chú sau tiêu đề, như ghi chú của ADR-0043. Nội dung: `merge-if-green.sh` hỏi thêm `--guard-ignores` cho danh sách file của PR, vì việc `main-guard` có chạy hay không do `paths-ignore` quyết; quyết định của ADR giữ nguyên |
 | Sửa | `docs/lessons.md` | L-149, L-152: `applied` kèm số PR, sau khi PR merge (`docs/auto-run.md`, mục 6, ý 3; phiên ghi trên nhánh báo cáo) |
+| Sửa | `docs/features/quy-trinh/plans/T-094-merge-if-green-paths-ignore.md` | Mục 10, nhật ký thực hiện (phiên ghi trên nhánh báo cáo) |
+| Sửa | `docs/features/quy-trinh/tickets/T-094-merge-if-green-paths-ignore.md` | Trạng thái ticket theo kết quả task (phiên ghi trên nhánh báo cáo) |
 
 Nơi đọc các file bị đổi (`grep -rn 'main-guard-verified\|merge-if-green\|fake-gh' scripts/ .github/ .claude/`):
 - `main-guard.yml` gọi `main-guard-verified.sh <sha>`. Phần này không đổi; test 14 (`--docs-only agrees with the mode`) giữ nó.
@@ -164,31 +180,32 @@ Mọi test nằm trong `scripts/tests/run.sh`. `check.sh` chạy file này, và 
 | --- | --- | --- |
 | A. `--guard-ignores` đáp theo `paths-ignore` | Script test | T1 `main-guard-verified: --guard-ignores answers by the paths-ignore of main-guard`. Mỗi hàng một lần gọi, theo thứ tự: `docs/a.md`, `README.md`, `feature/x/README.md`, `.claude/skills/x/SKILL.md`, `docs/x.json`, `docs/remote-config-keys.md`, `docs/remote-config-template.json`, `docs/design-system/tokens.json`, `app/x.kt`, `scripts/a.sh`, `docs.kt`. Mong `yes yes yes yes yes yes yes yes no no no`. Trên code hiện tại script đáp `full` (dòng cách dùng): đỏ |
 | A. Danh sách rỗng, tham số thừa | Script test | T2 `main-guard-verified: --guard-ignores of an empty list is yes, with an extra argument no`: mong `yes no` |
-| A. Khớp đúng `paths-ignore` của workflow | Script test | T3 `main-guard-verified: --guard-ignores agrees with the paths-ignore patterns`. Với từng hàng của T1, đáp của `--guard-ignores` bằng `yes` đúng khi `[[ $f == docs/* \|\| $f == *.md ]]`, tức hai mẫu mà `mgv_ignored` đòi có trong `main-guard.yml`. Mong `agree=11`. Câu `accepts only what main-guard ignores` có sẵn giữ để `paths-ignore` chỉ gồm hai mẫu đó |
+| A. Khớp đúng `paths-ignore` của workflow | Script test | T3 `main-guard-verified: --guard-ignores agrees with the paths-ignore patterns`. Đọc các mẫu `paths-ignore` từ `main-guard.yml` bằng awk của `mgv_ignored`, đổi mỗi mẫu thành mẫu bash (`'docs/**'` thành `docs/*`, `'**/*.md'` thành `*.md`; mẫu khác thì test in `unknown pattern`). Với từng hàng của T1, đáp của `--guard-ignores` là `yes` đúng khi hàng khớp một trong các mẫu đó. Mong `agree=11`. Câu `accepts only what main-guard ignores` có sẵn giữ để `paths-ignore` chỉ gồm hai mẫu đó |
 | A. `--docs-only` không đổi | Script test | Test 14 có sẵn (mục 3.5) |
-| 1. Ca lọt của L-152 | Script test | T4, thuộc test 8: `merge-if-green: a PR with only files main-guard ignores is updated, even a docs file Gradle reads`. `nu_routes`; file của PR là `feature/x/README.md` và `docs/remote-config-keys.md`. Mong mã 3 và đúng một dòng có `PR chỉ đổi file mà main-guard bỏ qua`. Ca thứ hai: PR chỉ có `docs/remote-config-keys.md`, mong `3`. Đầu ra mong `3 1 3`. Trên code hiện tại cả hai ca merge (`0`): đỏ |
+| 1. Ca lọt của L-152 | Script test | T4, thuộc test 8: `merge-if-green: a PR with only files main-guard ignores is updated, even a docs file Gradle reads`. `nu_routes`; file của PR là `feature/x/README.md` và `docs/remote-config-keys.md`. Mong mã 3 và đúng một dòng có `PR chỉ đổi file mà main-guard bỏ qua`. Ca thứ hai: PR chỉ có `docs/remote-config-keys.md`, mong `3`. Ca này chỉ đỏ trong dữ liệu giả (bước cổng `success`); trên GitHub thật tệp đó không thuộc bộ lọc `code`, nên `--gate-ran` đã buộc cập nhật. Ca lọt thật của L-152 là ca thứ nhất. Đầu ra mong `3 1 3`. Trên code hiện tại cả hai ca merge (`0`): đỏ |
 | 1. Cập nhật thật với `--update` | Script test | T5 `merge-if-green --update: a PR with only files main-guard ignores is updated, then merged`. Dữ liệu của T4, cộng phần `def5678` như test 6 (`compare/main...def5678` không chậm, check-run trống rồi xanh, `pulls/12` lần sau có head `def5678`). Mong mã 0, lần ghi `PUT pulls/12/update-branch;PUT pulls/12/merge;DELETE git/refs/heads/claude/T-901-x;`. Trên code hiện tại không có `update-branch`: đỏ |
 | 1. Đối chứng: PR code vẫn merge không cập nhật | Script test | T6 `merge-if-green: a code PR with a docs file Gradle reads still merges without updating`. File của PR là `app/src/main/x.kt` và `docs/remote-config-keys.md`. Mong mã 0 và một dòng `KHÔNG CẬP NHẬT NHÁNH`. Qua ngay trên code hiện tại; là đối chứng của định nghĩa hoàn thành 1, vế 2 |
 | 1. Đáp lạ của câu hỏi mới | Script test | T7 `merge-if-green: an unreadable --guard-ignores answer updates`. Hai bản `main-guard-verified` giả: (a) đáp `yes` cho `--docs-only` và `full` cho mọi câu khác; (b) đáp `yes` cho `--docs-only` và in rỗng cho câu khác. Mong `3 3`. Bản (a) đứng cho script cũ không biết câu hỏi. Trên code hiện tại cả hai qua bước 3 vì script gọi `--docs-only` và nhận `yes`, rồi cập nhật vì PR "chỉ tài liệu": `3 3`. Đúng kết quả nhưng sai lý do, nên câu thêm số dòng `không đọc được PR có chỉ đổi file mà main-guard bỏ qua không`, mong `3 1 3 1`: đỏ |
 | 1. Kiểm tra có sẵn, trước bước cập nhật | Script test | T8 `merge-if-green, only files main-guard ignores: every earlier check still refuses`. Dữ liệu của T4, mỗi lần một điều, như test 18 tới 24: (a) PR `closed`; (b) PR nháp; (c) nhãn `needs-human`; (d) base khác `main`; (e) phiên `running`, PR của người (`claude/template-x`); (f) issue `main-broken` không phải bản revert, dựng như test 22 (repo `$rev`, `revert-no`). Mong `1 1 1 1 1 1` và không có lần ghi nào. Qua ngay (các kiểm tra đứng trước bước 3 và không đổi): là đối chứng theo `docs/CLAUDE.md`, mục Khi viết plan |
 | 1. Kiểm tra CI sau khi cập nhật | Script test | T9 `merge-if-green --update, only files main-guard ignores: a red check after the update is refused`. Như T5, check-run của `def5678` là `build-and-test` `failure`. Mong mã 1, có `PUT pulls/12/update-branch`, không có `PUT pulls/12/merge`. Trên code hiện tại không cập nhật mà merge `abc1234` (mã 0): đỏ |
+| 1. CI chưa xong sau khi cập nhật | Script test | T19 `merge-if-green --update, only files main-guard ignores: CI still going after the update waits`. Như T5, check-run của `def5678` là `build-and-test` `in_progress` mãi, `MERGE_UPDATE_TIMEOUT_SECONDS=0`. Mong mã 2, có `PUT pulls/12/update-branch`, không có `PUT pulls/12/merge`. Trên code hiện tại merge `abc1234` (mã 0): đỏ |
 | 2. Nhánh mất ở lần đọc thứ hai | Script test | T10 `merge-if-green: a branch gone at the second read after a failed delete gets no warning`. `merge_routes claude/template-x` như test có sẵn; `fail_writes` có `DELETE git/refs/heads/claude/template-x`; `git/ref/heads/claude/template-x` là `{"__sequence__": [{"ref": "x"}, {"__error__": "HTTP 404: Not Found"}]}`. Mong `0 2`: không dòng cảnh báo, và `mg.json.seen` ghi 2 lần đọc route đó. Trên code hiện tại `1 1`: đỏ |
-| 2. Nhánh còn sau mọi lần đọc | Script test | T11 `merge-if-green: a branch still there after every read gets the warning`. Route luôn trả `{"ref": "x"}`. Mong `1 3`: một dòng cảnh báo, 3 lần đọc. Trên code hiện tại `1 1`: đỏ ở số lần đọc |
-| 2. Lệnh xóa thành công | Script test | T12 `merge-if-green: a branch deleted by the script is not read again`. Không có `fail_writes`, route của nhánh luôn trả `{"ref": "x"}`. Mong `0 0`: không cảnh báo, không đọc. Qua ngay; đối chứng để vòng đọc chỉ chạy khi lệnh xóa thất bại |
+| 2. Nhánh còn sau mọi lần đọc | Script test | T11 `merge-if-green: a branch still there after every read gets the warning`. Route là `{"__sequence__": [{"ref": "x"}]}` (một phần tử, lặp lại mãi; `fake-gh` chỉ ghi số lần đọc vào `.seen` cho route `__sequence__`). Mong `1 3`: một dòng cảnh báo, 3 lần đọc. Trên code hiện tại `1 1`: đỏ ở số lần đọc |
+| 2. Lệnh xóa thành công | Script test | T12 `merge-if-green: a branch deleted by the script is not read again`. Không có `fail_writes`, route của nhánh là `{"__sequence__": [{"ref": "x"}]}` như T11. Mong `0 0`: không cảnh báo, không đọc. Qua ngay; đối chứng để vòng đọc chỉ chạy khi lệnh xóa thất bại |
 | 2. Số lần đọc và thời gian chờ đặt được | Script test | T13 `merge-if-green: MERGE_BRANCH_TRIES sets the reads`. Như T11 với `MERGE_BRANCH_TRIES=1`, mong `1 1`. Trên code hiện tại `1 1`: qua ngay, chỉ giữ biến hoạt động sau khi sửa; đi cùng T11 |
 | D. `fake-gh` trả lỗi trong chuỗi | Script test | T14 `fake-gh: an __error__ item of a sequence fails that read`. Route `x` là `{"__sequence__": [{"a": 1}, {"__error__": "HTTP 404: Not Found"}, {"a": 2}]}`. Đọc 3 lần, mong `0 1 0` (mã thoát) và stderr của lần 2 có `HTTP 404`. Trên `fake-gh` hiện tại lần 2 thoát 0: đỏ. Đi trong commit test cùng `fake-gh` mới (mục G), nên chỉ là test của phần dựng |
 | 3. `pr_sim`, mẫu không có nháy | Script test | T15 `pr-check: the sample PR check refuses an unquoted or double-quoted pattern`. Hai bản chép `pr-check.yml` (`$work/prwf/unquoted.yml`, `$work/prwf/dquoted.yml`), thêm sau dòng `              - 'feature/**'` một dòng `              - docs/**` hay `              - "docs/**"`. `pr_sim_summary` với `docs/a.md` mong `ERROR mẫu chưa hỗ trợ: - docs/**` và `ERROR mẫu chưa hỗ trợ: - "docs/**"`. Trên code hiện tại cả hai bỏ qua dòng đó và in `code=false ...`: đỏ |
 | 3. `pr_sim`, mẫu trước tên bộ lọc | Script test | T16 `pr-check: the sample PR check refuses a pattern before any filter name`. Bản chép thêm `              - 'docs/**'` ngay sau dòng `          filters: \|`. Mong `ERROR mẫu chưa hỗ trợ: - 'docs/**'`. Trên code hiện tại bỏ qua: đỏ |
-| 3. `pr_sim`, đối chứng | Script test | T17 `pr-check: a key after the filters block ends it, comments and blank lines inside are fine`. Bản chép thêm sau khối `filters` một dòng `          list-files: none` (thụt bằng `filters:`), và trong khối `code` một dòng trống cùng một dòng chú thích `              # x`. `pr_sim_summary` với `app/src/main/java/A.kt` mong `code=true release=false gate=yes gradle=yes docs=no r8=no`. Các câu `pr_sim` có sẵn (mục 3.5) giữ đúng trên file thật. Qua ngay trên code hiện tại; sau khi sửa vẫn phải qua, để quy tắc kết thúc khối không báo nhầm |
-| 4. `pr_filter_check` đọc qua dòng trống | Script test | T18 `pr-check: the filter check test reads the run block past a blank line`. Bản chép `pr-check.yml` thêm vào cuối khối `run` của bước `Kiểm kết quả lọc đường dẫn` một dòng trống rồi `          exit 3`. `pr_filter_check <bản chép> true false \| cut -d' ' -f1` mong `3`. Trên code hiện tại awk dừng ở dòng trống, lệnh thoát 0: đỏ |
+| 3. `pr_sim`, đối chứng | Script test | T17 `pr-check: a key after the filters block ends it, comments and blank lines inside are fine`. Bản chép thêm, ngay sau dòng cuối của bộ lọc `release` (lần thứ hai của dòng `              - '.github/workflows/pr-check.yml'`, chèn bằng awk có biến đếm), một dòng `          list-files: none` (thụt bằng `filters:`). Trong khối `code`, sau dòng `              - 'app/**'`, thêm một dòng chỉ có 14 dấu cách (dòng rỗng hẳn không vào bước của `pr_sim`) và một dòng chú thích `              # x`. `pr_sim_summary` với `app/src/main/java/A.kt` mong `code=true release=false gate=yes gradle=yes docs=no r8=no`. Các câu `pr_sim` có sẵn (mục 3.5) giữ đúng trên file thật. Qua ngay trên code hiện tại; sau khi sửa vẫn phải qua, để quy tắc kết thúc khối không báo nhầm |
+| 4. `pr_filter_check` đọc qua dòng trống | Script test | T18 `pr-check: the filter check test reads the run block past a blank line`. Bản chép `pr-check.yml` thêm vào cuối khối `run` của bước `Kiểm kết quả lọc đường dẫn`, tức ngay sau dòng `          done` đầu tiên của file (awk có biến trạng thái: chỉ trong bước đó; dòng `          done` có hai lần trong file), một dòng trống rồi `          exit 3`. `pr_filter_check <bản chép> true false \| cut -d' ' -f1` mong `3`. Trên code hiện tại awk dừng ở dòng trống, lệnh thoát 0: đỏ |
 | Toàn bộ | CI | `scripts/check.sh` qua trên PR. Sau merge, `main-guard` của commit merge chạy `full` (đổi `main-guard-verified.sh`, `scripts/tests/run.sh`, `scripts/tests/fake-gh`, đều trong `GATE_FILES`) và xanh |
 | Ca thật trên GitHub (L-149) | Kiểm tra thủ công (người: chỉ thấy khi phiên cloud merge một PR thật mà proxy từ chối lệnh xóa) | Phiên tự chạy kế tiếp sau merge: báo cáo không còn dòng `không xóa được nhánh` cho nhánh mà GitHub đã tự xóa. Người đọc báo cáo phiên đó, đối chiếu `git ls-remote --heads origin 'claude/T-*'` |
 
 Thứ tự trong commit test (bước 3):
 1. phần `fake-gh` (mục D) và `merge_run` (mục G);
-2. T1 tới T18.
+2. T1 tới T19.
 
-Thất bại đúng lý do mong ở: T1, T2, T3 (script đáp `full` cho câu hỏi chưa có, nên 8 hàng lệch), T4, T5, T7, T9, T10, T11, T15, T16, T18. T14 qua cùng commit (phần dựng).
+Thất bại đúng lý do mong ở: T1, T2, T3 (script đáp `full` cho câu hỏi chưa có, nên 8 hàng lệch), T4, T5, T7, T9, T19, T10, T11, T15, T16, T18. T14 qua cùng commit (phần dựng).
 
 Qua ngay, như bảng đã ghi: T6, T8, T12, T13, T17.
 
@@ -202,7 +219,7 @@ Không cần (E dưới 2). Mọi phần theo mẫu có sẵn trong cùng file: 
 
 AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
 - `mgv_ask --docs-only <<<"$pr_files_list"` ở `scripts/merge-if-green.sh` dòng 169;
-- khối xóa nhánh ở dòng 479 tới 488;
+- khối xóa nhánh ở dòng 479 tới 487;
 - `pr_sim` (dòng 411) chỉ nhận dòng `^\s+- '(.+)'$`, các dòng khác bỏ qua im lặng;
 - `pr_filter_check` (dòng 402) dừng ở dòng không bắt đầu bằng 10 dấu cách.
 
@@ -216,8 +233,8 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
 | B. Độ rõ của yêu cầu | 1 | Ticket và L-149, L-152 nêu rõ ca lọt và cách sửa; plan chọn cách hỏi `main-guard-verified.sh` (câu hỏi 1 ở mục 8) |
 | C. Khả năng kiểm chứng tự động | 1 | Mọi nhánh quyết có test với `gh` giả; chỉ ca proxy từ chối lệnh xóa trên GitHub thật là người xem ở phiên sau |
 | D. Ảnh hưởng chéo | 2 | Mọi lần merge đi qua `docs_only_behind` và bước xóa nhánh. Ca mới chỉ làm thêm một lần cập nhật nhánh cho PR hiếm; không plan nào đang chờ sửa cùng file |
-| E. Độ mới của kỹ thuật | 0 | Chỉ dùng mẫu có sẵn |
-| **Tổng** | 6 | **Mức: Cao (điểm chặn 7)** |
+| E. Độ mới của kỹ thuật | 1 | Biến thể nhỏ của mẫu có sẵn: phần tử `__error__` trong `__sequence__` của `fake-gh` là cách mới, còn lại theo mẫu trong cùng file |
+| **Tổng** | 7 | **Mức: Cao (điểm chặn 7)** |
 
 ## 6. Ảnh hưởng chéo
 
@@ -226,7 +243,7 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
   - `main-guard-verified.sh`: thêm câu hỏi, cách chọn cho `main-guard` không đổi;
   - `fake-gh`: mọi test dùng `gh` giả; phần mới chỉ chạy khi route có `__error__`.
 - Task khác có thể xung đột:
-  - T-095 (`backlog`, plan soạn cùng ngày) sửa `scripts/tests/run.sh` ở phần `pr-check: the runner check` và `run-watchdog`, khác chỗ với plan này. Hai plan có thể cùng một danh sách chạy; `run-check.py` sẽ báo chú ý vì chung file.
+  - T-095 (`backlog`, plan soạn cùng ngày) sửa `scripts/tests/run.sh` ở phần `pr-check: the runner check` và `run-watchdog`, khác chỗ với plan này. T-095 cũng sửa bước kiểm runner của `pr-check.yml`, tệp mà T15 tới T18 chép; chỗ chèn của các test đó (bộ lọc, bước kiểm lọc) không đổi. Hai plan có thể cùng một danh sách chạy; `run-check.py` sẽ báo chú ý vì chung file.
   - Không plan `approved` nào khác đang sửa `merge-if-green.sh` hay `main-guard-verified.sh`.
 - Chuyển tiếp:
   - PR của chính task được merge bằng `merge-if-green.sh` bản cũ trên nhánh chính, như mọi PR. Điều này không đổi gì: PR có code (`scripts/`) và đi đường cũ.
@@ -255,7 +272,9 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
    - (b) Viết thẳng hai mẫu trong `merge-if-green.sh`, có test giữ khớp với workflow.
 
    Lý do chọn (a): ADR-0041 mục 2 đặt mọi quy tắc của `main-guard` ở `main-guard-verified.sh`, và test T3 cùng `mgv_ignored` giữ nó khớp `paths-ignore` ở một chỗ.
-2. **Ba lần đọc, mỗi lần 5 giây (mục 3.1 C).** L-149 đề xuất con số này. Trong RUN-20261107-01, nhánh của PR vừa merge vẫn còn vài phút sau. Số liệu đó là của lúc kiểm bằng `ls-remote`, không phải ngay sau lệnh xóa, nên chưa rõ 10 giây có đủ không. Đề xuất: giữ 3 lần, 5 giây. Báo cáo phiên kế tiếp còn cảnh báo sai thì tăng bằng biến, không cần plan mới.
+2. **Ba lần đọc, mỗi lần 5 giây (mục 3.1 C).** L-149 đề xuất con số này. Chưa có số đo GitHub tự xóa nhánh sau bao lâu: báo cáo RUN-20261107-01 chỉ cho biết ba nhánh đã merge đều đã mất ở lần kiểm sau đó, không cho biết lúc mất. Nếu GitHub xóa chậm hơn 10 giây, cảnh báo sai vẫn còn và chỉ lộ ra ở phiên sau.
+   - (a) Giữ 3 lần, 5 giây như mục 3.1 C; báo cáo phiên kế tiếp còn cảnh báo sai thì tăng bằng biến, không cần plan mới. Đề xuất: (a).
+   - (b) Thêm: nhánh còn sau mọi lần đọc mà repo bật `delete_branch_on_merge` (đọc `repos/<repo>`) thì in một dòng thông tin thay cho `CHÚ Ý`. Thêm một lần đọc, một nhánh code và hai test; đổi lại, cảnh báo sai không còn dù GitHub chậm, nhưng nhánh thật sự không xóa được (ví dụ nhánh được bảo vệ) cũng chỉ còn dòng thông tin.
 3. **Ghi chú vào ADR-0041 (mục 3.2).** Đề xuất: một dòng ghi chú như ADR-0043, không viết lại ADR.
 
 ## 9. Quyết định duyệt
