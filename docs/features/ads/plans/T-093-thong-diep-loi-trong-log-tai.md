@@ -1,16 +1,16 @@
 ---
 ticket: T-093
 title: Thông điệp lỗi của SDK trong log lỗi tải quảng cáo (chỉ staging)
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 24.1M        # cỡ M, số gợi ý 24.1M của scripts/token-usage.py estimate (2026-11-07, trung vị 24 task M); không chỉnh
 blocking_points: [core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật                # người duyệt
+cross_reviewer: Nhật          # bắt buộc khi risk_level là high
+approved_at: 2026-11-08
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -267,11 +267,9 @@ Không cần (E dưới 2).
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
-
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-093 (câu 3 chọn b), T-077 bản 2 và T-078 bản 2 theo đề xuất; câu 4 của T-078: H4–H6 làm sau trên repo app private. Chấp nhận a2a19a5, cách đọc của T-088 và hai câu viết lại của T-086." Trả lời mục 8, theo đề xuất AI đưa trong phiên: (1) dạng `<mã> "<thông điệp>"`, dấu che `<ad unit>`, gộp một dòng, cắt ở 300 ký tự rồi thêm `...`; (2) che mọi chuỗi hex từ 16 ký tự đứng riêng, chấp nhận che nhầm chuỗi hex dài khác; (3) chọn (b): mọi phần ghi "(nếu chọn b)" ở mục 3.1 bước 5, 3.2 và 4 (gồm `PlatformBanners.kt` và ba test của `PlatformBannersTest`) thuộc phạm vi task; dòng `Retry ...` của `FullScreenReloads.kt` giữ nguyên; (4) dòng `MAX failed` mang thông điệp, `Failed` của MAX không mang; (5) điểm chặn 4 không tính là chạm, `blocking_points: [core]`.
 
 ## 10. Nhật ký thực hiện
 
