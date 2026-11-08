@@ -1,16 +1,16 @@
 ---
 ticket: T-095
 title: Runner tự host: dòng lỗi của runner-check.sh vào build.log, issue session-stalled nói rõ job chờ runner quá lâu
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 5
 risk_level: high
 token_estimate: 7.4M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-08
 lane:
 ---
 
@@ -256,8 +256,8 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-094 (câu 1 chọn a, câu 2 chọn a, câu 3 đồng ý) và T-095 (câu 1 chọn a, câu 2 giữ 75 phút, câu 3 đồng ý)." Trả lời mục 8, theo đề xuất: (1) báo qua issue `session-stalled` của `run-watchdog.py`, không sửa `resume-check.py`; ý 2 của định nghĩa hoàn thành trong ticket sửa thành "`run-watchdog.py` xử lý job `queued` quá ngưỡng, có test kèm đối chứng"; (2) ngưỡng 75 phút; (3) `main-guard.yml` không đổi. Duyệt ở commit 79cc284 (PR #423).
 
 ## 10. Nhật ký thực hiện
