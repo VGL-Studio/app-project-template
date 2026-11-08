@@ -66,7 +66,7 @@ internal class AppLovinMaxBannerView(unitId: String, kind: BannerSizeKind, width
             object : MaxAdViewAdListener {
                 override fun onAdLoaded(ad: MaxAd) = onLoaded()
 
-                override fun onAdLoadFailed(adUnitId: String, error: MaxError) = onFailed(error.code, null)
+                override fun onAdLoadFailed(adUnitId: String, error: MaxError) = onFailed(error.code, error.message)
 
                 override fun onAdClicked(ad: MaxAd) = onClicked()
 
@@ -107,7 +107,8 @@ internal fun maxBannerHeightDp(context: Context, kind: BannerSizeKind, widthDp: 
  *
  * - The SDK view is built by [newSdkView] on the first [send] only (question 6 of the plan, G2): the frame sends to
  *   MAX only once MAX is ready and the send passed the screen and consent checks, so no `MaxAdView` exists before.
- *   The wrapper never gets the ad unit: it lives in [newSdkView] only, so no log line can hold it.
+ *   The wrapper never gets the ad unit: it lives in [newSdkView] only, so no log line can hold it; the error message
+ *   of MAX reaches a log line only through [loadErrorLog], masked, at staging (plan T-093).
  * - MAX never refreshes by itself: a new view stops its auto refresh around its first load; [pause] stops it again,
  *   [resume] calls nothing (B-06, B-07, B-09, KB-27, KB-34). Each reload by :core:ads ([runBannerLoads]) is one more
  *   [send], one `loadAd` on the same view.
@@ -180,8 +181,9 @@ internal class MaxBannerAdView(
     }
 
     private fun onFailed(code: Int, message: String?) {
-        logger.info(TAG, "Banner $placementKey MAX failed (code $code)")
+        logger.info(TAG, "Banner $placementKey MAX failed (code ${loadErrorLog.text(code, message)})")
         telemetry.maxLoadFailed(format, maxSlot, loadPlacement, code, now())
+        // No message: it is in the line above, the retry line does not repeat it (question 4 of plan T-093).
         emitted.tryEmit(BannerLoadResult.Failed(code))
     }
 

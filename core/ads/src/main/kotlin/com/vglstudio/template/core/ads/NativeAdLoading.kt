@@ -28,7 +28,10 @@ internal sealed interface NativeAdState {
     data object Unavailable : NativeAdState
 }
 
-/** Starts one native request; calls exactly one of the callbacks. */
+/**
+ * Starts one native request; calls exactly one of the callbacks. The `logMessage` of `onFailed` is already safe to log
+ * (masked by [LoadErrorLog], plan T-093), or null.
+ */
 internal fun interface NativeAdLoader {
     fun load(
         unitId: String,
@@ -123,7 +126,7 @@ private class NativeAdRequest(private val logger: AppLogger, private val placeme
 
     fun onFailed(code: Int, logMessage: String?) {
         val reported = synchronized(lock) { !abandoned && result.complete(NativeAdState.Unavailable) }
-        if (reported) logger.info(TAG, "Native $placementKey failed: $code")
+        if (reported) logger.info(TAG, "Native $placementKey failed: ${loadErrorText(code, logMessage)}")
     }
 
     /** Stops waiting; returns the result if the request had already ended, so its ad is not lost. */

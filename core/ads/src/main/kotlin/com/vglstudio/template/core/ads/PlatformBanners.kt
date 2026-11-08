@@ -211,7 +211,7 @@ internal class OrderedBannerAdView(
             logger.info(
                 TAG,
                 "Banner $placementKey ${children[index].first} refresh failed, " +
-                    "waiting for ${children[waiting].first}",
+                    "waiting for ${children[waiting].first}${codeSuffix(result)}",
             )
             return null
         }
@@ -241,6 +241,10 @@ internal class OrderedBannerAdView(
 
                     pausedSinceSend -> {
                         next = 0
+                        // Silent in production; at staging the SDK message of this failure has its line (T-093).
+                        if (result.logMessage != null) {
+                            logger.info(TAG, "Banner $placementKey $platform no ad${codeSuffix(result)}, from first")
+                        }
                         BannerLoadResult.TryNext
                     }
 
@@ -248,7 +252,7 @@ internal class OrderedBannerAdView(
                         next = index + 1
                         logger.info(
                             TAG,
-                            "Banner $placementKey $platform no ad, trying ${children[next].first}",
+                            "Banner $placementKey $platform no ad, trying ${children[next].first}${codeSuffix(result)}",
                         )
                         BannerLoadResult.TryNext
                     }
@@ -257,6 +261,16 @@ internal class OrderedBannerAdView(
 
             BannerLoadResult.TryNext -> null
         }
+    }
+
+    /**
+     * ` (code <code> "<message>")` for a failure that carries the SDK message (staging, plan T-093, KB-28), else
+     * nothing, so the lines of production stay as they were.
+     */
+    private fun codeSuffix(result: BannerLoadResult): String {
+        val failed = result as? BannerLoadResult.Failed ?: return ""
+        val message = failed.logMessage ?: return ""
+        return " (code ${loadErrorText(failed.code, message)})"
     }
 
     private fun pauseChild(index: Int) {
