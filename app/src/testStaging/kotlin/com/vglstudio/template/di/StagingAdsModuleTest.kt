@@ -20,4 +20,10 @@ class StagingAdsModuleTest {
         // The filter of the build file ran: only letters, digits and commas reach the build field.
         assertTrue(BuildConfig.ADS_TEST_DEVICE_IDS, BuildConfig.ADS_TEST_DEVICE_IDS.matches(Regex("[0-9A-Za-z,]*")))
     }
+
+    @Test
+    fun adsDebugOptions_logLoadErrorMessages() {
+        // Plan T-093, KB-28: the staging build logs the SDK message of a load error.
+        assertTrue(StagingAdsModule.adsDebugOptions().logLoadErrorMessages)
+    }
 }

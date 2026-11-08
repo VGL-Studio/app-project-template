@@ -159,6 +159,7 @@ private fun BannerSlot(
                                     now = ads::metricsNowMillis,
                                     format = format,
                                     networkLog = ads.networkLog,
+                                    loadErrorLog = ads.loadErrorLog,
                                 )
                             }
 
@@ -172,6 +173,7 @@ private fun BannerSlot(
                                     telemetry = ads.telemetry,
                                     now = ads::metricsNowMillis,
                                     logger = ads.logger,
+                                    loadErrorLog = ads.loadErrorLog,
                                 )
                             }
                         }

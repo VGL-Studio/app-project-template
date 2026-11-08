@@ -535,6 +535,19 @@ class BannerLoadsTest {
     }
 
     @Test
+    fun failedWithMessage_retryLineHasCodeAndMessage() = runTest {
+        // Plan T-093, KB-28: the masked SDK message of a failed banner is in its retry line, after the code.
+        val view = fakeView()
+        view.onSend = { if (view.sendCount == 1) view.emitFailed(3, "No fill.") else view.emitLoaded() }
+        run(view, reloadMillis = MutableStateFlow(0L))
+
+        at(3_000)
+
+        val expected = "Banner $KEY retry in 2000 ms (failures 1, code 3 \"No fill.\")"
+        assertEquals(logger.entries.toString(), 1, logger.entries.count { it.message == expected })
+    }
+
+    @Test
     fun failed_callsOnFailed_onceEach_beforeRetry() = runTest {
         // Plan T-062: the slot hears every failure (an MREC with no ad yet collapses), at the failure, before the retry.
         val failedAt = mutableListOf<Long>()

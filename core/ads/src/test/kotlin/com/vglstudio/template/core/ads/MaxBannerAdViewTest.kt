@@ -59,6 +59,7 @@ class MaxBannerAdViewTest {
         placement: AdPlacement = AdPlacement.GALLERY_BANNER,
         format: AdFormat = placement.format,
         sdkView: FakeMaxBannerSdkView = sdk,
+        loadErrorLog: LoadErrorLog = LoadErrorLog.CODE_ONLY,
     ): MaxBannerAdView {
         // The ad unit lives in the lambda only, as in BannerSlot: the wrapper never gets it.
         val unitId = UNIT
@@ -73,6 +74,7 @@ class MaxBannerAdViewTest {
             telemetry = telemetry(),
             now = { nowMillis },
             logger = logger,
+            loadErrorLog = loadErrorLog,
         )
     }
 
@@ -146,6 +148,38 @@ class MaxBannerAdViewTest {
         assertTrue(messages.toString(), "Banner gallery_banner MAX view created" in messages)
         assertTrue(messages.toString(), "Banner gallery_banner MAX loaded" in messages)
         assertTrue(messages.toString(), "Banner gallery_banner MAX failed (code 204)" in messages)
+    }
+
+    @Test
+    fun failed_staging_lineHasCodeAndMaskedMessage() = runTest {
+        // Plan T-093, KB-28: the masked message of MAX is in its failure line; the result keeps the code only
+        // (question 4), so the retry line does not repeat it.
+        val view = banner(loadErrorLog = LoadErrorLog(true))
+        val got = collect(view)
+        view.send()
+        sdk.emitFailed(204, MAX_UNIT_MESSAGE)
+        runCurrent()
+
+        val messages = logger.entries.map { it.message }
+        assertTrue(
+            messages.toString(),
+            "Banner gallery_banner MAX failed (code 204 \"No fill for <ad unit>\")" in messages,
+        )
+        assertTrue(messages.toString(), messages.none { "2d0ec3c0d7d4b5ad" in it })
+        assertEquals(listOf<BannerLoadResult>(BannerLoadResult.Failed(204)), got)
+    }
+
+    @Test
+    fun failed_default_lineCodeOnly() = runTest {
+        val view = banner()
+        collect(view)
+        view.send()
+        sdk.emitFailed(204, "No Fill")
+        runCurrent()
+
+        val messages = logger.entries.map { it.message }
+        assertTrue(messages.toString(), "Banner gallery_banner MAX failed (code 204)" in messages)
+        assertTrue(messages.toString(), messages.none { "No Fill" in it })
     }
 
     @Test
@@ -265,7 +299,7 @@ class MaxBannerAdViewTest {
         assertEquals(56, maxBannerHeightDp(activity, BannerSizeKind.ANCHORED, 360))
         assertEquals(250, maxBannerHeightDp(activity, BannerSizeKind.MEDIUM_RECTANGLE, 360))
         // Pause and resume of MAX work on a view that never loaded.
-        banner.setCallbacks({}, {}, {})
+        banner.setCallbacks({}, { _, _ -> }, {})
         banner.stopAutoRefresh()
         banner.startAutoRefresh()
         assertFalse(banner.view === mrec.view)
