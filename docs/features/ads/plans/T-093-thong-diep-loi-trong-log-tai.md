@@ -1,7 +1,7 @@
 ---
 ticket: T-093
 title: Thông điệp lỗi của SDK trong log lỗi tải quảng cáo (chỉ staging)
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -274,3 +274,22 @@ Không cần (E dưới 2).
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261108-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #415, commit `cfdbb3f`, 2026-11-08 06:52 UTC).
+- **Nhánh, PR:** `claude/T-093-thong-diep-loi`, https://github.com/VGL-Studio/app-project-template/pull/415. Commit test `914a331`, commit code `5332067`.
+- **Đã làm:** phương án (b) của câu hỏi 3. `LoadErrorLog` mới, `AdsDebugOptions.logLoadErrorMessages` (staging bật). Mọi định dạng (native, native toàn màn hình, interstitial, app open, rewarded, banner AdMob, banner và MREC của MAX) có thông điệp ở dòng lỗi tải staging; ba dòng của `OrderedBannerAdView` có đuôi mã và thông điệp khi có thông điệp. `docs/ops/ads-guide.md` mục 7 thêm gạch đầu dòng "Thông điệp lỗi". Bước 3 đến 5 giao cho một phiên con.
+- **Test viết trước:** 29 test mới. 23 test đỏ đúng lý do trên khung rỗng. 6 test qua ngay như plan nêu: 4 test production đứng cặp với test staging, và 2 test giữ đã đột biến đỏ đúng lý do bằng lệnh `perl` của plan: `AdTelemetryTest.loadFailed_sdkMessage_neverInEvents` đỏ vì `adPlacement` của `LoadFail` chứa thông điệp; `PlatformBannersTest.lastPlatformFailed_keepsMessage` đỏ vì nhận `Failed(3, null)` thay vì `Failed(3, "No fill.")`. 3 test được viết chặt bằng đối chứng (`LoadErrorLogTest.staging_noMessage_isJustTheCode`, `codeOnly_isJustTheCode`, `logSafeMessage_keepsOtherText`). Test JVM mọi module trên khung rỗng: chỉ 23 test mới đỏ. `AdTelemetryTest.loadFailed_sdkMessage_neverInEvents` đặt `logFullScreen = true; serving = true` theo ghi chú duyệt của phiên.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 8 ghi chú. Các ghi chú:
+  - L5 ở bốn dòng `failed to load`.
+  - Phần dựng của ba test chặt hơn mà vẫn nằm trong câu khẳng định của mục 4, không phải lệch.
+  - Mục 3.2 ghi "ba test quét" nhưng mục 4 có bốn test; đã viết bốn theo mục 4.
+  - `codeSuffix` cài đúng điều kiện.
+  - Ở staging, thông điệp đã che cũng vào breadcrumb Crashlytics, nhưng không gửi đi vì Firebase giả.
+  - Dấu `"` trong thông điệp không được thoát.
+  - `take(300)` có thể cắt đôi một cặp surrogate.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42455865197). `scripts/check.sh` cục bộ: 1871 test JVM, 0 lỗi; 91 ảnh screenshot, không ảnh nào đổi.
+- **Lệch so với plan:** L5 (ADR-0032): ktlint buộc tách bốn chuỗi `failed to load` của `AdsController.kt` bằng `+`, chữ log không đổi. Không có file ngoài mục 3.2 (29 file, khớp 29 dòng), không có thay đổi file test sau commit test, không có câu khẳng định cũ viết lại.
+- **Việc còn lại:** đọc logcat trên máy (bước kiểm sau merge của plan). Độ dài mã đơn vị MAX (câu hỏi 2) chưa đối chiếu với mã thật.
+- **Cần người xem:** ghi chú 7 và 8 của rà soát.

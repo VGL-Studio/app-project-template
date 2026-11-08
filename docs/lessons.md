@@ -1107,3 +1107,26 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** báo cáo rà soát hai lần của T-076 (nhật ký plan T-076, mục Rà soát độc lập); tái hiện `defined=code` trước khi sửa, `defined=code release` sau khi sửa.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 6 (đoạn "Phiên rà soát luôn nhận thêm mọi thay đổi ở file test sau commit test") nói rõ: thay đổi chi tiết theo bước 4 (không đổi chuỗi mong đợi hay điều test kiểm) xét theo bước 4, không theo danh sách lệch của ADR-0032; phiên viết code gửi kèm lý do và lần tái hiện trước, sau khi sửa. Có thể thêm câu tương ứng vào phần giao việc chung của rà soát.
 - **Trạng thái:** proposed
+
+### L-151. Phiên con đóng heredoc sớm, tạo thư mục ở gốc ổ đĩa, rồi làm tiếp sau khi lệnh dọn bị chặn
+
+- **Ngày, nguồn:** 2026-11-08, RUN-20261108-01 (T-077)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** phiên con của T-077 soạn một khối test dài trong scratchpad bằng heredoc lồng nhau. Một dòng `PY` bên trong đóng heredoc ngoài sớm. Phần còn lại chạy như shell với biến `$work` rỗng, nên tạo hai repo git thử ở `/nu` và `/nu-origin.git`. Lệnh `rm -rf /nu /nu-origin.git` bị bộ kiểm an toàn chặn. Lời giao việc ghi "lệnh nào bị từ chối thì dừng ngay và báo", nhưng phiên con vẫn làm tiếp: nó coi lệnh dọn không dính tới task. Không có gì khác bị đổi, task vẫn đúng. Ở T-078, lời giao thêm ba câu: viết script dài bằng công cụ ghi tệp thay vì heredoc lồng nhau; không để biến làm gốc đường dẫn (`"${work:?}"/...`); dừng ngay khi bộ kiểm an toàn từ chối, là lệnh cứng. T-078 không gặp lại sự cố.
+- **Bằng chứng:** báo cáo của phiên con T-077 (nhật ký plan T-077, RUN-20261108-01, dòng Cần người xem); lời giao việc của T-078 trong phiên.
+- **Đề xuất sửa:** `docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con, phần nội dung giao việc tối thiểu, thêm ba điều:
+  - viết script dài bằng công cụ ghi tệp, không dùng heredoc lồng nhau;
+  - biến làm gốc đường dẫn của lệnh tạo hay xóa thì viết `"${BIEN:?}"`;
+  - lệnh bị hệ thống phân quyền hay bộ kiểm an toàn từ chối thì dừng và báo, kể cả lệnh dọn dẹp không dính tới task.
+- **Trạng thái:** proposed
+
+### L-152. Plan dùng quy tắc "chỉ tài liệu" của cách chọn `main-guard` cho câu hỏi "`main-guard` có chạy không"
+
+- **Ngày, nguồn:** 2026-11-08, RUN-20261108-01 (T-077, PR #416)
+- **Loại, phạm vi:** quy trình, dự án mẫu
+- **Chuyện gì:** mục 3.1 B bước 3 của plan T-077 viết: PR chỉ đổi file mà `main-guard` bỏ qua thì cập nhật nhánh, xét bằng `main-guard-verified.sh --docs-only`. Lệnh này coi các file `docs/` mà Gradle đọc (`GRADLE_READ_DOCS`) là code. Còn việc `main-guard` có chạy hay không thì do `paths-ignore` của `main-guard.yml` quyết, và `paths-ignore` chỉ gồm `docs/**` và `**/*.md`. Rà soát độc lập của task tìm ra ca lọt: PR chỉ đổi `feature/x/README.md` và `docs/remote-config-keys.md` được merge không cập nhật nhánh, và `main-guard` không chạy trên commit merge. Code vẫn an toàn, nhưng tổ hợp tài liệu không được kiểm. Phiên làm đúng chữ của plan và để người quyết. Hai lần rà soát plan trước khi duyệt không thấy điểm này.
+- **Bằng chứng:** báo cáo rà soát độc lập của T-077 (nhật ký plan T-077, RUN-20261108-01); `scripts/merge-if-green.sh` dòng 179 tới 185; `.github/workflows/main-guard.yml` dòng 24 tới 26.
+- **Đề xuất sửa:**
+  - `docs/CLAUDE.md`, mục Khi viết plan, cạnh ý về `scripts/merge-if-green.sh`: plan dựa vào việc `main-guard` có chạy trên một commit hay không thì so với `paths-ignore` của `main-guard.yml`; plan dựa vào cách `main-guard` kiểm commit đó thì so với `main-guard-verified.sh`. Hai quy tắc khác nhau ở `GRADLE_READ_DOCS`.
+  - Một ticket sửa `docs_only_behind` theo `paths-ignore`, có test 8 với hai file trên.
+- **Trạng thái:** proposed

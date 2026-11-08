@@ -1,7 +1,7 @@
 ---
 ticket: T-078
 title: Runner tự host cho các job nặng, có đường quay về runner của GitHub
-status: approved
+status: done
 version: 2
 risk_score: 12
 risk_level: high
@@ -635,3 +635,44 @@ Phiên bản 1:
 - **Ghi chú:** Duyệt trong phiên có người ngày 2026-10-30, sau khi T-075 merge (PR #324) và plan T-076, T-077 được duyệt (PR #315, #316). Câu 1: làm tiếp; repo công khai chỉ là tạm thời, coi như private (anh Nhật, 2026-10-30), không cần xem lại T-075 tới T-077. Câu 2: thuê máy chủ riêng Linux x86_64 có KVM (khoảng 8 nhân, 64 GB RAM, 500 GB SSD). Câu 3: một máy cho cả tổ chức, 2 container chạy cùng lúc. Câu 4 tới 8 theo đề xuất: biến `HEAVY_RUNNER` cấp repo (kiểm cài đặt nhóm runner trước H4); chỉ job không đọc bí mật lên runner tự host, `staging` và `device-session` giữ runner của GitHub; Re-run sau khi xóa biến thử ở H6; thêm `actions: read` cho `resume-run.yml`; ADR-0042 ghi `accepted`. Đối chiếu lúc duyệt: job `ui-test` của `main-guard.yml` trên nhánh chính khớp mục 2 (`needs: guard`, `if: needs.guard.outputs.ui != 'no'`, `timeout-minutes: 60`, hai bước `sudo`). Rà soát lại phần sửa test 3 (commit b4c54f1): không còn điểm chặn; đối chứng theo hình dạng sau T-076 ra qua, năm bản sao hỏng đều thất bại. Task sửa trong file của mục 3.2, như điểm nên sửa (ADR-0029), bốn điều sau: (a) bước `run:` đứng trước bước kiểm runner chỉ được có các khóa `name`, `id`, `if`, `env`, `run` (không `working-directory`, `shell`), thêm bản sao hỏng có `working-directory: /home/runner/.gradle/init.d`; (b) định nghĩa rõ "lệnh ghi tệp" của test 3: ngoài `>`, `>>`, `tee`, dò cả `cp`, `mv`, `mkdir`, `touch`, `ln`, `install`, `curl -o`/`-O`, `wget`, `sed -i`, `dd`, và cấm cả `${HOME}`, `/home/`, `/root/`; thêm bản sao hỏng dùng `${HOME}` và `curl -o`; (c) thêm bản sao hỏng đặt `uses: gradle/actions/setup-gradle@v4` trước checkout, mong thất bại; (d) nguồn của đối chứng "pr-check.yml theo T-076 qua" là `pr-check.yml` trên nhánh chính sau khi T-076 merge (không phải commit d8f714e của nhánh plan), và mục 7 thêm điều kiện dừng: T-076 merge theo phương án dự phòng (bước lọc sau checkout) thì test P3(c) của T-076 và test 3 của plan này không cùng thỏa được: dừng, soạn plan phiên bản 2. Dựng máy, cài runner, đặt biến và thử quay về (H1 tới H6) là việc của người, sau khi merge. Task làm có người (`auto_run: false`), sau khi T-076, T-077 merge.
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261108-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #417, commit `ae6e261`, 2026-11-08 09:03 UTC).
+- **Nhánh, PR:** `claude/T-078-runner-tu-host`, https://github.com/VGL-Studio/app-project-template/pull/417. Commit test `bcd4fcd`, code `43c8227`, tài liệu `50b3e1e`.
+- **Đã làm:** mục 3.1 A tới H.
+  - `scripts/runner-check.sh` mới, bit chạy `100755`.
+  - `runs-on: ${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}` cho `build-and-test`, `guard`, `ui-test`. Mỗi job có bước kiểm runner ngay sau checkout. Hai bước `sudo` có điều kiện `github-hosted`.
+  - `resume-run.yml` thêm `actions: read`.
+  - `GATE_FILES`, `UI_PATHS` thêm `runner-check.sh`.
+  - `wait-run.sh` thêm mã 7 `CHỜ RUNNER`. `resume-check.py` chờ khi có job chờ runner tự host.
+  - Bảng tra lỗi thêm PB-17 tới PB-19, kèm log.
+  - Tài liệu theo mục 3.1 G, trong đó có `docs/ops/self-hosted-runner.md` mới và ghi chú ở ADR-0042. `foundation.md` không đổi.
+  - Trước bước 3, phiên con đã đối chiếu nhánh chính theo mục 7 (sau T-077): khớp. Bước 3 đến 5 giao cho một phiên con.
+- **Test viết trước:** test 1 tới 14, khoảng 75 câu `expect` mới, cộng ba tệp log.
+  - Trước code có 56 câu đỏ, đúng lý do. Rà soát độc lập đã chạy lại commit test trên code cũ: 56 FAIL.
+  - Các câu plan nêu qua trước code đều qua.
+  - 0 câu phải viết chặt thêm.
+  - `./gradlew testDebugUnitTest testStagingDebugUnitTest --continue`: BUILD SUCCESSFUL.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa. Ba ghi chú nhỏ:
+  - test 3 chưa có bản sao riêng cho bước kiểm đứng sau `setup-java`;
+  - khi bước kiểm runner đỏ, dòng `RUNNER KHÔNG DÙNG ĐƯỢC` không vào `build.log`;
+  - `resume-check.py` không có ngưỡng thời gian cho job `queued` (mục 6 đã chấp nhận).
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42464617275). `main-guard` của commit merge xanh (lần chạy 42465556398). `scripts/check.sh` cục bộ QUA; test script 1464 ok, 0 FAIL.
+- **DoD 4 trên GitHub thật:**
+  - Trước merge, `build-and-test` có `labels` `["ubuntu-latest"]`, bước `Kiểm runner tự host (scripts/runner-check.sh)` `skipped`, bước `Cổng chất lượng (scripts/check.sh)` `success`.
+  - Sau merge, `guard` và `ui-test` có `["ubuntu-latest"]`, bước kiểm runner `skipped`. `Giải phóng đĩa cho emulator` và `Bật KVM cho emulator` `success`.
+  - Biến `HEAVY_RUNNER` không đọc được qua proxy (`actions/variables` trả 403). Kết luận về biến dựa vào nhãn của job: biến chưa đặt.
+- **Lệch so với plan:**
+  - Không có file ngoài mục 3.2. Nhật ký và ticket ghi ở nhánh báo cáo.
+  - L3 (ADR-0032), số dòng dời theo ghi chú duyệt: `pr_*` dòng 272, `pr_sim` 411, `mgv_gate_files` 722, `uin_code` 1509, khối `wait-run` 2165, `resume_check` 2324, `wf_job` 2633.
+  - L4: các ca đối chứng của test 1 và test 3 (`add-on`, `copy-ok`) đỏ trước code, không qua như plan liệt kê, vì chúng chép từ workflow chưa có bước kiểm runner. Sau code thì qua.
+  - Chi tiết dựng test, không nới câu khẳng định:
+    - test 12 thêm bước kiểm thay vì `sed`;
+    - lý do mong đợi của bản sao `guard-late.yml` ở test 3;
+    - câu `core/` ở test 6 ca (e).
+  - `docs/ops/self-hosted-runner.md` bỏ hai dấu cách thừa trên một dòng trống.
+  - Ngày ghi chú ở ADR-0042 là 2026-11-08, đúng ngày merge.
+  - Ca `ANDROID_HOME` chỉ đọc bị bỏ qua khi chạy bằng root, như plan dặn. Phiên con đã kiểm tay bằng người dùng `nobody`.
+- **Việc còn lại:** H1 tới H6 của người, sau merge. Theo câu 4, H4 tới H6 làm sau trên repo app private.
+- **Cần người xem:** ba ghi chú nhỏ của rà soát.
