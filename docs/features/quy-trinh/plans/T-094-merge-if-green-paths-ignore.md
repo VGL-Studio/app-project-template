@@ -1,16 +1,16 @@
 ---
 ticket: T-094
 title: merge-if-green.sh xét "main-guard có chạy không" theo paths-ignore, không cảnh báo sai khi xóa nhánh; hai chỗ hở của pr_sim
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 7
 risk_level: high
 token_estimate: 22.2M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-08
 lane:
 ---
 
@@ -282,8 +282,8 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật
+- **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-094 (câu 1 chọn a, câu 2 chọn a, câu 3 đồng ý) và T-095 (câu 1 chọn a, câu 2 giữ 75 phút, câu 3 đồng ý)." Trả lời mục 8, theo đề xuất: (1) câu hỏi mới `--guard-ignores` của `main-guard-verified.sh`; (2) giữ 3 lần đọc, mỗi lần 5 giây; báo cáo phiên kế tiếp còn cảnh báo sai thì tăng bằng biến; (3) một dòng ghi chú vào ADR-0041. Duyệt ở commit a1ba097 (PR #422).
 
 ## 10. Nhật ký thực hiện
