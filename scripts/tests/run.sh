@@ -2712,14 +2712,19 @@ expect "resume-check: an odd answer for the Actions runs continues nothing, exit
 # continue a `claude --cloud` session that resume-run.yml does not continue (L-044, L-109).
 wd_time() { python3 -c "import datetime as d; print((d.datetime(2026,10,27,12,0,tzinfo=d.timezone.utc)-d.timedelta(minutes=$1)).strftime('%Y-%m-%dT%H:%M:%SZ'))"; }
 watchdog() { # <run status> <minutes since the last commit> [workflow runs: "min:branch:event:status:name,..." or -] [open issues JSON] [started_at] [errors JSON]
-  local last in_progress="" queued="" code=0 spec min branch event status name entry errors="${6:-}"
+  # Each run of the third argument gets the id 1000 + its position and no job. WD_QUEUED and WD_IN_PROGRESS add runs
+  # (JSON objects with an id) to the queued and in-progress lists; WD_ROUTES adds routes (starting with a comma).
+  local last in_progress="${WD_IN_PROGRESS:-}" queued="${WD_QUEUED:-}" code=0 spec min branch event status name entry
+  local errors="${6:-}" id=1000 job_routes=""
   [ -n "$errors" ] || errors="{}"
   last="$(wd_time "$2")"
   if [ "${3:--}" != "-" ]; then
     IFS=',' read -r -a specs <<< "$3"
     for spec in "${specs[@]}"; do
       IFS=':' read -r min branch event status name <<< "$spec"
-      entry="{\"name\": \"$name\", \"head_branch\": \"$branch\", \"event\": \"$event\", \"created_at\": \"$(wd_time "$min")\"}"
+      entry="{\"id\": $id, \"name\": \"$name\", \"head_branch\": \"$branch\", \"event\": \"$event\", \"created_at\": \"$(wd_time "$min")\"}"
+      job_routes="$job_routes, \"actions/runs/$id/jobs?per_page=50\": {\"jobs\": []}"
+      id=$((id + 1))
       if [ "$status" = queued ]; then queued="${queued:+$queued, }$entry"; else in_progress="${in_progress:+$in_progress, }$entry"; fi
     done
   fi
@@ -2734,7 +2739,7 @@ watchdog() { # <run status> <minutes since the last commit> [workflow runs: "min
   "issues?state=open&labels=session-stalled&per_page=100": ${4:-[]},
   "actions/runs?status=in_progress&per_page=100": {"workflow_runs": [$in_progress]},
   "actions/runs?status=queued&per_page=100": {"workflow_runs": [$queued]},
-  "labels/session-stalled": {"name": "session-stalled"}
+  "labels/session-stalled": {"name": "session-stalled"}$job_routes${WD_ROUTES:-}
 }, "errors": $errors}
 JSON
   PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z \
@@ -2844,6 +2849,54 @@ json.dump(fx, open(sys.argv[1], "w"))
 PY
 expect "run-watchdog: GitHub that cannot be read exits 1" 1 \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py > /dev/null 2>&1; echo $?)"
+
+# A job waiting for a self-hosted runner past the wait of wait-run.sh code 7 (75 minutes, nothing of its run going) is
+# named in the session-stalled issue: a person fixes the runner first (T-095, ADR-0042). Run 120 of pr-check was
+# created 200 minutes ago, before the last commit, so busy_workflows does not hold the issue back.
+wd_run120() { # [minutes since the run was created, default 200]; the JSON of run 120 on claude/T-062-x
+  echo "{\"id\": 120, \"name\": \"pr-check\", \"head_branch\": \"claude/T-062-x\", \"event\": \"pull_request\", \"created_at\": \"$(wd_time "${1:-200}")\"}"
+}
+wd_job() { # <name> <status> <labels JSON> <minutes since created> [minutes since completed]; the JSON of one job
+  local runner=null done=null
+  [ "$2" = queued ] || runner='"r1"'
+  [ -z "${5:-}" ] || done="\"$(wd_time "$5")\""
+  echo "{\"name\": \"$1\", \"status\": \"$2\", \"runner_name\": $runner, \"labels\": $3, \"created_at\": \"$(wd_time "$4")\", \"completed_at\": $done}"
+}
+wd_jobs120() { echo ", \"actions/runs/120/jobs?per_page=50\": {\"jobs\": [$(paste -sd ',' -)]}"; } # job JSON lines on stdin
+wd_waits() { grep -c 'Job chờ runner tự host:' "$work/wd.out" || true; }
+wd_r1="$(wd_job build-and-test queued '["vgl-android"]' 100 | wd_jobs120)"
+wd_e120='{"actions/runs/120/jobs?per_page=50": "HTTP 500: Server Error"}'
+expect "run-watchdog: a job waiting for a self-hosted runner past 75 minutes is named in the issue" "0|POST issues|1|1|1" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70)|$(wd_writes)|$(wd_waits)|$(grep -cF 'job `build-and-test` (lần chạy 120)' "$work/wd.out")|$(grep -c 'quá 75 phút' "$work/wd.out")"
+wd_r2="$(wd_job build-and-test queued '["vgl-android"]' 30 | wd_jobs120)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r2" watchdog running 70 > /dev/null
+expect "run-watchdog: a job queued 30 minutes ago is not named" "POST issues|0" "$(wd_writes)|$(wd_waits)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$(wd_job build-and-test queued '["ubuntu-latest"]' 100 | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: a job waiting for a GitHub runner is not named" "POST issues|0" "$(wd_writes)|$(wd_waits)"
+WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl-android"]' 100; wd_job guard in_progress '["vgl-android"]' 110; } | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: a run with a job in progress is not named" "POST issues|0" "$(wd_writes)|$(wd_waits)"
+WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl-android"]' 100; wd_job guard completed '["vgl-android"]' 110 20; } | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+wd_w5="$(wd_waits)"
+WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl-android"]' 100; wd_job guard completed '["vgl-android"]' 110 80; } | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: the wait counts from the latest finished job of the run" "0 1" "$wd_w5 $(wd_waits)"
+WATCHDOG_RUNNER_QUEUE_MINUTES=20 WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r2" watchdog running 70 > /dev/null
+expect "run-watchdog: WATCHDOG_RUNNER_QUEUE_MINUTES sets the wait" 1 "$(wd_waits)"
+expect "run-watchdog: a server error on the jobs of a run exits 1 and opens no issue" "1 none" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 - "[]" "" "$wd_e120") $(wd_writes)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 - "$wd_open" > /dev/null
+expect "run-watchdog: an open issue gets the waiting job on update" "PATCH issues/41|1" "$(wd_writes)|$(wd_waits)"
+expect "run-watchdog: a session with a recent commit reads no jobs" "0 none" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 30 - "[]" "" "$wd_e120") $(wd_writes)"
+expect "run-watchdog: a session held back by a running workflow reads no jobs" "0 none" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 "20:claude/T-062-x:pull_request:in_progress:pr-check" "[]" "" "$wd_e120") $(wd_writes)"
+WD_QUEUED="$(wd_run120 94)" WD_ROUTES="$(wd_job build-and-test queued '["vgl-android"]' 94 | wd_jobs120)" \
+  watchdog running 95 > /dev/null
+expect "run-watchdog: past 90 minutes a waiting job created after the last commit is named" "POST issues|1" \
+  "$(wd_writes)|$(wd_waits)"
 
 # schedule-idle.py turns resume-run.yml and run-watchdog.yml off when no session runs and no approved run list waits,
 # and status-page.yml, start-run.yml and the session turn them back on (T-051, L-126). Fixed time 2026-10-29 12:00 UTC.
@@ -3282,7 +3335,8 @@ expect "resume-run: the Actions read check fails on a copy without it" "0 0" \
 # fence: a PR can change it. Each case runs it in a temporary repo, with a temporary HOME and no variable of this
 # machine (GRADLE_USER_HOME, ANDROID_HOME); rc_* variables set the case: rc_vis (REPO_VISIBILITY, default private),
 # rc_eph (VGL_RUNNER_EPHEMERAL, default 1, empty: not set), rc_guh (GRADLE_USER_HOME), rc_ah (ANDROID_HOME, set when
-# the variable is set), rc_kvm (RUNNER_CHECK_KVM), rc_min (RUNNER_CHECK_MIN_FREE_GB, default 0), rc_dir (the directory).
+# the variable is set), rc_kvm (RUNNER_CHECK_KVM), rc_min (RUNNER_CHECK_MIN_FREE_GB, default 0), rc_dir (the directory),
+# rc_log (RUNNER_CHECK_LOG, not set by default).
 rc_script="$PWD/scripts/runner-check.sh"
 rc_repo="$work/rc"
 rc_home="$work/rc-home"
@@ -3302,8 +3356,10 @@ rc() { # [args]; "<exit code> <lines RUNNER KHÔNG DÙNG ĐƯỢC>"; the output 
   [[ -z "${rc_guh:-}" ]] || vars+=(GRADLE_USER_HOME="$rc_guh")
   [[ -z "${rc_ah+set}" ]] || vars+=(ANDROID_HOME="$rc_ah")
   [[ -z "${rc_kvm:-}" ]] || vars+=(RUNNER_CHECK_KVM="$rc_kvm")
+  [[ -z "${rc_log:-}" ]] || vars+=(RUNNER_CHECK_LOG="$rc_log")
   (cd "${rc_dir:-$rc_repo}" && env -u GRADLE_USER_HOME -u ANDROID_HOME -u VGL_RUNNER_EPHEMERAL -u REPO_VISIBILITY \
-    -u RUNNER_CHECK_MIN_FREE_GB -u RUNNER_CHECK_KVM "${vars[@]}" "$rc_script" "$@") > "$work/rc.out" 2>&1 || code=$?
+    -u RUNNER_CHECK_MIN_FREE_GB -u RUNNER_CHECK_KVM -u RUNNER_CHECK_LOG "${vars[@]}" "$rc_script" "$@") \
+    > "$work/rc.out" 2>&1 || code=$?
   echo "$code $(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC: .* (docs/ops/self-hosted-runner.md)\.$' "$work/rc.out" || true)"
 }
 rc_reset
@@ -3365,6 +3421,61 @@ rc_reset
 expect "runner-check: refuses other arguments with exit 2" "2 2" \
   "$(rc --emu | cut -d' ' -f1) $(rc --emulator x | cut -d' ' -f1)"
 expect "runner-check: the script is executable in git" 100755 "$(git ls-files -s scripts/runner-check.sh | cut -c1-6)"
+# RUNNER_CHECK_LOG: the result lines also go to that file, appended after every check (T-095), so the failure comment
+# of pr-check.yml shows them; build.log in the work directory does not make the script refuse its own directory.
+rc_same() { if cmp -s "$work/rc.log" "$work/rc.out"; then echo same; else echo differ; fi; }
+rc_reset
+rm -f "$work/rc.log"
+rc_r1="$(rc_log="$work/rc.log" rc)|$(rc_same)|$(grep -c '^RUNNER DÙNG ĐƯỢC' "$work/rc.log" 2> /dev/null || true)"
+rm -f "$work/rc.log"
+rc_r1="$rc_r1|$(rc_log="$work/rc.log" rc_vis=public rc_eph='' rc)|$(rc_same)|$(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC:' "$work/rc.log" 2> /dev/null || true)"
+rm -f "$work/rc.log"
+echo x > "$work/rc.log"
+rc_r1="$rc_r1|$(rc_log="$work/rc.log" rc)|$(head -n1 "$work/rc.log")|$(wc -l < "$work/rc.log" | tr -d ' ')"
+expect "runner-check: RUNNER_CHECK_LOG gets the same result lines" "0 0|same|1|1 2|same|2|0 0|x|2" "$rc_r1"
+rc_reset
+rc_r2="$(rc_log=build.log rc)|$(grep -c '^RUNNER DÙNG ĐƯỢC' "$rc_repo/build.log" 2> /dev/null || true)"
+rc_r2="$rc_r2|$(rc_log=build.log rc)|$(grep -c 'file ngoài git: build.log' "$work/rc.out" || true)"
+expect "runner-check: a RUNNER_CHECK_LOG inside the work directory is written after the checks" "0 0|1|1 1|1" "$rc_r2"
+rc_reset
+expect "runner-check: without RUNNER_CHECK_LOG nothing is written" "0 0|" \
+  "$(rc)|$(git -C "$rc_repo" status --porcelain --ignored)"
+rm -f "$work/rc2.log"
+expect "runner-check: a usage error writes no log" "2|no" \
+  "$(rc_log="$work/rc2.log" rc --x | cut -d' ' -f1)|$(if [ -e "$work/rc2.log" ]; then echo yes; else echo no; fi)"
+rc_reset
+rc_r5="$(rc_log="$work" rc)|$(grep -c 'CHÚ Ý: không ghi được' "$work/rc.out" || true)"
+rc_r5="$rc_r5|$(rc_log="$work" rc_vis=public rc)|$(grep -c 'CHÚ Ý: không ghi được' "$work/rc.out" || true)"
+expect "runner-check: a RUNNER_CHECK_LOG that cannot be written keeps the result" "0 0|1|1 1|1" "$rc_r5"
+
+# pr-check.yml passes RUNNER_CHECK_LOG: build.log to the runner check; main-guard.yml has no failure comment that
+# reads build.log, so it does not (T-095).
+rcl_lines() { # <workflow> <job>; lines "RUNNER_CHECK_LOG: build.log" in the env of the runner check step of that job
+  awk -v job="  $2:" '$0 == job { j = 1; next } j && /^  [^ ]/ { j = 0 }
+    j && /^      - / { s = ($0 == "      - name: Kiểm runner tự host (scripts/runner-check.sh)"); e = 0; next }
+    j && s && $0 == "        env:" { e = 1; next } j && s && e && !/^          / { e = 0 }
+    j && s && e && $0 == "          RUNNER_CHECK_LOG: build.log" { n++ } END { print n + 0 }' "$1"
+}
+grep -vxF '          RUNNER_CHECK_LOG: build.log' "$pr_wf" > "$work/pr-no-log.yml" || true
+expect "pr-check: the runner check writes its result lines to build.log" "1 0|0" \
+  "$(rcl_lines "$pr_wf" build-and-test) $(grep -c 'RUNNER_CHECK_LOG' "$guard_wf" || true)|$(rcl_lines "$work/pr-no-log.yml" build-and-test)"
+
+# The failure comment step of pr-check.yml, run like GitHub in the work directory after a refused runner, shows the
+# lines of runner-check.sh instead of "Không có log." (T-095). A gh of its own: fake-gh only answers `gh api`.
+mkdir -p "$work/gh-comment"
+printf '#!/bin/sh\nexit 0\n' > "$work/gh-comment/gh"
+chmod +x "$work/gh-comment/gh"
+rc_reset
+rc_p2="$(rc_log=build.log rc_vis=public rc)"
+pr_comment_script="$(awk '/^      - / { s = 0 } /^      - name: Bình luận lỗi vào PR$/ { s = 1; next }
+    s && /^        run: \|$/ { r = 1; next } r && s && /^ *$/ { print ""; next }
+    r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$pr_wf" |
+  sed -e 's/${{ steps\.release\.outcome }}//g' -e 's/${{ github\.event\.pull_request\.number }}/1/g' \
+    -e 's|${{ github\.repository }}|o/r|g')"
+(cd "$rc_repo" && PATH="$work/gh-comment:$work/bin:$PATH" bash -eo pipefail -c "$pr_comment_script") > /dev/null 2>&1 || true
+expect "pr-check: the failure comment shows the lines of a refused runner" "1 1|1|0" \
+  "$rc_p2|$(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC: repo không phải private' "$rc_repo/comment.md" 2> /dev/null || true)|$(grep -c 'Không có log\.' "$rc_repo/comment.md" 2> /dev/null || true)"
+rc_reset
 
 # The log files of the playbook rows are what the scripts print.
 expect "playbook: PB-17.log is what wait-run.sh prints" "7 $(head -n1 "$pb_dir/PB-17.log") u" "$rw_main_line"
