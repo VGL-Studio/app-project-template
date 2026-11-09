@@ -18,6 +18,10 @@
 #      is set and writable (the emulator action installs packages there).
 # Exit codes: 0 usable (one line RUNNER DÙNG ĐƯỢC), 1 not usable (one line RUNNER KHÔNG DÙNG ĐƯỢC per problem),
 #             2 wrong arguments.
+# RUNNER_CHECK_LOG, when set, is a file the result lines are also appended to, after every check has run, so a file in
+# the work directory (pr-check.yml passes build.log, which its failure comment prints) does not make the script refuse
+# its own directory. A file that cannot be written gives a warning on stderr and keeps the exit code. A usage error
+# (exit 2) writes nothing.
 # RUNNER_CHECK_MIN_FREE_GB and RUNNER_CHECK_KVM exist only for the tests to override. No network, no secret.
 # Messages are in Vietnamese for the team; comments are in English.
 #
@@ -34,9 +38,22 @@ elif [ "$#" -ne 0 ]; then
 fi
 
 problems=0
+report=""
+say() { # prints one result line and keeps it for RUNNER_CHECK_LOG
+  echo "$*"
+  report="$report$*"$'\n'
+}
 refuse() {
-  echo "RUNNER KHÔNG DÙNG ĐƯỢC: $* (docs/ops/self-hosted-runner.md)."
+  say "RUNNER KHÔNG DÙNG ĐƯỢC: $* (docs/ops/self-hosted-runner.md)."
   problems=$((problems + 1))
+}
+finish() { # <exit code>; appends the result lines to RUNNER_CHECK_LOG when it is set, then exits
+  if [ -n "${RUNNER_CHECK_LOG:-}" ]; then
+    if ! printf '%s' "$report" >> "$RUNNER_CHECK_LOG"; then
+      echo "CHÚ Ý: không ghi được $RUNNER_CHECK_LOG." >&2
+    fi
+  fi
+  exit "$1"
 }
 
 visibility="${REPO_VISIBILITY:-}"
@@ -72,9 +89,10 @@ if [ "$emulator" = 1 ]; then
   [ -n "${ANDROID_HOME:-}" ] && [ -w "$ANDROID_HOME" ] || refuse "ANDROID_HOME trống hay không ghi được"
 fi
 
-[ "$problems" = 0 ] || exit 1
+[ "$problems" = 0 ] || finish 1
 if [ "$emulator" = 1 ]; then
-  echo "RUNNER DÙNG ĐƯỢC: repo $visibility, đĩa trống $free_gb GB, KVM và ANDROID_HOME dùng được."
+  say "RUNNER DÙNG ĐƯỢC: repo $visibility, đĩa trống $free_gb GB, KVM và ANDROID_HOME dùng được."
 else
-  echo "RUNNER DÙNG ĐƯỢC: repo $visibility, đĩa trống $free_gb GB."
+  say "RUNNER DÙNG ĐƯỢC: repo $visibility, đĩa trống $free_gb GB."
 fi
+finish 0
