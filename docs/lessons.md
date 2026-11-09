@@ -892,7 +892,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian của RUN-20261030-01, 05:33 tới 06:04; `CHƯA XONG: chưa thấy kiểm tra 'ui-test' trên commit 3670c12`.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: trước mỗi lần gọi `merge-if-green.sh` (và `wait-run.sh`), `git fetch origin main` và chạy script từ bản của nhánh chính mới nhất (gộp nhánh chính vào nhánh báo cáo, hay `git show origin/main:scripts/merge-if-green.sh`). Hoặc `merge-if-green.sh` tự so mã băm của chính nó với bản trên `origin/main` và dừng với thông báo rõ khi lệch.
 - **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133.")
-- **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge của phiên, gộp `origin/main` vào nhánh báo cáo trước lần gọi script tiếp theo, như L-153). Phần còn lại, PR ngoài phiên merge giữa phiên nên phiên không gộp, sẽ đóng bằng T-083 (L-129, L-133; chưa làm).
+- **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge của phiên, gộp `origin/main` vào nhánh báo cáo trước lần gọi script tiếp theo, như L-153). Phần còn lại, PR ngoài phiên merge giữa phiên nên phiên không gộp, đóng bằng PR #431 (T-083, L-129, L-133).
 
 ### L-129. Người merge PR vào nhánh chính khi phiên tự chạy đang `running`
 
@@ -901,8 +901,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** trong phiên, hai PR không phải của phiên được merge vào nhánh chính: #320 (T-080, AGP 9.1, Gradle 9.3.1, compileSdk 37) lúc 03:38 và #324 (T-075, emulator sau merge) lúc 05:24. Hai task (T-054, T-058) phải gộp nhánh chính và chạy lại CI một vòng; L-128 xảy ra vì #324; plan T-068 chạy thử trên bộ build cũ nên phiên phải so lại classpath trên nhánh mới. `docs/auto-run.md` mục 1, ý 4 nói người không merge khi phiên đang chạy, và `merge-if-green.sh` từ chối PR ngoài phiên khi danh sách đang `running`, nên hai PR này đã đi đường khác.
 - **Bằng chứng:** `merged_at` của #320 (03:38:49Z) và #324 (05:24:08Z); phiên bắt đầu 03:19; dòng thời gian 04:08 và 05:33.
 - **Đề xuất sửa:** người xem cách hai PR được merge (nút merge hay luật bảo vệ nhánh). Nếu muốn chặn cứng: luật bảo vệ nhánh chính chỉ cho merge qua một kiểm tra mà `merge-if-green.sh` đặt, hay một kiểm tra bắt buộc báo đỏ khi có danh sách `running` mà PR không phải của phiên.
-- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133.")
-- **Áp dụng:** chưa. Nguyên nhân trong script ở L-133; làm bằng ticket T-083 (plan viết sau, làm có người).
+- **Trạng thái:** applied
+- **Áp dụng:** PR #431 (T-083): `scripts/merge-if-green.sh` chỉ cho merge nhánh task có trong bảng danh sách của phiên đang chạy; `docs/auto-run.md` mục 1 ý 4 nói rõ PR của phiên. Nút merge trên GitHub không chặn được khi không có luật bảo vệ nhánh (ADR-0010); cả hai PR của sự cố đều đi qua `merge-if-green.sh`. Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
 
 ### L-130. Daemon Gradle của phiên bản cũ còn chạy sau khi nhánh chính đổi phiên bản Gradle, daemon mới bị giết vì thiếu bộ nhớ
 
@@ -941,8 +941,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** T-080 làm trong phiên có người theo dõi, trên nhánh `claude/T-080-bo-build-agp-9`, đúng quy ước tên nhánh task của `docs/CLAUDE.md`. Danh sách RUN-20261030-01 merge lúc 03:06 UTC (PR #319), phiên bắt đầu lúc 03:19 UTC, T-080 merge lúc 03:38:49 UTC. `merge-if-green.sh` cho mọi nhánh `claude/T-[0-9]*` merge khi có phiên đang chạy, vì coi là task của phiên; nó không đối chiếu mã task với danh sách chạy. Nhánh chính đổi bộ build giữa phiên: task 1 của phiên (T-054, PR #322) được viết và kiểm trên bộ cũ, rồi gặp bộ mới khi gộp main. Đường làm nhanh đã tránh lỗ này bằng tên `claude/quick-T-*` (`docs/CLAUDE.md`), nhưng task có plan làm ngoài phiên thì chưa có quy ước tên. L-129 ghi cùng sự cố từ phía phiên (hai PR, #320 và #324); bài học này ghi nguyên nhân trong script: script không chặn nhánh `claude/T-*`, nên cả #324 (`claude/T-075-...`) cũng đi qua `merge-if-green.sh`, không cần đường khác.
 - **Bằng chứng:** `scripts/merge-if-green.sh`, khối kiểm phiên đang chạy (`"$HEAD_REF" != claude/T-[0-9]*`); nhật ký plan T-080, mục Lệch so với plan (`docs/features/quy-trinh/plans/T-080-bo-build-agp-9.md` trên nhánh `claude/log-T-080`, PR #323).
 - **Đề xuất sửa:** cách nhẹ: `docs/CLAUDE.md` thêm quy ước nhánh cho task có plan làm ngoài phiên tự chạy, không bắt đầu bằng `claude/T-`, để script từ chối khi có phiên. `scripts/token-usage.py` chỉ gán token cho nhánh `claude/T-NNN` và `claude/fix-T-NNN` (`docs/ops/token-usage.md`, mục 1), nên tên mới cần thêm vào đó; `scripts/resume-check.py` và `scripts/run-watchdog.py` không cần đổi, vì nhánh làm ngoài phiên không có trong danh sách chạy nào. Cách chặt: `merge-if-green.sh` chỉ cho nhánh task merge khi mã task có trong danh sách của phiên đang chạy, như `scripts/resume-check.py` và `scripts/run-watchdog.py` đã đối chiếu nhánh task với ticket của danh sách; script là file được bảo vệ, cần plan rủi ro cao duyệt chéo. Anh Nhật chọn cách chặt ngày 2026-10-30, thành ticket T-083.
-- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133.")
-- **Áp dụng:** chưa. Ticket T-083 (`merge-if-green.sh` chỉ cho merge nhánh task có trong danh sách của phiên đang chạy), plan viết sau.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #431 (T-083): khối kiểm phiên của `scripts/merge-if-green.sh` đối chiếu mã task của nhánh `claude/T-NNN-...` và `claude/fix-T-NNN-...` với bảng danh sách chạy, cùng mẫu với `scripts/resume-check.py` và `scripts/run-watchdog.py`. Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
 
 ### L-134. Hai test của `scripts/tests/run.sh` dựa vào tài liệu riêng của dự án mẫu, nên app mới đỏ ngay lần `check.sh` đầu tiên
 

@@ -288,7 +288,7 @@ evaluate() {
   MESSAGE=""
   NO_UPDATE_NOTE=""
   DOCS_ONLY_BEHIND="no"
-  local pr_json state draft base already broken broken_json refuse_broken culprit revert_check run_branches run_branch run_id run_status behind_by failed c
+  local pr_json state draft base already broken broken_json refuse_broken culprit revert_check run_branches run_branch run_id run_text run_status task_re task behind_by failed c
 
   pr_json="$(gh api "repos/$REPO/pulls/$PR")"
   state="$(jq -r .state <<<"$pr_json")"
@@ -342,22 +342,31 @@ evaluate() {
     EXACT_REVERT="yes"
   fi
 
-  # While an auto-run session runs, main must not move: only that session's own PRs (its task branches and its
-  # report branch) are merged (docs/auto-run.md, section 1), plus the exact revert checked above, which the session
-  # merges to bring main back (ADR-0025, point 4). A session is running when its report branch holds its run file
-  # with status "running". Stale report branches of finished sessions do not block anything.
+  # While an auto-run session runs, main must not move: only that session's own PRs are merged (docs/auto-run.md,
+  # section 1): its report branch, the task branch claude/T-NNN-... and the fix branch claude/fix-T-NNN-... of a
+  # ticket in the table of its run list, plus the exact revert checked above, which the session merges to bring main
+  # back (ADR-0025, point 4). A session is running when its report branch holds its run file with status "running";
+  # with two running sessions a PR must belong to both. Stale report branches of finished sessions do not block
+  # anything. The table row and the branch name are read with the patterns of scripts/resume-check.py and
+  # scripts/run-watchdog.py (^\|\s*\d+\s*\|\s*(T-\d+)\s*\| and ^claude/(?:fix-)?(T-\d+)-): change all three together.
+  task_re='^claude/(fix-)?(T-[0-9]+)-'
   run_branches="$(gh_all "repos/$REPO/branches?per_page=100" \
     | jq -r '.name | select(test("^claude/RUN-[0-9]{8}-[0-9]{2}-report$"))')"
   for run_branch in $run_branches; do
     run_id="${run_branch#claude/}"
     run_id="${run_id%-report}"
-    run_status="$( { gh api "repos/$REPO/contents/docs/runs/$run_id.md?ref=$run_branch" \
-      -H "Accept: application/vnd.github.raw" 2>/dev/null || true; } \
-      | sed -n '/^---$/,/^---$/s/^status:[[:space:]]*\([a-z]*\).*/\1/p' | head -n 1)"
+    run_text="$(gh api "repos/$REPO/contents/docs/runs/$run_id.md?ref=$run_branch" \
+      -H "Accept: application/vnd.github.raw" 2>/dev/null || true)"
+    run_status="$(sed -n '/^---$/,/^---$/s/^status:[[:space:]]*\([a-z]*\).*/\1/p' <<<"$run_text" | head -n 1)"
     [[ "$run_status" == "running" ]] || continue
-    if [[ "$HEAD_REF" != "$run_branch" && "$HEAD_REF" != claude/T-[0-9]* && "$EXACT_REVERT" != "yes" ]]; then
-      die "phiên $run_id đang chạy. Trong lúc phiên chạy chỉ merge PR của chính phiên đó (docs/auto-run.md, mục 1). Chờ phiên kết thúc rồi gọi lại."
+    [[ "$HEAD_REF" != "$run_branch" && "$EXACT_REVERT" != "yes" ]] || continue
+    if [[ "$HEAD_REF" =~ $task_re ]]; then
+      task="${BASH_REMATCH[2]}"
+      # task is "T-" and digits only, so it needs no escaping in the pattern.
+      grep -qE -- "^\|[[:space:]]*[0-9]+[[:space:]]*\|[[:space:]]*$task[[:space:]]*\|" <<<"$run_text" && continue
+      die "phiên $run_id đang chạy; task $task (nhánh '$HEAD_REF') không có trong bảng danh sách chạy docs/runs/$run_id.md trên nhánh $run_branch. Trong lúc phiên chạy chỉ merge PR của chính phiên đó (docs/auto-run.md, mục 1). Chờ phiên kết thúc rồi gọi lại; việc gấp thì người dừng phiên trước (docs/auto-run.md, mục 4, Tiếp tục phiên sau khi hết hạn mức)."
     fi
+    die "phiên $run_id đang chạy. Trong lúc phiên chạy chỉ merge PR của chính phiên đó (docs/auto-run.md, mục 1). Chờ phiên kết thúc rồi gọi lại."
   done
 
   # The PR branch must contain the latest commit of main, unless main changed only docs since the split (ADR-0041).

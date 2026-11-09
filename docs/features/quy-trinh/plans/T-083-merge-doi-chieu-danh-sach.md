@@ -1,7 +1,7 @@
 ---
 ticket: T-083
 title: Khi phiên tự chạy đang chạy, merge-if-green.sh chỉ cho merge nhánh task có trong danh sách của phiên
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 6
 risk_level: high
@@ -298,3 +298,15 @@ Không cần (E dưới 2). Một lần so mẫu ngày 2026-11-09, trên nhánh 
   - Task làm có người (`auto_run: false`), không qua phiên tự chạy, khi không có phiên `running`.
 
 ## 10. Nhật ký thực hiện
+
+### Làm có người 2026-11-09, phiên bản plan 1
+
+- **Kết quả:** merge bằng PR #431 (CI của PR này), sau lời "merge #431" của anh Nhật.
+- **Nhánh, PR:** `claude/T-083-merge-doi-chieu-danh-sach`, https://github.com/VGL-Studio/app-project-template/pull/431. Commit test `d1c1e56`, code `dfbb791`.
+- **Đã làm:** mục 3.1 A tới D. Khối kiểm phiên của `merge-if-green.sh` đọc file danh sách một lần; nhánh `claude/T-NNN-...`, `claude/fix-T-NNN-...` qua khi `T-NNN` có dòng trong bảng; thông báo từ chối mới. Một dòng chú thích ở `resume-check.py`, `run-watchdog.py`. `docs/auto-run.md` mục 1 ý 4, đoạn PR sửa nguyên nhân, đoạn dừng hẳn phiên; bảng lỗi của `docs/ops/setup-new-app.md`. L-128, L-129, L-133 trong `docs/lessons.md`.
+- **Test viết trước:** T1 tới T19 trong `scripts/tests/run.sh` (vài ca gộp một dòng `expect`). 10 test đỏ đúng lý do trên code cũ, khớp "đỏ trước code" của mục 4 (T2 `3 0 0`, T3 `1`, T6 `3 3 3`, T7 `3`, T8 `1 1 3`, T9 `3 0 3 1`, T15 `2 1`, T16 `0 2`, T17, T18 `2 0 1`); các test còn lại qua cả trước code như plan ghi. Rà soát độc lập chạy lại test của nhánh với script của nhánh chính và xác nhận. File test không đổi sau commit test. Hai test có sẵn chỉ đổi dữ liệu (mục 3.5, ADR-0029).
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa (thêm các file ghi ở lần đẩy cuối: bài học, nhật ký, ticket; đã thêm), 8 ghi chú, ghi trong mô tả PR.
+- **Kết quả CI:** `pr-check` xanh trên `dfbb791` (lần chạy 42582068861); lần đẩy cuối chạy lại. `scripts/tests/run.sh` trên máy dev: 6 test đỏ sẵn của nhánh chính (macOS), giống trước và sau.
+- **Lệch so với plan:** ADR-0032/L4: T14 dùng `$code_runs` thay `$green_runs` (cùng kết quả `--dry-run` 0); T14, T15, T18 sửa dữ liệu bằng hàm `mrun_session` (gọi `nu_edit`) thay một lệnh `python3 -I -c`. Không có file ngoài mục 3.2.
+- **Việc còn lại:** chờ `main-guard` của commit merge. App nhận qua đợt đồng bộ của `scripts/template-sync.sh`.
+- **Cần người xem:** phiên tự chạy kế tiếp merge được task của mình (thông báo `ĐÃ MERGE` cho mỗi task trong báo cáo phiên).

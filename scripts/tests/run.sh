@@ -1126,24 +1126,29 @@ for args in "12 --dryrun" "12 -n" "12 --dry_run" "12 --dry-run extra" "abc" ""; 
   fi
 done
 
-# merge-if-green.sh refuses other PRs while an auto-run session is running, but lets that session's PRs through.
+# merge-if-green.sh refuses other PRs while an auto-run session is running, but lets that session's PRs through: its
+# report branch, the exact revert, and the task and fix branches of the tickets in its run list.
 mg_root="$PWD"
+# <head ref> <run status> [labels]; prints the exit code and keeps the output in $work/merge.out. The body of the run
+# file after its front matter, as a JSON string fragment, is MDR_LIST (default: a table with T-001); the other report
+# branch has MDR_OLD_STATUS (default finished) and MDR_OLD_LIST. MDR_DRAFT, MDR_STATE and MDR_BASE shape the PR.
 merge_during_run() {
   local head_ref="$1" run_status="$2" labels="${3:-[]}"
   cat > "$work/merge.json" << JSON
 {"routes": {
-  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "abc1234", "ref": "$head_ref"}, "title": "t", "labels": $labels},
+  "pulls/12": {"state": "${MDR_STATE:-open}", "draft": ${MDR_DRAFT:-false}, "base": {"ref": "${MDR_BASE:-main}"}, "head": {"sha": "abc1234", "ref": "$head_ref"}, "title": "t", "labels": $labels},
   "issues?state=open&labels=main-broken&per_page=10": [],
   "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261015-01-report"}, {"name": "claude/RUN-20261016-01-report"}],
-  "contents/docs/runs/RUN-20261015-01.md?ref=claude/RUN-20261015-01-report": "---\nid: RUN-20261015-01\nstatus: finished\n---\n",
-  "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: $run_status   # draft | approved | running | finished\n---\n",
+  "contents/docs/runs/RUN-20261015-01.md?ref=claude/RUN-20261015-01-report": "---\nid: RUN-20261015-01\nstatus: ${MDR_OLD_STATUS:-finished}\n---\n${MDR_OLD_LIST:-}",
+  "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: $run_status   # draft | approved | running | finished\n---\n${MDR_LIST-\n## 1. Danh sách chạy\n\n| 1 | T-001 | demo |\n}",
   "compare/main...abc1234": {"behind_by": 2}
 }}
 JSON
   local code=0
-  PATH="$work/bin:$PATH" FIXTURE="$work/merge.json" scripts/merge-if-green.sh 12 --dry-run > /dev/null 2>&1 || code=$?
+  PATH="$work/bin:$PATH" FIXTURE="$work/merge.json" scripts/merge-if-green.sh 12 --dry-run > "$work/merge.out" 2>&1 || code=$?
   echo "$code"
 }
+mdr_count() { grep -cF -- "$1" "$work/merge.out" || true; }
 # Exit 3 ("branch is behind main") means the run check let the PR through; 1 means it was refused.
 expect "merge-if-green refuses a person's PR while a run is running" 1 "$(merge_during_run claude/template-x running)"
 expect "merge-if-green lets the session's task PR through" 3 "$(merge_during_run claude/T-001-loading running)"
@@ -1152,6 +1157,29 @@ expect "merge-if-green ignores finished runs" 3 "$(merge_during_run claude/templ
 expect "merge-if-green refuses a PR labelled needs-human" 1 \
   "$(merge_during_run claude/fix-T-002-x finished '[{"name": "needs-human"}]')"
 expect "merge-if-green accepts other labels" 3 "$(merge_during_run claude/template-x finished '[{"name": "docs"}]')"
+# A task branch passes only when its ticket is in the table of the running list, read like scripts/resume-check.py.
+expect "merge-if-green refuses a task PR not in the running list" "1 1 1" \
+  "$(merge_during_run claude/T-099-other running) $(mdr_count 'phiên RUN-20261016-01 đang chạy; task T-099') $(mdr_count 'docs/runs/RUN-20261016-01.md')"
+expect "merge-if-green: the refusal says how to go on" "1 1 1" \
+  "$(mdr_count 'Chờ phiên kết thúc rồi gọi lại') $(mdr_count 'docs/auto-run.md, mục 1') $(mdr_count 'người dừng phiên trước')"
+expect "merge-if-green lets a fix branch of a listed task through" 3 "$(merge_during_run claude/fix-T-001-x running)"
+expect "merge-if-green refuses a fix branch of a task not in the list" 1 "$(merge_during_run claude/fix-T-099-x running)"
+expect "merge-if-green: a task not in any list passes when no run is running" 3 "$(merge_during_run claude/T-099-other finished)"
+expect "merge-if-green reads only rows of the run table" "1 3 1" \
+  "$(MDR_LIST='\n| T-099 | Đã merge | #1 |\n| Chặn | T-099 | x | y |\n| 1 | T-001 | demo |\n' merge_during_run claude/T-099-other running) $(MDR_LIST='\n|  2  |  T-001  | demo |\n' merge_during_run claude/T-001-loading running) $(MDR_LIST='\n| 1 | T-0010 | demo |\n' merge_during_run claude/T-001-x running)"
+expect "merge-if-green refuses a task PR when the running list has no table" 1 \
+  "$(MDR_LIST='' merge_during_run claude/T-001-loading running)"
+expect "merge-if-green: quick, plan and bare T branches are no task branches" "1 1 1" \
+  "$(merge_during_run claude/quick-T-001-x running) $(merge_during_run claude/plan-T-001-x running) $(merge_during_run claude/T-001 running)"
+expect "merge-if-green: with two running lists a task must be in both" "1 1 3 1" \
+  "$(MDR_OLD_STATUS=running MDR_OLD_LIST='\n| 1 | T-002 | demo |\n' merge_during_run claude/T-001-loading running) $(mdr_count 'phiên RUN-20261015-01 đang chạy; task T-001') $(MDR_OLD_STATUS=running MDR_OLD_LIST='\n| 1 | T-001 | demo |\n' merge_during_run claude/T-001-loading running) $(MDR_OLD_STATUS=running merge_during_run claude/RUN-20261016-01-report running)"
+# A listed task still meets every check that comes before the run check.
+expect "merge-if-green: a listed task PR that is a draft is refused" "1 1" \
+  "$(MDR_DRAFT=true merge_during_run claude/T-001-loading running) $(mdr_count 'bản nháp')"
+expect "merge-if-green: a listed fix branch labelled needs-human is refused" "1 1" \
+  "$(merge_during_run claude/fix-T-001-x running '[{"name": "needs-human"}]') $(mdr_count 'needs-human')"
+expect "merge-if-green: a listed task PR that is closed or aims elsewhere is refused" "1 1 1 1" \
+  "$(MDR_STATE=closed merge_during_run claude/T-001-loading running) $(mdr_count 'không ở trạng thái mở') $(MDR_BASE=other merge_during_run claude/T-001-loading running) $(mdr_count "nhắm vào 'other'")"
 
 # merge-if-green.sh prints the commit it merges, warns about a very recent one, waits with --update and accepts a
 # job whose status lags behind its finished green run (app lessons L-017, L-018).
@@ -2005,10 +2033,10 @@ git -C "$work/origin.git" update-ref refs/pull/12/head "$(git_t rev-parse good)"
 printf '#!/bin/sh\nexit 0\n' > "$work/bin/revert-yes"
 printf '#!/bin/sh\necho "cây file khác"\nexit 1\n' > "$work/bin/revert-no"
 chmod +x "$work/bin/revert-yes" "$work/bin/revert-no"
-merge_while_broken() { # <issues JSON> [IS_EXACT_REVERT] [run status]; prints the exit code
+merge_while_broken() { # <issues JSON> [IS_EXACT_REVERT] [run status] [head ref]; prints the exit code
   cat > "$work/broken.json" << JSON
 {"routes": {
-  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "$(git_t rev-parse good)", "ref": "revert/${culprit::7}"}, "title": "Revert", "labels": []},
+  "pulls/12": {"state": "open", "draft": false, "base": {"ref": "main"}, "head": {"sha": "$(git_t rev-parse good)", "ref": "${4:-revert/${culprit::7}}"}, "title": "Revert", "labels": []},
   "issues?state=open&labels=main-broken&per_page=10": $1,
   "branches?per_page=100&page=1": [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}],
   "contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report": "---\nid: RUN-20261016-01\nstatus: ${3:-finished}\n---\n",
@@ -2034,6 +2062,10 @@ expect "merge-if-green refuses with two main-broken issues" 1 \
 expect "merge-if-green refuses an issue without culprit" 1 \
   "$(merge_while_broken '[{"number": 7, "body": "Nhánh chính đỏ."}]' "$work/bin/revert-yes")"
 expect "merge-if-green lets a PR through when main is not broken" 3 "$(merge_while_broken '[]' "$work/bin/revert-no")"
+# The run file here has no table, so T-099 is in no list: main-broken still refuses the branch, and only the exact
+# revert passes both the main-broken check and the run check.
+expect "merge-if-green: main-broken refuses a task branch, the exact revert passes the run check" "1 1 3" \
+  "$(merge_while_broken "$one_issue" "$work/bin/revert-no" running claude/T-099-x) $(grep -c 'main-broken' "$work/broken.out") $(merge_while_broken "$one_issue" "$work/bin/revert-yes" running claude/T-099-x)"
 expect "merge-if-green lets the exact revert through while a run is running" 3 \
   "$(merge_while_broken "$one_issue" "$work/bin/revert-yes" running)"
 expect "merge-if-green still refuses a revert branch that is not checked while a run is running" 1 \
@@ -2286,11 +2318,39 @@ expect "merge-if-green, behind by docs: main-broken still refuses" "1 0 0" \
 nu_routes
 nu_edit '
 r["branches?per_page=100&page=1"] = [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]
-r["contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report"] = "---\nid: RUN-20261016-01\nstatus: running\n---\n"
-r["pulls/12"]["head"]["ref"] = "claude/template-x"'
+r["contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report"] = "---\nid: RUN-20261016-01\nstatus: running\n---\n\n| 1 | T-901 | demo |\n"
+r["pulls/12"]["head"]["ref"] = "claude/T-902-x"'
+nu902="$(merge_run 12) $(nu_wcount .)"
+nu_edit 'r["pulls/12"]["head"]["ref"] = "claude/template-x"'
 nu24="$(merge_run 12)"
 nu_edit 'r["pulls/12"]["head"]["ref"] = "claude/T-901-x"'
 expect "merge-if-green, behind by docs: a running session still refuses a person's PR" "1 0" "$nu24 $(merge_run 12)"
+expect "merge-if-green, behind by docs: a running session refuses a task not in its list, nothing written" "1 0" "$nu902"
+
+# With a running session, a listed task PR still meets the checks after the run check (CI), and an unlisted one is
+# refused before the branch is updated; a session that starts while --update waits refuses it on the next round.
+mrun_session() { # <python list of report branches for the branches route>; adds the running list with T-001
+  nu_edit '
+r["branches?per_page=100&page=1"] = json.loads(sys.argv[3])
+r["contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report"] = "---\nid: RUN-20261016-01\nstatus: running\n---\n\n| 1 | T-001 | demo |\n"' "$1"
+}
+mrun_two='[{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]'
+red_code_runs="${code_runs/\"conclusion\": \"success\"/\"conclusion\": \"failure\"}"
+merge_routes claude/T-001-x '{"behind_by": 0}' "$code_runs"
+mrun_session "$mrun_two"
+mrun_ready="$(merge_run 12 --dry-run)"
+merge_routes claude/T-001-x '{"behind_by": 0}' "$red_code_runs"
+mrun_session "$mrun_two"
+expect "merge-if-green: a listed task PR is ready when green and refused when red" "0 1 1" \
+  "$mrun_ready $(merge_run 12 --dry-run) $(grep -c 'có kiểm tra không qua' "$work/mg.out" || true)"
+merge_routes claude/T-099-x '{"behind_by": 2}' "$code_runs"
+mrun_session "$mrun_two"
+expect "merge-if-green --update: an unlisted task PR is refused before anything is written" "1 0" \
+  "$(merge_run 12 --update) $(nu_wcount .)"
+merge_routes claude/T-099-x '{"behind_by": 2}' "$code_runs"
+mrun_session '{"__sequence__": [[{"name": "main"}], [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]]}'
+expect "merge-if-green --update: a session that starts while waiting refuses an unlisted task" "1 1 1" \
+  "$(UPDATE_TIMEOUT=1 merge_run 12 --update) $(grep -c 'task T-099' "$work/mg.out" || true) $(nu_wcount 'PUT pulls/12/update-branch')"
 # A PR with only files main-guard ignores (nu_ignored): every check that comes before the update still refuses it, with nothing written to GitHub (L-058).
 nu_gi8="" nu_gi8w=0
 for nu_case in 'r["pulls/12"]["state"] = "closed"' 'r["pulls/12"]["draft"] = True' \

@@ -258,6 +258,8 @@ def main():
         if fields.get("status") != "running":
             continue
         running.add(run_id)
+        # scripts/merge-if-green.sh reads the run table and the branch name with the same two patterns:
+        # change all three together.
         tickets = set(re.findall(r"^\|\s*\d+\s*\|\s*(T-\d+)\s*\|", text, re.M))
         own = [branch] + [b for b in branches
                           if (m := re.match(r"^claude/(?:fix-)?(T-\d+)-", b)) and m.group(1) in tickets]
