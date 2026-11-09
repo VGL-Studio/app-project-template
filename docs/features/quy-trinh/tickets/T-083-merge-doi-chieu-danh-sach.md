@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-129 (RUN-20261030-01) và L-133 (PR #337), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: planned              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đánh giá sơ bộ: low | medium | high
 size: S                      # S | M | L, xem giải thích ở cuối
 depends_on: []               # các ticket phải xong trước, ví dụ [T-010]
 sprint:                      # điền khi được chọn vào sprint
-plan:                        # đường dẫn plan khi đã có
+plan: docs/features/quy-trinh/plans/T-083-merge-doi-chieu-danh-sach.md
 auto_run: false              # làm có người: sửa chính cổng merge mà phiên tự chạy dùng (như T-075)
 created: 2026-10-30
 ---
