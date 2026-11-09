@@ -3,11 +3,11 @@ id: T-098
 title: Ô native trong lưới bỏ ô khi hết quảng cáo, nhận chiều cao ô và thẻ, vẽ được ở màn không trạng thái
 feature: ads
 spec: features/ads/spec.md
-scenarios: []                # plan xác định kịch bản và luật của ads-business-rules.md bị chạm
+scenarios: [KB-3, KB-21]     # "khi không còn quảng cáo thì ô không hiện": phần pool cạn là lỗi so với spec
 owner: Nhật
 status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
-size: M
+size: L                      # bản ở app chạm 6 tệp nguồn, 13 test; plan cân nhắc tách
 depends_on: []
 sprint:
 plan:
@@ -39,6 +39,7 @@ Nguồn: issue #379 (camera-pose, PR #287 của app), bài học L-162. App có 
 
 ## Định nghĩa hoàn thành
 
-- [ ] Mọi điểm của phạm vi có test tự động, test viết trước và đã thất bại đúng lý do.
+- [ ] Mọi điểm code của phạm vi có test tự động, test viết trước và đã thất bại đúng lý do; phần chỉ là tài liệu không cần test.
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính.
+- [ ] Có trong bản staging.
 - [ ] Bài học liên quan ghi `applied` với số PR; issue `from-app` đóng kèm số PR sau khi dev đồng ý.

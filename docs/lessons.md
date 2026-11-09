@@ -1157,7 +1157,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Loại, phạm vi:** môi trường, chung
 - **Chuyện gì:** app lấy khung quảng cáo có mediation Mintegral và Pangle, hai kho Maven ngoài trong `settings.gradle.kts`. Proxy của môi trường cloud trả 403 cho `dl-maven-android.mintegral.com` và `artifact.bytedance.com`, nên `scripts/check.sh` đỏ ngay ở bước tải thư viện, env-canary đỏ hai ngày liền và issue `env-broken` chặn `start-run.yml`. CI trên máy của GitHub và máy dev vẫn xanh. `docs/ops/ads-guide.md` đã nói hai tên miền phải được cho phép, nhưng bảng thiết lập ở `docs/ops/staging-and-runs.md` mục 2.1, nơi người làm theo khi tạo môi trường, chỉ có `dl.google.com`, `maven.google.com`, `*.blob.core.windows.net`. Dự án mẫu có cùng hai kho và cùng bảng.
 - **Bằng chứng:** issue #363 (log `Could not GET '...mbridge_android_sdk-17.1.81.pom'. Received status code 403 from server: Forbidden`); `settings.gradle.kts` dòng 23, 26 trên nhánh chính `97b6ad8`.
-- **Đề xuất sửa:** `docs/ops/staging-and-runs.md` mục 2.1 thêm hai tên miền và quy tắc thêm kho Maven mới thì thêm tên miền; mục 2.4 nói cách xử lý `Received status code 403` của Gradle trên cloud; bảng tra lỗi thêm một dòng cho mẫu đó.
+- **Đề xuất sửa:** `docs/ops/staging-and-runs.md` mục 2.1 thêm hai tên miền và quy tắc thêm kho Maven mới thì thêm tên miền; mục 2.4 nói cách xử lý `Received status code 403` của Gradle trên cloud; bảng tra lỗi, dòng PB-11 (cùng mẫu `Could not GET ... Received status code 403`) nói rõ trường hợp môi trường cloud: không chạy lại, người thêm tên miền vào Allowed domains.
 - **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
 - **Áp dụng:** chưa. PR làm ngay sau PR ghi bài học.
 
@@ -1165,7 +1165,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 - **Ngày, nguồn:** 2026-11-09, camera-pose (issue #381, phần kịch bản và đồng ý; PR #296 của app, TS-20261101-02)
 - **Loại, phạm vi:** môi trường, chung
-- **Chuyện gì:** luồng giới thiệu giữ nút "Tiếp" mờ tới 5 giây khi chờ thẻ native. Nút Compose bị tắt vẫn có `clickable="true"` trong dump UiAutomator (chỉ `enabled="false"`), nên `tap_if id=...` chạm vào nút mờ, không có tác dụng, và các bước sau lỗi. Riêng phần đồng ý: bộ đồng ý UMP coi "Do not consent" là đã trả lời, `canRequestAds()` vẫn đúng và quảng cáo không cá nhân hóa vẫn nạp (log `Consent path: GRANTED`, interstitial vẫn hiện sau `consent decline`). Spec và plan viết "từ chối đồng ý thì không có quảng cáo" là sai, và kịch bản viết sau `consent decline` vẫn gặp quảng cáo.
+- **Chuyện gì:** luồng giới thiệu giữ nút "Tiếp" mờ tới 5 giây khi chờ thẻ native. Nút Compose bị tắt vẫn có `clickable="true"` trong dump UiAutomator (chỉ `enabled="false"`), nên `tap_if id=...` chạm vào nút mờ, không có tác dụng, và các bước sau lỗi. Riêng phần đồng ý: bộ đồng ý UMP coi "Do not consent" là đã trả lời, `canRequestAds()` vẫn đúng và quảng cáo không cá nhân hóa vẫn nạp (log `Consent path: GRANTED`, interstitial vẫn hiện sau `consent decline`). Spec và plan của app viết "từ chối đồng ý thì không có quảng cáo" là sai, và kịch bản viết sau `consent decline` vẫn gặp quảng cáo. Spec ads của mẫu đã chốt điều này (FB-20261025-01, FB-20261026-01; KB-13 không đổi), chỉ tài liệu kịch bản emulator chưa nói.
 - **Bằng chứng:** issue #381; `scripts/device-scenario.py` trên nhánh chính `97b6ad8` không có bộ lọc `enabled`; `docs/ops/test-sessions.md` mục 5 không nói `consent decline` vẫn cho nạp quảng cáo.
 - **Đề xuất sửa:** `scripts/device-scenario.py` thêm bộ lọc `enabled=true` (cùng kiểu `clickable=true`), có test với dump giả; `docs/ops/test-sessions.md` mục 5 có ví dụ chờ nút bật và ghi rằng sau `consent decline` quảng cáo không cá nhân hóa vẫn nạp.
 - **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
@@ -1174,7 +1174,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 ### L-156. Ghi lại ảnh chuẩn bằng lệnh của cả module đổi cả ảnh ngoài plan vì nhiễu vẽ
 
 - **Ngày, nguồn:** 2026-11-09, camera-pose (issue #382, bài học L-098 của app; RUN-20261031-01 của app)
-- **Loại, phạm vi:** quy trình, chung
+- **Loại, phạm vi:** quy tắc code, chung
 - **Chuyện gì:** `recordRoborazziDebug ... --rerun` ghi lại mọi ảnh của module. 11 ảnh ngoài plan đổi vì nhiễu vẽ (tối đa 1 mỗi kênh màu), dù `verifyRoborazziDebug` vẫn qua với ảnh cũ. Phiên phải tự khôi phục từng ảnh.
 - **Bằng chứng:** issue #382, mục 1.
 - **Đề xuất sửa:** `CLAUDE.md` mục Lệnh: sau khi ghi lại, chỉ giữ ảnh của plan (`git checkout --` các ảnh khác), hay ghi lại bằng bộ lọc test của lớp có ảnh mới.
@@ -1225,7 +1225,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 
 - **Ngày, nguồn:** 2026-11-09, camera-pose (issue #369; PR #279 của app, đồng bộ lên bộ build AGP 9.1)
 - **Loại, phạm vi:** quy tắc code, chung
-- **Chuyện gì:** sau khi lấy bộ build AGP 9.1, ba feature dùng `androidx.activity.compose.LocalActivity` báo `Unresolved reference 'LocalActivity'`. Với AGP 8.13, thư viện này có trên classpath biên dịch qua thư viện khác. Mẫu không thấy lỗi vì `:feature:sample` không dùng `LocalActivity`; trong mẫu chỉ `:core:ads` khai báo `activity-compose`.
+- **Chuyện gì:** sau khi lấy bộ build AGP 9.1, ba feature dùng `androidx.activity.compose.LocalActivity` báo `Unresolved reference 'LocalActivity'`. Với AGP 8.13, thư viện này có trên classpath biên dịch qua thư viện khác. Mẫu không thấy lỗi vì `:feature:sample` không dùng `LocalActivity`; trong các module thư viện của mẫu chỉ `:core:ads` khai báo `activity-compose` (`:app` cũng khai báo).
 - **Bằng chứng:** issue #369; `git grep activity.compose build-logic/ feature/` trên nhánh chính `97b6ad8` rỗng.
 - **Đề xuất sửa:** plugin `template.android.feature` thêm `activity-compose`, như `:core:ads`; hoặc ghi vào `docs/ops/to-app.md`, mục Lưu ý.
 - **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
