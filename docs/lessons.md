@@ -1250,3 +1250,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `rememberNativeStepAdAllowed(placement)` dùng đúng cổng của `NativeStepAd`; khai báo vị trí có `firstOpenOnly`. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
 - **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
 - **Áp dụng:** chưa. Ticket T-099.
+
+### L-164. `merge-if-green.sh` từ chối PR vì một lần chạy `pr-check` bị hủy, dù lần chạy sau trên cùng commit đang chạy hay đã xanh
+
+- **Ngày, nguồn:** 2026-11-09, merge PR #432 (phiên có người theo dõi)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** sau khi gộp nhánh chính vào nhánh của #432 (commit `714ba49`), GitHub không khởi động `pr-check` trong 40 phút; một commit rỗng (`e884158`) cũng không. Đóng rồi mở lại PR thì có hai lần chạy cho `e884158`: một từ sự kiện `synchronize` đến trễ, một từ `reopened`. `concurrency` của `pr-check` hủy lần đầu. `merge-if-green.sh` coi mọi kiểm tra `cancelled` trên commit là không qua (`TỪ CHỐI: có kiểm tra không qua: build-and-test.`), dù kiểm tra cùng tên chạy sau đang chạy. Phải đẩy thêm một commit rỗng (`39d5d13`) để có đúng một lần chạy rồi mới merge được.
+- **Bằng chứng:** lần chạy 42603493673 (`cancelled`, 10:45:54 UTC) và 42603688401 (10:47:00 UTC) cùng trên `e884158`; check-run 129113412370 `cancelled`, 129114195700 `in_progress`; lần chạy 42603898187 xanh trên `39d5d13`.
+- **Đề xuất sửa:** `scripts/merge-if-green.sh`: khi xét kiểm tra không qua, chỉ lấy lần chạy mới nhất của mỗi tên kiểm tra trên commit, như `check_one` đã làm cho các kiểm tra bắt buộc; một lần `cancelled` cũ hơn lần cùng tên sau nó không chặn. Script là file được bảo vệ: plan rủi ro cao, duyệt chéo. Trong lúc chờ, `docs/auto-run.md` bước 8 (hay bảng tra lỗi): PR không có lần chạy `pr-check` nào sau vài phút thì đẩy một commit rỗng, không đóng mở lại PR, vì sự kiện trễ cộng sự kiện mở lại cho hai lần chạy.
+- **Trạng thái:** proposed
