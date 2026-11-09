@@ -135,6 +135,8 @@ def main():
         if started and now - started > timedelta(hours=MAX_HOURS):
             say(f"{run_id} vẫn running nhưng đã bắt đầu hơn {MAX_HOURS} giờ trước: không tự tiếp tục, người quyết định.")
             continue
+        # scripts/merge-if-green.sh reads the run table and the branch name with the same two patterns:
+        # change all three together.
         tickets = set(re.findall(r"^\|\s*\d+\s*\|\s*(T-\d+)\s*\|", text, re.M))
         own = [branch] + [b for b in branches
                           if (m := re.match(r"^claude/(?:fix-)?(T-\d+)-", b)) and m.group(1) in tickets]
