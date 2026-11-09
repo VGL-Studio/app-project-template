@@ -1143,5 +1143,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** đầu ra của lần merge PR #426; `grep -c BRANCH_GONE_TRIES scripts/merge-if-green.sh` trên nhánh báo cáo trước khi gộp ra 0; `git ls-remote --heads origin 'claude/T-09*'` rỗng ngay sau đó.
 - **Đề xuất sửa:** `docs/auto-run.md`, bước 9: gọi `merge-if-green.sh` và `wait-run.sh` từ bản của nhánh chính mới nhất, ví dụ gộp nhánh chính vào nhánh báo cáo sau mỗi lần merge, hay chạy script từ một worktree tách rời của `origin/main`.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge, trước lần gọi script tiếp theo, thư mục chính lấy commit merge: gộp `origin/main` vào nhánh báo cáo, hay `git checkout --detach origin/main` khi đứng trên nhánh khác).
+- **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge, trước lần gọi script tiếp theo, thư mục chính lấy commit merge: gộp `origin/main` vào nhánh báo cáo, hay `git checkout --detach origin/main` khi đứng trên nhánh khác).
 
