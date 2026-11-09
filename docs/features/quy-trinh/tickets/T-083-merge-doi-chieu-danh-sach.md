@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-129 (RUN-20261030-01) và L-133 (PR #337), không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: planned              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đánh giá sơ bộ: low | medium | high
 size: S                      # S | M | L, xem giải thích ở cuối
 depends_on: []               # các ticket phải xong trước, ví dụ [T-010]

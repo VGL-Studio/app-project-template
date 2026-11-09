@@ -1,16 +1,16 @@
 ---
 ticket: T-083
 title: Khi phiên tự chạy đang chạy, merge-if-green.sh chỉ cho merge nhánh task có trong danh sách của phiên
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 6
 risk_level: high
 token_estimate: 8.6M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-09
 lane:
 ---
 
@@ -284,8 +284,17 @@ Không cần (E dưới 2). Một lần so mẫu ngày 2026-11-09, trên nhánh 
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
+- **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-09, trong phiên có người: "Duyệt T-083".
+  - Lời duyệt trả lời bản plan ở commit ad6bff0 (PR #430), sau hai vòng rà soát độc lập. Lời duyệt không nêu riêng từng câu, nên mục 8 theo đề xuất của plan, như AI đã trình ngay trước lời duyệt:
+    - câu 1 (a): cho qua nhánh `fix-` của task trong danh sách;
+    - câu 2 (a): có hai phiên `running` thì PR phải qua từng phiên;
+    - câu 3 (a): không thêm cửa vượt;
+    - câu 4 (a): không làm gì cho nút merge trên GitHub;
+    - câu 5: ghi L-129, L-133 `applied` trong PR của task;
+    - câu 6 (a): đọc file danh sách lỗi thì giữ như nay.
+  - Task làm có người (`auto_run: false`), không qua phiên tự chạy, khi không có phiên `running`.
 
 ## 10. Nhật ký thực hiện
