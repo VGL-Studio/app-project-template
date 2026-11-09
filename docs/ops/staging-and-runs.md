@@ -69,7 +69,7 @@ Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra k
 
    | Trường | Giá trị |
    | --- | --- |
-   | Network access | **Custom**; Allowed domains: `dl.google.com`, `maven.google.com` và `*.blob.core.windows.net`, mỗi dòng một tên miền; bật **Also include default list of common package managers**. Tên miền cuối là nơi GitHub lưu artifact và log đầy đủ của Actions; thiếu nó thì phiên không đọc được kết quả `device-session.yml` |
+   | Network access | **Custom**; Allowed domains: `dl.google.com`, `maven.google.com`, `*.blob.core.windows.net`, `dl-maven-android.mintegral.com` và `artifact.bytedance.com`, mỗi dòng một tên miền; bật **Also include default list of common package managers**. `*.blob.core.windows.net` là nơi GitHub lưu artifact và log đầy đủ của Actions; thiếu nó thì phiên không đọc được kết quả `device-session.yml`. Hai tên miền cuối là kho SDK Mintegral và Pangle của mediation trong `:core:ads` (`settings.gradle.kts`); thiếu chúng thì proxy trả 403 và `scripts/check.sh` đỏ ngay ở bước tải thư viện. Thêm một kho `maven(...)` mới vào `settings.gradle.kts` thì thêm tên miền của nó vào dòng này và vào môi trường |
    | Environment variables | `BASH_DEFAULT_TIMEOUT_MS=600000` và `BASH_MAX_TIMEOUT_MS=1800000`, mỗi dòng một biến |
    | Setup script | Toàn bộ nội dung `scripts/cloud-setup.sh` |
 
@@ -139,7 +139,7 @@ Thiết lập một lần:
 
 Cùng workflow có job thứ hai, `setup-check`, chạy `scripts/setup-check.sh --staging` trên máy của GitHub (không tốn hạn mức Claude, chạy cả khi có phiên đang chạy): file R2 bắt buộc, DNS, bí mật Firebase staging và nhóm người test, như `start-run` (mục 2.3). Đỏ thì kiểm lại một lần sau 90 giây; vẫn đỏ thì mở issue `setup-broken` (hoặc thêm bình luận vào issue đang mở), xanh thì tự đóng. Nhãn riêng vì `scripts/env-canary.sh` đóng mọi issue `env-broken` khi môi trường cloud xanh. Chạy tay chỉ phần này, ví dụ sau khi sửa file trên R2: **Actions > env-canary > Run workflow**, chọn **setup_only** (không kích hoạt routine, không tốn hạn mức Claude).
 
-Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường chưa dán setup script mới (dán lại theo mục 2.1); lỗi khác thì sửa nguyên nhân. Sau đó chạy lại **env-canary** bằng tay; lần chạy xanh tự đóng issue.
+Khi có issue `env-broken`: đọc log trong issue. Thường là môi trường chưa dán setup script mới (dán lại theo mục 2.1). Log Gradle có `Could not GET '<địa chỉ>' ... Received status code 403` thì proxy của môi trường chặn kho thư viện: thêm tên miền của địa chỉ đó vào Allowed domains (mục 2.1), không sửa code hay file build. Lỗi khác thì sửa nguyên nhân. Sau đó chạy lại **env-canary** bằng tay; lần chạy xanh tự đóng issue.
 
 ### 2.5. Kịch bản trên emulator trước khi phát (`device-session.yml`)
 
