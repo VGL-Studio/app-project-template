@@ -892,7 +892,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** dòng thời gian của RUN-20261030-01, 05:33 tới 06:04; `CHƯA XONG: chưa thấy kiểm tra 'ui-test' trên commit 3670c12`.
 - **Đề xuất sửa:** `docs/auto-run.md` bước 9: trước mỗi lần gọi `merge-if-green.sh` (và `wait-run.sh`), `git fetch origin main` và chạy script từ bản của nhánh chính mới nhất (gộp nhánh chính vào nhánh báo cáo, hay `git show origin/main:scripts/merge-if-green.sh`). Hoặc `merge-if-green.sh` tự so mã băm của chính nó với bản trên `origin/main` và dừng với thông báo rõ khi lệch.
 - **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133.")
-- **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (cùng sự cố với L-153: ngay sau mỗi lần merge, gộp `origin/main` vào nhánh báo cáo trước lần gọi script tiếp theo).
+- **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge của phiên, gộp `origin/main` vào nhánh báo cáo trước lần gọi script tiếp theo, như L-153). Phần còn lại, PR ngoài phiên merge giữa phiên nên phiên không gộp, đóng bằng T-083 (L-129, L-133).
 
 ### L-129. Người merge PR vào nhánh chính khi phiên tự chạy đang `running`
 

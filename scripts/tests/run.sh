@@ -1553,6 +1553,7 @@ expect "playbook: PB-20 an old merge-if-green.sh waits for the changes check -> 
 printf '%s\n' "Chờ: chưa thấy kiểm tra 'build-and-test' trên commit abc1234: CI chưa chạy trên commit này." \
   > "$work/pb20-other-check.log"
 expect "playbook: waiting for the build-and-test check is not PB-20" "" "$(pb_head "$work/pb20-other-check.log" | grep PB-20)"
+expect "playbook: PB-21 a Gradle daemon disappeared -> chay-lai" "PB-21 chay-lai" "$(pb_head $pb_dir/PB-21.log)"
 printf '%s\n' 'The hosted runner: GitHub Actions 2 lost communication with the server.' > "$work/pb-hosted-lost.log"
 printf '%s\n' 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.' > "$work/pb-shutdown.log"
 printf '%s\n' 'No space left on device' > "$work/pb-no-space.log"
