@@ -404,7 +404,8 @@ pr_filter_check() { # <workflow> <code> <release>; runs the filter check step li
   local dir script code=0
   dir="$(mktemp -d "$work/filter-check.XXXXXX")"
   script="$(awk '/^      - / { s = 0 } /^      - name: Kiểm kết quả lọc đường dẫn$/ { s = 1; next }
-    s && /^        run: \|$/ { r = 1; next } r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$1")"
+    s && /^        run: \|$/ { r = 1; next } r && s && /^ *$/ { print ""; next }
+    r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$1")"
   (cd "$dir" && CODE="$2" RELEASE="$3" bash -eo pipefail -c "$script") > /dev/null 2>&1 || code=$?
   if [[ "$code" == 0 ]]; then echo 0; else echo "$code $(wc -l < "$dir/build.log" 2>/dev/null | tr -d ' ' || echo 0)"; fi
 }
@@ -437,18 +438,25 @@ def key(step, name):
 flt = [s for s in steps if key(s, "id") == "filter"]
 if not flt:
     print("ERROR không có bước id: filter trong build-and-test"); sys.exit(0)
-filters, cur, inside = {}, None, False
+# The block ends at the first line indented no deeper than "filters: |" (a sibling key of with:). Inside it, a line
+# that is no comment, no filter name and no quoted pattern of a filter is refused, never skipped.
+filters, cur, depth = {}, None, None
 for l in flt[0]:
-    if l.strip() == "filters: |":
-        inside = True; continue
-    if not inside or l.strip().startswith("#") or not l.strip():
+    if depth is None:
+        if l.strip() == "filters: |":
+            depth = len(l) - len(l.lstrip())
         continue
+    if l.strip().startswith("#") or not l.strip():
+        continue
+    if len(l) - len(l.lstrip()) <= depth:
+        break
     m = re.match(r"^\s+([A-Za-z0-9_-]+):$", l)
     if m:
         cur = m.group(1); filters[cur] = []; continue
     m = re.match(r"^\s+- '(.+)'$", l)
     if m and cur:
-        filters[cur].append(m.group(1))
+        filters[cur].append(m.group(1)); continue
+    print("ERROR mẫu chưa hỗ trợ: " + l.strip()); sys.exit(0)
 special = set("*?[]{}!")
 def to_regex(p):
     if p.endswith("/**") and not special & set(p[:-3]):
