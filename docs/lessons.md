@@ -912,7 +912,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** báo cáo phiên con T-067; `ps` lúc 04:42 (PID daemon 8.14.3 và daemon Kotlin 2.2.10).
 - **Đề xuất sửa:** bảng tra lỗi thêm dòng cho "Gradle build daemon disappeared unexpectedly": chạy `./gradlew --stop` bằng wrapper của phiên bản cũ (hay dừng các daemon có phiên bản khác `gradle-wrapper.properties`), rồi chạy lại một lần, không tính vào 3 lần sửa. `scripts/check.sh` có thể in cảnh báo khi có daemon Gradle của phiên bản khác đang chạy.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: bảng tra lỗi dòng PB-21 (`Gradle build daemon disappeared unexpectedly`, dừng daemon của phiên bản Gradle khác rồi chạy lại một lần), tệp `scripts/tests/playbook/PB-21.log`. Phần cảnh báo trong `scripts/check.sh` không làm (file được bảo vệ). Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
+- **Áp dụng:** PR #429: bảng tra lỗi dòng PB-21 (`Gradle build daemon disappeared unexpectedly`, dừng daemon của phiên bản Gradle khác rồi chạy lại một lần), tệp `scripts/tests/playbook/PB-21.log`. Phần cảnh báo trong `scripts/check.sh` không làm (file được bảo vệ). Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
 
 ### L-131. Plan dựng test qua điểm nối test của task trước mà không kiểm điểm nối đó mang đủ dữ liệu cho câu khẳng định
 
@@ -922,7 +922,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** nhật ký plan T-059; commit 424118f.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, Khi viết plan: test dùng điểm nối test (`...ForTest`) của task khác thì plan ghi điểm nối đó truyền gì, bỏ gì, và mỗi câu khẳng định đọc dữ liệu từ đâu; chạy thử câu khẳng định đó bằng một test tạm (như L-029) khi điểm nối đã có trên nhánh chính.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: `docs/CLAUDE.md`, mục Khi viết plan (test dựng qua điểm nối test của code khác). Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
+- **Áp dụng:** PR #429: `docs/CLAUDE.md`, mục Khi viết plan (test dựng qua điểm nối test của code khác). Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
 
 ### L-132. Plan khởi tạo SDK sau cổng đồng ý chỉ xét lần mở đầu, bỏ sót lúc cổng đóng lại trước khi SDK chạy
 
@@ -932,7 +932,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** nhật ký plan T-068; plan bản 3, mục 1 và câu hỏi 9.
 - **Đề xuất sửa:** `docs/CLAUDE.md`, Khi viết plan, ý của L-072: với điều kiện "không chạy trước khi đồng ý", mục 4 liệt kê cả các đường tới lượt khởi tạo sau khi cổng đã mở rồi đóng lại (rút đồng ý, thay đổi từ xa, hết giờ chờ), và kiểm trạng thái cổng ngay trước lời gọi SDK, không chỉ lúc nhận tín hiệu đầu.
 - **Trạng thái:** applied
-- **Áp dụng:** PR #PRNUM: `docs/CLAUDE.md`, mục Khi viết plan, ý về tiêu chí áp cho mọi lần chạy (cổng mở rồi đóng lại, kiểm cổng ngay trước lời gọi). Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
+- **Áp dụng:** PR #429: `docs/CLAUDE.md`, mục Khi viết plan, ý về tiêu chí áp cho mọi lần chạy (cổng mở rồi đóng lại, kiểm cổng ngay trước lời gọi). Nhận: AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-128 (applied theo #428), L-129, L-130, L-131, L-132, L-133."
 
 ### L-133. Task có plan làm ngoài phiên tự chạy, trên nhánh `claude/T-*`, được merge giữa phiên tự chạy
 
