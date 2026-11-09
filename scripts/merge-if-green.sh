@@ -25,6 +25,9 @@
 # answer that cannot be read, updates the branch as before. So does a PR whose files are all in the paths-ignore of
 # main-guard.yml (--guard-ignores), even a docs file Gradle reads: main-guard would not run on its merge commit at all.
 #
+# A cancelled check run with a newer run of the same check (same name and app) on the same commit is no result: the
+# concurrency of the workflow cancels a duplicate run (L-164). The newest run still counts, cancelled or not.
+#
 # Uses only the GitHub REST API through `gh api`.
 # Changing this file changes the quality gate: high-risk plan, cross-review required.
 # Messages are in Vietnamese for the team; comments are in English.
@@ -249,7 +252,8 @@ REPO="$(echo "$REMOTE_URL" | sed -E 's#(git@github.com:|https://github.com/)##; 
 # has completed with success counts as green: GitHub sometimes leaves the job status behind (app lesson L-017).
 check_one() {
   local name="$1" latest status conclusion suite run
-  latest="$(jq -c --arg n "$name" '[.[] | select(.name==$n)] | sort_by(.started_at) | last // empty' <<<"$RUNS")"
+  # A run not started yet (started_at null) is the newest.
+  latest="$(jq -c --arg n "$name" '[.[] | select(.name==$n)] | sort_by([.started_at == null, .started_at]) | last // empty' <<<"$RUNS")"
   if [[ -z "$latest" ]]; then
     pending "chưa thấy kiểm tra '$name' trên commit ${HEAD_SHA:0:7}: CI chưa chạy trên commit này."
     return 0
@@ -384,8 +388,24 @@ evaluate() {
   # Check results on the exact head commit of the PR.
   RUNS="$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs')"
 
-  # No failed check is accepted, including checks not in the lists above.
-  failed="$(jq -r '[.[] | select(.status=="completed" and (.conclusion|IN("failure","cancelled","timed_out","action_required","startup_failure"))) | .name] | unique | join(", ")' <<<"$RUNS")"
+  # No failed check is accepted, including checks not in the lists above. A cancelled run is skipped only when the
+  # same check (same app and name) has another run that started later, or has not started yet: check_one then looks
+  # at that newest run. Any other red result refuses even with a newer green run. The index i keeps a run from
+  # matching itself.
+  failed_filter='
+    def key: "\(.app.id // "")/\(.name)";
+    def later($a; $b): ($b.started_at == null and $a.started_at != null)
+      or ($a.started_at != null and $b.started_at != null and $b.started_at > $a.started_at);
+    [to_entries[] | .value + {i: .key}] as $all
+    | [ $all[]
+        | select(.status == "completed" and (.conclusion | IN("failure","cancelled","timed_out","action_required","startup_failure")))
+        | . as $c
+        | select($c.conclusion != "cancelled"
+            or ([$all[] | select(.i != $c.i and key == ($c | key) and later($c; .))] | length) == 0)
+        | .name ]
+    | unique | join(", ")
+  ' # end of failed_filter
+  failed="$(jq -r "$failed_filter" <<<"$RUNS")"
   [[ -z "$failed" ]] || die "có kiểm tra không qua: $failed."
 
   for c in "${REQUIRED_CHECKS[@]}"; do

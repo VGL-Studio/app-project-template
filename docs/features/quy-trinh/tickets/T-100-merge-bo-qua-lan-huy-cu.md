@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: nguồn là bài học L-164; không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: approved               # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: on-staging               # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # sửa scripts/merge-if-green.sh: plan rủi ro cao, duyệt chéo
 size: S
 depends_on: []

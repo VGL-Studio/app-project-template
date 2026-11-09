@@ -1,7 +1,7 @@
 ---
 ticket: T-100
 title: merge-if-green.sh không từ chối vì một lần chạy bị hủy đã có lần chạy cùng tên sau nó
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 5
 risk_level: high
@@ -234,3 +234,15 @@ Không cần (E dưới 2). Một lần chạy thử bộ lọc jq ngày 2026-11
   - Task làm có người (`auto_run: false`), khi không có phiên `running`.
 
 ## 10. Nhật ký thực hiện
+
+### Làm có người 2026-11-09, phiên bản plan 1
+
+- **Kết quả:** merge bằng PR #439 (CI của PR này), sau lời merge của anh Nhật.
+- **Nhánh, PR:** `claude/T-100-merge-bo-qua-lan-huy-cu`, https://github.com/VGL-Studio/app-project-template/pull/439. Commit test `72c7b86`, code `b945fd9`.
+- **Đã làm:** mục 3.1 A tới D. Bộ lọc kiểm tra đỏ của `merge-if-green.sh` trong biến `failed_filter` có hai mốc; `check_one` xếp lần chưa bắt đầu là mới nhất; chú thích đầu file. `docs/auto-run.md` bước 8 và skill `merge-pr`. L-164 `applied`.
+- **Test viết trước:** T1 tới T12 trong `scripts/tests/run.sh` (vài ca gộp một dòng `expect`). 8 test đỏ đúng lý do trên code cũ, khớp "đỏ trước code" của mục 4: T1 `1 0 1`, T2 `1`, T6 `1 0`, T7 `0`, T10 `1 0`, T11 `same 1`, T12 đối chứng bản revert đúng `1`, T12 (h) `1 0`; các test còn lại qua cả trước code như plan ghi. File test không đổi sau commit test. Không test có sẵn nào đổi.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú, ghi trong mô tả PR.
+- **Kết quả CI:** CI của PR này. `scripts/tests/run.sh` trên máy dev (có JDK): trước code 14 FAIL (6 đỏ sẵn của macOS cộng 8 test mới), sau code 1541 ok và chỉ 6 đỏ sẵn.
+- **Lệch so với plan:** ADR-0032/L4: T12 (c) dựng bằng hàm `broken_with_t2` theo mẫu test "behind by docs" (`nu_sha`), không thêm biến `MWB_EXTRA`, `MWB_BEHIND` vào `merge_while_broken` (mục 4 cho phiên chọn cách ngắn hơn, câu khẳng định giữ); T12 (a), (b), (d), (f), (g) đếm thêm dòng thông báo. Chú thích jq của bộ lọc thành chú thích bash phía trên khối. Không có file ngoài mục 3.2.
+- **Việc còn lại:** chờ `main-guard` của commit merge. App nhận qua đợt đồng bộ của `scripts/template-sync.sh`.
+- **Cần người xem:** lần sau một PR có hai lần chạy `pr-check` trên cùng commit, `merge-if-green.sh --update` chờ lần sau thay vì từ chối.

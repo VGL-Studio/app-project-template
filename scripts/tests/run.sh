@@ -2327,6 +2327,127 @@ nu_edit 'r["pulls/12"]["head"]["ref"] = "claude/T-901-x"'
 expect "merge-if-green, behind by docs: a running session still refuses a person's PR" "1 0" "$nu24 $(merge_run 12)"
 expect "merge-if-green, behind by docs: a running session refuses a task not in its list, nothing written" "1 0" "$nu902"
 
+# A cancelled check with a newer run of the same check on the same commit (L-164). GitHub answers check-runs with
+# filter=latest, so two check runs of one name come from two workflow runs: each run its own check suite.
+runs_of() { # <name|status|conclusion JSON|started_at JSON|suite id[|app id]>...; prints a check-runs answer
+  local out="" sep="" spec name status conclusion started suite app app_json
+  for spec in "$@"; do
+    IFS='|' read -r name status conclusion started suite app <<< "$spec"
+    app_json=""
+    [[ -z "$app" ]] || app_json=", \"app\": {\"id\": $app}"
+    out+="$sep{\"name\": \"$name\", \"status\": \"$status\", \"conclusion\": $conclusion, \"started_at\": $started, \"check_suite\": {\"id\": $suite}$app_json}"
+    sep=", "
+  done
+  printf '{"check_runs": [%s]}' "$out"
+}
+at_a='"2026-10-18T02:01:00Z"'
+at_b='"2026-10-18T02:02:00Z"'
+mg_says() { grep -c -- "$1" "$work/mg.out" || true; } # <text>: lines of $work/mg.out with it
+two_suites=', "actions/runs?head_sha=abc1234&per_page=50": {"workflow_runs": [
+  {"id": 76, "check_suite_id": 5, "status": "completed", "conclusion": "cancelled"},
+  {"id": 77, "check_suite_id": 6, "status": "in_progress", "conclusion": null}]}'
+l164_runs="$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5" "build-and-test|in_progress|null|$at_b|6")"
+t2_runs="$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5" "build-and-test|completed|\"success\"|$at_b|6")"
+merge_routes claude/template-x '{"behind_by": 0}' "$l164_runs" "$two_suites"
+expect "merge-if-green: a cancelled check with a newer run of the same check waits for that run" "2 1 0" \
+  "$(merge_run 12 --dry-run) $(mg_says 'đang ở trạng thái in_progress') $(mg_says 'có kiểm tra không qua')"
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+expect "merge-if-green: a cancelled check with a newer green run of the same check is ready" 0 "$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"success\"|$at_a|5" "build-and-test|completed|\"cancelled\"|$at_b|6")"
+expect "merge-if-green: the newest run of a check cancelled is still refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(mg_says 'có kiểm tra không qua: build-and-test\.')"
+merge_routes claude/template-x '{"behind_by": 0}' "$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5")"
+expect "merge-if-green: a lone cancelled check is still refused" "1 1" \
+  "$(merge_run 12 --dry-run) $(mg_says 'có kiểm tra không qua: build-and-test\.')"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"failure\"|$at_a|5" "build-and-test|completed|\"success\"|$at_b|6")"
+mg_old_failure="$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"timed_out\"|$at_a|5" "build-and-test|completed|\"success\"|$at_b|6")"
+expect "merge-if-green: an older failed or timed-out run is not hidden by a newer green run" "1 1" \
+  "$mg_old_failure $(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5" "build-and-test|queued|null|null|6")"
+expect "merge-if-green: a run not started yet counts as newer than a cancelled one" "2 1" \
+  "$(merge_run 12 --dry-run) $(mg_says 'đang ở trạng thái queued')"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"success\"|$at_a|5" "build-and-test|queued|null|null|6")"
+expect "merge-if-green: a run not started yet is the newest run of its check" 2 "$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5|1" "build-and-test|completed|\"success\"|$at_b|6|2")"
+mg_other_app="$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5" "other|completed|\"success\"|$at_b|6")"
+mg_other_name="$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"cancelled\"|$at_a|5" "build-and-test|completed|\"success\"|$at_a|6")"
+expect "merge-if-green: a cancelled check is not hidden by another app, another name or a run of the same time" "1 1 1" \
+  "$mg_other_app $mg_other_name $(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' \
+  "$(runs_of "build-and-test|completed|\"success\"|$at_a|5" "build-and-test|completed|\"cancelled\"|null|6")"
+expect "merge-if-green: a cancelled run not started is not newer than itself" 1 "$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' "{\"__sequence__\": [$l164_runs, $t2_runs]}" "$two_suites"
+expect "merge-if-green --update: waits for the newer run of a cancelled check, then merges" "0 1" \
+  "$(merge_run 12 --update) $(mg_merges)"
+# Control: a copy with the filter of red checks from before (every cancelled check refuses) refuses the same PR.
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+perl -0777 -pe 's/failed_filter=\x27.*?\x27 # end of failed_filter\n/failed_filter=\x27[.[] | select(.status=="completed" and (.conclusion|IN("failure","cancelled","timed_out","action_required","startup_failure"))) | .name] | unique | join(", ")\x27\n/s' \
+  scripts/merge-if-green.sh > "$work/mgi-old-filter.sh"
+chmod +x "$work/mgi-old-filter.sh"
+old_filter_copy="$(cmp -s scripts/merge-if-green.sh "$work/mgi-old-filter.sh" && echo same || echo differs)"
+code=0
+PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS=5 MERGE_NOW_EPOCH=1793000000 \
+  "$work/mgi-old-filter.sh" 12 --dry-run > "$work/mg.out" 2>&1 || code=$?
+expect "merge-if-green: the cancelled-check control, a copy with the old filter of red checks, refuses" "differs 1" \
+  "$old_filter_copy $code"
+# Every other check of the script still holds for a PR whose cancelled check has a newer green run.
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+nu_edit 'r["pulls/12"]["draft"] = True'
+c_draft="$(merge_run 12 --dry-run) $(mg_says 'đang là bản nháp')"
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+nu_edit 'r["pulls/12"]["labels"] = [{"name": "needs-human"}]'
+c_label="$(merge_run 12 --dry-run) $(mg_says 'needs-human')"
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+nu_edit '
+r["branches?per_page=100&page=1"] = [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]
+r["contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report"] = "---\nid: RUN-20261016-01\nstatus: running\n---\n\n| 1 | T-901 | demo |\n"'
+c_run="$(merge_run 12 --dry-run) $(mg_says 'phiên RUN-20261016-01 đang chạy')"
+merge_routes claude/template-x '{"behind_by": 2}' "$t2_runs"
+c_behind="$(merge_run 12 --dry-run)"
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+nu_edit 'r["pulls/12"]["state"] = "closed"'
+c_closed="$(merge_run 12 --dry-run) $(mg_says 'không ở trạng thái mở')"
+merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+nu_edit 'r["pulls/12"]["base"]["ref"] = "other"'
+c_base="$(merge_run 12 --dry-run) $(mg_says "nhắm vào 'other'")"
+expect "merge-if-green: a cancelled check with a newer green run still meets draft, needs-human, running session, behind, open, base" \
+  "1 1 1 1 1 1 3 1 1 1 1" "$c_draft $c_label $c_run $c_behind $c_closed $c_base"
+# main-broken: the PR of the branch good (not the revert), in the repo of is-exact-revert, like the docs-behind test.
+broken_with_t2() { # <IS_EXACT_REVERT>; prints the exit code, output in $work/broken.out
+  merge_routes claude/template-x '{"behind_by": 0}' "$t2_runs"
+  nu_sha "$(git_t rev-parse good)"
+  nu_edit 'r["issues?state=open&labels=main-broken&per_page=10"] = json.loads(sys.argv[3])' "$one_issue"
+  rm -f "$work/mg.json.writes" "$work/mg.json.seen"
+  local code=0
+  (cd "$rev" && PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" IS_EXACT_REVERT="$1" MERGE_POLL_SECONDS=0 \
+    GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_1="url.$work/origin.git.insteadOf" GIT_CONFIG_VALUE_1=https://github.com/o/r.git \
+    "$root/scripts/merge-if-green.sh" 12 --dry-run) > "$work/broken.out" 2>&1 || code=$?
+  echo "$code"
+}
+expect "merge-if-green: main-broken still refuses a PR whose cancelled check has a newer green run" "1 1" \
+  "$(broken_with_t2 "$work/bin/revert-no") $(grep -c 'main-broken' "$work/broken.out" || true)"
+expect "merge-if-green: the exact revert with a cancelled check and a newer green run is ready" 0 \
+  "$(broken_with_t2 "$work/bin/revert-yes")"
+# Behind main by docs only: --gate-ran reads the newest pr-check run, past an older cancelled one.
+nu_routes
+nu_edit '
+r["commits/abc1234/check-runs?per_page=100"] = json.loads(sys.argv[3])
+r["actions/workflows/pr-check.yml/runs?head_sha=abc1234&per_page=10"]["workflow_runs"].append(
+    {"id": 90, "created_at": "2026-10-28T23:00:00Z", "conclusion": "cancelled"})' "$t2_runs"
+expect "merge-if-green, behind by docs: a cancelled check with a newer green run merges without updating" "0 1" \
+  "$(merge_run 12 --dry-run) $(nu_count '^KHÔNG CẬP NHẬT NHÁNH: ')"
+
 # With a running session, a listed task PR still meets the checks after the run check (CI), and an unlisted one is
 # refused before the branch is updated; a session that starts while --update waits refuses it on the next round.
 mrun_session() { # <python list of report branches for the branches route>; adds the running list with T-001
