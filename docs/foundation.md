@@ -92,6 +92,22 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không gọi `android.util.Log` trong feature
 - khi test emulator đỏ, đọc bước "Chi tiết test trên emulator" trước khi sửa
 
+### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
+
+- chỉ dùng gói trong `design/`
+- đặt tên screenshot test đúng tên ảnh trong `screens/`
+- ảnh `_unfolded` có screenshot test ở khung `w673dp-h841dp-xxhdpi`
+- chạy `scripts/design-compare.sh` và đưa `design/review/` vào PR khi feature có thiết kế
+- không đổi giao diện để giảm tỷ lệ khác biệt bằng cách viết cứng giá trị
+
+### [ADR-0021](adr/0021-clone-reference-apps.md): App mới có thể bắt đầu bằng việc AI khảo sát các app mẫu trên Play, đề xuất app tốt hơn, rồi thiết kế trên Figma cùng dev
+
+- làm theo `docs/CLAUDE.md`, mục Khi khảo sát app mẫu và mục Khi thiết kế trên Figma
+- chỉ điều khiển máy qua `scripts/app-explore/ax.sh`
+- không vượt bộ chặn
+- không tự chuyển trạng thái bản đề xuất hay thiết kế
+- ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
+
 ### [ADR-0024](adr/0024-network-required.md): App chỉ dùng được khi có Internet; mất mạng thì app chặn bằng một popup chung có nút thử lại
 
 - không làm chế độ ngoại tuyến trong feature
@@ -307,21 +323,3 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó
 - giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
 - nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
-
-## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
-
-### [ADR-0020](adr/0020-design-handoff-and-conformance.md): Thiết kế trên Claude Design hoặc Figma, bàn giao bằng ảnh khung chuẩn trong repo, đối chiếu bằng ảnh so sánh
-
-- chỉ dùng gói trong `design/`
-- đặt tên screenshot test đúng tên ảnh trong `screens/`
-- ảnh `_unfolded` có screenshot test ở khung `w673dp-h841dp-xxhdpi`
-- chạy `scripts/design-compare.sh` và đưa `design/review/` vào PR khi feature có thiết kế
-- không đổi giao diện để giảm tỷ lệ khác biệt bằng cách viết cứng giá trị
-
-### [ADR-0021](adr/0021-clone-reference-apps.md): App mới có thể bắt đầu bằng việc AI khảo sát các app mẫu trên Play, đề xuất app tốt hơn, rồi thiết kế trên Figma cùng dev
-
-- làm theo `docs/CLAUDE.md`, mục Khi khảo sát app mẫu và mục Khi thiết kế trên Figma
-- chỉ điều khiển máy qua `scripts/app-explore/ax.sh`
-- không vượt bộ chặn
-- không tự chuyển trạng thái bản đề xuất hay thiết kế
-- ghi mọi tài sản mượn vào `docs/borrowed-assets.md` trong cùng PR với file mượn
