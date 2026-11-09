@@ -2349,8 +2349,9 @@ expect "merge-if-green --update: an unlisted task PR is refused before anything 
   "$(merge_run 12 --update) $(nu_wcount .)"
 merge_routes claude/T-099-x '{"behind_by": 2}' "$code_runs"
 mrun_session '{"__sequence__": [[{"name": "main"}], [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]]}'
+# The wait must outlast the first round on a slow CI machine; the second round refuses at once, so it never runs out.
 expect "merge-if-green --update: a session that starts while waiting refuses an unlisted task" "1 1 1" \
-  "$(UPDATE_TIMEOUT=1 merge_run 12 --update) $(grep -c 'task T-099' "$work/mg.out" || true) $(nu_wcount 'PUT pulls/12/update-branch')"
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(grep -c 'task T-099' "$work/mg.out" || true) $(nu_wcount 'PUT pulls/12/update-branch')"
 # A PR with only files main-guard ignores (nu_ignored): every check that comes before the update still refuses it, with nothing written to GitHub (L-058).
 nu_gi8="" nu_gi8w=0
 for nu_case in 'r["pulls/12"]["state"] = "closed"' 'r["pulls/12"]["draft"] = True' \
