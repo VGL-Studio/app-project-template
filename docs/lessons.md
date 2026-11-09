@@ -1151,3 +1151,112 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied
 - **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge task hay revert, trước lần gọi script tiếp theo, gộp `origin/main` vào nhánh báo cáo và đứng trên nhánh đó; cách giữ file khi xung đột) và mục Khi nhánh chính đỏ vì task của phiên, bước 4.
 
+### L-154. Bảng thiết lập môi trường cloud thiếu tên miền của hai kho Maven quảng cáo, nên môi trường làm theo bảng đỏ ngay ở env-canary
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #363; PR #264 và issue `env-broken` #242 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** app lấy khung quảng cáo có mediation Mintegral và Pangle, hai kho Maven ngoài trong `settings.gradle.kts`. Proxy của môi trường cloud trả 403 cho `dl-maven-android.mintegral.com` và `artifact.bytedance.com`, nên `scripts/check.sh` đỏ ngay ở bước tải thư viện, env-canary đỏ hai ngày liền và issue `env-broken` chặn `start-run.yml`. CI trên máy của GitHub và máy dev vẫn xanh. `docs/ops/ads-guide.md` đã nói hai tên miền phải được cho phép, nhưng bảng thiết lập ở `docs/ops/staging-and-runs.md` mục 2.1, nơi người làm theo khi tạo môi trường, chỉ có `dl.google.com`, `maven.google.com`, `*.blob.core.windows.net`. Dự án mẫu có cùng hai kho và cùng bảng.
+- **Bằng chứng:** issue #363 (log `Could not GET '...mbridge_android_sdk-17.1.81.pom'. Received status code 403 from server: Forbidden`); `settings.gradle.kts` dòng 23, 26 trên nhánh chính `97b6ad8`.
+- **Đề xuất sửa:** `docs/ops/staging-and-runs.md` mục 2.1 thêm hai tên miền và quy tắc thêm kho Maven mới thì thêm tên miền; mục 2.4 nói cách xử lý `Received status code 403` của Gradle trên cloud; bảng tra lỗi thêm một dòng cho mẫu đó.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. PR làm ngay sau PR ghi bài học.
+
+### L-155. Trình chạy kịch bản emulator không chờ được nút bật, và "Do not consent" của UMP vẫn cho nạp quảng cáo
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #381, phần kịch bản và đồng ý; PR #296 của app, TS-20261101-02)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** luồng giới thiệu giữ nút "Tiếp" mờ tới 5 giây khi chờ thẻ native. Nút Compose bị tắt vẫn có `clickable="true"` trong dump UiAutomator (chỉ `enabled="false"`), nên `tap_if id=...` chạm vào nút mờ, không có tác dụng, và các bước sau lỗi. Riêng phần đồng ý: bộ đồng ý UMP coi "Do not consent" là đã trả lời, `canRequestAds()` vẫn đúng và quảng cáo không cá nhân hóa vẫn nạp (log `Consent path: GRANTED`, interstitial vẫn hiện sau `consent decline`). Spec và plan viết "từ chối đồng ý thì không có quảng cáo" là sai, và kịch bản viết sau `consent decline` vẫn gặp quảng cáo.
+- **Bằng chứng:** issue #381; `scripts/device-scenario.py` trên nhánh chính `97b6ad8` không có bộ lọc `enabled`; `docs/ops/test-sessions.md` mục 5 không nói `consent decline` vẫn cho nạp quảng cáo.
+- **Đề xuất sửa:** `scripts/device-scenario.py` thêm bộ lọc `enabled=true` (cùng kiểu `clickable=true`), có test với dump giả; `docs/ops/test-sessions.md` mục 5 có ví dụ chờ nút bật và ghi rằng sau `consent decline` quảng cáo không cá nhân hóa vẫn nạp.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. PR làm ngay sau PR ghi bài học. Phần `:core:ads` của cùng issue: L-164.
+
+### L-156. Ghi lại ảnh chuẩn bằng lệnh của cả module đổi cả ảnh ngoài plan vì nhiễu vẽ
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #382, bài học L-098 của app; RUN-20261031-01 của app)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** `recordRoborazziDebug ... --rerun` ghi lại mọi ảnh của module. 11 ảnh ngoài plan đổi vì nhiễu vẽ (tối đa 1 mỗi kênh màu), dù `verifyRoborazziDebug` vẫn qua với ảnh cũ. Phiên phải tự khôi phục từng ảnh.
+- **Bằng chứng:** issue #382, mục 1.
+- **Đề xuất sửa:** `CLAUDE.md` mục Lệnh: sau khi ghi lại, chỉ giữ ảnh của plan (`git checkout --` các ảnh khác), hay ghi lại bằng bộ lọc test của lớp có ảnh mới.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+
+### L-157. Phiên `local` và một phiên Claude Code khác dùng chung thư mục chính, lần sửa báo cáo rơi vào nhánh khác
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #382, bài học L-099 của app; RUN-20261031-02 của app)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** một phiên Claude Code khác chuyển nhánh và commit trong thư mục chính khi phiên tự chạy `local` đang chờ `device-session`. Lần sửa báo cáo tiếp theo của phiên rơi vào nhánh khác.
+- **Bằng chứng:** issue #382, mục 2.
+- **Đề xuất sửa:** `docs/auto-run.md` mục 2 (phiên `local`): làm nhánh báo cáo trong worktree riêng; `docs/ops/session-capabilities.md`: không mở phiên khác trong thư mục repo khi danh sách đang `running`.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+
+### L-158. Plan chạy trước xóa file mà plan chạy sau trong cùng danh sách còn dẫn, nên task sau bị bỏ qua
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #382, bài học L-101 của app; RUN-20261101-01 của app)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** một task xóa đúng theo plan hai ảnh thiết kế; plan của task sau trong cùng danh sách còn liệt kê hai ảnh đó, nên `plan-check.py` ngay trước task báo lỗi và phiên bỏ qua task sau. `run-check.py` và rà soát danh sách không thấy, vì chúng kiểm từng plan trên trạng thái repo lúc duyệt.
+- **Bằng chứng:** issue #382, mục 3.
+- **Đề xuất sửa:** `scripts/run-check.py`: plan nào ghi Xóa một file ở mục 3.2 mà plan chạy sau trong danh sách còn dẫn tên file đó thì báo lỗi; `docs/CLAUDE.md`, Khi viết plan: không liệt kê file mà plan khác cùng danh sách sẽ xóa.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+
+### L-159. `save-branch.sh` báo "CHƯA ĐẨY" khi `push-on-commit.sh` vừa đẩy đúng commit đó
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #382, bài học L-102 của app; RUN-20261101-01 của app)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** hai lệnh chạy cùng lúc cho cùng một nhánh. Nhánh trên origin đã đúng commit, nhưng `save-branch.sh` báo lỗi, phiên giữ bundle và mất công kiểm.
+- **Bằng chứng:** issue #382, mục 4.
+- **Đề xuất sửa:** `scripts/save-branch.sh`: trước khi báo lỗi, đọc `git ls-remote`; origin đã có đúng commit đầu nhánh thì báo đã đẩy. Hoặc `docs/auto-run.md`: dừng `push-on-commit.sh` trước khi phiên chính tự đẩy.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+
+### L-160. Hộp thoại mất mạng chờ 3 giây khi app bị hệ thống đóng ở nền hay activity dựng lại
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #368; PR #239, #246 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** mẫu có `NetworkDialogController.onAppForeground()` cho lần quay lại app từ nền. Hai trường hợp chưa có: hệ thống đóng app ở nền rồi người dùng mở lại từ màn đa nhiệm khi không có mạng (hộp thoại chờ 3 giây); activity dựng lại trong cùng tiến trình (xoay, gập máy, đổi sáng tối, đổi ngôn ngữ) làm hộp thoại đang hiện bị ẩn, 3 giây sau mới hiện lại, vì khung hình đầu của activity mới báo "chưa qua loading" khi back stack chưa có màn.
+- **Bằng chứng:** issue #368; `core/network/.../NetworkDialogController.kt` trên nhánh chính `97b6ad8` chỉ có `onAppForeground()`.
+- **Đề xuất sửa:** `NetworkDialogController` phân biệt quay lại app, lần mở đầu và dựng lại activity; `AppNavHost` chỉ báo "đã qua loading" khi back stack đã có màn; test dựng lại activity.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Ticket T-096.
+
+### L-161. Feature dùng `LocalActivity` không biên dịch được sau khi lên AGP 9, vì `activity-compose` không còn trên classpath biên dịch
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #369; PR #279 của app, đồng bộ lên bộ build AGP 9.1)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** sau khi lấy bộ build AGP 9.1, ba feature dùng `androidx.activity.compose.LocalActivity` báo `Unresolved reference 'LocalActivity'`. Với AGP 8.13, thư viện này có trên classpath biên dịch qua thư viện khác. Mẫu không thấy lỗi vì `:feature:sample` không dùng `LocalActivity`; trong mẫu chỉ `:core:ads` khai báo `activity-compose`.
+- **Bằng chứng:** issue #369; `git grep activity.compose build-logic/ feature/` trên nhánh chính `97b6ad8` rỗng.
+- **Đề xuất sửa:** plugin `template.android.feature` thêm `activity-compose`, như `:core:ads`; hoặc ghi vào `docs/ops/to-app.md`, mục Lưu ý.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Ticket T-097.
+
+### L-162. Ô native trong lưới để lại lỗ khi hết quảng cáo, không cao bằng thẻ bên cạnh, không vẽ được ở màn không trạng thái
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #379; PR #287 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** app đặt ô native một cột trong lưới (`itemsWithInListAds`). Pool cạn (emulator, máy không có fill) thì ô vẫn chiếm chỗ, để lại lỗ trong lưới hay khung chờ mãi; khung không cho truyền chiều cao ô hay chiều cao thẻ native; màn không trạng thái (screenshot test, preview) không vẽ được ô ở đúng chỗ như lưới thật.
+- **Bằng chứng:** issue #379; `git grep -e poolExhausted -e itemsWithFixedAds -e adCellHeight` trên nhánh chính `97b6ad8` rỗng.
+- **Đề xuất sửa:** ô một cột tự bỏ khi pool cạn và quay lại khi có quảng cáo; tham số chiều cao ô và chiều cao thẻ (mặc định giữ ảnh chuẩn cũ); `itemsWithFixedAds` cho màn không trạng thái. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Ticket T-098.
+
+### L-163. Feature không dựng được thẻ hộp thoại quảng cáo có thưởng trong screenshot test, và chữ của khung chỉ có tiếng Anh
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #380; PR #295 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** `RewardedAdDialogCard` là `internal`, nên feature không vẽ được thẻ hộp thoại trong screenshot test. Chữ hai nút của khung ("Watch ad", "No, thanks") chỉ có tiếng Anh; app dịch ở `values-<ngôn ngữ>` của `:app` thì lint (`checkDependencies = true`) báo `MissingTranslation`/`ExtraTranslation`, trừ khi chuỗi gốc cũng đặt ở `values/` của `:app`. Thẻ hộp thoại thật cao hơn frame Figma 8 dp, vì nút chữ của Material giữ vùng chạm tối thiểu 48 dp còn frame vẽ nút 40 dp.
+- **Bằng chứng:** issue #380; `core/ads/.../RewardedAction.kt` dòng 295 trên nhánh chính `97b6ad8` (`internal fun RewardedAdDialogCard`).
+- **Đề xuất sửa:** `RewardedAdDialogCard` công khai; `docs/ops/ads-guide.md` có cách dịch chữ của khung ở `:app`; hướng dẫn thiết kế ghi nút chữ của hộp thoại cao 48 dp.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Ticket T-099.
+
+### L-164. Feature không biết thẻ native của một bước có được phép không, và không khai báo được vị trí chỉ hiện ở lần mở app đầu tiên
+
+- **Ngày, nguồn:** 2026-11-09, camera-pose (issue #381, phần `:core:ads`; PR #296 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** luồng giới thiệu cần biết thẻ native của bước có được phép không (cổng đồng ý, công tắc chính, gói bỏ quảng cáo, khóa vị trí) để quyết có giữ nút chờ hay không; khung chỉ biết điều này bên trong `NativeStepAd`. Vị trí chỉ hiện ở lần mở app đầu tiên chưa khai báo được.
+- **Bằng chứng:** issue #381; `git grep -e rememberNativeStepAdAllowed -e firstOpenOnly` trên nhánh chính `97b6ad8` rỗng.
+- **Đề xuất sửa:** `rememberNativeStepAdAllowed(placement)` dùng đúng cổng của `NativeStepAd`; khai báo vị trí có `firstOpenOnly`. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-09: "Đồng ý theo đề xuất của AI." (đề xuất nhận issue #363, #368, #369, #379, #380, #381, #382))
+- **Áp dụng:** chưa. Ticket T-100.
