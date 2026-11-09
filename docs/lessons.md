@@ -1142,6 +1142,6 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên gọi `scripts/merge-if-green.sh` từ thư mục chính, đứng trên nhánh báo cáo tạo từ nhánh chính lúc đầu phiên. T-094 sửa chính script này và merge lúc 02:34. Lần merge T-095 lúc 03:19 vẫn chạy bản cũ, vì nhánh báo cáo chưa gộp nhánh chính; mục Lý do của danh sách chạy lại ghi "lần merge T-095 dùng `merge-if-green.sh` bản mới". Bản cũ in `CHÚ Ý: không xóa được nhánh` mà không đọc lại nhánh, trong khi GitHub đã tự xóa nhánh ngay sau đó. Không có gì sai trong kết quả merge, chỉ mất một lần kiểm phần sửa trên GitHub thật.
 - **Bằng chứng:** đầu ra của lần merge PR #426; `grep -c BRANCH_GONE_TRIES scripts/merge-if-green.sh` trên nhánh báo cáo trước khi gộp ra 0; `git ls-remote --heads origin 'claude/T-09*'` rỗng ngay sau đó.
 - **Đề xuất sửa:** `docs/auto-run.md`, bước 9: gọi `merge-if-green.sh` và `wait-run.sh` từ bản của nhánh chính mới nhất, ví dụ gộp nhánh chính vào nhánh báo cáo sau mỗi lần merge, hay chạy script từ một worktree tách rời của `origin/main`.
-- **Trạng thái:** proposed
-- **Áp dụng:** chưa.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #428: `docs/auto-run.md` bước 9 (ngay sau mỗi lần merge task hay revert, trước lần gọi script tiếp theo, gộp `origin/main` vào nhánh báo cáo và đứng trên nhánh đó; cách giữ file khi xung đột) và mục Khi nhánh chính đỏ vì task của phiên, bước 4.
 
