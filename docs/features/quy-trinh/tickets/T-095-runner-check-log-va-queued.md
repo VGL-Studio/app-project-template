@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: nguồn là ghi chú rà soát T-078 (báo cáo RUN-20261108-01); không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: on-staging            # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # sửa .github/workflows/: plan rủi ro cao, duyệt chéo
 size: S
 depends_on: [T-078]

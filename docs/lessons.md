@@ -1097,8 +1097,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** sau cả bốn lần merge của phiên, `scripts/merge-if-green.sh` in `CHÚ Ý: không xóa được nhánh '<nhánh>' sau khi merge; người xóa tay để số nhánh không tăng (L-092).` Repo đã bật "Automatically delete head branches", nên GitHub tự xóa nhánh: lúc kiểm sau đó `git ls-remote --heads origin 'claude/T-08*'` chỉ còn nhánh của PR vừa merge (chưa kịp xóa), ba nhánh trước đã mất. Cảnh báo sai làm người đọc báo cáo tưởng phải dọn tay, và báo cáo phiên phải giải thích lại.
 - **Bằng chứng:** đầu ra của bốn lần `merge-if-green.sh` (dòng thời gian của RUN-20261107-01, 11:49, 13:31, 14:32, 15:44); `git ls-remote --heads origin` còn 6 nhánh lúc 15:35.
 - **Đề xuất sửa:** `scripts/merge-if-green.sh`: khi lệnh xóa nhánh bị proxy từ chối, đọc lại nhánh vài lần trong khoảng ngắn (ví dụ 3 lần, mỗi 5 giây) trước khi cảnh báo; nhánh đã mất thì không in gì. Thêm test của script với nhánh mất ở lần đọc thứ hai.
-- **Trạng thái:** accepted
-- **Áp dụng:** chưa; làm trong ticket T-094.
+- **Trạng thái:** applied
+- **Áp dụng:** ticket T-094, PR #425 (`merge-if-green.sh` đọc lại nhánh tối đa 3 lần, cách 5 giây, sau lệnh xóa thất bại; chỉ cảnh báo khi nhánh còn sau mọi lần đọc).
 
 ### L-150. Rà soát độc lập xếp chặn một lần sửa chi tiết test viết trước mà `auto-run.md` bước 4 cho phép
 
@@ -1132,5 +1132,16 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:**
   - `docs/CLAUDE.md`, mục Khi viết plan, cạnh ý về `scripts/merge-if-green.sh`: plan dựa vào việc `main-guard` có chạy trên một commit hay không thì so với `paths-ignore` của `main-guard.yml`; plan dựa vào cách `main-guard` kiểm commit đó thì so với `main-guard-verified.sh`. Hai quy tắc khác nhau ở `GRADLE_READ_DOCS`.
   - Một ticket sửa `docs_only_behind` theo `paths-ignore`, có test 8 với hai file trên.
-- **Trạng thái:** accepted
-- **Áp dụng:** phần tài liệu ở PR #420 (`docs/CLAUDE.md`, mục Khi viết plan: `main-guard` có chạy không so với `paths-ignore`, `main-guard` kiểm thế nào so với `main-guard-verified.sh`); phần code là ticket T-094, ghi `applied` khi T-094 merge.
+- **Trạng thái:** applied
+- **Áp dụng:** phần tài liệu ở PR #420 (`docs/CLAUDE.md`, mục Khi viết plan: `main-guard` có chạy không so với `paths-ignore`, `main-guard` kiểm thế nào so với `main-guard-verified.sh`); phần code là ticket T-094, PR #425 (`main-guard-verified.sh --guard-ignores`, `docs_only_behind` bước 3 hỏi câu đó).
+
+### L-153. Phiên chạy `merge-if-green.sh` bản cũ sau khi chính task của phiên đã sửa script này
+
+- **Ngày, nguồn:** 2026-11-09, RUN-20261108-02 (T-094, T-095, PR #425, #426)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** phiên gọi `scripts/merge-if-green.sh` từ thư mục chính, đứng trên nhánh báo cáo tạo từ nhánh chính lúc đầu phiên. T-094 sửa chính script này và merge lúc 02:34. Lần merge T-095 lúc 03:19 vẫn chạy bản cũ, vì nhánh báo cáo chưa gộp nhánh chính; mục Lý do của danh sách chạy lại ghi "lần merge T-095 dùng `merge-if-green.sh` bản mới". Bản cũ in `CHÚ Ý: không xóa được nhánh` mà không đọc lại nhánh, trong khi GitHub đã tự xóa nhánh ngay sau đó. Không có gì sai trong kết quả merge, chỉ mất một lần kiểm phần sửa trên GitHub thật.
+- **Bằng chứng:** đầu ra của lần merge PR #426; `grep -c BRANCH_GONE_TRIES scripts/merge-if-green.sh` trên nhánh báo cáo trước khi gộp ra 0; `git ls-remote --heads origin 'claude/T-09*'` rỗng ngay sau đó.
+- **Đề xuất sửa:** `docs/auto-run.md`, bước 9: gọi `merge-if-green.sh` và `wait-run.sh` từ bản của nhánh chính mới nhất, ví dụ gộp nhánh chính vào nhánh báo cáo sau mỗi lần merge, hay chạy script từ một worktree tách rời của `origin/main`.
+- **Trạng thái:** proposed
+- **Áp dụng:** chưa.
+

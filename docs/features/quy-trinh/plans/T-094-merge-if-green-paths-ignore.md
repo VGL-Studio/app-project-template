@@ -1,7 +1,7 @@
 ---
 ticket: T-094
 title: merge-if-green.sh xét "main-guard có chạy không" theo paths-ignore, không cảnh báo sai khi xóa nhánh; hai chỗ hở của pr_sim
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 7
 risk_level: high
@@ -287,3 +287,15 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
 - **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-094 (câu 1 chọn a, câu 2 chọn a, câu 3 đồng ý) và T-095 (câu 1 chọn a, câu 2 giữ 75 phút, câu 3 đồng ý)." Trả lời mục 8, theo đề xuất: (1) câu hỏi mới `--guard-ignores` của `main-guard-verified.sh`; (2) giữ 3 lần đọc, mỗi lần 5 giây; báo cáo phiên kế tiếp còn cảnh báo sai thì tăng bằng biến; (3) một dòng ghi chú vào ADR-0041. Duyệt ở commit a1ba097 (PR #422).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261108-02, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #425, commit `fb0d08d`, 2026-11-09 02:34 UTC).
+- **Nhánh, PR:** `claude/T-094-merge-if-green-paths-ignore`, https://github.com/VGL-Studio/app-project-template/pull/425. Commit test `5690bac`, code `731cda0`.
+- **Đã làm:** mục 3.1 A tới G. `main-guard-verified.sh --guard-ignores` (`ignored_reason`); `docs_only_behind` bước 3 hỏi `--guard-ignores`, chỉ đáp `no` mới đi tiếp; đọc lại nhánh sau lệnh xóa thất bại (`MERGE_BRANCH_TRIES` 3, `MERGE_BRANCH_WAIT_SECONDS` 5); phần tử `__error__` của `fake-gh`; `pr_sim` báo mọi dòng lạ của khối `filters`; `pr_filter_check` đọc qua dòng trống; `merge_run` đặt `MERGE_BRANCH_WAIT_SECONDS=0` và đọc hạn chờ từ `UPDATE_TIMEOUT` (mặc định 5) theo ghi chú đã duyệt của danh sách chạy, T5, T9, T22 gọi với 60. Dòng ghi chú ở ADR-0041. Bước 3 đến 5 giao cho một phiên con.
+- **Test viết trước:** 22 test (T1 tới T22). 16 test đỏ đúng lý do trước code, khớp danh sách của mục 4; rà soát độc lập đã chạy lại commit test và xác nhận. T14 qua cùng commit test (phần dựng; trên `fake-gh` cũ đỏ `0 0 0`). T6, T8, T12, T13, T17 qua ngay như plan ghi. 0 test phải viết chặt lại; ba test qua ngay có thêm đối chứng (T8 `broken=1`, T17 và T18 đếm dòng chèn). Thay đổi ở file test sau commit test: chỉ thân `pr_sim` và `pr_filter_check` (phần code của mục E, F nằm trong file test), không câu khẳng định nào đổi.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: (1) `wc -l < build.log 2>/dev/null` có sẵn của `pr_filter_check` vẫn in một dòng stderr khi T18 chạy, kết quả đúng; (2) `MERGE_BRANCH_TRIES=0` thì không bao giờ cảnh báo, giống `MERGEABLE_TRIES`; (3) câu chữ ghi chú ADR-0041 ("hỏi thêm ... thay cho"); (4) T19, T21 dùng hạn 5 giây đồng hồ thật, chỗ xem đầu tiên nếu `main-guard` chập chờn.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42551028038). `scripts/tests/run.sh` cục bộ: qua (1488 ok). `check.sh` QUA (1871 test JVM, 0 lỗi). `main-guard` của `fb0d08d`: xanh (lần chạy 42551706889), không có issue `main-broken`.
+- **Lệch so với plan:** ADR-0032/L3: khối T8 đặt sau test 24 vì dùng hàm `nu_sha` chỉ có ở đoạn test 18 tới 26; đầu ra một số test thêm đối chứng (trên). Không có file ngoài mục 3.2.
+- **Việc còn lại:** kiểm thủ công của mục 4 (L-149 trên GitHub thật) ở phiên kế tiếp. PR #425 tự merge bằng `merge-if-green.sh` bản cũ, nên lần merge đó vẫn in `CHÚ Ý: không xóa được nhánh 'claude/T-094-merge-if-green-paths-ignore'`.
+- **Cần người xem:** bốn ghi chú của rà soát; kiểm thủ công L-149 ở phiên kế tiếp (đối chiếu `git ls-remote --heads origin 'claude/T-*'`).
