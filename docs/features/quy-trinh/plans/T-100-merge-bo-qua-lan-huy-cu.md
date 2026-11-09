@@ -1,16 +1,16 @@
 ---
 ticket: T-100
 title: merge-if-green.sh không từ chối vì một lần chạy bị hủy đã có lần chạy cùng tên sau nó
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 5
 risk_level: high
 token_estimate: 8.6M
 blocking_points: [ci]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-09
 lane:
 ---
 
@@ -223,8 +223,14 @@ Không cần (E dưới 2). Một lần chạy thử bộ lọc jq ngày 2026-11
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:** , **duyệt chéo:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
 - **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-09, trong phiên có người: "Duyệt T-100. merge #438".
+  - Lời duyệt trả lời bản plan ở commit 9b171d9 (PR #438), sau rà soát độc lập và một vòng rà soát lại. Lời duyệt không nêu riêng từng câu, nên mục 8 theo đề xuất của plan, như AI đã trình ngay trước lời duyệt:
+    - câu 1 (a): khóa theo tên cùng ứng dụng, không tra workflow;
+    - câu 2: `failure` của lần chạy workflow cũ vẫn chặn;
+    - câu 3: ghi L-164 `applied` trong PR của task.
+  - Task làm có người (`auto_run: false`), khi không có phiên `running`.
 
 ## 10. Nhật ký thực hiện
