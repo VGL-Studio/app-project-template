@@ -404,7 +404,8 @@ pr_filter_check() { # <workflow> <code> <release>; runs the filter check step li
   local dir script code=0
   dir="$(mktemp -d "$work/filter-check.XXXXXX")"
   script="$(awk '/^      - / { s = 0 } /^      - name: Kiểm kết quả lọc đường dẫn$/ { s = 1; next }
-    s && /^        run: \|$/ { r = 1; next } r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$1")"
+    s && /^        run: \|$/ { r = 1; next } r && s && /^ *$/ { print ""; next }
+    r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$1")"
   (cd "$dir" && CODE="$2" RELEASE="$3" bash -eo pipefail -c "$script") > /dev/null 2>&1 || code=$?
   if [[ "$code" == 0 ]]; then echo 0; else echo "$code $(wc -l < "$dir/build.log" 2>/dev/null | tr -d ' ' || echo 0)"; fi
 }
@@ -437,18 +438,25 @@ def key(step, name):
 flt = [s for s in steps if key(s, "id") == "filter"]
 if not flt:
     print("ERROR không có bước id: filter trong build-and-test"); sys.exit(0)
-filters, cur, inside = {}, None, False
+# The block ends at the first line indented no deeper than "filters: |" (a sibling key of with:). Inside it, a line
+# that is no comment, no filter name and no quoted pattern of a filter is refused, never skipped.
+filters, cur, depth = {}, None, None
 for l in flt[0]:
-    if l.strip() == "filters: |":
-        inside = True; continue
-    if not inside or l.strip().startswith("#") or not l.strip():
+    if depth is None:
+        if l.strip() == "filters: |":
+            depth = len(l) - len(l.lstrip())
         continue
+    if l.strip().startswith("#") or not l.strip():
+        continue
+    if len(l) - len(l.lstrip()) <= depth:
+        break
     m = re.match(r"^\s+([A-Za-z0-9_-]+):$", l)
     if m:
         cur = m.group(1); filters[cur] = []; continue
     m = re.match(r"^\s+- '(.+)'$", l)
     if m and cur:
-        filters[cur].append(m.group(1))
+        filters[cur].append(m.group(1)); continue
+    print("ERROR mẫu chưa hỗ trợ: " + l.strip()); sys.exit(0)
 special = set("*?[]{}!")
 def to_regex(p):
     if p.endswith("/**") and not special & set(p[:-3]):
@@ -566,6 +574,27 @@ expect "pr-check: one code file among docs makes the PR a code PR" \
 awk '{ print } /^            code:$/ { print "              - '\''app/{a,b}/**'\''" }' "$pr_wf" > "$work/prwf/brace.yml"
 expect "pr-check: the sample PR check refuses a pattern it does not support" "ERROR mẫu chưa hỗ trợ: app/{a,b}/**" \
   "$(pr_sim_summary "$work/prwf/brace.yml" docs/a.md)"
+# Every other line of the filters block is refused too, so a pattern written another way is never skipped (T-094).
+awk '{ print } $0 == "              - '\''feature/**'\''" { print "              - docs/**" }' "$pr_wf" > "$work/prwf/unquoted.yml"
+awk '{ print } $0 == "              - '\''feature/**'\''" { print "              - \"docs/**\"" }' "$pr_wf" > "$work/prwf/dquoted.yml"
+expect "pr-check: the sample PR check refuses an unquoted or double-quoted pattern" \
+  "ERROR mẫu chưa hỗ trợ: - docs/** | ERROR mẫu chưa hỗ trợ: - \"docs/**\"" \
+  "$(pr_sim_summary "$work/prwf/unquoted.yml" docs/a.md) | $(pr_sim_summary "$work/prwf/dquoted.yml" docs/a.md)"
+awk '{ print } $0 == "          filters: |" { print "              - '\''docs/**'\''" }' "$pr_wf" > "$work/prwf/before-name.yml"
+expect "pr-check: the sample PR check refuses a pattern before any filter name" "ERROR mẫu chưa hỗ trợ: - 'docs/**'" \
+  "$(pr_sim_summary "$work/prwf/before-name.yml" docs/a.md)"
+awk '{ print }
+  $0 == "              - '\''app/**'\''" { print "              "; print "              # x" }
+  $0 == "              - '\''.github/workflows/pr-check.yml'\''" && ++n == 2 { print "          list-files: none" }' \
+  "$pr_wf" > "$work/prwf/key-after.yml"
+expect "pr-check: a key after the filters block ends it, comments and blank lines inside are fine" \
+  "code=true release=false gate=yes gradle=yes docs=no r8=no 1 1 1" \
+  "$(pr_sim_summary "$work/prwf/key-after.yml" app/src/main/java/A.kt) $(grep -cx '          list-files: none' "$work/prwf/key-after.yml") $(grep -cx '              # x' "$work/prwf/key-after.yml") $(grep -cx '              ' "$work/prwf/key-after.yml")"
+# The filter check step test reads its whole run block, blank lines included.
+awk '{ print } /^      - / { s = 0 } $0 == "      - name: Kiểm kết quả lọc đường dẫn" { s = 1 }
+  s && !d && $0 == "          done" { print ""; print "          exit 3"; d = 1 }' "$pr_wf" > "$work/prwf/run-blank.yml"
+expect "pr-check: the filter check test reads the run block past a blank line" "3 1" \
+  "$(pr_filter_check "$work/prwf/run-blank.yml" true false | cut -d' ' -f1) $(grep -cx '          exit 3' "$work/prwf/run-blank.yml")"
 # P6d: controls on broken copies.
 grep -vxF "              - 'scripts/**'" "$pr_wf" > "$work/prwf/no-scripts.yml"
 expect "pr-check: the sample PR check sees a pattern removed from the code filter" "code=false" \
@@ -962,9 +991,10 @@ perl -0pe '$n = 0; s/\Qselect(.body | contains("<!-- check:ui-test -->") | not)\
 expect "main-guard: guard comments on and closes only its own main-broken issues" "yes yes" "$(mg_own_issues "$guard_wf")"
 expect "main-guard: the own-issue check fails on a copy without the filter in each step" "no yes yes no" \
   "$(mg_own_issues "$work/mgwf/own-mark.yml") $(mg_own_issues "$work/mgwf/own-close.yml")"
-# merge-if-green.sh asks main-guard-verified.sh two questions before it merges a PR that is behind main without
-# updating it (ADR-0041): are these paths docs only (--docs-only), and did pr-check run check.sh on this commit
-# (--gate-ran). The answers follow the very rule main-guard applies to the merge commit.
+# merge-if-green.sh asks main-guard-verified.sh three questions before it merges a PR that is behind main without
+# updating it (ADR-0041): are these paths docs only (--docs-only), are they all in the paths-ignore of main-guard
+# (--guard-ignores), and did pr-check run check.sh on this commit (--gate-ran). The answers follow the very rules
+# main-guard applies to the merge commit.
 mgv_docs_only() { # <path>...: the answer of --docs-only to those paths, one per line on stdin
   printf '%s\n' "$@" | "$mgv_script" --docs-only 2> /dev/null
 }
@@ -999,6 +1029,57 @@ expect "main-guard-verified: --docs-only accepts only what main-guard ignores" "
 awk '{ print } /^      - .\*\*\/\*\.md.$/ { print "      - '\''scripts/**'\''" }' "$guard_wf" > "$work/mgwf/ignore-scripts.yml"
 expect "main-guard-verified: the paths-ignore check names a pattern it does not know" "unknown pattern" \
   "$(mgv_ignored "$work/mgwf/ignore-scripts.yml")"
+# --guard-ignores: does main-guard run at all on a commit with only these paths (paths-ignore), whatever it would then
+# check (T-094). Unlike --docs-only, the docs files Gradle reads are ignored too.
+mgv_guard_ignores() { # <path>...: the answer of --guard-ignores to those paths, one per line on stdin
+  printf '%s\n' "$@" | "$mgv_script" --guard-ignores 2> /dev/null
+}
+mgv_gi_rows=(docs/a.md README.md feature/x/README.md .claude/skills/x/SKILL.md docs/x.json docs/remote-config-keys.md
+  docs/remote-config-template.json docs/design-system/tokens.json app/x.kt scripts/a.sh docs.kt)
+mgv_gi_answers=""
+for f in "${mgv_gi_rows[@]}"; do
+  mgv_gi_answers="$mgv_gi_answers${mgv_gi_answers:+ }$(mgv_guard_ignores "$f")"
+done
+expect "main-guard-verified: --guard-ignores answers by the paths-ignore of main-guard" \
+  "yes yes yes yes yes yes yes yes no no no" "$mgv_gi_answers"
+expect "main-guard-verified: --guard-ignores of an empty list is yes, with an extra argument no" "yes no" \
+  "$(printf '' | "$mgv_script" --guard-ignores 2> /dev/null) $(printf 'docs/a.md\n' | "$mgv_script" --guard-ignores x 2> /dev/null)"
+mgv_guard_agree() { # <workflow>: "agree=<n>", the rows of mgv_gi_rows whose answer is yes exactly when a pattern of
+  # its paths-ignore matches them, or "unknown pattern"
+  local pats p rest f g match answer globs=() agree=0 any_dir='**/' under='/**'
+  pats="$(awk '/^    paths-ignore:$/ { p = 1; next } p && /^      - / { sub(/^      - /, ""); print; next } p { p = 0 }' "$1")"
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    [[ "$p" == \'*\' ]] || { echo "unknown pattern"; return; }
+    p="${p:1:${#p}-2}"
+    if [[ "$p" == "$any_dir"* ]]; then
+      # **/<name> matches <name> in any directory, the root too: bash's * also matches /.
+      rest="${p#"$any_dir"}"
+      [[ "$rest" != */* && "$rest" != *'**'* ]] || { echo "unknown pattern"; return; }
+      globs+=("$rest")
+    elif [[ "$p" == *"$under" ]]; then
+      rest="${p%"$under"}"
+      [[ "$rest" != *[*?[]* ]] || { echo "unknown pattern"; return; }
+      globs+=("$rest/*")
+    else
+      echo "unknown pattern"
+      return
+    fi
+  done <<<"$pats"
+  for f in "${mgv_gi_rows[@]}"; do
+    match=no
+    for g in "${globs[@]}"; do
+      # shellcheck disable=SC2053 # $g is a glob
+      if [[ "$f" == $g ]]; then match=yes; fi
+    done
+    answer="$(mgv_guard_ignores "$f")"
+    if [[ ("$match" == yes && "$answer" == yes) || ("$match" == no && "$answer" != yes) ]]; then
+      agree=$((agree + 1))
+    fi
+  done
+  echo "agree=$agree"
+}
+expect "main-guard-verified: --guard-ignores agrees with the paths-ignore patterns" "agree=11" "$(mgv_guard_agree "$guard_wf")"
 # A PR merged without updating: A, H = A + the PR's change, D = A + docs on main, M = D's tree plus the PR's change.
 mgv_docs_main() { # <path=content> changed on main: sets mgv_d and mgv_m from a new mgv_setup
   local tree
@@ -1088,10 +1169,12 @@ merge_routes() { # <head ref> <compare route JSON fields> <check-runs answer> [e
 JSON
 }
 merge_run() { # <args...>; prints the exit code, keeps the output in $work/mg.out and the writes in $work/mg.json.writes
+  # UPDATE_TIMEOUT is the wait of --update in seconds (5 by default), like NOW_EPOCH for the clock.
   rm -f "$work/mg.json.writes" "$work/mg.json.seen"
   local code=0
-  PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS=5 \
-    MERGE_NOW_EPOCH="${NOW_EPOCH:-1793000000}" scripts/merge-if-green.sh "$@" > "$work/mg.out" 2>&1 || code=$?
+  PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS="${UPDATE_TIMEOUT:-5}" \
+    MERGE_BRANCH_WAIT_SECONDS=0 MERGE_NOW_EPOCH="${NOW_EPOCH:-1793000000}" scripts/merge-if-green.sh "$@" \
+    > "$work/mg.out" 2>&1 || code=$?
   echo "$code"
 }
 green_runs='{"check_runs": [
@@ -1252,6 +1335,32 @@ expect "merge-if-green: a branch already deleted by GitHub gets no warning" 0 "$
 python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["routes"]["git/ref/heads/claude/template-x"]={"ref": "x"}; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"
 merge_run 12 > /dev/null
 expect "merge-if-green: a branch left after a failed delete gets a warning" 1 "$(grep -c "không xóa được nhánh 'claude/template-x'" "$work/mg.out" || true)"
+# GitHub deletes a merged branch a few seconds after the merge, while the delete of a cloud session may be refused by
+# its proxy (L-149): after a failed delete the branch is read again a few times, and only a branch still there after
+# every read gets the warning. A delete that worked reads nothing.
+mg_branch_route='git/ref/heads/claude/template-x'
+mg_seen() { # how many times the fixture served the branch route (fake-gh counts the reads of a __sequence__)
+  python3 -I -c 'import json, os, sys; p = sys.argv[1]; print(json.load(open(p)).get(sys.argv[2], 0) if os.path.exists(p) else 0)' \
+    "$work/mg.json.seen" "$mg_branch_route"
+}
+mg_branch() { # <JSON of the branch route> [<fail_writes JSON>]: the data of a green PR of claude/template-x
+  merge_routes claude/template-x '{"behind_by": 0}' "$green_runs"
+  python3 -I -c 'import json, sys; fx = json.load(open(sys.argv[1])); fx["routes"][sys.argv[2]] = json.loads(sys.argv[3]); fx["fail_writes"] = json.loads(sys.argv[4]); json.dump(fx, open(sys.argv[1], "w"))' \
+    "$work/mg.json" "$mg_branch_route" "$1" "${2:-[\"DELETE git/refs/heads/claude/template-x\"]}"
+}
+mg_warned() { grep -c "không xóa được nhánh 'claude/template-x'" "$work/mg.out" || true; }
+mg_branch '{"__sequence__": [{"ref": "x"}, {"__error__": "HTTP 404: Not Found"}]}'
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch gone at the second read after a failed delete gets no warning" "0 2" "$(mg_warned) $(mg_seen)"
+mg_branch '{"__sequence__": [{"ref": "x"}]}'
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch still there after every read gets the warning" "1 3" "$(mg_warned) $(mg_seen)"
+mg_branch '{"__sequence__": [{"ref": "x"}]}' '[]'
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch deleted by the script is not read again" "0 0" "$(mg_warned) $(mg_seen)"
+mg_branch '{"__sequence__": [{"ref": "x"}]}'
+MERGE_BRANCH_TRIES=1 merge_run 12 > /dev/null
+expect "merge-if-green: MERGE_BRANCH_TRIES sets the reads" "1 1" "$(mg_warned) $(mg_seen)"
 
 # merge-if-green.sh notices a PR that is already on main, and a merge that GitHub answered with an error although the
 # squash commit reached main (L-080). Every earlier check still comes first (L-058).
@@ -1377,6 +1486,18 @@ expect "merge-if-green tests fetch nothing from the network: the origin of mig_r
 FIXTURE="$work/mig.json" PATH="$work/bin:$PATH" gh api repos/o/r/git/commits/zzz > "$work/fake404.out" 2> "$work/fake404.err" || fake404=$?
 expect "fake-gh answers an unknown path with 404" "1 1 0" \
   "${fake404:-0} $(grep -c 'HTTP 404' "$work/fake404.err" || true) $(grep -c Traceback "$work/fake404.err" || true)"
+# An {"__error__": ...} item of a __sequence__ fails that one read, so a branch can be there at one read and gone at
+# the next (T-094).
+printf '%s' '{"routes": {"x": {"__sequence__": [{"a": 1}, {"__error__": "HTTP 404: Not Found"}, {"a": 2}]}}}' > "$work/fg.json"
+rm -f "$work/fg.json.seen"
+fg_codes=""
+for fg_i in 1 2 3; do
+  fg_code=0
+  FIXTURE="$work/fg.json" PATH="$work/bin:$PATH" gh api repos/o/r/x > "$work/fg$fg_i.out" 2> "$work/fg$fg_i.err" || fg_code=$?
+  fg_codes="$fg_codes$fg_code "
+done
+expect "fake-gh: an __error__ item of a sequence fails that read" "0 1 0 yes" \
+  "$fg_codes$(grep -q 'HTTP 404' "$work/fg2.err" && echo yes || echo no)"
 
 # failure-kind.sh (ADR-0025, point 1): "tests" only when every failed Gradle task is a test task with failing tests.
 failure_kind() { printf '%b' "$1" > "$work/fk.log"; scripts/failure-kind.sh "$work/fk.log"; }
@@ -2003,6 +2124,73 @@ nu_routes
 nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "feature/x/README.md"}]'
 nu8="$nu8 $(merge_run 12) $(nu_count 'PR chỉ đổi file mà main-guard bỏ qua')"
 expect "merge-if-green: a PR that did not run check.sh is always updated" "3 1 3 3 3 1" "$nu8"
+# A PR with only files that the paths-ignore of main-guard skips is updated, even with a docs file Gradle reads: its
+# merge commit would get no main-guard run at all (T-094, L-152).
+nu_ignored() { # the data of nu_routes for a PR with feature/x/README.md and docs/remote-config-keys.md
+  nu_routes
+  nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "feature/x/README.md"}, {"filename": "docs/remote-config-keys.md"}]'
+}
+nu_ignored
+nu_gi="$(merge_run 12) $(nu_count 'PR chỉ đổi file mà main-guard bỏ qua')"
+nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "docs/remote-config-keys.md"}]'
+nu_gi="$nu_gi $(merge_run 12)"
+nu_ignored
+nu_gi="$nu_gi $(merge_run 12 --dry-run)"
+expect "merge-if-green: a PR with only files main-guard ignores is updated, even a docs file Gradle reads" "3 1 3 3" "$nu_gi"
+nu_updated() { # [<check-runs answer of def5678>]: --update moves the PR head to def5678, whose CI first has no run
+  nu_edit '
+r["compare/main...def5678"] = {"behind_by": 0}
+r["commits/def5678/check-runs?per_page=100"] = {"__sequence__": [{"check_runs": []}, json.loads(sys.argv[3])]}
+r["commits/def5678"] = {"commit": {"committer": {"date": "2026-10-18T02:30:00Z"}, "message": "Merge main"}}
+second = json.loads(json.dumps(r["pulls/12"])); second["head"]["sha"] = "def5678"
+r["pulls/12"] = {"__sequence__": [r["pulls/12"], second]}' "${1:-$code_runs}"
+}
+nu_ignored
+nu_updated
+expect "merge-if-green --update: a PR with only files main-guard ignores is updated, then merged" \
+  "0 PUT pulls/12/update-branch;PUT pulls/12/merge;DELETE git/refs/heads/claude/T-901-x;" \
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(nu_writes)"
+nu_routes
+nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "app/src/main/x.kt"}, {"filename": "docs/remote-config-keys.md"}]'
+expect "merge-if-green: a code PR with a docs file Gradle reads still merges without updating" "0 1" \
+  "$(merge_run 12) $(nu_count '^KHÔNG CẬP NHẬT NHÁNH: ')"
+# A main-guard-verified.sh that does not know --guard-ignores (full) or answers nothing: the branch is updated.
+printf '#!/bin/sh\nif [ "$1" = --docs-only ]; then echo yes; else echo "KIỂM ĐẦY ĐỦ: cách dùng." >&2; echo full; fi\n' \
+  > "$work/mgv-gi-full.sh"
+printf '#!/bin/sh\nif [ "$1" = --docs-only ]; then echo yes; fi\n' > "$work/mgv-gi-empty.sh"
+chmod +x "$work/mgv-gi-full.sh" "$work/mgv-gi-empty.sh"
+nu_routes
+nu_gi7="$(MAIN_GUARD_VERIFIED_SCRIPT="$work/mgv-gi-full.sh" merge_run 12) $(nu_count 'không đọc được PR có chỉ đổi file mà main-guard bỏ qua không')"
+nu_gi7="$nu_gi7 $(MAIN_GUARD_VERIFIED_SCRIPT="$work/mgv-gi-empty.sh" merge_run 12) $(nu_count 'không đọc được PR có chỉ đổi file mà main-guard bỏ qua không')"
+expect "merge-if-green: an unreadable --guard-ignores answer updates" "3 1 3 1" "$nu_gi7"
+# After the update, the checks on the new head still apply: red is refused, still running waits.
+nu_ignored
+nu_updated "$(one_job_with build-and-test completed '"failure"')"
+expect "merge-if-green --update, only files main-guard ignores: a red check after the update is refused" "1 1 0" \
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $(nu_wcount 'PUT pulls/12/merge')"
+nu_ignored
+nu_updated
+nu_edit 'r["commits/def5678/check-runs?per_page=100"] = json.loads(sys.argv[3])' "$(one_job_with build-and-test in_progress null)"
+expect "merge-if-green --update, only files main-guard ignores: CI still going after the update waits" "2 1 yes 0" \
+  "$(merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $([[ "$(nu_count 'đang ở trạng thái in_progress')" -ge 1 ]] && echo yes || echo no) $(nu_wcount 'PUT pulls/12/merge')"
+nu_ignored
+nu_edit 'fx["fail_writes"] = ["PUT pulls/12/update-branch"]'
+expect "merge-if-green --update, only files main-guard ignores: a refused update-branch is refused" "1 1" \
+  "$(merge_run 12 --update) $(nu_count 'không cập nhật được nhánh')"
+nu_ignored
+expect "merge-if-green --update, only files main-guard ignores: a head that does not move waits" "2 1 yes" \
+  "$(merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $([[ "$(nu_count 'chưa cập nhật xong')" -ge 1 ]] && echo yes || echo no)"
+nu_ignored
+nu_edit '
+heads = ["abc1234", "b100001", "b100002", "b100003"]
+copies = []
+for h in heads:
+    c = json.loads(json.dumps(r["pulls/12"])); c["head"]["sha"] = h; copies.append(c)
+    r["compare/main..." + h] = {"behind_by": 2}
+    r["compare/" + h + "...main"] = json.loads(json.dumps(r["compare/abc1234...main"]))
+r["pulls/12"] = {"__sequence__": copies}'
+expect "merge-if-green --update, only files main-guard ignores: three updates without catching up are refused" "1 3 1" \
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $(nu_count 'Đã cập nhật nhánh 3 lần')"
 
 # Test 9: a conflicting PR updates; an unknown mergeable state is read again, then waits.
 nu_routes success false
@@ -2102,6 +2290,30 @@ r["pulls/12"]["head"]["ref"] = "claude/template-x"'
 nu24="$(merge_run 12)"
 nu_edit 'r["pulls/12"]["head"]["ref"] = "claude/T-901-x"'
 expect "merge-if-green, behind by docs: a running session still refuses a person's PR" "1 0" "$nu24 $(merge_run 12)"
+# A PR with only files main-guard ignores (nu_ignored): every check that comes before the update still refuses it, with nothing written to GitHub (L-058).
+nu_gi8="" nu_gi8w=0
+for nu_case in 'r["pulls/12"]["state"] = "closed"' 'r["pulls/12"]["draft"] = True' \
+  'r["pulls/12"]["labels"] = [{"name": "needs-human"}]' 'r["pulls/12"]["base"]["ref"] = "other"' '
+r["branches?per_page=100&page=1"] = [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]
+r["contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report"] = "---\nid: RUN-20261016-01\nstatus: running\n---\n"
+r["pulls/12"]["head"]["ref"] = "claude/template-x"'; do
+  nu_ignored
+  nu_edit "$nu_case"
+  nu_gi8="$nu_gi8$(merge_run 12) "
+  nu_gi8w=$((nu_gi8w + $(nu_wcount .)))
+done
+nu_ignored
+nu_sha "$(git_t rev-parse good)"
+nu_edit 'r["issues?state=open&labels=main-broken&per_page=10"] = json.loads(sys.argv[3])' "$one_issue"
+rm -f "$work/mg.json.writes" "$work/mg.json.seen"
+code=0
+(cd "$rev" && PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" IS_EXACT_REVERT="$work/bin/revert-no" MERGE_POLL_SECONDS=0 \
+  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_1="url.$work/origin.git.insteadOf" GIT_CONFIG_VALUE_1=https://github.com/o/r.git \
+  "$root/scripts/merge-if-green.sh" 12) > "$work/broken.out" 2>&1 || code=$?
+nu_gi8="$nu_gi8$code"
+nu_gi8w=$((nu_gi8w + $(nu_wcount .)))
+expect "merge-if-green, only files main-guard ignores: every earlier check still refuses" "1 1 1 1 1 1 writes=0 broken=1" \
+  "$nu_gi8 writes=$nu_gi8w broken=$(grep -c 'TỪ CHỐI: nhánh chính đang đỏ' "$work/broken.out" || true)"
 nu_routes
 nu_checks "$(one_job_with build-and-test completed '"failure"')"
 nu25="$(merge_run 12) $(nu_count 'có kiểm tra không qua')"
@@ -2500,14 +2712,19 @@ expect "resume-check: an odd answer for the Actions runs continues nothing, exit
 # continue a `claude --cloud` session that resume-run.yml does not continue (L-044, L-109).
 wd_time() { python3 -c "import datetime as d; print((d.datetime(2026,10,27,12,0,tzinfo=d.timezone.utc)-d.timedelta(minutes=$1)).strftime('%Y-%m-%dT%H:%M:%SZ'))"; }
 watchdog() { # <run status> <minutes since the last commit> [workflow runs: "min:branch:event:status:name,..." or -] [open issues JSON] [started_at] [errors JSON]
-  local last in_progress="" queued="" code=0 spec min branch event status name entry errors="${6:-}"
+  # Each run of the third argument gets the id 1000 + its position and no job. WD_QUEUED and WD_IN_PROGRESS add runs
+  # (JSON objects with an id) to the queued and in-progress lists; WD_ROUTES adds routes (starting with a comma).
+  local last in_progress="${WD_IN_PROGRESS:-}" queued="${WD_QUEUED:-}" code=0 spec min branch event status name entry
+  local errors="${6:-}" id=1000 job_routes=""
   [ -n "$errors" ] || errors="{}"
   last="$(wd_time "$2")"
   if [ "${3:--}" != "-" ]; then
     IFS=',' read -r -a specs <<< "$3"
     for spec in "${specs[@]}"; do
       IFS=':' read -r min branch event status name <<< "$spec"
-      entry="{\"name\": \"$name\", \"head_branch\": \"$branch\", \"event\": \"$event\", \"created_at\": \"$(wd_time "$min")\"}"
+      entry="{\"id\": $id, \"name\": \"$name\", \"head_branch\": \"$branch\", \"event\": \"$event\", \"created_at\": \"$(wd_time "$min")\"}"
+      job_routes="$job_routes, \"actions/runs/$id/jobs?per_page=50\": {\"jobs\": []}"
+      id=$((id + 1))
       if [ "$status" = queued ]; then queued="${queued:+$queued, }$entry"; else in_progress="${in_progress:+$in_progress, }$entry"; fi
     done
   fi
@@ -2522,7 +2739,7 @@ watchdog() { # <run status> <minutes since the last commit> [workflow runs: "min
   "issues?state=open&labels=session-stalled&per_page=100": ${4:-[]},
   "actions/runs?status=in_progress&per_page=100": {"workflow_runs": [$in_progress]},
   "actions/runs?status=queued&per_page=100": {"workflow_runs": [$queued]},
-  "labels/session-stalled": {"name": "session-stalled"}
+  "labels/session-stalled": {"name": "session-stalled"}$job_routes${WD_ROUTES:-}
 }, "errors": $errors}
 JSON
   PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z \
@@ -2632,6 +2849,54 @@ json.dump(fx, open(sys.argv[1], "w"))
 PY
 expect "run-watchdog: GitHub that cannot be read exits 1" 1 \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/wd.json" GITHUB_REPOSITORY=o/r WATCHDOG_NOW=2026-10-27T12:00:00Z python3 -I scripts/run-watchdog.py > /dev/null 2>&1; echo $?)"
+
+# A job waiting for a self-hosted runner past the wait of wait-run.sh code 7 (75 minutes, nothing of its run going) is
+# named in the session-stalled issue: a person fixes the runner first (T-095, ADR-0042). Run 120 of pr-check was
+# created 200 minutes ago, before the last commit, so busy_workflows does not hold the issue back.
+wd_run120() { # [minutes since the run was created, default 200]; the JSON of run 120 on claude/T-062-x
+  echo "{\"id\": 120, \"name\": \"pr-check\", \"head_branch\": \"claude/T-062-x\", \"event\": \"pull_request\", \"created_at\": \"$(wd_time "${1:-200}")\"}"
+}
+wd_job() { # <name> <status> <labels JSON> <minutes since created> [minutes since completed]; the JSON of one job
+  local runner=null done=null
+  [ "$2" = queued ] || runner='"r1"'
+  [ -z "${5:-}" ] || done="\"$(wd_time "$5")\""
+  echo "{\"name\": \"$1\", \"status\": \"$2\", \"runner_name\": $runner, \"labels\": $3, \"created_at\": \"$(wd_time "$4")\", \"completed_at\": $done}"
+}
+wd_jobs120() { echo ", \"actions/runs/120/jobs?per_page=50\": {\"jobs\": [$(paste -sd ',' -)]}"; } # job JSON lines on stdin
+wd_waits() { grep -c 'Job chờ runner tự host:' "$work/wd.out" || true; }
+wd_r1="$(wd_job build-and-test queued '["vgl-android"]' 100 | wd_jobs120)"
+wd_e120='{"actions/runs/120/jobs?per_page=50": "HTTP 500: Server Error"}'
+expect "run-watchdog: a job waiting for a self-hosted runner past 75 minutes is named in the issue" "0|POST issues|1|1|1" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70)|$(wd_writes)|$(wd_waits)|$(grep -cF 'job `build-and-test` (lần chạy 120)' "$work/wd.out")|$(grep -c 'quá 75 phút' "$work/wd.out")"
+wd_r2="$(wd_job build-and-test queued '["vgl-android"]' 30 | wd_jobs120)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r2" watchdog running 70 > /dev/null
+expect "run-watchdog: a job queued 30 minutes ago is not named" "POST issues|0" "$(wd_writes)|$(wd_waits)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$(wd_job build-and-test queued '["ubuntu-latest"]' 100 | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: a job waiting for a GitHub runner is not named" "POST issues|0" "$(wd_writes)|$(wd_waits)"
+WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl-android"]' 100; wd_job guard in_progress '["vgl-android"]' 110; } | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: a run with a job in progress is not named" "POST issues|0" "$(wd_writes)|$(wd_waits)"
+WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl-android"]' 100; wd_job guard completed '["vgl-android"]' 110 20; } | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+wd_w5="$(wd_waits)"
+WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl-android"]' 100; wd_job guard completed '["vgl-android"]' 110 80; } | wd_jobs120)" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: the wait counts from the latest finished job of the run" "0 1" "$wd_w5 $(wd_waits)"
+WATCHDOG_RUNNER_QUEUE_MINUTES=20 WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r2" watchdog running 70 > /dev/null
+expect "run-watchdog: WATCHDOG_RUNNER_QUEUE_MINUTES sets the wait" 1 "$(wd_waits)"
+expect "run-watchdog: a server error on the jobs of a run exits 1 and opens no issue" "1 none" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 - "[]" "" "$wd_e120") $(wd_writes)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 - "$wd_open" > /dev/null
+expect "run-watchdog: an open issue gets the waiting job on update" "PATCH issues/41|1" "$(wd_writes)|$(wd_waits)"
+expect "run-watchdog: a session with a recent commit reads no jobs" "0 none" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 30 - "[]" "" "$wd_e120") $(wd_writes)"
+expect "run-watchdog: a session held back by a running workflow reads no jobs" "0 none" \
+  "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 "20:claude/T-062-x:pull_request:in_progress:pr-check" "[]" "" "$wd_e120") $(wd_writes)"
+WD_QUEUED="$(wd_run120 94)" WD_ROUTES="$(wd_job build-and-test queued '["vgl-android"]' 94 | wd_jobs120)" \
+  watchdog running 95 > /dev/null
+expect "run-watchdog: past 90 minutes a waiting job created after the last commit is named" "POST issues|1" \
+  "$(wd_writes)|$(wd_waits)"
 
 # schedule-idle.py turns resume-run.yml and run-watchdog.yml off when no session runs and no approved run list waits,
 # and status-page.yml, start-run.yml and the session turn them back on (T-051, L-126). Fixed time 2026-10-29 12:00 UTC.
@@ -3070,7 +3335,8 @@ expect "resume-run: the Actions read check fails on a copy without it" "0 0" \
 # fence: a PR can change it. Each case runs it in a temporary repo, with a temporary HOME and no variable of this
 # machine (GRADLE_USER_HOME, ANDROID_HOME); rc_* variables set the case: rc_vis (REPO_VISIBILITY, default private),
 # rc_eph (VGL_RUNNER_EPHEMERAL, default 1, empty: not set), rc_guh (GRADLE_USER_HOME), rc_ah (ANDROID_HOME, set when
-# the variable is set), rc_kvm (RUNNER_CHECK_KVM), rc_min (RUNNER_CHECK_MIN_FREE_GB, default 0), rc_dir (the directory).
+# the variable is set), rc_kvm (RUNNER_CHECK_KVM), rc_min (RUNNER_CHECK_MIN_FREE_GB, default 0), rc_dir (the directory),
+# rc_log (RUNNER_CHECK_LOG, not set by default).
 rc_script="$PWD/scripts/runner-check.sh"
 rc_repo="$work/rc"
 rc_home="$work/rc-home"
@@ -3090,8 +3356,10 @@ rc() { # [args]; "<exit code> <lines RUNNER KHÔNG DÙNG ĐƯỢC>"; the output 
   [[ -z "${rc_guh:-}" ]] || vars+=(GRADLE_USER_HOME="$rc_guh")
   [[ -z "${rc_ah+set}" ]] || vars+=(ANDROID_HOME="$rc_ah")
   [[ -z "${rc_kvm:-}" ]] || vars+=(RUNNER_CHECK_KVM="$rc_kvm")
+  [[ -z "${rc_log:-}" ]] || vars+=(RUNNER_CHECK_LOG="$rc_log")
   (cd "${rc_dir:-$rc_repo}" && env -u GRADLE_USER_HOME -u ANDROID_HOME -u VGL_RUNNER_EPHEMERAL -u REPO_VISIBILITY \
-    -u RUNNER_CHECK_MIN_FREE_GB -u RUNNER_CHECK_KVM "${vars[@]}" "$rc_script" "$@") > "$work/rc.out" 2>&1 || code=$?
+    -u RUNNER_CHECK_MIN_FREE_GB -u RUNNER_CHECK_KVM -u RUNNER_CHECK_LOG "${vars[@]}" "$rc_script" "$@") \
+    > "$work/rc.out" 2>&1 || code=$?
   echo "$code $(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC: .* (docs/ops/self-hosted-runner.md)\.$' "$work/rc.out" || true)"
 }
 rc_reset
@@ -3153,6 +3421,61 @@ rc_reset
 expect "runner-check: refuses other arguments with exit 2" "2 2" \
   "$(rc --emu | cut -d' ' -f1) $(rc --emulator x | cut -d' ' -f1)"
 expect "runner-check: the script is executable in git" 100755 "$(git ls-files -s scripts/runner-check.sh | cut -c1-6)"
+# RUNNER_CHECK_LOG: the result lines also go to that file, appended after every check (T-095), so the failure comment
+# of pr-check.yml shows them; build.log in the work directory does not make the script refuse its own directory.
+rc_same() { if cmp -s "$work/rc.log" "$work/rc.out"; then echo same; else echo differ; fi; }
+rc_reset
+rm -f "$work/rc.log"
+rc_r1="$(rc_log="$work/rc.log" rc)|$(rc_same)|$(grep -c '^RUNNER DÙNG ĐƯỢC' "$work/rc.log" 2> /dev/null || true)"
+rm -f "$work/rc.log"
+rc_r1="$rc_r1|$(rc_log="$work/rc.log" rc_vis=public rc_eph='' rc)|$(rc_same)|$(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC:' "$work/rc.log" 2> /dev/null || true)"
+rm -f "$work/rc.log"
+echo x > "$work/rc.log"
+rc_r1="$rc_r1|$(rc_log="$work/rc.log" rc)|$(head -n1 "$work/rc.log")|$(wc -l < "$work/rc.log" | tr -d ' ')"
+expect "runner-check: RUNNER_CHECK_LOG gets the same result lines" "0 0|same|1|1 2|same|2|0 0|x|2" "$rc_r1"
+rc_reset
+rc_r2="$(rc_log=build.log rc)|$(grep -c '^RUNNER DÙNG ĐƯỢC' "$rc_repo/build.log" 2> /dev/null || true)"
+rc_r2="$rc_r2|$(rc_log=build.log rc)|$(grep -c 'file ngoài git: build.log' "$work/rc.out" || true)"
+expect "runner-check: a RUNNER_CHECK_LOG inside the work directory is written after the checks" "0 0|1|1 1|1" "$rc_r2"
+rc_reset
+expect "runner-check: without RUNNER_CHECK_LOG nothing is written" "0 0|" \
+  "$(rc)|$(git -C "$rc_repo" status --porcelain --ignored)"
+rm -f "$work/rc2.log"
+expect "runner-check: a usage error writes no log" "2|no" \
+  "$(rc_log="$work/rc2.log" rc --x | cut -d' ' -f1)|$(if [ -e "$work/rc2.log" ]; then echo yes; else echo no; fi)"
+rc_reset
+rc_r5="$(rc_log="$work" rc)|$(grep -c 'CHÚ Ý: không ghi được' "$work/rc.out" || true)"
+rc_r5="$rc_r5|$(rc_log="$work" rc_vis=public rc)|$(grep -c 'CHÚ Ý: không ghi được' "$work/rc.out" || true)"
+expect "runner-check: a RUNNER_CHECK_LOG that cannot be written keeps the result" "0 0|1|1 1|1" "$rc_r5"
+
+# pr-check.yml passes RUNNER_CHECK_LOG: build.log to the runner check; main-guard.yml has no failure comment that
+# reads build.log, so it does not (T-095).
+rcl_lines() { # <workflow> <job>; lines "RUNNER_CHECK_LOG: build.log" in the env of the runner check step of that job
+  awk -v job="  $2:" '$0 == job { j = 1; next } j && /^  [^ ]/ { j = 0 }
+    j && /^      - / { s = ($0 == "      - name: Kiểm runner tự host (scripts/runner-check.sh)"); e = 0; next }
+    j && s && $0 == "        env:" { e = 1; next } j && s && e && !/^          / { e = 0 }
+    j && s && e && $0 == "          RUNNER_CHECK_LOG: build.log" { n++ } END { print n + 0 }' "$1"
+}
+grep -vxF '          RUNNER_CHECK_LOG: build.log' "$pr_wf" > "$work/pr-no-log.yml" || true
+expect "pr-check: the runner check writes its result lines to build.log" "1 0|0" \
+  "$(rcl_lines "$pr_wf" build-and-test) $(grep -c 'RUNNER_CHECK_LOG' "$guard_wf" || true)|$(rcl_lines "$work/pr-no-log.yml" build-and-test)"
+
+# The failure comment step of pr-check.yml, run like GitHub in the work directory after a refused runner, shows the
+# lines of runner-check.sh instead of "Không có log." (T-095). A gh of its own: fake-gh only answers `gh api`.
+mkdir -p "$work/gh-comment"
+printf '#!/bin/sh\nexit 0\n' > "$work/gh-comment/gh"
+chmod +x "$work/gh-comment/gh"
+rc_reset
+rc_p2="$(rc_log=build.log rc_vis=public rc)"
+pr_comment_script="$(awk '/^      - / { s = 0 } /^      - name: Bình luận lỗi vào PR$/ { s = 1; next }
+    s && /^        run: \|$/ { r = 1; next } r && s && /^ *$/ { print ""; next }
+    r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$pr_wf" |
+  sed -e 's/${{ steps\.release\.outcome }}//g' -e 's/${{ github\.event\.pull_request\.number }}/1/g' \
+    -e 's|${{ github\.repository }}|o/r|g')"
+(cd "$rc_repo" && PATH="$work/gh-comment:$work/bin:$PATH" bash -eo pipefail -c "$pr_comment_script") > /dev/null 2>&1 || true
+expect "pr-check: the failure comment shows the lines of a refused runner" "1 1|1|0" \
+  "$rc_p2|$(grep -c '^RUNNER KHÔNG DÙNG ĐƯỢC: repo không phải private' "$rc_repo/comment.md" 2> /dev/null || true)|$(grep -c 'Không có log\.' "$rc_repo/comment.md" 2> /dev/null || true)"
+rc_reset
 
 # The log files of the playbook rows are what the scripts print.
 expect "playbook: PB-17.log is what wait-run.sh prints" "7 $(head -n1 "$pb_dir/PB-17.log") u" "$rw_main_line"

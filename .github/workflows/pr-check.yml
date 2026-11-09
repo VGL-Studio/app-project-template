@@ -93,11 +93,13 @@ jobs:
       - uses: actions/checkout@v5
 
       # A self-hosted runner must be one-shot and clean before anything is set up or built (ADR-0042). Only a check
-      # for configuration mistakes: a PR can change the script.
+      # for configuration mistakes: a PR can change the script. Its result lines also go to build.log, which the
+      # failure comment prints; the script writes the file after its checks, so `| tee` is not used.
       - name: Kiểm runner tự host (scripts/runner-check.sh)
         if: runner.environment == 'self-hosted'
         env:
           REPO_VISIBILITY: ${{ github.event.repository.visibility }}
+          RUNNER_CHECK_LOG: build.log
         run: scripts/runner-check.sh
 
       - uses: actions/setup-java@v5

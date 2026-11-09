@@ -9,12 +9,17 @@
 # Prints exactly one word (full, tests or skip) on stdout and the reason on stderr. Always exits 0: anything it cannot
 # read or decide gives full.
 #
-# Two more questions, for scripts/merge-if-green.sh, which merges a PR behind main without updating it when main
-# changed only docs since the split (ADR-0041). Both print yes or no on stdout, the reason on stderr, and exit 0:
+# Three more questions, for scripts/merge-if-green.sh, which merges a PR behind main without updating it when main
+# changed only docs since the split (ADR-0041). All print yes or no on stdout, the reason on stderr, and exit 0:
 #   scripts/main-guard-verified.sh --docs-only        are all paths on stdin (one per line) docs by the rule below
 #                                                      that picks tests? An empty list is yes.
+#   scripts/main-guard-verified.sh --guard-ignores    are all paths on stdin (one per line) in the paths-ignore of
+#                                                      main-guard.yml (docs/** and **/*.md), docs files Gradle reads
+#                                                      included? An empty list is yes.
 #   scripts/main-guard-verified.sh --gate-ran <sha>   did the newest pr-check run on that commit end green with
 #                                                      GATE_STEP of GATE_JOB success? Anything unread is no.
+# "Does main-guard run on a commit at all" is --guard-ignores; "how does main-guard check that commit" is --docs-only
+# and the choice below.
 #
 # skip and tests need every one of these, else full:
 #   - the event is push and this is the first attempt of the run (a re-run is someone asking for a real check, for
@@ -74,6 +79,21 @@ docs_only_reason() {
   return 0
 }
 
+# Paths on stdin, one per line (empty lines skipped): prints nothing when every path is in the paths-ignore of
+# main-guard.yml, that is under docs/ or ending in .md (bash's * also matches /, so *.md is **/*.md, README.md too),
+# else the first path that is not.
+ignored_reason() {
+  local file
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    if [[ "$file" != docs/* && "$file" != *.md ]]; then
+      echo "$file"
+      return 0
+    fi
+  done
+  return 0
+}
+
 # <head sha> <name of the PR>: prints nothing when the newest pr-check run on that commit is green and its GATE_JOB
 # ran the step GATE_STEP with success, else the reason.
 gate_reason() {
@@ -107,7 +127,7 @@ if [[ -z "$REPO" ]]; then
   REPO="$(git config --get remote.origin.url 2>/dev/null | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')" || REPO=""
 fi
 
-# The two questions of merge-if-green.sh (ADR-0041): yes or no, never full, always exit 0.
+# The three questions of merge-if-green.sh (ADR-0041): yes or no, never full, always exit 0.
 if [[ "${1:-}" == "--docs-only" ]]; then
   if [[ $# -ne 1 ]]; then
     echo "cách dùng: scripts/main-guard-verified.sh --docs-only (đường dẫn ở stdin)" >&2
@@ -117,6 +137,21 @@ if [[ "${1:-}" == "--docs-only" ]]; then
   reason="$(docs_only_reason)"
   if [[ -n "$reason" ]]; then
     echo "$reason" >&2
+    echo no
+  else
+    echo yes
+  fi
+  exit 0
+fi
+if [[ "${1:-}" == "--guard-ignores" ]]; then
+  if [[ $# -ne 1 ]]; then
+    echo "cách dùng: scripts/main-guard-verified.sh --guard-ignores (đường dẫn ở stdin)" >&2
+    echo no
+    exit 0
+  fi
+  reason="$(ignored_reason)"
+  if [[ -n "$reason" ]]; then
+    echo "$reason, file mà main-guard không bỏ qua" >&2
     echo no
   else
     echo yes
