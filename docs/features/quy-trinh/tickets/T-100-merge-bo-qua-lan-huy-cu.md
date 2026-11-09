@@ -26,12 +26,12 @@ Ngày 2026-11-09, commit đầu của PR #432 có hai lần chạy `pr-check`. `
 - `scripts/merge-if-green.sh`, bước "có kiểm tra không qua": một kiểm tra `cancelled` không chặn khi trên cùng commit có một lần chạy khác của kiểm tra đó (cùng tên, cùng ứng dụng) bắt đầu sau nó, hoặc chưa bắt đầu. Lần mới nhất `cancelled` vẫn từ chối. Các kết quả đỏ khác (`failure`, `timed_out`, `action_required`, `startup_failure`) vẫn từ chối dù có lần sau xanh.
 - `scripts/merge-if-green.sh`, `check_one`: chọn lần mới nhất theo cùng thứ tự, lần chưa bắt đầu (`started_at` rỗng) là mới nhất.
 - `scripts/tests/run.sh`: test cho từng ca, kèm đối chứng, và mỗi kiểm tra khác mà ca mới phải đi qua một test.
-- `docs/auto-run.md`, bước 8: `wait-run.sh --pr` hết giờ mà chưa thấy lần chạy nào của PR thì đẩy một commit rỗng rồi chờ lại, không đóng mở lại PR.
+- `docs/auto-run.md`, bước 8, và skill `merge-pr`: `wait-run.sh --pr` hết giờ mà chưa thấy lần chạy nào của PR thì đẩy một commit rỗng rồi chờ lại, không đóng mở lại PR.
 
 **Không bao gồm:**
 
 - Đổi `concurrency` của `pr-check.yml`.
-- Cho qua một lần `failure` cũ đã có lần chạy lại xanh (chạy lại job đỏ trên GitHub): giữ như nay, một lần đỏ trên commit vẫn chặn.
+- Cho qua một lần `failure` của một lần chạy workflow cũ khi lần chạy workflow sau xanh. Chạy lại job đỏ trong cùng lần chạy thì GitHub đã chỉ trả lần mới nhất (`filter=latest`), không cần sửa.
 
 ## Rủi ro sơ bộ
 
@@ -41,6 +41,7 @@ Sửa `scripts/merge-if-green.sh`, điểm chặn 7 (`ci`): plan rủi ro cao, d
 
 - [ ] PR có một lần `cancelled` cũ và một lần cùng tên đang chạy: script chờ (mã 2), không từ chối; lần sau xanh thì merge.
 - [ ] Lần mới nhất `cancelled`, hay lần đỏ khác bất kể có lần sau: vẫn từ chối.
+- [ ] `check_one` coi lần chưa bắt đầu là mới nhất.
 - [ ] `docs/auto-run.md` bước 8 nói cách xử lý PR không có lần chạy `pr-check`.
 - [ ] Có test tự động cho từng điểm, kèm đối chứng.
 - [ ] CI qua toàn bộ, đã merge vào nhánh chính, `main-guard` xanh. L-164 `applied`.
