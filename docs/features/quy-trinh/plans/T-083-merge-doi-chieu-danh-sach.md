@@ -18,7 +18,7 @@ lane:
 
 ## 1. Tóm tắt
 
-Khối kiểm phiên đang chạy của `scripts/merge-if-green.sh` thôi cho mọi nhánh `claude/T-*` đi qua. Khi danh sách trên nhánh báo cáo đang `running`, nhánh `claude/T-NNN-...` và `claude/fix-T-NNN-...` chỉ qua khi `T-NNN` có một dòng trong bảng danh sách chạy, đọc bằng đúng mẫu mà `scripts/resume-check.py` và `scripts/run-watchdog.py` dùng. Nhánh báo cáo của phiên và bản revert đúng (ADR-0025) qua như nay. Mọi kiểm tra khác giữ nguyên. Kiểm bằng test của `scripts/tests/run.sh` với `gh` giả: mỗi nhánh của khối kiểm một test, và với task có trong danh sách thì mỗi kiểm tra đứng trước hay sau khối này cũng một test. Task làm có người (`auto_run: false`), không qua phiên tự chạy.
+Khối kiểm phiên đang chạy của `scripts/merge-if-green.sh` thôi cho mọi nhánh `claude/T-*` đi qua. Khi danh sách trên nhánh báo cáo đang `running`, nhánh `claude/T-NNN-...` và `claude/fix-T-NNN-...` chỉ qua khi `T-NNN` có một dòng trong bảng danh sách chạy, đọc bằng đúng mẫu mà `scripts/resume-check.py` và `scripts/run-watchdog.py` dùng. Nhánh báo cáo của phiên và bản revert đúng (ADR-0025) qua như nay. Mọi kiểm tra khác giữ nguyên. `scripts/resume-check.py` và `scripts/run-watchdog.py` chỉ thêm chú thích trỏ về mẫu chung. Kiểm bằng test của `scripts/tests/run.sh` với `gh` giả: mỗi nhánh của khối kiểm một test, và với task có trong danh sách thì mỗi kiểm tra đứng trước hay sau khối này cũng một test. Task làm có người (`auto_run: false`), không qua phiên tự chạy.
 
 ## 2. Hiểu yêu cầu
 
@@ -33,8 +33,8 @@ Anh Nhật chọn cách sửa chặt ngày 2026-10-30: chặn bằng script.
 | Phạm vi 1: đối chiếu danh sách | Có phiên `running`: PR từ `claude/T-*` của task ngoài danh sách bị từ chối; task trong danh sách vẫn merge được | Mã task lấy từ tên nhánh bằng `^claude/(fix-)?(T-[0-9]+)-`, như `resume-check.py` (`^claude/(?:fix-)?(T-\d+)-`). Danh sách là các mã khớp `^\|\s*\d+\s*\|\s*(T-\d+)\s*\|` trong file `docs/runs/<RUN>.md` của nhánh báo cáo, đúng mẫu của `resume-check.py`, `run-watchdog.py`. Mẫu đọc cả file như hai script đó; chỉ bảng mục 1 có cột đầu là số và cột hai là mã ticket (mục 4.1) |
 | Phạm vi 1: nhánh `fix-` | Nhánh `claude/fix-T-NNN-...` của task trong danh sách được merge | Hôm nay nhánh này bị từ chối khi có phiên (không khớp `claude/T-[0-9]*`). Plan cho qua theo ticket; vẫn phải qua `needs-human` và nháp như nay (mục 8, câu 1) |
 | Phạm vi 1: nhánh báo cáo, revert | Giữ như hôm nay | Không đổi điều kiện `HEAD_REF == run_branch` và `EXACT_REVERT == yes` |
-| Phạm vi 2: thông báo | Nêu mã task, mã phiên, cách làm tiếp | Giữ đầu câu `phiên <RUN> đang chạy` (bảng lỗi của `docs/ops/setup-new-app.md` và test có sẵn dò chuỗi này), thêm mã task, file danh sách và "chờ phiên kết thúc rồi gọi lại" (mục 8, câu 3 về đường người tự merge) |
-| Phạm vi 3: test | Mỗi nhánh của kiểm tra một test, kể cả hai phiên `running` | Mục 4, T1 tới T18 |
+| Phạm vi 2: thông báo | Nêu mã task, mã phiên, cách làm tiếp | Giữ đầu câu `phiên <RUN> đang chạy` (bảng lỗi của `docs/ops/setup-new-app.md` và test có sẵn dò chuỗi này), thêm mã task, file danh sách, "chờ phiên kết thúc rồi gọi lại" và "việc gấp thì người dừng phiên trước" (mục 8, câu 3 về đường người tự merge) |
+| Phạm vi 3: test | Mỗi nhánh của kiểm tra một test, kể cả hai phiên `running` | Mục 4, T1 tới T19 |
 | Phạm vi 4: tài liệu | `docs/auto-run.md` mục 1; L-129, L-133 `applied` | Mục 3.2 |
 | Phạm vi 5: nút merge trên GitHub | Plan xem đường đó, đề xuất không bắt buộc làm | Mục 3.1 E và mục 8, câu 4: không làm trong ticket này |
 
@@ -100,6 +100,7 @@ Task ngoài danh sách bị từ chối ngay ở khối phiên, trước bước
 **D. Tài liệu.**
 - `docs/auto-run.md` mục 1, ý 4: câu "`merge-if-green.sh` từ chối mọi PR không phải của phiên" nói rõ PR của phiên là gì: nhánh báo cáo; nhánh `claude/T-NNN-...` và `claude/fix-T-NNN-...` của ticket có trong bảng danh sách chạy; bản revert đúng. Task có plan làm ngoài phiên, kể cả trên nhánh `claude/T-NNN-...`, chờ phiên kết thúc. Nếu câu 1 của mục 8 chọn (a): câu "người không merge vào nhánh chính" của cùng ý thêm ngoại lệ PR sửa nguyên nhân của task trong danh sách, sau khi người xem và gỡ `needs-human`; đoạn về nhánh `claude/fix-T-NNN-...` (mục 3, Chuẩn bị cho người khi task dừng) ghi người merge được PR đó cả khi phiên đang chạy. Chọn (b) thì không đổi hai câu này.
 - `docs/ops/setup-new-app.md`, bảng lỗi, dòng `merge-if-green.sh báo "phiên ... đang chạy"`: cột nguyên nhân thêm "nhánh task không có trong danh sách chạy của phiên". Cột việc phải làm giữ "Chờ phiên kết thúc".
+- `docs/auto-run.md` mục 4, đoạn "Muốn dừng hẳn một phiên đang chờ": nói rõ đoạn này áp cho phiên đang chờ hạn mức; phiên đang chạy thật thì người dừng phiên đó trước (dừng routine hay phiên cloud), rồi mới sửa trạng thái danh sách, để lần sửa không xung đột với commit phiên đang đẩy.
 - Tài liệu quy tắc viết theo ADR-0044: không mã bài học, ticket hay phiên. Chạy `scripts/history-refs.py`.
 
 **E. Đường merge bằng nút trên GitHub (phạm vi 5 của ticket).**
@@ -117,7 +118,7 @@ Mẫu có sẵn mà plan làm theo:
 | --- | --- | --- |
 | Sửa | `scripts/merge-if-green.sh` | Mục 3.1 A: đọc file danh sách một lần, đối chiếu mã task với bảng, thông báo từ chối mới, chú thích của khối |
 | Sửa | `scripts/tests/run.sh` | Test T1 tới T19 của mục 4. Hàm `merge_during_run`: giữ đầu ra của script vào `$work/merge.out` thay cho `/dev/null` (như `merge_run` giữ `mg.out`), vẫn in mã thoát; nhận thêm tham số qua biến môi trường đọc trong hàm, mặc định như nay: `MDR_LIST` phần thân file danh sách của RUN-20261016-01 sau front matter (mặc định `\n\n\| 1 \| T-001 \| demo \|\n`), `MDR_OLD_STATUS` và `MDR_OLD_LIST` trạng thái và phần thân của RUN-20261015-01 (mặc định `finished`, rỗng), `MDR_DRAFT` (mặc định `false`), `MDR_STATE` (mặc định `open`), `MDR_BASE` (mặc định `main`). Hàm `merge_while_broken` nhận thêm tham số thứ tư là tên nhánh (mặc định `revert/<culprit>` như nay); file danh sách giả trong hàm giữ như nay, không có bảng. Dữ liệu của hai test có sẵn (mục 3.5) |
-| Sửa | `docs/auto-run.md` | Mục 3.1 D: mục 1, ý 4; theo câu 1 của mục 8, đoạn về nhánh `claude/fix-T-NNN-...` ở mục 3 |
+| Sửa | `docs/auto-run.md` | Mục 3.1 D: mục 1, ý 4; theo câu 1 của mục 8, đoạn về nhánh `claude/fix-T-NNN-...` ở mục 3; mục 4, đoạn dừng hẳn một phiên |
 | Sửa | `scripts/resume-check.py` | Mục 3.1 A: một dòng chú thích trên dòng `re.findall` của bảng, trỏ `scripts/merge-if-green.sh`. Không đổi code |
 | Sửa | `scripts/run-watchdog.py` | Như `resume-check.py` |
 | Sửa | `docs/ops/setup-new-app.md` | Mục 3.1 D: dòng bảng lỗi "phiên ... đang chạy" |
@@ -196,17 +197,17 @@ Hàm `merge_during_run` (in mã thoát; mã 3 nghĩa là PR đã qua khối phi�
 | ... nhãn `needs-human` | Test script | T12: `claude/fix-T-001-x`, `running`, nhãn `needs-human`, mong 1 và `$work/merge.out` chứa `needs-human`. Qua trước code |
 | ... `main-broken` | Test script | T13: `merge_while_broken "$one_issue" "$work/bin/revert-no" running claude/T-099-x`; file danh sách giả trong hàm không có bảng, nên T-099 không có trong danh sách. Mong 1 và `$work/broken.out` chứa `main-broken`. Qua trước code. Đối chứng `revert-yes` cùng nhánh: mong 3, chứng minh `EXACT_REVERT` cho một nhánh task ngoài danh sách qua khối phiên. Đầu ra `a b c`, mong `1 1 3` |
 | ... CI | Test script | T14, dựng bằng `merge_routes claude/T-001-x '{"behind_by": 0}' <runs>`, rồi sửa dữ liệu bằng một lệnh `python3 -I -c` như test "page 2": thêm nhánh báo cáo vào `branches?per_page=100&page=1` và route file danh sách `running` có bảng T-001. (a) `$green_runs`, `--dry-run`: mong 0. (b) `build-and-test` kết thúc `failure`: mong 1 và dòng `có kiểm tra không qua`. Đầu ra `a b`, mong `0 1 1`. Trước code (a) cũng 0: khối phiên cho mọi `claude/T-*` qua |
-| Task ngoài danh sách: không ghi gì lên GitHub | Test script | T15: như T14 nhưng nhánh `claude/T-099-x`, `behind_by` 2, gọi `merge_run 12` (có `--update`): mong `1 0`. Phần hai là số lệnh ghi trong `$work/mg.json.writes`. Đỏ trước code (script cập nhật nhánh) |
+| Task ngoài danh sách: không ghi gì lên GitHub | Test script | T15: như T14 nhưng nhánh `claude/T-099-x`, `behind_by` 2, gọi `merge_run 12 --update`: mong `1 0`. Phần hai là số lệnh ghi trong `$work/mg.json.writes`. Đỏ trước code (script cập nhật nhánh) |
 | Dữ liệu `nu_edit` có sẵn | Test script | T16: test có sẵn ở mục 3.5 giữ `1 0` với dữ liệu mới. Thêm ca `claude/T-902-x` (không có trong bảng) cùng dữ liệu: mong `1` và số lệnh ghi 0. Đỏ trước code |
 | Thông báo nói cách làm tiếp | Test script | T17: `$work/merge.out` của T2 chứa `Chờ phiên kết thúc rồi gọi lại`, `docs/auto-run.md, mục 1` và `người dừng phiên trước`. Đỏ trước code |
-| Phiên bắt đầu trong lúc `--update` chờ | Test script | T18: `merge_routes claude/T-099-x '{"behind_by": 2}' ...`, route `branches?per_page=100&page=1` là `{"__sequence__": [[{"name": "main"}], [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]]}`, cộng route file danh sách `running` có bảng T-001. Lần một chưa có phiên nên cập nhật nhánh; lần hai thấy phiên và từ chối. Gọi `merge_run 12`. Mong `1 1 1`: mã thoát; số dòng `task T-099` trong `$work/mg.out`; số dòng `PUT pulls/12/update-branch` trong `$work/mg.json.writes` (chứng minh vòng một đã cho qua và cập nhật nhánh). Đỏ trước code (`2 0 1`: lần hai cho qua khối phiên, rồi chờ "GitHub chưa cập nhật xong" vì head không đổi, tới hết giờ). `__sequence__` của `fake-gh` giữ phần tử cuối khi hết danh sách (`scripts/tests/fake-gh`, chú thích của `__sequence__`) |
+| Phiên bắt đầu trong lúc `--update` chờ | Test script | T18: `merge_routes claude/T-099-x '{"behind_by": 2}' ...`, route `branches?per_page=100&page=1` là `{"__sequence__": [[{"name": "main"}], [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]]}`, cộng route file danh sách `running` có bảng T-001. Lần một chưa có phiên nên cập nhật nhánh; lần hai thấy phiên và từ chối. Route `branches?...` có sẵn trong `merge_routes` được thay bằng một lệnh `python3 -I -c` như T14. Gọi `UPDATE_TIMEOUT=1 merge_run 12 --update` (hạn chờ ngắn để ca trước code không chờ 5 giây). Mong `1 1 1`: mã thoát; số dòng `task T-099` trong `$work/mg.out`; số dòng `PUT pulls/12/update-branch` trong `$work/mg.json.writes` (chứng minh vòng một đã cho qua và cập nhật nhánh). Đỏ trước code (`2 0 1`: lần hai cho qua khối phiên, rồi chờ "GitHub chưa cập nhật xong" vì head không đổi, tới hết giờ). Dòng `ĐÃ CẬP NHẬT` không chứa `task T-099`, nên phần hai là đúng một dòng. `__sequence__` của `fake-gh` giữ phần tử cuối khi hết danh sách (`scripts/tests/fake-gh`, chú thích của `__sequence__`) |
 | Task trong danh sách vẫn qua mọi kiểm tra khác: PR mở, base | Test script | T19: `claude/T-001-loading`, `running`. (a) `MDR_STATE=closed`: mong 1, `$work/merge.out` chứa `không ở trạng thái mở`. (b) `MDR_BASE=other`: mong 1, chứa `nhắm vào 'other'`. Đầu ra `a b`, mong `1 1`. Qua trước code (hai kiểm tra đứng trước khối phiên) |
 | `docs/auto-run.md`, `setup-new-app.md` đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc mục 1 ý 4 và dòng bảng lỗi. `scripts/history-refs.py` qua |
 | Toàn bộ | Test script | `scripts/tests/run.sh` trên CI (`pr-check`, rồi `main-guard` sau merge). Trên máy dev macOS có 6 test đỏ sẵn trên nhánh chính (5 `pr-check: ... order check`, 1 `wait-run: a draft PR ...`); phiên so danh sách `FAIL` với nhánh chính, không coi là lỗi của task |
 
 Các test có số chưa dùng (T10) để trống; phiên đánh số lại liền nhau được.
 
-**Ngoại lệ viết test trước:** sửa `docs/auto-run.md`, `docs/ops/setup-new-app.md`, `docs/lessons.md`, nhật ký plan và ticket: chỉ là tài liệu.
+**Ngoại lệ viết test trước:** sửa `docs/auto-run.md`, `docs/ops/setup-new-app.md`, `docs/lessons.md`, nhật ký plan và ticket: chỉ là tài liệu. Dòng chú thích ở `scripts/resume-check.py` và `scripts/run-watchdog.py`: chỉ chú thích, code không đổi.
 
 ### 4.1. Chạy thử
 
@@ -223,7 +224,7 @@ Không cần (E dưới 2). Một lần so mẫu ngày 2026-11-09, trên nhánh 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
 | A. Phạm vi thay đổi | 1 | Một khối của một script, test của nó, một dòng chú thích ở hai script Python, hai tài liệu |
-| B. Độ rõ của yêu cầu | 1 | Ticket nêu rõ cách sửa và các ca test. Còn ba điểm người chọn: nhánh `fix-`, hai phiên, đường người tự merge (mục 8) |
+| B. Độ rõ của yêu cầu | 1 | Ticket nêu rõ cách sửa và các ca test. Còn bốn điểm người chọn: nhánh `fix-`, hai phiên, đường người tự merge, đọc file danh sách lỗi (mục 8, câu 1, 2, 3, 6) |
 | C. Khả năng kiểm chứng tự động | 0 | Mọi nhánh của khối có test với `gh` giả. Không có phần nào chỉ kiểm được trên GitHub thật |
 | D. Ảnh hưởng chéo | 3 | Mọi phiên tự chạy dựa vào khối này để merge task của mình. Đọc bảng sai thì phiên không merge được task nào, hay lại để lọt PR ngoài phiên |
 | E. Độ mới của kỹ thuật | 1 | Biến thể của mẫu có sẵn: mẫu bảng của `resume-check.py`, `run-watchdog.py` viết lại bằng `grep -E`; `BASH_REMATCH` lần đầu dùng trong script này |
@@ -236,7 +237,7 @@ Không cần (E dưới 2). Một lần so mẫu ngày 2026-11-09, trên nhánh 
 - Cách làm:
   - Làm có người (`auto_run: false`), không đưa vào danh sách chạy, như T-075.
   - Nhánh `claude/T-083-merge-doi-chieu-danh-sach`, làm khi không có phiên `running`. Script cũ còn cho mọi `claude/T-*` qua khi có phiên, nên chính PR này cũng không được merge giữa phiên.
-  - PR của task merge bằng `merge-if-green.sh` bản cũ, chạy từ thư mục chính đứng ở nhánh chính, như mọi PR. Trước đó chạy thêm bản mới từ worktree của task với `--dry-run` trên chính PR đó: không có phiên `running`, hai bản phải cho cùng kết quả.
+  - PR của task merge bằng `merge-if-green.sh` bản cũ, chạy từ thư mục chính đứng ở nhánh chính, như mọi PR. Trước đó chạy thêm bản mới từ worktree của task với `--dry-run` trên chính PR đó. Lúc không có phiên, khối phiên không chạy; lần chạy này chỉ để thấy bản mới chạy được với GitHub thật (gọi API, đọc danh sách nhánh), điều mà `gh` giả của test không thấy.
 - Chuyển tiếp:
   - Danh sách chạy đang `running` lúc merge (nếu có) vẫn đúng: bảng của nó đã có mọi task của phiên.
   - Worktree tạo trước khi merge chạy bản cũ tới khi gộp nhánh chính (`docs/auto-run.md`, bước 9).
