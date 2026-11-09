@@ -1158,8 +1158,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** app lấy khung quảng cáo có mediation Mintegral và Pangle, hai kho Maven ngoài trong `settings.gradle.kts`. Proxy của môi trường cloud trả 403 cho `dl-maven-android.mintegral.com` và `artifact.bytedance.com`, nên `scripts/check.sh` đỏ ngay ở bước tải thư viện, env-canary đỏ hai ngày liền và issue `env-broken` chặn `start-run.yml`. CI trên máy của GitHub và máy dev vẫn xanh. `docs/ops/ads-guide.md` đã nói hai tên miền phải được cho phép, nhưng bảng thiết lập ở `docs/ops/staging-and-runs.md` mục 2.1, nơi người làm theo khi tạo môi trường, chỉ có `dl.google.com`, `maven.google.com`, `*.blob.core.windows.net`. Dự án mẫu có cùng hai kho và cùng bảng.
 - **Bằng chứng:** issue #363 (log `Could not GET '...mbridge_android_sdk-17.1.81.pom'. Received status code 403 from server: Forbidden`); `settings.gradle.kts` dòng 23, 26 trên nhánh chính `97b6ad8`.
 - **Đề xuất sửa:** `docs/ops/staging-and-runs.md` mục 2.1 thêm hai tên miền và quy tắc thêm kho Maven mới thì thêm tên miền; mục 2.4 nói cách xử lý `Received status code 403` của Gradle trên cloud; bảng tra lỗi, dòng PB-11 (cùng mẫu `Could not GET ... Received status code 403`) nói rõ trường hợp môi trường cloud: không chạy lại, người thêm tên miền vào Allowed domains.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. PR làm ngay sau PR ghi bài học.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #433: `docs/ops/staging-and-runs.md` mục 2.1 (hai tên miền, quy tắc thêm kho Maven mới) và mục 2.4 (403 của Gradle trên cloud); bảng tra lỗi, dòng PB-11 nói rõ trường hợp môi trường cloud. Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-155. Trình chạy kịch bản emulator không chờ được nút bật, và "Do not consent" của UMP vẫn cho nạp quảng cáo
 
