@@ -1,7 +1,7 @@
 ---
 ticket: T-095
 title: Runner tự host: dòng lỗi của runner-check.sh vào build.log, issue session-stalled nói rõ job chờ runner quá lâu
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 5
 risk_level: high
@@ -261,3 +261,15 @@ AI đã đối chiếu trên nhánh chính `f95cc92` (2026-11-08):
 - **Ghi chú:** AI ghi theo lời anh Nhật ngày 2026-11-08, trong phiên có người: "Duyệt T-094 (câu 1 chọn a, câu 2 chọn a, câu 3 đồng ý) và T-095 (câu 1 chọn a, câu 2 giữ 75 phút, câu 3 đồng ý)." Trả lời mục 8, theo đề xuất: (1) báo qua issue `session-stalled` của `run-watchdog.py`, không sửa `resume-check.py`; ý 2 của định nghĩa hoàn thành trong ticket sửa thành "`run-watchdog.py` xử lý job `queued` quá ngưỡng, có test kèm đối chứng"; (2) ngưỡng 75 phút; (3) `main-guard.yml` không đổi. Duyệt ở commit 79cc284 (PR #423).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261108-02, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #426, commit `9255211`, 2026-11-09 03:19 UTC).
+- **Nhánh, PR:** `claude/T-095-runner-check-log-va-queued` (tạo từ `fb0d08d`, sau khi T-094 merge), https://github.com/VGL-Studio/app-project-template/pull/426. Commit test `fc21e3c`, code `59453ea`.
+- **Đã làm:** mục 3.1 A tới E. `runner-check.sh`: hàm `say` gom dòng kết quả, hàm `finish` ghi nối vào `RUNNER_CHECK_LOG` sau mọi điểm kiểm, lần ghi bọc trong `if !`. `pr-check.yml`: `RUNNER_CHECK_LOG: build.log` trong `env:` của bước kiểm runner, câu chú thích. `run-watchdog.py`: `RUNNER_QUEUE_MINUTES`, `runner_waits(now)` (đọc một lần, chỉ khi sắp mở hay cập nhật issue), `body_for(..., waits)`. Hai dòng mục 7 của `docs/ops/self-hosted-runner.md`. Phần dựng của test (mục E). Bước 3 đến 5 giao cho một phiên con. `push-probe.sh` qua ở đầu phiên; lần đẩy nhánh có `pr-check.yml` được GitHub nhận.
+- **Test viết trước:** 18 test (R1 tới R5, P1, P2, W1 tới W11). 11 test đỏ đúng lý do trước code, khớp danh sách mục 4; rà soát độc lập chạy lại commit test và xác nhận. R3, R4, W2, W3, W4, W9, W10 qua ngay như plan ghi. 0 test viết chặt lại. Không có thay đổi ở file test sau commit test.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 5 ghi chú: (1) lệch L3 ghi ở nhật ký này; (2) `runner_waits` có thể đếm hai lần một lần chạy chuyển từ `queued` sang `in_progress` giữa hai lần đọc (dòng lặp trong issue, hiếm, như `waiting_job`); (3) mỗi lần chạy trong hàng chờ là một lần `gh api` trong khi `run-watchdog.yml` có `timeout-minutes: 5`, và một lần chạy bị xóa giữa hai lần đọc làm lần chạy watchdog đó thoát 1; (4) tệp log không ghi được thì bash in thêm lỗi của nó cạnh dòng `CHÚ Ý`; (5) tiêu đề ticket còn nhắc `resume-check.py`.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42554354895). `scripts/tests/run.sh` và `scripts/check.sh` cục bộ qua (1871 test JVM, 0 lỗi). `main-guard` của `9255211`: đang chờ.
+- **Lệch so với plan:** ADR-0032/L3: số dòng "2534 tới 2634" của mục 3.5 lệch sau T-094; phần dựng neo theo tên hàm `watchdog()`, chữ ngữ cảnh còn nguyên. Không có file ngoài mục 3.2.
+- **Việc còn lại:** kiểm thủ công của mục 4 trên runner tự host thật (cùng nhóm H1 tới H6 của T-078), khi có máy và biến `HEAVY_RUNNER`.
+- **Cần người xem:** năm ghi chú của rà soát; tiêu đề ticket (ghi chú 5) giữ nguyên, người sửa nếu muốn.
