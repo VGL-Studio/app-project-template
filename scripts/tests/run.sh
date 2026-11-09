@@ -566,6 +566,27 @@ expect "pr-check: one code file among docs makes the PR a code PR" \
 awk '{ print } /^            code:$/ { print "              - '\''app/{a,b}/**'\''" }' "$pr_wf" > "$work/prwf/brace.yml"
 expect "pr-check: the sample PR check refuses a pattern it does not support" "ERROR mẫu chưa hỗ trợ: app/{a,b}/**" \
   "$(pr_sim_summary "$work/prwf/brace.yml" docs/a.md)"
+# Every other line of the filters block is refused too, so a pattern written another way is never skipped (T-094).
+awk '{ print } $0 == "              - '\''feature/**'\''" { print "              - docs/**" }' "$pr_wf" > "$work/prwf/unquoted.yml"
+awk '{ print } $0 == "              - '\''feature/**'\''" { print "              - \"docs/**\"" }' "$pr_wf" > "$work/prwf/dquoted.yml"
+expect "pr-check: the sample PR check refuses an unquoted or double-quoted pattern" \
+  "ERROR mẫu chưa hỗ trợ: - docs/** | ERROR mẫu chưa hỗ trợ: - \"docs/**\"" \
+  "$(pr_sim_summary "$work/prwf/unquoted.yml" docs/a.md) | $(pr_sim_summary "$work/prwf/dquoted.yml" docs/a.md)"
+awk '{ print } $0 == "          filters: |" { print "              - '\''docs/**'\''" }' "$pr_wf" > "$work/prwf/before-name.yml"
+expect "pr-check: the sample PR check refuses a pattern before any filter name" "ERROR mẫu chưa hỗ trợ: - 'docs/**'" \
+  "$(pr_sim_summary "$work/prwf/before-name.yml" docs/a.md)"
+awk '{ print }
+  $0 == "              - '\''app/**'\''" { print "              "; print "              # x" }
+  $0 == "              - '\''.github/workflows/pr-check.yml'\''" && ++n == 2 { print "          list-files: none" }' \
+  "$pr_wf" > "$work/prwf/key-after.yml"
+expect "pr-check: a key after the filters block ends it, comments and blank lines inside are fine" \
+  "code=true release=false gate=yes gradle=yes docs=no r8=no 1 1 1" \
+  "$(pr_sim_summary "$work/prwf/key-after.yml" app/src/main/java/A.kt) $(grep -cx '          list-files: none' "$work/prwf/key-after.yml") $(grep -cx '              # x' "$work/prwf/key-after.yml") $(grep -cx '              ' "$work/prwf/key-after.yml")"
+# The filter check step test reads its whole run block, blank lines included.
+awk '{ print } /^      - / { s = 0 } $0 == "      - name: Kiểm kết quả lọc đường dẫn" { s = 1 }
+  s && !d && $0 == "          done" { print ""; print "          exit 3"; d = 1 }' "$pr_wf" > "$work/prwf/run-blank.yml"
+expect "pr-check: the filter check test reads the run block past a blank line" "3 1" \
+  "$(pr_filter_check "$work/prwf/run-blank.yml" true false | cut -d' ' -f1) $(grep -cx '          exit 3' "$work/prwf/run-blank.yml")"
 # P6d: controls on broken copies.
 grep -vxF "              - 'scripts/**'" "$pr_wf" > "$work/prwf/no-scripts.yml"
 expect "pr-check: the sample PR check sees a pattern removed from the code filter" "code=false" \
@@ -962,9 +983,10 @@ perl -0pe '$n = 0; s/\Qselect(.body | contains("<!-- check:ui-test -->") | not)\
 expect "main-guard: guard comments on and closes only its own main-broken issues" "yes yes" "$(mg_own_issues "$guard_wf")"
 expect "main-guard: the own-issue check fails on a copy without the filter in each step" "no yes yes no" \
   "$(mg_own_issues "$work/mgwf/own-mark.yml") $(mg_own_issues "$work/mgwf/own-close.yml")"
-# merge-if-green.sh asks main-guard-verified.sh two questions before it merges a PR that is behind main without
-# updating it (ADR-0041): are these paths docs only (--docs-only), and did pr-check run check.sh on this commit
-# (--gate-ran). The answers follow the very rule main-guard applies to the merge commit.
+# merge-if-green.sh asks main-guard-verified.sh three questions before it merges a PR that is behind main without
+# updating it (ADR-0041): are these paths docs only (--docs-only), are they all in the paths-ignore of main-guard
+# (--guard-ignores), and did pr-check run check.sh on this commit (--gate-ran). The answers follow the very rules
+# main-guard applies to the merge commit.
 mgv_docs_only() { # <path>...: the answer of --docs-only to those paths, one per line on stdin
   printf '%s\n' "$@" | "$mgv_script" --docs-only 2> /dev/null
 }
@@ -999,6 +1021,57 @@ expect "main-guard-verified: --docs-only accepts only what main-guard ignores" "
 awk '{ print } /^      - .\*\*\/\*\.md.$/ { print "      - '\''scripts/**'\''" }' "$guard_wf" > "$work/mgwf/ignore-scripts.yml"
 expect "main-guard-verified: the paths-ignore check names a pattern it does not know" "unknown pattern" \
   "$(mgv_ignored "$work/mgwf/ignore-scripts.yml")"
+# --guard-ignores: does main-guard run at all on a commit with only these paths (paths-ignore), whatever it would then
+# check (T-094). Unlike --docs-only, the docs files Gradle reads are ignored too.
+mgv_guard_ignores() { # <path>...: the answer of --guard-ignores to those paths, one per line on stdin
+  printf '%s\n' "$@" | "$mgv_script" --guard-ignores 2> /dev/null
+}
+mgv_gi_rows=(docs/a.md README.md feature/x/README.md .claude/skills/x/SKILL.md docs/x.json docs/remote-config-keys.md
+  docs/remote-config-template.json docs/design-system/tokens.json app/x.kt scripts/a.sh docs.kt)
+mgv_gi_answers=""
+for f in "${mgv_gi_rows[@]}"; do
+  mgv_gi_answers="$mgv_gi_answers${mgv_gi_answers:+ }$(mgv_guard_ignores "$f")"
+done
+expect "main-guard-verified: --guard-ignores answers by the paths-ignore of main-guard" \
+  "yes yes yes yes yes yes yes yes no no no" "$mgv_gi_answers"
+expect "main-guard-verified: --guard-ignores of an empty list is yes, with an extra argument no" "yes no" \
+  "$(printf '' | "$mgv_script" --guard-ignores 2> /dev/null) $(printf 'docs/a.md\n' | "$mgv_script" --guard-ignores x 2> /dev/null)"
+mgv_guard_agree() { # <workflow>: "agree=<n>", the rows of mgv_gi_rows whose answer is yes exactly when a pattern of
+  # its paths-ignore matches them, or "unknown pattern"
+  local pats p rest f g match answer globs=() agree=0 any_dir='**/' under='/**'
+  pats="$(awk '/^    paths-ignore:$/ { p = 1; next } p && /^      - / { sub(/^      - /, ""); print; next } p { p = 0 }' "$1")"
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    [[ "$p" == \'*\' ]] || { echo "unknown pattern"; return; }
+    p="${p:1:${#p}-2}"
+    if [[ "$p" == "$any_dir"* ]]; then
+      # **/<name> matches <name> in any directory, the root too: bash's * also matches /.
+      rest="${p#"$any_dir"}"
+      [[ "$rest" != */* && "$rest" != *'**'* ]] || { echo "unknown pattern"; return; }
+      globs+=("$rest")
+    elif [[ "$p" == *"$under" ]]; then
+      rest="${p%"$under"}"
+      [[ "$rest" != *[*?[]* ]] || { echo "unknown pattern"; return; }
+      globs+=("$rest/*")
+    else
+      echo "unknown pattern"
+      return
+    fi
+  done <<<"$pats"
+  for f in "${mgv_gi_rows[@]}"; do
+    match=no
+    for g in "${globs[@]}"; do
+      # shellcheck disable=SC2053 # $g is a glob
+      if [[ "$f" == $g ]]; then match=yes; fi
+    done
+    answer="$(mgv_guard_ignores "$f")"
+    if [[ ("$match" == yes && "$answer" == yes) || ("$match" == no && "$answer" != yes) ]]; then
+      agree=$((agree + 1))
+    fi
+  done
+  echo "agree=$agree"
+}
+expect "main-guard-verified: --guard-ignores agrees with the paths-ignore patterns" "agree=11" "$(mgv_guard_agree "$guard_wf")"
 # A PR merged without updating: A, H = A + the PR's change, D = A + docs on main, M = D's tree plus the PR's change.
 mgv_docs_main() { # <path=content> changed on main: sets mgv_d and mgv_m from a new mgv_setup
   local tree
@@ -1088,10 +1161,12 @@ merge_routes() { # <head ref> <compare route JSON fields> <check-runs answer> [e
 JSON
 }
 merge_run() { # <args...>; prints the exit code, keeps the output in $work/mg.out and the writes in $work/mg.json.writes
+  # UPDATE_TIMEOUT is the wait of --update in seconds (5 by default), like NOW_EPOCH for the clock.
   rm -f "$work/mg.json.writes" "$work/mg.json.seen"
   local code=0
-  PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS=5 \
-    MERGE_NOW_EPOCH="${NOW_EPOCH:-1793000000}" scripts/merge-if-green.sh "$@" > "$work/mg.out" 2>&1 || code=$?
+  PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" MERGE_POLL_SECONDS=0 MERGE_UPDATE_TIMEOUT_SECONDS="${UPDATE_TIMEOUT:-5}" \
+    MERGE_BRANCH_WAIT_SECONDS=0 MERGE_NOW_EPOCH="${NOW_EPOCH:-1793000000}" scripts/merge-if-green.sh "$@" \
+    > "$work/mg.out" 2>&1 || code=$?
   echo "$code"
 }
 green_runs='{"check_runs": [
@@ -1252,6 +1327,32 @@ expect "merge-if-green: a branch already deleted by GitHub gets no warning" 0 "$
 python3 -I -c 'import json,sys; fx=json.load(open(sys.argv[1])); fx["routes"]["git/ref/heads/claude/template-x"]={"ref": "x"}; json.dump(fx, open(sys.argv[1], "w"))' "$work/mg.json"
 merge_run 12 > /dev/null
 expect "merge-if-green: a branch left after a failed delete gets a warning" 1 "$(grep -c "không xóa được nhánh 'claude/template-x'" "$work/mg.out" || true)"
+# GitHub deletes a merged branch a few seconds after the merge, while the delete of a cloud session may be refused by
+# its proxy (L-149): after a failed delete the branch is read again a few times, and only a branch still there after
+# every read gets the warning. A delete that worked reads nothing.
+mg_branch_route='git/ref/heads/claude/template-x'
+mg_seen() { # how many times the fixture served the branch route (fake-gh counts the reads of a __sequence__)
+  python3 -I -c 'import json, os, sys; p = sys.argv[1]; print(json.load(open(p)).get(sys.argv[2], 0) if os.path.exists(p) else 0)' \
+    "$work/mg.json.seen" "$mg_branch_route"
+}
+mg_branch() { # <JSON of the branch route> [<fail_writes JSON>]: the data of a green PR of claude/template-x
+  merge_routes claude/template-x '{"behind_by": 0}' "$green_runs"
+  python3 -I -c 'import json, sys; fx = json.load(open(sys.argv[1])); fx["routes"][sys.argv[2]] = json.loads(sys.argv[3]); fx["fail_writes"] = json.loads(sys.argv[4]); json.dump(fx, open(sys.argv[1], "w"))' \
+    "$work/mg.json" "$mg_branch_route" "$1" "${2:-[\"DELETE git/refs/heads/claude/template-x\"]}"
+}
+mg_warned() { grep -c "không xóa được nhánh 'claude/template-x'" "$work/mg.out" || true; }
+mg_branch '{"__sequence__": [{"ref": "x"}, {"__error__": "HTTP 404: Not Found"}]}'
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch gone at the second read after a failed delete gets no warning" "0 2" "$(mg_warned) $(mg_seen)"
+mg_branch '{"__sequence__": [{"ref": "x"}]}'
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch still there after every read gets the warning" "1 3" "$(mg_warned) $(mg_seen)"
+mg_branch '{"__sequence__": [{"ref": "x"}]}' '[]'
+merge_run 12 > /dev/null
+expect "merge-if-green: a branch deleted by the script is not read again" "0 0" "$(mg_warned) $(mg_seen)"
+mg_branch '{"__sequence__": [{"ref": "x"}]}'
+MERGE_BRANCH_TRIES=1 merge_run 12 > /dev/null
+expect "merge-if-green: MERGE_BRANCH_TRIES sets the reads" "1 1" "$(mg_warned) $(mg_seen)"
 
 # merge-if-green.sh notices a PR that is already on main, and a merge that GitHub answered with an error although the
 # squash commit reached main (L-080). Every earlier check still comes first (L-058).
@@ -1377,6 +1478,18 @@ expect "merge-if-green tests fetch nothing from the network: the origin of mig_r
 FIXTURE="$work/mig.json" PATH="$work/bin:$PATH" gh api repos/o/r/git/commits/zzz > "$work/fake404.out" 2> "$work/fake404.err" || fake404=$?
 expect "fake-gh answers an unknown path with 404" "1 1 0" \
   "${fake404:-0} $(grep -c 'HTTP 404' "$work/fake404.err" || true) $(grep -c Traceback "$work/fake404.err" || true)"
+# An {"__error__": ...} item of a __sequence__ fails that one read, so a branch can be there at one read and gone at
+# the next (T-094).
+printf '%s' '{"routes": {"x": {"__sequence__": [{"a": 1}, {"__error__": "HTTP 404: Not Found"}, {"a": 2}]}}}' > "$work/fg.json"
+rm -f "$work/fg.json.seen"
+fg_codes=""
+for fg_i in 1 2 3; do
+  fg_code=0
+  FIXTURE="$work/fg.json" PATH="$work/bin:$PATH" gh api repos/o/r/x > "$work/fg$fg_i.out" 2> "$work/fg$fg_i.err" || fg_code=$?
+  fg_codes="$fg_codes$fg_code "
+done
+expect "fake-gh: an __error__ item of a sequence fails that read" "0 1 0 yes" \
+  "$fg_codes$(grep -q 'HTTP 404' "$work/fg2.err" && echo yes || echo no)"
 
 # failure-kind.sh (ADR-0025, point 1): "tests" only when every failed Gradle task is a test task with failing tests.
 failure_kind() { printf '%b' "$1" > "$work/fk.log"; scripts/failure-kind.sh "$work/fk.log"; }
@@ -2003,6 +2116,73 @@ nu_routes
 nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "feature/x/README.md"}]'
 nu8="$nu8 $(merge_run 12) $(nu_count 'PR chỉ đổi file mà main-guard bỏ qua')"
 expect "merge-if-green: a PR that did not run check.sh is always updated" "3 1 3 3 3 1" "$nu8"
+# A PR with only files that the paths-ignore of main-guard skips is updated, even with a docs file Gradle reads: its
+# merge commit would get no main-guard run at all (T-094, L-152).
+nu_ignored() { # the data of nu_routes for a PR with feature/x/README.md and docs/remote-config-keys.md
+  nu_routes
+  nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "feature/x/README.md"}, {"filename": "docs/remote-config-keys.md"}]'
+}
+nu_ignored
+nu_gi="$(merge_run 12) $(nu_count 'PR chỉ đổi file mà main-guard bỏ qua')"
+nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "docs/remote-config-keys.md"}]'
+nu_gi="$nu_gi $(merge_run 12)"
+nu_ignored
+nu_gi="$nu_gi $(merge_run 12 --dry-run)"
+expect "merge-if-green: a PR with only files main-guard ignores is updated, even a docs file Gradle reads" "3 1 3 3" "$nu_gi"
+nu_updated() { # [<check-runs answer of def5678>]: --update moves the PR head to def5678, whose CI first has no run
+  nu_edit '
+r["compare/main...def5678"] = {"behind_by": 0}
+r["commits/def5678/check-runs?per_page=100"] = {"__sequence__": [{"check_runs": []}, json.loads(sys.argv[3])]}
+r["commits/def5678"] = {"commit": {"committer": {"date": "2026-10-18T02:30:00Z"}, "message": "Merge main"}}
+second = json.loads(json.dumps(r["pulls/12"])); second["head"]["sha"] = "def5678"
+r["pulls/12"] = {"__sequence__": [r["pulls/12"], second]}' "${1:-$code_runs}"
+}
+nu_ignored
+nu_updated
+expect "merge-if-green --update: a PR with only files main-guard ignores is updated, then merged" \
+  "0 PUT pulls/12/update-branch;PUT pulls/12/merge;DELETE git/refs/heads/claude/T-901-x;" \
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(nu_writes)"
+nu_routes
+nu_edit 'r["pulls/12/files?per_page=100&page=1"] = [{"filename": "app/src/main/x.kt"}, {"filename": "docs/remote-config-keys.md"}]'
+expect "merge-if-green: a code PR with a docs file Gradle reads still merges without updating" "0 1" \
+  "$(merge_run 12) $(nu_count '^KHÔNG CẬP NHẬT NHÁNH: ')"
+# A main-guard-verified.sh that does not know --guard-ignores (full) or answers nothing: the branch is updated.
+printf '#!/bin/sh\nif [ "$1" = --docs-only ]; then echo yes; else echo "KIỂM ĐẦY ĐỦ: cách dùng." >&2; echo full; fi\n' \
+  > "$work/mgv-gi-full.sh"
+printf '#!/bin/sh\nif [ "$1" = --docs-only ]; then echo yes; fi\n' > "$work/mgv-gi-empty.sh"
+chmod +x "$work/mgv-gi-full.sh" "$work/mgv-gi-empty.sh"
+nu_routes
+nu_gi7="$(MAIN_GUARD_VERIFIED_SCRIPT="$work/mgv-gi-full.sh" merge_run 12) $(nu_count 'không đọc được PR có chỉ đổi file mà main-guard bỏ qua không')"
+nu_gi7="$nu_gi7 $(MAIN_GUARD_VERIFIED_SCRIPT="$work/mgv-gi-empty.sh" merge_run 12) $(nu_count 'không đọc được PR có chỉ đổi file mà main-guard bỏ qua không')"
+expect "merge-if-green: an unreadable --guard-ignores answer updates" "3 1 3 1" "$nu_gi7"
+# After the update, the checks on the new head still apply: red is refused, still running waits.
+nu_ignored
+nu_updated "$(one_job_with build-and-test completed '"failure"')"
+expect "merge-if-green --update, only files main-guard ignores: a red check after the update is refused" "1 1 0" \
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $(nu_wcount 'PUT pulls/12/merge')"
+nu_ignored
+nu_updated
+nu_edit 'r["commits/def5678/check-runs?per_page=100"] = json.loads(sys.argv[3])' "$(one_job_with build-and-test in_progress null)"
+expect "merge-if-green --update, only files main-guard ignores: CI still going after the update waits" "2 1 yes 0" \
+  "$(merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $([[ "$(nu_count 'đang ở trạng thái in_progress')" -ge 1 ]] && echo yes || echo no) $(nu_wcount 'PUT pulls/12/merge')"
+nu_ignored
+nu_edit 'fx["fail_writes"] = ["PUT pulls/12/update-branch"]'
+expect "merge-if-green --update, only files main-guard ignores: a refused update-branch is refused" "1 1" \
+  "$(merge_run 12 --update) $(nu_count 'không cập nhật được nhánh')"
+nu_ignored
+expect "merge-if-green --update, only files main-guard ignores: a head that does not move waits" "2 1 yes" \
+  "$(merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $([[ "$(nu_count 'chưa cập nhật xong')" -ge 1 ]] && echo yes || echo no)"
+nu_ignored
+nu_edit '
+heads = ["abc1234", "b100001", "b100002", "b100003"]
+copies = []
+for h in heads:
+    c = json.loads(json.dumps(r["pulls/12"])); c["head"]["sha"] = h; copies.append(c)
+    r["compare/main..." + h] = {"behind_by": 2}
+    r["compare/" + h + "...main"] = json.loads(json.dumps(r["compare/abc1234...main"]))
+r["pulls/12"] = {"__sequence__": copies}'
+expect "merge-if-green --update, only files main-guard ignores: three updates without catching up are refused" "1 3 1" \
+  "$(UPDATE_TIMEOUT=60 merge_run 12 --update) $(nu_wcount 'PUT pulls/12/update-branch') $(nu_count 'Đã cập nhật nhánh 3 lần')"
 
 # Test 9: a conflicting PR updates; an unknown mergeable state is read again, then waits.
 nu_routes success false
@@ -2102,6 +2282,30 @@ r["pulls/12"]["head"]["ref"] = "claude/template-x"'
 nu24="$(merge_run 12)"
 nu_edit 'r["pulls/12"]["head"]["ref"] = "claude/T-901-x"'
 expect "merge-if-green, behind by docs: a running session still refuses a person's PR" "1 0" "$nu24 $(merge_run 12)"
+# A PR with only files main-guard ignores (nu_ignored): every check that comes before the update still refuses it, with nothing written to GitHub (L-058).
+nu_gi8="" nu_gi8w=0
+for nu_case in 'r["pulls/12"]["state"] = "closed"' 'r["pulls/12"]["draft"] = True' \
+  'r["pulls/12"]["labels"] = [{"name": "needs-human"}]' 'r["pulls/12"]["base"]["ref"] = "other"' '
+r["branches?per_page=100&page=1"] = [{"name": "main"}, {"name": "claude/RUN-20261016-01-report"}]
+r["contents/docs/runs/RUN-20261016-01.md?ref=claude/RUN-20261016-01-report"] = "---\nid: RUN-20261016-01\nstatus: running\n---\n"
+r["pulls/12"]["head"]["ref"] = "claude/template-x"'; do
+  nu_ignored
+  nu_edit "$nu_case"
+  nu_gi8="$nu_gi8$(merge_run 12) "
+  nu_gi8w=$((nu_gi8w + $(nu_wcount .)))
+done
+nu_ignored
+nu_sha "$(git_t rev-parse good)"
+nu_edit 'r["issues?state=open&labels=main-broken&per_page=10"] = json.loads(sys.argv[3])' "$one_issue"
+rm -f "$work/mg.json.writes" "$work/mg.json.seen"
+code=0
+(cd "$rev" && PATH="$work/bin:$PATH" FIXTURE="$work/mg.json" IS_EXACT_REVERT="$work/bin/revert-no" MERGE_POLL_SECONDS=0 \
+  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_1="url.$work/origin.git.insteadOf" GIT_CONFIG_VALUE_1=https://github.com/o/r.git \
+  "$root/scripts/merge-if-green.sh" 12) > "$work/broken.out" 2>&1 || code=$?
+nu_gi8="$nu_gi8$code"
+nu_gi8w=$((nu_gi8w + $(nu_wcount .)))
+expect "merge-if-green, only files main-guard ignores: every earlier check still refuses" "1 1 1 1 1 1 writes=0 broken=1" \
+  "$nu_gi8 writes=$nu_gi8w broken=$(grep -c 'TỪ CHỐI: nhánh chính đang đỏ' "$work/broken.out" || true)"
 nu_routes
 nu_checks "$(one_job_with build-and-test completed '"failure"')"
 nu25="$(merge_run 12) $(nu_count 'có kiểm tra không qua')"
