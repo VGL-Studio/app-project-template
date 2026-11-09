@@ -68,8 +68,8 @@ Ghi lệnh, mã lần chạy và kết quả của từng bước vào nhật k�
 
 - Dọn image cũ (`docker image prune`), cập nhật image khi runner hay SDK đổi, xem đĩa trống.
 - Token xin cấu hình có hạn (tối đa 90 ngày với runner cấp repo): đặt lịch thay token trước ngày hết hạn. Gặp mã 7 hay runner không nhận job thì xem token còn hạn trước, rồi mới xem máy.
-- Job chờ máy: `scripts/wait-run.sh` trả mã 7 (`CHỜ RUNNER`) khi một job chờ runner tự host quá `WAIT_RUN_RUNNER_QUEUE_MINUTES` phút (mặc định 75) mà không còn job nào của lần chạy đang chạy. `scripts/resume-check.py` không tiếp tục phiên tự chạy khi repo còn job chờ runner tự host.
-- Issue `session-stalled` có sẵn lệnh tiếp tục phiên. Trước khi dán lệnh đó, xem hàng chờ: `gh api "repos/<tổ chức>/<repo>/actions/runs?status=queued"`, rồi `jobs` của từng lần chạy. Có job mang nhãn tự host thì phiên cũ có thể vẫn đang chờ máy: sửa máy hay xóa biến trước, nếu không sẽ có hai phiên chồng nhau.
+- Job chờ máy: `scripts/wait-run.sh` trả mã 7 (`CHỜ RUNNER`) khi một job chờ runner tự host quá `WAIT_RUN_RUNNER_QUEUE_MINUTES` phút (mặc định 75) mà không còn job nào của lần chạy đang chạy. `scripts/resume-check.py` không tiếp tục phiên tự chạy khi repo còn job chờ runner tự host. Bước kiểm runner của `pr-check` đỏ thì bình luận lỗi trên PR có các dòng `RUNNER KHÔNG DÙNG ĐƯỢC:` (`scripts/runner-check.sh` ghi chúng vào `build.log`); bước đó của `main-guard` đỏ thì xem log của bước trên tab Actions.
+- Issue `session-stalled` có sẵn lệnh tiếp tục phiên, và ghi sẵn job chờ runner tự host quá 75 phút, nếu có (`scripts/run-watchdog.py`). Job chờ dưới ngưỡng đó thì issue không ghi: trước khi dán lệnh, xem hàng chờ: `gh api "repos/<tổ chức>/<repo>/actions/runs?status=queued"`, rồi `jobs` của từng lần chạy. Có job mang nhãn tự host thì phiên cũ có thể vẫn đang chờ máy: sửa máy hay xóa biến trước, nếu không sẽ có hai phiên chồng nhau.
 
 ## 8. Máy hỏng
 
