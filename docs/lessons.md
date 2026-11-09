@@ -1178,8 +1178,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `recordRoborazziDebug ... --rerun` ghi lại mọi ảnh của module. 11 ảnh ngoài plan đổi vì nhiễu vẽ (tối đa 1 mỗi kênh màu), dù `verifyRoborazziDebug` vẫn qua với ảnh cũ. Phiên phải tự khôi phục từng ảnh.
 - **Bằng chứng:** issue #382, mục 1.
 - **Đề xuất sửa:** `CLAUDE.md` mục Lệnh: sau khi ghi lại, chỉ giữ ảnh của plan (`git checkout --` các ảnh khác), hay ghi lại bằng bộ lọc test của lớp có ảnh mới.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #435: `CLAUDE.md` mục Lệnh (chỉ giữ ảnh chuẩn mà plan cho ghi lại). Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-157. Phiên `local` và một phiên Claude Code khác dùng chung thư mục chính, lần sửa báo cáo rơi vào nhánh khác
 
@@ -1188,8 +1188,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** một phiên Claude Code khác chuyển nhánh và commit trong thư mục chính khi phiên tự chạy `local` đang chờ `device-session`. Lần sửa báo cáo tiếp theo của phiên rơi vào nhánh khác.
 - **Bằng chứng:** issue #382, mục 2.
 - **Đề xuất sửa:** `docs/auto-run.md` mục 2 (phiên `local`): làm nhánh báo cáo trong worktree riêng; `docs/ops/session-capabilities.md`: không mở phiên khác trong thư mục repo khi danh sách đang `running`.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #435: `docs/ops/session-capabilities.md`, dòng `local` (không mở phiên khác hay đổi nhánh trong thư mục repo khi danh sách `running`). Không chuyển nhánh báo cáo sang worktree riêng, vì `docs/auto-run.md` bước 9 cần thư mục chính đứng trên nhánh báo cáo. Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-158. Plan chạy trước xóa file mà plan chạy sau trong cùng danh sách còn dẫn, nên task sau bị bỏ qua
 
@@ -1198,8 +1198,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** một task xóa đúng theo plan hai ảnh thiết kế; plan của task sau trong cùng danh sách còn liệt kê hai ảnh đó, nên `plan-check.py` ngay trước task báo lỗi và phiên bỏ qua task sau. `run-check.py` và rà soát danh sách không thấy, vì chúng kiểm từng plan trên trạng thái repo lúc duyệt.
 - **Bằng chứng:** issue #382, mục 3.
 - **Đề xuất sửa:** `scripts/run-check.py`: plan nào ghi Xóa một file ở mục 3.2 mà plan chạy sau trong danh sách còn dẫn tên file đó thì báo lỗi; `docs/CLAUDE.md`, Khi viết plan: không liệt kê file mà plan khác cùng danh sách sẽ xóa.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #435: `scripts/run-check.py` quy tắc 9; `docs/CLAUDE.md`, Khi viết plan. Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-159. `save-branch.sh` báo "CHƯA ĐẨY" khi `push-on-commit.sh` vừa đẩy đúng commit đó
 
@@ -1208,8 +1208,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** hai lệnh chạy cùng lúc cho cùng một nhánh. Nhánh trên origin đã đúng commit, nhưng `save-branch.sh` báo lỗi, phiên giữ bundle và mất công kiểm.
 - **Bằng chứng:** issue #382, mục 4.
 - **Đề xuất sửa:** `scripts/save-branch.sh`: trước khi báo lỗi, đọc `git ls-remote`; origin đã có đúng commit đầu nhánh thì báo đã đẩy. Hoặc `docs/auto-run.md`: dừng `push-on-commit.sh` trước khi phiên chính tự đẩy.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Làm bằng `/lesson` sau PR ghi bài học.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #435: `scripts/save-branch.sh` đọc `git ls-remote` sau lệnh đẩy lỗi; origin đã có đúng commit thì báo đã đẩy. Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-160. Feature dùng `LocalActivity` không biên dịch được sau khi lên AGP 9, vì `activity-compose` không còn trên classpath biên dịch
 

@@ -4894,6 +4894,30 @@ plan3 '- Đề xuất thứ tự chạy: T-003 chạy trước T-002.'
 expect "run-check: a hint with this plan as subject that the list follows passes" pass "$(run_check)"
 rm -f "$rr/docs/features/demo/tickets/T-003-x.md" "$rr/docs/features/demo/plans/T-003-x.md" "$rr/feature/demo/C.kt"
 
+# Rule 9: a plan that deletes a file another plan after it in the list still names: that later plan fails
+# plan-check.py at its start and is skipped. Section 3.2 is an error, a name elsewhere in sections 3, 4 a warning.
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Xóa
+write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |'
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+expect "run-check: a later plan listing a file an earlier plan deletes stops" "stop 1" \
+  "$(run_check) $(grep -c 'LỖI: T-002 có `feature/demo/A.kt` ở mục 3.2 mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
+write_run "$(run_row 1 T-002)$(run_row 2 T-001)"
+expect "run-check: the plan that deletes the file last passes" "pass 0" \
+  "$(run_check) $(grep -c 'xóa' "$work/run-check.out" || true)"
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |' Sửa 'Đọc `feature/demo/A.kt` để so.'
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+expect "run-check: a later plan naming a deleted file outside section 3.2 warns" "pass 1" \
+  "$(run_check) $(grep -c 'CHÚ Ý: T-002 nhắc `feature/demo/A.kt` mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
+write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |' Tạo
+expect "run-check: a later plan that creates the deleted file again only warns" "pass 1" \
+  "$(run_check) $(grep -c 'CHÚ Ý: T-002 tạo lại `feature/demo/A.kt` mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
+write_run_plan T-001 feature/demo/ '| KB-1 | Unit | `aTest` |' Xóa
+write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |'
+expect "run-check: a later plan listing a file in a folder an earlier plan deletes stops" "stop 1" \
+  "$(run_check) $(grep -c 'LỖI: T-002 có `feature/demo/A.kt` ở mục 3.2 mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+
 # Rule 8: what the way of opening the session can do (L-112).
 mkdir -p "$rr/docs/ops" "$rr/.github/workflows"
 touch "$rr/.github/workflows/ci.yml"
@@ -6668,10 +6692,12 @@ git -C "$sb_clone" commit -q --allow-empty -m two
 sb_head="$(git -C "$sb_clone" rev-parse HEAD)"
 sb_hook="$sb_origin/hooks/pre-receive"
 sb_calls="$work/sb-hook.calls"
-sb_hook_mode() { # reject | network | none | flaky
+sb_hook_mode() { # reject | network | none | flaky | raced
   rm -f "$sb_calls" "$sb_calls.count"
   case "$1" in
     none) rm -f "$sb_hook" ;;
+    # Another push of the same commit (push-on-commit.sh) wins the race: the ref moves, this push is refused.
+    raced) printf '#!/bin/sh\nread old new ref\nenv -u GIT_QUARANTINE_PATH git update-ref "$ref" "$new"\necho "remote: cannot lock ref" >&2\nexit 1\n' > "$sb_hook" ;;
     reject) printf '#!/bin/sh\necho x >> "%s"\necho "remote: denied" >&2\nexit 1\n' "$sb_calls" > "$sb_hook" ;;
     network) printf '#!/bin/sh\necho x >> "%s"\necho "fatal: The remote end hung up unexpectedly" >&2\nexit 1\n' "$sb_calls" > "$sb_hook" ;;
     flaky) printf '#!/bin/sh\necho x >> "%s"\nif [ -f "%s.count" ]; then exit 0; fi\ntouch "%s.count"\necho "fatal: The remote end hung up unexpectedly" >&2\nexit 1\n' \
@@ -6733,6 +6759,16 @@ sb_hook_mode reject
 expect "save-branch: a refusal by GitHub exits 3" 3 "$(SB_RETRY="0 0" sb_run claude/T-999-thu)"
 expect "save-branch: a refusal by GitHub is not retried" 1 "$(sb_calls_count)"
 rm -f "$sb_bundle"
+# The push failed, but origin already has the very head commit (a parallel push of the same branch): pushed.
+sb_hook_mode none
+git -C "$sb_clone" push -q origin claude/T-999-thu:refs/heads/sb-objects
+git -C "$sb_origin" update-ref -d refs/heads/claude/T-999-thu
+sb_hook_mode raced
+rm -rf "$work/rescue"
+expect "save-branch: a push refused after a parallel push of the same commit is pushed" "0 1 $sb_head no" \
+  "$(sb_run claude/T-999-thu) $(grep -c 'ĐÃ ĐẨY: claude/T-999-thu' "$work/sb.out" || true) $(sb_remote_head) $([ -e "$sb_bundle" ] && echo yes || echo no)"
+git -C "$sb_origin" update-ref -d refs/heads/claude/T-999-thu
+git -C "$sb_origin" update-ref -d refs/heads/sb-objects
 git -C "$sb_clone" branch -q claude/T-998-nothing main
 sb_hook_mode reject
 expect "save-branch: a refused push with nothing beyond main exits 3" 3 "$(sb_run claude/T-998-nothing)"
