@@ -6060,9 +6060,9 @@ expect "device-scenario: tap_if with enabled=true does not tap a button that is 
   "$(ds_run "next-held.xml" "$ds_files/next-held.txt") $(ds_count 'result=đạt') $(ds_count '^shell input tap ' "$ds_calls")"
 ds_script next-ready.txt 'wait id=intro_next enabled=true 10' 'tap id=intro_next enabled=true'
 # The tap comes only after the third dump (the first with the button on): a wait that ignored enabled would tap
-# after two dumps, while the button is still off.
+# after two dumps, while the button is still off. Only the dumps before the first tap are counted.
 expect "device-scenario: wait with enabled=true waits until the button turns on, then taps it" "0 1 1 yes" \
-  "$(ds_run "next-held.xml next-held.xml next-ready.xml" "$ds_files/next-ready.txt") $(ds_count 'result=đạt') $(ds_count '^shell input tap 540 2250$' "$ds_calls") $( (( $(ds_count '^shell uiautomator dump' "$ds_calls") >= 3 )) && echo yes || echo no)"
+  "$(ds_run "next-held.xml next-held.xml next-ready.xml" "$ds_files/next-ready.txt") $(ds_count 'result=đạt') $(ds_count '^shell input tap 540 2250$' "$ds_calls") $( (( $(awk '/^shell input tap/ {exit} /^shell uiautomator dump/ {n++} END {print n+0}' "$ds_calls") >= 3 )) && echo yes || echo no)"
 ds_script next-off.txt 'tap id=intro_next enabled=false'
 expect "device-scenario: enabled= takes only true" "1 1" \
   "$(code=0; python3 -I scripts/device-scenario.py check "$ds_files/next-off.txt" > "$work/ds-check.out" 2>&1 || code=$?; echo "$code") $(grep -c 'enabled= chỉ nhận true' "$work/ds-check.out" || true)"
