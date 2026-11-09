@@ -124,7 +124,7 @@ Bộ lọc thêm: `in=<testTag>` (trong cây con của phần tử có tag đó)
 
 Lý do: chữ của chip Compose nằm trong một nút con, còn `selected` nằm ở nút cha.
 
-`enabled=true` khớp khi chính nút đó có `enabled="true"`. Nút Compose bị tắt vẫn có `clickable="true"` trong dump, chỉ `enabled="false"`, nên `tap` hay `tap_if` không có bộ lọc này chạm vào nút mờ mà không có tác dụng. Màn giữ nút tắt một lúc (ví dụ chờ thẻ quảng cáo) thì chờ nút bật rồi mới chạm: `wait id=<nút> enabled=true | <bộ chọn của màn sau> 15`, rồi `tap_if id=<nút> enabled=true`.
+`enabled=true` khớp khi chính nút đó có `enabled="true"`; dùng với `id=` của nút, vì với `text=` thì xét nút chữ bên trong, có thể không mang trạng thái của nút. Nút Compose bị tắt vẫn có `clickable="true"` trong dump, chỉ `enabled="false"`, nên `tap` hay `tap_if` không có bộ lọc này chạm vào nút mờ mà không có tác dụng. Màn giữ nút tắt một lúc (ví dụ chờ thẻ quảng cáo) thì chờ nút bật rồi mới chạm: `wait id=<nút> enabled=true | <bộ chọn của màn sau> 15`, rồi `tap_if id=<nút> enabled=true`.
 
 **Ngoặc kép.** Giá trị có dấu cách ghi trong ngoặc kép, `wait text="Hands in Pockets" 5`: dấu cách trong ngoặc được giữ, số sau ngoặc đóng là số giây hay số lần. Mọi giá trị `text=` hay `desc=` không có ngoặc trên một dòng kết thúc bằng một số là mơ hồ, kể cả một từ (`wait text=Page 2` là chữ "Page 2" hay chờ 2 giây? `wait desc=Back 10` cũng vậy), nên là lỗi tệp: ghi giá trị trong ngoặc kép, ví dụ `wait desc="Back" 10`. Quy tắc này cũng bắt `count text=A b 2` và `wait text=A b selected=true 5`: ghi `text="A b"`.
 
