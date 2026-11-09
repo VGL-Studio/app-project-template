@@ -22,7 +22,8 @@
 # of main-guard (scripts/main-guard-verified.sh --docs-only), no file changed on both sides, GitHub says the PR does
 # not conflict, and pr-check ran scripts/check.sh on the PR head (--gate-ran). The merge commit then differs from the
 # checked commit only in main's docs, and main-guard checks it with scripts/tests/run.sh. A PR with docs only, or any
-# answer that cannot be read, updates the branch as before.
+# answer that cannot be read, updates the branch as before. So does a PR whose files are all in the paths-ignore of
+# main-guard.yml (--guard-ignores), even a docs file Gradle reads: main-guard would not run on its merge commit at all.
 #
 # Uses only the GitHub REST API through `gh api`.
 # Changing this file changes the quality gate: high-risk plan, cross-review required.
@@ -50,6 +51,9 @@ COMPARE_FILES_LIMIT=300
 # GitHub computes "mergeable" in the background (null until then): read again a few times, then wait.
 MERGEABLE_TRIES="${MERGE_MERGEABLE_TRIES:-3}"
 MERGEABLE_WAIT_SECONDS="${MERGE_MERGEABLE_WAIT_SECONDS:-5}"
+# After a failed delete of the merged branch, how many times it is read again, and how long apart (L-149).
+BRANCH_GONE_TRIES="${MERGE_BRANCH_TRIES:-3}"
+BRANCH_GONE_WAIT_SECONDS="${MERGE_BRANCH_WAIT_SECONDS:-5}"
 
 die()  { echo "TỪ CHỐI: $*" >&2; exit 1; }
 # A condition not met yet: recorded for the main loop, which waits (--update) or stops with exit 2.
@@ -165,10 +169,17 @@ docs_only_behind() { # <JSON of the PR>
     return 0
   fi
   # pr-check's code filter also takes *.md under app/, core/, feature/ and scripts/, so such a PR ran check.sh, but
-  # its merge commit has only docs and main-guard does not run (paths-ignore): it must be updated.
-  mgv_ask --docs-only <<<"$pr_files_list"
+  # its merge commit has only such files and main-guard does not run at all: it must be updated. This is the rule of
+  # paths-ignore (--guard-ignores), not the rule by which main-guard picks tests (--docs-only): a docs file Gradle
+  # reads is code for the latter but still skipped by paths-ignore (L-152). Only "no" goes on; any other answer
+  # (empty, full from an older main-guard-verified.sh) updates, the safe side.
+  mgv_ask --guard-ignores <<<"$pr_files_list"
   if [[ "$MGV_ANSWER" == "yes" ]]; then
     BEHIND_REASON="PR chỉ đổi file mà main-guard bỏ qua"
+    return 0
+  fi
+  if [[ "$MGV_ANSWER" != "no" ]]; then
+    BEHIND_REASON="không đọc được PR có chỉ đổi file mà main-guard bỏ qua không"
     return 0
   fi
   while IFS= read -r file; do
@@ -477,12 +488,24 @@ if [[ "$merge_failed" == "yes" ]]; then
 fi
 
 # Delete the merged branch if it belongs to an auto-run session. The repository setting "Automatically delete head
-# branches" usually deleted it already; a branch still there after a failed delete gets a warning, because branches
-# that pile up past 100 once broke this script on cloud sessions (L-092).
+# branches" usually deletes it a few seconds after the merge, while the delete of a cloud session may be refused by its
+# proxy (L-149): after a failed delete the branch is read again up to BRANCH_GONE_TRIES times, and only a branch still
+# there after every read gets a warning, because branches that pile up past 100 once broke this script on cloud
+# sessions (L-092). A read that fails (404 or any other error) counts as gone, as before.
 if [[ "$HEAD_REF" == claude/* ]]; then
-  if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null 2>&1 \
-    && gh api "repos/$REPO/git/ref/heads/$HEAD_REF" >/dev/null 2>&1; then
-    echo "CHÚ Ý: không xóa được nhánh '$HEAD_REF' sau khi merge; người xóa tay để số nhánh không tăng (L-092)." >&2
+  if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" >/dev/null 2>&1; then
+    branch_left="no"
+    for ((try = 1; try <= BRANCH_GONE_TRIES; try++)); do
+      if ! gh api "repos/$REPO/git/ref/heads/$HEAD_REF" >/dev/null 2>&1; then
+        branch_left="no"
+        break
+      fi
+      branch_left="yes"
+      [[ "$try" -lt "$BRANCH_GONE_TRIES" ]] && sleep "$BRANCH_GONE_WAIT_SECONDS"
+    done
+    if [[ "$branch_left" == "yes" ]]; then
+      echo "CHÚ Ý: không xóa được nhánh '$HEAD_REF' sau khi merge; người xóa tay để số nhánh không tăng (L-092)." >&2
+    fi
   fi
 fi
 
