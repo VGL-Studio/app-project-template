@@ -1097,8 +1097,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** sau cả bốn lần merge của phiên, `scripts/merge-if-green.sh` in `CHÚ Ý: không xóa được nhánh '<nhánh>' sau khi merge; người xóa tay để số nhánh không tăng (L-092).` Repo đã bật "Automatically delete head branches", nên GitHub tự xóa nhánh: lúc kiểm sau đó `git ls-remote --heads origin 'claude/T-08*'` chỉ còn nhánh của PR vừa merge (chưa kịp xóa), ba nhánh trước đã mất. Cảnh báo sai làm người đọc báo cáo tưởng phải dọn tay, và báo cáo phiên phải giải thích lại.
 - **Bằng chứng:** đầu ra của bốn lần `merge-if-green.sh` (dòng thời gian của RUN-20261107-01, 11:49, 13:31, 14:32, 15:44); `git ls-remote --heads origin` còn 6 nhánh lúc 15:35.
 - **Đề xuất sửa:** `scripts/merge-if-green.sh`: khi lệnh xóa nhánh bị proxy từ chối, đọc lại nhánh vài lần trong khoảng ngắn (ví dụ 3 lần, mỗi 5 giây) trước khi cảnh báo; nhánh đã mất thì không in gì. Thêm test của script với nhánh mất ở lần đọc thứ hai.
-- **Trạng thái:** accepted
-- **Áp dụng:** chưa; làm trong ticket T-094.
+- **Trạng thái:** applied
+- **Áp dụng:** ticket T-094, PR #425 (`merge-if-green.sh` đọc lại nhánh tối đa 3 lần, cách 5 giây, sau lệnh xóa thất bại; chỉ cảnh báo khi nhánh còn sau mọi lần đọc).
 
 ### L-150. Rà soát độc lập xếp chặn một lần sửa chi tiết test viết trước mà `auto-run.md` bước 4 cho phép
 
@@ -1132,5 +1132,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:**
   - `docs/CLAUDE.md`, mục Khi viết plan, cạnh ý về `scripts/merge-if-green.sh`: plan dựa vào việc `main-guard` có chạy trên một commit hay không thì so với `paths-ignore` của `main-guard.yml`; plan dựa vào cách `main-guard` kiểm commit đó thì so với `main-guard-verified.sh`. Hai quy tắc khác nhau ở `GRADLE_READ_DOCS`.
   - Một ticket sửa `docs_only_behind` theo `paths-ignore`, có test 8 với hai file trên.
-- **Trạng thái:** accepted
-- **Áp dụng:** phần tài liệu ở PR #420 (`docs/CLAUDE.md`, mục Khi viết plan: `main-guard` có chạy không so với `paths-ignore`, `main-guard` kiểm thế nào so với `main-guard-verified.sh`); phần code là ticket T-094, ghi `applied` khi T-094 merge.
+- **Trạng thái:** applied
+- **Áp dụng:** phần tài liệu ở PR #420 (`docs/CLAUDE.md`, mục Khi viết plan: `main-guard` có chạy không so với `paths-ignore`, `main-guard` kiểm thế nào so với `main-guard-verified.sh`); phần code là ticket T-094, PR #425 (`main-guard-verified.sh --guard-ignores`, `docs_only_behind` bước 3 hỏi câu đó).
