@@ -1,5 +1,5 @@
 ---
-id: T-100
+id: T-099
 title: Feature biết thẻ native của một bước có được phép không; vị trí chỉ hiện ở lần mở app đầu tiên
 feature: ads
 spec: features/ads/spec.md
@@ -8,18 +8,18 @@ owner: Nhật
 status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
 size: M
-depends_on: [T-099]          # cùng sửa docs/ops/ads-guide.md, ads-business-rules.md với T-098, T-099: chạy nối tiếp
+depends_on: [T-098]          # cùng sửa docs/ops/ads-guide.md, ads-business-rules.md với T-097, T-098: chạy nối tiếp
 sprint:
 plan:
 auto_run:
 created: 2026-11-09
 ---
 
-# T-100: FEATURE BIẾT THẺ NATIVE CỦA MỘT BƯỚC CÓ ĐƯỢC PHÉP KHÔNG; VỊ TRÍ CHỈ HIỆN Ở LẦN MỞ APP ĐẦU TIÊN
+# T-099: FEATURE BIẾT THẺ NATIVE CỦA MỘT BƯỚC CÓ ĐƯỢC PHÉP KHÔNG; VỊ TRÍ CHỈ HIỆN Ở LẦN MỞ APP ĐẦU TIÊN
 
 ## Mô tả
 
-Nguồn: issue #381 phần `:core:ads` (camera-pose, PR #296 của app), bài học L-164. Luồng giới thiệu cần biết thẻ native của bước có được phép không (cổng đồng ý, công tắc chính, gói bỏ quảng cáo, khóa vị trí) để quyết có giữ nút chờ hay không; khung chỉ biết điều này bên trong `NativeStepAd`. Vị trí chỉ hiện ở lần mở app đầu tiên chưa khai báo được.
+Nguồn: issue #381 phần `:core:ads` (camera-pose, PR #296 của app), bài học L-163. Luồng giới thiệu cần biết thẻ native của bước có được phép không (cổng đồng ý, công tắc chính, gói bỏ quảng cáo, khóa vị trí) để quyết có giữ nút chờ hay không; khung chỉ biết điều này bên trong `NativeStepAd`. Vị trí chỉ hiện ở lần mở app đầu tiên chưa khai báo được.
 
 ## Phạm vi
 

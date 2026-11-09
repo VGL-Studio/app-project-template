@@ -1,5 +1,5 @@
 ---
-id: T-098
+id: T-097
 title: Ô native trong lưới bỏ ô khi hết quảng cáo, nhận chiều cao ô và thẻ, vẽ được ở màn không trạng thái
 feature: ads
 spec: features/ads/spec.md
@@ -15,11 +15,11 @@ auto_run:
 created: 2026-11-09
 ---
 
-# T-098: Ô NATIVE TRONG LƯỚI BỎ Ô KHI HẾT QUẢNG CÁO, NHẬN CHIỀU CAO Ô VÀ THẺ, VẼ ĐƯỢC Ở MÀN KHÔNG TRẠNG THÁI
+# T-097: Ô NATIVE TRONG LƯỚI BỎ Ô KHI HẾT QUẢNG CÁO, NHẬN CHIỀU CAO Ô VÀ THẺ, VẼ ĐƯỢC Ở MÀN KHÔNG TRẠNG THÁI
 
 ## Mô tả
 
-Nguồn: issue #379 (camera-pose, PR #287 của app), bài học L-162. App có lưới nội dung với ô native một cột gặp ba chỗ khung chưa làm được: pool cạn thì ô vẫn chiếm chỗ, để lại lỗ trong lưới; ô không cao bằng thẻ bên cạnh; màn không trạng thái (screenshot test, preview) không vẽ được ô ở đúng chỗ như lưới thật.
+Nguồn: issue #379 (camera-pose, PR #287 của app), bài học L-161. App có lưới nội dung với ô native một cột gặp ba chỗ khung chưa làm được: pool cạn thì ô vẫn chiếm chỗ, để lại lỗ trong lưới; ô không cao bằng thẻ bên cạnh; màn không trạng thái (screenshot test, preview) không vẽ được ô ở đúng chỗ như lưới thật.
 
 ## Phạm vi
 

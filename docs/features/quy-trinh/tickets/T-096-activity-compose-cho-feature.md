@@ -1,8 +1,8 @@
 ---
-id: T-097
+id: T-096
 title: Plugin feature có activity-compose trên classpath biên dịch, để feature dùng được LocalActivity với AGP 9
 feature: quy-trinh
-spec:                        # ticket quy trình: nguồn là issue #369 (camera-pose), bài học L-161; không có spec nghiệp vụ
+spec:                        # ticket quy trình: nguồn là issue #369 (camera-pose), bài học L-160; không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
 status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
@@ -15,11 +15,11 @@ auto_run:
 created: 2026-11-09
 ---
 
-# T-097: PLUGIN FEATURE CÓ ACTIVITY-COMPOSE TRÊN CLASSPATH BIÊN DỊCH, ĐỂ FEATURE DÙNG ĐƯỢC LOCALACTIVITY VỚI AGP 9
+# T-096: PLUGIN FEATURE CÓ ACTIVITY-COMPOSE TRÊN CLASSPATH BIÊN DỊCH, ĐỂ FEATURE DÙNG ĐƯỢC LOCALACTIVITY VỚI AGP 9
 
 ## Mô tả
 
-Nguồn: issue #369 (camera-pose), bài học L-161. Với AGP 9, feature dùng `androidx.activity.compose.LocalActivity` (ví dụ để hỏi quyền) báo `Unresolved reference 'LocalActivity'`, vì `activity-compose` không còn trên classpath biên dịch của feature. Mẫu không thấy lỗi vì `:feature:sample` không dùng `LocalActivity`.
+Nguồn: issue #369 (camera-pose), bài học L-160. Với AGP 9, feature dùng `androidx.activity.compose.LocalActivity` (ví dụ để hỏi quyền) báo `Unresolved reference 'LocalActivity'`, vì `activity-compose` không còn trên classpath biên dịch của feature. Mẫu không thấy lỗi vì `:feature:sample` không dùng `LocalActivity`.
 
 ## Phạm vi
 

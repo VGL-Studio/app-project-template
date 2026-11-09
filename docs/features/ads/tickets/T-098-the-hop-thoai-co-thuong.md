@@ -1,5 +1,5 @@
 ---
-id: T-099
+id: T-098
 title: Thẻ hộp thoại quảng cáo có thưởng công khai cho screenshot test, cách dịch chữ của khung ở :app
 feature: ads
 spec: features/ads/spec.md
@@ -8,18 +8,18 @@ owner: Nhật
 status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đổi API công khai của :core:ads (điểm chặn 7)
 size: S
-depends_on: [T-098]          # cùng sửa docs/ops/ads-guide.md: chạy nối tiếp
+depends_on: [T-097]          # cùng sửa docs/ops/ads-guide.md: chạy nối tiếp
 sprint:
 plan:
 auto_run:
 created: 2026-11-09
 ---
 
-# T-099: THẺ HỘP THOẠI QUẢNG CÁO CÓ THƯỞNG CÔNG KHAI CHO SCREENSHOT TEST, CÁCH DỊCH CHỮ CỦA KHUNG Ở :APP
+# T-098: THẺ HỘP THOẠI QUẢNG CÁO CÓ THƯỞNG CÔNG KHAI CHO SCREENSHOT TEST, CÁCH DỊCH CHỮ CỦA KHUNG Ở :APP
 
 ## Mô tả
 
-Nguồn: issue #380 (camera-pose, PR #295 của app), bài học L-163. Feature không vẽ được thẻ hộp thoại mở khóa bằng quảng cáo có thưởng trong screenshot test vì `RewardedAdDialogCard` là `internal`; chữ hai nút của khung chỉ có tiếng Anh, và app dịch ở `:app` thì lint báo nếu không đặt chuỗi gốc đúng chỗ.
+Nguồn: issue #380 (camera-pose, PR #295 của app), bài học L-162. Feature không vẽ được thẻ hộp thoại mở khóa bằng quảng cáo có thưởng trong screenshot test vì `RewardedAdDialogCard` là `internal`; chữ hai nút của khung chỉ có tiếng Anh, và app dịch ở `:app` thì lint báo nếu không đặt chuỗi gốc đúng chỗ.
 
 ## Phạm vi
 
