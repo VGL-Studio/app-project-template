@@ -4908,6 +4908,13 @@ write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |' Sửa 'Đọc
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 expect "run-check: a later plan naming a deleted file outside section 3.2 warns" "pass 1" \
   "$(run_check) $(grep -c 'CHÚ Ý: T-002 nhắc `feature/demo/A.kt` mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
+write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |' Tạo
+expect "run-check: a later plan that creates the deleted file again only warns" "pass 1" \
+  "$(run_check) $(grep -c 'CHÚ Ý: T-002 tạo lại `feature/demo/A.kt` mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
+write_run_plan T-001 feature/demo/ '| KB-1 | Unit | `aTest` |' Xóa
+write_run_plan T-002 feature/demo/A.kt '| KB-1 | Unit | `bTest` |'
+expect "run-check: a later plan listing a file in a folder an earlier plan deletes stops" "stop 1" \
+  "$(run_check) $(grep -c 'LỖI: T-002 có `feature/demo/A.kt` ở mục 3.2 mà T-001 (đứng trước) xóa' "$work/run-check.out" || true)"
 write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
 write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 
@@ -6704,7 +6711,6 @@ sb_hook_mode reject
 expect "save-branch: a refused push is not reported as pushed" 3 "$(sb_run claude/T-999-thu)"
 expect "save-branch: a refused push prints no ĐÃ ĐẨY" 0 "$(grep -c 'ĐÃ ĐẨY' "$work/sb.out" || true)"
 expect "save-branch: a refused push leaves the remote without the branch" none "$(sb_remote_head)"
-sb_hook_mode reject
 expect "save-branch: a refused push leaves a verified bundle" ok \
   "$(git -C "$sb_clone" bundle verify "$sb_bundle" > /dev/null 2>&1 && echo ok || echo bad)"
 expect "save-branch: the bundle holds the branch head" "$sb_head refs/heads/claude/T-999-thu" \
@@ -6741,6 +6747,7 @@ expect "save-branch: a refusal by GitHub exits 3" 3 "$(SB_RETRY="0 0" sb_run cla
 expect "save-branch: a refusal by GitHub is not retried" 1 "$(sb_calls_count)"
 rm -f "$sb_bundle"
 # The push failed, but origin already has the very head commit (a parallel push of the same branch): pushed.
+sb_hook_mode none
 git -C "$sb_clone" push -q origin claude/T-999-thu:refs/heads/sb-objects
 git -C "$sb_origin" update-ref -d refs/heads/claude/T-999-thu
 sb_hook_mode raced
