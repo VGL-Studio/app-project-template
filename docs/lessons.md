@@ -1158,8 +1158,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** app lấy khung quảng cáo có mediation Mintegral và Pangle, hai kho Maven ngoài trong `settings.gradle.kts`. Proxy của môi trường cloud trả 403 cho `dl-maven-android.mintegral.com` và `artifact.bytedance.com`, nên `scripts/check.sh` đỏ ngay ở bước tải thư viện, env-canary đỏ hai ngày liền và issue `env-broken` chặn `start-run.yml`. CI trên máy của GitHub và máy dev vẫn xanh. `docs/ops/ads-guide.md` đã nói hai tên miền phải được cho phép, nhưng bảng thiết lập ở `docs/ops/staging-and-runs.md` mục 2.1, nơi người làm theo khi tạo môi trường, chỉ có `dl.google.com`, `maven.google.com`, `*.blob.core.windows.net`. Dự án mẫu có cùng hai kho và cùng bảng.
 - **Bằng chứng:** issue #363 (log `Could not GET '...mbridge_android_sdk-17.1.81.pom'. Received status code 403 from server: Forbidden`); `settings.gradle.kts` dòng 23, 26 trên nhánh chính `97b6ad8`.
 - **Đề xuất sửa:** `docs/ops/staging-and-runs.md` mục 2.1 thêm hai tên miền và quy tắc thêm kho Maven mới thì thêm tên miền; mục 2.4 nói cách xử lý `Received status code 403` của Gradle trên cloud; bảng tra lỗi, dòng PB-11 (cùng mẫu `Could not GET ... Received status code 403`) nói rõ trường hợp môi trường cloud: không chạy lại, người thêm tên miền vào Allowed domains.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. PR làm ngay sau PR ghi bài học.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #433: `docs/ops/staging-and-runs.md` mục 2.1 (hai tên miền, quy tắc thêm kho Maven mới) và mục 2.4 (403 của Gradle trên cloud); bảng tra lỗi, dòng PB-11 nói rõ trường hợp môi trường cloud. Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-155. Trình chạy kịch bản emulator không chờ được nút bật, và "Do not consent" của UMP vẫn cho nạp quảng cáo
 
@@ -1168,8 +1168,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** luồng giới thiệu giữ nút "Tiếp" mờ tới 5 giây khi chờ thẻ native. Nút Compose bị tắt vẫn có `clickable="true"` trong dump UiAutomator (chỉ `enabled="false"`), nên `tap_if id=...` chạm vào nút mờ, không có tác dụng, và các bước sau lỗi. Riêng phần đồng ý: bộ đồng ý UMP coi "Do not consent" là đã trả lời, `canRequestAds()` vẫn đúng và quảng cáo không cá nhân hóa vẫn nạp (log `Consent path: GRANTED`, interstitial vẫn hiện sau `consent decline`). Spec và plan của app viết "từ chối đồng ý thì không có quảng cáo" là sai, và kịch bản viết sau `consent decline` vẫn gặp quảng cáo. Spec ads của mẫu đã chốt điều này (FB-20261025-01, FB-20261026-01; KB-13 không đổi), chỉ tài liệu kịch bản emulator chưa nói.
 - **Bằng chứng:** issue #381; `scripts/device-scenario.py` trên nhánh chính `97b6ad8` không có bộ lọc `enabled`; `docs/ops/test-sessions.md` mục 5 không nói `consent decline` vẫn cho nạp quảng cáo.
 - **Đề xuất sửa:** `scripts/device-scenario.py` thêm bộ lọc `enabled=true` (cùng kiểu `clickable=true`), có test với dump giả; `docs/ops/test-sessions.md` mục 5 có ví dụ chờ nút bật và ghi rằng sau `consent decline` quảng cáo không cá nhân hóa vẫn nạp.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. PR làm ngay sau PR ghi bài học. Phần `:core:ads` của cùng issue: L-163.
+- **Trạng thái:** applied
+- **Áp dụng:** PR #434: `scripts/device-scenario.py` bộ lọc `enabled=true`; `docs/ops/test-sessions.md` mục 5 (chờ nút bật, `consent decline` vẫn cho nạp quảng cáo không cá nhân hóa). Phần `:core:ads` của cùng issue: L-163. Nhận: anh Nhật, 2026-11-09 (mô tả PR #432).
 
 ### L-156. Ghi lại ảnh chuẩn bằng lệnh của cả module đổi cả ảnh ngoài plan vì nhiễu vẽ
 
