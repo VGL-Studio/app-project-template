@@ -167,6 +167,13 @@ enum class AdPlacement(
      * the line and in the app's spec.
      */
     val noAdPolicy: RewardedNoAdPolicy? = null,
+    /**
+     * On only in the first open since install or since the data was cleared (A-01, OB-03): the switch is
+     * `is_show_<code>` and the first-open mark, so later opens neither load nor take space. Flow step formats only
+     * (`native_step`, `native_fullscreen`), never an [appWide] placement. Passed to [declaration] only: read
+     * `declaration.firstOpenOnly`.
+     */
+    firstOpenOnly: Boolean = false,
 ) {
     /** The bottom bar of the sample screen ([BottomAdBarScaffold], plan T-030, question 1). */
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
@@ -216,6 +223,7 @@ enum class AdPlacement(
             ctaLarge,
             keepSpaceWhenPoolEmpty,
             noAdPolicy,
+            firstOpenOnly,
         )
 }
 
@@ -242,6 +250,8 @@ internal data class AdPlacementDeclaration(
     val keepSpaceWhenPoolEmpty: Boolean = false,
     /** What the action does when no ad can be shown (MC-05); rewarded only. */
     val noAdPolicy: RewardedNoAdPolicy? = null,
+    /** On only in the first open since install (A-01, OB-03); flow step formats only, never app-wide. */
+    val firstOpenOnly: Boolean = false,
 ) {
     /** The policy of this placement: [noAdPolicy], or [RewardedNoAdPolicy.Block] (MC-05). */
     val effectiveNoAdPolicy: RewardedNoAdPolicy get() = noAdPolicy ?: RewardedNoAdPolicy.Block
@@ -266,6 +276,10 @@ internal data class AdPlacementDeclaration(
         require(noAdPolicy == null || format == AdFormat.REWARDED) {
             "Placement $code: noAdPolicy is for rewarded only"
         }
+        require(!firstOpenOnly || format == AdFormat.NATIVE_STEP || format == AdFormat.NATIVE_FULL_SCREEN) {
+            "Placement $code: firstOpenOnly is for flow step formats only"
+        }
+        require(!firstOpenOnly || !appWide) { "Placement $code: firstOpenOnly is not for an app-wide placement" }
         if (nativeEvery != null) {
             require(format in NATIVE_EVERY_FORMATS) { "Placement $code: nativeEvery is for list formats only" }
             require(nativeEvery >= 1) { "Placement $code: nativeEvery must be 1 or more" }

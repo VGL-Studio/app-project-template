@@ -432,7 +432,7 @@ def read_placements(with_staging):
         policy_code = None
         if policy:
             policy_code = "allow_after_" + policy.group(2) if policy.group(2) else policy.group(1).lower()
-        extras = [name for name in ("ignoreInterval", "ctaLarge", "keepSpaceWhenPoolEmpty")
+        extras = [name for name in ("ignoreInterval", "ctaLarge", "keepSpaceWhenPoolEmpty", "firstOpenOnly")
                   if re.search(name + r"\s*=\s*true", attrs)]
         if re.search(r"recordInterval\s*=\s*false", attrs):
             extras.append("recordInterval = false")

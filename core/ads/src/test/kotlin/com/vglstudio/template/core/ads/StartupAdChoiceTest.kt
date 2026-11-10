@@ -127,6 +127,62 @@ class StartupAdChoiceTest {
     }
 
     @Test
+    fun placementSwitch_firstOpenOnly_followsKeyAndFirstOpen() = runTest {
+        val step = AdPlacement.GALLERY_NATIVE_STEP
+        settings.set("is_show_gallery_native_step", true)
+        assertEquals(true, placementSwitch(step, flags, flowOf(true), firstOpenOnly = true).first())
+        assertEquals(false, placementSwitch(step, flags, flowOf(false), firstOpenOnly = true).first())
+        // Control (L-055): a placement that is not first-open-only stays on at a later open.
+        assertEquals(true, placementSwitch(step, flags, flowOf(false), firstOpenOnly = false).first())
+        settings.set("is_show_gallery_native_step", false)
+        assertEquals(false, placementSwitch(step, flags, flowOf(true), firstOpenOnly = true).first())
+
+        // The first open: the gates open, close and open again (KB-7).
+        settings.set("is_show_gallery_native_step", true)
+        placementSwitch(step, flags, flowOf(true), firstOpenOnly = true).test {
+            assertEquals(true, awaitItem())
+            settings.set("is_show_gallery_native_step", false)
+            assertEquals(false, awaitItem())
+            settings.set("is_show_gallery_native_step", true)
+            assertEquals(true, awaitItem())
+            settings.set("is_show_ads", false)
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun placementSwitch_firstOpenOnly_waitsForFirstOpen() = runTest {
+        val step = AdPlacement.GALLERY_NATIVE_STEP
+        settings.set("is_show_gallery_native_step", true)
+        // Control: a placement that is not first-open-only does not wait for the mark.
+        assertEquals(true, placementSwitch(step, flags, neverRead, firstOpenOnly = false).first())
+        placementSwitch(step, flags, neverRead, firstOpenOnly = true).test {
+            advanceTimeBy(1_000)
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun placementSwitch_firstOpenOnly_adFree_turnsOff() = runTest {
+        val step = AdPlacement.GALLERY_NATIVE_STEP
+        val adFree = MutableStateFlow(false)
+        val adFreeFlags = DefaultAdsFlags(settings, adFreeStatus(adFree))
+        settings.set("is_show_gallery_native_step", true)
+        // Control: at a later open it is off, though not ad-free.
+        assertEquals(false, placementSwitch(step, adFreeFlags, flowOf(false), firstOpenOnly = true).first())
+        placementSwitch(step, adFreeFlags, flowOf(true), firstOpenOnly = true).test {
+            assertEquals(true, awaitItem())
+            adFree.value = true
+            assertEquals(false, awaitItem())
+            adFree.value = false
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun placementSwitch_nativeCombo_followsNativeAfterInterKey() = runTest {
         val combo = AdPlacement.NATIVE_AFTER_INTER
         // Waits for nothing: the combo does not depend on the first-open mark.

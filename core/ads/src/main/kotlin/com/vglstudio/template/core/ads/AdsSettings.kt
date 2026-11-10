@@ -199,6 +199,7 @@ object AdsSettings {
         default = false,
         description = "Shows ads in this placement. Off by default." +
             (if (declaration.stagingOnly) " Staging ad gallery only." else "") +
+            (if (declaration.firstOpenOnly) " First open since install only." else "") +
             " ${derivedNote(declaration)}",
     )
 
