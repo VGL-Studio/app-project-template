@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-3, KB-21]     # "khi không còn quảng cáo thì ô không hiện": phần pool cạn là lỗi so với spec
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: planned              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
 size: L                      # bản ở app chạm 6 tệp nguồn, 13 test; plan cân nhắc tách
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-097-o-native-trong-luoi.md
 auto_run:
 created: 2026-11-09
 ---
