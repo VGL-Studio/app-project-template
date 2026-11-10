@@ -242,6 +242,7 @@ internal data class AdPlacementDeclaration(
     val keepSpaceWhenPoolEmpty: Boolean = false,
     /** What the action does when no ad can be shown (MC-05); rewarded only. */
     val noAdPolicy: RewardedNoAdPolicy? = null,
+    val firstOpenOnly: Boolean = false,
 ) {
     /** The policy of this placement: [noAdPolicy], or [RewardedNoAdPolicy.Block] (MC-05). */
     val effectiveNoAdPolicy: RewardedNoAdPolicy get() = noAdPolicy ?: RewardedNoAdPolicy.Block

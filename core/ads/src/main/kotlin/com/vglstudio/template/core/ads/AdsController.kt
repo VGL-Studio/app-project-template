@@ -1584,6 +1584,9 @@ class AdsController @Inject internal constructor(
      */
     internal fun isEnabled(placement: AdPlacement): Flow<Boolean> = placementSwitch(placement, flags, firstOpen)
 
+    @VisibleForTesting
+    internal var firstOpenOnlyOf: (AdPlacement) -> Boolean = { false }
+
     /**
      * N of the in-list ads of [placement] ([rememberInListAds]): `native_every_<code>`, or null while no ad row may
      * be added (no consent yet, master switch or placement off, bad remote value, or a placement that declares no

@@ -155,6 +155,9 @@ fun NativeStepAd(
     }
 }
 
+@Composable
+fun rememberNativeStepAdAllowed(placement: AdPlacement): Boolean = false
+
 /**
  * [NativeStepAd] without an ads controller: [step] goes into one stream of steps, read by the states [newStates]
  * builds once ([stepAdStates] in the app); drawn by the gate of every native slot at the size of the step card.

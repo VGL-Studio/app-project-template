@@ -22,7 +22,12 @@ internal fun startupAdPlacement(flags: AdsGlobalFlags, firstOpen: Boolean): AdPl
  * [startupAdPlacement] chooses it (waits for [firstOpen]); for any other placement,
  * `is_show_ads && is_show_<code>` as before. Every load and show path reads it through AdsController.isEnabled (L-072).
  */
-internal fun placementSwitch(placement: AdPlacement, flags: AdsFlags, firstOpen: Flow<Boolean>): Flow<Boolean> {
+internal fun placementSwitch(
+    placement: AdPlacement,
+    flags: AdsFlags,
+    firstOpen: Flow<Boolean>,
+    firstOpenOnly: Boolean = false,
+): Flow<Boolean> {
     if (!placement.appWide) return flags.placementEnabled(placement)
     // The combo (plan T-026): `is_show_native_after_inter`, with `is_show_ads` applied; no first-open mark.
     if (placement == AdPlacement.NATIVE_AFTER_INTER) {

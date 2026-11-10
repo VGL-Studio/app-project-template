@@ -2,6 +2,8 @@ package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.logging.RecordingAppLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -40,13 +42,14 @@ class NativeAdPoolsTest {
 
     private fun TestScope.newPools(
         placements: List<AdPlacement> = listOf(AdPlacement.GALLERY_NATIVE_MEDIUM, AdPlacement.GALLERY_INLIST_MEDIUM),
+        enabled: (AdPlacement) -> Flow<Boolean> = { switchOf(it) },
     ): NativeAdPools = NativeAdPools(
         placements = placements,
         unitId = {
             unitIdCalls++
             units[it]
         },
-        enabled = { switchOf(it) },
+        enabled = enabled,
         canRequestAds = consent,
         newPool = { key, _ ->
             val poolLoads = FakePoolLoads(loader, { testScheduler.currentTime }, logger).also { loads += it }
@@ -173,6 +176,38 @@ class NativeAdPoolsTest {
         consent.value = true
         runCurrent()
         pool.refill()
+        runCurrent()
+        assertEquals(1, sentTimes().size)
+    }
+
+    @Test
+    fun switchNotKnownYet_preloadWaits_thenFollowsSwitches() = runTest {
+        units[AdPlacement.GALLERY_INLIST_MEDIUM] = UNIT_B
+        // The switch of a first-open-only placement before the first-open mark is read: no value yet.
+        val unknown = MutableSharedFlow<Boolean>()
+        val pools = newPools(enabled = { if (it == AdPlacement.GALLERY_NATIVE_MEDIUM) unknown else switchOf(it) })
+
+        pools.slot().loadIfNeeded()
+        runCurrent()
+        assertTrue(sentTimes().isEmpty())
+
+        unknown.emit(false)
+        runCurrent()
+        pools.slot().loadIfNeeded()
+        runCurrent()
+        // Only the pool of the placement switched on loads, once the switches are known.
+        assertEquals(1, loads.size)
+        assertEquals(listOf(0L), sentTimes())
+    }
+
+    @Test
+    fun switchNotKnownYet_poolTakenBySlot_stillOpen() = runTest {
+        units[AdPlacement.GALLERY_INLIST_MEDIUM] = UNIT_B
+        val unknown = MutableSharedFlow<Boolean>()
+        val pools = newPools(enabled = { if (it == AdPlacement.GALLERY_NATIVE_MEDIUM) unknown else switchOf(it) })
+
+        // A cell on screen takes from its pool: a switch not known yet does not close it.
+        assertPool(pools.pool(AdPlacement.GALLERY_INLIST_MEDIUM)).refill()
         runCurrent()
         assertEquals(1, sentTimes().size)
     }
