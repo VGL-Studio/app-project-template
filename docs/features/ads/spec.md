@@ -11,7 +11,7 @@ requests:
   - requests/2026-11-06-quang-cao-khong-chong-nhau.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-11-07
+confirmed: 2026-11-10
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -284,11 +284,15 @@ Một app có luồng nhiều bước (giới thiệu, kết quả sau khi xử 
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật vị trí native của luồng thì bước mà spec của app chọn có native cao 250 dp hoặc native toàn trang.
+- [ ] Khi người vận hành bật vị trí native của luồng thì bước mà spec của app chọn có native cao 250 dp hoặc native toàn trang. **Thêm 2026-11-10:** trừ vị trí chỉ ở lần mở đầu, từ lần mở thứ hai (tiêu chí 6).
 - [ ] Hai bước kề nhau không hiện cùng một quảng cáo.
 - [ ] Native toàn trang không có nút điều khiển riêng; nút Tiếp của app vẫn ở chỗ quen thuộc và không bị quảng cáo che.
 - [ ] Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống.
 - [ ] Luồng giới thiệu dùng được khóa `is_show_native_onboarding` như các app AdsKit; luồng khác dùng khóa theo mã vị trí của nó.
+- [ ] **Thêm 2026-11-10 (câu hỏi 59):** Khi spec của app khai báo vị trí native của luồng là chỉ ở lần mở đầu và người vận hành bật vị trí đó, thì thẻ hay trang native chỉ có trong lần mở đầu sau khi cài (hay sau khi xóa dữ liệu app); từ lần mở thứ hai, bước hiện bình thường, không có khoảng trống, app không tải quảng cáo cho vị trí đó, dù khóa vẫn bật.
+- [ ] **Thêm 2026-11-10 (câu hỏi 59):** Lần mở đầu kéo dài tới khi tiến trình của app kết thúc (người dùng đóng hẳn, hoặc hệ thống đóng app khi ở nền); ra nền rồi quay lại khi app chưa bị đóng vẫn là lần mở đầu.
+- [ ] **Thêm 2026-11-10 (câu hỏi 59):** Trong lần mở đầu, khi người dùng rút đồng ý, mua gói bỏ quảng cáo hay người vận hành tắt khóa, thì quảng cáo của vị trí chỉ ở lần mở đầu biến mất ngay như vị trí thường.
+- [ ] **Thêm 2026-11-10 (câu hỏi 59):** Khi app chờ thẻ native của bước trước khi cho đi tiếp, thì app chỉ chờ lúc thẻ được phép hiện (đã đồng ý, khóa bật, chưa mua gói bỏ quảng cáo, đúng lần mở với vị trí chỉ ở lần mở đầu); thẻ không được phép, hay thôi được phép giữa lúc chờ, thì người dùng đi tiếp ngay. Ở dự án mẫu, tiêu chí này kiểm bằng giá trị của hàm cho biết thẻ có được phép không; phần chờ thuộc spec của app.
 
 ### KB-21. Native trong tập hợp (lưới, danh sách, trang của pager)
 
@@ -505,7 +509,7 @@ Tiêu chí chấp nhận:
 | ~~Thời điểm lần hiện quảng cáo toàn màn hình gần nhất~~ (đổi 2026-10-23: chỉ giữ trong bộ nhớ của lần mở app, không lưu) | Khoảng cách tối thiểu ~~qua các phiên~~ | ~~Tới khi gỡ app hay xóa dữ liệu~~ Hết lần mở app |
 | ~~Thời điểm mở app lần đầu~~ (đổi 2026-10-23: bỏ, không có ân hạn) | ~~Ân hạn phiên đầu~~ | |
 | ~~Số quảng cáo toàn màn hình trong phiên hiện tại~~ (đổi 2026-10-23: bỏ, không có giới hạn mỗi phiên) | ~~Giới hạn mỗi phiên~~ | |
-| **Thêm 2026-10-23:** dấu "đã mở app lần đầu" | Chọn khóa quảng cáo mở app lần đầu hay lần thường | Tới khi gỡ app hay xóa dữ liệu |
+| **Thêm 2026-10-23:** dấu "đã mở app lần đầu" | Chọn khóa quảng cáo mở app lần đầu hay lần thường. **Thêm 2026-11-10 (câu hỏi 59):** và bật vị trí native của luồng chỉ ở lần mở đầu (KB-20) | Tới khi gỡ app hay xóa dữ liệu |
 | **Thêm 2026-10-23:** số lần interstitial đã hiện từ lúc cài | Sự kiện `af_inters_displayed_{N}_times` | Tới khi gỡ app hay xóa dữ liệu |
 
 **Sự kiện phân tích:** ~~không thêm. `ad_impression`, `ad_click` và doanh thu lấy từ liên kết AdMob và Firebase (ADR-0022).~~ **Đổi 2026-10-23:** `ad_impression` vẫn lấy từ liên kết AdMob và Firebase; app thêm các sự kiện dưới (tham số đầy đủ ở `docs/ops/ads-business-rules.md`, mục 8).
@@ -763,6 +767,10 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Bối cảnh: dòng log lỗi tải hôm nay chỉ có mã (ví dụ `Native sample_native_small failed: 0`), nên khó biết lý do. Thông điệp thật chỉ thấy ở log riêng của SDK (ví dụ "Incorrect native ad response. Click actions were not properly specified" của native toàn màn hình trên emulator, RUN-20261025-01). Thông điệp lỗi của SDK có thể chứa mã đơn vị. Vì vậy luật số liệu không gửi nó (`docs/ops/ads-business-rules.md`, mục 8), log không ghi mã đơn vị (mục 13), Crashlytics chỉ nhận tên loại lỗi, không nhận thông điệp (ADR-0019), và log từng mạng của staging cố ý không đọc thông điệp. Bản staging dựng với cấu hình Firebase giả, nên log của nó chỉ ở logcat, không gửi đi đâu.
     - Đề xuất của AI: chỉ ở staging, chỉ với lượt mà SDK trả lỗi (không áp cho dòng "request not built" hay dòng ngoại lệ), và thay chuỗi dạng mã đơn vị (`ca-app-pub-…`, mã đơn vị MAX) bằng dấu che trước khi ghi. Cách này khớp tên KB-28 (thử trên bản staging), không đổi mục 8, mục 13 hay ADR-0019. Phương án khác: (a) mọi biến thể, có che mã đơn vị: phải sửa mục 13 và ghi chú vào ADR-0019 cùng lúc, và thông điệp ra khỏi máy qua Crashlytics; (b) giữ như cũ, đóng phản hồi là `wontfix`.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-07, "Đồng ý" với đề xuất đã sửa sau rà soát độc lập): chỉ ở bản staging, chỉ với lượt mà SDK trả lỗi, che chuỗi dạng mã đơn vị trước khi ghi; bản production giữ dòng log chỉ có mã; thông điệp không vào sự kiện phân tích. Ticket T-093.
+59. **Vị trí chỉ ở lần mở app đầu tiên khai báo thế nào?** (KB-20, issue #381, plan T-099 câu hỏi 1 tới 4)
+    - Bối cảnh: luồng giới thiệu của app camera-pose có thẻ native chỉ hiện ở lần mở đầu sau khi cài. Spec chỉ có `show_open_ads_first_open` của quảng cáo mở app (KB-13), chưa có tiêu chí cho vị trí native của luồng.
+    - Đề xuất của AI: thuộc tính của khai báo vị trí native của luồng (`native_step`, `native_fullscreen`), không có khóa riêng; công tắc là `is_show_<mã vị trí>` cùng dấu lần mở đầu dùng chung với quảng cáo mở app (`ads-business-rules.md`, A-01). Lần mở đầu kéo dài tới khi tiến trình kết thúc. Định dạng khác và vị trí toàn app không khai báo được, để không phải quyết trường hợp như rewarded ở lần mở sau (hành động chạy thẳng, người dùng được thưởng mà không xem quảng cáo). Đọc dấu lỗi thì coi là lần sau, ghi dấu lỗi thì lần sau có thể lại là lần đầu, như quảng cáo mở app. Phương án khác: lần mở đầu chỉ tới lần ra nền đầu tiên; hay cho mọi định dạng trừ vị trí toàn app (cần thêm tiêu chí chung và tiêu chí riêng cho rewarded).
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-10, "Duyệt theo đề xuất của AI" khi duyệt plan T-099). KB-20 thêm tiêu chí 6 tới 9; tiêu chí 9 (app chỉ chờ thẻ khi thẻ được phép) áp cho mọi vị trí native của bước, không riêng vị trí chỉ ở lần mở đầu. Mục 6 ghi thêm mục đích của dấu lần mở đầu. Ticket T-099.
 
 ## 10. Lịch sử
 
@@ -798,3 +806,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-07 | Nhật | Xác nhận KB-16 ("Xác nhận KB-16"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-07 | AI | Theo phân loại hai phản hồi mà anh Nhật đồng ý trong phiên ("Đồng ý"): KB-9 tiêu chí 2 đổi cách kiểm (bản build sau R8 có đủ chín adapter, không đọc log trạng thái trên staging), theo FB-20261024-02 và lần kiểm APK của AI; KB-28 thêm tiêu chí thông điệp lỗi trong log lỗi tải của bản staging, có che mã đơn vị, theo FB-20261023-02 (ticket T-093); gạch câu đầu của KB-9 tiêu chí 2 (đã được thay từ 2026-10-24); thêm câu hỏi 57, 58. Chuyển sang `changed`, chờ anh Nhật xác nhận |
 | 2026-11-07 | Nhật | Xác nhận KB-9 tiêu chí 2 và KB-28 cùng trả lời câu hỏi 57, 58 ("Đồng ý" với đề xuất "Xác nhận KB-9 và KB-28"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-10 | Nhật | Theo lời duyệt plan T-099 (câu hỏi 1 tới 4 của plan, "Duyệt theo đề xuất của AI"): KB-20 thêm tiêu chí 6 tới 9 cho vị trí native của luồng chỉ ở lần mở đầu, ghi chú ngoại lệ ở tiêu chí 1, mục 6 thêm mục đích của dấu lần mở đầu, thêm câu hỏi 59 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #446 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
