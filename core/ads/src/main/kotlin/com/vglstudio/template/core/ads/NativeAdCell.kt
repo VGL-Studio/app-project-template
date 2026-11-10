@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 
@@ -31,6 +32,7 @@ fun NativeAdCell(
     viewed: Boolean = true,
     onAdAvailabilityChange: (Boolean) -> Unit = {},
     onScreen: Boolean = true,
+    cardHeight: Dp? = null,
 ) {
     val size = requireCellFormat(placement.format)
     val ads = LocalAdsController.current
@@ -89,6 +91,7 @@ internal fun NativeAdCellHost(
     contentModifier: Modifier = Modifier,
     onStateChange: (NativeAdState) -> Unit = {},
     onScreen: Boolean = true,
+    cardHeight: Dp? = null,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     if (!onScreen) {
@@ -107,6 +110,7 @@ internal fun NativeAdCellHost(
         placeholderWhenEmpty = placeholderWhenEmpty,
         contentModifier = contentModifier,
         onStateChange = onStateChange,
+        cardHeight = cardHeight,
         adContent = adContent,
     )
 }
@@ -124,6 +128,7 @@ private fun NativeAdCellOnScreen(
     placeholderWhenEmpty: Boolean,
     contentModifier: Modifier,
     onStateChange: (NativeAdState) -> Unit,
+    cardHeight: Dp?,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     val state by states.collectAsState(initial = NativeAdState.Loading)

@@ -13,6 +13,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 
@@ -86,6 +87,7 @@ internal fun NativeAdSlotGate(
     ctaLarge: Boolean = false,
     placeholderWhenEmpty: Boolean = true,
     onScreen: Boolean = true,
+    cardHeight: Dp? = null,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     // `af_native_ad_eligible` once each time the slot comes on screen allowed (plan T-033): a page of a pager kept in
@@ -186,6 +188,7 @@ internal fun NativeAdSlotContent(
     modifier: Modifier,
     ctaLarge: Boolean = false,
     contentModifier: Modifier = Modifier,
+    cardHeight: Dp? = null,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     Box(modifier = modifier) {

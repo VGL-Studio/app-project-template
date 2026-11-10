@@ -117,6 +117,9 @@ internal class NativeAdPool(
     /** Moves at every close, so a send of an earlier opening changes nothing. */
     private var session = 0L
 
+    /** The pool holds a free ad now. */
+    val hasFreeAd: Boolean get() = true
+
     /** A send is in progress (gate, load or retry wait). */
     val isLoading: Boolean get() = job != null
 

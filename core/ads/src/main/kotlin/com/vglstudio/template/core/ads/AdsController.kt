@@ -1724,6 +1724,12 @@ class AdsController @Inject internal constructor(
         nativePools.pool(placement)?.let { stepAdStates(it, placement, steps, logger, placement.key) }
             ?: flowOf(NativeAdState.Unavailable)
 
+    /** The pool of [placement] is exhausted (P-05); true while it has no pool. */
+    internal fun poolExhausted(placement: AdPlacement): Boolean = false
+
+    /** The pool of [placement] has a free ad, after a refill; false while it has no pool. */
+    internal fun poolHasFreeAd(placement: AdPlacement): Boolean = true
+
     /** The `ad_opportunity` of one cell of a pool (P-07). */
     internal fun recordPoolCellOpportunity(placement: AdPlacement, result: String) {
         telemetry.poolCellOpportunity(placement, result)

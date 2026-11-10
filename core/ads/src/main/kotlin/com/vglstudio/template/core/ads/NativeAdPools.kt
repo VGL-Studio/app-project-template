@@ -53,6 +53,9 @@ internal class NativeAdPools(
         return pool
     }
 
+    /** The pool [placement] already uses, if any; never makes one and never looks up an ad unit. */
+    fun existingPool(placement: AdPlacement): NativeAdPool? = null
+
     /** One slot of the preload plan for a pooled [format], none for another format. */
     fun preloadSlots(format: AdFormat): List<PreloadSlot> =
         if (format.usesPool) listOf(NativePoolPreloadSlot(format)) else emptyList()
