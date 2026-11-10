@@ -8,7 +8,7 @@ owner: Nhật
 status: approved             # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đổi API công khai của :core:ads (điểm chặn 7)
 size: S
-depends_on: [T-097]          # cùng sửa docs/ops/ads-guide.md: chạy nối tiếp
+depends_on: []               # anh Nhật bỏ phụ thuộc T-097 ngày 2026-11-10 (RUN-20261110-01): chỉ cùng sửa ads-guide.md ở đoạn khác
 sprint:
 plan: features/ads/plans/T-098-the-hop-thoai-co-thuong.md  # đường dẫn plan khi đã có
 auto_run:
