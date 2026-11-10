@@ -1218,8 +1218,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** sau khi lấy bộ build AGP 9.1, ba feature dùng `androidx.activity.compose.LocalActivity` báo `Unresolved reference 'LocalActivity'`. Với AGP 8.13, thư viện này có trên classpath biên dịch qua thư viện khác. Mẫu không thấy lỗi vì `:feature:sample` không dùng `LocalActivity`; trong các module thư viện của mẫu chỉ `:core:ads` khai báo `activity-compose` (`:app` cũng khai báo).
 - **Bằng chứng:** issue #369; `git grep activity.compose build-logic/ feature/` trên nhánh chính `97b6ad8` rỗng.
 - **Đề xuất sửa:** plugin `template.android.feature` thêm `activity-compose`, như `:core:ads`; hoặc ghi vào `docs/ops/to-app.md`, mục Lưu ý.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-096.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; AI ghi `applied` theo lời anh Nhật ngày 2026-11-10: "Làm T-096")
+- **Áp dụng:** PR #447 (T-096): plugin `template.android.feature` khai báo `implementation` cho `androidx-activity-compose`, nên mọi feature của mẫu và của app dùng được `LocalActivity`; test `FeatureClasspathTest` của `:feature:sample` giữ dòng này.
 
 ### L-161. Ô native trong lưới để lại lỗ khi hết quảng cáo, không cao bằng thẻ bên cạnh, không vẽ được ở màn không trạng thái
 
