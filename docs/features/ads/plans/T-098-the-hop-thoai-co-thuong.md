@@ -1,7 +1,7 @@
 ---
 ticket: T-098
 title: Thẻ hộp thoại quảng cáo có thưởng công khai cho screenshot test, cách dịch chữ của khung ở :app
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -216,3 +216,15 @@ Không bắt buộc (E dưới 2). Ticket đòi chạy thử cách dịch bằng
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261110-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #449, commit `df1904e`, 2026-11-10 17:06 UTC).
+- **Nhánh, PR:** `claude/T-098-the-hop-thoai-co-thuong`, https://github.com/VGL-Studio/app-project-template/pull/449. Commit test `8aa5bf6`, commit code `715faed`, commit tài liệu `8e6a04e`.
+- **Đã làm:** `RewardedAdDialogCard` bỏ `internal`, KDoc theo bước 1; `RewardedAdDialogCardFromFeatureTest` ở `:feature:sample`; hai test đo ở `RewardedActionTest`; câu dịch chữ `ads_*` ở `docs/ops/ads-guide.md` (mục 5, bước 4, ý "Rewarded") và gạch đầu dòng 48 dp ở `docs/ops/design-workflow.md` (mục 2), nguyên văn plan. Phiên chính tự làm bước 3 đến 5 (cỡ S).
+- **Test viết trước:** 4 test mới. `RewardedAdDialogCardFromFeatureTest` (2 test) không biên dịch được ở commit test (`Cannot access 'fun RewardedAdDialogCard(...)': it is internal in file.`), đúng lý do mục 4 nêu; qua sau commit code. `noThanksButton_drawn40dp_takes48dpOfCard`, `noThanksSlot_withoutMinimumTouchSize_is40dp` qua ngay trên code cũ (ngoại lệ (2) của plan), đo 48 dp và 40 dp như mục 4.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: câu liệt kê "các chuỗi khác" không nêu chuỗi đánh giá sao (nêu ở câu sau; nguyên văn plan); chữ nút tiếng Việt của KB-19 tiêu chí 1 lệch có sẵn, để T-082; hai test đo qua ngay (ngoại lệ của plan); `docs/lessons.md` đi qua PR báo cáo.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42858745895). `scripts/check.sh` cục bộ: 1876 test JVM, 0 lỗi; 91 ảnh screenshot, không ảnh nào đổi.
+- **Lệch so với plan:** L-162 `applied` ghi trong PR báo cáo cuối phiên thay vì PR của task (mục 3.2 ghi "trong PR của task"), theo ghi chú của danh sách chạy và `auto-run.md` bước 7. Không có file ngoài mục 3.2, không có thay đổi file test sau commit test, không có câu khẳng định cũ viết lại.
+- **Việc còn lại:** đóng issue #380 kèm PR #449 khi dev đồng ý (mục 7 của plan); phiên không tự đóng.
+- **Cần người xem:** câu mới của `docs/ops/ads-guide.md` và `docs/ops/design-workflow.md` (hai dòng kiểm thủ công "người" của mục 4).

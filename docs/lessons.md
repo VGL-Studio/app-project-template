@@ -1228,8 +1228,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** app đặt ô native một cột trong lưới (`itemsWithInListAds`). Pool cạn (emulator, máy không có fill) thì ô vẫn chiếm chỗ, để lại lỗ trong lưới hay khung chờ mãi; khung không cho truyền chiều cao ô hay chiều cao thẻ native; màn không trạng thái (screenshot test, preview) không vẽ được ô ở đúng chỗ như lưới thật.
 - **Bằng chứng:** issue #379; `git grep -e poolExhausted -e itemsWithFixedAds -e adCellHeight` trên nhánh chính `97b6ad8` rỗng.
 - **Đề xuất sửa:** ô một cột tự bỏ khi pool cạn và quay lại khi có quảng cáo; tham số chiều cao ô và chiều cao thẻ (mặc định giữ ảnh chuẩn cũ); `itemsWithFixedAds` cho màn không trạng thái. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-097.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; T-097 đã merge trong RUN-20261110-01)
+- **Áp dụng:** PR #450 (T-097): ô thẻ một ô của lưới rời lưới khi pool cạn và quay lại khi pool có quảng cáo rảnh, `adCellHeight` và `cardHeight`, `itemsWithFixedAds`; `docs/ops/ads-business-rules.md` P-06, `docs/ops/ads-guide.md`.
 
 ### L-162. Feature không dựng được thẻ hộp thoại quảng cáo có thưởng trong screenshot test, và chữ của khung chỉ có tiếng Anh
 
@@ -1238,8 +1238,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `RewardedAdDialogCard` là `internal`, nên feature không vẽ được thẻ hộp thoại trong screenshot test. Chữ hai nút của khung ("Watch ad", "No, thanks") chỉ có tiếng Anh; app dịch ở `values-<ngôn ngữ>` của `:app` thì lint (`checkDependencies = true`) báo `MissingTranslation`/`ExtraTranslation`, trừ khi chuỗi gốc cũng đặt ở `values/` của `:app`. Thẻ hộp thoại thật cao hơn frame Figma 8 dp, vì nút chữ của Material giữ vùng chạm tối thiểu 48 dp còn frame vẽ nút 40 dp.
 - **Bằng chứng:** issue #380; `core/ads/.../RewardedAction.kt` dòng 295 trên nhánh chính `97b6ad8` (`internal fun RewardedAdDialogCard`).
 - **Đề xuất sửa:** `RewardedAdDialogCard` công khai; `docs/ops/ads-guide.md` có cách dịch chữ của khung ở `:app`; hướng dẫn thiết kế ghi nút chữ của hộp thoại cao 48 dp.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-098.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; T-098 đã merge trong RUN-20261110-01)
+- **Áp dụng:** PR #449 (T-098): `RewardedAdDialogCard` công khai, `docs/ops/ads-guide.md` mục 5 bước 4 ý "Rewarded" (cách dịch chuỗi `ads_*` ở `:app`), `docs/ops/design-workflow.md` mục 2 (nút Material chiếm 48 dp).
 
 ### L-163. Feature không biết thẻ native của một bước có được phép không, và không khai báo được vị trí chỉ hiện ở lần mở app đầu tiên
 
@@ -1248,8 +1248,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** luồng giới thiệu cần biết thẻ native của bước có được phép không (cổng đồng ý, công tắc chính, gói bỏ quảng cáo, khóa vị trí) để quyết có giữ nút chờ hay không; khung chỉ biết điều này bên trong `NativeStepAd`. Vị trí chỉ hiện ở lần mở app đầu tiên chưa khai báo được.
 - **Bằng chứng:** issue #381; `git grep -e rememberNativeStepAdAllowed -e firstOpenOnly` trên nhánh chính `97b6ad8` rỗng.
 - **Đề xuất sửa:** `rememberNativeStepAdAllowed(placement)` dùng đúng cổng của `NativeStepAd`; khai báo vị trí có `firstOpenOnly`. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-099.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; T-099 đã merge trong RUN-20261110-01)
+- **Áp dụng:** PR #451 (T-099): `rememberNativeStepAdAllowed(placement)` dùng đúng cổng của `NativeStepAd`; khai báo vị trí có `firstOpenOnly`; `docs/ops/ads-business-rules.md` MC-06, A-01, OB-03, OB-04; `docs/ops/ads-guide.md`.
 
 ### L-164. `merge-if-green.sh` từ chối PR vì một lần chạy `pr-check` bị hủy, dù lần chạy sau trên cùng commit đang chạy
 
@@ -1260,3 +1260,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `scripts/merge-if-green.sh`: khi xét kiểm tra không qua, chỉ lấy lần chạy mới nhất của mỗi kiểm tra (tên cùng ứng dụng hay workflow, để hai workflow có job trùng tên không che nhau) trên commit; một lần `cancelled` cũ hơn lần cùng tên sau nó không chặn, còn lần mới nhất `cancelled` vẫn từ chối. Chọn lần mới nhất theo `started_at`, lần chưa bắt đầu (`started_at` rỗng) tính là mới nhất. Script là file được bảo vệ: plan rủi ro cao, duyệt chéo. Trong lúc chờ, `docs/auto-run.md` bước 8: `wait-run.sh --pr` hết giờ (mã 2) mà PR không có lần chạy `pr-check` nào, không phải mã 5 hay 6, thì đẩy một commit rỗng rồi chờ lại bằng `wait-run.sh`, không đóng mở lại PR. Dòng bảng tra lỗi (nếu thêm) ghi rõ phạm vi "PR không có lần chạy `pr-check`", để không đọc nhầm là trái PB-01 (job `ui-test` của `main-guard`).
 - **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-09: "Nhận L-164, tạo ticket và viết plan.")
 - **Áp dụng:** PR #439 (T-100): `scripts/merge-if-green.sh` bỏ qua một kiểm tra `cancelled` khi trên cùng commit có lần cùng tên, cùng ứng dụng bắt đầu sau nó hay chưa bắt đầu; lần mới nhất vẫn qua `check_one`, kết quả đỏ khác vẫn từ chối; `check_one` coi lần chưa bắt đầu là mới nhất. `docs/auto-run.md` bước 8 và skill `merge-pr`: PR không có lần chạy `pr-check` thì đẩy commit rỗng, không đóng mở lại PR. Chạy lại job đỏ trong cùng lần chạy workflow đã được GitHub che (`filter=latest`), không cần sửa.
+
+### L-165. Plan ghi bài học, nhật ký hay trạng thái ticket vào PR của task, trái quy trình phiên tự chạy
+
+- **Ngày, nguồn:** 2026-11-10, phiên tự chạy RUN-20261110-01
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** mục 3.2 của cả ba plan trong phiên ghi `docs/lessons.md` (bài học chuyển `applied`), có plan ghi cả file plan và ticket, kèm chữ "ghi trong PR của task"; `docs/auto-run.md` bước 7 nói PR của task không chứa nhật ký plan, trạng thái plan, ticket hay báo cáo phiên, và bài học đi qua PR báo cáo. Rà soát trước khi duyệt mới thấy chỗ lệch và dev phải thêm ghi chú cho phiên; phiên ghi thành lệch so với plan ở cả ba task. `scripts/plan-check.py` không báo gì.
+- **Bằng chứng:** plan T-098 mục 3.2 dòng `docs/lessons.md` ("Ghi trong PR của task, như T-100"); plan T-097 mục 3.2 có `docs/lessons.md`, plan và ticket; plan T-099 mục 3.2 không có `docs/lessons.md` nên rà soát xếp "nên sửa"; ghi chú "Chỗ ghi bài học `applied` khác nhau giữa hai plan" ở mục Kiểm tra trước khi duyệt của `docs/runs/RUN-20261110-01.md`.
+- **Đề xuất sửa:** mẫu plan (`docs/templates/plan.md`, mục 3.2) ghi một câu: bài học `applied`, nhật ký, trạng thái plan và ticket không vào mục 3.2, vì phiên ghi chúng qua PR báo cáo (`auto-run.md` bước 7, bước 10); `scripts/plan-check.py` báo chú ý khi mục 3.2 của plan chạy trong phiên tự chạy (`lane` trống) có `docs/lessons.md`, chính file plan hay ticket.
+- **Trạng thái:** proposed
+- **Áp dụng:** chưa.
