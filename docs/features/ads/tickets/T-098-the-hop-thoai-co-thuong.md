@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-19]
 owner: Nhật
-status: planned              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: approved             # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đổi API công khai của :core:ads (điểm chặn 7)
 size: S
 depends_on: [T-097]          # cùng sửa docs/ops/ads-guide.md: chạy nối tiếp

@@ -1,16 +1,16 @@
 ---
 ticket: T-098
 title: Thẻ hộp thoại quảng cáo có thưởng công khai cho screenshot test, cách dịch chữ của khung ở :app
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 8.6M         # cỡ S, số gợi ý 8.6M của scripts/token-usage.py estimate (2026-11-10, trung vị 22 task S); không chỉnh
 blocking_points: [core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-10
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -200,9 +200,18 @@ Không bắt buộc (E dưới 2). Ticket đòi chạy thử cách dịch bằng
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
+- **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-10, trong phiên có người: "Duyệt theo đề xuất của AI".
+  - Lời duyệt trả lời bản plan ở commit ab54565 (PR #441), sau rà soát độc lập. Mục 8 theo đề xuất AI đã trình ngay trước lời duyệt:
+    - câu 1: không chờ T-082, câu hướng dẫn không nêu ngôn ngữ cụ thể;
+    - câu 2: test dựng thẻ ở `:feature:sample`, hai test đo 48 dp ở `RewardedActionTest` của `:core:ads`;
+    - câu 3: không thêm test kiểm đủ bản dịch ở `:app`;
+    - câu 4: giữ phụ thuộc T-097, T-098 chạy sau T-097;
+    - câu 5: không dịch chữ khung sang tiếng Việt trong T-098, để T-082 quyết (kể cả chỗ lệch chữ nút của KB-19);
+    - câu 6: chấp nhận rủi ro dùng nhầm thẻ công khai, không thêm test quét.
+  - Phiên tự chạy làm được (`lane` để trống).
 
 ## 10. Nhật ký thực hiện
 
