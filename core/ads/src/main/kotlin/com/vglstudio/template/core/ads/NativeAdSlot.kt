@@ -13,6 +13,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 
@@ -71,7 +72,7 @@ internal fun nativeSlotAllowed(canRequestAds: Boolean, enabled: Boolean, unitId:
  * Draws the slot while [allowed], nothing otherwise, and reports availability to the app: true on an ad, false on
  * no ad, never while loading; and false when [allowed] turns false after true was reported (L-061). With
  * [onPoolOpportunity] the slot is a cell of a pool ([NativeAdCellHost]): it records the opportunity of P-07, seen
- * while [viewed].
+ * while [viewed]; [cardHeight] is the height of its card placeholders (the caller passes it to the card it draws).
  */
 @Composable
 internal fun NativeAdSlotGate(
@@ -86,6 +87,7 @@ internal fun NativeAdSlotGate(
     ctaLarge: Boolean = false,
     placeholderWhenEmpty: Boolean = true,
     onScreen: Boolean = true,
+    cardHeight: Dp? = null,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     // `af_native_ad_eligible` once each time the slot comes on screen allowed (plan T-033): a page of a pager kept in
@@ -126,6 +128,7 @@ internal fun NativeAdSlotGate(
             placeholderWhenEmpty = placeholderWhenEmpty,
             onStateChange = onStateChange,
             onScreen = onScreen,
+            cardHeight = cardHeight,
             adContent = adContent,
         )
         return
@@ -176,7 +179,8 @@ internal fun NativeAdSlotHost(
 
 /**
  * What the slot draws for [state]; [ctaLarge] sizes the placeholder and the kept space of a medium ad with the large
- * call to action. [contentModifier] wraps the placeholder and the ad, never the empty state.
+ * call to action. [contentModifier] wraps the placeholder and the ad, never the empty state. [cardHeight] is the height
+ * of the loading placeholder of a card.
  */
 @Composable
 internal fun NativeAdSlotContent(
@@ -186,11 +190,13 @@ internal fun NativeAdSlotContent(
     modifier: Modifier,
     ctaLarge: Boolean = false,
     contentModifier: Modifier = Modifier,
+    cardHeight: Dp? = null,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (state) {
-            NativeAdState.Loading -> Box(contentModifier) { NativeAdPlaceholder(size, ctaLarge = ctaLarge) }
+            NativeAdState.Loading ->
+                Box(contentModifier) { NativeAdPlaceholder(size, ctaLarge = ctaLarge, cardHeight = cardHeight) }
             // A new NativeAdView for each ad: the binder registers a view once, so a swapped ad is bound only
             // in a fresh frame (refresh in place, plan T-040).
             is NativeAdState.Loaded -> Box(contentModifier) { key(state.ad) { adContent(state.ad) } }

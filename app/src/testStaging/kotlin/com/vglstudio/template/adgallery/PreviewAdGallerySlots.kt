@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.vglstudio.template.core.ads.AdFormat
 import com.vglstudio.template.core.ads.BottomAdBarDefaults
 import com.vglstudio.template.core.ads.BottomAdBarLayout
 import com.vglstudio.template.core.ads.CollapsibleNativeAdCard
@@ -30,6 +32,7 @@ import com.vglstudio.template.core.ads.NativeAdCard
 import com.vglstudio.template.core.ads.NativeAdSize
 import com.vglstudio.template.core.ads.NativeFullScreenStepContent
 import com.vglstudio.template.core.ads.inListAdPositions
+import com.vglstudio.template.core.ads.itemsWithFixedAds
 import com.vglstudio.template.core.designsystem.theme.Spacing
 
 /** Fixed ad content of the design's frames (design README, section 2): the SDK fills real ads. */
@@ -185,19 +188,23 @@ class PreviewAdGallerySlots(
     override fun gridEvery(): Int? = gridEvery
 
     override fun LazyGridScope.gridWithAds(items: List<Int>, itemContent: @Composable LazyGridItemScope.(Int) -> Unit) {
-        val positions = gridEvery?.let { inListAdPositions(items.size, it) }.orEmpty()
-        var itemIndex = 0
-        for (cell in 0 until items.size + positions.size) {
-            val slot = positions.indexOf(cell)
-            if (slot >= 0) {
-                item(key = "ad_$slot") {
-                    NativeAdCard(assets, NativeAdSize.CARD, Modifier.testTag(PreviewAdTags.grid(slot)))
-                }
-            } else {
-                val item = items[itemIndex++]
-                item(key = item) { itemContent(item) }
-            }
+        val every = gridEvery
+        if (every == null) {
+            items(items, key = { it }) { itemContent(it) }
+            return
         }
+        itemsWithFixedAds(
+            items = items,
+            format = AdFormat.NATIVE_IN_COLLECTION,
+            every = every,
+            // Same as GRID_COLUMNS of AdGalleryScreen.
+            columns = 2,
+            key = { it },
+            adContent = { slot ->
+                NativeAdCard(assets, NativeAdSize.CARD, Modifier.testTag(PreviewAdTags.grid(slot)))
+            },
+            itemContent = itemContent,
+        )
     }
 
     @Composable

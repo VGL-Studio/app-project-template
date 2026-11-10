@@ -245,6 +245,52 @@ class AdsControllerInScreenWindowTest {
     }
 
     @Test
+    fun poolExhausted_noPool_true_followsWindow() {
+        // A format with no pool has no ad to give.
+        assertTrue(controller.poolExhausted(AdPlacement.SAMPLE_NATIVE_SMALL))
+
+        settings.set(AdsSettings.placementEnabled(AdPlacement.GALLERY_NATIVE_MEDIUM), true)
+        controller.markSdkReadyForTest()
+        openAndForeground()
+        cover()
+        // The cell makes the pool while covered: nothing can be sent, no free ad, nothing in flight.
+        collect(controller.pooledCell(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertFalse(controller.poolCanLoadNow())
+        assertTrue(controller.poolExhausted(AdPlacement.GALLERY_NATIVE_MEDIUM))
+
+        uncover()
+        idle()
+        // Control: the window is open again and the pool sends, so it is no longer exhausted.
+        assertTrue(controller.poolCanLoadNow())
+        assertEquals(1, loader.requests.size)
+        assertFalse(controller.poolExhausted(AdPlacement.GALLERY_NATIVE_MEDIUM))
+    }
+
+    @Test
+    fun poolHasFreeAd_onlyWithFreeAd_neverCreatesPool() {
+        settings.set(AdsSettings.placementEnabled(AdPlacement.GALLERY_NATIVE_MEDIUM), true)
+        controller.markSdkReadyForTest()
+        openAndForeground()
+        assertFalse(controller.poolHasFreeAd(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertTrue(
+            logger.entries.none { it.message.startsWith("Pool ") && it.message.contains("created") },
+        )
+
+        val cell = scope.launch { controller.pooledCell(AdPlacement.GALLERY_NATIVE_MEDIUM).collect {} }
+        idle()
+        assertEquals(1, loader.requests.size)
+        // In flight: not exhausted, still no free ad.
+        assertFalse(controller.poolExhausted(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertFalse(controller.poolHasFreeAd(AdPlacement.GALLERY_NATIVE_MEDIUM))
+
+        // The cell leaves before the ad comes, so the ad stays free in the pool.
+        cell.cancel()
+        loader.deliver(FakeLoadedNativeAd())
+        idle()
+        assertTrue(controller.poolHasFreeAd(AdPlacement.GALLERY_NATIVE_MEDIUM))
+    }
+
+    @Test
     fun flowStepFullPage_keepsWindowOpen() {
         openAndForeground()
         controller.putPreloadedNativeFullScreenForTest(AdPlacement.GALLERY_NATIVE_STEP_FULL, FakeLoadedNativeAd())
