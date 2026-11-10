@@ -452,6 +452,7 @@ fun <T> LazyGridScope.itemsWithInListAds(
                         contentPadding = PaddingValues(),
                         cardHeight = adCellHeight?.invoke(maxWidth),
                         keepSpaceWhenEmpty = ads.keepSpaceWhenPoolEmpty,
+                        leavesGridWhenEmpty = !ads.keepSpaceWhenPoolEmpty,
                     )
                 }
             } else {
@@ -589,9 +590,10 @@ internal fun inListAdTag(slot: Int): String = "inlist_ad_$slot"
 /**
  * One ad row, the "In-list ad slot" of the design: [contentPadding] (16 dp above and below by default) while loading
  * or loaded, nothing (0 dp) when no ad came. A pooled row is a cell of the pool ([NativeAdCellHost]): it takes an ad
- * while in composition, gives it back when it leaves, records its opportunity (P-07) and tells [ads] its state, so a
- * one-cell card of a grid can leave it (P-06); with [keepSpaceWhenEmpty] it keeps a static placeholder instead of
- * 0 dp. [cardHeight] is the height of a card and of its placeholders (300 dp when null).
+ * while in composition, gives it back when it leaves and records its opportunity (P-07). With [leavesGridWhenEmpty]
+ * (only the one-cell card of a grid) it tells [ads] its state, so the card can leave the grid (P-06); a list row or a
+ * full-width row never leaves and starts no watch of the pool. With [keepSpaceWhenEmpty] it keeps a static
+ * placeholder instead of 0 dp. [cardHeight] is the height of a card and of its placeholders (300 dp when null).
  */
 @Composable
 internal fun InListAdRow(
@@ -601,6 +603,7 @@ internal fun InListAdRow(
     contentPadding: PaddingValues = PaddingValues(vertical = Spacing.md),
     cardHeight: Dp? = null,
     keepSpaceWhenEmpty: Boolean = false,
+    leavesGridWhenEmpty: Boolean = false,
 ) {
     // `af_native_ad_eligible` once each time the row comes into the list (plan T-033): rows exist only when allowed.
     ReportNativeEligible(true)
@@ -620,7 +623,11 @@ internal fun InListAdRow(
             modifier = modifier.fillMaxWidth().testTag(inListAdTag(slot)),
             ctaLarge = ctaLarge,
             contentModifier = Modifier.padding(contentPadding),
-            onStateChange = { ads.onCellState(slot, it) },
+            onStateChange = if (leavesGridWhenEmpty) {
+                { ads.onCellState(slot, it) }
+            } else {
+                {}
+            },
             cardHeight = cardHeight,
             adContent = { BoundNativeAd(it, size, ctaLarge = ctaLarge, cardHeight = cardHeight) },
         )
