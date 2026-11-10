@@ -1,16 +1,16 @@
 ---
 ticket: T-097
 title: Ô native trong lưới bỏ ô khi hết quảng cáo, nhận chiều cao ô và thẻ, vẽ được ở màn không trạng thái
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 30.0M        # cỡ L, số gợi ý 30.0M của scripts/token-usage.py estimate (2026-11-10, tạm, mới 2 task L); không chỉnh
 blocking_points: [ads, analytics, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-10
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -344,8 +344,17 @@ Câu 1, 2, 3 là luật hiển thị và số liệu, dành cho người phụ t
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
+- **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-10, trong phiên có người: "Duyệt theo đề xuất của AI". Anh Nhật trả lời cả với vai người phụ trách sản phẩm (câu 1, 2, 3, 6).
+  - Lời duyệt trả lời bản plan ở commit e0e6c92 (PR #440), sau rà soát độc lập và một vòng rà soát lại. Mục 8 theo đề xuất AI đã trình ngay trước lời duyệt:
+    - câu 1: đồng ý bỏ ô khi pool cạn (quay lại khi pool có quảng cáo rảnh, mỗi lần hỏi tối đa một ô, hay khi vị trí bật lại) và bỏ lề 16 dp của ô thẻ một ô;
+    - câu 2: áp `keepSpaceWhenPoolEmpty` cho ô thẻ một ô trong lưới;
+    - câu 3: đồng ý số liệu đổi thời điểm ghi theo định nghĩa có sẵn;
+    - câu 4: không tách ticket;
+    - câu 5: `cardHeight` thêm vào `NativeAdCell`, không thêm vào `NativeAdSlot`;
+    - câu 6: không mở issue riêng ở repo app; app nhận bản sửa qua `scripts/template-sync.sh` sau khi T-097 merge.
+  - Phiên tự chạy làm được (`lane` để trống). Chạy trước T-098 và T-099 (mục 6).
 
 ## 10. Nhật ký thực hiện
