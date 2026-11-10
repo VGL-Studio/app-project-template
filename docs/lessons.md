@@ -1228,8 +1228,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** app đặt ô native một cột trong lưới (`itemsWithInListAds`). Pool cạn (emulator, máy không có fill) thì ô vẫn chiếm chỗ, để lại lỗ trong lưới hay khung chờ mãi; khung không cho truyền chiều cao ô hay chiều cao thẻ native; màn không trạng thái (screenshot test, preview) không vẽ được ô ở đúng chỗ như lưới thật.
 - **Bằng chứng:** issue #379; `git grep -e poolExhausted -e itemsWithFixedAds -e adCellHeight` trên nhánh chính `97b6ad8` rỗng.
 - **Đề xuất sửa:** ô một cột tự bỏ khi pool cạn và quay lại khi có quảng cáo; tham số chiều cao ô và chiều cao thẻ (mặc định giữ ảnh chuẩn cũ); `itemsWithFixedAds` cho màn không trạng thái. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-097.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; T-097 đã merge trong RUN-20261110-01)
+- **Áp dụng:** PR #450 (T-097): ô thẻ một ô của lưới rời lưới khi pool cạn và quay lại khi pool có quảng cáo rảnh, `adCellHeight` và `cardHeight`, `itemsWithFixedAds`; `docs/ops/ads-business-rules.md` P-06, `docs/ops/ads-guide.md`.
 
 ### L-162. Feature không dựng được thẻ hộp thoại quảng cáo có thưởng trong screenshot test, và chữ của khung chỉ có tiếng Anh
 

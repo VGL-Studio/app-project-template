@@ -1,7 +1,7 @@
 ---
 ticket: T-097
 title: Ô native trong lưới bỏ ô khi hết quảng cáo, nhận chiều cao ô và thẻ, vẽ được ở màn không trạng thái
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -358,3 +358,15 @@ Câu 1, 2, 3 là luật hiển thị và số liệu, dành cho người phụ t
   - Phiên tự chạy làm được (`lane` để trống). Chạy trước T-098 và T-099 (mục 6).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261110-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #450, commit `e2d3418`, 2026-11-10 18:01 UTC).
+- **Nhánh, PR:** `claude/T-097-o-native-trong-luoi`, https://github.com/VGL-Studio/app-project-template/pull/450. Commit test `8ffed3c`, commit code `ae4e47c`, commit tài liệu `9cb13f7`; sửa theo rà soát: test `18cf948`, code `4ae6f6a`.
+- **Đã làm:** bước 1 đến 8 của mục 3.1 (8 file Kotlin của `:core:ads`, `PreviewAdGallerySlots.kt`, P-06 của `ads-business-rules.md`, sáu chỗ của `ads-guide.md`; đoạn "Rewarded" của T-098 không chạm). Bước 3 đến 5 giao cho một phiên con trong worktree; phiên chính sửa theo rà soát. Không đọc repo camera-pose (phiên không có quyền đọc repo khác); mục 3.1 đủ.
+- **Test viết trước:** 22 test của mục 4. 20 đỏ đúng lý do trên khung rỗng (ô không rời lưới, ô cỡ 0 khi giữ chỗ, thẻ 300 so với 308,25 dp, ô 332 so với 300 dp, số quảng cáo cố định 0, tín hiệu null, khung trả sai giá trị). 2 test giữ qua ngay như plan nêu; đột biến của plan làm `grid_fullWidthRow_poolExhausted_keepsZeroHeightRow` đỏ. Không phải viết chặt thêm test nào. Test JVM mọi module trên khung rỗng: chỉ 20 test đó đỏ. Ghi chú của dev cho `grid_inCollection_outInBackground_returnsOnlyAfterResume` không cần dùng: test qua với code mà không thêm `advanceTimeBy`.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 5 ghi chú. Nên sửa: `InListAdRow` báo trạng thái ô cho mọi hàng của pool, nên hàng của danh sách và hàng rộng hết lưới khi pool cạn mở vòng chờ 2 giây gọi `poolHasFreeAd` (`refill()`) và ghi log "out of the grid" sai, trái câu "hàng của danh sách giữ hành vi cũ" của mục 3.1. Đã sửa: tham số `leavesGridWhenEmpty` của `InListAdRow`, chỉ nhánh ô một ô truyền `true`; test `lazyColumn_pooledRow_poolExhausted_noPoolWatch_noOutOfGridLog` đỏ trước khi sửa ("free-ad checks of a list expected:<0> but was:<2>"), qua sau. Rà soát lại phần sửa: 0 chặn, 0 nên sửa, 3 ghi chú. Ghi chú còn lại: bước "watch ends" của `grid_inCollection_twoCycles_watchRestarts` không có câu khẳng định riêng; khi pool cạn, ô giữ quảng cáo mà cuộn ra ngoài màn trả quảng cáo nên bị bỏ khỏi lưới lúc ở ngoài màn (đúng bước 1, chưa có test); hàng rộng hết lưới chưa có test riêng cho "không mở vòng chờ".
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42868950214). `scripts/check.sh` cục bộ: 1899 test JVM, 0 lỗi; 91 ảnh screenshot, không ảnh nào đổi.
+- **Lệch so với plan:** L4 (ADR-0032), phần dựng của test: `grid_inCollection_poolNotExhaustedWithoutAd_cellStaysOut` (lần gọi 0 trả `Unavailable`, từ lần 1 trả `loadingCell()`, ba vòng đo không có lần gọi mới; câu khẳng định giữ), `grid_inCollection_poolCycle_reportsOncePerEntry` (ô quay lại là `loadingCell()`), `NativeAdPoolsTest.newPools()` thêm bộ đếm `unitIdCalls`. Hai dòng log `AppLogger` cho ô rời lưới và quay lại (ADR-0019, chỉ mã vị trí và số ô). Câu chữ của bước 3 nối `onStateChange` cho mọi hàng của pool; phần sửa theo rà soát làm theo ý mục 3.1 và bảng 3.5. L-161 `applied` ghi trong PR báo cáo. Không có file ngoài mục 3.2, không có thay đổi file test sau commit test ngoài commit test của phần sửa theo rà soát (`18cf948`: test mới, `setPooledList` thêm hai tham số có mặc định), không có câu khẳng định cũ viết lại.
+- **Việc còn lại:** đóng issue #379 kèm PR #450 khi dev đồng ý; phiên không tự đóng.
+- **Cần người xem:** ba ghi chú của rà soát ở trên; luật P-06 mới trong `docs/ops/ads-business-rules.md`.
