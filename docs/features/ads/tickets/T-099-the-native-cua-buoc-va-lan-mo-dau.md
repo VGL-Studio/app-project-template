@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-20]
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: planned              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
 size: M
 depends_on: [T-098]          # cùng sửa docs/ops/ads-guide.md, ads-business-rules.md với T-097, T-098: chạy nối tiếp
 sprint:
-plan:
+plan: features/ads/plans/T-099-the-native-cua-buoc-va-lan-mo-dau.md
 auto_run:
 created: 2026-11-09
 ---
