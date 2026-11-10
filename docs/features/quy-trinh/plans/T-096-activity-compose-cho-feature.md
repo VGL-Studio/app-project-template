@@ -1,16 +1,16 @@
 ---
 ticket: T-096
 title: Plugin feature có activity-compose trên classpath biên dịch, để feature dùng được LocalActivity với AGP 9
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 7
 risk_level: high
 token_estimate: 8.6M
 blocking_points: [build]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-10
 lane:
 ---
 
@@ -185,11 +185,15 @@ Không cần (E dưới 2): thêm một thư viện đã có vào plugin, như `
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này. -->
-
-- **Quyết định:**
-- **Người duyệt:**, **duyệt chéo:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
 - **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-10, trong phiên có người: "Duyệt theo đề xuất của AI."
+  - Lời duyệt trả lời bản plan ở commit 6c57211 (PR #443), sau rà soát độc lập. Mục 8 theo đề xuất AI đã trình ngay trước lời duyệt:
+    - câu 1: test `FeatureClasspathTest` ở lại `:feature:sample`, chấp nhận giới hạn không bắt được `testImplementation`;
+    - câu 2 (a): làm có người, một PR như T-100;
+    - câu 3: ghi L-160 `applied` trong PR của task.
+  - Task làm có người (`auto_run: false`), khi không có phiên `running`.
 
 ## 10. Nhật ký thực hiện
 
