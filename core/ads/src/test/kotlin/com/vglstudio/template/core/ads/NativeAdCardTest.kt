@@ -267,6 +267,33 @@ class NativeAdCardTest {
     }
 
     @Test
+    fun card_cardHeight_setsCardAndPlaceholderHeight() {
+        var size by mutableStateOf(NativeAdSize.CARD)
+        composeRule.setContent {
+            AdsTestTheme {
+                Column {
+                    NativeAdCard(sampleNativeAdAssets, size, Modifier.width(CARD_WIDTH), cardHeight = APP_CARD_HEIGHT)
+                    NativeAdPlaceholder(
+                        size,
+                        Modifier.width(CARD_WIDTH),
+                        animated = false,
+                        cardHeight = APP_CARD_HEIGHT,
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(APP_CARD_HEIGHT)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(APP_CARD_HEIGHT)
+
+        // Control: another size keeps its own height, whatever cardHeight says.
+        size = NativeAdSize.MEDIUM
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(410.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(410.dp)
+    }
+
+    @Test
     fun placeholder_matchesCardHeight_forEachSize() {
         var size by mutableStateOf(NativeAdSize.SMALL)
         composeRule.setContent {
@@ -732,6 +759,9 @@ class NativeAdCardTest {
 
     private companion object {
         val CARD_WIDTH = 379.dp
+
+        /** The height of the app's card next to an ad card, other than the 300 dp default. */
+        val APP_CARD_HEIGHT = 420.dp
 
         /**
          * The full native ad, fixed so the placeholder matches it: 1 + 24 top, head 40, media 200, body 40 (two

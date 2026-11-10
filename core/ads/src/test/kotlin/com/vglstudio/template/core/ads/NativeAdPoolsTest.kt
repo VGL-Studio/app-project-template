@@ -34,6 +34,7 @@ class NativeAdPoolsTest {
     )
     private val switches = mutableMapOf<AdPlacement, MutableStateFlow<Boolean>>()
     private val loads = mutableListOf<FakePoolLoads>()
+    private var unitIdCalls = 0
 
     private fun switchOf(placement: AdPlacement) = switches.getOrPut(placement) { MutableStateFlow(true) }
 
@@ -41,7 +42,10 @@ class NativeAdPoolsTest {
         placements: List<AdPlacement> = listOf(AdPlacement.GALLERY_NATIVE_MEDIUM, AdPlacement.GALLERY_INLIST_MEDIUM),
     ): NativeAdPools = NativeAdPools(
         placements = placements,
-        unitId = { units[it] },
+        unitId = {
+            unitIdCalls++
+            units[it]
+        },
         enabled = { switchOf(it) },
         canRequestAds = consent,
         newPool = { key, _ ->
@@ -297,6 +301,28 @@ class NativeAdPoolsTest {
         runCurrent()
 
         assertEquals(sentTimes().size + 1, gateCalls)
+    }
+
+    @Test
+    fun existingPool_neverCreates_noUnitLookup() = runTest {
+        val pools = newPools()
+        val callsBefore = unitIdCalls
+
+        assertNull(pools.existingPool(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertEquals(callsBefore, unitIdCalls)
+        assertTrue(loads.isEmpty())
+
+        val pool = assertPool(pools.pool(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertSame(pool, pools.existingPool(AdPlacement.GALLERY_NATIVE_MEDIUM))
+
+        // A second placement of the same format and ad unit: no pool of its own until it asks for one.
+        assertNull(pools.existingPool(AdPlacement.GALLERY_INLIST_MEDIUM))
+        assertSame(pool, pools.pool(AdPlacement.GALLERY_INLIST_MEDIUM))
+        val callsAfterPools = unitIdCalls
+        assertSame(pool, pools.existingPool(AdPlacement.GALLERY_INLIST_MEDIUM))
+        assertSame(pool, pools.existingPool(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertEquals(callsAfterPools, unitIdCalls)
+        assertEquals(1, loads.size)
     }
 
     private companion object {

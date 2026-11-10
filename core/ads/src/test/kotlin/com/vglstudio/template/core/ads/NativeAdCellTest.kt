@@ -160,6 +160,46 @@ class NativeAdCellTest {
     }
 
     @Test
+    fun gate_card_cardHeight_placeholderAdAndKeptSpace() {
+        val states = MutableStateFlow<NativeAdState>(NativeAdState.Loading)
+        composeRule.setContent {
+            AdsTestTheme {
+                NativeAdSlotGate(
+                    allowed = true,
+                    states = states,
+                    size = NativeAdSize.CARD,
+                    keepSpaceWhenEmpty = true,
+                    onAdAvailabilityChange = {},
+                    modifier = Modifier.width(CARD_WIDTH).testTag(CELL),
+                    onPoolOpportunity = {},
+                    cardHeight = APP_CARD_HEIGHT,
+                    adContent = { BoundNativeAd(it, NativeAdSize.CARD, cardHeight = APP_CARD_HEIGHT) },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        placeholderInCell().assertCountEquals(1)
+        placeholderInCell()[0].assertHeightIsEqualTo(APP_CARD_HEIGHT)
+
+        states.value = NativeAdState.Loaded(FakeLoadedNativeAd())
+        composeRule.waitForIdle()
+        composeRule.onNode(hasTestTag(NativeAdTestTags.CARD) and hasAnyAncestor(hasTestTag(CELL)))
+            .assertHeightIsEqualTo(APP_CARD_HEIGHT)
+
+        // The pool is exhausted: the cell keeps a static placeholder of the same height.
+        states.value = NativeAdState.Unavailable
+        composeRule.waitForIdle()
+        placeholderInCell().assertCountEquals(1)
+        placeholderInCell()[0].assertHeightIsEqualTo(APP_CARD_HEIGHT)
+        composeRule.onNodeWithTag(CELL).assertHeightIsEqualTo(APP_CARD_HEIGHT)
+    }
+
+    private fun placeholderInCell() = composeRule.onAllNodes(
+        hasTestTag(NativeAdTestTags.PLACEHOLDER) and hasAnyAncestor(hasTestTag(CELL)),
+        useUnmergedTree = true,
+    )
+
+    @Test
     fun inCollection_drawsCard_medium_drawsMedium() {
         val card = requireCellFormat(AdFormat.NATIVE_IN_COLLECTION)
         val medium = requireCellFormat(AdFormat.NATIVE_MEDIUM)
@@ -352,6 +392,9 @@ class NativeAdCellTest {
 
     private companion object {
         val CARD_WIDTH = 379.dp
+
+        /** The height of the app's card next to an ad card, other than the 300 dp default. */
+        val APP_CARD_HEIGHT = 420.dp
         const val CELL = "cell"
         val PLACEMENT = AdPlacement.GALLERY_NATIVE_MEDIUM
         const val FRAME = 100L

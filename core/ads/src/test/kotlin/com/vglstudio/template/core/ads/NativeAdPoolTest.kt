@@ -317,6 +317,25 @@ class NativeAdPoolTest {
     }
 
     @Test
+    fun hasFreeAd_falseWhileRequestInFlight_trueWithFreeAd() = runTest {
+        val pool = newPool()
+        pool.refill()
+        runCurrent()
+        // A request in flight: the pool is not exhausted, yet it has no ad to hand out.
+        assertTrue(pool.isLoading)
+        assertFalse(pool.exhausted)
+        assertFalse(pool.hasFreeAd)
+
+        val ad = deliver()
+        assertTrue(pool.hasFreeAd)
+
+        // The next request hangs; the only free ad is taken.
+        assertSame(ad, pool.claim(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        runCurrent()
+        assertFalse(pool.hasFreeAd)
+    }
+
+    @Test
     fun exhausted_whileSendWaitsForForeground_isTrue() = runTest {
         val pool = newPool()
         foreground.value = false
