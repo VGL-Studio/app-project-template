@@ -7275,7 +7275,7 @@ enum class AdPlacement(
     INTER_SOUNDS("inter_sounds", AdFormat.INTERSTITIAL, intervalGroup = SOUNDS),
     INTER_SAVE("inter_save", AdFormat.INTERSTITIAL, intervalGroup = AdIntervalGroup.named("save", 60)),
     RW_EXPORT("rw_export", AdFormat.REWARDED, noAdPolicy = RewardedNoAdPolicy.AllowAfter(3)),
-    HOME_GRID("home_grid", AdFormat.NATIVE_IN_COLLECTION, nativeEvery = 6),
+    HOME_GRID("home_grid", AdFormat.NATIVE_IN_COLLECTION, nativeEvery = 6, firstOpenOnly = true),
     GALLERY_BANNER("gallery_banner", AdFormat.NATIVE_SMALL),
     ;
 }
@@ -7319,6 +7319,7 @@ expect "ads-plan: an app-wide placement has no launch switch" "Có -" "$(ap_get 
 expect "ads-plan: a placement of the code is off at launch until the team says so" "Tắt Đã code" \
   "$(ap_get 'P["home_bottom"]["launch"] + " " + P["home_bottom"]["status"]')"
 expect "ads-plan: the KDoc of a placement becomes its note" "Bottom bar of Home." "$(ap_get 'P["home_bottom"]["note"]')"
+expect "ads-plan: a first-open-only placement says so in its note" firstOpenOnly "$(ap_get 'P["home_grid"]["note"]')"
 expect "ads-plan: derived keys are not listed twice (they come from the placements sheet)" "False False" \
   "$(ap_get 'str("is_show_home_bottom" in K) + " " + str("native_every_home_grid" in K)')"
 expect "ads-plan: a shared key goes in its group" "Mở app" "$(ap_get 'K["show_open_ads"][0]')"

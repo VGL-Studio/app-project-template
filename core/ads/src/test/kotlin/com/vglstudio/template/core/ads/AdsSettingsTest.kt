@@ -233,6 +233,20 @@ class AdsSettingsTest {
     }
 
     @Test
+    fun placementEnabled_firstOpenOnly_saysSo() {
+        val note = "First open since install only."
+        val firstOpenOnly = AdPlacementDeclaration("x_step", AdFormat.NATIVE_STEP, firstOpenOnly = true)
+        assertTrue(AdsSettings.placementEnabled(firstOpenOnly).description.contains(note))
+        // Control: the same declaration without firstOpenOnly does not say so.
+        val plain = AdPlacementDeclaration("x_step", AdFormat.NATIVE_STEP)
+        assertFalse(AdsSettings.placementEnabled(plain).description.contains(note))
+        // No placement of the template declares it, so the key table does not change.
+        AdPlacement.entries.filterNot { it.appWide }.forEach {
+            assertFalse("$it", AdsSettings.placementEnabled(it).description.contains(note))
+        }
+    }
+
+    @Test
     fun placementsAreOffByDefault() {
         val all = AdsSettings.all()
         // App-wide placements have no switch of their own (MC-09, question 3 of plan T-024).
