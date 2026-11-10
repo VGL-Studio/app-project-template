@@ -1248,8 +1248,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** luồng giới thiệu cần biết thẻ native của bước có được phép không (cổng đồng ý, công tắc chính, gói bỏ quảng cáo, khóa vị trí) để quyết có giữ nút chờ hay không; khung chỉ biết điều này bên trong `NativeStepAd`. Vị trí chỉ hiện ở lần mở app đầu tiên chưa khai báo được.
 - **Bằng chứng:** issue #381; `git grep -e rememberNativeStepAdAllowed -e firstOpenOnly` trên nhánh chính `97b6ad8` rỗng.
 - **Đề xuất sửa:** `rememberNativeStepAdAllowed(placement)` dùng đúng cổng của `NativeStepAd`; khai báo vị trí có `firstOpenOnly`. Luật mới ghi vào `docs/ops/ads-business-rules.md`.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-099.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; T-099 đã merge trong RUN-20261110-01)
+- **Áp dụng:** PR #451 (T-099): `rememberNativeStepAdAllowed(placement)` dùng đúng cổng của `NativeStepAd`; khai báo vị trí có `firstOpenOnly`; `docs/ops/ads-business-rules.md` MC-06, A-01, OB-03, OB-04; `docs/ops/ads-guide.md`.
 
 ### L-164. `merge-if-green.sh` từ chối PR vì một lần chạy `pr-check` bị hủy, dù lần chạy sau trên cùng commit đang chạy
 

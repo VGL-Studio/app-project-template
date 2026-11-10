@@ -1,7 +1,7 @@
 ---
 ticket: T-099
 title: Feature biết thẻ native của một bước có được phép không; vị trí chỉ hiện ở lần mở app đầu tiên
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -313,3 +313,15 @@ Mỗi test viết trước code (bước 3), chạy và thất bại đúng lý 
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261110-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #451, commit `34219e4`, 2026-11-10 18:49 UTC).
+- **Nhánh, PR:** `claude/T-099-the-native-cua-buoc`, https://github.com/VGL-Studio/app-project-template/pull/451. Commit test `a52dd2c` (kèm khung rỗng), commit code `3a3a399`, commit tài liệu `6822a68`.
+- **Đã làm:** mục 3.1 A, B, E: `rememberNativeStepAdAllowed`, `AdsController.rememberStepAllowed` (ba chỗ gọi cũ đổi sang), `firstOpenOnly` của khai báo vị trí với hai `require`, `placementSwitch` gộp dấu lần mở đầu, `isEnabled` đọc `firstOpenOnlyOf`, mô tả khóa, `scripts/ads-plan.py`; MC-06, A-01, OB-03, OB-04 và ba chỗ của `ads-guide.md` (tìm theo tên mục và gạch; vế mới nối cuối gạch "Thuộc tính vị trí", sau phần của T-097). Bước 3 đến 5 giao cho một phiên con.
+- **Test viết trước:** 19 trường hợp (18 test JVM, test script 13). 17 test JVM và test 13 đỏ đúng lý do trên khung rỗng. Test 5, 6, 15 qua ngay như plan nêu; hai lệnh `perl` đối chứng của plan, mỗi lệnh đổi đúng một dòng, làm test 5 và test 6 đỏ. 3 test viết chặt bằng bước đối chứng (`noController_false`, `stepAd_gateClosed_takesNoSpace`, `firstOpen_firstOpenOnlyPlacementOn`). Test JVM mọi module trên khung rỗng: chỉ 17 test mới đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 3 ghi chú: hai dòng KDoc dài hơn 120 ký tự; KDoc của `firstOpenResult` nói lần đọc dấu đầu ở `start` (có thể từ pool hay thẻ của bước khi app khai báo vị trí như vậy; hành vi vẫn đúng); hai dòng nối không có test tự động (đã đọc, đúng; app đầu tiên khai báo vị trí `firstOpenOnly` nên thêm test ở app).
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42877198131). `scripts/check.sh` cục bộ: 1919 test JVM, 0 lỗi; 91 ảnh screenshot, không ảnh nào đổi.
+- **Lệch so với plan:** L4 (ADR-0032), bố cục test, câu khẳng định giữ: đối chứng 14a trong cùng phương thức; 15c và 15d gộp, đổi controller bằng `mutableStateOf`; test 11 đổi controller như vậy; test 9 thêm bước trung gian; `CountingPreferencesStore`, `FIRST_OPEN_KEY` dùng chung giữa hai lớp test. Test 13 giữ dòng giả `HOME_GRID` của plan. L-163 `applied` ghi trong PR báo cáo (ghi chú của danh sách chạy). Không có file ngoài mục 3.2, không có thay đổi file test sau commit test, không có câu khẳng định cũ viết lại.
+- **Việc còn lại:** đóng issue #381 (phần `:core:ads`) kèm PR #451 khi dev đồng ý; phiên không tự đóng.
+- **Cần người xem:** hai dòng nối của mục 4 ("Giới hạn"): tham số cuối của `AdPlacementDeclaration(...)` trong `AdPlacement.kt` và mặc định `firstOpenOnlyOf = { it.declaration.firstOpenOnly }` của `AdsController`.
