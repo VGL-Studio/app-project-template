@@ -1238,8 +1238,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `RewardedAdDialogCard` là `internal`, nên feature không vẽ được thẻ hộp thoại trong screenshot test. Chữ hai nút của khung ("Watch ad", "No, thanks") chỉ có tiếng Anh; app dịch ở `values-<ngôn ngữ>` của `:app` thì lint (`checkDependencies = true`) báo `MissingTranslation`/`ExtraTranslation`, trừ khi chuỗi gốc cũng đặt ở `values/` của `:app`. Thẻ hộp thoại thật cao hơn frame Figma 8 dp, vì nút chữ của Material giữ vùng chạm tối thiểu 48 dp còn frame vẽ nút 40 dp.
 - **Bằng chứng:** issue #380; `core/ads/.../RewardedAction.kt` dòng 295 trên nhánh chính `97b6ad8` (`internal fun RewardedAdDialogCard`).
 - **Đề xuất sửa:** `RewardedAdDialogCard` công khai; `docs/ops/ads-guide.md` có cách dịch chữ của khung ở `:app`; hướng dẫn thiết kế ghi nút chữ của hộp thoại cao 48 dp.
-- **Trạng thái:** accepted (anh Nhật, 2026-11-09; lời nhận ghi trong mô tả PR #432)
-- **Áp dụng:** chưa. Ticket T-098.
+- **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-09, lời nhận ghi trong mô tả PR #432; T-098 đã merge trong RUN-20261110-01)
+- **Áp dụng:** PR #449 (T-098): `RewardedAdDialogCard` công khai, `docs/ops/ads-guide.md` mục 5 bước 4 ý "Rewarded" (cách dịch chuỗi `ads_*` ở `:app`), `docs/ops/design-workflow.md` mục 2 (nút Material chiếm 48 dp).
 
 ### L-163. Feature không biết thẻ native của một bước có được phép không, và không khai báo được vị trí chỉ hiện ở lần mở app đầu tiên
 
