@@ -1,7 +1,7 @@
 ---
 ticket: T-096
 title: Plugin feature có activity-compose trên classpath biên dịch, để feature dùng được LocalActivity với AGP 9
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score: 7
 risk_level: high
@@ -198,3 +198,16 @@ Không cần (E dưới 2): thêm một thư viện đã có vào plugin, như `
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng). -->
+
+### Làm có người 2026-11-10, phiên bản plan 1
+
+- **Kết quả:** merge bằng PR #447 sau lời merge của anh Nhật.
+- **Nhánh, PR:** `claude/T-096-activity-compose`, https://github.com/VGL-Studio/app-project-template/pull/447. Commit test `2739458`, code `b3b2f7a`.
+- **Đã làm:** mục 3.1: một dòng `implementation` cho `androidx-activity-compose` trong `AndroidFeatureConventionPlugin.kt`, một câu KDoc; test `FeatureClasspathTest`. L-160 `applied`.
+- **Test viết trước:** `FeatureClasspathTest.localActivity_resolvesHostActivity` đỏ đúng lý do trên code cũ: `:feature:sample:compileDebugUnitTestKotlin` báo `Unresolved reference 'LocalActivity'.` ở dòng 4 và 24. Sau commit plugin: `tests="1" failures="0" errors="0"`. File test không đổi sau commit test. Không test có sẵn nào đổi.
+- **Phạm vi 3 (mục 4):** `perm-main.txt`/`perm-task.txt` 11 dòng mỗi bên, `diff` rỗng; `deps-main.txt`/`deps-task.txt` 545 dòng mỗi bên, `diff` rỗng. Điều kiện dừng của mục 7 không chạm.
+- **Kết quả kiểm trên máy dev (macOS):** lệnh Gradle của cổng chất lượng (`checkModuleDependencies`, `ktlintCheck`, `testDebugUnitTest`, `testStagingDebugUnitTest`, `verifyRoborazzi...` của 5 module có ảnh, `:app:lintStagingDebug`, `:app:assembleStagingDebug`) cùng `:app:assembleStagingRelease`: `BUILD SUCCESSFUL in 5m 41s`, 1872 test JVM 0 lỗi, 91 ảnh screenshot. Không chạy bước test script của `check.sh` (6 test đỏ sẵn trên macOS, PR không đổi script); CI chạy đủ `check.sh`.
+- **Rà soát độc lập:** 0 chặn, 1 nên sửa (mô tả PR thiếu kết quả cổng chất lượng, đã thêm), 3 ghi chú, ghi trong mô tả PR.
+- **Lệch so với plan:** không. Không có file ngoài mục 3.2.
+- **Giới hạn đã chấp nhận (mục 8, câu 1):** test chỉ kiểm classpath biên dịch của test, không bắt được trường hợp dòng của plugin bị đổi thành `testImplementation`.
+- **Việc còn lại:** anh Nhật đóng issue #369 kèm số PR sau khi đồng ý. App nhận thay đổi qua đợt đồng bộ của `scripts/template-sync.sh`; app đã tự khai báo `activity-compose` trong feature có thể bỏ dòng đó.
