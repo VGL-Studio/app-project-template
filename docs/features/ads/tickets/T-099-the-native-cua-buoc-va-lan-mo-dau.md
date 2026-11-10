@@ -8,7 +8,7 @@ owner: Nhật
 status: approved             # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
 size: M
-depends_on: [T-098]          # cùng sửa docs/ops/ads-guide.md, ads-business-rules.md với T-097, T-098: chạy nối tiếp
+depends_on: [T-097]          # dựa vào code của T-097 (NativeAdSlotGate, AdsController.kt); đổi từ T-098 ngày 2026-11-10 (RUN-20261110-01)
 sprint:
 plan: features/ads/plans/T-099-the-native-cua-buoc-va-lan-mo-dau.md
 auto_run:
