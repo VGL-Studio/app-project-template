@@ -507,6 +507,8 @@ class InListAdsTest {
         cell: () -> Flow<NativeAdState>,
         onOpportunity: (String) -> Unit = {},
         poolExhausted: (() -> Boolean)? = null,
+        poolHasFreeAd: (() -> Boolean)? = null,
+        logger: RecordingAppLogger = RecordingAppLogger(),
     ) {
         composeRule.setContent {
             AdsTestTheme {
@@ -517,10 +519,11 @@ class InListAdsTest {
                         every = derivedStateOf(every),
                         rowSource = loadedRows,
                         scope = scope,
-                        logger = RecordingAppLogger(),
+                        logger = logger,
                         pooledCell = cell,
                         onPoolOpportunity = onOpportunity,
                         poolExhausted = poolExhausted,
+                        poolHasFreeAd = poolHasFreeAd,
                     )
                 }
                 LazyColumn(modifier = Modifier.fillMaxSize().testTag(LIST)) {
@@ -958,6 +961,33 @@ class InListAdsTest {
 
         composeRule.onAllNodesWithTag("inlist_ad_0").assertCountEquals(1)
         assertDpEquals("list row height", 0.dp, bounds("inlist_ad_0").height)
+    }
+
+    @Test
+    fun lazyColumn_pooledRow_poolExhausted_noPoolWatch_noOutOfGridLog() {
+        val logger = RecordingAppLogger()
+        var freeAdChecks = 0
+        composeRule.mainClock.autoAdvance = false
+        setPooledList(
+            itemCount = 7,
+            every = { 3 },
+            cell = { flowOf(NativeAdState.Unavailable) },
+            poolExhausted = { true },
+            poolHasFreeAd = {
+                freeAdChecks++
+                false
+            },
+            logger = logger,
+        )
+        composeRule.mainClock.advanceTimeBy(PoolCellPolicy.EXHAUSTED_RETRY_MILLIS * 2 + 100)
+
+        // A list row never leaves the list (P-06): it starts no watch of the pool and logs no "out of the grid".
+        composeRule.onAllNodesWithTag("inlist_ad_0").assertCountEquals(1)
+        assertEquals("free-ad checks of a list", 0, freeAdChecks)
+        assertTrue(
+            "no out-of-the-grid line for a list: ${logger.entries}",
+            logger.entries.none { it.message.contains("out of the grid") },
+        )
     }
 
     @Test
