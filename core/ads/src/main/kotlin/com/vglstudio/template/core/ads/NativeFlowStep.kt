@@ -127,7 +127,7 @@ private const val LINE_SAMPLE = "Ad"
  * each other never show the same ad (OB-02). Until the new ad comes it shows the placeholder of the same height (for
  * about one frame when the pool has an ad ready; the height stays, so the Next button does not move), or nothing
  * while the pool is exhausted (P-06), and keeps asking. Like [NativeAdSlot], it takes no space until ads are allowed
- * (consent given, `is_show_<placement>` on, an ad unit), and gives its ad back when it leaves the screen or the
+ * (consent given, `is_show_<placement>` on, an ad unit; [rememberNativeStepAdAllowed] tells the app), and gives its ad back when it leaves the screen or the
  * placement turns off (L-061). [onAdAvailabilityChange] works as for [NativeAdSlot]. It records no `ad_opportunity`
  * (P-07). Placements of another format are an [IllegalArgumentException].
  */
@@ -146,7 +146,7 @@ fun NativeStepAd(
     }
     key(placement) {
         NativeStepAdHost(
-            allowed = rememberStepAllowed(placement, ads.canRequestAds, ads::isEnabled) { ads.unitId(it) },
+            allowed = ads.rememberStepAllowed(placement),
             step = step,
             newStates = { steps -> ads.stepAd(placement, steps) },
             modifier = modifier,
@@ -155,8 +155,21 @@ fun NativeStepAd(
     }
 }
 
+/**
+ * Whether the card of a flow step of [placement] may take an ad now: true through the same gate [NativeStepAd] reads
+ * before it takes space (consent, `is_show_<placement>` with the master switch and ad-free, an ad unit, and the
+ * first-open mark for a `firstOpenOnly` placement, OB-03, OB-04). False with no ads controller (tests, previews), in
+ * the first frames while the switch is not known yet, and as soon as ads stop being allowed: follow the value, do not
+ * read it once in the first frame. Whether an ad is there still comes from `onAdAvailabilityChange` of
+ * [NativeStepAd]. Records nothing and takes no ad. Placements of another format than `native_step` are an
+ * [IllegalArgumentException].
+ */
 @Composable
-fun rememberNativeStepAdAllowed(placement: AdPlacement): Boolean = false
+fun rememberNativeStepAdAllowed(placement: AdPlacement): Boolean {
+    requireStepFormat(placement.format)
+    val ads = LocalAdsController.current ?: return false
+    return ads.rememberStepAllowed(placement)
+}
 
 /**
  * [NativeStepAd] without an ads controller: [step] goes into one stream of steps, read by the states [newStates]
@@ -279,7 +292,7 @@ fun NativeFullScreenStep(
     }
     key(placement) {
         NativeFullScreenStepGate(
-            allowed = rememberStepAllowed(placement, ads.canRequestAds, ads::isEnabled) { ads.unitId(it) },
+            allowed = ads.rememberStepAllowed(placement),
             // A cold flow: nothing is taken until the gate opens and the page collects it.
             states = remember { ads.fullScreenStep(placement) },
             modifier = modifier,
@@ -424,7 +437,7 @@ internal fun stepFullScreenTake(canRequestAds: Boolean, take: () -> LoadedNative
 fun rememberNativeFullScreenStepReady(placement: AdPlacement): Boolean {
     requireFullScreenStepFormat(placement.format)
     val ads = LocalAdsController.current ?: return false
-    val allowed = rememberStepAllowed(placement, ads.canRequestAds, ads::isEnabled) { ads.unitId(it) }
+    val allowed = ads.rememberStepAllowed(placement)
     return rememberStepReady(allowed) { ads.stepFullScreenReady(placement) }
 }
 
@@ -461,6 +474,11 @@ internal fun rememberStepAllowed(
     val unit = remember(placement) { unitId(placement) }
     return nativeSlotAllowed(canRequest, on, unit)
 }
+
+/** The gate of the ads of a flow step of [placement] through this controller: [rememberStepAllowed] above. */
+@Composable
+internal fun AdsController.rememberStepAllowed(placement: AdPlacement): Boolean =
+    rememberStepAllowed(placement, canRequestAds, ::isEnabled) { unitId(it) }
 
 /** The step card draws `native_step` placements only. */
 internal fun requireStepFormat(format: AdFormat) {

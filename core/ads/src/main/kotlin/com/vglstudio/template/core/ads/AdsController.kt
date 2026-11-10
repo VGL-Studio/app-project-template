@@ -194,7 +194,7 @@ class AdsController @Inject internal constructor(
 
     /**
      * Whether this process is the first open since install (A-01): the mark is read and written once, the first time
-     * a switch of an app-wide placement is read, which is in [start] (question 6 of plan T-024).
+     * a switch of an app-wide or first-open-only placement is read, which is in [start] (question 6 of plan T-024).
      */
     private val firstOpenResult by lazy { scope.async { firstOpenMark.consume() } }
     private val firstOpen: Flow<Boolean> = flow { emit(firstOpenResult.await()) }
@@ -1579,13 +1579,20 @@ class AdsController @Inject internal constructor(
      * Whether [placement] may load and show ads: the master switch `is_show_ads` (off too while ad-free, KB-30,
      * [AdFreeStatus]) and the placement's own switch
      * `is_show_<code>` (KB-7, ADR-0014); for an app-wide placement, whether the keys of this open choose it
-     * ([placementSwitch], A-01, A-02). Every ad format, including native ones added later, must check this before
-     * loading or showing an ad.
+     * ([placementSwitch], A-01, A-02); for a first-open-only placement ([firstOpenOnlyOf], OB-03), its own switch and
+     * the first open. Every ad format, including native ones added later, must check this before loading or showing
+     * an ad.
      */
-    internal fun isEnabled(placement: AdPlacement): Flow<Boolean> = placementSwitch(placement, flags, firstOpen)
+    internal fun isEnabled(placement: AdPlacement): Flow<Boolean> =
+        placementSwitch(placement, flags, firstOpen, firstOpenOnly = firstOpenOnlyOf(placement))
 
+    /**
+     * Whether a placement is first-open-only (OB-03): its declaration. Main code never sets it; a test sets it right
+     * after [testAdsController], before building any UI or calling [start], to treat a gallery placement as declared
+     * `firstOpenOnly`, since the template has no such placement.
+     */
     @VisibleForTesting
-    internal var firstOpenOnlyOf: (AdPlacement) -> Boolean = { false }
+    internal var firstOpenOnlyOf: (AdPlacement) -> Boolean = { it.declaration.firstOpenOnly }
 
     /**
      * N of the in-list ads of [placement] ([rememberInListAds]): `native_every_<code>`, or null while no ad row may
