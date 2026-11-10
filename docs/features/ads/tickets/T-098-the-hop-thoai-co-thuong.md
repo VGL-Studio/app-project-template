@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-19]
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: planned              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đổi API công khai của :core:ads (điểm chặn 7)
 size: S
 depends_on: [T-097]          # cùng sửa docs/ops/ads-guide.md: chạy nối tiếp
 sprint:
-plan:
+plan: features/ads/plans/T-098-the-hop-thoai-co-thuong.md  # đường dẫn plan khi đã có
 auto_run:
 created: 2026-11-09
 ---
