@@ -73,7 +73,7 @@ internal fun BoundNativeAd(
 /**
  * Draws a loaded ad of [size] (small, medium, or the card of a collection or of a flow step, which bind their media
  * like medium); used by [NativeAdSlot], [NativeAdCell], [NativeStepAd] and by ads inside lists. [ctaLarge] is the
- * large call to action of medium.
+ * large call to action of medium; [cardHeight] the height of a card (300 dp when null).
  */
 @Composable
 internal fun BoundNativeAd(
@@ -84,7 +84,14 @@ internal fun BoundNativeAd(
     cardHeight: Dp? = null,
 ) {
     BoundNativeAd(ad, modifier) { binder ->
-        NativeAdLayout(ad.assets, size, binder, showAdChoicesMarker = false, ctaLarge = ctaLarge)
+        NativeAdLayout(
+            ad.assets,
+            size,
+            binder,
+            showAdChoicesMarker = false,
+            ctaLarge = ctaLarge,
+            cardHeight = cardHeight,
+        )
     }
 }
 

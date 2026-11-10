@@ -87,7 +87,8 @@ data class NativeAdAssets(
 /**
  * A native ad with fixed content, for screenshots and previews of screens that show a native ad. The app shows real
  * ads with [NativeAdSlot], which uses the same layout. A 16 dp marker shows where the SDK draws AdChoices; real ads
- * never draw it (ads-guide.md, section 2).
+ * never draw it (ads-guide.md, section 2). [cardHeight] sets the height of a card ([NativeAdSize.CARD]) to that of
+ * the app's card next to it; null keeps 300 dp, and other sizes ignore it.
  */
 @Composable
 fun NativeAdCard(
@@ -97,13 +98,22 @@ fun NativeAdCard(
     ctaLarge: Boolean = false,
     cardHeight: Dp? = null,
 ) {
-    NativeAdLayout(assets, size, PreviewNativeAdBinder, showAdChoicesMarker = true, modifier = modifier, ctaLarge)
+    NativeAdLayout(
+        assets,
+        size,
+        PreviewNativeAdBinder,
+        showAdChoicesMarker = true,
+        modifier = modifier,
+        ctaLarge = ctaLarge,
+        cardHeight = cardHeight,
+    )
 }
 
 /**
  * The loading state of a native ad: same frame and height as the ad, so nothing moves when the ad arrives (KB-1).
  * [animated] off keeps screenshots independent of time. [ctaLarge] is the medium ad with the large call to action.
  * The step card's placeholder is [NativeStepAdDefaults.height] high, like the card, at every font scale (plan T-045).
+ * [cardHeight] is the height of a card placeholder, as for [NativeAdCard].
  */
 @Composable
 fun NativeAdPlaceholder(
@@ -117,6 +127,7 @@ fun NativeAdPlaceholder(
         size = size,
         height = when (size) {
             NativeAdSize.STEP -> NativeStepAdDefaults.height()
+            NativeAdSize.CARD -> cardHeight ?: NativeAdDimens.CardHeight
             else -> NativeAdDimens.heightOf(size, ctaLarge)
         },
         modifier = modifier,
@@ -280,7 +291,8 @@ private const val PULSE_MILLIS = 800
 
 /**
  * The layout of a native ad of [size]. Each ad part goes through [binder], so a fake ad and a real ad bound to the SDK
- * share this layout. A card takes the height a cell gives it; its own height is the default.
+ * share this layout. A card takes the height a cell gives it; its own height is the default, or [cardHeight] when
+ * set.
  */
 @Composable
 internal fun NativeAdLayout(
@@ -303,6 +315,7 @@ internal fun NativeAdLayout(
                         Modifier.heightIn(min = NativeAdDimens.heightOf(size, ctaLarge))
                     // The step card: 250 dp, more with large text so its media keeps 120 dp (plan T-045).
                     NativeAdSize.STEP -> Modifier.height(NativeStepAdDefaults.height())
+                    NativeAdSize.CARD -> Modifier.height(cardHeight ?: NativeAdDimens.CardHeight)
                     else -> Modifier.height(NativeAdDimens.heightOf(size, ctaLarge))
                 },
             )

@@ -117,8 +117,11 @@ internal class NativeAdPool(
     /** Moves at every close, so a send of an earlier opening changes nothing. */
     private var session = 0L
 
-    /** The pool holds a free ad now. */
-    val hasFreeAd: Boolean get() = true
+    /**
+     * The pool holds a free ad now. Unlike [exhausted], a request in flight does not count: a grid puts a cell that
+     * left back only for an ad that is there (P-06).
+     */
+    val hasFreeAd: Boolean get() = free.isNotEmpty()
 
     /** A send is in progress (gate, load or retry wait). */
     val isLoading: Boolean get() = job != null

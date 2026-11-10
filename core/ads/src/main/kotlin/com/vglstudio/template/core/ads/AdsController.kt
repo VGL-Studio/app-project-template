@@ -1724,11 +1724,22 @@ class AdsController @Inject internal constructor(
         nativePools.pool(placement)?.let { stepAdStates(it, placement, steps, logger, placement.key) }
             ?: flowOf(NativeAdState.Unavailable)
 
-    /** The pool of [placement] is exhausted (P-05); true while it has no pool. */
-    internal fun poolExhausted(placement: AdPlacement): Boolean = false
+    /**
+     * The pool of [placement] is exhausted (P-05); true while it has no pool or no ad unit, like [pooledCell]. Reads
+     * the pool a cell made: never makes one, never looks up an ad unit.
+     */
+    internal fun poolExhausted(placement: AdPlacement): Boolean = nativePools.existingPool(placement)?.exhausted ?: true
 
-    /** The pool of [placement] has a free ad, after a refill; false while it has no pool. */
-    internal fun poolHasFreeAd(placement: AdPlacement): Boolean = true
+    /**
+     * The pool of [placement] has a free ad, after a refill (drops expired ads, sends the next request through the
+     * send gate when the pool is idle and not full, as the claim of a waiting cell does); false while it has no pool.
+     * Never makes a pool. A grid asks it every 2 s while cells are out (P-06).
+     */
+    internal fun poolHasFreeAd(placement: AdPlacement): Boolean {
+        val pool = nativePools.existingPool(placement) ?: return false
+        pool.refill()
+        return pool.hasFreeAd
+    }
 
     /** The `ad_opportunity` of one cell of a pool (P-07). */
     internal fun recordPoolCellOpportunity(placement: AdPlacement, result: String) {
