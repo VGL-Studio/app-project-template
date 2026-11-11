@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-20]
 owner: Nhật
-status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: on-staging            # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
 size: M
 depends_on: []
