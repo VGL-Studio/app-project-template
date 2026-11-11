@@ -1,22 +1,22 @@
 ---
 ticket: T-101
 title: Feature hỏi được pool native_step đã có quảng cáo cho bước kế tiếp của luồng chưa
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 21.1M        # cỡ M, số gợi ý 21.1M của scripts/token-usage.py estimate (2026-11-10, trung vị 28 task M); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-11
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
 # PLAN T-101: FEATURE HỎI ĐƯỢC POOL NATIVE_STEP ĐÃ CÓ QUẢNG CÁO CHO BƯỚC KẾ TIẾP CỦA LUỒNG CHƯA
 
-> **Plan chỉ được duyệt sau khi người phụ trách sản phẩm (anh Nhật) xác nhận spec đã sửa** theo câu hỏi 1 ở mục 8 (tiêu chí mới cho KB-20). Spec `ads` hôm nay chưa có tiêu chí nào về "bước kế tiếp đã có quảng cáo".
+> **Plan chỉ được duyệt sau khi người phụ trách sản phẩm (anh Nhật) xác nhận spec đã sửa** theo câu hỏi 1 ở mục 8 (tiêu chí mới cho KB-20). Spec `ads` hôm nay chưa có tiêu chí nào về "bước kế tiếp đã có quảng cáo". Đã đạt: spec sửa ở PR #459 (KB-20 tiêu chí 10, câu hỏi 60), anh Nhật xác nhận ngày 2026-11-11 ("Xác nhận spec ads").
 
 ## 1. Tóm tắt
 
@@ -31,14 +31,14 @@ Kiểm chứng bằng test JVM: pool thật với đồng hồ giả, hàm thu�
 
 ## 2. Hiểu yêu cầu
 
-Ticket xử lý KB-20 trong `features/ads/spec.md` (spec `confirmed`). Tiêu chí "đề xuất 10" chưa có trong spec: nó là tiêu chí AI đề xuất ở mục 8, câu hỏi 1; khi spec được sửa và xác nhận, mục 2 và mục 4 đổi "đề xuất 10" thành số tiêu chí thật.
+Ticket xử lý KB-20 trong `features/ads/spec.md` (spec `confirmed`). Tiêu chí "đề xuất 10" ở mục 8, câu hỏi 1 là KB-20 tiêu chí 10 của spec (`confirmed` 2026-11-11, PR #459, anh Nhật xác nhận chữ đầy đủ); bảng này và mục 4 dùng số tiêu chí thật.
 
 | Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
 | --- | --- | --- |
 | KB-20, tiêu chí 2 | Hai bước kề nhau không hiện cùng một quảng cáo | Không đổi. Hàm mới chỉ đọc; thẻ vẫn lấy quảng cáo mới trước rồi mới trả quảng cáo cũ (OB-02). Luật chừa của hàm mới dựa vào đúng cách lấy này: thẻ của bước kế tiếp sẽ lấy một quảng cáo rảnh khác với quảng cáo thẻ hiện tại đang giữ |
 | KB-20, tiêu chí 4 | Khi khóa tắt hay không có quảng cáo thì bước hiện bình thường, không có khoảng trống | Không đổi. Hàm mới trả `false` khi khóa tắt (cổng đóng); app không chờ khi đó (tiêu chí 9) |
 | KB-20, tiêu chí 9 | App chờ thẻ trước khi cho đi tiếp thì chỉ chờ lúc thẻ được phép; không được phép hay thôi được phép giữa lúc chờ thì đi tiếp ngay | Hàm mới đi qua đúng cổng của `rememberNativeStepAdAllowed` (cùng `ads.rememberStepAllowed(placement)`): cổng đóng thì trả `false` ngay, kể cả khi đã đúng trước đó. App chờ bước kế tiếp chỉ khi `rememberNativeStepAdAllowed(placement)` là `true` và hàm mới là `false`; cổng đóng thì đi tiếp ngay (mục 3.1 D) |
-| KB-20, đề xuất 10 (câu hỏi 1) | Khi app giữ nút đi tiếp cho tới khi bước kế tiếp có quảng cáo, thì quảng cáo vừa về lúc thẻ của bước hiện tại còn chờ là của thẻ hiện tại; bước kế tiếp chỉ tính là đã có khi còn một quảng cáo rảnh ngoài quảng cáo của thẻ hiện tại | `nextStepAdReady`: thẻ hiện tại chưa có quảng cáo thì cần 2, có rồi thì cần 1. Đếm theo đúng điều kiện của `claim` (cổng hiện, lượt hiển thị, hạn dùng), không tính yêu cầu đang chạy |
+| KB-20 tiêu chí 10 (câu hỏi 1) | Khi app giữ nút đi tiếp cho tới khi bước kế tiếp có quảng cáo, thì quảng cáo vừa về lúc thẻ của bước hiện tại còn chờ là của thẻ hiện tại; bước kế tiếp chỉ tính là đã có khi còn một quảng cáo rảnh ngoài quảng cáo của thẻ hiện tại | `nextStepAdReady`: thẻ hiện tại chưa có quảng cáo thì cần 2, có rồi thì cần 1. Đếm theo đúng điều kiện của `claim` (cổng hiện, lượt hiển thị, hạn dùng), không tính yêu cầu đang chạy |
 | KB-12, tiêu chí 1 | Khi người dùng rút đồng ý thì không còn yêu cầu mới và quảng cáo đã tải không hiện | Rút đồng ý: cổng của hàm mới đóng (`false` ngay) và pool trả 0 (`canShowNow()` tắt, pool đóng). Hàm mới không gửi yêu cầu nào |
 | KB-7, tiêu chí 1; KB-30, tiêu chí 1, 3 | Công tắc tổng tắt, hay đã mua gói bỏ quảng cáo, thì không có quảng cáo; đổi giữa chừng thì biến mất ngay | Cùng cổng (`isEnabled` gồm công tắc tổng và gói bỏ quảng cáo): hàm mới về `false` ngay |
 | KB-24, tiêu chí về nạp | Nạp và thử lại theo nhịp của khung (O-05, S-24) | Không đổi: hàm mới không gọi `refill`, không đi qua cổng gửi. Khác `poolHasFreeAd` (có `refill`) mà lưới dùng |
@@ -285,16 +285,16 @@ Dựng chung:
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| Đề xuất 10: chỉ tính quảng cáo cấp được ngay, theo nạp và lấy | Unit test | **1.** `NativeAdPoolTest.claimableAdCount_followsLoadAndClaim`: pool mới `0`; `refill()`, `runCurrent()`: vẫn `0` (yêu cầu đang chạy không tính); `deliver()` ba lần: `1`, rồi `3`; `claim` ba lần: `2`, `1`, `0`, rồi `claim` trả `null` (khớp `claim`); `release(a)` (chưa ghi lượt hiển thị): `1`, `claim` trả lại đúng `a`, `0` |
+| KB-20 tiêu chí 10: chỉ tính quảng cáo cấp được ngay, theo nạp và lấy | Unit test | **1.** `NativeAdPoolTest.claimableAdCount_followsLoadAndClaim`: pool mới `0`; `refill()`, `runCurrent()`: vẫn `0` (yêu cầu đang chạy không tính); `deliver()` ba lần: `1`, rồi `3`; `claim` ba lần: `2`, `1`, `0`, rồi `claim` trả `null` (khớp `claim`); `release(a)` (chưa ghi lượt hiển thị): `1`, `claim` trả lại đúng `a`, `0` |
 | P-01a, P-03 (hạn dùng) | Unit test | **2.** `claimableAdCount_skipsImpressedAndExpired`: `fill(pool, 3)`: `3`; `a.impressionRecorded = true`: `2`; đối chứng: `at(MAX_AGE - 1)` vẫn `2`; `at(MAX_AGE)`: `0`, và `claim` trả `null` (khớp `claim`) |
 | S-11, KB-12 | Unit test | **3.** `claimableAdCount_zeroWhenCannotShow`: `newPool(capacity = 1)`, `fill(pool, 1)`, `canShow = false`: `0`, `claim` trả `null`, quảng cáo không bị hủy (`destroyCount == 0`). Đối chứng: `canShow = true`: `1`, `claim` trả đúng quảng cáo đó |
 | Chỉ đọc: không nạp, không hủy, không log | Unit test | **4.** `claimableAdCount_hasNoSideEffect`: `fill(pool, 3)`, đối chứng đọc `3` trước khi cũ; `ads[0].impressionRecorded = true`, `at(MAX_AGE)`, ghi số dòng log; đọc ba lần đều `0`, `runCurrent()`: `destroyCount` của cả ba là `0`, `loads.times.size` vẫn `3`, số dòng log không đổi. Đối chứng: `claim` trên cùng pool trả `null`, `runCurrent()`: cả ba bị hủy (`1, 1, 1`) và có yêu cầu thứ tư |
 | Pool đóng rồi mở lại (rút đồng ý, tắt mọi vị trí) | Unit test | **5.** `claimableAdCount_zeroWhenClosed_countsAfterReopen`: `fill(pool, 2)`: `2`; `close()`: `0`; `reopen()`, `refill()`, `runCurrent()`, `deliver()`: `1` |
-| Đề xuất 10: luật chừa một quảng cáo | Unit test | **6.** `NativeStepNextAdReadyTest.nextStepAdReady_keepsOneForCurrentCard`: `(0, false)` `false`; `(1, false)` `false`; `(2, false)` `true`; `(0, true)` `false`; `(1, true)` `true`; `(3, true)` `true`; bước hiện tại không có thẻ (app truyền `currentStepHasAd = true`, chú thích trong test): `nextStepAdReady(claimable = 1, currentStepHasAd = true)` là `true` |
+| KB-20 tiêu chí 10: luật chừa một quảng cáo | Unit test | **6.** `NativeStepNextAdReadyTest.nextStepAdReady_keepsOneForCurrentCard`: `(0, false)` `false`; `(1, false)` `false`; `(2, false)` `true`; `(0, true)` `false`; `(1, true)` `true`; `(3, true)` `true`; bước hiện tại không có thẻ (app truyền `currentStepHasAd = true`, chú thích trong test): `nextStepAdReady(claimable = 1, currentStepHasAd = true)` là `true` |
 | Không có `AdsController`; sai định dạng | Compose UI test | **7.** `noController_false`: `rememberNativeStepNextAdReady(GALLERY_NATIVE_STEP, step = 1, currentStepHasAd = true)` không có `LocalAdsController`: `false` sau `frame()`; đối chứng trong cùng nội dung: `rememberNextStepAdReady(allowed = true, step = 1, currentStepHasAd = true) { 1 }` là `true`. **7b.** `wrongFormat_throws`: `rememberNativeStepNextAdReady(GALLERY_NATIVE_MEDIUM, ...)` ném `IllegalArgumentException` |
 | Đọc ở khung hình đầu của bước | Compose UI test | **8.** `firstFrame_readsPool`: số đếm `2`, cờ `false`, lưu mọi giá trị trả về vào danh sách: giá trị đầu tiên (lần hợp thành đầu) là `true`, số lần gọi `claimable` ít nhất 1 trước `frame()` đầu |
 | Đọc lại mỗi 200 ms | Compose UI test | **9.** `followsPool`: số `0`, cờ `false`: `false` sau `frame()` và sau một `poll()`; số `2`: `true` sau đúng một `poll()` |
-| Đề xuất 10: quảng cáo vừa về là của thẻ đang chờ | Compose UI test | **10.** `cardWaiting_oneAdArrives_staysFalse`: số `0`, cờ `false`; số `1`: `false` sau ba `poll()`; đối chứng: số `2`: `true` sau một `poll()` |
+| KB-20 tiêu chí 10: quảng cáo vừa về là của thẻ đang chờ | Compose UI test | **10.** `cardWaiting_oneAdArrives_staysFalse`: số `0`, cờ `false`; số `1`: `false` sau ba `poll()`; đối chứng: số `2`: `true` sau một `poll()` |
 | Giữ `true` giữa lúc thẻ lấy và lúc thẻ báo | Compose UI test | **11.** `cardClaims_countFallsBeforeReport_staysTrue`: số `2`, cờ `false` (trạng thái Compose): `true` sau `frame()`; số `1`, `poll()`: `true`; số `0`, `poll()`: `true`; cờ `true`, `poll()`: `true` |
 | Cờ mới nhất đi cùng số mới nhất | Compose UI test | **12.** `cardReportsAd_latestFlagWithLatestCount`: số `1`, cờ `false`: `false` sau `frame()` và một `poll()`; cờ thành `true` (số vẫn `1`), `poll()`: `true` |
 | Bước mới đọc lại | Compose UI test | **13.** `newStep_readsAgain`: số `2`, bước `1`: `true`; số `0`, bước `2`, `frame()`: `false` (giá trị `true` của bước trước không mang sang); số `2`, `poll()`: `true` |
@@ -388,9 +388,13 @@ Kết quả từng đột biến ghi vào nhật ký của plan.
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
+- **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-11, trong phiên có người: "Duyệt T-101 theo đề xuất" (trả lời bản plan ở commit f17ae98, PR #457, sau rà soát độc lập và một vòng rà soát lại). Anh Nhật trả lời cả với vai người phụ trách sản phẩm (câu 1, 2).
+  - Điều kiện duyệt đã đạt: spec sửa ở PR #459, anh Nhật xác nhận chữ đầy đủ ngày 2026-11-11 ("Xác nhận spec ads"). PR #459 merge trước PR này.
+  - Mục 8 theo đề xuất AI đã trình ngay trước lời duyệt: câu 1 tiêu chí 10 của KB-20 và câu hỏi 60; câu 2 (A) thẻ không được phép thì hàm trả `false`; câu 3 (A) cờ do app truyền; câu 4 nhịp 200 ms; câu 5 `existingPool`; câu 6 một dòng log mỗi lần thành `true`; câu 7 `nextStepAdReady` công khai; câu 8 không cần ADR; câu 9 giữ `true` cho cả bước; câu 10 không dừng vòng đọc khi app ở nền.
+  - Phiên tự chạy làm được (`lane` để trống). Chạy trước T-102 (mục 6).
 
 ## 10. Nhật ký thực hiện
 
