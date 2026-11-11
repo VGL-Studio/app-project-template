@@ -36,6 +36,8 @@ Tên frame có hậu tố `Screen` theo quy tắc của `figma-export.py` (ADR-0
 
 Bản tiếng Anh tương ứng (spec, câu hỏi 3): "No internet connection", "This app needs the Internet to work. Check Wi-Fi or mobile data, then try again.", "Try again".
 
+Ảnh trong `screens/` và screenshot test cùng tên dùng chữ tiếng Việt (test đặt ngôn ngữ `vi`); máy để ngôn ngữ khác tiếng Việt hiện bản tiếng Anh, và dòng báo vẫn chưa có mạng là "Still no connection. Please try again in a moment.".
+
 ## 3. Ánh xạ sang hệ thống thiết kế
 
 | Phần tử trên thiết kế | Thành phần trong code | Màu (vai trò) | Kiểu chữ | Khoảng cách |

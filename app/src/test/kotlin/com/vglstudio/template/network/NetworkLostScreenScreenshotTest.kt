@@ -22,13 +22,14 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * The network dialog over the sample screen, as in the design frames `NetworkLostScreen_*` (ADR-0020). Drawn in one
  * window so onRoot() captures the dialog and its scrim; the real dialog window is checked in NetworkDialogHostTest.
- * Vietnamese is the default language of the app, so the frames pin the `vi` locale (Robolectric starts in English).
+ * Frames named after a design image (`default_*`) pin `vi`, the language of the design; the other frames run in the
+ * default language (English).
  * Nothing animates in these states (no spinner), so the screen settles (L-048). The native ad slot stays empty:
  * there is no ads controller in tests.
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "vi-w411dp-h891dp-xxhdpi")
+@Config(qualifiers = "w411dp-h891dp-xxhdpi")
 class NetworkLostScreenScreenshotTest {
     @get:Rule
     val composeRule = createComposeRule()
@@ -58,12 +59,14 @@ class NetworkLostScreenScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "vi-w411dp-h891dp-xxhdpi")
     fun default_light() {
         setScreen(darkTheme = false, stillOffline = false)
         composeRule.onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_default_light.png")
     }
 
     @Test
+    @Config(qualifiers = "vi-w411dp-h891dp-xxhdpi")
     fun default_dark() {
         setScreen(darkTheme = true, stillOffline = false)
         composeRule.onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_default_dark.png")
@@ -76,7 +79,7 @@ class NetworkLostScreenScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "vi-w360dp-h640dp-xxhdpi")
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun stillOffline_small() {
         setScreen(darkTheme = false, stillOffline = true)
         composeRule.onRoot().captureRoboImage("src/test/screenshots/NetworkLostScreen_stillOffline_small.png")

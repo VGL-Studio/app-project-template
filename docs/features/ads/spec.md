@@ -272,7 +272,7 @@ Người dùng chọn một hành động mà spec của app gắn với quảng
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật vị trí rewarded của hành động đó thì hộp thoại hỏi xem quảng cáo hiện, có nút "Xem quảng cáo" và "Không, cảm ơn".
+- [ ] ~~Khi người vận hành bật vị trí rewarded của hành động đó thì hộp thoại hỏi xem quảng cáo hiện, có nút "Xem quảng cáo" và "Không, cảm ơn".~~ **Đổi 2026-11-11:** khi người vận hành bật vị trí rewarded của hành động đó thì hộp thoại hỏi xem quảng cáo hiện, có nút xem quảng cáo và nút từ chối (chữ của khung: "Watch ad", "No, thanks"; app dịch theo hướng dẫn quảng cáo).
 - [ ] Khi vị trí tắt thì hành động làm ngay, không có hộp thoại.
 - [ ] Khi người dùng xem đủ thì nhận thưởng (hành động được làm) ngay lúc quảng cáo báo thưởng, không chờ đóng.
 - [ ] Khi quảng cáo chưa sẵn sàng thì hành động theo chính sách của vị trí: mặc định bị chặn và người dùng thử lại được; nếu lỗi mạng thì app báo kiểm tra kết nối; hộp thoại đóng.
@@ -821,3 +821,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-10 | Nhật | Theo lời duyệt plan T-099 (câu hỏi 1 tới 4 của plan, "Duyệt theo đề xuất của AI"): KB-20 thêm tiêu chí 6 tới 9 cho vị trí native của luồng chỉ ở lần mở đầu, ghi chú ngoại lệ ở tiêu chí 1, mục 6 thêm mục đích của dấu lần mở đầu, thêm câu hỏi 59 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #446 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-101 (câu hỏi 1, 2 của plan, "Duyệt T-101 theo đề xuất"): KB-20 thêm tiêu chí 10 (bước kế tiếp đã có quảng cáo, chừa một quảng cáo cho thẻ hiện tại), thêm câu hỏi 60 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #459 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-102 (câu hỏi 1 tới 3 của plan, "Duyệt T-102 theo đề xuất"): KB-16 thêm tiêu chí 9 (combo thiếu chỗ vẽ thì đi tiếp ngay), tiêu chí 10 (chỗ vẽ biến mất quá 2 giây thì native đóng) và vế ở tiêu chí 1; KB-5 thêm một tiêu chí (native độc lập thiếu chỗ vẽ); thêm câu hỏi 61 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #459 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-11 | Nhật | Theo lời duyệt plan T-082 (câu hỏi 2 của plan, phương án (a), "Duyệt T-082 theo đề xuất"): KB-19 tiêu chí 1 ghi chữ nút theo chữ tiếng Anh của khung ("Watch ad", "No, thanks"), app dịch theo hướng dẫn quảng cáo; `:core:ads` không dịch trong T-082. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
