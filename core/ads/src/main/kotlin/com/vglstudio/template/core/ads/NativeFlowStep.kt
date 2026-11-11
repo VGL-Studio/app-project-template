@@ -171,6 +171,28 @@ fun rememberNativeStepAdAllowed(placement: AdPlacement): Boolean {
     return ads.rememberStepAllowed(placement)
 }
 
+/** Whether [claimable] ads leave one for the next step (OB-05). Empty frame for the tests written first. */
+@Suppress("UNUSED_PARAMETER")
+fun nextStepAdReady(claimable: Int, currentStepHasAd: Boolean): Boolean = false
+
+/** Whether the pool of [placement] holds an ad for the step after [step] (OB-05). Empty frame for the tests. */
+@Suppress("UNUSED_PARAMETER")
+@Composable
+fun rememberNativeStepNextAdReady(placement: AdPlacement, step: Any, currentStepHasAd: Boolean): Boolean = false
+
+/** How often [rememberNativeStepNextAdReady] reads the pool while the next step has no ad yet. */
+internal const val NEXT_STEP_AD_READ_MILLIS = 200L
+
+/** [rememberNativeStepNextAdReady] without an ads controller. Empty frame for the tests written first. */
+@Suppress("UNUSED_PARAMETER")
+@Composable
+internal fun rememberNextStepAdReady(
+    allowed: Boolean,
+    step: Any,
+    currentStepHasAd: Boolean,
+    claimable: () -> Int,
+): Boolean = false
+
 /**
  * [NativeStepAd] without an ads controller: [step] goes into one stream of steps, read by the states [newStates]
  * builds once ([stepAdStates] in the app); drawn by the gate of every native slot at the size of the step card.
