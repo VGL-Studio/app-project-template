@@ -961,8 +961,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** Photune có giao diện tiếng Anh. Khi chuyển sang khung của mẫu (T-022 của app), màn loading, `brand_tagline` và popup mất mạng hiện tiếng Việt, trừ khi app ghi đè từng chuỗi; mỗi đợt `template-sync.sh` lại phải kiểm chuỗi mới. Ở mẫu, 12 chuỗi mặc định là tiếng Việt: `:feature:loading` 7, `:core:designsystem` 1 (`brand_tagline`), `:app` 4 (popup mất mạng, đã có bản tiếng Anh ở `values-en/`). Chuỗi của `:core:ads`, `:feature:sample` và bản staging đã là tiếng Anh, khác điều issue ghi. `scripts/device-scenario.py` đã giả định `res/values/` là tiếng Anh ở mọi module.
 - **Bằng chứng:** issue #288; đếm chuỗi trong `res/values*/strings.xml` trên nhánh chính `b82160a`.
 - **Đề xuất sửa:** `res/values/` là tiếng Anh cho mọi chuỗi của module mẫu, tiếng Việt ở `res/values-vi/`, `values-en/` của `:app` gộp vào `values/`; ghi lại ảnh chuẩn có các chuỗi đó; spec `loading` và bảng chữ của thiết kế ghi chữ theo hai ngôn ngữ, Nhật xác nhận chữ của spec `loading`; làm sau T-081.
-- **Trạng thái:** accepted
-- **Áp dụng:** T-082 (ticket, chưa có plan).
+- **Trạng thái:** applied
+- **Áp dụng:** PR #461 (T-082): `res/values/` của `:feature:loading`, `:core:designsystem`, `:app` là tiếng Anh, tiếng Việt ở `res/values-vi/`, `values-en/` của `:app` gộp vào `values/`; 6 ảnh chuẩn ghi lại; test chữ hai ngôn ngữ chỉ chạy ở repo mẫu; spec `loading`, README thiết kế, `CLAUDE.md`, `docs/ops/to-app.md` mục 7 (quy tắc cho app khi đồng bộ), `docs/ops/new-app.md`.
 
 ### L-136. Mẫu đường dẫn của lệnh xem ảnh chuẩn đã đổi không khớp tệp nào, nên lệnh luôn in rỗng
 
