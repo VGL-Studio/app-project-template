@@ -1270,3 +1270,23 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** mẫu plan (`docs/templates/plan.md`, mục 3.2) ghi một câu: bài học `applied`, nhật ký, trạng thái plan và ticket không vào mục 3.2, vì phiên ghi chúng qua PR báo cáo (`auto-run.md` bước 7, bước 10); `scripts/plan-check.py` báo chú ý khi mục 3.2 của plan chạy trong phiên tự chạy (`lane` trống) có `docs/lessons.md`, chính file plan hay ticket.
 - **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-10: "Nhận L-165, làm bằng /lesson"; AI ghi `applied` sau khi PR #453 merge)
 - **Áp dụng:** PR #453: mẫu plan (mục 3.2) và `docs/CLAUDE.md` (Khi viết plan) nói plan cho phiên tự chạy không ghi `docs/lessons.md`, chính file plan hay ticket vào mục 3.2; `docs/auto-run.md` bước 7 và mục 4 ghi bài học `applied` qua PR báo cáo; `scripts/plan-check.py` quy tắc 14 báo chú ý cho plan `draft`, `approved` của phiên tự chạy (bỏ qua `auto_run: false`, `lane: quick`).
+
+### L-166. Luồng nhiều bước không hỏi được pool `native_step` đã có quảng cáo cho bước kế tiếp chưa
+
+- **Ngày, nguồn:** 2026-11-11, camera-pose (issue #444; PR #312 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** luồng giới thiệu có thẻ `native_step` ở mọi bước; pool nạp bù lần lượt và chỉ sau khi rời bước đã ghi lượt hiển thị, nên người dùng bấm "Tiếp" nhanh thì bước sau thường chưa có thẻ. App muốn giữ nút "Tiếp" có giới hạn cho tới khi pool có quảng cáo cho bước kế tiếp. Khung chỉ báo thẻ đang hiện có quảng cáo không (`onAdAvailabilityChange`); `hasFreeAd` (có từ T-097) chưa đủ, vì quảng cáo rảnh có thể là cái mà thẻ của chính bước hiện tại sắp lấy (vòng lấy 500 ms, P-06), nên nút mở sớm sai đúng lúc người dùng bấm nhanh. Rà soát độc lập của app bắt được lỗi này ở bản plan đầu.
+- **Bằng chứng:** issue #444; `git grep -e claimableAdCount -e nextStepAdReady -e NextAdReady` trên nhánh chính `e078e7a` rỗng; `NativeAdPool.hasFreeAd` chỉ đọc `free.isNotEmpty()`.
+- **Đề xuất sửa:** `:core:ads` có cách chỉ đọc (không nạp, không hủy) để biết pool `native_step` cấp được ngay bao nhiêu quảng cáo, và một hàm công khai cho biết bước kế tiếp đã có quảng cáo: chừa một quảng cáo cho thẻ hiện tại khi thẻ đó chưa có. Luật mới ghi vào `docs/ops/ads-business-rules.md`. Ticket T-101.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a))
+- **Áp dụng:** chưa. Ticket T-101.
+
+### L-167. Lượt native combo mở khi không có `FullScreenAdHost` nào đang vẽ thì không bao giờ đóng
+
+- **Ngày, nguồn:** 2026-11-11, camera-pose (issue #445 phần (a); PR #313 của app, phiên thử TS-20261102-01 của app)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** ở app, khóa `is_show_native_after_inter` bật trên Firebase staging trong khi vỏ app chưa đặt `FullScreenAdHost()`. Sau interstitial, khung vẫn mở lượt combo: không có gì được vẽ, lượt không đóng, chặn quảng cáo khi quay lại app bị giữ và việc chạy sau interstitial (điều hướng) không chạy. Log của app: `Native combo opened (inter gone: true)` rồi không còn gì. Ở dự án mẫu, `NativeFullScreenTurns.afterInterstitial` mở lượt mà không kiểm có host đang vẽ; app mẫu có host ở `MainActivity` nên không thấy lỗi, app quên host (hay bỏ host khi đổi vỏ app) thì treo khi khóa bật. Lượt treo giữ cả chặn quảng cáo khi quay lại app lẫn cờ đang hiện quảng cáo toàn màn hình (F-01), nên mọi quảng cáo toàn màn hình sau đó bị coi là bận tới trần của F-02. Lượt chỉ treo khi đã có quảng cáo (hay quảng cáo về giữa lúc chờ): nạp lỗi hay cổng đồng ý đóng thì hết đếm ngược lượt vẫn tự đóng (K-04). Phần (b) của issue (công tắc cho `resume_inter` nối combo) đã có ở mẫu: luật từ 2026-11-06 (A-12, spec `ads` KB-14, KB-16), code từ PR #402 (T-089, 2026-11-07): interstitial lúc quay lại app và lúc mở app không nối combo, nên không cần làm thêm.
+- **Bằng chứng:** issue #445; `core/ads/.../NativeFullScreenTurns.kt` hàm `afterInterstitial` (nhánh chính `e078e7a`): sau `port.comboEnabled()` và `awaitInterGone` là `open(current)`, không có điều kiện về host; `FullScreenAdHost` không báo gì cho khung. Phần (b): `ResumeAdTurns.kt` gọi `showInterstitial(..., combo = false)` cho `resume_inter`, inter lúc mở app trong `AdsController.kt` cũng `combo = false`.
+- **Đề xuất sửa:** khung không mở lượt combo (hay tự đóng lượt) khi không có `FullScreenAdHost` nào đang vẽ, để thiếu host chỉ làm mất combo, không treo luồng và không giữ chặn quảng cáo khi quay lại app; có log cho người phân tích. Plan xét cùng cách cho native toàn màn hình độc lập đi qua host. Ticket T-102.
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a))
+- **Áp dụng:** chưa. Ticket T-102.
