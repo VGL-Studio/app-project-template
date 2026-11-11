@@ -1751,9 +1751,12 @@ class AdsController @Inject internal constructor(
         return pool.hasFreeAd
     }
 
-    /** The ads the pool of [placement] could hand out now (OB-05). Empty frame for the tests written first. */
-    @Suppress("UNUSED_PARAMETER")
-    internal fun poolClaimableAdCount(placement: AdPlacement): Int = 0
+    /**
+     * The ads the pool of [placement] could hand out now ([NativeAdPool.claimableAdCount]); 0 while it has no pool.
+     * Reads the pool a card or the preload made: never makes one, never looks up an ad unit, never refills.
+     */
+    internal fun poolClaimableAdCount(placement: AdPlacement): Int =
+        nativePools.existingPool(placement)?.claimableAdCount() ?: 0
 
     /** The `ad_opportunity` of one cell of a pool (P-07). */
     internal fun recordPoolCellOpportunity(placement: AdPlacement, result: String) {
