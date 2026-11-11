@@ -1278,8 +1278,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** luồng giới thiệu có thẻ `native_step` ở mọi bước; pool nạp bù lần lượt và chỉ sau khi rời bước đã ghi lượt hiển thị, nên người dùng bấm "Tiếp" nhanh thì bước sau thường chưa có thẻ. App muốn giữ nút "Tiếp" có giới hạn cho tới khi pool có quảng cáo cho bước kế tiếp. Khung chỉ báo thẻ đang hiện có quảng cáo không (`onAdAvailabilityChange`); `hasFreeAd` (có từ T-097) chưa đủ, vì quảng cáo rảnh có thể là cái mà thẻ của chính bước hiện tại sắp lấy (vòng lấy 500 ms, P-06), nên nút mở sớm sai đúng lúc người dùng bấm nhanh. Rà soát độc lập của app bắt được lỗi này ở bản plan đầu.
 - **Bằng chứng:** issue #444; `git grep -e claimableAdCount -e nextStepAdReady -e NextAdReady` trên nhánh chính `e078e7a` rỗng; `NativeAdPool.hasFreeAd` chỉ đọc `free.isNotEmpty()`.
 - **Đề xuất sửa:** `:core:ads` có cách chỉ đọc (không nạp, không hủy) để biết pool `native_step` cấp được ngay bao nhiêu quảng cáo, và một hàm công khai cho biết bước kế tiếp đã có quảng cáo: chừa một quảng cáo cho thẻ hiện tại khi thẻ đó chưa có. Luật mới ghi vào `docs/ops/ads-business-rules.md`. Ticket T-101.
-- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a))
-- **Áp dụng:** chưa. Ticket T-101.
+- **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a); T-101 đã merge trong RUN-20261111-01)
+- **Áp dụng:** PR #462 (T-101): `AdsController.poolClaimableAdCount(placement)`, composable `rememberNativeStepNextAdReady(placement, currentStepHasAd)` đọc lại mỗi 200 ms theo cổng của thẻ bước; `docs/ops/ads-business-rules.md` OB-05 và dòng hằng số mục 11; `docs/ops/ads-guide.md` mục 3, mục 4.
 
 ### L-167. Lượt native combo mở khi không có `FullScreenAdHost` nào đang vẽ thì không bao giờ đóng
 
