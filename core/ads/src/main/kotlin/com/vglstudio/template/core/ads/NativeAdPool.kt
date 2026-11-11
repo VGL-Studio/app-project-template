@@ -179,6 +179,17 @@ internal class NativeAdPool(
         started.start()
     }
 
+    /**
+     * The free ads a claim could hand out now: none while consent is withdrawn (S-11, like [claim]), else the free ads
+     * with no impression and under 55 minutes old (P-01a, O-04). A request in flight is not an ad yet. Never loads or
+     * drops anything (no [pruneExpired], no [refill], no log): the next-step read of a flow calls it every 200 ms.
+     */
+    fun claimableAdCount(): Int {
+        if (!canShowNow()) return 0
+        val now = clock.nowMillis()
+        return free.count { !it.ad.impressionRecorded && now - it.loadedAtMillis < NativeAdPolicy.MAX_AGE_MILLIS }
+    }
+
     /** Has a free ad, waits for a retry, is closed or cannot send now: the preload group may move on (S-22). */
     fun settled(): Boolean = free.isNotEmpty() || waitingRetry || closed || !canLoadNow()
 
