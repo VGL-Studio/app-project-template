@@ -4760,6 +4760,29 @@ CHANGED_BEHAVIOUR="" write_plan "$plans/T-953-a.md" medium draft \
 mkdir -p "$repo/feature/demo/src/test/kotlin" && touch "$repo/feature/demo/src/test/kotlin/ATest.kt"
 expect "plan-check: a plan changing only data and tests needs no section 3.5" pass "$(plan_check "$plans/T-953-a.md")"
 
+# Rule 14: a plan an auto-run session works keeps the lessons log, its own plan and its ticket out of section 3.2,
+# because the session writes them through the report pull request (docs/auto-run.md, steps 7 and 10).
+touch "$repo/docs/lessons.md"
+printf -- '---\nid: T-971\nstatus: planned\n---\n' > "$repo/docs/features/demo/tickets/T-971-a.md"
+write_plan "$plans/T-971-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/lessons.md)"
+expect "plan-check: an auto-run plan listing docs/lessons.md passes with a rule 14 warning" \
+  "pass 1" "$(plan_check "$plans/T-971-a.md") $(grep -c 'CHÚ Ý: quy tắc 14: mục 3.2 có docs/lessons.md' "$work/plan-check.out" || true)"
+printf -- '---\nid: T-972\nstatus: planned\n---\n' > "$repo/docs/features/demo/tickets/T-972-a.md"
+write_plan "$plans/T-972-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/features/demo/plans/T-972-a.md)\n$(row Sửa docs/features/demo/tickets/T-972-a.md)"
+expect "plan-check: an auto-run plan listing its own plan and ticket gets one warning each" \
+  "pass 1 1" "$(plan_check "$plans/T-972-a.md") $(grep -c 'quy tắc 14: mục 3.2 có docs/features/demo/plans/T-972-a.md' "$work/plan-check.out" || true) $(grep -c 'quy tắc 14: mục 3.2 có docs/features/demo/tickets/T-972-a.md' "$work/plan-check.out" || true)"
+printf -- '---\nid: T-973\nstatus: planned\nauto_run: false    # people work it\n---\n' > "$repo/docs/features/demo/tickets/T-973-a.md"
+write_plan "$plans/T-973-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/lessons.md)\n$(row Sửa docs/features/demo/tickets/T-973-a.md)"
+expect "plan-check: a plan whose ticket has auto_run: false may list the lessons log and its ticket" \
+  "pass 0" "$(plan_check "$plans/T-973-a.md") $(grep -c 'quy tắc 14' "$work/plan-check.out" || true)"
+printf -- '---\nid: T-974\nstatus: planned\n---\n' > "$repo/docs/features/demo/tickets/T-974-a.md"
+write_plan "$plans/T-974-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/lessons.md)"
+perl -pi -e 's/^status: draft$/status: draft\nlane: quick/' "$plans/T-974-a.md"
+expect "plan-check: a quick-lane plan may list the lessons log (one pull request for the task)" \
+  "pass 0 1" "$(plan_check "$plans/T-974-a.md") $(grep -c 'quy tắc 14' "$work/plan-check.out" || true) $(grep -c '^lane: quick$' "$plans/T-974-a.md")"
+expect "plan-check: a plan listing none of the session records has no rule 14 warning" \
+  "pass 0" "$(plan_check "$plans/T-901-a.md") $(grep -c 'quy tắc 14' "$work/plan-check.out" || true)"
+
 trepo="$work/tests-repo"
 mkdir -p "$trepo/feature/demo/src/main/kotlin" "$trepo/feature/demo/src/test/kotlin" "$trepo/docs/plans" \
   "$trepo/feature/other/src/test/kotlin"
