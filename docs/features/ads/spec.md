@@ -114,6 +114,7 @@ Tiêu chí chấp nhận:
 - [ ] Khi bấm nút đóng hoặc nút quay lại của máy thì quảng cáo đóng và người dùng về đúng chỗ đang làm. **Đổi 2026-10-23:** trong 3 giây đếm ngược nút quay lại không làm gì, sau đó đóng như nút đóng (câu hỏi 17). **Đổi 2026-10-29 (ADR-0038):** thời gian đếm ngược theo KB-32.
 - [ ] ~~Khi vừa có một quảng cáo toàn màn hình (interstitial hay native) thì không hiện thêm cái nào cho tới hết khoảng cách tối thiểu.~~ **Đổi 2026-10-23:** xem KB-15.
 - [ ] Khi chưa có quảng cáo sẵn thì không hiện gì và không chặn người dùng.
+- [ ] **Thêm 2026-11-11 (câu hỏi 61):** Khi app không có chỗ vẽ native toàn màn hình lúc gọi hiện thì không hiện gì, không chặn người dùng, quảng cáo giữ trong khe cho lần sau; đây là một ca của KB-26 tiêu chí 3 (cơ hội `shown` rồi sự kiện lỗi hiển thị lý do `app_not_foreground`). Chỗ vẽ biến mất lúc native đang mở thì như KB-16 tiêu chí 10.
 
 ### KB-6. Tần suất qua các phiên
 
@@ -230,7 +231,7 @@ Người dùng bấm một nút có interstitial (ví dụ sang màn sau).
 
 Tiêu chí chấp nhận:
 
-- [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình. **Đổi 2026-11-06:** chỉ với interstitial của một vị trí trong app (tiêu chí 3).
+- [ ] Khi người vận hành bật native sau inter thì interstitial đóng xong có ngay một native toàn màn hình. **Đổi 2026-11-06:** chỉ với interstitial của một vị trí trong app (tiêu chí 3). **Thêm 2026-11-11:** khi app có chỗ vẽ native toàn màn hình (tiêu chí 9).
 - [ ] Màn native có đếm ngược 3 giây trong vòng 36 dp ở ~~góc trên phải~~ **đổi 2026-10-26:** góc trên trái, theo thiết kế T-035 (góc trên phải dành cho AdChoices; câu hỏi 10 của plan T-027); hết đếm ngược thì vòng đó thành nút đóng. **Đổi 2026-10-29 (ADR-0038, KB-32):** đếm ngược mặc định 5 giây, chỉnh từ xa bằng `time_close_native` (1 tới 30), trong vòng 48 dp, vẫn ở góc trên trái.
 - [ ] **Thêm 2026-11-06:** Chỉ interstitial của một vị trí trong app mới nối native toàn màn hình. Interstitial lúc mở app (KB-13) và khi quay lại app (KB-14) đóng xong thì người dùng đi tiếp ngay, không có native, kể cả khi native sau inter đang bật.
 - [ ] Khi native không tải được thì nút đóng dùng được ngay và màn tự đóng khi hết đếm ngược.
@@ -238,6 +239,8 @@ Tiêu chí chấp nhận:
 - [ ] Khi khóa tắt thì interstitial đóng xong người dùng đi tiếp ngay.
 - [ ] Khi interstitial bị chặn ngay từ đầu (chưa có, chưa qua khoảng cách, đang có quảng cáo khác) thì người dùng đi tiếp ngay, không có native.
 - [ ] Khi interstitial đã được phép hiện nhưng không lên được màn (mất quảng cáo, lỗi hiển thị) và native sau inter đang bật thì vẫn có màn native toàn màn hình. **Đổi 2026-10-30:** trừ khi interstitial không được gọi hiện vì màn hình của app không còn dùng được (KB-26 tiêu chí 3): khi đó không có native, người dùng đi tiếp ngay (câu hỏi 2 của plan T-055). **Đổi 2026-11-07:** tiêu chí này chỉ áp cho interstitial của một vị trí trong app (tiêu chí 3); interstitial lúc mở app hay khi quay lại app không lên được màn thì người dùng đi tiếp ngay, không có native (câu hỏi 4 của plan T-089).
+- [ ] **Thêm 2026-11-11 (câu hỏi 61):** Khi app không có chỗ vẽ native toàn màn hình (thiếu bộ chứa lớp phủ) thì interstitial đóng xong người dùng đi tiếp ngay, không có native, như khi khóa tắt; khoảng cách `ads_interval` tính từ lúc interstitial đóng.
+- [ ] **Thêm 2026-11-11 (câu hỏi 61):** Khi chỗ vẽ native biến mất lúc native đang mở và không quay lại trong 2 giây khi app đang ở trước (không phải xoay máy hay dựng lại màn), thì native đóng theo đường đóng bình thường, kể cả khi đang đếm ngược: người dùng đi tiếp, khoảng cách tính từ lúc này. Thời gian app ở nền không tính.
 
 ### KB-17. Thanh quảng cáo ở đáy màn hình
 
@@ -776,6 +779,10 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Bối cảnh: luồng giới thiệu của app camera-pose giữ nút "Tiếp" có giới hạn cho tới khi bước sau có thẻ native, vì pool nạp bù lần lượt và người dùng bấm nhanh thì bước sau chưa có thẻ. Hỏi "pool có quảng cáo rảnh không" chưa đủ: quảng cáo rảnh có thể là cái mà thẻ của bước hiện tại sắp lấy.
     - Đề xuất của AI: qua một hàm chỉ đọc của khung, cùng cổng với thẻ; chừa một quảng cáo cho thẻ của bước hiện tại khi thẻ chưa có quảng cáo; thẻ không được phép thì hàm báo chưa có và app không chờ (`ads-business-rules.md`, OB-05). Phương án khác: hàm báo "không cần chờ" khi thẻ không được phép (lệch nghĩa "đã có quảng cáo").
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-11, "Duyệt T-101 theo đề xuất"). KB-20 thêm tiêu chí 10. Ticket T-101.
+61. **Native toàn màn hình khi vỏ app thiếu chỗ vẽ?** (KB-5, KB-16, issue #445 phần (a), plan T-102 câu hỏi 1 tới 3)
+    - Bối cảnh: app camera-pose bật khóa native sau inter trên Firebase staging khi vỏ app chưa đặt bộ chứa lớp phủ; lượt native mở mà không vẽ gì, không bao giờ đóng: việc sau interstitial không chạy, quảng cáo khi quay lại app bị chặn, interstitial sau bị coi là bận.
+    - Đề xuất của AI: combo chờ chỗ vẽ một lúc ngắn sau khi interstitial rời màn, không có thì bỏ như khi khóa tắt (không ghi cơ hội cho combo); native độc lập thiếu chỗ vẽ thì không hiện, ghi như KB-26 tiêu chí 3; chỗ vẽ biến mất quá 2 giây lúc app ở trước thì native đóng theo đường đóng bình thường. Phương án khác: native độc lập chỉ ghi cơ hội `not_ready` (dễ lẫn với chưa tải xong).
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-11, "Duyệt T-102 theo đề xuất"). KB-16 thêm tiêu chí 9, 10 và vế ở tiêu chí 1; KB-5 thêm một tiêu chí. App nhiều Activity mà Activity trên thiếu chỗ vẽ còn Activity dưới có thì native có thể chờ tới khi người dùng về Activity có chỗ vẽ (để ngoài T-102). Ticket T-102.
 
 ## 10. Lịch sử
 
@@ -813,3 +820,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-07 | Nhật | Xác nhận KB-9 tiêu chí 2 và KB-28 cùng trả lời câu hỏi 57, 58 ("Đồng ý" với đề xuất "Xác nhận KB-9 và KB-28"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-10 | Nhật | Theo lời duyệt plan T-099 (câu hỏi 1 tới 4 của plan, "Duyệt theo đề xuất của AI"): KB-20 thêm tiêu chí 6 tới 9 cho vị trí native của luồng chỉ ở lần mở đầu, ghi chú ngoại lệ ở tiêu chí 1, mục 6 thêm mục đích của dấu lần mở đầu, thêm câu hỏi 59 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #446 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-101 (câu hỏi 1, 2 của plan, "Duyệt T-101 theo đề xuất"): KB-20 thêm tiêu chí 10 (bước kế tiếp đã có quảng cáo, chừa một quảng cáo cho thẻ hiện tại), thêm câu hỏi 60 đã trả lời. Chờ anh Nhật xác nhận chữ đầy đủ trên PR (AI ghi theo lời anh Nhật) |
+| 2026-11-11 | Nhật | Theo lời duyệt plan T-102 (câu hỏi 1 tới 3 của plan, "Duyệt T-102 theo đề xuất"): KB-16 thêm tiêu chí 9 (combo thiếu chỗ vẽ thì đi tiếp ngay), tiêu chí 10 (chỗ vẽ biến mất quá 2 giây thì native đóng) và vế ở tiêu chí 1; KB-5 thêm một tiêu chí (native độc lập thiếu chỗ vẽ); thêm câu hỏi 61 đã trả lời. Chờ anh Nhật xác nhận chữ đầy đủ trên PR (AI ghi theo lời anh Nhật) |
