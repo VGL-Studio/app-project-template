@@ -5,7 +5,10 @@
 # Usage:  scripts/wait-run.sh --pr <number> [--sha <commit>] [--timeout <minutes>]
 #           waits for pr-check.yml on the newest commit of the PR branch; the head is read again on every round
 #           (a run cancelled because a newer commit arrived is not red). --sha makes it wait for that commit, so
-#           the run of the previous head is not taken for the one just pushed (7 to 40 hex characters)
+#           the run of the previous head is not taken for the one just pushed (7 to 40 hex characters). A --sha that
+#           shares its first 7 characters with the head without being its prefix is a mistyped commit: code 3 at
+#           once, with both commits in full. So is a --sha GitHub still does not know ("No commit found") after
+#           WAIT_RUN_UNKNOWN_SHA_SECONDS (default 90): right after a push GitHub may not know the commit for a moment
 #         scripts/wait-run.sh --workflow <file.yml> --since <ISO time> [--timeout <minutes>]
 #           waits for the first run of that workflow on main created at or after --since
 #           (the time just before the session dispatched it, e.g. 2026-10-18T02:20:00Z)
@@ -14,7 +17,7 @@
 #             1 the run of the PR's current head finished red, or was cancelled while that commit stayed the head
 #               (the failed jobs are named)
 #             2 still not finished when the time ran out: call again
-#             3 wrong arguments or the PR cannot be read
+#             3 wrong arguments, the PR cannot be read, or --sha is not a commit GitHub knows
 #             4 GitHub never started the failed jobs (no runner: spending limit, billing): not a code failure (L-064)
 #             5 (--pr) no run, and the PR conflicts with main: GitHub runs no pull_request workflow for it (L-064)
 #             6 (--pr) the PR is a draft: pr-check does not run for drafts (ADR-0041)
@@ -24,6 +27,7 @@
 # Prints one line at the end. Uses only the REST API through `gh api` (gh pr is blocked in the cloud environment).
 # WAIT_RUN_POLL_SECONDS (default 30) and WAIT_RUN_TIMEOUT_SECONDS override the waits (tests); so does
 # WAIT_RUN_CANCEL_RECHECKS (default 3), how many rounds the head is read again after its run shows "cancelled".
+# WAIT_RUN_UNKNOWN_SHA_SECONDS sets how long an unknown --sha is waited for before code 3.
 # WAIT_RUN_RUNNER_QUEUE_MINUTES sets the wait of code 7; WAIT_RUN_NOW (Unix seconds) fixes the clock for the tests.
 # Messages are in Vietnamese for the team; comments are in English.
 
@@ -47,6 +51,8 @@ done
 [[ "$timeout_minutes" =~ ^[0-9]+$ ]] || die "--timeout phải là số phút."
 queue_minutes="${WAIT_RUN_RUNNER_QUEUE_MINUTES:-75}"
 [[ "$queue_minutes" =~ ^[0-9]+$ ]] || die "WAIT_RUN_RUNNER_QUEUE_MINUTES phải là số phút."
+unknown_sha_seconds="${WAIT_RUN_UNKNOWN_SHA_SECONDS:-90}"
+[[ "$unknown_sha_seconds" =~ ^[0-9]+$ ]] || die "WAIT_RUN_UNKNOWN_SHA_SECONDS phải là số giây."
 if [ -n "$want" ]; then
   [[ "$want" =~ ^[0-9a-f]{7,40}$ ]] || die "--sha phải là mã commit (7 đến 40 ký tự hex)."
   [ -n "$pr" ] && [ -z "$workflow" ] || die "--sha chỉ dùng cùng --pr."
@@ -97,9 +103,10 @@ else
 fi
 
 poll="${WAIT_RUN_POLL_SECONDS:-30}"
-deadline=$(($(date +%s) + ${WAIT_RUN_TIMEOUT_SECONDS:-$((timeout_minutes * 60))}))
+started=$(date +%s)
+deadline=$((started + ${WAIT_RUN_TIMEOUT_SECONDS:-$((timeout_minutes * 60))}))
 run=""
-seen_want=0 cancelled_sha="" rechecks=0 max_rechecks="${WAIT_RUN_CANCEL_RECHECKS:-3}"
+seen_want=0 checked_want=0 cancelled_sha="" rechecks=0 max_rechecks="${WAIT_RUN_CANCEL_RECHECKS:-3}"
 while :; do
   rechecking=0 waiting_for_push=0
   if [ -n "$pr" ]; then
@@ -119,6 +126,18 @@ while :; do
     fi
     set_pr_query
     if [ -n "$want" ] && [[ "$sha" != "$want"* ]]; then
+      # A mistyped --sha would otherwise wait the whole timeout for a commit that never comes. Asked on each round
+      # until GitHub knows the commit; "No commit found" is proof only once it lasts unknown_sha_seconds, since
+      # GitHub may not know a commit for a moment after the push. Other failed reads (network, 404) are not proof.
+      if [ "$checked_want" = 0 ]; then
+        [ "${sha:0:7}" != "${want:0:7}" ] ||
+          die "--sha $want không phải commit đầu $sha của PR #$pr dù 7 ký tự đầu trùng: mã commit gõ sai. Dùng --sha \"\$(git rev-parse HEAD)\", không gõ tay."
+        if lookup="$(gh api "repos/$repo/commits/$want" --jq .sha 2>&1)"; then
+          checked_want=1 # GitHub knows it: wait for the PR to reach it
+        elif grep -q 'No commit found' <<< "$lookup" && [ $(($(date +%s) - started)) -ge "$unknown_sha_seconds" ]; then
+          die "--sha $want vẫn không có trên GitHub sau $unknown_sha_seconds giây (commit đầu của PR #$pr là $sha): mã commit gõ sai hay commit chưa được đẩy. Kiểm lệnh đẩy, rồi gọi lại với --sha \"\$(git rev-parse HEAD)\"."
+        fi
+      fi
       run="" waiting_for_push=1
     else
       run="$(gh api "repos/$repo/$query" --jq "$pick | {id, status, conclusion, html_url} | @json" 2> /dev/null || true)"
@@ -170,7 +189,7 @@ while :; do
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
     if [ "$waiting_for_push" = 1 ]; then
-      echo "CHƯA XONG sau $timeout_minutes phút: PR #$pr chưa nhận commit ${want:0:7} (commit đầu đang là ${sha:0:7}). Kiểm tra lệnh đẩy, rồi gọi lại script."
+      echo "CHƯA XONG sau $timeout_minutes phút: PR #$pr chưa nhận commit $want (commit đầu đang là $sha). Kiểm tra lệnh đẩy, rồi gọi lại script."
     elif [ "$rechecking" = 1 ]; then
       echo "CHƯA XONG sau $timeout_minutes phút: $what, lần chạy $(jq -r .id <<< "$run") bị hủy, đang kiểm commit đầu của PR. Gọi lại script."
     elif [ -n "$run" ]; then

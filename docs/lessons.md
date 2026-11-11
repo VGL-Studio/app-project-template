@@ -1299,7 +1299,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phiên chờ CI bằng `scripts/wait-run.sh --pr 462 --sha bcdc328897`, trong khi commit đầu thật là `bcdc328e9d...` (phiên gõ sai phần sau 7 ký tự đầu). Script chờ đủ 40 phút rồi in "PR #462 chưa nhận commit bcdc328 (commit đầu đang là bcdc328)": hai mã in ra giống hệt nhau vì chỉ in 7 ký tự, nên đọc thông báo không thấy ngay lỗi nằm ở đâu. `pr-check` đã xanh lúc 05:57, phiên chỉ đọc được lúc 06:27; chờ dư 30 phút.
 - **Bằng chứng:** dòng thời gian của RUN-20261111-01; lần chạy 42967933614 (`created_at` 05:46, `updated_at` 05:57); `scripts/wait-run.sh` so `--sha` với `head.sha` của PR theo cả chuỗi, thông báo dùng `${sha:0:7}`.
 - **Đề xuất sửa:** `scripts/wait-run.sh`: khi `--sha` không phải tiền tố của `head.sha` mà 7 ký tự đầu trùng, hay khi `--sha` không có trong lịch sử của nhánh PR (API `commits/<sha>` trả 404 hay 422), dừng sớm với mã lỗi riêng và in cả hai mã đầy đủ. `docs/auto-run.md` bước 8 giữ cách viết `--sha "$(git rev-parse HEAD)"`, nhắc không gõ tay mã commit.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-11: "Đồng ý quyết định T-102, đóng #444 #445, nhận L-168, merge #461")
 - **Áp dụng:** chưa.
 
 ### L-169. Container khởi động lại giữa lúc phiên con làm bước 3 đến 5: gửi tin tiếp tục cho chính phiên con giữ được ngữ cảnh
