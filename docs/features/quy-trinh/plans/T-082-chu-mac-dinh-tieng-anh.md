@@ -1,16 +1,16 @@
 ---
 ticket: T-082
 title: Chữ mặc định của các module mẫu là tiếng Anh, tiếng Việt ở values-vi/
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:
 risk_level: high
 token_estimate: 21.1M
 blocking_points: [core]
 run_order:
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật
+approved_at: 2026-11-11
 lane:
 ---
 
@@ -340,9 +340,18 @@ Không bắt buộc (E dưới 2): ghim ngôn ngữ cho screenshot test đã có
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev: người duyệt cũng là người duyệt chéo, `risk-scoring.md` mục 3)
+- **Ghi chú:**
+  - AI ghi theo lời anh Nhật ngày 2026-11-11, trong phiên có người: "Duyệt T-082 theo đề xuất" (trả lời bản plan ở commit 7cb49b8, PR #458, sau rà soát độc lập và bốn vòng rà soát lại). Anh Nhật trả lời cả với vai người phụ trách sản phẩm.
+  - Mục 8 theo đề xuất AI đã trình ngay trước lời duyệt:
+    - câu 1 (a): ảnh đặt tên theo ảnh thiết kế ghim `vi`, ảnh khác chạy tiếng Anh, 6 ảnh đổi;
+    - câu 2 (a): không dịch `:core:ads` trong T-082; KB-19 tiêu chí 1 sửa theo chữ tiếng Anh của khung (sửa spec `ads` trong PR của task);
+    - câu 3: dùng đúng 8 chữ tiếng Anh plan đề xuất; đây cũng là lời xác nhận chữ của spec `loading` (sửa trong PR của task);
+    - câu 4: nhận quy tắc cho app (chuỗi app đổi: bản mặc định ở `values/`, bản tiếng Việt ở `values-vi/` của module chứa chuỗi; app chỉ tiếng Anh thêm `localeFilters += listOf("en")`; tệp chuỗi riêng của app trong `:app` cần bản ở `values-vi/`), chấp nhận giới hạn app chỉ tiếng Việt hiện tiếng Anh ở chuỗi mẫu chưa đổi trên máy ngôn ngữ khác. Danh sách app và ngôn ngữ chưa có trong lời duyệt; phiên làm task hỏi lại trước khi viết lời đóng #288;
+    - câu 5: làm có người, một PR;
+    - câu 6 (a): kiểm chữ viết cứng chỉ chạy ở repo mẫu; hai test `NetworkDialogHostTest` viết lại theo ADR-0031 quyết định 1.
+  - Task làm có người (`auto_run: false`), khi không có phiên `running`.
 
 ## 10. Nhật ký thực hiện
 
