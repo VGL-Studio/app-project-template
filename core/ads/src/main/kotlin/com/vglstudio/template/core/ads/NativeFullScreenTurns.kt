@@ -59,6 +59,12 @@ internal interface NativeFullScreenPort {
 
     /** `time_close_native` read now, already in 1..30 (K-02). */
     fun closeCountdownSeconds(): Long
+
+    /** True while at least one FullScreenAdHost is in a composition (HD-05). */
+    val hostAttached: StateFlow<Boolean>
+
+    /** True while an activity of the app is started ([AdsActivityTracker.foreground]). */
+    val foreground: StateFlow<Boolean>
 }
 
 /**

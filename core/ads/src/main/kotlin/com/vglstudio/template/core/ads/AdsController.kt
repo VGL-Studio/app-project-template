@@ -423,6 +423,10 @@ class AdsController @Inject internal constructor(
             override fun reload(placement: AdPlacement) = fullScreenReloads.onClosedOrShowFailed(placement)
 
             override fun closeCountdownSeconds(): Long = globalFlags.value.closeNativeCountdownSeconds
+
+            override val hostAttached: StateFlow<Boolean> = MutableStateFlow(true)
+
+            override val foreground: StateFlow<Boolean> = foregroundState
         },
         clock = clock,
         scope = scope,
@@ -455,6 +459,12 @@ class AdsController @Inject internal constructor(
         },
         logger = logger,
     )
+
+    /** True while at least one [FullScreenAdHost] is in a composition (HD-05). */
+    internal val fullScreenHostAttached: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
+
+    /** A [FullScreenAdHost] entered a composition; returns its detach, which runs once. */
+    internal fun attachFullScreenHost(): () -> Unit = {}
 
     /** The native full-screen turn on screen, drawn by [FullScreenAdHost]; null when none (HD-05). */
     internal val nativeFullScreenView: StateFlow<NativeFullScreenView?> = nativeTurns.view

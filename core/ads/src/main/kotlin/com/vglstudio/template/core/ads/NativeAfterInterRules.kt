@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.update
 internal const val INTER_GONE_WAIT_MILLIS = 2_000L
 internal const val INTER_GONE_POLL_MILLIS = 200L
 
+/** K-09: how long the combo waits for a FullScreenAdHost once the interstitial left the screen. */
+internal const val HOST_WAIT_MILLIS = 1_000L
+
+/** K-09: how long an open turn stays without a FullScreenAdHost while the app is in foreground before it closes. */
+internal const val HOST_GONE_GRACE_MILLIS = 2_000L
+
 private const val MILLIS_PER_SECOND = 1_000L
 
 /** K-02: the countdown of the native full-screen ad when `time_close_native` is not set or out of range (JBase). */
