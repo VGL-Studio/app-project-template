@@ -107,7 +107,8 @@ import kotlinx.coroutines.withContext
  * When `is_show_native_after_inter` is on as an interstitial turn ends (plan T-026, KB-16, K-01 to K-08), a native
  * full-screen ad of `native_combo` follows it with a countdown of `time_close_native`, 5 s by default
  * ([NativeFullScreenTurns]), drawn by
- * [FullScreenAdHost]; the completion of the interstitial then runs when that ad closes. Only the interstitial of an
+ * [FullScreenAdHost]; the completion of the interstitial then runs when that ad closes. It opens only while a
+ * [FullScreenAdHost] is in a composition ([attachFullScreenHost], K-09): with none it is skipped as with the key off. Only the interstitial of an
  * in-app placement opens it: the startup interstitial and the resume interstitial never do (K-01). Every interstitial
  * shown is counted since install ([InterDisplayCounter], N-05).
  *
@@ -224,6 +225,10 @@ class AdsController @Inject internal constructor(
 
     /** True while an app activity is started, as [AdsActivityTracker] reports it; native requests wait for it. */
     private val foregroundState = MutableStateFlow(false)
+
+    /** The [FullScreenAdHost]s in a composition now (K-09); main thread only. */
+    private var fullScreenHostCount = 0
+    private val _fullScreenHostAttached = MutableStateFlow(false)
 
     /** When `MobileAds.initialize` was called (S-21), and whether its callback came. */
     private var sdkInitStartedAt: Long? = null
@@ -423,6 +428,10 @@ class AdsController @Inject internal constructor(
             override fun reload(placement: AdPlacement) = fullScreenReloads.onClosedOrShowFailed(placement)
 
             override fun closeCountdownSeconds(): Long = globalFlags.value.closeNativeCountdownSeconds
+
+            override val hostAttached: StateFlow<Boolean> get() = fullScreenHostAttached
+
+            override val foreground: StateFlow<Boolean> = foregroundState
         },
         clock = clock,
         scope = scope,
@@ -455,6 +464,31 @@ class AdsController @Inject internal constructor(
         },
         logger = logger,
     )
+
+    /**
+     * True while at least one [FullScreenAdHost] is in a composition (HD-05, K-09), in any activity: with none the
+     * combo does not open and a standalone native full-screen turn is skipped.
+     */
+    internal val fullScreenHostAttached: StateFlow<Boolean> = _fullScreenHostAttached.asStateFlow()
+
+    /**
+     * A [FullScreenAdHost] entered a composition (K-09); returns its detach, which runs once (a second call does
+     * nothing). Main thread only.
+     */
+    internal fun attachFullScreenHost(): () -> Unit {
+        fullScreenHostCount++
+        _fullScreenHostAttached.value = true
+        logger.info(TAG, "Full-screen host attached (count: $fullScreenHostCount)")
+        var detached = false
+        return {
+            if (!detached) {
+                detached = true
+                fullScreenHostCount--
+                if (fullScreenHostCount == 0) _fullScreenHostAttached.value = false
+                logger.info(TAG, "Full-screen host detached (count: $fullScreenHostCount)")
+            }
+        }
+    }
 
     /** The native full-screen turn on screen, drawn by [FullScreenAdHost]; null when none (HD-05). */
     internal val nativeFullScreenView: StateFlow<NativeFullScreenView?> = nativeTurns.view
@@ -1190,6 +1224,12 @@ class AdsController @Inject internal constructor(
             if (decision != FullScreenShowDecision.SHOW) {
                 return@withContext skipTurn(placement, decision, loadState, onFinished)
             }
+            // A turn still open past the cap of F-02 is BUSY, with or without a host.
+            if (nativeTurns.busy) {
+                return@withContext skipTurn(placement, FullScreenShowDecision.BUSY, loadState, onFinished)
+            }
+            // K-09: no host to draw the turn, as an activity that is not usable (F-08).
+            if (!fullScreenHostAttached.value) return@withContext skipNoOverlayHost(placement, onFinished)
             val takeAd = { takePreloadedNativeFullScreen(placement, clock.nowMillis()) }
             if (!beginStandaloneNativeTurn(placement, takeAd, onFinished)) {
                 val skipped = if (nativeTurns.busy || presence.isBusy(clock.nowMillis())) {
@@ -1572,6 +1612,19 @@ class AdsController @Inject internal constructor(
         recordShownOpportunity(placement)
         telemetry.showFailed(placement.format, placement, SHOW_FAILED_APP_NOT_FOREGROUND)
         FullScreenCompletion(logger).apply { set(onFinished) }.complete("host_not_usable")
+        return false
+    }
+
+    /**
+     * A standalone native full-screen turn that passed the gate while no [FullScreenAdHost] is in a composition
+     * (K-09, KB-5 criterion 5): recorded as [skipHostGone] (F-08), `shown` then `ad_show_fail` `app_not_foreground`;
+     * the ad stays in its slot, [onFinished] runs once at once. No flag, no mark, no load.
+     */
+    private fun skipNoOverlayHost(placement: AdPlacement, onFinished: () -> Unit): Boolean {
+        logger.info(TAG, "Full-screen ${placement.key} skipped: no full-screen host")
+        recordShownOpportunity(placement)
+        telemetry.showFailed(placement.format, placement, SHOW_FAILED_APP_NOT_FOREGROUND)
+        FullScreenCompletion(logger).apply { set(onFinished) }.complete("no_full_screen_host")
         return false
     }
 
