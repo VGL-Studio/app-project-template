@@ -23,10 +23,10 @@ Nguồn: issue #445 phần (a) (camera-pose, PR #313 của app, phiên thử TS-
 
 ## Phạm vi
 
-- `:core:ads`: khung biết có `FullScreenAdHost` nào đang vẽ; không có thì không mở lượt combo, hoặc tự đóng lượt sau một thời hạn (plan chọn, nêu lý do). Lượt kết thúc theo đường đóng bình thường: việc chạy sau interstitial chạy, chặn quảng cáo khi quay lại app được thả, có log cho người phân tích.
+- `:core:ads`: khung biết có `FullScreenAdHost` nào đang vẽ; không có thì không mở lượt combo, hoặc tự đóng lượt sau một thời hạn (plan chọn, nêu lý do). Lượt kết thúc: việc chạy sau interstitial chạy, chặn quảng cáo khi quay lại app được thả, cờ đang hiện quảng cáo toàn màn hình (F-01) được hạ, có log cho người phân tích. Plan nêu rõ cho cách đã chọn: có ghi mốc `ads_interval` của combo (K-05, I-05) không, có ghi `ad_opportunity` (K-07) không (đổi thì thêm điểm chặn 4), có nạp lại không. "Thiếu host thì không có native" trái KB-16 tiêu chí 1: plan đề xuất tiêu chí và đặt câu hỏi cho người phụ trách sản phẩm.
 - Plan xét cùng cách cho native toàn màn hình độc lập đi qua host (`rememberShowFullScreenAd`), và trường hợp host rời màn khi lượt đang mở (đổi vỏ, dựng lại Activity).
-- Luật mới hay đổi ghi vào `docs/ops/ads-business-rules.md`, `docs/ops/ads-guide.md` (vỏ app phải có host; thiếu host thì mất combo); plan đặt câu hỏi cho người phụ trách sản phẩm nếu luật hiển thị đổi.
-- Test JVM với `AdsController` thật: không có host thì lượt kết thúc và việc sau interstitial chạy; có host thì giữ hành vi cũ; host rời rồi quay lại.
+- Luật mới hay đổi ghi vào `docs/ops/ads-business-rules.md` (kể cả cột hậu quả của HD-05, hiện ghi "Combo không hiện được" nhẹ hơn thực tế), `docs/ops/ads-guide.md` (vỏ app phải có host; thiếu host thì mất combo).
+- Test JVM với `AdsController` thật: không có host, khe đã có quảng cáo sẵn (và một ca quảng cáo về giữa lúc chờ), thì lượt kết thúc và việc sau interstitial chạy (ca không có quảng cáo tự đóng khi hết đếm ngược nên qua ngay trên code cũ, không dùng làm test đỏ); sau đó interstitial kế tiếp không bị coi là bận; có host thì giữ hành vi cũ; host rời rồi quay lại.
 
 **Không bao gồm:**
 

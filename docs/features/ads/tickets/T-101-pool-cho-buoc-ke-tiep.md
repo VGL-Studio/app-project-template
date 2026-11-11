@@ -25,7 +25,8 @@ Nguồn: issue #444 (camera-pose, PR #312 của app), bài học L-166. Luồng 
 
 - `:core:ads`: cách chỉ đọc (không nạp, không hủy quảng cáo) để biết pool cấp được ngay bao nhiêu quảng cáo (chưa ghi lượt hiển thị, chưa hết hạn, `canShowNow()`).
 - Hàm công khai cho feature biết bước kế tiếp đã có quảng cáo: thẻ hiện tại chưa có quảng cáo thì cần ít nhất 2, có rồi thì ít nhất 1 (chừa một quảng cáo cho thẻ hiện tại). Bản `@Composable` đọc ở khung đầu của bước và đọc lại định kỳ; đã đúng thì giữ đúng cho bước đó. Plan đối chiếu bản của app (PR #312) và quy tắc của mẫu (P-01a, P-02, P-03, P-06).
-- Luật mới ghi vào `docs/ops/ads-business-rules.md`, cách dùng vào `docs/ops/ads-guide.md`; plan xét có cần tiêu chí mới cho spec (KB-20) và đặt câu hỏi cho người phụ trách sản phẩm.
+- Luật mới (chừa một quảng cáo cho thẻ hiện tại) ghi vào `docs/ops/ads-business-rules.md` cạnh OB-04 (ví dụ OB-05), cách dùng vào `docs/ops/ads-guide.md`. Spec chưa có tiêu chí về "bước kế tiếp đã có quảng cáo": plan đề xuất tiêu chí cho KB-20 ở mục câu hỏi, và plan chỉ được duyệt sau khi người phụ trách sản phẩm xác nhận spec đã sửa.
+- Plan nói hàm mới kết hợp với `rememberNativeStepAdAllowed` (OB-04, KB-20 tiêu chí 9) ra sao: app chỉ chờ khi thẻ của bước kế tiếp được phép.
 - Test JVM, có đột biến đối chứng cho luật chừa quảng cáo, đọc cờ mới nhất, `canShowNow`, vòng đọc lại.
 
 **Không bao gồm:**
