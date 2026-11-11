@@ -36,7 +36,7 @@ Script làm những việc sau:
 2. Thương hiệu. App mới dùng thương hiệu của dự án mẫu cho tới khi thay. Trong `:core:designsystem`, thay:
    - Bảng màu sáng và tối trong `theme/Color.kt`.
    - Dấu trên logo `res/drawable/brand_mark.xml`.
-   - Khẩu hiệu `brand_tagline` trong `res/values/strings.xml`.
+   - Khẩu hiệu `brand_tagline` trong `res/values/strings.xml` và `res/values-vi/strings.xml` (app chỉ tiếng Anh: chỉ `values/`, rồi đặt `localeFilters` theo `docs/ops/to-app.md`, mục 7).
    - Phông trong `res/font` và `theme/Type.kt`, nếu app dùng phông khác Inter. Phông mới cần giấy phép cho phép đóng gói vào app; đặt giấy phép vào `third_party/`.
 
    Sau đó sinh lại `docs/design-system/tokens.json` bằng `./gradlew :core:designsystem:testDebugUnitTest -PdesignTokens.update=true`, ghi lại ảnh chuẩn screenshot bằng `./gradlew recordRoborazziDebug testDebugUnitTest --rerun :app:recordRoborazziStagingDebug :app:testStagingDebugUnitTest --rerun`, xem lại ảnh catalog và các màn hình, rồi chạy lại `scripts/check.sh` (ADR-0008, ADR-0020).

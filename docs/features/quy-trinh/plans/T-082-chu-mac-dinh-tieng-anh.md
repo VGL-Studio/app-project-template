@@ -1,7 +1,7 @@
 ---
 ticket: T-082
 title: Chữ mặc định của các module mẫu là tiếng Anh, tiếng Việt ở values-vi/
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:
 risk_level: high
@@ -356,3 +356,19 @@ Không bắt buộc (E dưới 2): ghim ngôn ngữ cho screenshot test đã có
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng). -->
+
+### Làm có người 2026-11-11, phiên bản plan 1
+
+- **Kết quả:** PR #461 mở, chưa merge: chờ phiên RUN-20261111-01 xong và lời merge của anh Nhật; merge chỉ bằng `scripts/merge-if-green.sh`.
+- **Nhánh, PR:** `claude/T-082-chu-tieng-anh`, https://github.com/VGL-Studio/app-project-template/pull/461. Commit test `b8a19bf`, tài nguyên `bee2722`, ảnh chuẩn `8d0a3f5`, tài liệu `cade9e1`.
+- **Đã làm:** mục 3.1, bước 1 tới 7: 12 chuỗi sang tiếng Anh, bản tiếng Việt nguyên văn ở `values-vi/` (đã so từng dòng với bản cũ), `loading_percent` `translatable="false"`, `values-en/` của `:app` xóa; ba lớp test chỉ chạy ở mẫu; hai test `NetworkDialogHostTest` viết lại; ngôn ngữ của hai lớp screenshot test; tài liệu quy tắc, README thiết kế, spec `loading` mục 4 (Thêm 2026-11-11) và spec `ads` KB-19 tiêu chí 1 (Đổi 2026-11-11), hai spec giữ `confirmed`. L-135 `applied`.
+- **Test viết trước:** trên tài nguyên cũ, đỏ đúng lý do (`fr` rơi về `values/` tiếng Việt): `LoadingScreenLanguageTest.progress_otherLocale_showsEnglish`, `failed_otherLocale_showsEnglish` ("'Loading data' / 'Progress stopped' is not displayed"), `BrandTaglineLanguageTest.otherLocale_isEnglish` (`expected:<[Everything in rhythm].> but was:<[Mọi việc vào đúng nhịp].>`), `NetworkDialogLanguageTest.shown_english_otherLocale` (không có nút "No internet connection"). Các test tiếng Việt, `shown_english_en` và hai test viết lại qua trên tài nguyên cũ, như plan nói. Sau commit tài nguyên: ba lớp `failures="0"`.
+- **Ảnh chuẩn:** lệnh ghi ảnh của mục 3.1, bước 3 đổi đúng 6 ảnh của mục 3.2 cùng ảnh nhiễu `DesignSystem_spacing_components_light` (501 điểm, lệch tối đa 1, đã trả bằng `git checkout`). Mức lệch trùng số của mục 4: `LoadingScreen_failed_small` 60337 điểm (2,91%), tối đa 235; `LoadingScreen_progress_small` 28683 (1,38%), 138; `NetworkLostScreen_stillOffline_light` 60516 (1,84%), 235; `NetworkLostScreen_stillOffline_small` 60516 (2,92%), 235; `DesignSystem_brand_light` 7122 (0,22%), 138; `DesignSystem_brand_dark` 7096 (0,22%), 142; vùng đổi đúng vùng chữ. 6 ảnh thiết kế không đổi. Điều kiện dừng của mục 7 không chạm.
+- **Đối chứng (mục 4):** `rm` từng tệp `values-vi/` làm đỏ đúng các test tiếng Việt của module đó (loading: 3 test; designsystem: `vietnamese_isVietnamese`; app: `shown_vietnamese_vi`); đổi tạm `network_lost_message` thành `network_lost_title` ở `NetworkDialogHost.kt` làm đỏ `shown_usesAppStrings_vi`, `_en` ("found '2' nodes"). Mỗi lần trả bằng `git checkout --`, `git status --short` sạch.
+- **Kiểm bỏ qua ở app:** không có `scripts/new-app.sh`: `skipped` bằng `tests` ở cả ba lớp (5, 2, 3); trả tệp, chạy lại có `--rerun` sau từng task test: `skipped="0"`.
+- **Kết quả kiểm trên máy dev (macOS):** lệnh Gradle của cổng chất lượng (`checkModuleDependencies`, `ktlintCheck`, `testDebugUnitTest`, `testStagingDebugUnitTest`, `verifyRoborazzi...` của 5 module có ảnh, `:app:lintStagingDebug`, `:app:assembleStagingDebug`): `BUILD SUCCESSFUL in 5m 5s`; `scripts/test-summary.sh jvm`: 1929 test, 0 lỗi, 91 ảnh. `scripts/history-refs.py` sạch, `scripts/status.py` chạy được. Không chạy bước test script của `check.sh` (đỏ sẵn trên macOS, PR không đổi `scripts/`). `scripts/plan-check.py` trên nhánh task báo 1 lỗi và 6 chú ý do task đã chạy (`values-en/` đã xóa, tệp "Tạo" đã có).
+- **CI:** CI của PR này.
+- **Test cũ viết lại (ADR-0031, quyết định 1):** `NetworkDialogHostTest.shown_usesAppStrings_vi` (3 câu chữ tiếng Việt viết cứng thành 4 câu so với `getString`, thêm câu `network_lost_still_offline` không hiện), `shown_usesAppStrings_en` (4 câu chữ tiếng Anh viết cứng thành 4 câu so với `getString`). Ý định giữ: hộp thoại dùng đúng bốn chuỗi `network_lost_*` theo ngôn ngữ của máy; chữ viết cứng chuyển sang `NetworkDialogLanguageTest`. Đối chứng đỏ như trên.
+- **Lệch so với plan:** nhỏ, theo ADR-0032: `NetworkDialogLanguageTest` dựng `NetworkDialogHost` bằng một hàm gọn hơn `setContentButton` của `NetworkDialogHostTest` (nút nội dung không có `testTag`, test không dùng tới). Không có file ngoài mục 3.2.
+- **Việc còn lại:** anh Nhật xem 6 ảnh trong tab Files của PR; merge sau khi RUN-20261111-01 xong. Lời đóng issue #288 chưa viết: chờ anh cho biết danh sách app và ngôn ngữ (mục 9, câu 4). App nhận thay đổi qua `scripts/template-sync.sh` theo `docs/ops/to-app.md`, mục 7. Chữ nút lệch còn lại, ngoài mục 3.2 (rà soát độc lập PR #461, nên sửa): spec `ads` KB-19 tiêu chí 6 vẫn ghi "Xem quảng cáo", `docs/ops/ads-business-rules.md` R-01 và `scripts/ads-plan.py` vẫn ghi nhãn tiếng Việt của nút; làm bằng một PR tài liệu nhỏ sau, có lời xác nhận của anh Nhật (tiêu chí 6 thành "bấm nút xem quảng cáo", R-01 ghi chữ khung "Watch ad", "No, thanks").
+- **Rà soát độc lập:** chặn 0, nên sửa 1 (chỗ lệch chữ nút ở trên, ghi vào Việc còn lại, không sửa trong PR này), ghi chú 3 (nhật ký ghi trước rà soát; hàm dựng gọn của `NetworkDialogLanguageTest`; dòng "Test cũ viết lại" riêng), ghi trong mô tả PR.

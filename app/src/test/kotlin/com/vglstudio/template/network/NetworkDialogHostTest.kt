@@ -31,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.vglstudio.template.R
 import com.vglstudio.template.core.designsystem.component.NetworkDialogTestTags
 import com.vglstudio.template.core.network.NetworkDialogState
 import org.junit.Assert.assertEquals
@@ -111,16 +112,19 @@ class NetworkDialogHostTest {
         assertFalse(dims)
     }
 
+    // Intent: the dialog shows the four network_lost_* strings of the app, in the language of the device. The exact
+    // Vietnamese and English text is checked in NetworkDialogLanguageTest, which runs only in the template.
     @Test
     @Config(qualifiers = "vi")
     fun shown_usesAppStrings_vi() {
         setContentButton(SHOWN)
 
-        composeRule.onAllNodesWithText("Không có kết nối mạng").assertCountEquals(1)
-        composeRule.onAllNodesWithText(
-            "Ứng dụng cần Internet để hoạt động. Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.",
-        ).assertCountEquals(1)
-        composeRule.onNodeWithTag(NetworkDialogTestTags.RETRY).assertTextEquals("Thử lại")
+        val activity = composeRule.activity
+        composeRule.onAllNodesWithText(activity.getString(R.string.network_lost_title)).assertCountEquals(1)
+        composeRule.onAllNodesWithText(activity.getString(R.string.network_lost_message)).assertCountEquals(1)
+        composeRule.onNodeWithTag(NetworkDialogTestTags.RETRY)
+            .assertTextEquals(activity.getString(R.string.network_lost_retry))
+        composeRule.onAllNodesWithText(activity.getString(R.string.network_lost_still_offline)).assertCountEquals(0)
     }
 
     @Test
@@ -128,12 +132,12 @@ class NetworkDialogHostTest {
     fun shown_usesAppStrings_en() {
         setContentButton(NetworkDialogState.Shown(checking = false, stillOffline = true))
 
-        composeRule.onAllNodesWithText("No internet connection").assertCountEquals(1)
-        composeRule.onAllNodesWithText(
-            "This app needs the Internet to work. Check Wi-Fi or mobile data, then try again.",
-        ).assertCountEquals(1)
-        composeRule.onNodeWithTag(NetworkDialogTestTags.RETRY).assertTextEquals("Try again")
-        composeRule.onAllNodesWithText("Still no connection. Please try again in a moment.").assertCountEquals(1)
+        val activity = composeRule.activity
+        composeRule.onAllNodesWithText(activity.getString(R.string.network_lost_title)).assertCountEquals(1)
+        composeRule.onAllNodesWithText(activity.getString(R.string.network_lost_message)).assertCountEquals(1)
+        composeRule.onNodeWithTag(NetworkDialogTestTags.RETRY)
+            .assertTextEquals(activity.getString(R.string.network_lost_retry))
+        composeRule.onAllNodesWithText(activity.getString(R.string.network_lost_still_offline)).assertCountEquals(1)
     }
 
     @Test

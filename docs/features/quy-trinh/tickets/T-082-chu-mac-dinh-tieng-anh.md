@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-135 (issue #288); chữ của spec loading đổi theo, Nhật xác nhận
 scenarios: []
 owner: Nhật
-status: approved
+status: on-staging
 risk: high
 size: M
 depends_on: [T-081]

@@ -14,10 +14,12 @@ import org.robolectric.annotation.GraphicsMode
  * Tests at the standard frame have the name of a design image in docs/features/loading/design/screens/, with
  * the same sample app name and progress, so scripts/design-compare.sh can compare them (ADR-0020).
  * The `_small` tests at the short frame (L-028) have no design image and are not compared with the design.
+ * Tests named after a design image pin `vi`, the language of the design; the `_small` tests run in the default
+ * language (English).
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h891dp-xxhdpi")
+@Config(qualifiers = "vi-w411dp-h891dp-xxhdpi")
 class LoadingScreenScreenshotTest {
     @Test
     fun progress_light() {

@@ -96,6 +96,8 @@ Tiêu chí chấp nhận:
 | Loading | Cho người dùng thấy app đang chuẩn bị và tiến độ | KB-1, KB-2, KB-3 |
 | Màn hình mẫu (đã có) | Màn hình chính sau khi chuẩn bị xong | KB-1, KB-4 |
 
+- **Thêm 2026-11-11, ngôn ngữ của chữ:** chữ trong ngoặc kép ở spec này là bản tiếng Việt, hiện khi máy để tiếng Việt. Máy để ngôn ngữ khác hiện bản tiếng Anh: "Loading data" (Đang tải dữ liệu), "Preparing your space…", "Progress stopped" (Tiến độ đã dừng), "Unable to load data" (Không thể tải dữ liệu), "Try again" (Thử lại), "A private space for your work", khẩu hiệu mẫu "Everything in rhythm.".
+
 ## 5. Quảng cáo
 
 Màn hình loading không có vị trí quảng cáo riêng. Sau khi chuẩn bị xong và đủ 2 giây, màn hình có thể hiện quảng cáo mở app theo spec ads (KB-13, T-024): chờ có giới hạn, quảng cáo đóng rồi mới vào màn hình chính. Khóa của quảng cáo tắt thì màn hình chuyển ngay như trước.
@@ -159,3 +161,4 @@ Màn hình loading không có vị trí quảng cáo riêng. Sau khi chuẩn b�
 | 2026-10-16 | AI | Nhận thiết kế Figma theo quyết định của anh Nhật: thêm logo, tên app, khẩu hiệu, chân trang, tiêu đề lỗi, nhãn tiến trình (phạm vi, KB-1, KB-2, mục 4); thêm câu hỏi 6, 7. Chuyển sang `changed`, chờ xác nhận lại |
 | 2026-10-25 | AI | Theo quyết định của anh Nhật khi duyệt plan T-024 (câu 1): quảng cáo mở app ở màn loading theo spec ads KB-13; sửa KB-1 (tiêu chí chuyển màn) và mục 5. Anh Nhật xác nhận, spec giữ `confirmed` |
 | 2026-10-25 | Nhật | Xác nhận lại spec với KB-1 và mục 5 mới (quảng cáo mở app theo spec ads) |
+| 2026-11-11 | Nhật | Theo lời duyệt plan T-082 (câu hỏi 3 của plan, "Duyệt T-082 theo đề xuất", cũng là lời xác nhận chữ): mục 4 thêm ý ngôn ngữ của chữ (bản tiếng Việt khi máy để tiếng Việt, bản tiếng Anh khi máy để ngôn ngữ khác); tiêu chí của KB-1 tới KB-4 giữ nguyên chữ. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
