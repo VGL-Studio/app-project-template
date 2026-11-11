@@ -5,12 +5,12 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là bài học L-135 (issue #288); chữ của spec loading đổi theo, Nhật xác nhận
 scenarios: []
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
 depends_on: [T-081]
 sprint:
-plan:
+plan: docs/features/quy-trinh/plans/T-082-chu-mac-dinh-tieng-anh.md
 auto_run: false              # làm trong phiên có người theo dõi: người xem từng ảnh đổi, Nhật xác nhận chữ của spec loading
 created: 2026-10-30
 ---
