@@ -2743,15 +2743,15 @@ expect "wait-run: a --sha sharing only the short form of the head is refused at 
   "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'eba5f98bb2' <<< "$line" || true) $(grep -c 'eba5f98aa1' <<< "$line" || true)")"
 unknown_sha="$(head_routes "$(head_at e35ae86)" "$green" "$green" | jq -c '. + {errors: {"commits/1234abc": "HTTP 422: No commit found for SHA: 1234abc"}}')"
 line="$(WAIT_RUN_UNKNOWN_SHA_SECONDS=0 wait_line "$unknown_sha" 10 --pr 7 --sha 1234abc)"
-expect "wait-run: a --sha GitHub does not know is refused at once" "1 1" \
+expect "wait-run: a --sha GitHub still does not know after the grace time is refused" "1 1" \
   "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'không có trên GitHub' <<< "$line" || true)")"
 line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green" | jq -c '. + {errors: {"commits/eba5f98": "HTTP 500: Server Error"}}')" 1 --pr 7 --sha eba5f98)"
+expect "wait-run: a failed commit lookup is not proof: the wait goes on" 1 "$(grep -c '^2 CHƯA' <<< "$line" || true)"
 # Right after a push GitHub may answer "No commit found" for a few seconds while the PR still shows the old head:
 # not proof before WAIT_RUN_UNKNOWN_SHA_SECONDS, so the wait reaches the new head and its green run.
 just_pushed="$(head_routes "$(head_at e35ae86), $(head_at e35ae86), $(head_at c0ffee1)" "$green" "$no_runs" "$green" | jq -c '. + {errors: {"commits/c0ffee1": "HTTP 422: No commit found for SHA: c0ffee1"}}')"
 expect "wait-run: a commit GitHub does not know yet right after the push is waited for" "0 XANH" \
   "$(wait_code "$just_pushed" 10 --pr 7 --sha c0ffee1)"
-expect "wait-run: a failed commit lookup is not proof: the wait goes on" 1 "$(grep -c '^2 CHƯA' <<< "$line" || true)"
 line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green")" 10 --pr 7 --sha main)"
 expect "wait-run: rejects a --sha that is not a commit" "1 1" \
   "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'mã commit' <<< "$line" || true)")"
