@@ -165,7 +165,7 @@ Nếu phiên rà soát và phiên viết code hiểu spec khác nhau, AI không 
 - Nội dung commit theo dạng `<loại>(T-NNN): <mô tả ngắn>`, với loại là `test`, `feat`, `fix`, `refactor` hoặc `docs`. Mỗi commit có dòng `Co-Authored-By: Claude`.
 - PR có tiêu đề `T-NNN: <tên task>`, phần mô tả gồm đường dẫn tới plan, tóm tắt thay đổi, kết quả rà soát độc lập và đường dẫn tới phiên chạy. Vì PR mang tên tài khoản của người, các dấu hiệu này giúp phân biệt việc của AI.
 - Feature có thiết kế: commit `design/review/` cùng PR và dán `review/summary.md` vào mô tả PR, để người duyệt xem ảnh so sánh ngay trên PR.
-- PR của task không chứa nhật ký plan, trạng thái plan, ticket hay báo cáo phiên. Các tài liệu đó đi qua PR báo cáo cuối phiên (mục 4), để chúng lên nhánh chính kể cả khi task bị dừng.
+- PR của task không chứa nhật ký plan, trạng thái plan, ticket, bài học chuyển `applied` hay báo cáo phiên. Các tài liệu đó đi qua PR báo cáo cuối phiên (mục 4), để chúng lên nhánh chính kể cả khi task bị dừng.
 - Trong môi trường cloud của routine, `gh pr` và `gh issue` không chạy được (proxy GitHub chặn GraphQL, trả lỗi 403). Mọi thao tác với GitHub trong phiên đều dùng REST qua `gh api`, kể cả kiểm tra issue `main-broken` ở mục 2, bước 9 và khởi động `staging.yml` ở mục 4. Ví dụ:
   - Mở PR: `gh api -X POST repos/{owner}/{repo}/pulls -f title=... -f head=<nhánh> -f base=main -f body=...`
   - Tìm issue `main-broken` đang mở: `gh api "repos/{owner}/{repo}/issues?state=open&labels=main-broken"`
@@ -346,7 +346,7 @@ Sau đó AI:
    - Commit và đẩy nhánh báo cáo sau mỗi phần viết xong, không đợi cuối: hết hạn mức giữa chừng thì phần đã viết còn lại, và commit cho `resume-run.yml` biết phiên còn sống.
 
    Đo token khi viết mục Token: `scripts/token-usage.py report --since <started_at> --run RUN-YYYYMMDD-NN --csv docs/metrics/token-usage.csv`, dán bảng vào mục Token (`docs/ops/token-usage.md`). Không đo được thì ghi lý do và đi tiếp; việc đo không bao giờ chặn phiên.
-3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, `docs/metrics/token-usage.csv`, bài học mới trong `docs/lessons.md` (mục 6), plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).
+3. Mở PR báo cáo, tiêu đề `RUN-YYYYMMDD-NN: báo cáo phiên`. PR này chỉ có tài liệu: danh sách chạy, nhật ký và trạng thái của plan, trạng thái ticket, `docs/metrics/token-usage.csv`, bài học mới trong `docs/lessons.md` (mục 6) và bài học mà task đã merge làm xong, chuyển `applied` kèm số PR của task, plan phiên bản mới và danh sách chạy tiếp theo ở trạng thái `draft` (mục 3, Chuẩn bị cho người khi task dừng).
 4. Merge PR báo cáo bằng `scripts/merge-if-green.sh <số PR> --update`. PR báo cáo chỉ có tài liệu vẫn có CI khoảng 2 phút: job `build-and-test` chạy `scripts/tests/run.sh`, bộ test này kiểm cả tài liệu (số bài học, `foundation.md`, quét mã thật, danh sách chạy); `--update` để script chờ kiểm tra đang chạy. CI đỏ thì đọc lỗi bằng `scripts/wait-run.sh --pr <số PR>` (dòng `FAIL - ` nói test nào), sửa tài liệu trên nhánh báo cáo, đẩy lại rồi gọi lại script. Script từ chối vì lý do khác (ví dụ nhánh chính đang đỏ), hay môi trường từ chối lệnh merge (bước 9), thì để PR mở và ghi lý do vào phần mô tả PR; người merge sau.
 5. **Soạn plan cho hàng chờ.** Chỉ sau khi PR báo cáo đã merge, nên báo cáo không bị chậm và hết hạn mức giữa chừng không làm mất báo cáo. Danh sách chạy đã `finished`, bước này không giữ nhánh chính.
 

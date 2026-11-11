@@ -4771,7 +4771,7 @@ printf -- '---\nid: T-972\nstatus: planned\n---\n' > "$repo/docs/features/demo/t
 write_plan "$plans/T-972-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/features/demo/plans/T-972-a.md)\n$(row Sửa docs/features/demo/tickets/T-972-a.md)"
 expect "plan-check: an auto-run plan listing its own plan and ticket gets one warning each" \
   "pass 1 1" "$(plan_check "$plans/T-972-a.md") $(grep -c 'quy tắc 14: mục 3.2 có docs/features/demo/plans/T-972-a.md' "$work/plan-check.out" || true) $(grep -c 'quy tắc 14: mục 3.2 có docs/features/demo/tickets/T-972-a.md' "$work/plan-check.out" || true)"
-printf -- '---\nid: T-973\nstatus: planned\nauto_run: false    # people work it\n---\n' > "$repo/docs/features/demo/tickets/T-973-a.md"
+printf -- '---\nid: T-973\nstatus: planned\nauto_run: False    # people work it; any case, like run-check.py\n---\n' > "$repo/docs/features/demo/tickets/T-973-a.md"
 write_plan "$plans/T-973-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/lessons.md)\n$(row Sửa docs/features/demo/tickets/T-973-a.md)"
 expect "plan-check: a plan whose ticket has auto_run: false may list the lessons log and its ticket" \
   "pass 0" "$(plan_check "$plans/T-973-a.md") $(grep -c 'quy tắc 14' "$work/plan-check.out" || true)"
@@ -4780,6 +4780,12 @@ write_plan "$plans/T-974-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(r
 perl -pi -e 's/^status: draft$/status: draft\nlane: quick/' "$plans/T-974-a.md"
 expect "plan-check: a quick-lane plan may list the lessons log (one pull request for the task)" \
   "pass 0 1" "$(plan_check "$plans/T-974-a.md") $(grep -c 'quy tắc 14' "$work/plan-check.out" || true) $(grep -c '^lane: quick$' "$plans/T-974-a.md")"
+write_plan "$plans/T-975-a.md" medium draft "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/lessons.md)"
+expect "plan-check: a plan whose ticket file is missing still gets the rule 14 warning" \
+  "pass 1" "$(plan_check "$plans/T-975-a.md") $(grep -c 'quy tắc 14: mục 3.2 có docs/lessons.md' "$work/plan-check.out" || true)"
+write_plan "$plans/T-976-a.md" medium done "$(row Sửa feature/demo/A.kt)\n$(row Sửa docs/lessons.md)"
+expect "plan-check: a done plan is left alone by rule 14" \
+  "0" "$(plan_check "$plans/T-976-a.md" > /dev/null; grep -c 'quy tắc 14' "$work/plan-check.out" || true)"
 expect "plan-check: a plan listing none of the session records has no rule 14 warning" \
   "pass 0" "$(plan_check "$plans/T-901-a.md") $(grep -c 'quy tắc 14' "$work/plan-check.out" || true)"
 

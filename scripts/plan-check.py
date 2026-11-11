@@ -52,9 +52,10 @@ Finds, from the plan alone, the mistakes that otherwise stop a task in the middl
      đổi": the existing tests that check behaviour the plan changes, found with scripts/existing-tests.py, and for
      each one whether its assertions stay true or how they change (ADR-0031, L-106: T-041 stopped on such a test).
      Approved plans are left alone: they were reviewed before the rule.
- 14. A plan an auto-run session works (lane empty, ticket not auto_run: false) keeps docs/lessons.md, its own plan
-     file and its ticket out of section 3.2: the session writes the lesson status, the plan log and the statuses
-     through the report pull request (docs/auto-run.md, steps 7 and 10), not the task pull request. Only a warning.
+ 14. A draft or approved plan an auto-run session works (lane empty, ticket not auto_run: false) keeps
+     docs/lessons.md, its own plan file and its ticket out of section 3.2: the session writes the lesson status, the
+     plan log and the statuses through the report pull request (docs/auto-run.md, steps 7 and 10, section 4), not
+     the task pull request. Only a warning; done and stopped plans are left alone.
 PLAN_CHECK_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
@@ -397,11 +398,11 @@ def ticket_status_problems(fields):
 
 def report_file_problems(plan_path, fields, listed):
     """Rule 14: session records listed in section 3.2 of a plan that an auto-run session works."""
-    if fields.get("lane"):
+    if fields.get("lane") or fields.get("status") not in ("draft", "approved"):
         return []
     ticket_id = fields.get("ticket", "")
     tickets = sorted(ROOT.glob(f"docs/features/*/tickets/{ticket_id}-*.md")) if ticket_id else []
-    if tickets and front_matter(tickets[0].read_text()).get("auto_run") == "false":
+    if tickets and front_matter(tickets[0].read_text()).get("auto_run", "").lower() == "false":
         return []
     try:
         own_plan = plan_path.resolve().relative_to(ROOT.resolve()).as_posix()
@@ -409,8 +410,8 @@ def report_file_problems(plan_path, fields, listed):
         own_plan = None
     records = {"docs/lessons.md", own_plan, *(t.relative_to(ROOT).as_posix() for t in tickets)}
     return [f"quy tắc 14: mục 3.2 có {path}. Phiên tự chạy ghi bài học, nhật ký plan và trạng thái plan, ticket qua "
-            "PR báo cáo, không qua PR của task (docs/auto-run.md, bước 7 và 10): bỏ dòng này khỏi mục 3.2. Task làm "
-            "có người thì ghi auto_run: false vào ticket."
+            "PR báo cáo, không qua PR của task (docs/auto-run.md, bước 7, bước 10 và mục 4): bỏ dòng này khỏi mục 3.2. "
+            "Task làm có người thì ghi auto_run: false vào ticket; đường làm nhanh thì lane: quick ở plan."
             for path in sorted(p for p in listed if p in records)]
 
 

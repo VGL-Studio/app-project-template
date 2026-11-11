@@ -42,7 +42,7 @@ ADR liên quan: <ADR-NNNN, ...>
 
 ### 3.2. Danh sách file
 
-<!-- Đây là ranh giới trong phiên tự chạy. AI chỉ được chạm vào các file trong bảng này. Task của phiên tự chạy không ghi `docs/lessons.md`, file plan này hay ticket vào bảng: phiên ghi bài học `applied`, nhật ký plan và trạng thái plan, ticket qua PR báo cáo, không qua PR của task (auto-run.md, bước 7 và 10). Task làm có người (`auto_run: false` ở ticket) hay đường làm nhanh (`lane: quick`) gộp vào một PR thì ghi các file đó vào bảng. -->
+<!-- Đây là ranh giới trong phiên tự chạy. AI chỉ được chạm vào các file trong bảng này. Task của phiên tự chạy không ghi `docs/lessons.md`, file plan này hay ticket vào bảng: phiên ghi bài học `applied`, nhật ký plan và trạng thái plan, ticket qua PR báo cáo, không qua PR của task (auto-run.md, bước 7, bước 10 và mục 4). Task làm có người (`auto_run: false` ở ticket) hay đường làm nhanh (`lane: quick`) gộp vào một PR thì ghi các file đó vào bảng. -->
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
