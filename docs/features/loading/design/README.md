@@ -30,18 +30,20 @@ Phiên tự chạy chỉ đọc thư mục này, không mở được Figma.
 
 ## 2. Bảng chữ
 
-| Màn hình, trạng thái | Vị trí | Chữ | Kiểu chữ |
-| --- | --- | --- | --- |
-| Mọi trạng thái | Tên app | Tên của app đang chạy (`app_name`). Thiết kế và screenshot test dùng chữ mẫu "Todo App" | `headlineLarge` |
-| Mọi trạng thái | Khẩu hiệu | Mọi việc vào đúng nhịp. | `bodyMedium` |
-| Đang tải | Nhãn tiến trình | Đang tải dữ liệu | `labelLarge` |
-| Mọi trạng thái | Phần trăm | 68% (theo tiến độ, `%1$d%%`) | `bodyMedium` |
-| Đang tải | Dòng hướng dẫn | Đang chuẩn bị không gian của bạn… | `bodySmall` |
-| Lỗi | Nhãn tiến trình | Tiến độ đã dừng | `labelLarge` |
-| Lỗi | Tiêu đề lỗi | Không thể tải dữ liệu | `titleMedium` |
-| Lỗi | Lời hướng dẫn | Kết nối đang gián đoạn. Vui lòng kiểm tra mạng và thử lại để tiếp tục. | `bodyMedium` |
-| Lỗi | Nút | Thử lại | chữ của `PrimaryButton` |
-| Mọi trạng thái | Chân trang | Không gian riêng cho việc của bạn | `labelSmall` |
+| Màn hình, trạng thái | Vị trí | Chữ | Chữ tiếng Anh (`values/`) | Kiểu chữ |
+| --- | --- | --- | --- | --- |
+| Mọi trạng thái | Tên app | Tên của app đang chạy (`app_name`). Thiết kế và screenshot test dùng chữ mẫu "Todo App" | như cột Chữ | `headlineLarge` |
+| Mọi trạng thái | Khẩu hiệu | Mọi việc vào đúng nhịp. | Everything in rhythm. | `bodyMedium` |
+| Đang tải | Nhãn tiến trình | Đang tải dữ liệu | Loading data | `labelLarge` |
+| Mọi trạng thái | Phần trăm | 68% (theo tiến độ, `%1$d%%`) | như cột Chữ | `bodyMedium` |
+| Đang tải | Dòng hướng dẫn | Đang chuẩn bị không gian của bạn… | Preparing your space… | `bodySmall` |
+| Lỗi | Nhãn tiến trình | Tiến độ đã dừng | Progress stopped | `labelLarge` |
+| Lỗi | Tiêu đề lỗi | Không thể tải dữ liệu | Unable to load data | `titleMedium` |
+| Lỗi | Lời hướng dẫn | Kết nối đang gián đoạn. Vui lòng kiểm tra mạng và thử lại để tiếp tục. | The connection was interrupted. Check your network and try again to continue. | `bodyMedium` |
+| Lỗi | Nút | Thử lại | Try again | chữ của `PrimaryButton` |
+| Mọi trạng thái | Chân trang | Không gian riêng cho việc của bạn | A private space for your work | `labelSmall` |
+
+Ảnh trong `screens/` và screenshot test cùng tên dùng chữ tiếng Việt (test đặt ngôn ngữ `vi`). Máy để ngôn ngữ khác tiếng Việt hiện chữ tiếng Anh.
 
 Dòng hướng dẫn dùng dấu ba chấm một ký tự (`…`, U+2026), như trên thiết kế. Lời hướng dẫn khi lỗi tự xuống dòng theo chiều rộng, không có dấu xuống dòng trong chữ.
 
