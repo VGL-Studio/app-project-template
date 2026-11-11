@@ -693,6 +693,111 @@ class NativeAdPoolTest {
         assertFalse(text, text.contains("Pool ad 1"))
     }
 
+    @Test
+    fun claimableAdCount_followsLoadAndClaim() = runTest {
+        val pool = newPool()
+        val holder = AdPlacement.GALLERY_NATIVE_MEDIUM
+        assertEquals(0, pool.claimableAdCount())
+        pool.refill()
+        runCurrent()
+        // A request in flight is not an ad yet.
+        assertEquals(0, pool.claimableAdCount())
+
+        val a = deliver()
+        assertEquals(1, pool.claimableAdCount())
+        deliver()
+        deliver()
+        assertEquals(3, pool.claimableAdCount())
+
+        assertSame(a, pool.claim(holder))
+        assertEquals(2, pool.claimableAdCount())
+        pool.claim(holder)
+        assertEquals(1, pool.claimableAdCount())
+        pool.claim(holder)
+        assertEquals(0, pool.claimableAdCount())
+        // The count matches claim: no ad left to hand out.
+        assertNull(pool.claim(holder))
+
+        pool.release(a)
+        assertEquals(1, pool.claimableAdCount())
+        assertSame(a, pool.claim(holder))
+        assertEquals(0, pool.claimableAdCount())
+    }
+
+    @Test
+    fun claimableAdCount_skipsImpressedAndExpired() = runTest {
+        val pool = newPool()
+        val (a) = fill(pool, 3)
+        assertEquals(3, pool.claimableAdCount())
+
+        a.impressionRecorded = true
+        assertEquals(2, pool.claimableAdCount())
+
+        // Control: one millisecond before the 55 minutes, the two others still count.
+        at(MAX_AGE - 1)
+        assertEquals(2, pool.claimableAdCount())
+        at(MAX_AGE)
+        assertEquals(0, pool.claimableAdCount())
+        // The count matches claim: an expired ad is never handed out.
+        assertNull(pool.claim(AdPlacement.GALLERY_NATIVE_MEDIUM))
+    }
+
+    @Test
+    fun claimableAdCount_zeroWhenCannotShow() = runTest {
+        val pool = newPool(capacity = 1)
+        val (ad) = fill(pool, 1)
+
+        canShow = false
+        assertEquals(0, pool.claimableAdCount())
+        assertNull(pool.claim(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        assertEquals(0, ad.destroyCount)
+
+        // Control: consent back, the same ad counts and is handed out.
+        canShow = true
+        assertEquals(1, pool.claimableAdCount())
+        assertSame(ad, pool.claim(AdPlacement.GALLERY_NATIVE_MEDIUM))
+    }
+
+    @Test
+    fun claimableAdCount_hasNoSideEffect() = runTest {
+        val pool = newPool()
+        val ads = fill(pool, 3)
+        // Control: before they get old, the three count.
+        assertEquals(3, pool.claimableAdCount())
+
+        ads[0].impressionRecorded = true
+        at(MAX_AGE)
+        val logLines = logger.entries.size
+        repeat(3) { assertEquals(0, pool.claimableAdCount()) }
+        runCurrent()
+
+        assertEquals(listOf(0, 0, 0), ads.map { it.destroyCount })
+        assertEquals(3, loads.times.size)
+        assertEquals(logLines, logger.entries.size)
+
+        // Control: a claim on the same pool drops the three and sends a fourth request.
+        assertNull(pool.claim(AdPlacement.GALLERY_NATIVE_MEDIUM))
+        runCurrent()
+        assertEquals(listOf(1, 1, 1), ads.map { it.destroyCount })
+        assertEquals(4, loads.times.size)
+    }
+
+    @Test
+    fun claimableAdCount_zeroWhenClosed_countsAfterReopen() = runTest {
+        val pool = newPool()
+        fill(pool, 2)
+        assertEquals(2, pool.claimableAdCount())
+
+        pool.close()
+        assertEquals(0, pool.claimableAdCount())
+
+        pool.reopen()
+        pool.refill()
+        runCurrent()
+        deliver()
+        assertEquals(1, pool.claimableAdCount())
+    }
+
     private companion object {
         const val MAX_AGE = 55 * 60 * 1_000L
     }
