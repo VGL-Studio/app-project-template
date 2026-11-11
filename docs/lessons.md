@@ -1319,5 +1319,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `AdsSettingsTest.placementEnabled_firstOpenOnly_saysSo` duyệt mọi `AdPlacement` không `appWide` và khẳng định không vị trí nào mang ghi chú "First open since install only.", với chú thích "No placement of the template declares it". `docs/ops/ads-guide.md` hướng dẫn app khai `firstOpenOnly = true` cho thẻ của luồng giới thiệu, nên app làm đúng hướng dẫn thì test của mẫu đỏ ngay sau đợt đồng bộ dù code đúng. camera-pose gặp ở đợt đồng bộ 6 (`AssertionError: NATIVE_ONBOARDING`) và phải sửa test của mẫu ngay trong PR đồng bộ.
 - **Bằng chứng:** issue #467; `core/ads/src/test/.../AdsSettingsTest.kt` trên nhánh chính `e16632e`, dòng 243 đến 246.
 - **Đề xuất sửa:** câu khẳng định cuối so hai chiều: ghi chú có mặt đúng khi `declaration.firstOpenOnly` bật. Ở mẫu vẫn khẳng định điều cũ; ở app có vị trí khai, test kiểm thêm chính vị trí đó mang ghi chú.
-- **Trạng thái:** accepted (anh Nhật nhận issue #467 ngày 2026-11-11)
-- **Áp dụng:** chưa.
+- **Trạng thái:** applied (anh Nhật nhận issue #467 ngày 2026-11-11; PR #468 merge theo lời "merge #468")
+- **Áp dụng:** PR #468: `AdsSettingsTest.placementEnabled_firstOpenOnly_saysSo` so hai chiều, ghi chú có mặt đúng khi `declaration.firstOpenOnly` bật.
