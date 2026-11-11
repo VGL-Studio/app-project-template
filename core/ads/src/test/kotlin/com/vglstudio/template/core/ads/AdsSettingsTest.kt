@@ -240,9 +240,14 @@ class AdsSettingsTest {
         // Control: the same declaration without firstOpenOnly does not say so.
         val plain = AdPlacementDeclaration("x_step", AdFormat.NATIVE_STEP)
         assertFalse(AdsSettings.placementEnabled(plain).description.contains(note))
-        // No placement of the template declares it, so the key table does not change.
+        // Exactly the placements that declare it say so. The template declares none today; an app that declares one
+        // (as ads-guide.md allows) keeps this test green.
         AdPlacement.entries.filterNot { it.appWide }.forEach {
-            assertFalse("$it", AdsSettings.placementEnabled(it).description.contains(note))
+            assertEquals(
+                "$it",
+                it.declaration.firstOpenOnly,
+                AdsSettings.placementEnabled(it).description.contains(note),
+            )
         }
     }
 
