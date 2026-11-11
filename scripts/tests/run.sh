@@ -2736,6 +2736,17 @@ expect "wait-run: a head that moves past --sha is followed" "1 1" \
 line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green")" 1 --pr 7 --sha eba5f98)"
 expect "wait-run: --sha the PR never reaches asks to call again" "1 1" \
   "$(echo "$(grep -c '^2 CHƯA' <<< "$line") $(grep -c 'chưa nhận commit eba5f98' <<< "$line" || true)")"
+# A --sha mistyped after its first 7 characters (RUN-20261111-01, PR #462: bcdc328897 for bcdc328e9d) stops at once
+# instead of waiting the whole timeout, and the line shows both commits in full.
+line="$(wait_line "$(head_routes "$(head_at eba5f98aa1)" "$green" "$green")" 10 --pr 7 --sha eba5f98bb2)"
+expect "wait-run: a --sha sharing only the short form of the head is refused at once" "1 1 1" \
+  "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'eba5f98bb2' <<< "$line" || true) $(grep -c 'eba5f98aa1' <<< "$line" || true)")"
+unknown_sha="$(head_routes "$(head_at e35ae86)" "$green" "$green" | jq -c '. + {errors: {"commits/1234abc": "HTTP 422: No commit found for SHA: 1234abc"}}')"
+line="$(wait_line "$unknown_sha" 10 --pr 7 --sha 1234abc)"
+expect "wait-run: a --sha GitHub does not know is refused at once" "1 1" \
+  "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'không có trên GitHub' <<< "$line" || true)")"
+line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green" | jq -c '. + {errors: {"commits/eba5f98": "HTTP 500: Server Error"}}')" 1 --pr 7 --sha eba5f98)"
+expect "wait-run: a failed commit lookup is not proof: the wait goes on" 1 "$(grep -c '^2 CHƯA' <<< "$line" || true)"
 line="$(wait_line "$(head_routes "$(head_at e35ae86)" "$green" "$green")" 10 --pr 7 --sha main)"
 expect "wait-run: rejects a --sha that is not a commit" "1 1" \
   "$(echo "$(grep -c '^3 LỖI' <<< "$line") $(grep -c 'mã commit' <<< "$line" || true)")"
