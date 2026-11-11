@@ -39,13 +39,16 @@ class AdsControllerResumeTest {
     private val metrics = RecordingAdMetrics()
     private val logger = RecordingAppLogger()
 
+    // A FullScreenAdHost is in a composition, as with the shell of the app (HD-05, plan T-102).
+    private var detachHost: () -> Unit = {}
+
     private fun controller() = testAdsController(
         context = application,
         unitIds = AdUnitIds { null },
         flags = DefaultAdsFlags(settings),
         metrics = metrics,
         logger = logger,
-    )
+    ).also { detachHost = it.attachFullScreenHost() }
 
     private fun adFreeStatus(flow: StateFlow<Boolean>): AdFreeStatus = object : AdFreeStatus {
         override val adFree = flow

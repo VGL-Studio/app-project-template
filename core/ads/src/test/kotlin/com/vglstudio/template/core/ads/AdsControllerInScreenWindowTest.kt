@@ -42,6 +42,9 @@ class AdsControllerInScreenWindowTest {
         logger = logger,
     ).also { it.nativeLoaderForTest = loader }
 
+    // A FullScreenAdHost is in a composition, as with the shell of the app (HD-05, plan T-102).
+    private val detachHost = controller.attachFullScreenHost()
+
     @After
     fun tearDown() {
         scope.cancel()

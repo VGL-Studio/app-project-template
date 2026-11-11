@@ -53,6 +53,9 @@ class AdsControllerStartupInterComboTest {
         logger = logger,
     )
 
+    // A FullScreenAdHost is in a composition, as with the shell of the app (HD-05, plan T-102).
+    private val detachHost = controller.attachFullScreenHost()
+
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 
     private fun idleFor(millis: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
