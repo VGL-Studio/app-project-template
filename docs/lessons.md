@@ -1270,6 +1270,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** mẫu plan (`docs/templates/plan.md`, mục 3.2) ghi một câu: bài học `applied`, nhật ký, trạng thái plan và ticket không vào mục 3.2, vì phiên ghi chúng qua PR báo cáo (`auto-run.md` bước 7, bước 10); `scripts/plan-check.py` báo chú ý khi mục 3.2 của plan chạy trong phiên tự chạy (`lane` trống) có `docs/lessons.md`, chính file plan hay ticket.
 - **Trạng thái:** applied (anh Nhật nhận ngày 2026-11-10: "Nhận L-165, làm bằng /lesson"; AI ghi `applied` sau khi PR #453 merge)
 - **Áp dụng:** PR #453: mẫu plan (mục 3.2) và `docs/CLAUDE.md` (Khi viết plan) nói plan cho phiên tự chạy không ghi `docs/lessons.md`, chính file plan hay ticket vào mục 3.2; `docs/auto-run.md` bước 7 và mục 4 ghi bài học `applied` qua PR báo cáo; `scripts/plan-check.py` quy tắc 14 báo chú ý cho plan `draft`, `approved` của phiên tự chạy (bỏ qua `auto_run: false`, `lane: quick`).
+- **Kiểm chứng:** RUN-20261111-01: mục 3.2 của plan T-101 và T-102 không có `docs/lessons.md`, plan hay ticket (`plan-check.py` qua, không chú ý); PR #462, #463 chỉ có code, test và tài liệu `docs/ops/`; L-166, L-167 chuyển `applied` qua PR báo cáo. Có hiệu quả.
 
 ### L-166. Luồng nhiều bước không hỏi được pool `native_step` đã có quảng cáo cho bước kế tiếp chưa
 
@@ -1278,8 +1279,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** luồng giới thiệu có thẻ `native_step` ở mọi bước; pool nạp bù lần lượt và chỉ sau khi rời bước đã ghi lượt hiển thị, nên người dùng bấm "Tiếp" nhanh thì bước sau thường chưa có thẻ. App muốn giữ nút "Tiếp" có giới hạn cho tới khi pool có quảng cáo cho bước kế tiếp. Khung chỉ báo thẻ đang hiện có quảng cáo không (`onAdAvailabilityChange`); `hasFreeAd` (có từ T-097) chưa đủ, vì quảng cáo rảnh có thể là cái mà thẻ của chính bước hiện tại sắp lấy (vòng lấy 500 ms, P-06), nên nút mở sớm sai đúng lúc người dùng bấm nhanh. Rà soát độc lập của app bắt được lỗi này ở bản plan đầu.
 - **Bằng chứng:** issue #444; `git grep -e claimableAdCount -e nextStepAdReady -e NextAdReady` trên nhánh chính `e078e7a` rỗng; `NativeAdPool.hasFreeAd` chỉ đọc `free.isNotEmpty()`.
 - **Đề xuất sửa:** `:core:ads` có cách chỉ đọc (không nạp, không hủy) để biết pool `native_step` cấp được ngay bao nhiêu quảng cáo, và một hàm công khai cho biết bước kế tiếp đã có quảng cáo: chừa một quảng cáo cho thẻ hiện tại khi thẻ đó chưa có. Luật mới ghi vào `docs/ops/ads-business-rules.md`. Ticket T-101.
-- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a))
-- **Áp dụng:** chưa. Ticket T-101.
+- **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a); T-101 đã merge trong RUN-20261111-01)
+- **Áp dụng:** PR #462 (T-101): `AdsController.poolClaimableAdCount(placement)`, composable `rememberNativeStepNextAdReady(placement, currentStepHasAd)` đọc lại mỗi 200 ms theo cổng của thẻ bước; `docs/ops/ads-business-rules.md` OB-05 và dòng hằng số mục 11; `docs/ops/ads-guide.md` mục 3, mục 4.
 
 ### L-167. Lượt native combo mở khi không có `FullScreenAdHost` nào đang vẽ thì không bao giờ đóng
 
@@ -1288,5 +1289,25 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** ở app, khóa `is_show_native_after_inter` bật trên Firebase staging trong khi vỏ app chưa đặt `FullScreenAdHost()`. Sau interstitial, khung vẫn mở lượt combo: không có gì được vẽ, lượt không đóng, chặn quảng cáo khi quay lại app bị giữ và việc chạy sau interstitial (điều hướng) không chạy. Log của app: `Native combo opened (inter gone: true)` rồi không còn gì. Ở dự án mẫu, `NativeFullScreenTurns.afterInterstitial` mở lượt mà không kiểm có host đang vẽ; app mẫu có host ở `MainActivity` nên không thấy lỗi, app quên host (hay bỏ host khi đổi vỏ app) thì treo khi khóa bật. Lượt treo giữ cả chặn quảng cáo khi quay lại app lẫn cờ đang hiện quảng cáo toàn màn hình (F-01), nên mọi quảng cáo toàn màn hình sau đó bị coi là bận tới trần của F-02. Lượt chỉ treo khi đã có quảng cáo (hay quảng cáo về giữa lúc chờ): nạp lỗi hay cổng đồng ý đóng thì hết đếm ngược lượt vẫn tự đóng (K-04). Phần (b) của issue (công tắc cho `resume_inter` nối combo) đã có ở mẫu: luật từ 2026-11-06 (A-12, spec `ads` KB-14, KB-16), code từ PR #402 (T-089, 2026-11-07): interstitial lúc quay lại app và lúc mở app không nối combo, nên không cần làm thêm.
 - **Bằng chứng:** issue #445; `core/ads/.../NativeFullScreenTurns.kt` hàm `afterInterstitial` (nhánh chính `e078e7a`): sau `port.comboEnabled()` và `awaitInterGone` là `open(current)`, không có điều kiện về host; `FullScreenAdHost` không báo gì cho khung. Phần (b): `ResumeAdTurns.kt` gọi `showInterstitial(..., combo = false)` cho `resume_inter`, inter lúc mở app trong `AdsController.kt` cũng `combo = false`.
 - **Đề xuất sửa:** khung không mở lượt combo (hay tự đóng lượt) khi không có `FullScreenAdHost` nào đang vẽ, để thiếu host chỉ làm mất combo, không treo luồng và không giữ chặn quảng cáo khi quay lại app; có log cho người phân tích. Plan xét cùng cách cho native toàn màn hình độc lập đi qua host. Ticket T-102.
-- **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a))
-- **Áp dụng:** chưa. Ticket T-102.
+- **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-11: "Xử lý các issue theo đề xuất của AI.", trả lời đề xuất nhận #444 và #445 phần (a); T-102 đã merge trong RUN-20261111-01)
+- **Áp dụng:** PR #463 (T-102): `AdsController.attachFullScreenHost()` đếm host đang gắn; lượt combo chờ host một lúc ngắn rồi bỏ lượt (nhả chặn, hạ cờ, chạy hàm hoàn tất một lần), lượt đang mở tự đóng 2 giây sau khi host rời khi app ở trước; native toàn màn hình độc lập kiểm host trước khi lấy quảng cáo; `docs/ops/ads-business-rules.md` K-01, K-02, K-09, F-08, HD-05, mục 8.2, mục 11; `docs/ops/ads-guide.md` mục 5, mục 9.
+
+### L-168. `wait-run.sh --sha` với mã gõ sai chờ hết 40 phút, và thông báo in hai mã giống nhau
+
+- **Ngày, nguồn:** 2026-11-11, RUN-20261111-01 (T-101, PR #462)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phiên chờ CI bằng `scripts/wait-run.sh --pr 462 --sha bcdc328897`, trong khi commit đầu thật là `bcdc328e9d...` (phiên gõ sai phần sau 7 ký tự đầu). Script chờ đủ 40 phút rồi in "PR #462 chưa nhận commit bcdc328 (commit đầu đang là bcdc328)": hai mã in ra giống hệt nhau vì chỉ in 7 ký tự, nên đọc thông báo không thấy ngay lỗi nằm ở đâu. `pr-check` đã xanh lúc 05:57, phiên chỉ đọc được lúc 06:27; chờ dư 30 phút.
+- **Bằng chứng:** dòng thời gian của RUN-20261111-01; lần chạy 42967933614 (`created_at` 05:46, `updated_at` 05:57); `scripts/wait-run.sh` so `--sha` với `head.sha` của PR theo cả chuỗi, thông báo dùng `${sha:0:7}`.
+- **Đề xuất sửa:** `scripts/wait-run.sh`: khi `--sha` không phải tiền tố của `head.sha` mà 7 ký tự đầu trùng, hay khi `--sha` không có trong lịch sử của nhánh PR (API `commits/<sha>` trả 404 hay 422), dừng sớm với mã lỗi riêng và in cả hai mã đầy đủ. `docs/auto-run.md` bước 8 giữ cách viết `--sha "$(git rev-parse HEAD)"`, nhắc không gõ tay mã commit.
+- **Trạng thái:** proposed
+- **Áp dụng:** chưa.
+
+### L-169. Container khởi động lại giữa lúc phiên con làm bước 3 đến 5: gửi tin tiếp tục cho chính phiên con giữ được ngữ cảnh
+
+- **Ngày, nguồn:** 2026-11-11, RUN-20261111-01 (T-102)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** sau khi phiên con của T-102 commit test (`e0d6ad8`, 06:37 UTC) và đang sửa hai file nguồn, container khởi động lại; phiên con và lệnh `push-on-commit.sh` nền dừng. Phiên chính đẩy commit test, chạy lại `mark T-102`, rồi gửi tin cho chính phiên con đó (công cụ cho phép tiếp tục từ transcript đã lưu) kèm trạng thái worktree. Phiên con làm tiếp từ file chưa commit, không chạy lại phần đỏ của bước 3 vì đã ghi nhận trước khi dừng, xong bước 4, 5 trong 17 phút. `docs/auto-run.md` (mục Giao bước 3 đến 5 cho phiên con, ý "Phiên con kết thúc mà không có báo cáo") chỉ nêu hai cách: phiên chính tự làm tiếp, hay giao một phiên con mới; không nêu cách tiếp tục chính phiên con cũ, nên phải đoán.
+- **Bằng chứng:** dòng thời gian của RUN-20261111-01 (06:37, 06:54); nhật ký plan T-102; token T-102 0,9 lần ước tính.
+- **Đề xuất sửa:** `docs/auto-run.md`, ý "Phiên con kết thúc mà không có báo cáo": thêm cách thứ ba, ưu tiên khi công cụ cho phép tiếp tục phiên con từ transcript (sau khi container khởi động lại): gửi tin tiếp tục cho chính phiên con kèm `git status`, commit cuối và việc đã đẩy; chỉ giao phiên con mới khi tiếp tục không được. Nhắc chạy lại `push-on-commit.sh` vì lệnh nền mất cùng container.
+- **Trạng thái:** proposed
+- **Áp dụng:** chưa.

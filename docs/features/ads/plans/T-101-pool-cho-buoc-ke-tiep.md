@@ -1,7 +1,7 @@
 ---
 ticket: T-101
 title: Feature hỏi được pool native_step đã có quảng cáo cho bước kế tiếp của luồng chưa
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -399,3 +399,14 @@ Kết quả từng đột biến ghi vào nhật ký của plan.
 ## 10. Nhật ký thực hiện
 
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ. -->
+
+### RUN-20261111-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #462, commit `02b9ffe`, 2026-11-11 06:27 UTC).
+- **Nhánh, PR:** `claude/T-101-pool-cho-buoc-ke-tiep`, https://github.com/VGL-Studio/app-project-template/pull/462. Commit test `7f5b215` (kèm khung rỗng), commit code và tài liệu `bcdc328`.
+- **Đã làm:** mục 3.1 A, B, C, F: `NativeAdPool.claimableAdCount()`, `AdsController.poolClaimableAdCount(placement)` (đọc `existingPool`), `nextStepAdReady`, `rememberNativeStepNextAdReady`, `NEXT_STEP_AD_READ_MILLIS`, `rememberNextStepAdReady`, một câu KDoc của `NativeStepAd`; OB-05 và một dòng bảng hằng số mục 11 của `ads-business-rules.md`; mục 3, mục 4 của `ads-guide.md`. Bước 3 đến 5 giao cho một phiên con.
+- **Test viết trước:** 23 test (test 1 tới 5 ở `NativeAdPoolTest`, test 6 tới 20 gồm 7b, 14a, 14b, 20a, 20b ở `NativeStepNextAdReadyTest`). 22 đỏ đúng lý do trên khung rỗng; test 17 qua ngay như plan nêu (test canh giữ), đột biến 9 làm nó đỏ. 0 test viết chặt thêm (bước đối chứng có sẵn trong mục 4). 13 đột biến của mục 4 đều làm đỏ test tương ứng. Test JVM mọi module trên khung rỗng: chỉ 22 test mới đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú: test 18, 20 kiểm cặp từ hai bộ thu riêng (rủi ro chập chờn thấp, cùng luồng chính); `existingPool` trả 0 khi vị trí chưa từng có pool dù pool cùng mã đơn vị có quảng cáo (đúng câu hỏi 5 đã duyệt, có thể ghi thêm vào `ads-guide.md`); test 15 không phân biệt hành vi theo vòng đời (đúng plan); test 6 có hai câu giống nhau (theo plan); KDoc "records nothing" nghĩa là không ghi số liệu phân tích; hai bộ thu cổng riêng lệch tối đa một khung.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42967933614). `scripts/check.sh` cục bộ: 1942 test JVM, 0 lỗi; 91 ảnh screenshot, không ảnh nào đổi. `scripts/history-refs.py` sạch.
+- **Lệch so với plan:** L4 (ADR-0032), bố cục test, câu khẳng định giữ: phần thu `stepAd` gói vào hàm phụ `withCard` có try/finally; test 16 tới 20 đọc thêm `rememberNativeStepAdAllowed`, test 16, 17 khẳng định thêm `allowed == true` trước câu đầu; hàm phụ `settle()` sau `setContent`. Không dùng phương án dự phòng mục 3.4 (test 15 qua với cách chính). Không có file ngoài mục 3.2, không có thay đổi file test sau commit test, không có câu khẳng định cũ viết lại.
+- **Việc còn lại:** đóng issue #444 (phần `:core:ads`) kèm PR #462 khi dev đồng ý; phiên không tự đóng.

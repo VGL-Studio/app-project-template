@@ -1,7 +1,7 @@
 ---
 ticket: T-102
 title: Lượt native combo không treo khi không có FullScreenAdHost nào đang vẽ
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -285,3 +285,14 @@ Không cần (E dưới 2).
   - Phiên tự chạy làm được (`lane` để trống). Chạy sau T-101 (mục 6).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261111-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #463, commit `e81be80`, 2026-11-11 07:14 UTC).
+- **Nhánh, PR:** `claude/T-102-combo-khong-treo-khi-thieu-host`, https://github.com/VGL-Studio/app-project-template/pull/463. Commit test `e0d6ad8` (kèm khung rỗng), commit code và tài liệu `fdd0562`. Nhánh tạo từ nhánh chính sau khi T-101 merge (`02b9ffe`).
+- **Đã làm:** mục 3.1: `AdsController` đếm host đang gắn (`attachFullScreenHost()` trả hàm gỡ, chặn gỡ hai lần, `fullScreenHostAttached`), port của `nativeTurns` đọc qua `get()`; `NativeFullScreenTurns` chờ host một lúc ngắn trước khi mở combo rồi bỏ lượt (nhả chặn, hạ cờ, chạy hàm hoàn tất một lần, không nạp), lượt đang mở tự đóng 2 giây sau khi host rời khi app ở trước (host rời lúc app ở nền không tính); `showNativeFullScreen` kiểm bận trước, kiểm host sau, trước khi lấy quảng cáo; `NativeFullScreenAdHost` gắn qua controller; K-01, K-02, K-09, F-08, HD-05, mục 8.2, dòng có sẵn của bảng mục 11 trong `ads-business-rules.md` (dòng OB-05 và dòng hằng số của T-101 giữ nguyên); mục 5, mục 9 của `ads-guide.md`. Chỗ sửa tìm theo tên hàm, tên mục, chữ. Bước 3 đến 5 giao cho một phiên con; container khởi động lại sau commit test, phiên con làm tiếp từ commit và file chưa commit (không viết lại).
+- **Test viết trước:** 22 test mới (11 `NativeFullScreenTurnsTest`, 7 `AdsControllerNativeComboTest` gồm `noHost_showFailed_comboSkipped_finishes` theo ghi chú 3 của dev, 4 `FullScreenAdHostAttachTest`). 18 đỏ đúng lý do trên khung rỗng; 4 test canh giữ qua như plan nêu (`open_hostGoneInBackground_notCounted_hostBackOnReturn_keepsTurn`, `open_hostGoneAndBackWithinGrace_keepsTurn`, `standalone_noHost_turnOpenPastCap_skipsBusy_notHostCheck`, `withHost_adInSlot_opensCombo_asBefore`), đối chứng đỏ của chúng là các test "đóng" và `noHost_*` tương ứng. 0 test viết chặt thêm. Test JVM mọi module trên khung rỗng: chỉ 18 test mới đỏ. 5 lớp test cũ đổi phần dựng host theo mục 3.5 (`detachHost`), không câu khẳng định nào đổi.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 6 ghi chú: `noHostController()` gọi thêm `start(...)` mà plan không nêu (xem Lệch); KB-16 tiêu chí 9 "đi tiếp ngay" so với chờ tối đa 2 giây inter rời màn cộng 1 giây chờ host (đúng câu hỏi 4 đã duyệt); ca quảng cáo về giữa lúc chờ chỉ test bằng bộ giả (như plan); không test nào khẳng định combo bị bỏ thì không có `eligible` của native (code đúng vì `skip` chạy trước `open`); trường `detachHost` gán mà không đọc (theo plan); rủi ro còn lại là cách Robolectric gỡ cây giao diện khi `recreate()`, có câu trung gian bảo vệ.
+- **Kết quả CI:** `pr-check` xanh (lần chạy 42976247365). `scripts/check.sh` cục bộ: 1964 test JVM, 0 lỗi; 91 ảnh screenshot, không ảnh nào đổi. `scripts/history-refs.py` sạch.
+- **Lệch so với plan:** phần dựng của test, câu khẳng định giữ: (1) theo ghi chú 1 của dev, `noHostController()` đặt `IS_LOG_AD_FULLSCREEN_EVENTS = true`; để khóa có tác dụng, hàm gọi thêm `start(activity.application, AppActivityFilter { true })` vì `AdTelemetry` chỉ đọc khóa sau `start`. Activity đã resumed trước `start` nên tracker không thấy nó, `foregroundState` vẫn `false`; hệ quả `standalone_noHost_turnOpenPastCap_skipsBusy_notHostCheck` có tracker (plan ghi "không có tracker"). Ghi vào Quyết định AI đã tự làm của báo cáo phiên. (2) Một số test chặt hơn plan (mốc "chưa xong" lúc 2 999 ms; câu đối chứng "không có `LocalAdsController`" đổi giá trị cấp từ `null` sang `controller` trong cùng nội dung). (3) Helper `showStandaloneOn(on, onDone)`, `enableStandaloneThroughShow` nhận tham số `on`. Không dùng phương án dự phòng mục 3.4, nên dung sai theo nhịp của ghi chú 2 không dùng tới. Không có file ngoài mục 3.2, không có thay đổi file test sau commit test, không có câu khẳng định cũ viết lại. L-167 `applied` ghi trong PR báo cáo.
+- **Việc còn lại:** đóng issue #445 (phần a) kèm PR #463 khi dev đồng ý; phiên không tự đóng. Kiểm thủ công trên máy thật (combo vẫn hiện khi có host, log `Full-screen host attached`) và ca app nhiều Activity (câu hỏi 7, không có test) chờ người.
