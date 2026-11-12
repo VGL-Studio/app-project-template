@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed                # draft | confirmed | changed
+status: changed                  # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -9,6 +9,7 @@ requests:
   - requests/2026-11-02-nap-san-va-nhip-lam-moi.md
   - requests/2026-11-06-combo-chi-sau-inter-trong-app.md
   - requests/2026-11-06-quang-cao-khong-chong-nhau.md
+  - requests/2026-11-11-gian-thu-lai-native-khi-chua-co-quang-cao.md
 design: features/ads/design/README.md
 created: 2026-10-21
 confirmed: 2026-11-11
@@ -333,7 +334,8 @@ Tiêu chí chấp nhận:
 Tiêu chí chấp nhận:
 
 - [ ] Khi tải quảng cáo toàn màn hình lỗi thì app thử lại sau 2, 4, 6, 8 rồi 10 giây mỗi lần, không bỏ cuộc.
-- [ ] Khi tải native lỗi thì app thử lại với khoảng chờ tăng dần tới 60 giây; chưa có native nào thì thử lại sau 5 giây.
+- [ ] ~~Khi tải native lỗi thì app thử lại với khoảng chờ tăng dần tới 60 giây; chưa có native nào thì thử lại sau 5 giây.~~ **Đổi 2026-11-11 (câu hỏi 62):** khi tải native lỗi mà chỗ đó đang có quảng cáo thì app thử lại với khoảng chờ tăng dần tới 60 giây; chỗ đó chưa có quảng cáo nào, kể cả native toàn màn hình, thì app thử lại sau 5, 10, 20, 40 giây rồi mỗi 60 giây, không bỏ cuộc. Khi tải thành công, app quay lại foreground, mạng về, hay người dùng mở một màn mới có chỗ đó thì lần lỗi kế tiếp chờ lại từ 5 giây.
+- [ ] **Thêm 2026-11-11 (câu hỏi 62):** khi app ở foreground suốt 10 phút mà không lần tải nào có quảng cáo thì một vị trí native gửi không quá 15 yêu cầu.
 - [ ] Khi mạng về sau khi mất thì mọi loại quảng cáo tải lại.
 - [ ] Khi app ở nền thì native không gửi yêu cầu.
 
@@ -783,6 +785,10 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
     - Bối cảnh: app camera-pose bật khóa native sau inter trên Firebase staging khi vỏ app chưa đặt bộ chứa lớp phủ; lượt native mở mà không vẽ gì, không bao giờ đóng: việc sau interstitial không chạy, quảng cáo khi quay lại app bị chặn, interstitial sau bị coi là bận.
     - Đề xuất của AI: combo chờ chỗ vẽ một lúc ngắn sau khi interstitial rời màn, không có thì bỏ như khi khóa tắt (không ghi cơ hội cho combo); native độc lập thiếu chỗ vẽ thì không hiện, ghi như KB-26 tiêu chí 3; chỗ vẽ biến mất quá 2 giây lúc app ở trước thì native đóng theo đường đóng bình thường (`ads-business-rules.md`, F-08, HD-05; luật mới K-09 thêm cùng T-102). Phương án khác: native độc lập chỉ ghi cơ hội `not_ready` (dễ lẫn với chưa tải xong).
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-11, "Duyệt T-102 theo đề xuất"). KB-16 thêm tiêu chí 9, 10 và vế ở tiêu chí 1; KB-5 thêm một tiêu chí. App nhiều Activity mà Activity trên thiếu chỗ vẽ còn Activity dưới có thì native có thể chờ tới khi người dùng về Activity có chỗ vẽ (để ngoài T-102). Ticket T-102.
+62. **Thử lại native khi chưa có quảng cáo: giãn dần thế nào, native toàn màn hình theo luật nào?** (KB-24, yêu cầu 2026-11-11, ticket T-103)
+    - Bối cảnh: chỗ native chưa có quảng cáo thử lại cố định mỗi 5 giây, mọi mã lỗi, không giới hạn, kể cả native toàn màn hình vốn chỉ hiện ngay sau interstitial. No fill kéo dài thì một vị trí gửi khoảng 120 yêu cầu trong 10 phút ở foreground (phiên thử trên emulator: 75 lần chờ 5 giây trong khoảng 8 phút).
+    - Đề xuất của AI: chỗ chưa có quảng cáo chờ 5, 10, 20, 40 giây rồi mỗi 60 giây; bộ đếm về 0 khi tải thành công, app quay lại foreground, mạng về, hay người dùng mở màn mới có chỗ đó; native toàn màn hình dùng cùng chuỗi này, vì luật `min(n x 2 giây, 10 giây)` của quảng cáo toàn màn hình vẫn gửi khoảng 60 yêu cầu trong 10 phút; luật khi đang có quảng cáo giữ nguyên; chưa thêm khóa Remote Config cho mốc chờ tối đa (tách ticket khác nếu cần). Phương án khác: native toàn màn hình theo `min(n x 2 giây, 10 giây)`.
+    - Trả lời: theo đề xuất của AI (anh Nhật, 2026-11-11, "Xử lý theo đề xuất của AI"). KB-24 đổi tiêu chí 2 và thêm một tiêu chí. Ticket T-103.
 
 ## 10. Lịch sử
 
@@ -822,3 +828,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-101 (câu hỏi 1, 2 của plan, "Duyệt T-101 theo đề xuất"): KB-20 thêm tiêu chí 10 (bước kế tiếp đã có quảng cáo, chừa một quảng cáo cho thẻ hiện tại), thêm câu hỏi 60 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #459 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-102 (câu hỏi 1 tới 3 của plan, "Duyệt T-102 theo đề xuất"): KB-16 thêm tiêu chí 9 (combo thiếu chỗ vẽ thì đi tiếp ngay), tiêu chí 10 (chỗ vẽ biến mất quá 2 giây thì native đóng) và vế ở tiêu chí 1; KB-5 thêm một tiêu chí (native độc lập thiếu chỗ vẽ); thêm câu hỏi 61 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #459 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-082 (câu hỏi 2 của plan, phương án (a), "Duyệt T-082 theo đề xuất"): KB-19 tiêu chí 1 ghi chữ nút theo chữ tiếng Anh của khung ("Watch ad", "No, thanks"), app dịch theo hướng dẫn quảng cáo; `:core:ads` không dịch trong T-082. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
+| 2026-11-11 | AI | Theo yêu cầu 2026-11-11 (giãn dần thử lại native khi chưa có quảng cáo) và lời anh Nhật trong phiên ("Xử lý theo đề xuất của AI"): KB-24 đổi tiêu chí 2 (chỗ chưa có quảng cáo, kể cả native toàn màn hình, chờ 5, 10, 20, 40 rồi 60 giây), thêm tiêu chí giới hạn 15 yêu cầu trong 10 phút, thêm câu hỏi 62 đã trả lời; ticket T-103. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
