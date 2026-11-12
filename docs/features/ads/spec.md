@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -829,3 +829,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-102 (câu hỏi 1 tới 3 của plan, "Duyệt T-102 theo đề xuất"): KB-16 thêm tiêu chí 9 (combo thiếu chỗ vẽ thì đi tiếp ngay), tiêu chí 10 (chỗ vẽ biến mất quá 2 giây thì native đóng) và vế ở tiêu chí 1; KB-5 thêm một tiêu chí (native độc lập thiếu chỗ vẽ); thêm câu hỏi 61 đã trả lời. Anh Nhật xác nhận chữ đầy đủ trên PR #459 ("Xác nhận spec ads"); spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | Nhật | Theo lời duyệt plan T-082 (câu hỏi 2 của plan, phương án (a), "Duyệt T-082 theo đề xuất"): KB-19 tiêu chí 1 ghi chữ nút theo chữ tiếng Anh của khung ("Watch ad", "No, thanks"), app dịch theo hướng dẫn quảng cáo; `:core:ads` không dịch trong T-082. Spec giữ `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-11 | AI | Theo yêu cầu 2026-11-11 (giãn dần thử lại native khi chưa có quảng cáo) và lời anh Nhật trong phiên ("Xử lý theo đề xuất của AI"): KB-24 đổi tiêu chí 2 (chỗ chưa có quảng cáo, kể cả native toàn màn hình, chờ 5, 10, 20, 40 rồi 60 giây), ghi chú ở tiêu chí 1 (không gồm native toàn màn hình), thêm tiêu chí giới hạn 15 yêu cầu trong 10 phút cho từng chỗ native khi không có dịp đặt lại bộ đếm, thêm câu hỏi 62 đã trả lời; ticket T-103. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
+| 2026-11-11 | Nhật | Xác nhận KB-24 (tiêu chí 1 ghi chú, tiêu chí 2 đổi, tiêu chí giới hạn thêm) và câu hỏi 62 trên PR #472 ("Xác nhận spec ads"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
