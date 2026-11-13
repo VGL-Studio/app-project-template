@@ -1,16 +1,16 @@
 ---
 ticket: T-105
 title: Làm theo ADR-0048 - run-check.py --batch cho danh sách của một đợt, tài liệu duyệt cả đợt và bỏ họp
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn 7 (quy trình phiên tự chạy), không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 19.4M        # cỡ M, số gợi ý 19.4M của scripts/token-usage.py estimate (2026-11-13, trung vị 30 task M); không chỉnh
 blocking_points: [ci]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật            # nhóm một dev: người duyệt giữ cả hai vai (mục 9)
+approved_at: 2026-11-13
 lane:
 ---
 
@@ -209,9 +209,9 @@ Không cần (E dưới 2): đọc diff bằng `git diff` đã dùng ở `script
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0048). -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, người duyệt giữ cả hai vai theo `docs/risk-scoring.md`)
+- **Ghi chú:** AI ghi theo lời anh Nhật, ngày 2026-11-13, trong phiên: "Duyệt plan T-105 theo các đề xuất ở mục 8, merge #481". Trả lời mục 8 theo đề xuất: câu 1, phiên tự chạy làm, xếp T-105 cuối danh sách hay chạy một mình; câu 2, ticket chỉ bỏ qua khi `planned`; câu 3, script không tự `git fetch`, tài liệu bảo AI chạy trước; câu 4, spec bỏ qua khi `changed` hay `draft`.
 
 ## 10. Nhật ký thực hiện
 
