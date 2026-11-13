@@ -1,16 +1,16 @@
 ---
 ticket: T-105
 title: Làm theo ADR-0048 - run-check.py --batch cho danh sách của một đợt, tài liệu duyệt cả đợt và bỏ họp
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn 7 (quy trình phiên tự chạy), không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 19.4M        # cỡ M, số gợi ý 19.4M của scripts/token-usage.py estimate (2026-11-13, trung vị 30 task M); không chỉnh
 blocking_points: [ci]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật            # nhóm một dev: người duyệt giữ cả hai vai (mục 9)
+approved_at: 2026-11-13
 lane:
 ---
 
@@ -221,9 +221,9 @@ Không cần (E dưới 2): đọc diff bằng `git diff` đã dùng ở `script
 
 Phiên bản 2:
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, người duyệt giữ cả hai vai theo `docs/risk-scoring.md`)
+- **Ghi chú:** AI ghi theo lời anh Nhật, ngày 2026-11-13, trong phiên: "Duyệt plan T-105 phiên bản 2, duyệt danh sách RUN-20261113-01, bắt đầu phiên khi merge, merge #482". Trả lời mục 8 giữ như phiên bản 1.
 
 Phiên bản 1:
 
