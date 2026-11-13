@@ -2,7 +2,7 @@
 ticket: T-105
 title: Làm theo ADR-0048 - run-check.py --batch cho danh sách của một đợt, tài liệu duyệt cả đợt và bỏ họp
 status: approved             # draft | approved | stopped | done
-version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn 7 (quy trình phiên tự chạy), không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 19.4M        # cỡ M, số gợi ý 19.4M của scripts/token-usage.py estimate (2026-11-13, trung vị 30 task M); không chỉnh
@@ -17,6 +17,14 @@ lane:
 # PLAN T-105: LÀM THEO ADR-0048: RUN-CHECK.PY --BATCH, TÀI LIỆU DUYỆT CẢ ĐỢT VÀ BỎ HỌP
 
 ## 1. Tóm tắt
+
+**Phiên bản 2 (2026-11-13), vì sao phiên bản 1 chưa đủ tốt:** rà soát độc lập trước khi duyệt danh sách RUN-20261113-01 thấy B2c và B4 của mục 4 mong 2 dòng `LỖI` (một dòng cho mỗi ticket), trong khi `scripts/run-check.py` hôm nay báo lỗi của một spec dùng chung đúng một lần (`check()`, chú thích "A spec shared by several tickets reports each problem once"). Làm đúng mục 3.1 thì hai test này ra 1 dòng và đỏ; phiên không sửa được test hay đổi hành vi khi không có `--batch`, nên sẽ dừng task. Thay đổi so với phiên bản 1:
+
+- B2c, B4 mong đúng 1 dòng `LỖI` (spec dùng chung báo một lần).
+- Thêm B9 (file chỉ sửa trong thư mục làm việc, chưa commit, không được bỏ qua; bắt cách sai `git diff <điểm so>` và `git diff HEAD~1`) và B10 (so với điểm tách: file chỉ đổi trên nhánh chính sau điểm tách không được bỏ qua; bắt cách sai `<điểm so>..HEAD` và `git diff <điểm so>`).
+- Mục 3.1 A: so đường dẫn của diff và của plan, ticket, spec theo cùng một cách. Mục 3.1 B: nêu rõ hai tiêu đề được đổi, sửa tên mục "Trang tiến độ" của `docs/CLAUDE.md`, không chép mã ADR đã bị thay từ ADR-0048. Mục 4: các câu "chỉ dev/người ghi" về đề xuất app và app tham chiếu được giữ.
+
+Phần còn lại giữ nguyên phiên bản 1.
 
 `scripts/run-check.py` có thêm chế độ `--batch`, để kiểm danh sách chạy `draft` của một đợt khi các plan còn `draft`: chỉ bỏ qua lỗi trạng thái của plan `draft`, ticket `planned` và spec `changed` hay `draft` mà chính nhánh này đổi so với điểm tách khỏi nhánh chính; mọi kiểm tra khác giữ nguyên. Tài liệu quy tắc, mẫu và command sửa theo danh sách ở mục Hệ quả của ADR-0048: duyệt cả đợt trong một PR, không bắt buộc họp, AI ghi trạng thái duyệt theo phần C, đường làm nhanh gộp nhánh chính trước khi kiểm. Kiểm chứng bằng test của `run-check.py` trong `scripts/tests/run.sh` (kho git tạm có hai commit) và `scripts/history-refs.py`.
 
@@ -45,12 +53,12 @@ ADR liên quan: ADR-0048 (nguồn của mọi thay đổi), ADR-0049 (với `sta
 - Với `--batch`:
   - Danh sách phải `status: draft`; khác thì một dòng `LỖI: --batch chỉ dùng cho danh sách draft (đang '<status>'); danh sách approved phải qua run-check.py không có --batch.`
   - Lấy tập file đổi: `git -C <ROOT> diff --name-only --relative <điểm so>...HEAD` (đường dẫn tính từ `ROOT`, kể cả khi `RUN_CHECK_ROOT` không phải gốc kho), `<điểm so>` là biến `RUN_CHECK_BASE` (dành cho test) hay mặc định `origin/main`. In một dòng `CHÚ Ý: (--batch) so với <điểm so> (<mã commit ngắn>).` File chỉ sửa trong thư mục làm việc, chưa commit, không có trong diff nên vẫn bị báo lỗi (hướng an toàn). Lệnh lỗi thì một dòng `LỖI: --batch không đọc được diff so với <điểm so> (<thông báo của git>); chạy git fetch origin rồi thử lại.` và không bỏ qua gì.
-  - Đường dẫn trong tập so với đường dẫn của plan, ticket, spec tính từ gốc repo (`docs/features/...`).
+  - Đường dẫn trong tập so với đường dẫn của plan, ticket, spec tính từ gốc repo (`docs/features/...`). Hai phía tính theo cùng một cách (cùng tương đối với `ROOT` chưa `resolve()`, hay cùng `resolve()`): trên macOS thư mục tạm nằm dưới một liên kết (`/var` tới `/private/var`), so lệch một phía thì test đỏ trên máy dev mà xanh trên CI.
 - Trong `check(run_path, batch_files=None)`: ba chỗ báo lỗi trạng thái (plan chưa `approved`, ticket chưa `approved`, `spec_problems` báo spec chưa `confirmed`) hỏi một hàm `waived(path, status, allowed)`: đúng khi `batch_files` không rỗng, `path` có trong đó và `status` thuộc `allowed` (plan: `{"draft"}`; ticket: `{"planned"}`; spec: `{"changed", "draft"}`). Đúng thì thêm cảnh báo `(--batch) bỏ qua trạng thái: <đường dẫn> đang '<status>', đổi trong nhánh này.` thay cho lỗi, mỗi file một dòng (spec dùng chung cho nhiều ticket chỉ một dòng). `spec_problems` nhận thêm tham số `waive_status` (mặc định `False`) để chỉ bỏ dòng lỗi trạng thái, các lỗi câu hỏi còn mở giữ nguyên. `scripts/plan-queue.py` gọi `spec_problems` với hai tham số như cũ, nên không đổi.
 - Không có `--batch`: đường đi y như hôm nay. Việc đọc tham số và diff nằm trong `main`, không ở cấp module, vì `scripts/plan-queue.py` nạp `run-check.py` khi import.
 - Chú thích đầu file thêm quy tắc 11 mô tả `--batch` và `RUN_CHECK_BASE`.
 
-**B. Tài liệu, mẫu và command.** Mỗi file sửa đúng những câu nêu dưới đây; câu nào còn nói họp như điều kiện, hay "chỉ dev (người) chuyển sang" trái phần C, viết lại theo ADR-0048. Không đổi tên mục nào.
+**B. Tài liệu, mẫu và command.** Mỗi file sửa đúng những câu nêu dưới đây; câu nào còn nói họp như điều kiện, hay "chỉ dev (người) chuyển sang" trái phần C, viết lại theo ADR-0048. Không đổi tên mục nào, trừ tiêu đề mục 4 của `docs/ops/token-usage.md` và tiêu đề mục đề xuất của `docs/templates/run.md` nêu dưới đây (không script hay workflow nào đọc hai tiêu đề này). Không chép mã ADR đã `superseded` từ phần Bối cảnh hay Quyết định của ADR-0048 vào tài liệu quy tắc; chỉ dẫn "ADR-0048, phần C" (`scripts/history-refs.py`).
 
 - `docs/README.md`:
   - bảng Ai tạo, ai xác nhận: dòng Phiên tự chạy bỏ "lập sau họp"; cột Ai xác nhận của spec, plan, danh sách thêm "(AI ghi theo lời đồng ý trong phiên, ADR-0048 phần C)";
@@ -70,7 +78,7 @@ ADR liên quan: ADR-0048 (nguồn của mọi thay đổi), ADR-0049 (với `sta
     - B5 và C: ghi spec `confirmed`, plan `approved`, `scripts/status.py --sync` cho ticket, danh sách `approved` trong một commit; ghi lời đồng ý nguyên văn ở mục 9 của plan, lịch sử của spec và dòng Duyệt ở mục Kiểm tra trước khi duyệt của danh sách; chạy `run-check.py` không có `--batch`, còn lỗi thì không đẩy; ngay trước `merge-if-green.sh`, `git fetch origin` và gộp `origin/main` trên máy (không đẩy), chạy lại `plan-check.py` và `run-check.py`, có lỗi mới thì báo người duyệt và không merge;
   - mục Khi làm nhanh có người theo dõi, ý "Trước khi gọi `merge-if-green.sh`": thêm `git fetch origin` và gộp `origin/main` trên máy, không đẩy, xung đột thì dừng và báo dev (ADR-0048, A7); nhắc không merge danh sách `start: auto` khi PR làm nhanh còn mở;
   - mục Khi xử lý phản hồi: "Plan sửa đi qua họp đánh giá rủi ro như plan mới" thành "được duyệt lại như plan mới";
-  - ý "Người duyệt hay dừng plan chạy `scripts/status.py --sync`" (mục Trạng thái): thêm "hoặc AI chạy khi ghi trạng thái theo lời đồng ý trong phiên (ADR-0048, B5)".
+  - ý "Người duyệt hay dừng plan chạy `scripts/status.py --sync`" (mục Trang tiến độ): thêm "hoặc AI chạy khi ghi trạng thái theo lời đồng ý trong phiên (ADR-0048, B5)".
 - `docs/risk-scoring.md`: dòng mở đầu bỏ "trước khi đưa vào họp đánh giá" (thành "trước khi đưa người duyệt"); cột Ghi chú của bảng mục 3: "Nêu ngắn khi duyệt", "Nêu trong tóm tắt duyệt, dev còn lại được quyền yêu cầu duyệt chéo"; câu đường làm nhanh bỏ "không cần họp" (không còn họp ở đâu), thêm một câu theo B6: người có quyền tự ghi trạng thái, hoặc AI ghi theo lời đồng ý trong phiên của người đó (ADR-0048, phần C), là đủ cho mọi mức; review hay bình luận trên GitHub không đủ để AI ghi; họp không bắt buộc; quy tắc duyệt chéo giữ nguyên.
 - `docs/auto-run.md`: mục 1 bước 1 bỏ "Sau họp đánh giá rủi ro", thêm "danh sách có thể đi cùng PR với các plan `draft` của đợt (`docs/CLAUDE.md`, mục Khi duyệt cả đợt)"; bước 2: dev duyệt, hoặc AI ghi `approved` theo lời đồng ý trong phiên của dev (ADR-0048, phần C); mục 4 (cuối phiên, dòng nhắc "mục Đề xuất cho buổi họp tiếp theo") đổi theo tiêu đề mới của mẫu danh sách, "mục Đề xuất cho đợt sau".
 - `docs/ops/pre-run-review.md`: đoạn mở đầu thêm rằng hai lớp kiểm tra chạy được trên bản `draft` của một đợt bằng `run-check.py --batch`; bảng mục 1 thêm dòng `--batch` (lỗi trạng thái bị bỏ qua thành chú ý, chỉ với file đổi trong nhánh; danh sách phải `draft`); mục xử lý điểm chặn ("plan `approved`" thì soạn phiên bản mới) thêm: plan `draft` của một đợt thì sửa ngay trong PR; câu "Dev chỉ chuyển danh sách sang `approved` khi `run-check.py` qua" theo phần C, và danh sách `approved` phải qua `run-check.py` không có `--batch`.
@@ -157,15 +165,17 @@ Mỗi ca đếm đúng dòng lỗi mong đợi và tổng số dòng `LỖI`, đ
 | Spec `draft` của feature mới | Test script | B1b: như B1, spec `draft`: mong `pass`. Spec có `status: confimred` (gõ sai) trong diff: mong `stop`, 1 dòng `LỖI` có `chưa confirmed`. Đỏ trước code |
 | Plan `draft` không đổi trong nhánh | Test script | B2: plan T-002 đã `draft` ở lần commit gốc; lần hai chỉ đổi ticket T-002 sang `planned`. Mong `stop`, đúng 1 dòng `LỖI`, có `plan đang 'draft', chưa approved`. Đỏ trước code (hôm nay trả lỗi khác vì `--batch`) |
 | Ticket `planned` không đổi trong nhánh | Test script | B2b: ticket T-002 đã `planned` ở commit gốc; lần hai đổi plan T-002 sang `draft`. Mong `stop`, đúng 1 dòng `LỖI`, có `ticket đang 'planned'`. Đỏ trước code |
-| Spec chưa xác nhận không đổi trong nhánh | Test script | B2c: spec đã `changed` ở commit gốc; lần hai đổi plan và ticket T-002. Mong `stop`, đúng 2 dòng `LỖI`, cả hai có `chưa confirmed` (lỗi spec báo theo từng ticket: T-001 và T-002). Đỏ trước code |
+| Spec chưa xác nhận không đổi trong nhánh | Test script | B2c: spec đã `changed` ở commit gốc; lần hai đổi plan và ticket T-002. Mong `stop`, đúng 1 dòng `LỖI`, có `chưa confirmed` (spec dùng chung báo một lần). Đỏ trước code |
 | Trạng thái khác điều kiện | Test script | B3: ticket T-002 đổi trong nhánh sang `ready` (plan `draft` đổi trong nhánh): mong `stop`, đúng 1 dòng `LỖI`, có `ticket đang 'ready'`. Plan đổi trong nhánh sang `stopped` (ticket `planned` đổi trong nhánh): mong `stop`, đúng 1 dòng `LỖI`, có `plan đang 'stopped'`. Đỏ trước code |
-| Spec còn câu hỏi chưa trả lời | Test script | B4: như B1 nhưng câu trả lời trống: mong `stop`, đúng 2 dòng `LỖI`, cả hai có `câu hỏi còn mở chưa có trả lời` (theo từng ticket), không có dòng `chưa confirmed`. Đỏ trước code |
+| Spec còn câu hỏi chưa trả lời | Test script | B4: như B1 nhưng câu trả lời trống: mong `stop`, đúng 1 dòng `LỖI`, có `câu hỏi còn mở chưa có trả lời` (spec dùng chung báo một lần), không có dòng `chưa confirmed`. Đỏ trước code |
 | Kiểm tra khác giữ nguyên | Test script | B5: như B1 nhưng ticket T-001 phụ thuộc T-002 đứng sau: mong `stop`, đúng 1 dòng `LỖI`, có `phụ thuộc T-002 đứng sau`. Đỏ trước code |
 | Danh sách không `draft` | Test script | B6: như B1, danh sách `approved`: mong `stop`, có `--batch chỉ dùng cho danh sách draft`. Đỏ trước code |
 | Không đọc được diff | Test script | B7: `RUN_CHECK_BASE=khong-co run_batch` (hàm giữ giá trị đặt sẵn): mong `stop`, có `--batch không đọc được diff`, và có dòng `plan đang 'draft'` (không bỏ qua gì). Đỏ trước code |
+| File chưa commit | Test script | B9: như B1, rồi đổi plan T-001 sang `draft` trong thư mục làm việc, không commit: mong `stop`, đúng 1 dòng `LỖI`, có `plan đang 'draft'` (T-001). Đỏ trước code |
+| So với điểm tách | Test script | B10: plan T-001 `draft` ngay từ commit gốc (đặt trước `batch_base`); `git branch dot`; trên `main` thêm một commit chỉ sửa một dòng chữ trong plan T-001 (vẫn `draft`); `checkout dot` (cây làm việc có plan T-001 `draft`), đổi plan T-002 sang `draft`, ticket T-002 sang `planned`, commit. Chạy trên `dot` với `RUN_CHECK_BASE=main`: mong `stop`, đúng 1 dòng `LỖI`, có `T-001: plan đang 'draft'` (file chỉ đổi trên nhánh chính sau điểm tách không được bỏ qua), đúng 2 dòng bỏ qua (plan và ticket T-002). Đỏ trước code |
 | Sai tham số | Test script | B8: `run-check.py --batch` không có đường dẫn: mã 2 (hôm nay 1, đỏ trước code). `run-check.py --batch a b`: mã 2 (hôm nay cũng 2, câu đối chứng) |
 | Không có `--batch` giữ nguyên | Test script | Toàn bộ câu khẳng định có sẵn của khối `run-check` (không sửa câu nào) |
-| Tài liệu đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các đoạn sửa ở mục 3.1 B; `grep -rn "họp\|chỉ dev\|Chỉ dev\|Chỉ người\|chỉ người" CLAUDE.md docs .claude/skills --include=*.md | grep -v "docs/adr/\|docs/features/\|docs/runs/\|docs/lessons.md\|docs/foundation.md"` chỉ còn chỗ nói họp như việc tùy chọn ("biên bản họp" của yêu cầu, họp bàn quảng cáo) và câu "chỉ người" không về trạng thái duyệt (yêu cầu `done`, bài học `accepted`, ticket chỉ người làm được). `scripts/history-refs.py` qua |
+| Tài liệu đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các đoạn sửa ở mục 3.1 B; `grep -rn "họp\|chỉ dev\|Chỉ dev\|Chỉ người\|chỉ người" CLAUDE.md docs .claude/skills --include=*.md | grep -v "docs/adr/\|docs/features/\|docs/runs/\|docs/lessons.md\|docs/foundation.md"` chỉ còn chỗ nói họp như việc tùy chọn ("biên bản họp" của yêu cầu, họp bàn quảng cáo) và câu "chỉ người" không về trạng thái duyệt (yêu cầu `done`, bài học `accepted`, ticket chỉ người làm được). Các câu "chỉ dev/người ghi `approved`, `reviewed`" của đề xuất app và app tham chiếu (`docs/CLAUDE.md` mục Khi khảo sát app mẫu, `docs/templates/app-proposal.md`, `docs/templates/reference-app.md`, `.claude/skills/clone-study/SKILL.md`) giữ nguyên: trạng thái đó ngoài phần C, theo ADR riêng của nó. `scripts/history-refs.py` qua |
 | Toàn bộ | Test script | `scripts/tests/run.sh` trên CI (`pr-check`, rồi `main-guard` sau merge) |
 
 **Ngoại lệ viết test trước:** tài liệu, mẫu và command ở mục 3.1 B: chỉ là chữ, kiểm bằng người đọc và `scripts/history-refs.py`.
@@ -208,6 +218,14 @@ Không cần (E dưới 2): đọc diff bằng `git diff` đã dùng ở `script
 ## 9. Quyết định duyệt
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0048). -->
+
+Phiên bản 2:
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, người duyệt giữ cả hai vai theo `docs/risk-scoring.md`)
+- **Ghi chú:** AI ghi theo lời anh Nhật, ngày 2026-11-13, trong phiên: "Duyệt plan T-105 phiên bản 2, duyệt danh sách RUN-20261113-01, bắt đầu phiên khi merge, merge #482". Trả lời mục 8 giữ như phiên bản 1.
+
+Phiên bản 1:
 
 - **Quyết định:** Duyệt
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, người duyệt giữ cả hai vai theo `docs/risk-scoring.md`)
