@@ -157,7 +157,7 @@ Sau mỗi lệnh `device`, trình chạy đọc màn hình tới khi hai lần d
 **Quảng cáo toàn màn hình.** Bước ngay sau một điểm có thể hiện quảng cáo toàn màn hình (kể cả sau `consent decline`, ý trên) không chờ thẳng màn đích, vì quảng cáo phủ lên và bước đó đỏ. Chờ nút đóng của quảng cáo hoặc màn đích, chạm nút đóng nếu thấy, rồi chờ lại màn đích, vì `tap_if` chạm xong là đi tiếp ngay:
 - Interstitial: `wait text="Close" | id=<màn đích> 20`, rồi `tap_if text="Close"`. Quảng cáo thử của AdMob vẽ nút đóng trong `WebView`: node chỉ có chữ `Close`, không có `resource-id`, nên không chọn bằng `id=` được.
 - Native toàn màn hình, kể cả native hiện ngay sau khi đóng interstitial (bản staging bật sẵn): `wait str=ads_close_full_screen | id=<màn đích> 20`, rồi `tap_if str=ads_close_full_screen`. Nút đóng chỉ hiện sau khi đếm ngược `time_close_native` xong, nên số giây chờ lớn hơn đếm ngược.
-- App open thử của AdMob: nút "Continue to app" có thể nằm ở chữ hay ở `content-desc`, nên chọn cả hai, `text="Continue to app" | desc="Continue to app"`, như `app/src/deviceScenarios/T-024-mo-app-tu-choi-dong-y.txt`.
+- App open thử của AdMob: nút "Continue to app" có thể nằm ở chữ hay ở `content-desc`, nên chọn cả hai, `text="Continue to app" | desc="Continue to app"`.
 - Cuối cùng `wait id=<màn đích> 15`.
 
 **Bảng của hệ thống.** Monkey chạy ngay trước các tệp kịch bản và có thể vuốt từ mép trên, để bảng thông báo hay cài đặt nhanh mở đè lên app; khi đó mọi lần dump chỉ có node của `com.android.systemui`. Màn hình khóa cũng chỉ có node của `com.android.systemui`: khi đó lệnh đóng bảng không có tác dụng, dòng `note` vẫn ghi, và tệp vẫn lỗi.
