@@ -22,6 +22,7 @@ Phiên tự chạy dừng hay merge sai thường vì những lỗi đã nằm s
 | Danh sách xếp ngược dòng "Đề xuất thứ tự chạy" ở mục 6 của một plan ("A trước B", "sau A", "nhóm ...: A, B, C", "A, rồi B"; không tính chữ trong ngoặc kép, "trước hay sau", câu "... thì ...", câu "không cần") | Lỗi |
 | Plan nhắc một file mà plan khác trong danh sách tạo, không có file đó ở mục 3.2 của mình và không phụ thuộc plan kia: lỗi khi đứng trước, chú ý (kèm file sẽ thiếu nếu plan kia dừng) khi đứng sau | Lỗi hoặc chú ý |
 | Plan có hàng ở bảng file của mục 3.2 cần một khả năng mà cách mở phiên (`open_with`) không có, theo `docs/ops/session-capabilities.md`: lỗi khi ô ghi `không`, chú ý khi ghi `thử` (phiên thử ở đầu phiên); `open_with` trống hay sai mà có plan cần khả năng: chú ý; mẫu của bảng viết sai: chú ý | Lỗi hoặc chú ý |
+| Trường `start` khác `auto`, `manual` hay trống; `start: auto` mà `open_with` trong file không phải `routine` (phiên tự bắt đầu chỉ kích hoạt được routine) | Lỗi |
 
 Muốn giữ thứ tự ngược với một đề xuất của plan (ví dụ hai task chỉ chung vài dòng), ghi vào danh sách chạy một dòng `Bỏ đề xuất thứ tự: A trước B` kèm lý do, trong mục Lý do của thứ tự chạy; lỗi khi đó thành chú ý. Lỗi phải sửa trước khi đưa danh sách cho dev. Mỗi dòng chú ý được xem ở lớp thứ hai và ghi kết luận.
 

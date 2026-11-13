@@ -7,6 +7,7 @@ max_tasks: <số task tối đa>      # dev quyết định theo ước tính; m
 staging_needed_by:           # tùy chọn: thời điểm muốn có bản staging, ví dụ 2026-10-21 08:00
 plan_queue: 2                # số plan soạn sẵn cuối phiên, 0 là tắt (auto-run.md, mục 4, bước 5); tăng lên 3 sau 2 phiên tốt
 open_with:                   # cloud | routine | local: cách mở phiên (docs/ops/session-capabilities.md); run-check.py quy tắc 8
+start: auto                  # auto: phiên tự bắt đầu khi danh sách approved lên nhánh chính (start-run.yml, cần open_with: routine); manual: dev bấm start-run
 started_at:
 finished_at:
 staging_build:               # phiên bản bản staging được phát cuối phiên

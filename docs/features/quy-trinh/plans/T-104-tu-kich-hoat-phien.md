@@ -1,7 +1,7 @@
 ---
 ticket: T-104
 title: Phiên tự bắt đầu khi danh sách chạy approved có start auto lên nhánh chính
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn 7, không tính điểm
 risk_level: high             # low | medium | high
@@ -229,4 +229,13 @@ Không cần (E dưới 2): trigger `push` có `paths` đã dùng ở `status-pa
 <!-- AI ghi khi task đã có kết quả cuối (đã merge hoặc đã dừng), trên nhánh báo cáo của phiên (auto-run.md, bước 10). Mục mới thêm vào cuối, không sửa mục cũ.
 Đường làm nhanh (ADR-0034): tiêu đề "Làm nhanh YYYY-MM-DD, phiên bản plan N", ghi trong lần đẩy cuối của PR, sau rà soát độc lập và trước CI; Kết quả ghi "merge bằng PR này", Kết quả CI ghi "CI của PR này", bỏ dòng Cần người xem sáng nay, ghi việc cần người kiểm. -->
 
-Chưa có.
+### Làm có người 2026-11-13, phiên bản plan 1
+
+- **Kết quả:** merge bằng PR này (ticket `auto_run: false`: AI làm cùng anh Nhật trên máy dev, một PR cho code, tài liệu và nhật ký).
+- **Nhánh, PR:** `claude/T-104-tu-kich-hoat-phien`, PR của chính nhật ký này.
+- **Đã làm:** `scripts/auto-start-check.py` (chọn danh sách của lần push, bốn kiểm tra chung chống mở hai phiên, `--force`, `--recheck`); `start-run.yml` (trigger `push`, ô `force`, job `pick`, `concurrency` mức job ở `check` và `fire`, chờ `main-guard` tối đa 20 phút khi tự chạy, `fire` mang tên `fire <danh sách>` và kiểm lại trước khi gọi API); quy tắc `start` của `run-check.py`; tài liệu theo mục 3.1 D.
+- **Test viết trước:** 31 câu khẳng định mới trong `scripts/tests/run.sh` (T1 tới T24, quy tắc `start`, cấu trúc workflow) và câu viết lại của mục 3.5 (`3 3 1`), commit 39cebe1 trước code; chạy trước code thì 29 câu đỏ vì chưa có script và workflow chưa đổi (câu về tên bước `Kích hoạt routine` và câu sai tham số qua sẵn: script chưa có cũng thoát mã 2). Sau rà soát thêm 3 câu (commit bdd0ca8), 2 câu đỏ trước khi sửa. Toàn bộ `scripts/tests/run.sh` trên máy dev: 1600 dòng `ok`, chỉ 6 test đỏ sẵn trên macOS như plan ghi (5 `pr-check: ... order check/filter`, 1 `wait-run: a draft PR`).
+- **Rà soát độc lập:** 0 chặn, 3 nên sửa, 9 ghi chú. Đã sửa cả 3: bước kiểm lại của `fire` đưa lý do vào tóm tắt và dòng lỗi; tài liệu thêm trường hợp lần chạy xanh mà `fire` bị bỏ qua và nhắc job `check`; T12 có ca `push`. Theo ghi chú, `auto-start-check.py` đọc `start`, `open_with` không phân biệt hoa thường như `run-check.py`, và `staging-and-runs.md` nhắc không chọn `force` khi lần chạy do push của cùng danh sách chưa xong. Ghi chú còn lại để người xem: `force` vẫn mở được phiên thứ hai nếu dev chọn khi lần chạy do push chưa xong; lần gọi API thất bại (thiếu bí mật, 401, 429) vẫn chặn 90 phút, vượt bằng `force`; một lần `resume-run` theo lịch có thể thay chỗ `fire` đang chờ thành `cancelled` (tài liệu đã nói bấm tay); vài test cấu trúc chỉ đếm chuỗi.
+- **Kết quả CI:** CI của PR này.
+- **Lệch so với plan:** (1) Script đọc file danh sách trên nhánh chính bằng header `Accept: application/vnd.github.raw` như `resume-check.py`, không giải base64. (2) Payload ghi dòng "Cách bắt đầu" cho cả lần bấm tay ("bấm tay"), không chỉ lần do push. (3) Hai lỗi của chính test mới sửa trước khi merge: một câu đọc stderr sau lần gọi khác; ba lệnh `grep -c` trong phép gán thiếu `|| true` làm `set -e` dừng bộ test.
+- **Việc còn lại:** kiểm tra thủ công của mục 4 sau merge (người): một danh sách thử `approved`, `start: auto`, một task nhỏ; thấy đúng một lần chạy `start-run` do push có `fire` xanh và một phiên; bấm tay ngay sau đó thì đỏ ở `pick`; lần merge PR báo cáo không mở phiên mới. Token của task chưa đánh dấu bằng `scripts/token-usage.py mark`.

@@ -106,7 +106,7 @@ Quy trình đầy đủ ở `docs/README.md` và `docs/auto-run.md`. Thứ tự 
 1. Viết yêu cầu (`docs/inbox/` hoặc `docs/features/<feature>/requests/`). AI sinh spec `draft`, người phụ trách sản phẩm trả lời câu hỏi và chuyển sang `confirmed`.
 2. AI sinh ticket và plan. Người duyệt trả lời câu hỏi ở mục 8 của plan, điền mục 9, chuyển plan và ticket sang `approved`. Plan rủi ro cao cần người duyệt chéo.
 3. AI lập danh sách chạy `docs/runs/RUN-YYYYMMDD-NN.md`. Dev chuyển sang `approved`, điền `approved_by`, merge.
-4. **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy. Phần tóm tắt của workflow có đường dẫn tới phiên.
+4. Danh sách ghi `start: auto` (mẫu mặc định, với `open_with: routine`): lần merge ở bước 3 tự bắt đầu phiên qua `start-run`; xem job `fire` xanh trong **Actions > start-run**. Danh sách `start: manual`, hay lần tự chạy không có hoặc đỏ: **Actions > start-run > Run workflow**, nhánh `main`, nhập đường dẫn danh sách chạy (`docs/ops/staging-and-runs.md`, mục 2.3). Phần tóm tắt của workflow có đường dẫn tới phiên.
 5. Trong lúc phiên chạy, không merge gì vào `main`.
 6. Sáng hôm sau, đọc báo cáo trong danh sách chạy (đã lên `main` qua PR báo cáo của phiên), xem ảnh chuẩn screenshot mới, làm các kiểm tra thủ công trên bản staging.
 7. Retro 15 phút: quyết định các bài học mới trong `docs/lessons.md`, nhờ AI làm các bài học được nhận thành PR cải tiến (`docs/auto-run.md`, mục 6).
