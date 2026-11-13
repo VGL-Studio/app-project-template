@@ -252,8 +252,9 @@ expect "start-run: main-guard step runs after the run-file checks and before the
 # job of its own: only that job may write issues (L-113). The checks never get a GitHub token in .git/config or env.
 expect "start-run: only close-setup-broken writes issues, between the checks and the routine" "yes 1 1 1" \
   "$(grep -qE '^  issues: read$' "$start_wf" && echo yes || echo no) $(grep -cE '^      issues: write$' "$start_wf") $(awk '/^  close-setup-broken:$/ { c = 1 } c && /^    needs: check$/ { n++ } END { print n + 0 }' "$start_wf") $(grep -cE '^    needs: \[check, close-setup-broken\]$' "$start_wf")"
-expect "start-run: the setup check runs without a GitHub token" "1 1" \
-  "$(grep -c 'persist-credentials: false' "$start_wf") $(grep -c 'env -u GH_TOKEN -u GITHUB_TOKEN scripts/setup-check.sh --staging' "$start_wf")"
+# Every checkout of start-run.yml (pick, check, fire) keeps the token out of .git/config (T-104, ADR-0031).
+expect "start-run: the setup check runs without a GitHub token" "3 3 1" \
+  "$(grep -c 'persist-credentials: false' "$start_wf") $(grep -c 'uses: actions/checkout' "$start_wf") $(grep -c 'env -u GH_TOKEN -u GITHUB_TOKEN scripts/setup-check.sh --staging' "$start_wf")"
 canary_wf=.github/workflows/env-canary.yml
 # env-canary.yml checks a red setup once more after 90 seconds, and setup_only runs the setup check without the routine.
 expect "env-canary: a red setup check is run again after 90 seconds, without a GitHub token" "1 2 1" \
@@ -4970,6 +4971,26 @@ write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 expect "run-check: a ready list passes" pass "$(run_check)"
 expect "run-check: a ready list has no warning" 0 "$(grep -c 'CHÚ Ý' "$work/run-check.out")"
+# The start field: auto or manual, and auto only with open_with routine in the file (T-104).
+rc_start() { # <start line> <open_with line>; the list with these front matter lines
+  write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+  python3 -I - "$rr/docs/runs/RUN-1.md" "$1" "$2" << 'PY'
+import sys
+p, start, open_with = sys.argv[1:]
+s = open(p).read().replace("status: draft\n", f"status: draft\n{start}\n{open_with}\n", 1)
+open(p, "w").write(s)
+PY
+}
+rc_start 'start: soon' 'open_with: routine'
+r1="$(run_check) $(grep -c 'start phải là auto hay manual' "$work/run-check.out")"
+rc_start 'start: auto' 'open_with: cloud'
+r1="$r1|$(run_check) $(grep -c 'chỉ kích hoạt được routine' "$work/run-check.out")"
+rc_start 'start: auto       # auto | manual' 'open_with: routine   # cloud | routine'
+r1="$r1|$(run_check) $(grep -c 'start' "$work/run-check.out")"
+rc_start 'start: auto' 'open_with: routine'
+expect "run-check: the start field is auto or manual, and auto needs open_with routine in the file" "stop 1|stop 1|pass 0|pass 0" \
+  "$r1|$(RUN_CHECK_OPEN_WITH=cloud run_check) $(grep -c 'start' "$work/run-check.out")"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 # The pre-run review table also sits in section 1 and names tickets; only the run table lists tasks.
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)\n\n### Kiểm tra trước khi duyệt\n\n| Mức | Ticket | Vấn đề | Xử lý |\n| --- | --- | --- | --- |\n| Chặn | T-002 | x | y |"
 expect "run-check: a review table naming a ticket is not a task" pass "$(run_check)"
@@ -7586,6 +7607,282 @@ wb.save(sys.argv[1])' "$work/ap-1.xlsx"
 else
   echo "skip - ads-plan: workbook tests need openpyxl (python3 -m pip install --user openpyxl)"
 fi
+
+# auto-start-check.py picks the run list a push to main just approved (start: auto, open_with: routine) and refuses
+# any start (push or by hand) while that list is no longer approved on main, has a report branch, another list runs,
+# or another fire job holds a session (T-104, ADR-0049). Fixed time 2026-12-01 10:00 UTC; this run is 999.
+asc_root="$(pwd)"
+ar="$work/asc-repo"
+cat > "$work/asc-fixture.py" << 'PY'
+# Builds the fixture of one auto-start-check run from key=value arguments.
+import json, sys
+o = {"main": "approved", "own": "none", "other": "none", "page2": "", "brerr": "", "runs": "none", "runs_err": "",
+     "job_status": "completed", "job_concl": "success", "step": "success", "done": "09:30",
+     "name": "fire docs/runs/RUN-20261130-09.md", "attempt": "1", "run_id": "500", "listed": "yes",
+     "prev_main": "approved", "prev_report": "none"}
+for arg in sys.argv[2:]:
+    key, value = arg.split("=", 1)
+    o[key] = value
+text = lambda status, rid: f"---\nid: {rid}\nstatus: {status}             # draft | approved\nopen_with: routine\nstart: auto\n---\n"
+R, OTHER, PREV = "RUN-20261201-01", "RUN-20261130-01", "RUN-20261130-09"
+routes, errors = {}, {}
+if o["main"] == "error":
+    errors[f"contents/docs/runs/{R}.md?ref=main"] = "HTTP 500: Server Error"
+elif o["main"] != "none":
+    routes[f"contents/docs/runs/{R}.md?ref=main"] = text(o["main"], R)
+branches = [{"name": "main"}, {"name": "claude/T-099-other"}]
+if o["own"] == "error":
+    errors[f"branches/claude%2F{R}-report"] = "HTTP 500: Server Error"
+elif o["own"] != "none":
+    routes[f"branches/claude%2F{R}-report"] = {"name": f"claude/{R}-report"}
+    routes[f"contents/docs/runs/{R}.md?ref=claude/{R}-report"] = text(o["own"], R)
+    branches.append({"name": f"claude/{R}-report"})
+if o["other"] != "none":
+    branches.append({"name": f"claude/{OTHER}-report"})
+    routes[f"contents/docs/runs/{OTHER}.md?ref=claude/{OTHER}-report"] = text(o["other"], OTHER)
+if o["page2"]:
+    routes["branches?per_page=100&page=1"] = [{"name": f"claude/T-{n:03d}-x"} for n in range(100)]
+    routes["branches?per_page=100&page=2"] = [{"name": f"claude/{OTHER}-report"}]
+    routes[f"contents/docs/runs/{OTHER}.md?ref=claude/{OTHER}-report"] = text("running", OTHER)
+else:
+    routes["branches?per_page=100&page=1"] = branches
+if o["brerr"]:
+    errors["branches?per_page=100&page=1"] = "HTTP 502: Bad Gateway"
+runs_route = "actions/workflows/start-run.yml/runs?per_page=20"
+if o["runs_err"]:
+    errors[runs_route] = "HTTP 502: Bad Gateway"
+elif o["runs"] == "none":
+    routes[runs_route] = {"workflow_runs": []}
+else:
+    run_id = int(o["run_id"])
+    routes[runs_route] = {"workflow_runs": [{"id": run_id}] if o["listed"] == "yes" else []}
+    done = o["job_status"] == "completed"
+    routes[f"actions/runs/{run_id}/jobs?filter=all&per_page=50"] = {"jobs": [{
+        "name": o["name"], "status": o["job_status"], "run_attempt": int(o["attempt"]),
+        "conclusion": o["job_concl"] if done else None,
+        "completed_at": f"2026-12-01T{o['done']}:00Z" if done else None,
+        "steps": [{"name": "Kích hoạt routine", "status": "completed" if done else "queued",
+                   "conclusion": None if o["step"] == "none" else o["step"]}]}]}
+    if o["prev_main"] != "none":
+        routes[f"contents/docs/runs/{PREV}.md?ref=main"] = text(o["prev_main"], PREV)
+    if o["prev_report"] != "none":
+        routes[f"branches/claude%2F{PREV}-report"] = {"name": f"claude/{PREV}-report"}
+json.dump({"routes": routes, "errors": errors}, open(sys.argv[1], "w"))
+PY
+asc_git() { git -C "$ar" "$@"; }
+asc_new() { rm -rf "$ar"; mkdir -p "$ar/docs/runs"; asc_git init -q -b main; }
+asc_list() { # <id> <status> <start or -> <open_with> [extra line]
+  {
+    printf -- '---\nid: %s\nstatus: %s             # draft | approved | running | finished\n' "$1" "$2"
+    printf -- 'open_with: %s             # cloud | routine | local\n' "$4"
+    [ "$3" = "-" ] || printf -- 'start: %s                  # auto | manual\n' "$3"
+    printf -- '---\n\n# PHIÊN %s\n%s\n' "$1" "${5:-}"
+  } > "$ar/docs/runs/$1.md"
+}
+asc_commit() { asc_git add -A; asc_git commit -q --allow-empty -m "$1"; asc_git rev-parse HEAD; }
+asc() { # <args...>; prints "<exit code>|<stdout>", stderr in $work/asc.err; fixture from asc_fx
+  local code=0 out
+  out="$(cd "$ar" && PATH="$work/bin:$PATH" FIXTURE="$work/asc.json" GITHUB_REPOSITORY=o/r GITHUB_RUN_ID=999 \
+    GITHUB_RUN_ATTEMPT="${ASC_ATTEMPT:-1}" AUTO_START_NOW=2026-12-01T10:00:00Z \
+    python3 -I "$asc_root/scripts/auto-start-check.py" "$@" 2> "$work/asc.err")" || code=$?
+  echo "$code|$out"
+}
+asc_fx() { rm -f "$work/asc.json.seen" "$work/asc.json.writes"; python3 -I "$work/asc-fixture.py" "$work/asc.json" "$@"; }
+asc_err() { grep -c -- "$1" "$work/asc.err" || true; }
+L1=docs/runs/RUN-20261201-01.md
+
+# T1: draft in A, approved with start auto in B.
+asc_new
+echo readme > "$ar/docs/runs/README.md"
+asc_list RUN-20261201-01 draft auto routine
+A="$(asc_commit a)"
+asc_list RUN-20261201-01 approved auto routine
+B="$(asc_commit b)"
+asc_fx
+expect "auto-start-check: a run list approved by this push with start auto is picked" "0|$L1" "$(asc push --before "$A" --after "$B")"
+# T3: approved before and after (a later push changes a line): not again.
+asc_list RUN-20261201-01 approved auto routine "Sửa chữ."
+C="$(asc_commit c)"
+expect "auto-start-check: a later push to an approved list does not start it again" "0| 1" \
+  "$(asc push --before "$B" --after "$C") $(asc_err 'đã approved trước lần push này')"
+# T4: start manual, or no start field.
+asc_list RUN-20261201-01 approved manual routine
+D="$(asc_commit d)"
+r1="$(asc push --before "$A" --after "$D") $(asc_err 'start là manual')"
+asc_list RUN-20261201-01 approved - routine
+E="$(asc_commit e)"
+expect "auto-start-check: start manual or no start field is not started" "0| 1|0| 1" \
+  "$r1|$(asc push --before "$A" --after "$E") $(asc_err 'không ghi start')"
+# T5: open_with other than routine.
+asc_list RUN-20261201-01 approved auto cloud
+F="$(asc_commit f)"
+expect "auto-start-check: open_with other than routine is not started" "0| 1" \
+  "$(asc push --before "$A" --after "$F") $(asc_err 'open_with')"
+
+# T2: a new file that is approved at once.
+asc_new
+echo readme > "$ar/docs/runs/README.md"
+A="$(asc_commit a)"
+asc_list RUN-20261201-01 approved auto routine
+B="$(asc_commit b)"
+asc_fx
+expect "auto-start-check: a new approved run list is picked" "0|$L1" "$(asc push --before "$A" --after "$B")"
+# T6: the list already has a report branch.
+asc_fx own=finished
+r1="$(asc push --before "$A" --after "$B")|$(asc dispatch "$L1")|$(asc dispatch "$L1" --force)"
+expect "auto-start-check: a list with a report branch is refused, even with force" "3||3||3| 1" "$r1 $(asc_err 'đã có nhánh báo cáo')"
+asc_fx own=running
+expect "auto-start-check: reopening a running session needs force" "3||0|$L1" "$(asc dispatch "$L1")|$(asc dispatch "$L1" --force)"
+# T7: another list is running.
+asc_fx other=running
+r1="$(asc push --before "$A" --after "$B")|$(asc dispatch "$L1")|$(asc dispatch "$L1" --force)"
+expect "auto-start-check: another running session refuses every start" "3||3||3| 1" "$r1 $(asc_err 'Đang có phiên RUN-20261130-01 chạy')"
+asc_fx other=finished
+expect "auto-start-check: a finished report branch of another list does not refuse" "0|$L1" "$(asc dispatch "$L1")"
+# T8: the running report branch is on page 2 of the branches.
+asc_fx page2=yes
+expect "auto-start-check: a running report branch on page 2 refuses" "3|" "$(asc dispatch "$L1")"
+# T13: GitHub errors.
+asc_fx own=error
+r1="$(asc dispatch "$L1")"
+asc_fx brerr=yes
+r1="$r1|$(asc dispatch "$L1")"
+asc_fx runs_err=yes
+expect "auto-start-check: a GitHub read error is exit 1" "1||1||1|" "$r1|$(asc dispatch "$L1")"
+
+# T9: no usable commit before the push.
+asc_new
+asc_list RUN-20261201-01 draft auto routine
+A="$(asc_commit a)"
+asc_list RUN-20261201-01 approved auto routine
+B="$(asc_commit b)"
+asc_fx
+expect "auto-start-check: a zero or unknown before falls back to the first parent" "0|$L1|0|$L1" \
+  "$(asc push --before 0000000000000000000000000000000000000000 --after "$B")|$(asc push --before 1234567890abcdef1234567890abcdef12345678 --after "$B")"
+asc_new
+asc_list RUN-20261201-01 approved auto routine
+A="$(asc_commit a)"
+asc_list RUN-20261201-01 approved auto routine "Sửa."
+B="$(asc_commit b)"
+expect "auto-start-check: a parent that is already approved falls back to nothing" "0|" \
+  "$(asc push --before 0000000000000000000000000000000000000000 --after "$B")"
+asc_new
+asc_list RUN-20261201-01 approved auto routine
+A="$(asc_commit a)"
+expect "auto-start-check: a first commit without parent picks nothing" "0| 1" \
+  "$(asc push --before 0000000000000000000000000000000000000000 --after "$A") $(asc_err 'không có commit trước')"
+
+# T10: two lists approved by one push: the smaller id; the other is named.
+asc_new
+echo readme > "$ar/docs/runs/README.md"
+A="$(asc_commit a)"
+asc_list RUN-20261201-02 approved auto routine
+asc_list RUN-20261201-01 approved auto routine
+B="$(asc_commit b)"
+asc_fx
+expect "auto-start-check: two approved lists pick the smaller id and name the other" "0|$L1 1" \
+  "$(asc push --before "$A" --after "$B") $(asc_err 'RUN-20261201-02')"
+
+# T11: files that are not run lists, a deleted list, renamed lists.
+asc_new
+echo readme > "$ar/docs/runs/README.md"
+asc_list RUN-20261130-05 draft auto routine "$(printf 'dòng %s\n' 1 2 3 4 5 6 7 8)"
+asc_list RUN-20261130-06 approved auto routine "$(printf 'dòng %s\n' 1 2 3 4 5 6 7 8)"
+asc_list RUN-20261130-07 approved auto routine
+A="$(asc_commit a)"
+echo readme2 > "$ar/docs/runs/README.md"
+mkdir -p "$ar/docs/runs/patches"; echo x > "$ar/docs/runs/patches/x.md"
+B="$(asc_commit b)"
+rm "$ar/docs/runs/RUN-20261130-07.md"
+C="$(asc_commit c)"
+r1="$(asc push --before "$A" --after "$B")|$(asc push --before "$B" --after "$C")"
+asc_git mv docs/runs/RUN-20261130-05.md docs/runs/RUN-20261201-01.md
+sed -i.bak 's/^status: draft/status: approved/' "$ar/docs/runs/RUN-20261201-01.md"; rm -f "$ar/docs/runs/"*.bak
+D="$(asc_commit d)"
+r1="$r1|$(asc push --before "$C" --after "$D")"
+asc_git mv docs/runs/RUN-20261130-06.md docs/runs/RUN-20261201-02.md
+E="$(asc_commit e)"
+expect "auto-start-check: other files, a deleted list and a renamed approved list pick nothing; a renamed draft is picked" \
+  "0||0||0|$L1|0|" "$r1|$(asc push --before "$D" --after "$E")"
+
+# T12, T22, T23: another fire job holds a session. Run 500 fired RUN-20261130-09 at 09:30.
+asc_fx runs=500
+r1="$(asc dispatch "$L1")|$(asc dispatch "$L1" --force)"
+expect "auto-start-check: a fire job that called the API 30 minutes ago refuses, force passes" "3||0|$L1 1" "$r1 $(asc_err 'vừa kích hoạt một phiên')"
+asc_fx runs=500 job_status=in_progress
+r1="$(asc dispatch "$L1")"
+asc_fx runs=500 done=08:00
+r1="$r1|$(asc dispatch "$L1")"
+asc_fx runs=500 job_concl=skipped step=none
+expect "auto-start-check: a fire job in progress refuses; one older than 90 minutes or skipped does not" "3||0|$L1|0|$L1" \
+  "$r1|$(asc dispatch "$L1")"
+r1=""
+for state in queued waiting requested; do
+  asc_fx runs=500 job_status="$state"
+  r1="$r1$(asc dispatch "$L1")/$(asc dispatch "$L1" --recheck);"
+done
+asc_fx runs=500 job_status=queued name=fire
+expect "auto-start-check: a waiting fire job naming a list refuses except in the recheck; one without a list does not" \
+  "3|/0|$L1;3|/0|$L1;3|/0|$L1;|0|$L1" "$r1|$(asc dispatch "$L1")"
+asc_fx runs=999 run_id=999 job_status=in_progress
+r1="$(asc dispatch "$L1" --recheck)"
+asc_fx runs=999 run_id=999 attempt=1 listed=no
+expect "auto-start-check: this run does not refuse itself; a re-run after a fire refuses" "0|$L1|3|" \
+  "$r1|$(ASC_ATTEMPT=2 asc dispatch "$L1" --recheck)"
+asc_fx runs=500 job_concl=failure step=failure
+r1="$(asc dispatch "$L1")"
+asc_fx runs=500 job_concl=cancelled step=cancelled
+r1="$r1|$(asc dispatch "$L1")"
+asc_fx runs=500 job_concl=failure step=skipped
+expect "auto-start-check: a fire job red or cancelled after the API step refuses; red before it does not" "3||3||0|$L1" \
+  "$r1|$(asc dispatch "$L1")"
+asc_fx runs=500 prev_report=finished
+r1="$(asc dispatch "$L1")"
+asc_fx runs=500 prev_main=finished
+r1="$r1|$(asc dispatch "$L1")"
+asc_fx runs=500 name=fire
+expect "auto-start-check: a session that started or finished does not hold the next list; an unnamed fire does" \
+  "0|$L1|0|$L1|3|" "$r1|$(asc dispatch "$L1")"
+
+# T24: the list is no longer approved on main (a re-run of an old push run).
+asc_new
+asc_list RUN-20261201-01 draft auto routine
+A="$(asc_commit a)"
+asc_list RUN-20261201-01 approved auto routine
+B="$(asc_commit b)"
+asc_fx main=finished
+r1="$(asc push --before "$A" --after "$B")|$(asc dispatch "$L1" --force) $(asc_err 'không còn approved trên nhánh chính')"
+asc_fx main=none
+r1="$r1|$(asc dispatch "$L1")"
+asc_fx main=error
+expect "auto-start-check: a list no longer approved on main is refused, even with force" "3||3| 1|3||1|" \
+  "$r1|$(asc dispatch "$L1")"
+
+# T14: wrong arguments.
+asc_fx
+expect "auto-start-check: wrong arguments are exit 2" "2||2||2||2|" \
+  "$(asc push --before "$A")|$(asc dispatch docs/runs/../x.md)|$(asc dispatch "$L1"$'\n')|$(asc dispatch 'docs/runs/RUN-٢٠٢٦١٢٠١-01.md')"
+
+# T16 to T21: the structure of start-run.yml.
+sr=.github/workflows/start-run.yml
+expect "start-run: runs on a push to main that changes a run list" "1 1 1 1 1" \
+  "$(grep -cE '^  push:$' "$sr") $(grep -cF "    branches: [main]" "$sr") $(grep -cF "    paths: ['docs/runs/RUN-*.md']" "$sr") $(grep -cE '^      run_file:$' "$sr") $(awk '/^      force:$/ { f = 1; next } f && /type: boolean/ { t = 1 } f && /default: false/ { d = 1 } f && /^      [a-z_]+:$/ { f = 0 } END { print (t && d) ? 1 : 0 }' "$sr")"
+pick_job="$(wf_job "$sr" pick)"
+check_job="$(wf_job "$sr" check)"
+fire_job="$(wf_job "$sr" fire)"
+expect "start-run: pick chooses the list, event values only through env" "1 1 0 1 1 1" \
+  "$(grep -cF 'scripts/auto-start-check.py push --before "${BEFORE}"' <<<"$pick_job") $(grep -cF 'scripts/auto-start-check.py dispatch "${RUN_FILE_INPUT}"' <<<"$pick_job") $(grep -E '\$\{\{ (github\.event\.before|inputs\.run_file|inputs\.force) \}\}' "$sr" | grep -cvE '^ +[A-Z_]+: \$\{\{ (github\.event\.before|inputs\.run_file|inputs\.force) \}\}$' || true) $(grep -cE '^    needs: pick$' <<<"$check_job") $(grep -cF "if: needs.pick.outputs.run_file != ''" <<<"$check_job") $(grep -cF 'needs.check.outputs.run_file' <<<"$fire_job" | sed 's/^[1-9][0-9]*$/1/')"
+expect "start-run: permissions and queue of the jobs" "0 1 1 0 1 1 0" \
+  "$(grep -cE '^    (permissions|concurrency):' <<<"$pick_job") $(grep -cE '^      contents: read$' <<<"$fire_job") $(grep -cE '^      actions: write$' <<<"$fire_job") $(grep -cE '^      actions: read$' <<<"$fire_job") $(grep -cF 'group: start-run' <<<"$check_job") $(grep -cF 'group: start-run' <<<"$fire_job") $(grep -cE '^concurrency:' "$sr")"
+expect "start-run: the main-guard step waits for a running main-guard on a push" "1 1 1 1 1 1 0" \
+  "$(grep -cF 'GITHUB_ACTIONS= scripts/main-guard-status.sh "${GITHUB_SHA}" || code=$?' <<<"$check_job") $(grep -cF 'seq 1 20' <<<"$check_job") $(grep -cE '^ +code=0$' <<<"$check_job") $(grep -cF '"${EVENT}" = "push"' <<<"$check_job") $(grep -cE '^    timeout-minutes: 30$' <<<"$check_job") $(grep -cF 'sleep 60' <<<"$check_job") $(grep -c 'continue-on-error' "$sr")"
+expect "start-run: fire checks again before enabling the schedules and calling the API" "yes 1 1" \
+  "$(awk '/auto-start-check.py dispatch "\$\{RUN_FILE\}" --recheck/ && !k { k = NR } /name: Bật lịch của phiên/ { b = NR } /curl / && !c { c = NR }
+     END { print ((k && b && c && k < b && k < c) ? "yes" : "no") }' <<<"$fire_job") $(grep -cF 'name: fire ${{ needs.check.outputs.run_file }}' <<<"$fire_job") $(grep -cF '"${FORCE}" = "true"' <<<"$fire_job" | sed 's/^[1-9][0-9]*$/1/')"
+expect "start-run: the API call stays in the step named Kích hoạt routine" "yes" \
+  "$(awk '/^      - name: / { s = $0 } /curl / && !c { c = 1; print (s ~ /Kích hoạt routine$/) ? "yes" : "no" }' <<<"$fire_job")"
+expect "start-run: pick fails with the reason when the list is refused" "1 1 1" \
+  "$(grep -cE '^ +3\)' <<<"$pick_job") $(grep -cF '::error::' <<<"$pick_job" | sed 's/^[1-9][0-9]*$/1/') $(grep -cE '^ +exit 1$' <<<"$pick_job" | sed 's/^[1-9][0-9]*$/1/')"
 
 # An app's own script tests (scripts/tests/app.sh in the app; the template has none) run in this same shell, so they
 # use expect, $work and the fakes above, and count in the same total (docs/ops/to-app.md, section 6).
