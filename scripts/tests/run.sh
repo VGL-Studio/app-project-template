@@ -5297,6 +5297,10 @@ write_pq_manual T-940 ''
 write_pq_ticket T-937 backlog '' '' T-940 '' ''
 write_pq_ticket T-938 backlog '' '' T-940 '' ''
 write_pq_ticket T-939 backlog '' '' 'T-937, T-938' '' ''
+write_pq_ticket T-941 backlog '' '' 'T-942, T-943' '' ''
+write_pq_ticket T-942 backlog '' '' T-943 '' ''
+write_pq_ticket T-943 backlog '' '' T-941 '' ''
+write_pq_ticket T-944 backlog '' '' T-941 '' ''
 touch "$pq/README"
 pq_git init -q -b main
 pq_git add -A
@@ -5345,13 +5349,15 @@ expect "plan-queue: a root behind another root is named with both tickets" 1 \
   "$(pq_err '^Đang chặn hàng chờ: T-931 chặn 2 ticket (T-932, T-933): ticket ghi auto_run: false')"
 expect "plan-queue: the nearer root is named too" 1 "$(pq_err '^Đang chặn hàng chờ: T-932 chặn 1 ticket (T-933): ')"
 expect "plan-queue: a dependency cycle is named" 1 \
-  "$(pq_err '^Đang chặn hàng chờ: chu trình T-934 -> T-935 -> T-934 chặn 2 ticket (T-934, T-935): ')"
+  "$(pq_err '^Đang chặn hàng chờ: chu trình T-934, T-935 chặn 2 ticket (T-934, T-935): ')"
+expect "plan-queue: overlapping cycles are one line with every ticket behind them" "1 2" \
+  "$(pq_err '^Đang chặn hàng chờ: chu trình T-941, T-942, T-943 chặn 4 ticket (T-941, T-942, T-943, T-944): ') $(pq_err '^Đang chặn hàng chờ: chu trình')"
 expect "plan-queue: a plan in an open PR is named as a blocker" 1 \
   "$(pq_err '^Đang chặn hàng chờ: T-920 chặn 1 ticket (T-936): đang có PR mở #77')"
 expect "plan-queue: a ticket reached twice is counted once" 1 \
   "$(pq_err '^Đang chặn hàng chờ: T-940 chặn 3 ticket (T-937, T-938, T-939): ')"
-expect "plan-queue: the blocker that holds most tickets comes first" "T-940" \
-  "$(grep '^Đang chặn hàng chờ:' "$work/pq.err" | head -1 | sed 's/^Đang chặn hàng chờ: \(T-[0-9]*\).*/\1/')"
+expect "plan-queue: the blockers that hold most tickets come first" "chu trình T-941, T-942, T-943|T-940|T-926" \
+  "$(grep '^Đang chặn hàng chờ:' "$work/pq.err" | head -3 | sed 's/^Đang chặn hàng chờ: \(.*\) chặn [0-9]* ticket.*/\1/' | paste -sd '|' -)"
 expect "plan-queue: a queued dependency is not a blocker" 0 "$(pq_err '^Đang chặn hàng chờ: T-903 ')"
 expect "plan-queue: a missing dependency is not named as a blocker" 0 "$(pq_err '^Đang chặn hàng chờ: T-999 ')"
 expect "plan-queue: a ticket with a plan branch is skipped" 1 "$(pq_err 'T-919: bỏ qua.*đang có plan trên nhánh origin/claude/plan-T-919-x')"

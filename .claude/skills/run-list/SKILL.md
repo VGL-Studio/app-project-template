@@ -12,7 +12,7 @@ Tham số: `$ARGUMENTS` (tùy chọn: các ticket muốn đưa vào; mặc đị
 2. Kiểm không có phiên đang chạy (nhánh `claude/RUN-*-report` có `status: running`) và không có issue `main-broken`, `env-broken` đang mở. `env-broken` nói về môi trường cloud: danh sách `open_with: local` vẫn lập được, ghi issue vào mục Lý do.
 3. Gom plan `approved` chưa chạy của mọi dev, mỗi plan qua `python3 scripts/plan-check.py <plan>`. Sắp: task độc lập trước, chuỗi phụ thuộc sau cùng.
 4. Ghi `open_with:` và đối chiếu khả năng của cách mở. Plan sửa `.github/workflows/` thì nhắc `scripts/push-probe.sh` ở đầu phiên.
-5. Chạy `python3 scripts/plan-queue.py --max <plan_queue>` để điền `plan_queue` (không chọn ticket nào thì đề xuất `0`); chép các dòng `Đang chặn hàng chờ:` vào mục Lý do của thứ tự chạy.
+5. Chạy `git fetch origin` rồi `python3 scripts/plan-queue.py --max 2` (hay giá trị `plan_queue` định đặt). Không chọn ticket nào thì đề xuất `plan_queue: 0`. Luôn chép các dòng `Đang chặn hàng chờ:` vào mục Lý do của thứ tự chạy.
 6. Mục Lý do của thứ tự chạy: tổng `token_estimate` so với vài phiên gần nhất (`docs/metrics/token-usage.csv`), thời gian dự kiến, plan để phiên sau và lý do.
 7. Chạy `python3 scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md`, sửa hết lỗi.
 8. Giao một agent con ngữ cảnh mới, chỉ đọc, rà soát theo mục 2 của `docs/ops/pre-run-review.md`. Lời giao gồm đường dẫn danh sách chạy, kết quả `run-check.py`, các plan, ticket, spec, thiết kế, ADR liên quan và các file trong mục 3.2 của mỗi plan, cùng nội dung giao việc tối thiểu của mục 2 (trả bảng theo mục 3, trả lời mục 2.3 cho từng plan). Không đưa quá trình viết plan hay kết luận của mình. Ghi kết quả vào mục Kiểm tra trước khi duyệt.
