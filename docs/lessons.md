@@ -1329,5 +1329,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `scripts/release.sh` chỉ đòi `appsFlyerDevKey` khi một file `*.gradle.kts` khai báo SDK AppsFlyer, nhưng khối test `release.sh` của `scripts/tests/run.sh` luôn đi nhánh có SDK. Ở app không có SDK, hai câu "release.sh refuses: ... AppsFlyer dev key" đỏ (`release.sh` đúng khi không đòi khóa), hợp đồng "build đọc mọi thuộc tính release.sh truyền" đỏ khi build của app không đọc khóa, và dòng đọc thuộc tính bắt buộc gắn `ADR-0027` không tìm thấy gì làm `run.sh` dừng trước phần `--check-only`. Mẫu có SDK nên không thấy.
 - **Bằng chứng:** issue #470; `scripts/tests/run.sh` trên nhánh chính `698c5b3`, khối test `release.sh`.
 - **Đề xuất sửa:** khối test rẽ theo SDK bằng đúng biểu thức của `release.sh` (biến `repo_has_appsflyer`): có SDK thì giữ như cũ; không có thì bản sao các file build của repo qua bước kiểm thư mục mà không cần khóa, hai câu từ chối khóa chạy trên bản sao đó thêm một module khai `libs.appsflyer`, hợp đồng bỏ `appsFlyerDevKey` và số thuộc tính bắt buộc là 3.
+
+### L-172. Kịch bản emulator chờ thẳng màn đích sau điểm hiện quảng cáo toàn màn hình, và nút đóng của quảng cáo không có `resource-id`
+
+- **Ngày, nguồn:** 2026-11-12, camera-pose (issue #471; PR VGL-Studio/camera-pose#305, commit `b761c166`)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** ở app, ba kịch bản emulator chờ thẳng màn đích sau khi bấm một nút có interstitial; interstitial phủ lên nên kịch bản đỏ ở bước chờ màn đích, trong cả `device-session` và `ui-test`. Khi viết lại để đóng quảng cáo, người viết thử chọn nút đóng bằng `id=` mà không được: quảng cáo thử của AdMob vẽ nút đóng trong `WebView`, node chỉ có chữ `Close`. `docs/ops/test-sessions.md` mục 5 đã nói kịch bản sau `consent decline` vẫn gặp quảng cáo, nhưng chưa nói viết bước chờ thế nào.
+- **Bằng chứng:** issue #471; phản hồi FB-20261031-01 của app; ba kịch bản viết lại qua ở `device-session` cuối phiên RUN-20261109-01 của app.
+- **Đề xuất sửa:** `docs/ops/test-sessions.md` mục 5, một ý mới sau ý "Từ chối đồng ý không tắt quảng cáo": bước ngay sau một điểm có thể hiện quảng cáo toàn màn hình chờ nút đóng hoặc màn đích, chạm nút đóng nếu thấy, rồi chờ lại màn đích. Interstitial thử của AdMob: `text="Close"`, không có `resource-id`. Native toàn màn hình của `:core:ads` (cả combo sau interstitial mà staging bật sẵn): `str=ads_close_full_screen`, chỉ hiện sau đếm ngược `time_close_native`; sau nút có interstitial thì cặp interstitial rồi cặp native. App open thử: chọn cả `text=` lẫn `desc=` của "Continue to app", như kịch bản có sẵn của mẫu.
 - **Trạng thái:** accepted (AI ghi theo lời anh Nhật ngày 2026-11-12: "Nhận #470 và #471, làm hai PR")
 - **Áp dụng:** chưa.
