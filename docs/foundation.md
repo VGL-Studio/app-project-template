@@ -326,7 +326,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
-### [ADR-0048](adr/0048-duyet-plan-va-danh-sach-chay-mot-lan.md): Đường làm nhanh giữ như cũ; plan và danh sách chạy của một đợt được duyệt một lần trong một PR, không cần họp; AI chỉ ghi trạng thái duyệt theo lời đồng ý rõ ràng của dev, ở một quy tắc chung
+### [ADR-0048](adr/0048-duyet-plan-va-danh-sach-chay-mot-lan.md): Đường làm nhanh giữ, thêm bước gộp nhánh chính; plan và danh sách chạy của một đợt được duyệt một lần trong một PR, không cần họp; AI chỉ ghi trạng thái duyệt theo lời đồng ý rõ ràng của dev, ở một quy tắc chung
 
 - đường làm nhanh chỉ cho code app, chỉ khi dev ngồi cùng suốt task tới khi `main-guard` xanh, plan không chạm điểm chặn nào kể cả điểm 7, không thêm quyền, thư viện hay SDK, mức rủi ro Thấp và tiêu chí E dưới 2, ticket cỡ S hoặc M khi dev đồng ý, kịch bản có trong spec `confirmed` hoặc dev ngồi cùng là người xác nhận spec của feature
 - không bắt đầu khi có phiên tự chạy đang chạy hay issue `main-broken`, `env-broken` đang mở
@@ -349,10 +349,10 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - lời duyệt chỉ có hiệu lực với plan và spec mà người nói có quyền duyệt
 - duyệt một phần thì bỏ đúng các plan chưa duyệt khỏi danh sách, chuyển chúng cùng ticket và spec chưa duyệt về PR riêng, chạy lại `run-check.py --batch`, và hỏi lại khi danh sách phải đổi thêm hay có lỗi mới
 - sau lời duyệt ghi spec, plan, ticket và danh sách trong một commit rồi chạy `run-check.py` không có `--batch`, còn lỗi thì không đẩy
-- trước khi merge gộp nhánh chính rồi chạy lại `plan-check.py` và `run-check.py`, có lỗi mới thì báo người duyệt và không merge
+- trước khi merge gộp nhánh chính trên máy (không đẩy) rồi chạy lại `plan-check.py` và `run-check.py`, có lỗi mới thì báo người duyệt và không merge
 - không coi họp là điều kiện để duyệt, giữ quy tắc duyệt chéo của `docs/risk-scoring.md`
 - chỉ chuyển spec sang `confirmed`, plan hay danh sách chạy sang `approved`, ADR sang `accepted` khi người có quyền duyệt (kể cả dev ngồi cùng ở đường làm nhanh) đã đồng ý rõ ràng bằng lời trong chính phiên ghi trạng thái, với đúng nội dung vừa đưa
-- không ghi trạng thái theo review hay bình luận trên GitHub
+- không ghi trạng thái theo review hay bình luận trên GitHub, và không merge PR có trạng thái duyệt do người tự ghi khi người chưa nói lại lời đồng ý trong phiên
 - ghi người duyệt, ngày và lời đồng ý nguyên văn ở chỗ mẫu dành cho việc đó
 - nội dung đổi sau lời đồng ý thì đưa lại và hỏi lại
 - phiên tự chạy không có người không bao giờ ghi trạng thái duyệt, không suy lời duyệt từ im lặng, từ lời duyệt khác, từ lời của phiên trước chép lại hay từ tin nhắn của agent con
