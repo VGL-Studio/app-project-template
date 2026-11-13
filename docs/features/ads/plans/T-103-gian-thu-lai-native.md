@@ -1,16 +1,16 @@
 ---
 ticket: T-103
 title: Giãn dần thời gian thử lại native khi khe chưa có quảng cáo
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 18.6M        # cỡ M, số gợi ý 18.6M của scripts/token-usage.py estimate (2026-11-13, trung vị 31 task M); không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # nhóm một dev: người duyệt giữ cả hai vai (mục 9)
+approved_at: 2026-11-13
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -251,8 +251,8 @@ E là 1 (không kỹ thuật mới), nhưng các test dựng qua điểm nối c
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:**, **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, người duyệt giữ cả hai vai theo `docs/risk-scoring.md`)
+- **Ghi chú:** Duyệt cả đợt (ADR-0048, phần B). AI ghi theo lời anh Nhật, ngày 2026-11-13, trong phiên: "Xác nhận spec ads (ghi chú KB-24, câu hỏi 63), duyệt plan T-103 theo các đề xuất ở mục 8, duyệt danh sách RUN-20261113-02, bắt đầu phiên khi merge, merge #488". Trả lời mục 8: câu 1 đã chọn "Sửa spec"; câu 2 tới 8 theo đề xuất của AI.
 
 ## 10. Nhật ký thực hiện

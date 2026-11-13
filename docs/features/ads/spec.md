@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -12,7 +12,7 @@ requests:
   - requests/2026-11-11-gian-thu-lai-native-khi-chua-co-quang-cao.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-11-11
+confirmed: 2026-11-13
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -792,7 +792,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 63. **Chỗ native dùng chung cho nhiều màn có chờ lại từ 5 giây khi người dùng mở màn mới không?** (KB-24 tiêu chí 2, plan T-103 câu hỏi 1)
     - Bối cảnh: vị trí native medium, thẻ, ô lưới, trang giới thiệu, bước lấy quảng cáo từ một nhóm dùng chung cho mọi màn cùng định dạng và mã quảng cáo. Phần quảng cáo không biết đâu là "màn mới", chỉ thấy một ô bắt đầu cần quảng cáo, mà ô của lưới hay danh sách bắt đầu lại mỗi lần người dùng cuộn tới. Chờ lại từ 5 giây theo ô thì nhóm không có quảng cáo thử lại gần như mỗi 5 giây khi người dùng cuộn, trái ý giới hạn 15 yêu cầu trong 10 phút.
     - Đề xuất của AI: không chờ lại từ 5 giây khi mở màn mới; nhóm vẫn chờ lại từ 5 giây khi tải thành công, app quay lại foreground, mạng về, hay khi nhóm mở lại sau khi đã đóng (cổng đồng ý mở lại, hoặc một vị trí của nhóm được bật lại sau khi mọi vị trí của nhóm đã tắt). Phương án khác: chờ lại từ 5 giây khi một ô bắt đầu cần quảng cáo lúc nhóm trống và không ô nào khác của nhóm đang chờ (gần với "mở màn mới", nhưng cuộn hết ô rồi quay lại vẫn chờ lại từ 5 giây, nên số yêu cầu có thể vượt 15 khi người dùng cuộn nhiều).
-    - Trả lời: theo đề xuất của AI (anh Nhật chọn "Sửa spec" ngày 2026-11-13, trong phiên lập đợt duyệt T-103); chờ anh Nhật xác nhận cùng lời duyệt đợt. KB-24 tiêu chí 2 thêm ghi chú.
+    - Trả lời: theo đề xuất của AI (anh Nhật chọn "Sửa spec" ngày 2026-11-13, trong phiên lập đợt duyệt T-103); anh Nhật xác nhận ngày 2026-11-13 cùng lời duyệt đợt: "Xác nhận spec ads (ghi chú KB-24, câu hỏi 63), duyệt plan T-103 theo các đề xuất ở mục 8, duyệt danh sách RUN-20261113-02, bắt đầu phiên khi merge, merge #488". KB-24 tiêu chí 2 thêm ghi chú.
 
 ## 10. Lịch sử
 
@@ -835,3 +835,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-11 | AI | Theo yêu cầu 2026-11-11 (giãn dần thử lại native khi chưa có quảng cáo) và lời anh Nhật trong phiên ("Xử lý theo đề xuất của AI"): KB-24 đổi tiêu chí 2 (chỗ chưa có quảng cáo, kể cả native toàn màn hình, chờ 5, 10, 20, 40 rồi 60 giây), ghi chú ở tiêu chí 1 (không gồm native toàn màn hình), thêm tiêu chí giới hạn 15 yêu cầu trong 10 phút cho từng chỗ native khi không có dịp đặt lại bộ đếm, thêm câu hỏi 62 đã trả lời; ticket T-103. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
 | 2026-11-11 | Nhật | Xác nhận KB-24 (tiêu chí 1 ghi chú, tiêu chí 2 đổi, tiêu chí giới hạn thêm) và câu hỏi 62 trên PR #472 ("Xác nhận spec ads"); spec về `confirmed` (AI ghi theo lời anh Nhật) |
 | 2026-11-13 | AI | Theo rà soát độc lập của đợt duyệt T-103 và lựa chọn của anh Nhật trong phiên ("Sửa spec"): KB-24 tiêu chí 2 thêm ghi chú (chỗ native dùng chung cho nhiều màn, gồm vị trí native medium, không chờ lại từ 5 giây khi mở màn mới; chờ lại khi nhóm mở lại sau khi đã đóng; native toàn màn hình cũng không chờ lại khi mở màn mới), thêm câu hỏi 63. Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt đợt |
+| 2026-11-13 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-13: "Xác nhận spec ads (ghi chú KB-24, câu hỏi 63), duyệt plan T-103 theo các đề xuất ở mục 8, duyệt danh sách RUN-20261113-02, bắt đầu phiên khi merge, merge #488". Chuyển sang `confirmed` |
