@@ -9,7 +9,7 @@ Bốn nguyên tắc của phiên tự chạy:
 3. **Rà soát độc lập.** Một phiên AI khác, không tham gia viết code, rà soát thay đổi trước khi đẩy lên CI.
 4. **Không cố định giờ.** Người quyết định lúc bắt đầu; thời điểm muốn có bản staging (nếu cần) ghi trong danh sách chạy.
 
-Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày thì không cần phiên tự chạy: dev làm cùng AI theo đường làm nhanh ([ops/quick-lane.md](ops/quick-lane.md), ADR-0034), vẫn theo các bước 3 tới 9 của mục 3, trừ phần ADR-0034 ghi khác.
+Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày thì không cần phiên tự chạy: dev làm cùng AI theo đường làm nhanh ([ops/quick-lane.md](ops/quick-lane.md), ADR-0048), vẫn theo các bước 3 tới 9 của mục 3, trừ phần ADR-0048 ghi khác.
 
 ## 1. Kích hoạt phiên
 
@@ -341,7 +341,7 @@ Sau đó AI:
 2. Viết báo cáo phiên vào file danh sách chạy, **trong lúc chờ các workflow ở bước 1** chứ không chờ xong mới viết. Không có task nào merge thì viết ngay. Thứ tự:
    - Cập nhật nhánh báo cáo theo nhánh chính.
    - Viết các mục không phụ thuộc emulator và staging: tóm tắt, kết quả từng task, cần người kiểm tra, task bị dừng, thời gian, số liệu và dòng thời gian, token, bài học, kiểm chứng bài học cũ, đề xuất.
-   - Hàng chờ plan: `plan_queue` của danh sách chạy khác `0` thì chạy `git fetch origin` và `scripts/plan-queue.py --max <plan_queue>`. Ghi hàng chờ và danh sách ticket bị bỏ qua vào mục "Plan soạn sẵn và câu hỏi cho người". Bước 5 sẽ không chạy thì ghi "Không soạn" kèm lý do: `plan_queue: 0`, hàng chờ rỗng, phiên kết thúc vì lý do khác hết danh sách, phiên quá 24 giờ, `staging_needed_by`. Mã 2 của script cũng ghi vào đây, kèm thông báo.
+   - Hàng chờ plan: chạy `git fetch origin` và `scripts/plan-queue.py --max <plan_queue>`, kể cả khi `plan_queue` là `0` (khi đó `--max 0`: script không chọn ticket nào nhưng vẫn in ticket bị bỏ qua và ticket đang chặn). Ghi hàng chờ, danh sách ticket bị bỏ qua và các dòng `Đang chặn hàng chờ:` vào mục "Plan soạn sẵn và câu hỏi cho người". Mỗi dòng `Đang chặn hàng chờ:` cũng thành một ý ở mục Đề xuất cho buổi họp tiếp theo, vì đó là việc chỉ người gỡ được mà các ticket sau đang chờ; cách gỡ theo lý do script in (làm ticket người làm, trả lời spec, duyệt plan, sửa `depends_on` của chu trình). Bước 5 sẽ không chạy thì ghi "Không soạn" kèm lý do: `plan_queue: 0`, hàng chờ rỗng, phiên kết thúc vì lý do khác hết danh sách, phiên quá 24 giờ, `staging_needed_by`. Mã 2 của script cũng ghi vào đây, kèm thông báo.
    - Khi workflow xong: điền mục Kiểm thử trên máy ảo, Bản staging và các dòng còn lại của Dòng thời gian, sửa phần tóm tắt nếu kết quả làm nó đổi.
    - Chuyển trạng thái phiên sang `finished`, ghi giờ kết thúc.
    - Commit và đẩy nhánh báo cáo sau mỗi phần viết xong, không đợi cuối: hết hạn mức giữa chừng thì phần đã viết còn lại, và commit cho `resume-run.yml` biết phiên còn sống.
@@ -398,7 +398,7 @@ Báo cáo phiên là thứ dev đọc đầu tiên khi bắt đầu làm việc 
 - Số liệu của phiên (mẫu danh sách chạy, mục Số liệu).
 - Bài học của phiên, và kết quả kiểm chứng các bài học `applied` liên quan tới phiên này (mục 6).
 - Issue mang nhãn `flaky` đang mở (số, tên test) và task bị revert trong phiên, nếu có (ADR-0025).
-- Plan soạn sẵn và câu hỏi cho người: hàng chờ và ticket bị bỏ qua (mục 4, bước 2), các PR plan và câu hỏi (bước 5).
+- Plan soạn sẵn và câu hỏi cho người: hàng chờ, ticket bị bỏ qua và ticket đang chặn hàng chờ (mục 4, bước 2), các PR plan và câu hỏi (bước 5).
 
 ## 6. Bài học và cải tiến quy trình
 

@@ -1,12 +1,12 @@
 ---
 id: ADR-0034
 title: Việc nhỏ, rủi ro thấp của code app được làm ngay ban ngày theo đường làm nhanh, AI làm cùng dev, vẫn đủ yêu cầu, ticket, plan, nhật ký, CI và merge-if-green.sh
-status: accepted             # proposed | accepted | superseded
+status: superseded           # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-29
 deciders: [Nhật]
 supersedes:                  # không thay ADR nào; thêm một đường đi bên cạnh phiên tự chạy (docs/auto-run.md), thêm ngoại lệ cho quy tắc người duyệt của docs/risk-scoring.md mục 3 và quy tắc xác nhận spec của docs/CLAUDE.md
-superseded_by:
+superseded_by: ADR-0048
 ---
 
 # ADR-0034: VIỆC NHỎ, RỦI RO THẤP CỦA CODE APP ĐƯỢC LÀM NGAY BAN NGÀY THEO ĐƯỜNG LÀM NHANH, AI LÀM CÙNG DEV, VẪN ĐỦ YÊU CẦU, TICKET, PLAN, NHẬT KÝ, CI VÀ MERGE-IF-GREEN.SH
