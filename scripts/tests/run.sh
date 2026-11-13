@@ -5283,6 +5283,20 @@ printf -- '---\nid: T-926\nstatus: backlog\nspec:\nscenarios: []\ndepends_on: []
 write_pq_ticket T-927 backlog '' '' T-926 '' ''
 write_pq_ticket T-928 backlog '' '' T-927 '' ''
 write_pq_ticket T-929 backlog '' '' T-909 '' ''
+write_pq_manual() { # <id> <depends>: a ticket people do (auto_run: false)
+  printf -- '---\nid: %s\nstatus: backlog\nspec:\nscenarios: []\ndepends_on: [%s]\nsprint:\nplan:\nauto_run: false\n---\n' \
+    "$1" "$2" > "$pq/docs/features/demo/tickets/$1-x.md"
+}
+write_pq_manual T-931 ''
+write_pq_manual T-932 T-931
+write_pq_ticket T-933 backlog '' '' T-932 '' ''
+write_pq_ticket T-934 backlog '' '' T-935 '' ''
+write_pq_ticket T-935 backlog '' '' T-934 '' ''
+write_pq_ticket T-936 backlog '' '' T-920 '' ''
+write_pq_manual T-940 ''
+write_pq_ticket T-937 backlog '' '' T-940 '' ''
+write_pq_ticket T-938 backlog '' '' T-940 '' ''
+write_pq_ticket T-939 backlog '' '' 'T-937, T-938' '' ''
 touch "$pq/README"
 pq_git init -q -b main
 pq_git add -A
@@ -5327,7 +5341,16 @@ expect "plan-queue: a draft spec is named as a blocker" 1 \
 expect "plan-queue: a dependency that is not open and has no plan is named" 1 \
   "$(pq_err '^Đang chặn hàng chờ: T-909 chặn 1 ticket (T-929): đang approved, chưa có plan')"
 expect "plan-queue: a stopped dependency is named" 1 "$(pq_err '^Đang chặn hàng chờ: T-914 chặn 1 ticket (T-915): đang stopped')"
-expect "plan-queue: the blocker that holds most tickets comes first" "T-926" \
+expect "plan-queue: a root behind another root is named with both tickets" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: T-931 chặn 2 ticket (T-932, T-933): ticket ghi auto_run: false')"
+expect "plan-queue: the nearer root is named too" 1 "$(pq_err '^Đang chặn hàng chờ: T-932 chặn 1 ticket (T-933): ')"
+expect "plan-queue: a dependency cycle is named" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: chu trình T-934 -> T-935 -> T-934 chặn 2 ticket (T-934, T-935): ')"
+expect "plan-queue: a plan in an open PR is named as a blocker" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: T-920 chặn 1 ticket (T-936): đang có PR mở #77')"
+expect "plan-queue: a ticket reached twice is counted once" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: T-940 chặn 3 ticket (T-937, T-938, T-939): ')"
+expect "plan-queue: the blocker that holds most tickets comes first" "T-940" \
   "$(grep '^Đang chặn hàng chờ:' "$work/pq.err" | head -1 | sed 's/^Đang chặn hàng chờ: \(T-[0-9]*\).*/\1/')"
 expect "plan-queue: a queued dependency is not a blocker" 0 "$(pq_err '^Đang chặn hàng chờ: T-903 ')"
 expect "plan-queue: a missing dependency is not named as a blocker" 0 "$(pq_err '^Đang chặn hàng chờ: T-999 ')"

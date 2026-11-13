@@ -29,7 +29,7 @@ Viết ngắn, tiếng Việt, theo thứ tự:
    1. Nhánh chính đỏ, môi trường hỏng, phiên đứng im: báo người, không tự sửa issue `main-broken`.
    2. Phiên tự chạy đang chạy: chỉ theo dõi, không merge PR ngoài phiên.
    3. PR xanh chờ merge: `/merge-pr <số>`. PR đỏ: xem log bằng `scripts/failure-kind.sh --playbook`.
-   4. Việc chờ người ở `docs/STATUS.md` (duyệt spec, plan, danh sách chạy, kiểm thủ công). Có dòng `Đang chặn hàng chờ:` thì ticket chặn nhiều ticket nhất lên trước, kèm số ticket nó giữ lại và cách gỡ: ticket `auto_run: false` thì làm cùng dev, spec chưa chốt thì trả lời câu hỏi, plan đang chờ duyệt thì duyệt.
+   4. Việc chờ người ở `docs/STATUS.md` (duyệt spec, plan, danh sách chạy, kiểm thủ công). Có dòng `Đang chặn hàng chờ:` thì ticket chặn nhiều ticket nhất lên trước, kèm số ticket nó giữ lại và cách gỡ: ticket `auto_run: false` thì làm cùng dev, spec chưa chốt thì trả lời câu hỏi, plan đang chờ duyệt thì duyệt, chu trình phụ thuộc thì sửa `depends_on`, lý do khác thì theo lý do script in.
    5. Ticket trong hàng chờ: `/write-plan <T-NNN>`; việc nhỏ dev muốn có ngay: `/quick-lane`.
    6. Plan `approved` chưa vào danh sách: `/run-list`.
    7. Dự án mẫu: issue `from-app` đang mở: `/from-app <số>`. Repo app: dự án mẫu đã có commit mới: nhắc người phụ trách chạy `/to-app` ở dự án mẫu.

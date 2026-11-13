@@ -12,9 +12,10 @@ Order: `sprint` (a number before a word before empty), then the ticket number.
 
 stdout: at most N lines `T-NNN<TAB><ticket path>`. stderr: one line per ticket skipped, with the reason, then one line
 `Đang chặn hàng chờ: T-NNN chặn K ticket (...): <reason>` per ticket that holds back others through `depends_on`
-(directly or along a chain) while it waits for people: marked `auto_run: false`, spec not confirmed, plan in review,
-not open and without a plan, stopped or cancelled. Most blocked tickets first. A dependency that is only beyond --max
-or does not exist is not named.
+(directly or along a chain, also behind another root) while it waits for people: marked `auto_run: false`, spec not
+confirmed, plan in review, not open and without a plan, stopped or cancelled; a dependency cycle gets one line
+`Đang chặn hàng chờ: chu trình T-A -> T-B -> T-A chặn K ticket (...): <reason>`. Most blocked tickets first. A
+dependency that is only beyond --max or does not exist is not named.
 Exit 0 when the documents were read (also for an empty list); 2 when a document, a `git` or a `gh` call failed.
 Reads every open pull request and its files (gh api, page by page). Writes no file.
 The session runs `git fetch origin` before calling it.
@@ -167,11 +168,13 @@ def blocking_dependencies(ticket, tickets, chosen):
 
 
 def blockers(skipped, tickets, chosen):
-    """Maps each root ticket that waits for people to the sorted tickets it holds back, with its reason.
+    """Lists each root that waits for people with the sorted tickets it holds back and its reason.
 
-    A root is a dependency that is itself skipped for a reason other than its own dependencies, or that is not a
-    candidate at all (not open, or stopped or cancelled). A dependency that only waits behind another one passes the
-    tickets on to its own roots. An eligible ticket left out by --max is not a root: nobody needs to act on it."""
+    A root is a dependency that is itself skipped for a reason of its own, or that is not a candidate at all (not
+    open, or stopped or cancelled), or a dependency cycle. The walk goes on below a root, so a deeper root is named
+    too, with every ticket behind it, including the roots in between. A dependency that only waits behind another one
+    passes the tickets on. An eligible ticket left out by --max is not a root: nobody needs to act on it."""
+    number = lambda t: int(t.split("-")[1])
     roots = {}
 
     def root_reason(dep):
@@ -184,26 +187,30 @@ def blockers(skipped, tickets, chosen):
             return f"đang {other['status']}, chưa có plan"
         return ""
 
-    def walk(ticket_id, seen):
+    def walk(ticket_id, path, seen):
         for dep in blocking_dependencies(tickets[ticket_id], tickets, chosen):
+            if dep in path:
+                cycle = path[path.index(dep):]
+                first = cycle.index(min(cycle, key=number))
+                cycle = cycle[first:] + cycle[:first]
+                label = "chu trình " + " -> ".join(cycle + [cycle[0]])
+                yield label, number(cycle[0]), "các ticket phụ thuộc vòng tròn, sửa depends_on"
+                continue
             if dep in seen:
                 continue
             seen.add(dep)
             reason = root_reason(dep)
             if reason:
-                yield dep, reason
-            elif dep in skipped:
-                yield from walk(dep, seen)
+                yield dep, number(dep), reason
+            if dep in skipped:
+                yield from walk(dep, path + [dep], seen)
 
-    for ticket_id, (_, waits) in skipped.items():
-        if not waits:
-            continue
-        for dep, reason in walk(ticket_id, {ticket_id}):
-            roots.setdefault(dep, (reason, set()))[1].add(ticket_id)
-    number = lambda t: int(t.split("-")[1])
+    for ticket_id in skipped:
+        for label, order, reason in walk(ticket_id, [ticket_id], set()):
+            roots.setdefault(label, (order, reason, set()))[2].add(ticket_id)
     return sorted(
-        ((dep, reason, sorted(held, key=number)) for dep, (reason, held) in roots.items()),
-        key=lambda item: (-len(item[2]), number(item[0])),
+        ((label, reason, sorted(held, key=number)) for label, (_, reason, held) in roots.items()),
+        key=lambda item: (-len(item[2]), roots[item[0]][0]),
     )
 
 

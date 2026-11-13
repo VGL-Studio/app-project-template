@@ -12,9 +12,10 @@ Tham số: `$ARGUMENTS` (tùy chọn: các ticket muốn đưa vào; mặc đị
 2. Kiểm không có phiên đang chạy (nhánh `claude/RUN-*-report` có `status: running`) và không có issue `main-broken`, `env-broken` đang mở. `env-broken` nói về môi trường cloud: danh sách `open_with: local` vẫn lập được, ghi issue vào mục Lý do.
 3. Gom plan `approved` chưa chạy của mọi dev, mỗi plan qua `python3 scripts/plan-check.py <plan>`. Sắp: task độc lập trước, chuỗi phụ thuộc sau cùng.
 4. Ghi `open_with:` và đối chiếu khả năng của cách mở. Plan sửa `.github/workflows/` thì nhắc `scripts/push-probe.sh` ở đầu phiên.
-5. Mục Lý do của thứ tự chạy: tổng `token_estimate` so với vài phiên gần nhất (`docs/metrics/token-usage.csv`), thời gian dự kiến, plan để phiên sau và lý do.
-6. Chạy `python3 scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md`, sửa hết lỗi.
-7. Giao một agent con ngữ cảnh mới, chỉ đọc, rà soát theo mục 2 của `docs/ops/pre-run-review.md`. Lời giao gồm đường dẫn danh sách chạy, kết quả `run-check.py`, các plan, ticket, spec, thiết kế, ADR liên quan và các file trong mục 3.2 của mỗi plan, cùng nội dung giao việc tối thiểu của mục 2 (trả bảng theo mục 3, trả lời mục 2.3 cho từng plan). Không đưa quá trình viết plan hay kết luận của mình. Ghi kết quả vào mục Kiểm tra trước khi duyệt.
-8. Điểm chặn: soạn plan phiên bản mới hay đề xuất sửa spec, hoặc đề xuất bỏ task; không sửa plan `approved` hay spec `confirmed`.
-9. Danh sách `draft`. Mở PR; báo dev: số task, ước tính, điểm chặn, việc dev phải kiểm trước phiên. Chỉ dev duyệt và kích hoạt phiên.
-10. Nhắc dev: sau khi merge danh sách `approved`, `gh workflow list --all` phải thấy `resume-run` và `run-watchdog` ở `active`; không thì chạy `scripts/schedule-idle.py --enable` (`docs/auto-run.md`, mục 1).
+5. Chạy `python3 scripts/plan-queue.py --max <plan_queue>` để điền `plan_queue` (không chọn ticket nào thì đề xuất `0`); chép các dòng `Đang chặn hàng chờ:` vào mục Lý do của thứ tự chạy.
+6. Mục Lý do của thứ tự chạy: tổng `token_estimate` so với vài phiên gần nhất (`docs/metrics/token-usage.csv`), thời gian dự kiến, plan để phiên sau và lý do.
+7. Chạy `python3 scripts/run-check.py docs/runs/RUN-YYYYMMDD-NN.md`, sửa hết lỗi.
+8. Giao một agent con ngữ cảnh mới, chỉ đọc, rà soát theo mục 2 của `docs/ops/pre-run-review.md`. Lời giao gồm đường dẫn danh sách chạy, kết quả `run-check.py`, các plan, ticket, spec, thiết kế, ADR liên quan và các file trong mục 3.2 của mỗi plan, cùng nội dung giao việc tối thiểu của mục 2 (trả bảng theo mục 3, trả lời mục 2.3 cho từng plan). Không đưa quá trình viết plan hay kết luận của mình. Ghi kết quả vào mục Kiểm tra trước khi duyệt.
+9. Điểm chặn: soạn plan phiên bản mới hay đề xuất sửa spec, hoặc đề xuất bỏ task; không sửa plan `approved` hay spec `confirmed`.
+10. Danh sách `draft`. Mở PR; báo dev: số task, ước tính, điểm chặn, việc dev phải kiểm trước phiên. Chỉ dev duyệt và kích hoạt phiên.
+11. Nhắc dev: sau khi merge danh sách `approved`, `gh workflow list --all` phải thấy `resume-run` và `run-watchdog` ở `active`; không thì chạy `scripts/schedule-idle.py --enable` (`docs/auto-run.md`, mục 1).

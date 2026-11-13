@@ -398,7 +398,7 @@ Báo cáo phiên là thứ dev đọc đầu tiên khi bắt đầu làm việc 
 - Số liệu của phiên (mẫu danh sách chạy, mục Số liệu).
 - Bài học của phiên, và kết quả kiểm chứng các bài học `applied` liên quan tới phiên này (mục 6).
 - Issue mang nhãn `flaky` đang mở (số, tên test) và task bị revert trong phiên, nếu có (ADR-0025).
-- Plan soạn sẵn và câu hỏi cho người: hàng chờ và ticket bị bỏ qua (mục 4, bước 2), các PR plan và câu hỏi (bước 5).
+- Plan soạn sẵn và câu hỏi cho người: hàng chờ, ticket bị bỏ qua và ticket đang chặn hàng chờ (mục 4, bước 2), các PR plan và câu hỏi (bước 5).
 
 ## 6. Bài học và cải tiến quy trình
 
