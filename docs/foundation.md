@@ -323,3 +323,18 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó
 - giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
 - nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
+
+## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
+
+### [ADR-0049](adr/0049-ha-tang-phien-tu-chay-va-staging.md): Phiên tự chạy dùng Claude Code routine, kích hoạt qua start-run.yml bằng tay hoặc tự động khi danh sách start auto được duyệt lên nhánh chính; staging build trên GitHub Actions bằng khóa staging riêng; phát hành production ngoài GitHub
+
+- đặt tên nhánh theo `claude/T-NNN-<tu-khoa>`
+- ghi đường dẫn phiên chạy vào mô tả PR
+- không cố cài hay chạy emulator trong phiên
+- không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo
+- không viết workflow mới có dùng bí mật, và không đổi `staging.yml` hay `start-run.yml`, trừ khi đó chính là plan rủi ro cao đã được duyệt chéo
+- không chạm vào `scripts/release.sh`
+- cuối phiên tự chạy chỉ khởi động `staging.yml` trên nhánh chính
+- danh sách chạy ghi `start: auto` chỉ khi lời duyệt của dev gồm việc bắt đầu phiên khi merge, không thì ghi `start: manual`, và AI không merge danh sách `start: auto` khi lời duyệt chưa gồm điều đó
+- không dùng Run now hay lịch hẹn của routine cho danh sách `start: auto`
+- không "Re-run" một lần chạy `start-run.yml` đã gọi API kích hoạt

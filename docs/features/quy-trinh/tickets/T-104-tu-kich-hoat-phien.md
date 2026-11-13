@@ -24,7 +24,7 @@ Hiện nay danh sách chạy được duyệt và merge xong vẫn phải chờ 
 ## Phạm vi
 
 - Danh sách chạy có trường `start:` (`auto` hay `manual`); mẫu mặc định `auto`. `scripts/run-check.py` kiểm giá trị, và `start: auto` chỉ đi với `open_with: routine`.
-- Script mới chọn danh sách cần tự bắt đầu từ một lần push lên nhánh chính: chỉ danh sách mà chính lần push đó chuyển sang `approved`, có `start: auto` và `open_with: routine`. Cùng script chặn mọi lần mở phiên, cả lần bấm tay, khi danh sách đã có nhánh báo cáo, khi có phiên khác đang chạy, hay khi vừa kích hoạt một phiên mà phiên đó chưa có nhánh báo cáo.
+- Script mới chọn danh sách cần tự bắt đầu từ một lần push lên nhánh chính: chỉ danh sách mà chính lần push đó chuyển sang `approved`, có `start: auto` và `open_with: routine`. Cùng script chặn mọi lần mở phiên, cả lần bấm tay, khi danh sách trên đầu nhánh chính không còn `approved`, khi danh sách đã có nhánh báo cáo, khi có phiên khác đang chạy, hay khi vừa kích hoạt một phiên cho một danh sách chưa có nhánh báo cáo.
 - `start-run.yml` chạy cả khi có push lên nhánh chính đổi `docs/runs/RUN-*.md`; giữ chạy tay như cũ. Mọi kiểm tra trước khi kích hoạt giữ nguyên; `main-guard` đang chạy thì chờ có giới hạn thay vì đỏ ngay.
 - Tài liệu: bước kích hoạt phiên (`docs/auto-run.md`, `docs/ops/staging-and-runs.md`, `docs/ops/setup-new-app.md`), `docs/ops/to-app.md`, mục Khi lập danh sách chạy, mẫu danh sách chạy, `/run-list`, bảng kiểm tra của `docs/ops/pre-run-review.md`.
 
