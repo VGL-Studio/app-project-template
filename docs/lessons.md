@@ -1341,3 +1341,13 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `docs/ops/test-sessions.md` mục 5, một ý mới sau ý "Từ chối đồng ý không tắt quảng cáo": bước ngay sau một điểm có thể hiện quảng cáo toàn màn hình chờ nút đóng hoặc màn đích, chạm nút đóng nếu thấy, rồi chờ lại màn đích. Interstitial thử của AdMob: `text="Close"`, không có `resource-id`. Native toàn màn hình của `:core:ads` (cả combo sau interstitial mà staging bật sẵn): `str=ads_close_full_screen`, chỉ hiện sau đếm ngược `time_close_native`; sau nút có interstitial thì cặp interstitial rồi cặp native. App open thử: chọn cả `text=` lẫn `desc=` của "Continue to app", như kịch bản có sẵn của mẫu.
 - **Trạng thái:** applied (AI ghi theo lời anh Nhật ngày 2026-11-12: "Nhận #470 và #471, làm hai PR"; PR #473 merge theo lời "merge #473 và #474")
 - **Áp dụng:** PR #473: `docs/ops/test-sessions.md` mục 5, đoạn "Quảng cáo toàn màn hình": chờ nút đóng hoặc màn đích, chạm nút đóng nếu thấy, rồi chờ lại màn đích; interstitial `text="Close"`, native toàn màn hình và native sau interstitial `str=ads_close_full_screen` (cặp interstitial rồi cặp native), app open chọn cả `text=` lẫn `desc=`.
+
+### L-173. Lệnh riêng `merge-if-green.sh` của phiên chính vẫn bị bộ phân loại quyền từ chối ("Merge Without Review")
+
+- **Ngày, nguồn:** 2026-11-13, RUN-20261113-02 (T-103, PR #489)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** PR #489 có `pr-check` xanh. Phiên chính gọi `scripts/merge-if-green.sh 489` thành một lệnh riêng như L-146 đã sửa (`auto-run.md` bước 9), nhưng bộ phân loại quyền của auto mode vẫn từ chối, lần này nêu lý do "[Merge Without Review]". Rà soát độc lập (bước 6) và CI đã xong, nhưng bộ phân loại không thấy được điều đó. Phiên làm đúng bước 9: không gọi lại, dừng task với plan và ticket giữ `approved`, để người merge; không có task merge nên không chạy `device-session`, `staging`, và PR báo cáo cũng để người merge. Kiểm chứng của L-146 (RUN-20261107-01, bốn lần merge được) cho thấy việc chặn không đều giữa các phiên.
+- **Bằng chứng:** dòng thời gian của RUN-20261113-02, 18:29; PR #489; nhật ký plan T-103.
+- **Đề xuất sửa:** cấu hình quyền của routine (hay `.claude/settings.json` của repo, qua PR có người duyệt) cho phép đúng lệnh `scripts/merge-if-green.sh <số>` trong phiên tự chạy, vì script là cổng chất lượng đã duyệt (ADR-0010); hoặc ghi rõ trong lời giao của routine rằng merge bằng `merge-if-green.sh` sau rà soát độc lập là việc được yêu cầu. Nếu không đổi được, `docs/auto-run.md` mục 1 nên nói trước: phiên có thể dừng ở bước 9 và người cần merge sáng hôm sau.
+- **Trạng thái:** proposed
+- **Áp dụng:** chưa.
