@@ -3780,10 +3780,45 @@ release_fails_with "ad unit given as app id" "admobAppId phải có dạng"
 # A Google test unit given by hand is accepted (2026-10-26): the folder check goes on to the next value.
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner=ca-app-pub-3940256099942544/9214589741" "http://cdn.example.vn/"
 release_fails_with "a Google test ad unit given by hand passes the ad unit check" "assetsBaseUrl phải"
-write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
-release_fails_with "missing AppsFlyer dev key (this repo has the AppsFlyer SDK)" "thiếu appsFlyerDevKey"
-write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "key with spaces"
-release_fails_with "AppsFlyer dev key with odd characters" "thiếu appsFlyerDevKey"
+# Whether this repo declares the AppsFlyer SDK, read the way release.sh reads it. An app without the SDK (ADR-0027
+# lets an app leave it out) has no key to refuse, so this repo's own release.sh must not ask for one; with the SDK it
+# must. The template has the SDK, so the template's CI runs only the first branch.
+repo_has_appsflyer=no
+if grep -rqsE --include='*.gradle.kts' --exclude-dir=build --exclude-dir=.gradle \
+  'libs\.appsflyer([^.A-Za-z0-9_]|$)|"com\.appsflyer:' .; then
+  repo_has_appsflyer=yes
+fi
+if [[ "$repo_has_appsflyer" == yes ]]; then
+  write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
+  release_fails_with "missing AppsFlyer dev key (this repo has the AppsFlyer SDK)" "thiếu appsFlyerDevKey"
+  write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "key with spaces"
+  release_fails_with "AppsFlyer dev key with odd characters" "thiếu appsFlyerDevKey"
+else
+  # Run on a copy holding this repo's real build files, in a repository without an origin, so the run stops at the
+  # commit step (as the no_af copy below) instead of reaching git and gh in this repository.
+  own_af="$work/release-own-build-files"
+  mkdir -p "$own_af/scripts"
+  cp scripts/release.sh "$own_af/scripts/"
+  while IFS= read -r build_file; do
+    mkdir -p "$own_af/$(dirname "$build_file")"
+    cp "$build_file" "$own_af/$build_file"
+  done < <(git ls-files '*.gradle.kts')
+  git -C "$own_af" init -q
+  write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
+  own_af_out="$("$own_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null || true)"
+  expect "release.sh: this repo has no AppsFlyer SDK, so its build files pass the folder check without a key" "0 1" \
+    "$(grep -c 'appsFlyerDevKey' <<< "$own_af_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$own_af_out" || true)"
+  # The two refusals still run, on the same copy with a module that declares the SDK through the version catalog
+  # (libs.appsflyer), the way an app with the SDK declares it.
+  mkdir -p "$own_af/core/appsflyer-probe"
+  printf '%s\n' 'dependencies {' '    implementation(libs.appsflyer)' '}' > "$own_af/core/appsflyer-probe/build.gradle.kts"
+  write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
+  expect "release.sh refuses: missing AppsFlyer dev key (a copy with libs.appsflyer)" 1 \
+    "$("$own_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null | grep -c 'thiếu appsFlyerDevKey' || true)"
+  write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "key with spaces"
+  expect "release.sh refuses: AppsFlyer dev key with odd characters (a copy with libs.appsflyer)" 1 \
+    "$("$own_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null | grep -c 'thiếu appsFlyerDevKey' || true)"
+fi
 # An app without the AppsFlyer SDK (no module declares libs.appsflyer or com.appsflyer) releases without the key
 # (issue #261). The script runs from a copy in a repo without the SDK; passing the folder check means it reaches the
 # commit step, which then stops there because the copy has no origin.
@@ -3836,6 +3871,8 @@ expect "release.sh refuses a placement wrapped over several lines" "1 1" \
 exported_props="$(grep -oE 'export ORG_GRADLE_PROJECT_[A-Za-z]+' scripts/release.sh | sed 's/.*ORG_GRADLE_PROJECT_//' | sort -u)"
 unread_props=""
 for prop in $exported_props; do
+  # Without the AppsFlyer SDK, release.sh exports the key empty and the build has nothing to read it for.
+  [[ "$prop" == appsFlyerDevKey && "$repo_has_appsflyer" == no ]] && continue
   grep -q "gradleProperty(\"$prop\")" app/build.gradle.kts || unread_props="$unread_props $prop"
 done
 # The count guards against a grep that finds nothing and so passes: release.sh exports 8 properties today.
@@ -3843,13 +3880,19 @@ expect "contract: app/build.gradle.kts reads every Gradle property that release.
   "$(wc -w <<< "$exported_props" | tr -d ' ') ${unread_props:-none}"
 # The other way: every property the production build requires is one that release.sh exports, so renaming one
 # in the build file fails here instead of on release night.
-required_props="$(sed -n '/^val missingProductionProperties = mapOf($/,/^)/p' app/build.gradle.kts | grep -oE '"[A-Za-z]+" to' | tr -d '"' | cut -d' ' -f1)
+required_props="$(sed -n '/^val missingProductionProperties = mapOf($/,/^)/p' app/build.gradle.kts | grep -oE '"[A-Za-z]+" to' | tr -d '"' | cut -d' ' -f1)"
+# The AppsFlyer key is required by the build only with the SDK (ADR-0027); without it the build has no such line.
+required_count=3
+if [[ "$repo_has_appsflyer" == yes ]]; then
+  required_props="$required_props
 $(grep -oE 'mapOf\("[A-Za-z]+" to "ADR-0027"\)' app/build.gradle.kts | grep -oE '"[A-Za-z]+"' | head -n 1 | tr -d '"')"
+  required_count=4
+fi
 unexported_props=""
 for prop in $required_props; do
   grep -qx "$prop" <<< "$exported_props" || unexported_props="$unexported_props $prop"
 done
-expect "contract: release.sh exports every Gradle property that the production build requires" "4 none" \
+expect "contract: release.sh exports every Gradle property that the production build requires" "$required_count none" \
   "$(wc -w <<< "$required_props" | tr -d ' ') ${unexported_props:-none}"
 
 # The checks after the release folder (the commit on main and its guard, the folder against the code) need a
