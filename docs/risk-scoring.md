@@ -36,7 +36,7 @@ Với plan không chạm điểm chặn, AI chấm từng tiêu chí từ 0 đ�
 | 5 đến 8 | **Trung bình** | Chủ feature duyệt | Trình bày trong họp, dev còn lại được quyền yêu cầu duyệt chéo |
 | 9 trở lên, hoặc chạm điểm chặn | **Cao** | Bắt buộc dev còn lại duyệt chéo | Cân nhắc tách thành task nhỏ hơn trước khi duyệt |
 
-Đường làm nhanh có người theo dõi (ADR-0034) chỉ nhận plan mức Thấp không chạm điểm chặn; dev nào ngồi cùng cũng duyệt được, ngay trong phiên, không cần họp.
+Đường làm nhanh có người theo dõi (ADR-0048) chỉ nhận plan mức Thấp không chạm điểm chặn; dev nào ngồi cùng cũng duyệt được, ngay trong phiên, không cần họp.
 
 Ngoại lệ khi nhóm chỉ có một dev: người đó vừa duyệt vừa duyệt chéo plan rủi ro cao, ghi rõ lý do ở mục 9 của plan. Phiên tự chạy không coi đây là lý do bỏ qua task. Khi nhóm có dev thứ hai, quy tắc duyệt chéo áp dụng lại đầy đủ.
 

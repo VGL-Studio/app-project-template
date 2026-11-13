@@ -9,7 +9,7 @@ Bốn nguyên tắc của phiên tự chạy:
 3. **Rà soát độc lập.** Một phiên AI khác, không tham gia viết code, rà soát thay đổi trước khi đẩy lên CI.
 4. **Không cố định giờ.** Người quyết định lúc bắt đầu; thời điểm muốn có bản staging (nếu cần) ghi trong danh sách chạy.
 
-Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày thì không cần phiên tự chạy: dev làm cùng AI theo đường làm nhanh ([ops/quick-lane.md](ops/quick-lane.md), ADR-0034), vẫn theo các bước 3 tới 9 của mục 3, trừ phần ADR-0034 ghi khác.
+Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày thì không cần phiên tự chạy: dev làm cùng AI theo đường làm nhanh ([ops/quick-lane.md](ops/quick-lane.md), ADR-0048), vẫn theo các bước 3 tới 9 của mục 3, trừ phần ADR-0048 ghi khác.
 
 ## 1. Kích hoạt phiên
 

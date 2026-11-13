@@ -51,7 +51,7 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 - Không tự thêm vị trí quảng cáo, sự kiện phân tích hay dữ liệu thu thập. Chỉ ghi những gì yêu cầu nêu; nếu thấy cần, đặt thành câu hỏi.
 - Ghi quyền của app và dịch vụ bên ngoài mà feature cần ở mục 6 của spec. Hành vi trong yêu cầu mà trên một số phiên bản Android cần quyền (ví dụ lưu ảnh vào thư viện máy trên Android 9 trở xuống) thì nêu ngay ở spec, hoặc đặt thành câu hỏi kèm phương án, không để tới lúc viết plan hay chạy phiên mới thấy.
 - Chỗ nào yêu cầu chưa rõ, ghi thành câu hỏi trong mục câu hỏi còn mở, kèm phương án AI đề xuất. Không đoán.
-- Spec mới luôn có trạng thái `draft`. Spec đã `confirmed` mà có yêu cầu mới thì cập nhật nội dung, chuyển sang `changed` và ghi vào mục lịch sử. Chỉ người mới chuyển sang `confirmed`, trừ đường làm nhanh khi dev ngồi cùng là người xác nhận spec và đã xác nhận trong phiên (ADR-0034).
+- Spec mới luôn có trạng thái `draft`. Spec đã `confirmed` mà có yêu cầu mới thì cập nhật nội dung, chuyển sang `changed` và ghi vào mục lịch sử. Chỉ người mới chuyển sang `confirmed`, trừ đường làm nhanh khi dev ngồi cùng là người xác nhận spec và đã xác nhận trong phiên (ADR-0048).
 
 ## Khi tách spec thành ticket
 
@@ -133,7 +133,7 @@ Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 
 ## Khi làm nhanh có người theo dõi
 
-Việc nhỏ của code app ban ngày, dev ngồi cùng AI, theo ADR-0034. Hướng dẫn cho dev ở [ops/quick-lane.md](ops/quick-lane.md). AI làm gần như mọi việc; dev trả lời câu hỏi, đồng ý plan một lần và xem kết quả. Việc về script, tài liệu, quy trình vẫn làm bằng PR thường trong phiên có người theo dõi.
+Việc nhỏ của code app ban ngày, dev ngồi cùng AI, theo ADR-0048. Hướng dẫn cho dev ở [ops/quick-lane.md](ops/quick-lane.md). AI làm gần như mọi việc; dev trả lời câu hỏi, đồng ý plan một lần và xem kết quả. Việc về script, tài liệu, quy trình vẫn làm bằng PR thường trong phiên có người theo dõi.
 
 - Chỉ vào đường làm nhanh khi đủ: dev ngồi cùng suốt task, tới khi `main-guard` của commit merge xanh; plan không chạm điểm chặn nào ở mục 1 của [risk-scoring.md](risk-scoring.md), kể cả điểm 7; không thêm quyền, thư viện, SDK; mức rủi ro Thấp và tiêu chí E dưới 2; ticket cỡ S, hoặc M khi dev đồng ý; kịch bản có trong spec `confirmed`, hoặc dev ngồi cùng là người xác nhận spec của feature. Thiếu một điều thì nói với dev và đi đường thường.
 - Lúc bắt đầu: không có phiên tự chạy đang chạy (danh sách `running` trên nhánh `claude/RUN-*-report`, tra như `scripts/merge-if-green.sh`), không có issue `main-broken` hay `env-broken` đang mở. Nhắc dev không kích hoạt phiên tự chạy khi PR làm nhanh còn mở.
@@ -141,7 +141,7 @@ Việc nhỏ của code app ban ngày, dev ngồi cùng AI, theo ADR-0034. Hư�
 - Việc chưa có trong spec: AI sửa spec, dev ngồi cùng (người xác nhận spec của feature) xác nhận rõ ràng; AI ghi `status: confirmed`, `confirmed:` và mục lịch sử kèm lời xác nhận.
 - Đưa dev tóm tắt plan: phạm vi, danh sách file, test, điểm rủi ro, câu hỏi. Dev nào ngồi cùng cũng duyệt được. Dev đồng ý rõ ràng thì chuyển plan sang `approved`, ghi `reviewer`, `approved_at`, mục 9 ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý, và ghi khi người duyệt không phải `owner` của ticket; ticket theo plan (`scripts/status.py --sync`).
 - Làm task theo các bước 3 tới 9 của [auto-run.md](auto-run.md): test viết trước, `scripts/check.sh`, rà soát độc lập bằng agent con ngữ cảnh mới (lời giao có dòng `Task: T-NNN`), CI, merge chỉ bằng `scripts/merge-if-green.sh`, chờ `main-guard`. `scripts/token-usage.py mark T-NNN` khi bắt đầu, `mark chung` khi xong, rồi `report --since <giờ bắt đầu> --run QUICK-YYYYMMDD-T-NNN --csv docs/metrics/token-usage.csv`; tệp CSV đi cùng PR tài liệu kế tiếp.
-- Một PR cho cả task, ngoại lệ của bước 7 và bước 10: nhánh `claude/quick-T-NNN-<tu-khoa>` từ nhánh chính mới nhất (không dùng `claude/T-`, để `merge-if-green.sh` từ chối khi phiên tự chạy đang chạy). PR chứa yêu cầu, spec nếu đổi, ticket, plan, test, code, ảnh chuẩn và nhật ký. Mô tả PR ghi "Đường làm nhanh (ADR-0034)", người duyệt plan, kết quả `plan-check.py` và rà soát độc lập, và những gì đường thường ghi vào báo cáo phiên: "Ngoài mục 3.2", "Đã sửa theo rà soát", "Test cũ viết lại (ADR-0031)", điểm nên sửa chưa sửa, việc cần người kiểm.
+- Một PR cho cả task, ngoại lệ của bước 7 và bước 10: nhánh `claude/quick-T-NNN-<tu-khoa>` từ nhánh chính mới nhất (không dùng `claude/T-`, để `merge-if-green.sh` từ chối khi phiên tự chạy đang chạy). PR chứa yêu cầu, spec nếu đổi, ticket, plan, test, code, ảnh chuẩn và nhật ký. Mô tả PR ghi "Đường làm nhanh (ADR-0048)", người duyệt plan, kết quả `plan-check.py` và rà soát độc lập, và những gì đường thường ghi vào báo cáo phiên: "Ngoài mục 3.2", "Đã sửa theo rà soát", "Test cũ viết lại (ADR-0031)", điểm nên sửa chưa sửa, việc cần người kiểm.
 - Nhật ký (tiêu đề `Làm nhanh YYYY-MM-DD, phiên bản plan N`), plan `done`, ticket `on-staging` ghi trong lần đẩy cuối, sau rà soát độc lập và trước CI, để CI chỉ chạy một vòng. Dòng kết quả ghi "merge bằng PR này", dòng CI ghi "CI của PR này". CI đỏ thì sửa và cập nhật nhật ký trong cùng lần đẩy.
 - Trước khi gọi `merge-if-green.sh`: trên nhánh làm nhanh, chạy `scripts/plan-check.py` cho mọi plan của danh sách chạy `draft` hay `approved` chưa chạy và `scripts/run-check.py` cho các danh sách đó. Lỗi mới so với nhánh chính thì báo dev; dev chọn sửa plan đó trước, merge rồi soạn plan phiên bản mới, hay chờ. Danh sách `draft` đã rà soát thì báo cần rà soát lại.
 - Lệch mà phiên tự chạy được tự làm rồi báo (ADR-0029, ADR-0032, ADR-0033): hỏi dev trước, ghi vào dòng "Lệch so với plan" của nhật ký.
@@ -195,7 +195,7 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 - Không sửa nội dung đã xác nhận: spec `confirmed`, plan `approved`, ADR `accepted`. Muốn thay đổi thì thêm mục mới hoặc tạo bản thay thế.
 - Không xóa tài liệu. Tài liệu hết hiệu lực được chuyển trạng thái, không bị xóa. Ngoại lệ duy nhất: ở app, `scripts/template-sync.sh` của dự án mẫu xóa ADR `superseded` của dự án mẫu (ADR-0044).
 - Không đưa vào tài liệu bất kỳ khóa bí mật, mã quảng cáo thật, thông tin đăng nhập hay dữ liệu cá nhân của người dùng.
-- Không tự cấp quyền duyệt, không tự chuyển trạng thái thay cho người. Ngoại lệ duy nhất: plan và spec của đường làm nhanh, khi dev đã đồng ý rõ ràng trong chính phiên đó (ADR-0034).
+- Không tự cấp quyền duyệt, không tự chuyển trạng thái thay cho người. AI chỉ ghi spec `confirmed`, plan hay danh sách chạy `approved`, ADR `accepted` khi người có quyền duyệt đã đồng ý rõ ràng bằng lời, trong chính phiên ghi trạng thái, với đúng nội dung vừa đưa; ghi người duyệt, ngày và lời đồng ý nguyên văn; không ghi theo review hay bình luận trên GitHub; nội dung đổi sau lời đồng ý thì hỏi lại; phiên tự chạy không bao giờ ghi trạng thái duyệt (ADR-0048, phần C).
 
 ## Cách viết
 

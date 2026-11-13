@@ -1,6 +1,6 @@
 ---
 name: quick-lane
-description: Đường làm nhanh (ADR-0034) cho một việc nhỏ của code app khi dev ngồi cùng suốt task, từ yêu cầu tới merge trong một PR.
+description: Đường làm nhanh (ADR-0048) cho một việc nhỏ của code app khi dev ngồi cùng suốt task, từ yêu cầu tới merge trong một PR.
 argument-hint: <việc cần làm hoặc T-NNN>
 disable-model-invocation: true
 ---

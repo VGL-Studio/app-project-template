@@ -1,7 +1,7 @@
 ---
 id: ADR-0048
 title: Đường làm nhanh giữ, thêm bước gộp nhánh chính; plan và danh sách chạy của một đợt được duyệt một lần trong một PR, không cần họp; AI chỉ ghi trạng thái duyệt theo lời đồng ý rõ ràng của dev, ở một quy tắc chung
-status: proposed             # proposed | accepted | superseded
+status: accepted             # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-11-12
 deciders: [Nhật]
