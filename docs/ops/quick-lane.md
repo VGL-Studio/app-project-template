@@ -1,6 +1,6 @@
 # LÀM NHANH CÓ NGƯỜI THEO DÕI
 
-Hướng dẫn cho dev muốn làm ngay một việc nhỏ của code app trong ngày, cùng AI, không chờ phiên tự chạy. Quy tắc gốc ở [ADR-0034](../adr/0034-lam-nhanh-co-nguoi-theo-doi.md); phần AI phải làm ở [docs/CLAUDE.md](../CLAUDE.md), mục Khi làm nhanh có người theo dõi.
+Hướng dẫn cho dev muốn làm ngay một việc nhỏ của code app trong ngày, cùng AI, không chờ phiên tự chạy. Quy tắc gốc ở [ADR-0048](../adr/0048-duyet-plan-va-danh-sach-chay-mot-lan.md); phần AI phải làm ở [docs/CLAUDE.md](../CLAUDE.md), mục Khi làm nhanh có người theo dõi.
 
 ## 1. Khi nào dùng
 
