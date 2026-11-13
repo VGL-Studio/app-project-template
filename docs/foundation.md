@@ -43,15 +43,6 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - chỉ dùng màu, chữ, khoảng cách, thành phần từ `:core:designsystem`
 - không viết cứng mã màu hay cỡ chữ trong feature
 
-### [ADR-0009](adr/0009-auto-run-infrastructure.md): Phiên tự chạy dùng Claude Code routine, staging chạy trên GitHub Actions, phát hành production ngoài GitHub
-
-- đặt tên nhánh theo `claude/T-NNN-<tu-khoa>`
-- ghi đường dẫn phiên chạy vào mô tả PR
-- không cố cài hay chạy emulator trong phiên
-- không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo
-- không viết workflow mới có dùng bí mật, trừ khi đó chính là plan rủi ro cao đã được duyệt chéo
-- không chạm vào `scripts/release.sh`
-
 ### [ADR-0010](adr/0010-soft-quality-gate-github-free.md): Cổng chất lượng mềm trên GitHub Free, merge chỉ qua script kiểm tra
 
 - chỉ merge bằng `scripts/merge-if-green.sh`
@@ -69,18 +60,6 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - feature chỉ dùng `RemoteAssets`, không gọi HTTP hay viết địa chỉ R2
 - mỗi thay đổi nội dung file là một đường dẫn mới
 - không viết code hay script ghi đè, xóa file trên R2
-
-### [ADR-0016](adr/0016-staging-and-start-run-workflows.md): Bản staging build bằng biến thể release ký khóa staging riêng, phiên tự chạy kích hoạt qua API của routine
-
-- không đọc, in ra hay chuyển đi giá trị bí mật
-- không đổi `staging.yml` hay `start-run.yml` ngoài plan rủi ro cao đã duyệt chéo
-- cuối phiên tự chạy chỉ khởi động `staging.yml` trên nhánh chính
-
-### [ADR-0017](adr/0017-release-and-new-app-scripts.md): Script phát hành chỉ build bản ký, người tải lên Google Play; script khởi tạo chép dự án mẫu thành repo mới
-
-- không chạm vào `scripts/release.sh` (ADR-0009)
-- không đọc, tạo hay sửa thư mục phát hành
-- khi đổi tên một file mà `scripts/new-app.sh` sửa (README, CLAUDE.md, `strings.xml`, `settings.gradle.kts`, `app/build.gradle.kts`), cập nhật script và test của nó trong cùng PR
 
 ### [ADR-0018](adr/0018-loading-waits-for-remote-config.md): Màn hình loading chờ tải Remote Config khi mở app, các màn hình khác vẫn không chờ
 
@@ -324,9 +303,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
 - nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
 
-## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
-
-### [ADR-0049](adr/0049-ha-tang-phien-tu-chay-va-staging.md): Phiên tự chạy dùng Claude Code routine, kích hoạt qua start-run.yml bằng tay hoặc tự động khi danh sách start auto được duyệt lên nhánh chính; staging build trên GitHub Actions bằng khóa staging riêng; phát hành production ngoài GitHub
+### [ADR-0049](adr/0049-ha-tang-phien-tu-chay-va-staging.md): Phiên tự chạy dùng Claude Code routine, kích hoạt qua start-run.yml bằng tay hoặc tự động khi danh sách start auto được duyệt lên nhánh chính; staging build trên GitHub Actions bằng khóa staging riêng; phát hành production ngoài GitHub bằng script chỉ build bản ký; script khởi tạo chép dự án mẫu thành repo mới
 
 - đặt tên nhánh theo `claude/T-NNN-<tu-khoa>`
 - ghi đường dẫn phiên chạy vào mô tả PR
@@ -334,6 +311,8 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo
 - không viết workflow mới có dùng bí mật, và không đổi `staging.yml` hay `start-run.yml`, trừ khi đó chính là plan rủi ro cao đã được duyệt chéo
 - không chạm vào `scripts/release.sh`
+- không đọc, tạo hay sửa thư mục phát hành
+- khi đổi tên một file mà `scripts/new-app.sh` sửa (README, CLAUDE.md, `strings.xml`, `settings.gradle.kts`, `app/build.gradle.kts`), cập nhật script và test của nó trong cùng PR
 - cuối phiên tự chạy chỉ khởi động `staging.yml` trên nhánh chính
 - danh sách chạy ghi `start: auto` chỉ khi lời duyệt của dev gồm việc bắt đầu phiên khi merge, không thì ghi `start: manual`, và AI không merge danh sách `start: auto` khi lời duyệt chưa gồm điều đó
 - không dùng Run now hay lịch hẹn của routine cho danh sách `start: auto`

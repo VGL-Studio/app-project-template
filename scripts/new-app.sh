@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates a new app from this template (ADR-0017), as a new git repository in its own folder.
+# Creates a new app from this template (ADR-0049), as a new git repository in its own folder.
 #
 # Usage:  scripts/new-app.sh --dest <folder> --package <package> --name "<app name>" --staging-assets-url <url>
 #   --dest                folder of the new app; must not exist yet. Its name becomes the Gradle project name.

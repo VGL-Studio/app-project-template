@@ -1,16 +1,16 @@
 ---
 ticket: T-104
 title: Phiên tự bắt đầu khi danh sách chạy approved có start auto lên nhánh chính
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn 7, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 19.4M        # cỡ M, số gợi ý 19.4M của scripts/token-usage.py estimate (2026-11-12, trung vị 30 task M); không chỉnh
 blocking_points: [ci]
 run_order:                   # AI điền sau họp đánh giá rủi ro
-reviewer:
-cross_reviewer:
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật            # nhóm một dev: người duyệt giữ cả hai vai (mục 9)
+approved_at: 2026-11-12
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0034)
 ---
 
@@ -220,9 +220,9 @@ Không cần (E dưới 2): trigger `push` có `paths` đã dùng ở `status-pa
 
 <!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0034). -->
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, người duyệt giữ cả hai vai theo `docs/risk-scoring.md`)
+- **Ghi chú:** AI ghi theo lời anh Nhật, ngày 2026-11-12, trong phiên: "Chấp nhận ADR-0048 và ADR-0049, merge #477; duyệt plan T-104 theo các đề xuất ở mục 8, merge #478", rồi sau khi ADR-0049 thêm phần hợp nhất ADR-0017: "Chấp nhận ADR-0049 bản có thêm ADR-0017, duyệt plan T-104 theo các đề xuất ở mục 8, merge #478". Trả lời mục 8 theo đề xuất: câu 1, ADR-0049 được chấp nhận cùng lời duyệt này; câu 2, giữ `auto_run: false`, AI làm cùng anh Nhật trên máy dev; câu 3, mẫu ghi `start: auto`; câu 4, chặn 90 phút tính từ lúc `fire` xong; câu 5, mở lại phiên bằng tay phải chọn `force`.
 
 ## 10. Nhật ký thực hiện
 

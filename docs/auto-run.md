@@ -21,7 +21,7 @@ Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày
 4. Mỗi lúc chỉ có một phiên tự chạy. Trong khi phiên đang chạy, người không merge vào nhánh chính, kể cả PR chỉ có tài liệu: mỗi commit mới trên nhánh chính bắt task đang làm chạy lại CI một vòng. Ngoại lệ duy nhất là PR sửa nguyên nhân của một task trong danh sách (mục 3, Chuẩn bị cho người khi task dừng), sau khi người đã xem và gỡ nhãn `needs-human`. `merge-if-green.sh` từ chối mọi PR không phải của phiên khi danh sách chạy trên nhánh báo cáo đang `running`, kể cả khi phiên đang chờ hạn mức được làm mới (mục 4, Tiếp tục phiên sau khi hết hạn mức). PR của phiên là nhánh báo cáo, nhánh `claude/T-NNN-...` và `claude/fix-T-NNN-...` của ticket có trong bảng danh sách chạy, và bản revert đúng (mục 3, Khi nhánh chính đỏ vì task của phiên). Task có plan làm ngoài phiên, kể cả trên nhánh `claude/T-NNN-...`, chờ phiên kết thúc.
 5. Một danh sách chạy chỉ chạy một lần. Danh sách đã `finished` không được kích hoạt lại; muốn chạy lại thì lập danh sách mới.
 6. Trước khi duyệt danh sách dài, dev xem hạn mức GitHub Actions còn lại (Billing and plans của tổ chức; token của phiên không đọc được trang này) và so với số phút CI của danh sách: mỗi task khoảng 10 phút `pr-check` và 10 phút `main-guard` (khoảng 1 phút khi `main-guard` bỏ qua vì PR đã chạy `check.sh` trên cùng cây file, ADR-0039), cộng khoảng 5 phút `ui-test` của `main-guard` khi task đổi code app (ADR-0043), gấp ba khi task đổi thư viện hay file build (build bản release), cộng khoảng 35 phút `device-session` và `staging` cuối phiên. Hết hạn mức giữa phiên thì mọi workflow, kể cả `resume-run.yml`, đều không chạy. Ghi kết quả ở dòng "Hạn mức Actions" của mục Kiểm tra trước khi duyệt.
-7. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0009). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
+7. Phiên chạy dưới tài khoản Claude và tài khoản GitHub hiện có của người phụ trách (ADR-0049). Vì dùng chung hạn mức, nên tránh kích hoạt phiên khi tài khoản đó vừa dùng nhiều trong ngày.
 
 ## 2. Kiểm tra đầu phiên
 
@@ -299,7 +299,7 @@ Phiên kết thúc khi gặp một trong các điều kiện sau:
 
 ### Tiếp tục phiên sau khi hết hạn mức
 
-Phiên dùng hạn mức của tài khoản Claude (ADR-0009). Hết hạn mức thì phiên dừng giữa chừng, không tự chờ được. Việc chờ do GitHub làm:
+Phiên dùng hạn mức của tài khoản Claude (ADR-0049). Hết hạn mức thì phiên dừng giữa chừng, không tự chờ được. Việc chờ do GitHub làm:
 
 1. Mỗi giờ, `resume-run.yml` chạy `scripts/resume-check.py`: tìm danh sách chạy đang `running` trên nhánh báo cáo mà mọi nhánh của phiên (nhánh báo cáo, nhánh task và nhánh `claude/fix-T-NNN-...` của các ticket trong danh sách) không có commit nào trong 90 phút. Phiên còn sống luôn có commit dày hơn thế: đẩy sau mỗi commit của task (bước 3), đẩy nhánh báo cáo sau mỗi task (bước 10) và trong lúc viết báo cáo (bước 2 bên dưới); lần chờ dài nhất (CI, emulator) dưới 40 phút; trên runner tự host một job có thể chờ máy lâu hơn, và khi đó ý 3 giữ phiên lại.
 2. Tìm thấy thì workflow kích hoạt lại routine với cùng danh sách chạy. Hạn mức chưa được làm mới thì phiên mới không làm được gì, không đẩy gì, và giờ sau workflow thử lại. Hạn mức được làm mới thì phiên tiếp tục.
@@ -434,7 +434,7 @@ Mỗi bài học ghi: chuyện gì đã xảy ra, bằng chứng (log, PR, thờ
 
 - Phiên chỉ có cấu hình staging. Không có mã quảng cáo thật, cấu hình Firebase production, khóa R2 production hay khóa ký ứng dụng.
 - Phiên không đọc, in ra hay chuyển đi bất kỳ bí mật nào của repo. Bí mật trên GitHub chỉ gồm cấu hình staging và mã kích hoạt routine.
-- Phiên không chạm vào `scripts/release.sh`. Phát hành production do người làm từ máy của mình (ADR-0009).
+- Phiên không chạm vào `scripts/release.sh`. Phát hành production do người làm từ máy của mình (ADR-0049).
 - Phiên không đẩy thẳng lên nhánh chính. Mọi thay đổi đi qua nhánh của task, PR, CI và script merge.
 - Phiên không sửa `.github/`, `scripts/merge-if-green.sh` hay quyền truy cập, trừ khi đó chính là nội dung của một plan rủi ro cao đã được duyệt chéo. Phiên không sửa tài liệu quy trình (mục 6).
 - Vì repo dùng gói GitHub Free, GitHub không chặn merge ở mức hệ thống. Lớp bảo vệ là script merge và workflow `main-guard.yml` (ADR-0010, ADR-0025).

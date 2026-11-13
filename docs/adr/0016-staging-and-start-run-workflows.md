@@ -1,10 +1,11 @@
 ---
 id: ADR-0016
 title: Bản staging build bằng biến thể release ký khóa staging riêng, phiên tự chạy kích hoạt qua API của routine
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-15
 deciders: [Nhóm phát triển]
+superseded_by: ADR-0049
 ---
 
 # ADR-0016: BẢN STAGING BUILD BẰNG BIẾN THỂ RELEASE KÝ KHÓA STAGING RIÊNG, PHIÊN TỰ CHẠY KÍCH HOẠT QUA API CỦA ROUTINE
