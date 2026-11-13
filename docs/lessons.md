@@ -1322,6 +1322,14 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied (anh Nhật nhận issue #467 ngày 2026-11-11; PR #468 merge theo lời "merge #468")
 - **Áp dụng:** PR #468: `AdsSettingsTest.placementEnabled_firstOpenOnly_saysSo` so hai chiều, ghi chú có mặt đúng khi `declaration.firstOpenOnly` bật.
 
+### L-171. Test `release.sh` của `scripts/tests/run.sh` mặc định repo có SDK AppsFlyer, nên đỏ ở app chưa bật AppsFlyer
+
+- **Ngày, nguồn:** 2026-11-12, camera-pose (issue #470; PR VGL-Studio/camera-pose#318, T-075)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `scripts/release.sh` chỉ đòi `appsFlyerDevKey` khi một file `*.gradle.kts` khai báo SDK AppsFlyer, nhưng khối test `release.sh` của `scripts/tests/run.sh` luôn đi nhánh có SDK. Ở app không có SDK, hai câu "release.sh refuses: ... AppsFlyer dev key" đỏ (`release.sh` đúng khi không đòi khóa), hợp đồng "build đọc mọi thuộc tính release.sh truyền" đỏ khi build của app không đọc khóa, và dòng đọc thuộc tính bắt buộc gắn `ADR-0027` không tìm thấy gì làm `run.sh` dừng trước phần `--check-only`. Mẫu có SDK nên không thấy.
+- **Bằng chứng:** issue #470; `scripts/tests/run.sh` trên nhánh chính `698c5b3`, khối test `release.sh`.
+- **Đề xuất sửa:** khối test rẽ theo SDK bằng đúng biểu thức của `release.sh` (biến `repo_has_appsflyer`): có SDK thì giữ như cũ; không có thì bản sao các file build của repo qua bước kiểm thư mục mà không cần khóa, hai câu từ chối khóa chạy trên bản sao đó thêm một module khai `libs.appsflyer`, hợp đồng bỏ `appsFlyerDevKey` và số thuộc tính bắt buộc là 3.
+
 ### L-172. Kịch bản emulator chờ thẳng màn đích sau điểm hiện quảng cáo toàn màn hình, và nút đóng của quảng cáo không có `resource-id`
 
 - **Ngày, nguồn:** 2026-11-12, camera-pose (issue #471; PR VGL-Studio/camera-pose#305, commit `b761c166`)
