@@ -18,7 +18,7 @@ lane:
 
 ## 1. Tóm tắt
 
-`scripts/run-check.py` có thêm chế độ `--batch`, để kiểm danh sách chạy `draft` của một đợt khi các plan còn `draft`: chỉ bỏ qua lỗi trạng thái của plan `draft`, ticket `planned` và spec chưa `confirmed` mà chính nhánh này đổi so với điểm tách khỏi nhánh chính; mọi kiểm tra khác giữ nguyên. Tài liệu quy tắc, mẫu và command sửa theo danh sách ở mục Hệ quả của ADR-0048: duyệt cả đợt trong một PR, không bắt buộc họp, AI ghi trạng thái duyệt theo phần C, đường làm nhanh gộp nhánh chính trước khi kiểm. Kiểm chứng bằng test của `run-check.py` trong `scripts/tests/run.sh` (kho git tạm có hai commit) và `scripts/history-refs.py`.
+`scripts/run-check.py` có thêm chế độ `--batch`, để kiểm danh sách chạy `draft` của một đợt khi các plan còn `draft`: chỉ bỏ qua lỗi trạng thái của plan `draft`, ticket `planned` và spec `changed` hay `draft` mà chính nhánh này đổi so với điểm tách khỏi nhánh chính; mọi kiểm tra khác giữ nguyên. Tài liệu quy tắc, mẫu và command sửa theo danh sách ở mục Hệ quả của ADR-0048: duyệt cả đợt trong một PR, không bắt buộc họp, AI ghi trạng thái duyệt theo phần C, đường làm nhanh gộp nhánh chính trước khi kiểm. Kiểm chứng bằng test của `run-check.py` trong `scripts/tests/run.sh` (kho git tạm có hai commit) và `scripts/history-refs.py`.
 
 ## 2. Hiểu yêu cầu
 
@@ -145,7 +145,8 @@ Mọi test nằm trong `scripts/tests/run.sh`, ngay sau khối `run-check` có s
 
 - `write_ticket <id> <depends> [status]` và `write_run_plan ... [status]`: thêm tham số trạng thái cuối, mặc định `approved`, nên mọi lời gọi có sẵn không đổi. Plan mẫu `draft` không qua được các quy tắc chặt của `plan-check.py` cho plan `draft` (quy tắc 8 cần dòng `**Quyền truy cập:**` và `**Thư viện và SDK:**` ở mục 3.3; quy tắc 13 cần mục 3.5 khi plan sửa `.kt`), nên khối mới truyền vào tham số thứ năm (chữ thêm vào mục 3) đoạn `### 3.3. Cờ tính năng ...` với hai dòng "Không thêm" và `### 3.5. Hành vi đã có bị đổi` ghi "Không có" cho mọi plan `draft`.
 - `batch_case <tên>`: dựng lại kho cho một ca: `rm -rf "$rr/.git"`, ghi đè mọi file mẫu về trạng thái gốc của ca (spec `confirmed`, T-001 và T-002 `approved`, danh sách `draft`; ca nào cần trạng thái gốc khác thì đặt trước khi gọi `batch_base`), `git -C "$rr" init -q -b main`. `batch_base`: `git add -A` và commit, ghi mã commit vào biến `base`. Sau đó ca đổi file và commit lần hai. Danh tính commit lấy từ `GIT_AUTHOR_*` có sẵn ở đầu bộ test.
-- `run_batch`: `RUN_CHECK_BASE="$base" RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" python3 -I scripts/run-check.py --batch "$rr/docs/runs/RUN-1.md"`, in `pass` hay `stop`, đầu ra trong `$work/run-check.out`.
+- `write_run <rows> [status]`: thêm tham số trạng thái, mặc định `draft` (B6 dùng `approved`).
+- `run_batch`: `RUN_CHECK_BASE="${RUN_CHECK_BASE:-$base}" RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" python3 -I scripts/run-check.py --batch "$rr/docs/runs/RUN-1.md"`, in `pass` hay `stop`, đầu ra trong `$work/run-check.out`.
 - Cuối khối: `rm -rf "$rr/.git"` và ghi lại các file mẫu như khối có sẵn để các test sau không thấy kho git hay trạng thái lạ.
 
 Mỗi ca đếm đúng dòng lỗi mong đợi và tổng số dòng `LỖI`, để test đỏ trước code đúng lý do (hôm nay `--batch` làm script coi `--batch` là đường dẫn và trả 1 hay 2).
@@ -156,12 +157,12 @@ Mỗi ca đếm đúng dòng lỗi mong đợi và tổng số dòng `LỖI`, đ
 | Spec `draft` của feature mới | Test script | B1b: như B1, spec `draft`: mong `pass`. Spec có `status: confimred` (gõ sai) trong diff: mong `stop`, 1 dòng `LỖI` có `chưa confirmed`. Đỏ trước code |
 | Plan `draft` không đổi trong nhánh | Test script | B2: plan T-002 đã `draft` ở lần commit gốc; lần hai chỉ đổi ticket T-002 sang `planned`. Mong `stop`, đúng 1 dòng `LỖI`, có `plan đang 'draft', chưa approved`. Đỏ trước code (hôm nay trả lỗi khác vì `--batch`) |
 | Ticket `planned` không đổi trong nhánh | Test script | B2b: ticket T-002 đã `planned` ở commit gốc; lần hai đổi plan T-002 sang `draft`. Mong `stop`, đúng 1 dòng `LỖI`, có `ticket đang 'planned'`. Đỏ trước code |
-| Spec chưa xác nhận không đổi trong nhánh | Test script | B2c: spec đã `changed` ở commit gốc; lần hai đổi plan và ticket T-002. Mong `stop`, có dòng `chưa confirmed` (một dòng cho mỗi ticket dùng spec). Đỏ trước code |
+| Spec chưa xác nhận không đổi trong nhánh | Test script | B2c: spec đã `changed` ở commit gốc; lần hai đổi plan và ticket T-002. Mong `stop`, đúng 2 dòng `LỖI`, cả hai có `chưa confirmed` (lỗi spec báo theo từng ticket: T-001 và T-002). Đỏ trước code |
 | Trạng thái khác điều kiện | Test script | B3: ticket T-002 đổi trong nhánh sang `ready` (plan `draft` đổi trong nhánh): mong `stop`, đúng 1 dòng `LỖI`, có `ticket đang 'ready'`. Plan đổi trong nhánh sang `stopped` (ticket `planned` đổi trong nhánh): mong `stop`, đúng 1 dòng `LỖI`, có `plan đang 'stopped'`. Đỏ trước code |
-| Spec còn câu hỏi chưa trả lời | Test script | B4: như B1 nhưng câu trả lời trống: mong `stop`, có `câu hỏi còn mở chưa có trả lời`, không có dòng `chưa confirmed`. Đỏ trước code |
+| Spec còn câu hỏi chưa trả lời | Test script | B4: như B1 nhưng câu trả lời trống: mong `stop`, đúng 2 dòng `LỖI`, cả hai có `câu hỏi còn mở chưa có trả lời` (theo từng ticket), không có dòng `chưa confirmed`. Đỏ trước code |
 | Kiểm tra khác giữ nguyên | Test script | B5: như B1 nhưng ticket T-001 phụ thuộc T-002 đứng sau: mong `stop`, đúng 1 dòng `LỖI`, có `phụ thuộc T-002 đứng sau`. Đỏ trước code |
 | Danh sách không `draft` | Test script | B6: như B1, danh sách `approved`: mong `stop`, có `--batch chỉ dùng cho danh sách draft`. Đỏ trước code |
-| Không đọc được diff | Test script | B7: `RUN_CHECK_BASE=khong-co`: mong `stop`, có `--batch không đọc được diff`, và có dòng `plan đang 'draft'` (không bỏ qua gì). Đỏ trước code |
+| Không đọc được diff | Test script | B7: `RUN_CHECK_BASE=khong-co run_batch` (hàm giữ giá trị đặt sẵn): mong `stop`, có `--batch không đọc được diff`, và có dòng `plan đang 'draft'` (không bỏ qua gì). Đỏ trước code |
 | Sai tham số | Test script | B8: `run-check.py --batch` không có đường dẫn: mã 2 (hôm nay 1, đỏ trước code). `run-check.py --batch a b`: mã 2 (hôm nay cũng 2, câu đối chứng) |
 | Không có `--batch` giữ nguyên | Test script | Toàn bộ câu khẳng định có sẵn của khối `run-check` (không sửa câu nào) |
 | Tài liệu đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các đoạn sửa ở mục 3.1 B; `grep -rn "họp\|chỉ dev\|Chỉ dev\|Chỉ người\|chỉ người" CLAUDE.md docs .claude/skills --include=*.md | grep -v "docs/adr/\|docs/features/\|docs/runs/\|docs/lessons.md\|docs/foundation.md"` chỉ còn chỗ nói họp như việc tùy chọn ("biên bản họp" của yêu cầu, họp bàn quảng cáo) và câu "chỉ người" không về trạng thái duyệt (yêu cầu `done`, bài học `accepted`, ticket chỉ người làm được). `scripts/history-refs.py` qua |
