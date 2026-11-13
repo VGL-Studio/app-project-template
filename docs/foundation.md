@@ -323,3 +323,25 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không đặt `android.newDsl=false`, plugin cần DSL cũ thì nâng plugin đó
 - giữ `compileSdk = "<số>"` trên một dòng của `gradle/libs.versions.toml`
 - nâng Gradle thì thêm giới hạn Java của bản đó vào `scripts/java-check.sh` kèm test
+
+## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
+
+### [ADR-0048](adr/0048-duyet-plan-va-danh-sach-chay-mot-lan.md): Plan và danh sách chạy của một đợt được duyệt một lần trong một PR, không cần họp, sau khi đã qua plan-check, run-check và rà soát độc lập
+
+- lập danh sách chạy `draft` cùng PR với các plan `draft` của đợt khi các plan đã qua `plan-check.py` và rà soát độc lập của từng plan
+- chạy `run-check.py` và rà soát danh sách theo `docs/ops/pre-run-review.md` trên bản `draft`, chỉ bỏ qua lỗi trạng thái `approved` của plan có trong cùng PR
+- sửa điểm chặn ngay trên plan `draft` rồi rà soát lại phần sửa
+- đưa dev một tóm tắt cho cả đợt kèm câu duyệt có sẵn
+- lời duyệt chỉ áp cho đúng nội dung đã đưa, nội dung đổi thì hỏi lại
+- sau lời duyệt chuyển plan, ticket và danh sách sang `approved` trong một commit rồi chạy lại `run-check.py` không bỏ qua lỗi nào
+- không coi họp là điều kiện để duyệt, nhưng giữ quy tắc duyệt chéo của `docs/risk-scoring.md`
+
+### [ADR-0049](adr/0049-goi-task-khi-cho-ci.md): Trong phiên tự chạy, task sau được bắt đầu khi PR của task trước đang chờ CI, nếu hai task độc lập và không sửa chung file; mỗi lúc vẫn chỉ một PR chờ merge
+
+- chỉ bắt đầu task sau khi PR của task trước đang chờ `pr-check` và hai task không phụ thuộc nhau, `run-check.py` không báo cùng sửa, cùng tạo hay nhắc file của nhau, không plan nào sửa file build dùng chung, `scripts/check.sh` hay `.github/`, và task trước không đang sửa vì CI đỏ
+- mỗi lúc chỉ gối một task
+- tạo nhánh task sau từ `origin/main` và giao bước 3 tới 5 cho phiên con trong worktree riêng
+- sau khi task trước merge và `main-guard` xanh thì gộp nhánh chính vào nhánh task sau bằng `git merge`, chạy lại `scripts/check.sh` rồi mới rà soát độc lập
+- xung đột hay lỗi ngoài phạm vi file của plan thì dừng task sau theo `risk-scoring.md` mục 4
+- chỉ mở PR của task sau khi task trước đã merge hay đã dừng
+- ghi giờ gối và kết quả gộp vào dòng thời gian và nhật ký plan
