@@ -4947,19 +4947,19 @@ write_spec() { # <status> <answer>
   printf -- '---\nstatus: %s\n---\n\n## 3. Kịch bản\n\n### KB-1. Một\n\n- [ ] Khi a thì b.\n\n## 9. Câu hỏi còn mở\n\n1. **Câu?**\n   - Trả lời: %s\n\n## 10. Lịch sử\n\n| 2026-10-01 | AI | Tạo |\n' \
     "$1" "$2" > "$rr/docs/features/demo/spec.md"
 }
-write_ticket() { # <id> <depends>
-  printf -- '---\nid: %s\nstatus: approved\nspec: features/demo/spec.md\nscenarios: [KB-1]\ndepends_on: [%s]\n---\n' \
-    "$1" "$2" > "$rr/docs/features/demo/tickets/$1-x.md"
+write_ticket() { # <id> <depends> [status]
+  printf -- '---\nid: %s\nstatus: %s\nspec: features/demo/spec.md\nscenarios: [KB-1]\ndepends_on: [%s]\n---\n' \
+    "$1" "${3:-approved}" "$2" > "$rr/docs/features/demo/tickets/$1-x.md"
 }
-write_run_plan() { # <id> <file> <test row> [operation] [text added to section 3] [text added as section 6]
+write_run_plan() { # <id> <file> <test row> [operation] [text added to section 3] [text added as section 6] [status]
   local section6=""
   [ -z "${6:-}" ] || section6="## 6. Ảnh hưởng chéo"$'\n\n'"$6"$'\n\n'
-  printf -- '---\nticket: %s\nstatus: approved\nrisk_level: medium\nreviewer: A\napproved_at: 2026-10-02\n---\n\n## 3. Giải pháp\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| %s | `%s` | x |\n\n%s\n\n## 4. Kiểm thử\n\n| Tiêu chí | Loại | Tên |\n| --- | --- | --- |\n%s\n\n%s## 9. Quyết định duyệt\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A\n' \
-    "$1" "${4:-Sửa}" "$2" "${5:-}" "$3" "$section6" > "$rr/docs/features/demo/plans/$1-x.md"
+  printf -- '---\nticket: %s\nstatus: %s\nrisk_level: medium\nreviewer: A\napproved_at: 2026-10-02\n---\n\n## 3. Giải pháp\n\n### 3.2. Danh sách file\n\n| Thao tác | Đường dẫn | Nội dung |\n| --- | --- | --- |\n| %s | `%s` | x |\n\n%s\n\n## 4. Kiểm thử\n\n| Tiêu chí | Loại | Tên |\n| --- | --- | --- |\n%s\n\n%s## 9. Quyết định duyệt\n\n- **Quyết định:** Duyệt\n- **Người duyệt:** A\n' \
+    "$1" "${7:-approved}" "${4:-Sửa}" "$2" "${5:-}" "$3" "$section6" > "$rr/docs/features/demo/plans/$1-x.md"
 }
-write_run() { # <rows>
-  printf -- '---\nstatus: draft\n---\n\n## 1. Danh sách chạy\n\n| Thứ tự | Ticket | Feature | Plan | Rủi ro | Phụ thuộc | Ghi chú |\n| --- | --- | --- | --- | --- | --- | --- |\n%b\n\n## 2. Kiểm tra\n' \
-    "$1" > "$rr/docs/runs/RUN-1.md"
+write_run() { # <rows> [status]
+  printf -- '---\nstatus: %s\n---\n\n## 1. Danh sách chạy\n\n| Thứ tự | Ticket | Feature | Plan | Rủi ro | Phụ thuộc | Ghi chú |\n| --- | --- | --- | --- | --- | --- | --- |\n%b\n\n## 2. Kiểm tra\n' \
+    "${2:-draft}" "$1" > "$rr/docs/runs/RUN-1.md"
 }
 run_row() { printf '| %s | %s | demo | `features/demo/plans/%s-x.md` (1) | | | |\\n' "$1" "$2" "$2"; }
 run_check() { if RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" python3 -I scripts/run-check.py "$rr/docs/runs/RUN-1.md" > "$work/run-check.out" 2>&1; then echo pass; else echo stop; fi; }
@@ -5254,6 +5254,174 @@ write_run_plan T-002 feature/demo/Unfolded.kt '| KB-1 | Unit | `bTest` |' Tạo
 run_check > /dev/null
 expect "run-check: a file named only in section 6 is no use" 0 "$(grep -c 'L-078' "$work/run-check.out" || true)"
 rm -rf "$rr/.git"
+write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
+write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+
+# run-check.py --batch checks the draft run list of a batch whose plans are still draft (ADR-0048, B3): it waives only
+# the three status errors (plan draft, ticket planned, spec changed or draft), and only for files that the branch
+# changes against its fork point from the base (RUN_CHECK_BASE in the tests, origin/main by default).
+# Each case is a git repository with a base commit and a commit of the branch.
+# A draft plan meets the strict rules of plan-check.py for drafts: section 3.3 (rule 8) and section 3.5 (rule 13).
+batch_extra=$'### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện\n\n- **Quyền truy cập:** Không thêm\n- **Thư viện và SDK:** Không thêm\n\n### 3.5. Hành vi đã có bị đổi\n\nKhông có.'
+batch_plan() { # <id> <status>: the plan of T-001 (A.kt) or T-002 (B.kt) in the batch cases
+  if [[ "$1" == T-001 ]]; then
+    write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |' Sửa "$batch_extra" '' "$2"
+  else
+    write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |' Sửa "$batch_extra" '' "$2"
+  fi
+}
+batch_case() { # <name>: a new repository with the base state of a case; a case sets another base before batch_base
+  batch_name="$1"
+  rm -rf "${rr:?}/.git"
+  write_spec confirmed 'Đồng ý.'
+  write_ticket T-001 ''
+  write_ticket T-002 ''
+  batch_plan T-001 approved
+  batch_plan T-002 approved
+  write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
+  git -C "$rr" init -q -b main
+}
+batch_base() {
+  git -C "$rr" add -A
+  git -C "$rr" commit -q -m "base $batch_name"
+  base="$(git -C "$rr" rev-parse HEAD)"
+}
+batch_commit() {
+  git -C "$rr" add -A
+  git -C "$rr" commit -q -m "branch $batch_name"
+}
+run_batch() {
+  if RUN_CHECK_BASE="${RUN_CHECK_BASE:-$base}" RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" \
+    python3 -I scripts/run-check.py --batch "$rr/docs/runs/RUN-1.md" > "$work/run-check.out" 2>&1; then
+    echo pass
+  else
+    echo stop
+  fi
+}
+batch_count() { grep -cF -- "$1" "$work/run-check.out" || true; }
+batch_new() { # the branch of a new batch: plan T-002 draft, ticket T-002 planned, spec <status> with <answer>
+  batch_plan T-002 draft
+  write_ticket T-002 '' planned
+  write_spec "$1" "$2"
+}
+
+batch_case B1
+batch_base
+batch_new changed 'Đồng ý.'
+batch_commit
+expect "run-check: --batch passes a batch whose draft plans, planned tickets and changed spec are in the branch" \
+  "pass 0 3 1" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count '(--batch) bỏ qua trạng thái') $(batch_count '(--batch) so với')"
+expect "run-check: without --batch the same batch stops" stop "$(run_check)"
+
+batch_case B1b
+batch_base
+batch_new draft 'Đồng ý.'
+batch_commit
+r1="$(run_batch) $(batch_count 'LỖI')"
+write_spec confimred 'Đồng ý.'
+batch_commit
+expect "run-check: --batch passes the draft spec of a new feature, not a misspelt status" "pass 0|stop 1 1" \
+  "$r1|$(run_batch) $(batch_count 'LỖI') $(batch_count 'chưa confirmed')"
+
+batch_case B2
+batch_plan T-002 draft
+batch_base
+write_ticket T-002 '' planned
+batch_commit
+expect "run-check: --batch keeps the error of a draft plan the branch does not change" "stop 1 1" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count "plan đang 'draft', chưa approved")"
+
+batch_case B2b
+write_ticket T-002 '' planned
+batch_base
+batch_plan T-002 draft
+batch_commit
+expect "run-check: --batch keeps the error of a planned ticket the branch does not change" "stop 1 1" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count "ticket đang 'planned'")"
+
+batch_case B2c
+write_spec changed 'Đồng ý.'
+batch_base
+batch_plan T-002 draft
+write_ticket T-002 '' planned
+batch_commit
+expect "run-check: --batch keeps the error of an unconfirmed spec the branch does not change" "stop 1 1" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count 'chưa confirmed')"
+
+batch_case B3
+batch_base
+batch_plan T-002 draft
+write_ticket T-002 '' ready
+batch_commit
+r1="$(run_batch) $(batch_count 'LỖI') $(batch_count "ticket đang 'ready'")"
+batch_plan T-002 stopped
+write_ticket T-002 '' planned
+batch_commit
+expect "run-check: --batch waives only a planned ticket and a draft plan" "stop 1 1|stop 1 1" \
+  "$r1|$(run_batch) $(batch_count 'LỖI') $(batch_count "plan đang 'stopped'")"
+
+batch_case B4
+batch_base
+batch_new changed ''
+batch_commit
+expect "run-check: --batch keeps an unanswered spec question" "stop 1 1 0" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count 'câu hỏi còn mở chưa có trả lời') $(batch_count 'chưa confirmed')"
+
+batch_case B5
+batch_base
+batch_new changed 'Đồng ý.'
+write_ticket T-001 'T-002'
+batch_commit
+expect "run-check: --batch keeps the other checks, a dependency later in the list" "stop 1 1" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count 'phụ thuộc T-002 đứng sau')"
+
+batch_case B6
+batch_base
+batch_new changed 'Đồng ý.'
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)" approved
+batch_commit
+expect "run-check: --batch refuses a run list that is not draft" "stop 1" \
+  "$(run_batch) $(batch_count '--batch chỉ dùng cho danh sách draft')"
+
+batch_case B7
+batch_base
+batch_new changed 'Đồng ý.'
+batch_commit
+expect "run-check: --batch without a readable diff waives nothing" "stop 1 1" \
+  "$(RUN_CHECK_BASE=khong-co run_batch) $(batch_count '--batch không đọc được diff') $(batch_count "plan đang 'draft'")"
+
+batch_case B9
+batch_base
+batch_new changed 'Đồng ý.'
+batch_commit
+batch_plan T-001 draft
+expect "run-check: --batch does not waive a file changed only in the working tree" "stop 1 1" \
+  "$(run_batch) $(batch_count 'LỖI') $(batch_count "T-001: plan đang 'draft'")"
+
+batch_case B10
+batch_plan T-001 draft
+batch_base
+git -C "$rr" branch -q dot
+printf '\nMột dòng thêm trên nhánh chính.\n' >> "$rr/docs/features/demo/plans/T-001-x.md"
+batch_commit
+git -C "$rr" checkout -q dot
+batch_plan T-002 draft
+write_ticket T-002 '' planned
+batch_commit
+expect "run-check: --batch compares with the fork point, not with the newer base" "stop 1 1 2" \
+  "$(RUN_CHECK_BASE=main run_batch) $(batch_count 'LỖI') $(batch_count "T-001: plan đang 'draft'") \
+$(batch_count '(--batch) bỏ qua trạng thái')"
+
+expect "run-check: --batch without a run list, or with two, prints the usage" "2 2" \
+  "$(python3 -I scripts/run-check.py --batch > /dev/null 2>&1; echo $?) \
+$(python3 -I scripts/run-check.py --batch a b > /dev/null 2>&1; echo $?)"
+
+rm -rf "${rr:?}/.git"
+write_spec confirmed 'Đồng ý.'
+write_ticket T-001 ''
+write_ticket T-002 ''
 write_run_plan T-001 feature/demo/A.kt '| KB-1 | Unit | `aTest` |'
 write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
