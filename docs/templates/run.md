@@ -185,7 +185,8 @@ Task lệch ước tính từ 2 lần trở lên: <task, lý do có thể; hoặ
 <!-- auto-run.md, mục 4. Hàng chờ và ticket bỏ qua điền ở bước 2 (viết báo cáo), phần còn lại điền qua PR tóm tắt ở bước 5. Ghi "Không soạn" kèm lý do khi bước 5 không chạy. -->
 
 - Hàng chờ: <các dòng của `scripts/plan-queue.py`, hoặc "Không soạn" kèm lý do>
-- Ticket bỏ qua: <các dòng stderr của `scripts/plan-queue.py`, hoặc "Không có">
+- Ticket bỏ qua: <các dòng `bỏ qua` trong stderr của `scripts/plan-queue.py`, hoặc "Không có">
+- Đang chặn hàng chờ: <các dòng `Đang chặn hàng chờ:` trong stderr của `scripts/plan-queue.py`, hoặc "Không có">
 
 | Ticket | PR plan | Rủi ro | `plan-check.py` | Rà soát độc lập | Chạy thử |
 | --- | --- | --- | --- | --- | --- |

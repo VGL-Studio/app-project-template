@@ -5281,6 +5281,8 @@ write_pq_ticket T-925 backlog '' '' T-924 '' ''
 printf -- '---\nid: T-926\nstatus: backlog\nspec:\nscenarios: []\ndepends_on: []\nsprint:\nplan:\nauto_run: false               # people do it\n---\n' \
   > "$pq/docs/features/demo/tickets/T-926-x.md"
 write_pq_ticket T-927 backlog '' '' T-926 '' ''
+write_pq_ticket T-928 backlog '' '' T-927 '' ''
+write_pq_ticket T-929 backlog '' '' T-909 '' ''
 touch "$pq/README"
 pq_git init -q -b main
 pq_git add -A
@@ -5317,10 +5319,24 @@ expect "plan-queue: a backlog ticket is queued" 1 "$(grep -c 'T-923' <<< "$all_i
 expect "plan-queue: a missing dependency is skipped" 1 "$(pq_err 'T-916: bỏ qua.*T-999 không có ticket')"
 expect "plan-queue: a ticket with auto_run false is skipped" 1 "$(pq_err 'T-926: bỏ qua.*auto_run: false')"
 expect "plan-queue: a ticket waiting for an auto_run false ticket is skipped" 1 "$(pq_err 'T-927: bỏ qua, chờ T-926')"
+expect "plan-queue: a ticket waiting through a chain is skipped" 1 "$(pq_err 'T-928: bỏ qua, chờ T-927')"
+expect "plan-queue: a people-only ticket is named with every ticket it blocks" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: T-926 chặn 2 ticket (T-927, T-928): ticket ghi auto_run: false')"
+expect "plan-queue: a draft spec is named as a blocker" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: T-905 chặn 1 ticket (T-907): .*chưa confirmed')"
+expect "plan-queue: a dependency that is not open and has no plan is named" 1 \
+  "$(pq_err '^Đang chặn hàng chờ: T-909 chặn 1 ticket (T-929): đang approved, chưa có plan')"
+expect "plan-queue: a stopped dependency is named" 1 "$(pq_err '^Đang chặn hàng chờ: T-914 chặn 1 ticket (T-915): đang stopped')"
+expect "plan-queue: the blocker that holds most tickets comes first" "T-926" \
+  "$(grep '^Đang chặn hàng chờ:' "$work/pq.err" | head -1 | sed 's/^Đang chặn hàng chờ: \(T-[0-9]*\).*/\1/')"
+expect "plan-queue: a queued dependency is not a blocker" 0 "$(pq_err '^Đang chặn hàng chờ: T-903 ')"
+expect "plan-queue: a missing dependency is not named as a blocker" 0 "$(pq_err '^Đang chặn hàng chờ: T-999 ')"
 expect "plan-queue: a ticket with a plan branch is skipped" 1 "$(pq_err 'T-919: bỏ qua.*đang có plan trên nhánh origin/claude/plan-T-919-x')"
 expect "plan-queue: a ticket in an open PR is skipped" 1 "$(pq_err 'T-920: bỏ qua.*đang có PR mở #77')"
 expect "plan-queue: --max limits the list" "T-901 T-910" "$(pq_ids --max 2)"
 expect "plan-queue: default is 2" "T-901 T-910" "$(pq_ids)"
+expect "plan-queue: --max 0 picks nothing and still names the blockers" " 1" \
+  "$(pq_ids --max 0) $(pq_err '^Đang chặn hàng chờ: T-926 chặn 2 ticket')"
 expect "plan-queue: the line has the ticket path" "T-901 docs/features/demo/tickets/T-901-x.md" \
   "$(pq_run --max 1 | tr '\t' ' ')"
 expect "plan-queue: skipped tickets do not change the exit code" 0 "$(pq_codes --max 20)"

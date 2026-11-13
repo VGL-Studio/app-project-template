@@ -10,7 +10,11 @@ A ticket is picked when it is `backlog` or `ready`, has no `plan:`, is not marke
   - no remote branch `origin/claude/plan-T-NNN[-...]` and no open pull request already holds a plan for it.
 Order: `sprint` (a number before a word before empty), then the ticket number.
 
-stdout: at most N lines `T-NNN<TAB><ticket path>`. stderr: one line per ticket skipped, with the reason.
+stdout: at most N lines `T-NNN<TAB><ticket path>`. stderr: one line per ticket skipped, with the reason, then one line
+`Đang chặn hàng chờ: T-NNN chặn K ticket (...): <reason>` per ticket that holds back others through `depends_on`
+(directly or along a chain) while it waits for people: marked `auto_run: false`, spec not confirmed, plan in review,
+not open and without a plan, stopped or cancelled. Most blocked tickets first. A dependency that is only beyond --max
+or does not exist is not named.
 Exit 0 when the documents were read (also for an empty list); 2 when a document, a `git` or a `gh` call failed.
 Reads every open pull request and its files (gh api, page by page). Writes no file.
 The session runs `git fetch origin` before calling it.
@@ -150,6 +154,59 @@ def manual(ticket):
     return ""
 
 
+def blocking_dependencies(ticket, tickets, chosen):
+    """The dependencies that keep a ticket out of the queue (the same test as dependency_problem, every one of them)."""
+    found = []
+    for dep in run_check.ids(ticket.get("depends_on", "")):
+        other = tickets.get(dep)
+        if dep in chosen or other is None:
+            continue
+        if other["status"] in DEAD or not (other["status"] in MERGED or other.get("plan")):
+            found.append(dep)
+    return found
+
+
+def blockers(skipped, tickets, chosen):
+    """Maps each root ticket that waits for people to the sorted tickets it holds back, with its reason.
+
+    A root is a dependency that is itself skipped for a reason other than its own dependencies, or that is not a
+    candidate at all (not open, or stopped or cancelled). A dependency that only waits behind another one passes the
+    tickets on to its own roots. An eligible ticket left out by --max is not a root: nobody needs to act on it."""
+    roots = {}
+
+    def root_reason(dep):
+        other = tickets[dep]
+        if other["status"] in DEAD:
+            return f"đang {other['status']}"
+        if dep in skipped and not skipped[dep][1]:
+            return skipped[dep][0]
+        if other["status"] not in OPEN:
+            return f"đang {other['status']}, chưa có plan"
+        return ""
+
+    def walk(ticket_id, seen):
+        for dep in blocking_dependencies(tickets[ticket_id], tickets, chosen):
+            if dep in seen:
+                continue
+            seen.add(dep)
+            reason = root_reason(dep)
+            if reason:
+                yield dep, reason
+            elif dep in skipped:
+                yield from walk(dep, seen)
+
+    for ticket_id, (_, waits) in skipped.items():
+        if not waits:
+            continue
+        for dep, reason in walk(ticket_id, {ticket_id}):
+            roots.setdefault(dep, (reason, set()))[1].add(ticket_id)
+    number = lambda t: int(t.split("-")[1])
+    return sorted(
+        ((dep, reason, sorted(held, key=number)) for dep, (reason, held) in roots.items()),
+        key=lambda item: (-len(item[2]), number(item[0])),
+    )
+
+
 def main(argv):
     limit = 2
     if argv:
@@ -163,18 +220,19 @@ def main(argv):
     candidates = [t for t in tickets.values() if t["status"] in OPEN and not t.get("plan")]
     candidates.sort(key=lambda t: (sprint_key(t.get("sprint", "")), int(t["id"].split("-")[1])))
     chosen = []
+    # ticket id -> (reason, True when the reason is only a dependency)
+    skipped = {}
     for ticket in candidates:
-        reason = (
-            manual(ticket)
-            or holder(ticket["id"], branches, pr_files)
-            or spec_problem(ticket)
-            or dependency_problem(ticket, tickets, chosen)
-        )
+        own = manual(ticket) or holder(ticket["id"], branches, pr_files) or spec_problem(ticket)
+        reason = own or dependency_problem(ticket, tickets, chosen)
         if reason:
+            skipped[ticket["id"]] = (reason, not own)
             print(f"{ticket['id']}: bỏ qua, {reason}", file=sys.stderr)
         elif len(chosen) < limit:
             chosen.append(ticket["id"])
             print(f"{ticket['id']}\t{ticket['path'].relative_to(ROOT)}")
+    for dep, reason, held in blockers(skipped, tickets, chosen):
+        print(f"Đang chặn hàng chờ: {dep} chặn {len(held)} ticket ({', '.join(held)}): {reason}", file=sys.stderr)
     return 0
 
 
