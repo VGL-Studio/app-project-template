@@ -14,9 +14,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 private const val TAG = "Ads"
 
 /**
- * Loading, then the result of [load]; after a failure, Unavailable and a new try 5 s later (no ad held), sent only
- * in foreground and only when [mayRequestNow]; [retryResets] cuts the wait short (S-24). Never emits Loading again,
- * so an empty slot stays empty until an ad comes. A Loaded ad is destroyed when the collection ends.
+ * Loading, then the result of [load]; after a failure, Unavailable and a new try 5, 10, 20, 40, then every 60 s later
+ * (O-05, no ad held), sent only in foreground and only when [mayRequestNow]; [retryResets] cuts the wait short (S-24).
+ * The failures in a row count from 1 again when [failureResets] moves (the process back in foreground, Internet back;
+ * plan T-103) and in a new collection (a new screen). Never emits Loading again, so an empty slot stays empty until an
+ * ad comes. A Loaded ad is destroyed when the collection ends.
  *
  * - O-05, L-A19: every send, the first one too, waits for [foreground]; a try due in background waits for it.
  * - S-15: [mayRequestNow] false right before a send ([awaitSendAllowed]) ends the flow: nothing sent, no failure, no
@@ -40,7 +42,7 @@ internal fun retryingNativeAdStates(
 ): Flow<NativeAdState> = flow {
     emit(NativeAdState.Loading)
     var unavailableShown = false
-    var failures = 0
+    val retryCount = NativeRetryCount(failureResets)
     while (true) {
         if (!awaitSendAllowed(foreground, mayRequestNow)) {
             logger.info(TAG, "Native $placementKey request blocked")
@@ -74,7 +76,7 @@ internal fun retryingNativeAdStates(
                 logger.info(TAG, "Native $placementKey destroyed")
             }
         }
-        failures++
+        val failures = retryCount.onFailure()
         val generation = retryResets.value
         if (!unavailableShown) {
             emit(NativeAdState.Unavailable)

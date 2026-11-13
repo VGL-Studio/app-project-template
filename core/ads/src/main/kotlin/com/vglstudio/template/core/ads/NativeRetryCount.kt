@@ -9,14 +9,26 @@ import kotlinx.coroutines.flow.StateFlow
  * progress: it only sets the wait of the next failure. Not thread-safe: one place, one thread.
  */
 internal class NativeRetryCount(private val resets: StateFlow<Int>) {
+    private var failures = 0
+    private var since = resets.value
+
     /** The failures in a row, this one counted; 1 again when [resets] moved since the last count. */
-    fun onFailure(): Int = 1
+    fun onFailure(): Int {
+        val now = resets.value
+        if (now != since) {
+            since = now
+            failures = 0
+        }
+        failures++
+        return failures
+    }
 
     /** An ad loaded: the next failure counts from 1. */
-    fun onLoaded() {
-    }
+    fun onLoaded() = clear()
 
     /** The next failure counts from 1. */
     fun clear() {
+        failures = 0
+        since = resets.value
     }
 }
