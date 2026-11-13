@@ -4982,11 +4982,11 @@ open(p, "w").write(s)
 PY
 }
 rc_start 'start: soon' 'open_with: routine'
-r1="$(run_check) $(grep -c 'start phải là auto hay manual' "$work/run-check.out")"
+r1="$(run_check) $(grep -c 'start phải là auto hay manual' "$work/run-check.out" || true)"
 rc_start 'start: auto' 'open_with: cloud'
-r1="$r1|$(run_check) $(grep -c 'chỉ kích hoạt được routine' "$work/run-check.out")"
+r1="$r1|$(run_check) $(grep -c 'chỉ kích hoạt được routine' "$work/run-check.out" || true)"
 rc_start 'start: auto       # auto | manual' 'open_with: routine   # cloud | routine'
-r1="$r1|$(run_check) $(grep -c 'start' "$work/run-check.out")"
+r1="$r1|$(run_check) $(grep -c 'start' "$work/run-check.out" || true)"
 rc_start 'start: auto' 'open_with: routine'
 expect "run-check: the start field is auto or manual, and auto needs open_with routine in the file" "stop 1|stop 1|pass 0|pass 0" \
   "$r1|$(RUN_CHECK_OPEN_WITH=cloud run_check) $(grep -c 'start' "$work/run-check.out")"
@@ -7807,8 +7807,8 @@ expect "auto-start-check: other files, a deleted list and a renamed approved lis
 
 # T12, T22, T23: another fire job holds a session. Run 500 fired RUN-20261130-09 at 09:30.
 asc_fx runs=500
-r1="$(asc dispatch "$L1")|$(asc dispatch "$L1" --force)"
-expect "auto-start-check: a fire job that called the API 30 minutes ago refuses, force passes" "3||0|$L1 1" "$r1 $(asc_err 'vừa kích hoạt một phiên')"
+r1="$(asc dispatch "$L1") $(asc_err 'vừa kích hoạt một phiên')|$(asc dispatch "$L1" --force)"
+expect "auto-start-check: a fire job that called the API 30 minutes ago refuses, force passes" "3| 1|0|$L1" "$r1"
 asc_fx runs=500 job_status=in_progress
 r1="$(asc dispatch "$L1")"
 asc_fx runs=500 done=08:00

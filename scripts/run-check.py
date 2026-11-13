@@ -31,6 +31,9 @@ documents behind it, the mistakes that stopped or slowed earlier sessions:
   9. A plan that deletes a file or a folder (section 3.2, "Xóa") that a plan after it in the list still changes or
      deletes in its own section 3.2: an error, since that later plan fails plan-check.py at its start and is skipped.
      A later plan that creates the file again, or names it elsewhere in sections 3 and 4: a warning.
+  10. The list's `start`: auto, manual or empty; any other value is an error. `start: auto` (the session starts when
+     the list reaches main approved, ADR-0049) with an `open_with` in the file other than routine is an error, since
+     start-run.yml fires only the routine. Read from the file only, not from RUN_CHECK_OPEN_WITH.
 RUN_CHECK_ROOT overrides the repository root (tests). RUN_CHECK_OPEN_WITH overrides `open_with` (a session opened
 another way than the list says). Messages are in Vietnamese for the team.
 """
@@ -283,6 +286,13 @@ def check(run_path):
         return ["mục 1 không có dòng nào đúng mẫu (Thứ tự | Ticket | Feature | Plan | ...)."], []
     run_text = run_path.read_text()
     in_list = [ticket for ticket, _ in rows]
+    run_fields = front_matter(run_text)
+    start = run_fields.get("start", "").lower()
+    if start not in ("", "auto", "manual"):
+        errors.append(f"start phải là auto hay manual (nhận '{start}').")
+    elif start == "auto" and run_fields.get("open_with", "").lower() != "routine":
+        errors.append("start: auto mà open_with không phải routine: phiên tự bắt đầu chỉ kích hoạt được routine; "
+                      "đổi open_with hay ghi start: manual.")
     depends, files_of, created_by, deleted_by, plan_texts, hints = {}, {}, {}, {}, {}, {}
     ops_of = {}
 
