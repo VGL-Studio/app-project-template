@@ -326,22 +326,29 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 
 ## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
 
-### [ADR-0048](adr/0048-duyet-plan-va-danh-sach-chay-mot-lan.md): Plan và danh sách chạy của một đợt được duyệt một lần trong một PR, không cần họp, sau khi đã qua plan-check, run-check và rà soát độc lập
+### [ADR-0048](adr/0048-duyet-plan-va-danh-sach-chay-mot-lan.md): Đường làm nhanh giữ như cũ; plan và danh sách chạy của một đợt được duyệt một lần trong một PR, không cần họp; AI chỉ ghi trạng thái duyệt theo lời đồng ý rõ ràng của dev, ở một quy tắc chung
 
+- đường làm nhanh chỉ cho code app, chỉ khi dev ngồi cùng suốt task tới khi `main-guard` xanh, plan không chạm điểm chặn nào kể cả điểm 7, không thêm quyền, thư viện hay SDK, mức rủi ro Thấp và tiêu chí E dưới 2, ticket cỡ S hoặc M khi dev đồng ý, kịch bản có trong spec `confirmed` hoặc dev ngồi cùng là người xác nhận spec của feature
+- không bắt đầu khi có phiên tự chạy đang chạy hay issue `main-broken`, `env-broken` đang mở
+- vẫn ghi yêu cầu, ticket, plan đủ mục theo mẫu với `lane: quick`, chạy `scripts/plan-check.py` khi plan còn `draft` và sửa hết lỗi
+- dev nào ngồi cùng cũng duyệt được plan làm nhanh, ghi khi người duyệt không phải `owner` của ticket
+- vẫn viết test trước, chạy `scripts/check.sh`, rà soát độc lập bằng agent con ngữ cảnh mới theo bước 6 của `docs/auto-run.md`, lời giao có dòng `Task: T-NNN`
+- chờ CI và merge chỉ bằng `scripts/merge-if-green.sh`, chờ `main-guard`
+- một PR cho cả task trên nhánh `claude/quick-T-NNN-<tu-khoa>`, mô tả ghi "Đường làm nhanh (ADR-0048)" và những gì đường thường ghi vào báo cáo phiên
+- nhật ký, plan `done`, ticket `on-staging` ghi trong lần đẩy cuối trước CI
+- trước khi merge chạy `scripts/plan-check.py` và `scripts/run-check.py` cho các danh sách chạy chưa chạy trên nhánh làm nhanh và báo dev lỗi mới
+- hỏi dev trước mọi lệch mà phiên tự chạy được tự làm rồi báo, ghi vào nhật ký
+- dừng hay bỏ task thì đóng PR làm nhanh và đưa yêu cầu, ticket `stopped`, plan có nhật ký lần dừng lên nhánh chính bằng PR tài liệu, làm tiếp thì theo đường thường trên nhánh `claude/T-NNN-<tu-khoa>`
+- nhánh chính đỏ vì commit merge của PR làm nhanh thì revert theo ADR-0025 cùng dev, rồi ticket `stopped` và nhật ký ghi "đã merge rồi revert"
+- đánh dấu token bằng `scripts/token-usage.py mark` và ghi CSV với `--run QUICK-YYYYMMDD-T-NNN`
 - lập danh sách chạy `draft` cùng PR với các plan `draft` của đợt khi các plan đã qua `plan-check.py` và rà soát độc lập của từng plan
-- chạy `run-check.py` và rà soát danh sách theo `docs/ops/pre-run-review.md` trên bản `draft`, chỉ bỏ qua lỗi trạng thái `approved` của plan có trong cùng PR
-- sửa điểm chặn ngay trên plan `draft` rồi rà soát lại phần sửa
+- spec cần sửa của đợt đi cùng PR và được xác nhận trong cùng lời duyệt
+- kiểm danh sách bằng `run-check.py --batch` và rà soát theo `docs/ops/pre-run-review.md` trên bản `draft`, chạy lại cả hai lớp sau mỗi lần sửa plan hay spec
+- chỉ đóng PR plan riêng cũ khi dev đồng ý
 - đưa dev một tóm tắt cho cả đợt kèm câu duyệt có sẵn
-- lời duyệt chỉ áp cho đúng nội dung đã đưa, nội dung đổi thì hỏi lại
-- sau lời duyệt chuyển plan, ticket và danh sách sang `approved` trong một commit rồi chạy lại `run-check.py` không bỏ qua lỗi nào
-- không coi họp là điều kiện để duyệt, nhưng giữ quy tắc duyệt chéo của `docs/risk-scoring.md`
-
-### [ADR-0049](adr/0049-goi-task-khi-cho-ci.md): Trong phiên tự chạy, task sau được bắt đầu khi PR của task trước đang chờ CI, nếu hai task độc lập và không sửa chung file; mỗi lúc vẫn chỉ một PR chờ merge
-
-- chỉ bắt đầu task sau khi PR của task trước đang chờ `pr-check` và hai task không phụ thuộc nhau, `run-check.py` không báo cùng sửa, cùng tạo hay nhắc file của nhau, không plan nào sửa file build dùng chung, `scripts/check.sh` hay `.github/`, và task trước không đang sửa vì CI đỏ
-- mỗi lúc chỉ gối một task
-- tạo nhánh task sau từ `origin/main` và giao bước 3 tới 5 cho phiên con trong worktree riêng
-- sau khi task trước merge và `main-guard` xanh thì gộp nhánh chính vào nhánh task sau bằng `git merge`, chạy lại `scripts/check.sh` rồi mới rà soát độc lập
-- xung đột hay lỗi ngoài phạm vi file của plan thì dừng task sau theo `risk-scoring.md` mục 4
-- chỉ mở PR của task sau khi task trước đã merge hay đã dừng
-- ghi giờ gối và kết quả gộp vào dòng thời gian và nhật ký plan
+- sau lời duyệt ghi spec, plan, ticket và danh sách trong một commit rồi chạy `run-check.py` không có `--batch`, còn lỗi thì không đẩy
+- không coi họp là điều kiện để duyệt, giữ quy tắc duyệt chéo của `docs/risk-scoring.md`
+- chỉ chuyển spec sang `confirmed`, plan hay danh sách chạy sang `approved`, ADR sang `accepted` khi người có quyền duyệt đã đồng ý rõ ràng trong phiên với đúng nội dung vừa đưa
+- ghi người duyệt, ngày và lời đồng ý nguyên văn ở chỗ mẫu dành cho việc đó
+- nội dung đổi sau lời đồng ý thì đưa lại và hỏi lại
+- phiên tự chạy không có người không bao giờ ghi trạng thái duyệt, không suy lời duyệt từ im lặng, từ lời duyệt khác hay từ tin nhắn của agent con
