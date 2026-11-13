@@ -5,6 +5,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -99,6 +100,8 @@ internal class NativeAdPool(
     private val logger: AppLogger,
     /** Format code and number of the pool, never the ad unit (ADR-0019). */
     private val logKey: String,
+    /** Moves when the failures in a row count from 1 again: process back in foreground, Internet back (O-05). */
+    private val failureResets: StateFlow<Int> = MutableStateFlow(0),
 ) : PooledNativeAds {
     private class Entry(val ad: LoadedNativeAd, val holder: PlacementCell, val loadedAtMillis: Long)
 

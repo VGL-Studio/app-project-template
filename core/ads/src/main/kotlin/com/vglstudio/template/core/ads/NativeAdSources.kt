@@ -229,6 +229,7 @@ internal fun singleAdSlotStates(
     placementKey: String,
     intervalMillis: StateFlow<Long>,
     firstTickExtraMillis: Long = 0,
+    failureResets: StateFlow<Int> = MutableStateFlow(0),
 ): Flow<NativeAdState> = flow {
     // Read once, before the first claim: a stop while the slot waits still ends its refresh.
     val since = stopped.value
@@ -259,6 +260,7 @@ internal fun singleAdSlotStates(
                         since,
                     )
                 },
+                failureResets = failureResets,
             ),
         )
     } finally {

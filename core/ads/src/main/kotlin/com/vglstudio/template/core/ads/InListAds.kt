@@ -239,6 +239,7 @@ internal fun inListRowStates(
     retryResets: StateFlow<Int>,
     logger: AppLogger,
     placementKey: String,
+    failureResets: StateFlow<Int> = MutableStateFlow(0),
 ): Flow<NativeAdState> = retryingNativeAdStates(
     load = {
         rowShown.first { it }
@@ -250,6 +251,7 @@ internal fun inListRowStates(
     logger = logger,
     placementKey = placementKey,
     refresh = null,
+    failureResets = failureResets,
 )
 
 /**

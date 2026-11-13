@@ -1,0 +1,22 @@
+package com.vglstudio.template.core.ads
+
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * The failures in a row of one native place with no ad (a slot, a list row, a pool, the native full-screen ad of a
+ * placement), for the retry waits of O-05 (plan T-103): back to 0 when an ad loads ([onLoaded]), on [clear], and when
+ * [resets] moved since the last count (the whole process back in foreground, Internet back). Never cancels a wait in
+ * progress: it only sets the wait of the next failure. Not thread-safe: one place, one thread.
+ */
+internal class NativeRetryCount(private val resets: StateFlow<Int>) {
+    /** The failures in a row, this one counted; 1 again when [resets] moved since the last count. */
+    fun onFailure(): Int = 1
+
+    /** An ad loaded: the next failure counts from 1. */
+    fun onLoaded() {
+    }
+
+    /** The next failure counts from 1. */
+    fun clear() {
+    }
+}

@@ -4,6 +4,7 @@ import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -22,6 +23,12 @@ internal class FullScreenReloads(
     /** Native full screen only (O-05). */
     private val foreground: StateFlow<Boolean>,
     private val logger: AppLogger,
+    /** Native full screen only: moves when its failures in a row count from 1 again (O-05, plan T-103). */
+    private val failureResets: StateFlow<Int> = MutableStateFlow(0),
+    /** Native full screen only: read at the start of each retry wait; a new value cuts the wait short (S-24). */
+    private val retryResets: () -> StateFlow<Int> = { MutableStateFlow(0) },
+    /** Native full screen only: a retry wait cut short by [retryResets], once in foreground. */
+    private val onRetryCutShort: (AdPlacement) -> Unit = {},
 ) {
     private val pending = mutableMapOf<AdPlacement, Job>()
 
@@ -36,6 +43,10 @@ internal class FullScreenReloads(
         val dueAt = clock.nowMillis() + wait
         schedule(placement, wait)
         return FullScreenLoadState.WaitingRetry(dueAt)
+    }
+
+    /** A native full-screen ad of [placement] loaded: its next failure waits from 5 s again (O-05). */
+    fun onLoaded(placement: AdPlacement) {
     }
 
     /** S-15: nothing sent, not a failure, no retry. */

@@ -4,6 +4,7 @@ import com.vglstudio.template.core.logging.AppLogger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
@@ -35,6 +36,7 @@ internal fun retryingNativeAdStates(
     logger: AppLogger,
     placementKey: String,
     refresh: ((NativeAdState.Loaded) -> Flow<NativeAdState>)? = null,
+    failureResets: StateFlow<Int> = MutableStateFlow(0),
 ): Flow<NativeAdState> = flow {
     emit(NativeAdState.Loading)
     var unavailableShown = false

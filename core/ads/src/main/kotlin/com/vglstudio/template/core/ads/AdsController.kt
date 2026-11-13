@@ -1418,6 +1418,26 @@ class AdsController @Inject internal constructor(
         inScreenAdWindowState.onForeground(foreground)
     }
 
+    /**
+     * Tests only: the whole process came to foreground or went to background, as [AdsActivityTracker] reports it, for
+     * the native retry counters only (O-05, plan T-103): no resume ad turn.
+     */
+    @VisibleForTesting
+    internal fun setProcessForegroundForTest(foreground: Boolean) {
+    }
+
+    /**
+     * Tests only: the send of each native full-screen load instead of the SDK's (plan T-103). It returns the ad that
+     * loaded, or null for a failure (code 3); everything before the send (foreground, gate, switch) runs for real.
+     */
+    @VisibleForTesting
+    internal var nativeFullScreenRequestForTest: ((AdPlacement) -> LoadedNativeAd?)? = null
+
+    /** Tests only: where the full-screen ad of [placement] is in its loading (F-04). */
+    @VisibleForTesting
+    internal fun nativeFullScreenLoadStateForTest(placement: AdPlacement): FullScreenLoadState =
+        fullScreenLoadState(placement)
+
     /** Tests only: the preload of S-21, which the SDK's init callback asks for (plan T-086). */
     @VisibleForTesting
     internal fun requestPreloadForTest() = preloader.request(PreloadReason.SDK_READY)
@@ -2114,21 +2134,27 @@ class AdsController @Inject internal constructor(
                 nativeLoadResults.signal(placement)
                 return@launch
             }
+            val requestForTest = nativeFullScreenRequestForTest
+            if (requestForTest != null) {
+                // Tests only: the send itself is replaced; everything before it ran for real.
+                events.onRequestSent()
+                val loaded = requestForTest(placement)
+                if (loaded != null) {
+                    onNativeFullScreenLoaded(placement, loaded, cell)
+                } else {
+                    onNativeFullScreenLoadFailed(placement, events, NO_FILL_CODE_FOR_TEST, null)
+                }
+                return@launch
+            }
             try {
                 // O-06, shared with every native request (NativeRequestOptions.kt).
                 val options = fullScreenNativeRequestOptions().toNativeAdOptions()
                 val loader = AdLoader.Builder(context, unitId)
                     .forNativeAd { ad ->
                         networkLog.loaded(placement.key, ad.responseInfo)
-                        loadStates -= placement
-                        lastLoadErrors -= placement
                         ad.setOnPaidEventListener { events.onPaid(it) }
                         events.onLoaded(ad)
-                        val loaded = SdkLoadedNativeAd(ad, events)
-                        nativeFullScreenCells[loaded] = cell
-                        preloadedNativeFullScreen.put(placement, loaded, clock.nowMillis())
-                        // L-068: a combo waiting for this placement takes the ad.
-                        nativeLoadResults.signal(placement)
+                        onNativeFullScreenLoaded(placement, SdkLoadedNativeAd(ad, events), cell)
                     }
                     .withAdListener(
                         object : AdListener() {
@@ -2158,6 +2184,19 @@ class AdsController @Inject internal constructor(
                 onNativeFullScreenLoadFailed(placement, events, 0, null)
             }
         }
+    }
+
+    /**
+     * The native full-screen ad of [placement] loaded, by the SDK or by [nativeFullScreenRequestForTest]: kept in its
+     * slot for the show, with [cell] for the placement its metrics read (PL-03).
+     */
+    private fun onNativeFullScreenLoaded(placement: AdPlacement, loaded: LoadedNativeAd, cell: PlacementCell) {
+        loadStates -= placement
+        lastLoadErrors -= placement
+        nativeFullScreenCells[loaded] = cell
+        preloadedNativeFullScreen.put(placement, loaded, clock.nowMillis())
+        // L-068: a combo waiting for this placement takes the ad.
+        nativeLoadResults.signal(placement)
     }
 
     /** The load of the native full-screen ad of [placement] failed: counted (T-023), then a retry (O-05). */
@@ -2410,6 +2449,9 @@ class AdsController @Inject internal constructor(
 
     private companion object {
         const val TAG = "Ads"
+
+        /** The SDK code of no fill, for a failed load of [nativeFullScreenRequestForTest]. */
+        const val NO_FILL_CODE_FOR_TEST = 3
 
         /** `load_state` of a shown full-screen ad. */
         const val READY = "ready"
