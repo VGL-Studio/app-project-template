@@ -7850,6 +7850,15 @@ asc_list RUN-20261201-01 draft auto routine
 A="$(asc_commit a)"
 asc_list RUN-20261201-01 approved auto routine
 B="$(asc_commit b)"
+# T12 for a push: another fire job holds a session.
+asc_fx runs=500
+expect "auto-start-check: a push run is refused too while another fire job holds a session" "3| 1" \
+  "$(asc push --before "$A" --after "$B") $(asc_err 'vừa kích hoạt một phiên')"
+# start and open_with are read as run-check.py reads them, without regard to case.
+asc_list RUN-20261201-01 approved Auto Routine
+C="$(asc_commit c)"
+asc_fx
+expect "auto-start-check: start and open_with are read without regard to case" "0|$L1" "$(asc push --before "$A" --after "$C")"
 asc_fx main=finished
 r1="$(asc push --before "$A" --after "$B")|$(asc dispatch "$L1" --force) $(asc_err 'không còn approved trên nhánh chính')"
 asc_fx main=none
@@ -7879,6 +7888,8 @@ expect "start-run: the main-guard step waits for a running main-guard on a push"
 expect "start-run: fire checks again before enabling the schedules and calling the API" "yes 1 1" \
   "$(awk '/auto-start-check.py dispatch "\$\{RUN_FILE\}" --recheck/ && !k { k = NR } /name: Bật lịch của phiên/ { b = NR } /curl / && !c { c = NR }
      END { print ((k && b && c && k < b && k < c) ? "yes" : "no") }' <<<"$fire_job") $(grep -cF 'name: fire ${{ needs.check.outputs.run_file }}' <<<"$fire_job") $(grep -cF '"${FORCE}" = "true"' <<<"$fire_job" | sed 's/^[1-9][0-9]*$/1/')"
+expect "start-run: fire writes the reason of a refusal to the summary and the error line" "1 1" \
+  "$(grep -cF 'GITHUB_STEP_SUMMARY' <<<"$(awk '/name: Kiểm tra lại ngay trước khi kích hoạt/ { f = 1 } /name: Bật lịch của phiên/ { f = 0 } f' <<<"$fire_job")" | sed 's/^[1-9][0-9]*$/1/') $(grep -cF 'tail -n 1 "${RUNNER_TEMP}/recheck.err"' <<<"$fire_job")"
 expect "start-run: the API call stays in the step named Kích hoạt routine" "yes" \
   "$(awk '/^      - name: / { s = $0 } /curl / && !c { c = 1; print (s ~ /Kích hoạt routine$/) ? "yes" : "no" }' <<<"$fire_job")"
 expect "start-run: pick fails with the reason when the list is refused" "1 1 1" \
