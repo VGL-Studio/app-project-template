@@ -1,7 +1,7 @@
 ---
 ticket: T-105
 title: Làm theo ADR-0048 - run-check.py --batch cho danh sách của một đợt, tài liệu duyệt cả đợt và bỏ họp
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn 7 (quy trình phiên tự chạy), không tính điểm
 risk_level: high             # low | medium | high
@@ -233,4 +233,14 @@ Phiên bản 1:
 
 ## 10. Nhật ký thực hiện
 
-Chưa có.
+### RUN-20261113-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #483, commit merge `b91c6a6`, 2026-11-13 14:28 UTC).
+- **Nhánh, PR:** `claude/T-105-duyet-ca-dot`, https://github.com/VGL-Studio/app-project-template/pull/483
+- **Đã làm:** `scripts/run-check.py --batch` (bỏ qua đúng ba lỗi trạng thái của file đổi so với điểm tách, mỗi lỗi bỏ qua một dòng `CHÚ Ý: (--batch)`, danh sách phải `draft`); tài liệu, mẫu và command theo mục 3.1 B, gồm mục mới "Khi duyệt cả đợt" của `docs/CLAUDE.md`. Bước 3 đến 5 do phiên con làm trong worktree riêng.
+- **Test viết trước:** 14 test trong `scripts/tests/run.sh` (B1, đối chứng của B1, B1b, B2, B2b, B2c, B3, B4, B5, B6, B7, B9, B10, B8), commit `c1d135b`. Trước code 13 test đỏ đúng lý do (script đọc `--batch` như đường dẫn: ví dụ B1 `expected 'pass 0 3 1', got 'stop 0 0 0'`, B8 `expected '2 2', got '1 2'`); câu đối chứng của B1 xanh đúng ý định. Không test nào viết chặt thêm ngoài câu đối chứng của plan. Không có thay đổi ở file test sau commit test.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 3 ghi chú (đường dẫn không ASCII hay có dấu cách không được bỏ qua, hướng an toàn; hai câu thêm trong file của mục 3.2 được xét là không lệch; `docs/CLAUDE.md` mục Những điều không được làm chưa có vế C1 về PR có trạng thái do người tự ghi, ngoài phạm vi plan). Thử đột biến của rà soát (`<base>..HEAD`, `git diff <base>`, `HEAD~1`, bỏ điều kiện có trong diff, nới tập trạng thái, bỏ kiểm `draft`, diff lỗi trả tập rỗng): mỗi đột biến làm ít nhất một test đỏ.
+- **Kết quả CI:** `scripts/check.sh` trên máy QUA (test của script 1624 ok, test JVM 1974, 0 lỗi); `pr-check` xanh ở vòng đầu (lần chạy 43441862997).
+- **Lệch so với plan:** Không có file ngoài mục 3.2. Hai câu thêm trong file của mục 3.2, ngoài danh sách câu của 3.1 B: `docs/auto-run.md` mục 1 bước 2 và chú thích mục Kiểm tra trước khi duyệt của `docs/templates/run.md` nói chạy `--batch` trên bản draft rồi chạy không có `--batch` sau khi ghi trạng thái (khi duyệt cả đợt, chạy không có `--batch` không thể qua trước khi ghi trạng thái; khớp ADR-0048 B3, B5); rà soát xét không phải lệch.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** đọc các đoạn tài liệu sửa (kiểm tra thủ công của mục 4, người), nhất là mục "Khi duyệt cả đợt" của `docs/CLAUDE.md`; ba ghi chú của rà soát.

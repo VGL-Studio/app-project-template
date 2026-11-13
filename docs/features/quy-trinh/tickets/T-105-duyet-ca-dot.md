@@ -5,7 +5,7 @@ feature: quy-trinh
 spec:                        # ticket quy trình: yêu cầu là ADR-0048 (mục Hệ quả) và requests/2026-11-12-giam-thoi-gian-cho.md, không có spec nghiệp vụ
 scenarios: []
 owner: Nhật
-status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: on-staging            # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quy trình phiên tự chạy: điểm chặn 7, plan rủi ro cao, duyệt chéo
 size: M
 depends_on: []
