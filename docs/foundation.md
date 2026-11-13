@@ -336,7 +336,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - chờ CI và merge chỉ bằng `scripts/merge-if-green.sh`, chờ `main-guard`
 - một PR cho cả task trên nhánh `claude/quick-T-NNN-<tu-khoa>`, mô tả ghi "Đường làm nhanh (ADR-0048)" và những gì đường thường ghi vào báo cáo phiên
 - nhật ký, plan `done`, ticket `on-staging` ghi trong lần đẩy cuối trước CI
-- trước khi merge chạy `scripts/plan-check.py` và `scripts/run-check.py` cho các danh sách chạy chưa chạy trên nhánh làm nhanh và báo dev lỗi mới
+- trước khi merge gộp nhánh chính vào nhánh làm nhanh rồi chạy `scripts/plan-check.py` và `scripts/run-check.py` cho các danh sách chạy chưa chạy và báo dev lỗi mới
 - hỏi dev trước mọi lệch mà phiên tự chạy được tự làm rồi báo, ghi vào nhật ký
 - dừng hay bỏ task thì đóng PR làm nhanh và đưa yêu cầu, ticket `stopped`, plan có nhật ký lần dừng lên nhánh chính bằng PR tài liệu, làm tiếp thì theo đường thường trên nhánh `claude/T-NNN-<tu-khoa>`
 - nhánh chính đỏ vì commit merge của PR làm nhanh thì revert theo ADR-0025 cùng dev, rồi ticket `stopped` và nhật ký ghi "đã merge rồi revert"
@@ -346,11 +346,13 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - kiểm danh sách bằng `run-check.py --batch` (chỉ bỏ qua lỗi trạng thái của file có trong diff so với điểm tách) và rà soát theo `docs/ops/pre-run-review.md` trên bản `draft`, chạy lại cả hai lớp sau mỗi lần sửa plan hay spec
 - chỉ đóng PR plan riêng cũ khi dev đồng ý
 - đưa người duyệt một tóm tắt cho cả đợt kèm câu duyệt có sẵn
-- lời duyệt chỉ có hiệu lực với plan và spec mà người nói có quyền duyệt, phần còn lại bỏ khỏi danh sách rồi chạy lại `run-check.py --batch`
+- lời duyệt chỉ có hiệu lực với plan và spec mà người nói có quyền duyệt
+- duyệt một phần thì bỏ đúng các plan chưa duyệt khỏi danh sách, chuyển chúng cùng ticket và spec chưa duyệt về PR riêng, chạy lại `run-check.py --batch`, và hỏi lại khi danh sách phải đổi thêm hay có lỗi mới
 - sau lời duyệt ghi spec, plan, ticket và danh sách trong một commit rồi chạy `run-check.py` không có `--batch`, còn lỗi thì không đẩy
 - trước khi merge gộp nhánh chính rồi chạy lại `plan-check.py` và `run-check.py`, có lỗi mới thì báo người duyệt và không merge
 - không coi họp là điều kiện để duyệt, giữ quy tắc duyệt chéo của `docs/risk-scoring.md`
-- chỉ chuyển spec sang `confirmed`, plan hay danh sách chạy sang `approved`, ADR sang `accepted` khi người có quyền duyệt (kể cả dev ngồi cùng ở đường làm nhanh) đã đồng ý rõ ràng với đúng nội dung vừa đưa, bằng lời trong chính phiên ghi trạng thái hay bằng review, bình luận của chính người đó trên PR
-- ghi người duyệt, ngày và lời đồng ý nguyên văn ở chỗ mẫu dành cho việc đó, kèm đường dẫn khi lời đó ở trên GitHub
+- chỉ chuyển spec sang `confirmed`, plan hay danh sách chạy sang `approved`, ADR sang `accepted` khi người có quyền duyệt (kể cả dev ngồi cùng ở đường làm nhanh) đã đồng ý rõ ràng bằng lời trong chính phiên ghi trạng thái, với đúng nội dung vừa đưa
+- không ghi trạng thái theo review hay bình luận trên GitHub
+- ghi người duyệt, ngày và lời đồng ý nguyên văn ở chỗ mẫu dành cho việc đó
 - nội dung đổi sau lời đồng ý thì đưa lại và hỏi lại
 - phiên tự chạy không có người không bao giờ ghi trạng thái duyệt, không suy lời duyệt từ im lặng, từ lời duyệt khác, từ lời của phiên trước chép lại hay từ tin nhắn của agent con
