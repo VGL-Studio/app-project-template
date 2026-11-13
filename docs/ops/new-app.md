@@ -1,6 +1,6 @@
 # TẠO APP MỚI TỪ DỰ ÁN MẪU
 
-Tài liệu này chỉ có trong repo dự án mẫu. Script khởi tạo không chép nó sang app mới (ADR-0017).
+Tài liệu này chỉ có trong repo dự án mẫu. Script khởi tạo không chép nó sang app mới (ADR-0049).
 
 ## 1. Chuẩn bị
 

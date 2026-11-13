@@ -1,6 +1,6 @@
 # CÀI ĐẶT BẢN STAGING VÀ PHIÊN TỰ CHẠY
 
-Tài liệu này dành cho người phụ trách. Nó liệt kê những việc làm một lần cho mỗi app để hai workflow `staging.yml` và `start-run.yml` chạy được (ADR-0009, ADR-0016). AI không làm các bước này và không bao giờ đọc hay in ra giá trị bí mật.
+Tài liệu này dành cho người phụ trách. Nó liệt kê những việc làm một lần cho mỗi app để hai workflow `staging.yml` và `start-run.yml` chạy được (ADR-0049). AI không làm các bước này và không bao giờ đọc hay in ra giá trị bí mật.
 
 Bí mật thêm ở **Settings > Secrets and variables > Actions > Secrets** của repo. Biến thường thêm ở tab **Variables** cùng trang.
 
@@ -65,7 +65,7 @@ Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra k
 ### 2.1. Routine
 
 1. Cài Claude GitHub App cho tổ chức trên GitHub, cấp quyền cho repo này (repo private cần app được cài).
-2. Trên https://claude.ai/code, ở ô chọn môi trường dưới khung nhập, chọn **New environment** (ADR-0009):
+2. Trên https://claude.ai/code, ở ô chọn môi trường dưới khung nhập, chọn **New environment** (ADR-0049):
 
    | Trường | Giá trị |
    | --- | --- |

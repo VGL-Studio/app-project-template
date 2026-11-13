@@ -1,10 +1,11 @@
 ---
 id: ADR-0017
 title: Script phát hành chỉ build bản ký, người tải lên Google Play; script khởi tạo chép dự án mẫu thành repo mới
-status: accepted
+status: superseded
 origin: template           # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-15
 deciders: [Nhóm phát triển]
+superseded_by: ADR-0049
 ---
 
 # ADR-0017: SCRIPT PHÁT HÀNH CHỈ BUILD BẢN KÝ, NGƯỜI TẢI LÊN GOOGLE PLAY; SCRIPT KHỞI TẠO CHÉP DỰ ÁN MẪU THÀNH REPO MỚI

@@ -4,7 +4,7 @@ Tài liệu này dành cho dev của mọi nhóm. Làm lần lượt từ trên 
 
 Quy ước: `<applicationId>` là tên gói của app, ví dụ `com.vglstudio.notes`. Bản staging có tên gói `<applicationId>.staging`.
 
-AI không làm các bước trong tài liệu này. Mọi bước có bí mật (khóa, mật khẩu, mã kích hoạt) do người làm, và AI không bao giờ đọc hay in ra bí mật (ADR-0009).
+AI không làm các bước trong tài liệu này. Mọi bước có bí mật (khóa, mật khẩu, mã kích hoạt) do người làm, và AI không bao giờ đọc hay in ra bí mật (ADR-0049).
 
 ## Tổng quan
 

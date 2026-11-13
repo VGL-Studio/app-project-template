@@ -1,6 +1,6 @@
 # PHÁT HÀNH BẢN PRODUCTION
 
-Tài liệu này dành cho người phụ trách phát hành. Bản production được build trên máy của người đó bằng `scripts/release.sh`, rồi người tải lên Google Play bằng tay (ADR-0009, ADR-0017). Không có bước nào chạy trên GitHub, AI không tham gia.
+Tài liệu này dành cho người phụ trách phát hành. Bản production được build trên máy của người đó bằng `scripts/release.sh`, rồi người tải lên Google Play bằng tay (ADR-0049). Không có bước nào chạy trên GitHub, AI không tham gia.
 
 ## 1. Chuẩn bị một lần cho mỗi app
 
