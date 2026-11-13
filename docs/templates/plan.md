@@ -7,7 +7,7 @@ risk_score:                  # tổng điểm theo risk-scoring.md, để trốn
 risk_level: low              # low | medium | high
 token_estimate:              # tổng token dự kiến, ví dụ 20M; số gợi ý: scripts/token-usage.py estimate (docs/ops/token-usage.md)
 blocking_points: []          # các điểm chặn bị chạm, ví dụ [ads, sdk]
-run_order:                   # AI điền sau họp đánh giá rủi ro
+run_order:                   # AI điền khi lập danh sách chạy
 reviewer:                    # người duyệt
 cross_reviewer:              # bắt buộc khi risk_level là high
 approved_at:
@@ -164,7 +164,7 @@ Ghi "Không cần (E dưới 2)" nếu không áp dụng. scripts/plan-check.py 
 
 ## 9. Quyết định duyệt
 
-<!-- Người duyệt điền. AI không điền mục này, trừ plan `lane: quick` sau khi dev đồng ý trong phiên: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý (ADR-0048). -->
+<!-- Người duyệt điền, hoặc AI ghi theo lời đồng ý trong phiên của người duyệt, nguyên văn (ADR-0048, phần C). Plan `lane: quick`: ghi "Duyệt trong phiên làm nhanh" kèm lời đồng ý. -->
 
 - **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
 - **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
