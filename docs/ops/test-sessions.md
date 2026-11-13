@@ -157,7 +157,7 @@ Sau mỗi lệnh `device`, trình chạy đọc màn hình tới khi hai lần d
 **Quảng cáo toàn màn hình.** Bước ngay sau một điểm có thể hiện quảng cáo toàn màn hình (kể cả sau `consent decline`, ý trên) không chờ thẳng màn đích, vì quảng cáo phủ lên và bước đó đỏ. Chờ nút đóng của quảng cáo hoặc màn đích, chạm nút đóng nếu thấy, rồi chờ lại màn đích, vì `tap_if` chạm xong là đi tiếp ngay:
 - Interstitial: `wait text="Close" | id=<màn đích> 20`, rồi `tap_if text="Close"`. Quảng cáo thử của AdMob vẽ nút đóng trong `WebView`: node chỉ có chữ `Close`, không có `resource-id`, nên không chọn bằng `id=` được.
 - Native toàn màn hình mở bằng `rememberShowFullScreenAd`, và native hiện ngay sau khi interstitial đóng (bản staging bật sẵn): `wait str=ads_close_full_screen | id=<màn đích> 20`, rồi `tap_if str=ads_close_full_screen`. Nút đóng chỉ hiện sau khi đếm ngược `time_close_native` (mặc định 5 giây) xong, nên số giây chờ lớn hơn đếm ngược. Trang native của một bước trong luồng không có nút đóng và không phủ lên màn khác, nên không cần cặp này.
-- Sau một nút có interstitial, bản staging viết cặp interstitial rồi cặp native, theo thứ tự đó: màn đích chỉ mở khi native đóng, và native đã hiện thì không tự đóng.
+- Sau một nút có interstitial, kịch bản viết cặp interstitial rồi cặp native, theo thứ tự đó (bản staging bật sẵn native sau interstitial): màn đích chỉ mở khi native đóng.
 - App open thử của AdMob: nút "Continue to app" có thể nằm ở chữ hay ở `content-desc`, nên chọn cả hai, `text="Continue to app" | desc="Continue to app"`.
 - Cuối cùng `wait id=<màn đích> 15`.
 
