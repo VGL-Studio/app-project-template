@@ -18,7 +18,8 @@ Việc nhỏ, rủi ro thấp của code app mà dev muốn có ngay trong ngày
 3. Danh sách ghi `start: auto` (mẫu mặc định, chỉ với `open_with: routine`) thì lần merge danh sách `approved` lên nhánh chính là lần kích hoạt: `start-run.yml` tự chạy, qua đúng các kiểm tra như khi bấm tay, rồi kích hoạt routine (ADR-0049). Sau merge, mở lần chạy `start-run` của lần push đó trong tab Actions:
    - job `fire` xanh: phiên đã bắt đầu, không bấm tay nữa;
    - không có lần chạy (GitHub có lúc không phát sự kiện push), hay lần chạy `cancelled` (lần chờ trong hàng bị lần sau thay): bấm tay như dưới đây;
-   - lần chạy đỏ: đọc lý do trong tóm tắt của job đỏ (`pick` hay `fire`), sửa nguyên nhân rồi bấm tay; lý do là vừa kích hoạt một phiên mà dev biết chắc phiên đó không bắt đầu thì bấm tay với ô `force`.
+   - lần chạy xanh mà `check` và `fire` bị bỏ qua: `pick` không chọn danh sách (tóm tắt của `pick` nêu lý do, ví dụ danh sách đã `approved` từ một commit trước); sửa nếu cần rồi bấm tay;
+   - lần chạy đỏ: đọc lý do trong tóm tắt hay dòng lỗi của job đỏ (`pick`, `check` hay `fire`), sửa nguyên nhân rồi bấm tay; lý do là vừa kích hoạt một phiên mà dev biết chắc phiên đó không bắt đầu thì bấm tay với ô `force`.
 
    Danh sách `start: auto` không dùng Run now hay lịch hẹn của routine, vì hai đường đó không qua kiểm tra chống mở hai phiên; muốn chọn giờ bắt đầu thì ghi `start: manual`. Mở lại một phiên dừng giữa chừng mà `resume-run` không tiếp tục: bấm `start-run` với `force`. Không "Re-run" một lần chạy `start-run` đã gọi API kích hoạt (job `fire` đã tới bước `Kích hoạt routine`, kể cả khi job đỏ): mỗi lần gọi thành công là một phiên mới.
 

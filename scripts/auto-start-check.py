@@ -133,14 +133,14 @@ def chosen_by_push(before, after):
         if fields.get("status") != "approved":
             say(f"{run_id}: chưa approved ở lần push này ('{fields.get('status', '')}').")
             continue
-        start = fields.get("start", "")
+        start = fields.get("start", "").lower()  # read as run-check.py reads it
         if not start:
             say(f"{run_id}: không ghi start, không tự bắt đầu (bấm start-run như cũ).")
             continue
         if start != "auto":
             say(f"{run_id}: start là {start}, không tự bắt đầu.")
             continue
-        if fields.get("open_with") != "routine":
+        if fields.get("open_with", "").lower() != "routine":
             say(f"{run_id}: open_with là '{fields.get('open_with', '')}', không phải routine: workflow chỉ kích hoạt được routine.")
             continue
         earlier = file_at(before, old)
