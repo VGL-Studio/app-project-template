@@ -24,9 +24,9 @@ Hiện nay danh sách chạy được duyệt và merge xong vẫn phải chờ 
 ## Phạm vi
 
 - Danh sách chạy có trường `start:` (`auto` hay `manual`); mẫu mặc định `auto`. `scripts/run-check.py` kiểm giá trị, và `start: auto` chỉ đi với `open_with: routine`.
-- Script mới chọn danh sách cần tự bắt đầu từ một lần push lên nhánh chính: chỉ danh sách mà chính lần push đó chuyển sang `approved`, có `start: auto` và `open_with: routine`, chưa có nhánh báo cáo, và không có phiên nào khác đang chạy.
+- Script mới chọn danh sách cần tự bắt đầu từ một lần push lên nhánh chính: chỉ danh sách mà chính lần push đó chuyển sang `approved`, có `start: auto` và `open_with: routine`. Cùng script chặn mọi lần mở phiên, cả lần bấm tay, khi danh sách đã có nhánh báo cáo, khi có phiên khác đang chạy, hay khi vừa kích hoạt một phiên mà phiên đó chưa có nhánh báo cáo.
 - `start-run.yml` chạy cả khi có push lên nhánh chính đổi `docs/runs/RUN-*.md`; giữ chạy tay như cũ. Mọi kiểm tra trước khi kích hoạt giữ nguyên; `main-guard` đang chạy thì chờ có giới hạn thay vì đỏ ngay.
-- Tài liệu: bước kích hoạt phiên (`docs/auto-run.md`, `docs/ops/staging-and-runs.md`), mục Khi lập danh sách chạy, mẫu danh sách chạy, `/run-list`, bảng kiểm tra của `docs/ops/pre-run-review.md`.
+- Tài liệu: bước kích hoạt phiên (`docs/auto-run.md`, `docs/ops/staging-and-runs.md`, `docs/ops/setup-new-app.md`), `docs/ops/to-app.md`, mục Khi lập danh sách chạy, mẫu danh sách chạy, `/run-list`, bảng kiểm tra của `docs/ops/pre-run-review.md`.
 
 **Không bao gồm:**
 
@@ -40,7 +40,7 @@ Sửa `.github/workflows/start-run.yml`, điểm chặn 7 (`ci`): plan rủi ro 
 
 ## Định nghĩa hoàn thành
 
-- Merge một danh sách `approved` có `start: auto`, `open_with: routine` thì `start-run` tự chạy và kích hoạt routine đúng một lần.
-- Lần push sau đó đổi cùng file (ví dụ PR báo cáo) không kích hoạt lại.
-- `start: manual` hay không có trường: không tự chạy.
-- `scripts/tests/run.sh` có test cho script chọn danh sách, cho `run-check.py` và cho cấu trúc mới của `start-run.yml`.
+- [ ] Merge một danh sách `approved` có `start: auto`, `open_with: routine` thì `start-run` tự chạy và kích hoạt routine đúng một lần.
+- [ ] Lần push sau đó đổi cùng file (ví dụ PR báo cáo) không kích hoạt lại, và lần bấm tay ngay sau đó bị từ chối.
+- [ ] `start: manual` hay không có trường: không tự chạy.
+- [ ] `scripts/tests/run.sh` có test cho script chọn danh sách, cho `run-check.py` và cho cấu trúc mới của `start-run.yml`.

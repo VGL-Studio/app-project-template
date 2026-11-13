@@ -18,7 +18,7 @@ lane:                        # để trống: phiên tự chạy; quick: đườ
 
 ## 1. Tóm tắt
 
-`start-run.yml` chạy thêm khi có push lên nhánh chính đổi `docs/runs/RUN-*.md`. Một script mới, `scripts/auto-start-check.py`, chọn danh sách mà chính lần push đó vừa chuyển sang `approved`, có `start: auto` và `open_with: routine`, chưa có nhánh báo cáo và không có phiên khác đang chạy. Có danh sách thì workflow đi qua đúng các kiểm tra hiện có rồi kích hoạt routine; không có thì dừng xanh, không làm gì. Kiểm chứng bằng test của script với `gh` và git giả, test của `run-check.py`, và test cấu trúc của workflow trong `scripts/tests/run.sh`.
+`start-run.yml` chạy thêm khi có push lên nhánh chính đổi `docs/runs/RUN-*.md`. Một script mới, `scripts/auto-start-check.py`, chọn danh sách mà chính lần push đó vừa chuyển sang `approved`, có `start: auto` và `open_with: routine`. Cùng script chặn mọi lần mở phiên (cả lần bấm tay) khi danh sách đã có nhánh báo cáo, khi một phiên khác đang chạy, hay khi `start-run` vừa kích hoạt routine thành công mà phiên đó chưa có nhánh báo cáo. Có danh sách thì workflow đi qua đúng các kiểm tra hiện có rồi kích hoạt routine; không có thì dừng xanh, không gọi API. Kiểm chứng bằng test của script với `gh` và git giả, test của `run-check.py`, và test cấu trúc của workflow trong `scripts/tests/run.sh`.
 
 ## 2. Hiểu yêu cầu
 
@@ -26,75 +26,87 @@ Ticket quy trình, không có spec nghiệp vụ. Nguồn: `features/quy-trinh/r
 
 | Điều cần đạt | Cách hiểu của AI |
 | --- | --- |
-| Danh sách `approved` lên nhánh chính thì phiên tự bắt đầu | "Lên nhánh chính" là lần push mà file danh sách ở commit sau có `status: approved` còn ở commit trước thì chưa có file hoặc khác `approved`. Chỉ dựa vào chính lần push đó, nên lần push sau đổi cùng file (PR báo cáo, sửa chữ) không kích hoạt lại |
+| Danh sách `approved` lên nhánh chính thì phiên tự bắt đầu | "Lên nhánh chính" là lần push mà file danh sách ở commit sau có `status: approved` còn ở commit trước thì chưa có file hoặc khác `approved`. Commit trước là `github.event.before`; không có trong kho hay toàn số 0 thì dùng cha thứ nhất của commit sau; không có cha thì không chọn gì. Chỉ dựa vào chính lần push đó, nên lần push sau đổi cùng file (PR báo cáo, sửa chữ) không kích hoạt lại, và danh sách cũ mà GitHub đã không phát push lúc merge không bị mở ở một lần push về sau |
 | Có ô chọn để giữ cách bấm tay | Trường `start:` trong frontmatter. `auto`: tự bắt đầu; `manual` hay trống: như cũ. Danh sách cũ không có trường nên không đổi hành vi. Mẫu mới ghi `auto` |
-| Không mở phiên sai | Chỉ `open_with: routine` (workflow chỉ kích hoạt được routine; phiên `cloud`, `local` do người mở). Chưa có nhánh `claude/<RUN>-report` (danh sách chưa chạy). Không có danh sách nào khác đang `running` trên nhánh báo cáo của nó (mỗi lúc một phiên) |
+| Không mở phiên sai, không mở hai phiên | Chỉ `open_with: routine` (workflow chỉ kích hoạt được routine). Cả lần chạy do push lẫn lần bấm tay đều bị từ chối khi: danh sách đã có nhánh `claude/<RUN>-report`; một danh sách khác đang `running` trên nhánh báo cáo của nó; hay một lần `start-run` khác có job `fire` xanh trong 90 phút qua mà chưa có nhánh báo cáo `running` nào (phiên vừa kích hoạt chưa kịp đẩy nhánh báo cáo, hay đang chờ hạn mức). Lần bấm tay có ô `force` để bỏ qua riêng điều cuối, khi dev biết chắc phiên trước không bắt đầu |
 | Vẫn qua các kiểm tra của `start-run` | Giữ nguyên bước kiểm danh sách, `main-broken`, `env-broken`, `main-guard-status.sh`, `setup-check.sh --staging`, đóng `setup-broken` cũ, bật lịch. Chỉ thêm: với lần chạy do push, `main-guard` đang chạy (mã 2) thì chờ có giới hạn rồi kiểm lại, vì merge danh sách thường ngay sau merge code |
 
 Thiết kế tham chiếu: Không có thiết kế riêng (ticket quy trình).
 
-ADR liên quan: ADR-0016 (`start-run.yml` chạy tay, không tự thử lại; xem mục 8, câu 1), ADR-0009 (hạ tầng phiên), ADR-0048 (`proposed`, duyệt cả đợt một lần; hai việc bổ sung nhau nhưng không phụ thuộc), ADR-0044.
+ADR liên quan: ADR-0009 và ADR-0016 (cả hai ghi `start-run.yml` chạy tay; xem mục 8, câu 1), ADR-0048 (`proposed`, duyệt cả đợt một lần; hai việc bổ sung nhau nhưng không phụ thuộc), ADR-0044.
 
 ## 3. Giải pháp
 
 ### 3.1. Cách làm
 
-**A. `scripts/auto-start-check.py` (mới).** Theo mẫu `scripts/resume-check.py`: chỉ dùng `gh api` (REST) và `git`, `GITHUB_REPOSITORY` hay remote `origin` cho tên repo, thông báo tiếng Việt ra stderr.
+**A. `scripts/auto-start-check.py` (mới).** Theo mẫu `scripts/resume-check.py`: chỉ dùng `gh api` (REST) và `git`, `GITHUB_REPOSITORY` hay remote `origin` cho tên repo, thông báo tiếng Việt ra stderr. Đọc frontmatter như `resume-check.py` (bỏ phần chú thích sau `#`, nên `start: auto   # ...` đọc ra `auto`).
 
-- Cách dùng: `scripts/auto-start-check.py --before <sha> --after <sha>`. In ra stdout đường dẫn danh sách cần bắt đầu (`docs/runs/RUN-YYYYMMDD-NN.md`) hay không in gì. Mã 0 khi đã kiểm (có hay không có danh sách), 1 khi không đọc được git hay GitHub, 2 khi sai tham số.
-- Các file được xét: `git diff --name-only <before> <after> -- 'docs/runs/RUN-*.md'`, chỉ tên khớp `^docs/runs/RUN-\d{8}-\d{2}\.md$`. `<before>` toàn số 0 (nhánh mới) hay không có trong kho: xét mọi file danh sách ở `<after>` coi như trước đó chưa có.
-- Một file được chọn khi đủ:
-  1. Ở `<after>`: frontmatter có `status: approved`, `start: auto`, `open_with: routine` (đọc bằng `git show <after>:<file>`, cách đọc frontmatter như `resume-check.py`, bỏ phần chú thích sau `#`).
-  2. Ở `<before>`: không có file, hay `status` khác `approved`.
-  3. Không có nhánh `claude/<RUN>-report` trên GitHub (`gh api repos/<repo>/branches/claude%2F<RUN>-report`: 404 là chưa có; lỗi khác là không đọc được, mã 1).
-- Thiếu điều 1 hay 2: stderr một dòng lý do (ví dụ `RUN-...: start là manual, không tự bắt đầu.`), bỏ qua.
-- Không có phiên khác đang chạy: duyệt các nhánh `claude/RUN-*-report` (từng trang `&page=N` như `resume-check.py`), đọc file danh sách trên nhánh đó; có `status: running` thì không chọn gì, stderr: `Đang có phiên <RUN khác> chạy: <RUN> không tự bắt đầu. Bấm start-run sau khi phiên kia xong.`
-- Nhiều file đủ điều kiện trong cùng một lần push: chọn mã nhỏ nhất, stderr nêu các danh sách còn lại để dev bấm tay sau.
+- Cách dùng:
+  - `scripts/auto-start-check.py push --before <sha> --after <sha>`: chọn danh sách từ một lần push.
+  - `scripts/auto-start-check.py dispatch <run_file> [--force]`: kiểm một lần bấm tay.
+  - In ra stdout đường dẫn danh sách được phép bắt đầu, hay không in gì. Mã 0 khi đã kiểm (có hay không có danh sách), 1 khi không đọc được git hay GitHub, 2 khi sai tham số (kể cả `run_file` không khớp `^docs/runs/RUN-\d{8}-\d{2}\.md$`).
+- Chế độ `push`, các file được xét: `git diff --name-only --diff-filter=AMR <trước> <after> -- 'docs/runs/'`, chỉ tên khớp mẫu trên (file bị xóa không được xét; file đổi tên được xét theo tên mới). `<trước>` là `--before` khi `git cat-file -e` thấy nó; không thấy hay toàn số 0 thì `<after>^1`; `<after>` không có cha thì không chọn gì, stderr nêu lý do. Một file đủ điều kiện khi:
+  1. Ở `<after>`: `status: approved`, `start: auto`, `open_with: routine`.
+  2. Ở `<trước>`: không có file, hay `status` khác `approved`.
+  - Thiếu điều nào thì stderr một dòng lý do (ví dụ `RUN-...: start là manual, không tự bắt đầu.`, `RUN-...: đã approved trước lần push này.`).
+  - Nhiều file đủ điều kiện: lấy mã nhỏ nhất, stderr nêu các danh sách còn lại để dev bấm tay sau.
+- Chế độ `dispatch`: file là ô nhập, đã kiểm định dạng; các kiểm tra trạng thái của danh sách vẫn do job `check` làm như hôm nay.
+- Kiểm tra chung cho cả hai chế độ, với danh sách vừa có (thiếu một điều thì không in gì, stderr nêu lý do và việc dev nên làm):
+  1. Không có nhánh `claude/<RUN>-report` trên GitHub (`gh api repos/<repo>/branches/claude%2F<RUN>-report`: 404 là chưa có; lỗi khác là mã 1).
+  2. Không danh sách nào khác đang `running` trên nhánh báo cáo của nó: duyệt các nhánh `claude/RUN-*-report` từng trang (`&page=N`, như `resume-check.py`), đọc file danh sách trên nhánh đó. Đọc danh sách nhánh lỗi là mã 1.
+  3. Không có lần chạy `start-run.yml` nào khác (khác `GITHUB_RUN_ID`) tạo trong `AUTO_START_FIRE_MINUTES` phút qua (mặc định 90) có job `fire` kết luận `success`, trừ khi đã có một nhánh báo cáo `running` (lúc đó điều 2 đã từ chối). Đọc bằng `actions/workflows/start-run.yml/runs?created=>=<giờ>` rồi `actions/runs/<id>/jobs`. `--force` bỏ qua riêng điều này.
 
 **B. `.github/workflows/start-run.yml` (sửa).**
 
-- `on:` thêm `push: branches: [main], paths: ['docs/runs/RUN-*.md']`. Giữ `workflow_dispatch` và ô `run_file` như cũ.
-- Job mới `pick` (đầu tiên, `if: github.ref == 'refs/heads/main'`, `timeout-minutes: 5`, quyền chỉ đọc theo `permissions` chung): `actions/checkout@v5` với `fetch-depth: 0` và `persist-credentials: false`. Một bước đặt output `run_file`:
-  - `workflow_dispatch`: `run_file` là ô nhập, như cũ.
-  - `push`: `run_file="$(python3 -I scripts/auto-start-check.py --before "${BEFORE}" --after "${GITHUB_SHA}")"`, với `BEFORE: ${{ github.event.before }}` qua `env`, không chèn thẳng vào lệnh. Ghi stderr của script vào phần tóm tắt của job.
-- Job `check`: `needs: pick`, `if: needs.pick.outputs.run_file != ''`, `RUN_FILE` lấy từ `needs.pick.outputs.run_file` thay cho `inputs.run_file`; khai báo output `run_file` của chính nó (giá trị đó), để `fire` đọc `needs.check.outputs.run_file` mà dòng `needs: [check, close-setup-broken]` giữ nguyên.
-- Bước "Kiểm tra main-guard trên nhánh chính": với `github.event_name == 'push'`, mã 2 (`CHỜ`) thì lấy giờ tạo lần chạy từ dòng script in, chờ bằng `scripts/wait-run.sh --workflow main-guard.yml --since <giờ đó> --timeout 25`, rồi gọi lại `scripts/main-guard-status.sh`; mọi mã khác 0 vẫn đỏ như hôm nay. Với `workflow_dispatch` giữ nguyên hành vi. `timeout-minutes` của `check` từ 5 lên 30.
+- `on:` thêm `push: branches: [main], paths: ['docs/runs/RUN-*.md']`. Giữ `workflow_dispatch` và ô `run_file`; thêm ô `force` (boolean, mặc định `false`, mô tả: bỏ qua kiểm tra "vừa kích hoạt một phiên", chỉ dùng khi biết chắc phiên trước không bắt đầu).
+- `concurrency` chuyển từ mức workflow xuống mức job: `check` và `fire` có `concurrency: { group: start-run, cancel-in-progress: false }`, `pick` không có. Lần chạy do push không chọn được gì vì thế không vào hàng chờ và không làm hủy lần chạy khác đang chờ trong nhóm.
+- Job mới `pick` (đầu tiên, `if: github.ref == 'refs/heads/main'`, `timeout-minutes: 5`, không có khối `permissions` riêng, chỉ đọc theo `permissions` chung): `actions/checkout@v5` với `fetch-depth: 0` và `persist-credentials: false`. Một bước đặt output `run_file`, mọi giá trị từ sự kiện đi qua `env`, không chèn thẳng vào lệnh:
+  - `push`: `python3 -I scripts/auto-start-check.py push --before "${BEFORE}" --after "${GITHUB_SHA}"`, với `BEFORE: ${{ github.event.before }}`.
+  - `workflow_dispatch`: `python3 -I scripts/auto-start-check.py dispatch "${RUN_FILE_INPUT}"` (thêm `--force` khi `FORCE == 'true'`), với `RUN_FILE_INPUT: ${{ inputs.run_file }}`, `FORCE: ${{ inputs.force }}`.
+  - Chỉ ghi vào `$GITHUB_OUTPUT` khi stdout khớp mẫu đường dẫn. Stderr của script vào phần tóm tắt của job.
+- Job `check`: `needs: pick`, `if: needs.pick.outputs.run_file != ''`, `RUN_FILE` lấy từ `needs.pick.outputs.run_file`; khai báo output `run_file` của chính nó, để `fire` đọc `needs.check.outputs.run_file` mà dòng `needs: [check, close-setup-broken]` giữ nguyên. `timeout-minutes` từ 5 lên 30.
+- Bước "Kiểm tra main-guard trên nhánh chính", chỉ khi `github.event_name == 'push'`: một vòng tối đa 25 lần, mỗi lần gọi `GITHUB_ACTIONS= scripts/main-guard-status.sh "${GITHUB_SHA}"` và bắt mã thoát bằng `|| code=$?` (không dùng `continue-on-error`); mã 2 thì chờ 60 giây rồi gọi lại, mã khác thì thoát vòng. Sau vòng, gọi một lần như hôm nay (có `::error::` khi không qua). Vòng không cần đọc giờ tạo lần chạy, nên dòng "lần chạy tạo lúc không rõ" không làm hỏng gì. `workflow_dispatch` giữ đúng một lần gọi như hôm nay.
 - Job `fire`: `RUN_FILE` lấy từ `needs.check.outputs.run_file`. Payload thêm dòng `Cách bắt đầu: tự động khi danh sách approved lên nhánh chính` cho lần chạy do push (prompt của routine chỉ lấy đường dẫn, dòng này chỉ để đọc).
 - Lần chạy do push mà `pick` không chọn gì thì `check`, `close-setup-broken`, `fire` bị bỏ qua: workflow xanh, không gọi API.
-- Chú thích đầu file nêu hai cách chạy và vì sao không tự thử lại.
+- Chú thích đầu file nêu hai cách chạy, kiểm tra chống mở hai phiên, và vì sao không tự thử lại. Chú thích nhắc `main-broken` trước `scripts/main-guard-status.sh`, để giữ thứ tự mà test có sẵn đọc (mục 3.5).
 
-**C. `scripts/run-check.py` (sửa), quy tắc mới.** Đọc `start` của danh sách: khác `auto`, `manual` hay trống là lỗi. `start: auto` mà `open_with` khác `routine` là lỗi ("phiên tự bắt đầu chỉ kích hoạt được routine; đổi open_with hay ghi start: manual"). Thêm dòng vào bảng của `docs/ops/pre-run-review.md`, mục 1.
+**C. `scripts/run-check.py` (sửa), quy tắc mới.** Đọc `start` từ frontmatter của file danh sách: khác `auto`, `manual` hay trống là lỗi. `start: auto` mà `open_with` trong file khác `routine` là lỗi ("phiên tự bắt đầu chỉ kích hoạt được routine; đổi open_with hay ghi start: manual"). Quy tắc chỉ đọc `open_with` trong file, không đọc `RUN_CHECK_OPEN_WITH`, nên phiên mở tay bằng cách khác không bị lỗi cấp danh sách. Thêm dòng vào bảng của `docs/ops/pre-run-review.md`, mục 1.
 
 **D. Tài liệu.**
 
 - `docs/templates/run.md`: frontmatter thêm `start: auto   # auto: phiên tự bắt đầu khi danh sách approved lên nhánh chính (start-run.yml); manual: dev bấm start-run`.
-- `docs/auto-run.md`, mục 1, bước 3: danh sách `start: auto` thì merge danh sách `approved` là kích hoạt; xem lần chạy `start-run` của lần push đó (Actions); không có lần chạy (GitHub không phát sự kiện push) hay lần chạy đỏ thì bấm tay như cũ. Bước 6 (hạn mức Actions) đọc trước khi duyệt, vì duyệt lúc này là bắt đầu.
-- `docs/ops/staging-and-runs.md`, mục 2.3: cùng nội dung cho người.
+- `docs/auto-run.md`, mục 1, bước 3: danh sách `start: auto` thì merge danh sách `approved` là kích hoạt. Sau merge, xem lần chạy `start-run` của lần push đó: job `fire` xanh thì không bấm tay nữa; không có lần chạy (GitHub không phát sự kiện push), lần chạy đỏ hay `cancelled` thì bấm tay như cũ. Bước 6 (hạn mức Actions) đọc trước khi duyệt, vì duyệt lúc này là bắt đầu.
+- `docs/ops/staging-and-runs.md`: mục 2.3 cùng nội dung cho người, kèm ô `force`; mục 2.8 thêm một dòng: mỗi push đổi danh sách chạy làm `start-run` chạy khoảng 1 phút và giữ lịch của `resume-run`, `run-watchdog` thêm 3 giờ.
+- `docs/ops/setup-new-app.md`: phiên đầu của app mới, ghi rằng danh sách `start: auto` tự bắt đầu khi merge, bấm tay chỉ khi `start: manual` hay lần tự chạy không có.
+- `docs/ops/to-app.md`: dòng về thời hạn của job `check` trong `start-run.yml` đổi 5 thành 30 phút, và ghi app đã tùy biến `start-run.yml` thì lần đồng bộ phải giữ phần tùy biến của app cùng trigger mới.
 - `docs/CLAUDE.md`, mục Khi lập danh sách chạy: ghi `start:` (mặc định `auto`; `manual` khi dev muốn chọn giờ, ví dụ chờ hạn mức), và câu "Chỉ dev mới chuyển sang `approved` và kích hoạt phiên" thêm "với `start: auto`, lần merge danh sách `approved` là lần kích hoạt".
-- `.claude/skills/run-list/SKILL.md`: ghi `start:` khi lập; bước báo dev nói rõ merge danh sách `approved` có `start: auto` là bắt đầu phiên.
+- `.claude/skills/run-list/SKILL.md`: ghi `start:` khi lập; bước báo dev nói rõ merge danh sách `approved` có `start: auto` là bắt đầu phiên, và cách xem job `fire`.
 
 ### 3.2. Danh sách file
 
 | Thao tác | Đường dẫn | Nội dung thay đổi |
 | --- | --- | --- |
-| Tạo | `scripts/auto-start-check.py` | Chọn danh sách cần tự bắt đầu từ một lần push (3.1 A) |
-| Sửa | `.github/workflows/start-run.yml` | Trigger `push`, job `pick`, `check` và `fire` đọc `run_file` từ job trước, chờ `main-guard` đang chạy với lần chạy do push (3.1 B) |
+| Tạo | `scripts/auto-start-check.py` | Chọn và kiểm danh sách trước khi mở phiên (3.1 A) |
+| Sửa | `.github/workflows/start-run.yml` | Trigger `push`, ô `force`, `concurrency` mức job, job `pick`, `check` và `fire` đọc `run_file` từ job trước, chờ `main-guard` đang chạy với lần chạy do push (3.1 B) |
 | Sửa | `scripts/run-check.py` | Quy tắc `start:` (3.1 C) |
 | Sửa | `scripts/tests/run.sh` | Test của mục 4 |
 | Sửa | `docs/templates/run.md` | Trường `start:` |
 | Sửa | `docs/auto-run.md` | Mục 1, bước 3 và 6 |
-| Sửa | `docs/ops/staging-and-runs.md` | Mục 2.3 |
+| Sửa | `docs/ops/staging-and-runs.md` | Mục 2.3, mục 2.8 |
+| Sửa | `docs/ops/setup-new-app.md` | Phiên đầu của app mới |
+| Sửa | `docs/ops/to-app.md` | Thời hạn job `check`, ghi chú đồng bộ `start-run.yml` |
 | Sửa | `docs/ops/pre-run-review.md` | Mục 1, dòng của quy tắc `start:` |
 | Sửa | `docs/CLAUDE.md` | Mục Khi lập danh sách chạy |
 | Sửa | `.claude/skills/run-list/SKILL.md` | Ghi `start:`, câu báo dev |
 | Sửa | `docs/features/quy-trinh/plans/T-104-tu-kich-hoat-phien.md` | Nhật ký thực hiện (ticket `auto_run: false`, làm có người, một PR) |
 | Sửa | `docs/features/quy-trinh/tickets/T-104-tu-kich-hoat-phien.md` | Trạng thái |
 
-Nơi đọc file bị đổi (`scripts/plan-check.py`, L-020), không file nào bị ảnh hưởng, không sửa:
+Nơi đọc file bị đổi (`scripts/plan-check.py`, L-020). Hai file phải sửa đã ở bảng trên (`docs/ops/to-app.md`, `docs/ops/setup-new-app.md`); các file dưới đây không bị ảnh hưởng, không sửa:
 
-- Nhắc `.github/workflows/start-run.yml` trong chú thích, thông báo hay để bật lịch, không đọc cấu trúc job, tên ô `run_file` hay trigger của nó: `.github/workflows/env-canary.yml`, `.github/workflows/resume-run.yml` (dùng chung nhóm `concurrency: start-run`, giữ nguyên), `.github/workflows/run-watchdog.yml`, `scripts/env-canary.sh`, `scripts/run-watchdog.py`, `scripts/schedule-idle.py` (đọc giờ lần chạy gần nhất của `start-run.yml` để giữ lịch bật 3 giờ; lần chạy do push mà `pick` không chọn gì cũng được tính, chỉ làm lịch bật lâu hơn, không hại), `scripts/setup-check.sh`.
+- Nhắc `.github/workflows/start-run.yml` trong chú thích, thông báo hay để bật lịch, không đọc cấu trúc job, tên ô `run_file` hay trigger của nó: `.github/workflows/env-canary.yml`, `.github/workflows/resume-run.yml` (giữ nhóm `concurrency: start-run` ở mức workflow; `check` và `fire` của `start-run.yml` dùng cùng tên nhóm ở mức job), `.github/workflows/run-watchdog.yml`, `scripts/env-canary.sh`, `scripts/run-watchdog.py`, `scripts/schedule-idle.py` (đọc giờ lần chạy gần nhất của `start-run.yml` để giữ lịch bật 3 giờ; lần chạy do push mà `pick` không chọn gì cũng được tính, chỉ làm lịch bật lâu hơn, không hại), `scripts/setup-check.sh`.
 - Nhắc `docs/auto-run.md`, `docs/ops/staging-and-runs.md` hay `docs/CLAUDE.md` bằng đường dẫn trong chú thích hay thông báo trỏ tới mục khác với các mục plan sửa (mục 1 bước 3 và 6 của `auto-run.md`, mục 2.3 của `staging-and-runs.md`, mục Khi lập danh sách chạy của `docs/CLAUDE.md`): `.github/workflows/device-session.yml`, `.github/workflows/env-canary.yml`, `.github/workflows/main-guard.yml`, `.github/workflows/resume-run.yml`, `.github/workflows/staging.yml`, `scripts/cloud-env-check.sh`, `scripts/cloud-setup.sh`, `scripts/device-session.sh`, `scripts/env-canary.sh`, `scripts/failure-kind.sh`, `scripts/local-setup.sh`, `scripts/merge-if-green.sh`, `scripts/new-app.sh`, `scripts/push-on-commit.sh`, `scripts/run-watchdog.py`, `scripts/save-branch.sh`, `scripts/schedule-idle.py`, `scripts/setup-check.sh`, `scripts/status.py` (đọc trạng thái danh sách, không đọc trường `start`), `scripts/ui-test-verdict.sh`, `scripts/tests/playbook/PB-17.log`. Plan không đổi tên mục nào.
 - Chạy hay nhắc `scripts/tests/run.sh`: `.github/workflows/main-guard.yml`, `.github/workflows/pr-check.yml`, `scripts/check.sh`, `scripts/local-setup.sh`, `scripts/main-guard-verified.sh`, `scripts/merge-if-green.sh`, `app/src/test/kotlin/com/vglstudio/template/ProductionPropertiesTest.kt`. Plan chỉ thêm test, không đổi cách gọi hay tên file.
+- `scripts/java-check.sh` nhắc `docs/ops/setup-new-app.md`, `scripts/template-sync.sh` nhắc `docs/ops/to-app.md`, `scripts/wait-run.sh` nhắc `docs/auto-run.md`: đều trỏ tới mục khác với đoạn plan sửa (giới hạn Java, cách đồng bộ chung, bước 8), không đọc nội dung.
 - `scripts/plan-queue.py` nạp `scripts/run-check.py` để dùng `front_matter`, `ids`, `spec_problems`; plan chỉ thêm một quy tắc trong phần kiểm danh sách, không đổi các hàm đó.
 
 ### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
@@ -103,58 +115,58 @@ Nơi đọc file bị đổi (`scripts/plan-check.py`, L-020), không file nào 
 - Quảng cáo: Không chạm
 - Sự kiện phân tích: Không chạm
 - File R2: Không chạm
-- **Quyền truy cập:** Không thêm. Quyền của workflow: job `pick` chỉ đọc (`contents: read`, `actions: read` của `permissions` chung); không job nào thêm quyền ghi; `fire` vẫn là job duy nhất có `actions: write`, `close-setup-broken` vẫn là job duy nhất có `issues: write`
+- **Quyền truy cập:** Không thêm. Quyền của workflow: job `pick` chỉ đọc (`contents: read`, `actions: read` của `permissions` chung, đủ để đọc lần chạy và job của `start-run.yml`); không job nào thêm quyền ghi; `fire` vẫn là job duy nhất có `actions: write`, `close-setup-broken` vẫn là job duy nhất có `issues: write`
 - **Thư viện và SDK:** Không thêm. Script chỉ dùng thư viện chuẩn của Python 3, `git` và `gh`, như `scripts/resume-check.py`
 
 ### 3.4. Phương án dự phòng
 
-- **Điểm chưa chắc:** `github.event.before` của lần push do merge PR (squash hay merge commit) có khi không có trong kho của job, ví dụ commit trước bị đẩy đè.
-- **Điều kiện chuyển:** test T9 hay lần thử trên GitHub sau merge thấy `git cat-file -e <before>` thất bại với lần push bình thường.
-- **Cách làm thay:** script dùng `<after>^1` (cha thứ nhất) khi `<before>` không có trong kho; vẫn giữ quy tắc "trước đó khác `approved`", nên lần push sau không kích hoạt lại. Test của mục 4 giữ nguyên.
+Không có. Cách xử lý khi không có commit trước đã nằm trong 3.1 A (cha thứ nhất), có test T9.
 
 ### 3.5. Hành vi đã có bị đổi
 
-Không sửa code Kotlin nên `scripts/existing-tests.py` không áp dụng. Hai câu khẳng định có sẵn của `scripts/tests/run.sh` về `start-run.yml` đọc file theo số đếm, và plan đổi đúng chỗ chúng đếm:
+Không sửa code Kotlin nên `scripts/existing-tests.py` không áp dụng. Ba câu khẳng định có sẵn của `scripts/tests/run.sh` đọc `start-run.yml` theo số đếm hay thứ tự dòng:
 
 | Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
 | --- | --- | --- | --- |
 | Workflow có một bước checkout, bước đó `persist-credentials: false` | Thêm checkout của `pick`, cũng `persist-credentials: false` | `start-run: the setup check runs without a GitHub token` (đếm `persist-credentials: false` bằng 1) | Câu mới, giữ ý định "không checkout nào để token trong `.git/config`": số dòng `persist-credentials: false` bằng số dòng `uses: actions/checkout` (mong `2 2 1`: hai số đếm và số dòng `env -u GH_TOKEN ... setup-check.sh --staging`). Đối chứng: bỏ `persist-credentials` ở checkout của `pick` thì đỏ |
 | `fire` có `needs: [check, close-setup-broken]`; `check` không có `needs` | `check` có `needs: pick`; `fire` giữ nguyên dòng `needs` | `start-run: only close-setup-broken writes issues, between the checks and the routine` | Giữ nguyên (dòng `needs` của `fire` và `close-setup-broken` không đổi) |
+| Lần nhắc đầu của `main-broken` đứng trước lần nhắc đầu của `scripts/main-guard-status.sh`, trước bước thiết lập staging và bước kích hoạt; không có `continue-on-error` | Chú thích đầu file và vòng chờ mới | `start-run: main-guard step runs after the run-file checks and before the routine` (mong `yes yes 0`) | Giữ nguyên: chú thích nhắc `main-broken` trước `main-guard-status.sh`, vòng chờ bắt mã bằng `|| code=$?` |
 
 ## 4. Kiểm thử
 
-Mọi test nằm trong `scripts/tests/run.sh`. Test của script dùng `gh` giả (`scripts/tests/fake-gh`, route theo `FIXTURE`) và một kho git tạm có hai commit: commit A (trước) và commit B (sau), dựng như khối test `plan-queue` (biến `GIT_AUTHOR_*`, `GIT_CONFIG_GLOBAL=/dev/null` của bộ test). Hàm `asc_run <before> <after>` in stdout của script, stderr vào `$work/asc.err`, và `asc_code` in mã thoát. Danh sách thử viết bằng một hàm `write_run <id> <status> <start> <open_with>`.
+Mọi test nằm trong `scripts/tests/run.sh`. Test của script dùng `gh` giả (`scripts/tests/fake-gh`, route theo `FIXTURE`) và một kho git tạm có hai commit: commit A (trước) và commit B (sau, cha là A), dựng như khối test `plan-queue` (biến `GIT_AUTHOR_*`, `GIT_CONFIG_GLOBAL=/dev/null` của bộ test). Hàm `asc_run <args...>` in stdout của script, stderr vào `$work/asc.err`; `asc_code` in mã thoát. Danh sách thử viết bằng hàm `write_run <id> <status> <start> <open_with>`, frontmatter có chú thích sau `#` như mẫu. Fixture mặc định: nhánh báo cáo trả 404, danh sách nhánh rỗng, không có lần chạy `start-run` nào; `GITHUB_RUN_ID=999`.
 
 | Điều cần đạt | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| Danh sách vừa chuyển sang `approved`, đủ điều kiện | Test script | T1 `auto-start-check: a run list approved by this push with start auto is picked`: A có `RUN-20261201-01` `draft`, B có cùng file `approved`, `start: auto`, `open_with: routine`; route nhánh báo cáo trả 404, danh sách nhánh rỗng. Mong `docs/runs/RUN-20261201-01.md`. Đỏ trước code (script chưa có) |
-| File mới thêm ở trạng thái `approved` | Test script | T2: A không có file, B có file `approved` đủ điều kiện. Mong đường dẫn. Đỏ trước code |
-| Lần push sau không kích hoạt lại | Test script | T3 (đối chứng): A và B đều `approved` (B sửa một dòng chữ). Mong rỗng, stderr có `đã approved trước lần push này`. Qua sau code; trước code đỏ vì không có script, nên kèm T1 trong cùng lần chạy để thấy hướng |
+| Danh sách vừa chuyển sang `approved`, đủ điều kiện | Test script | T1 `auto-start-check: a run list approved by this push with start auto is picked`: A có `RUN-20261201-01` `draft`, B có cùng file `approved`, `start: auto   # ...`, `open_with: routine`. `push --before A --after B`. Mong `docs/runs/RUN-20261201-01.md`. Đỏ trước code (script chưa có) |
+| File mới thêm ở trạng thái `approved` | Test script | T2: A không có file, B có file đủ điều kiện. Mong đường dẫn |
+| Lần push sau không kích hoạt lại | Test script | T3 (đối chứng): A và B đều `approved` (B sửa một dòng chữ). Mong rỗng, stderr có `đã approved trước lần push này` |
 | `start: manual` hay không có trường | Test script | T4: hai ca, mong rỗng cả hai, stderr có `start là manual` và `không ghi start` |
 | `open_with` khác `routine` | Test script | T5: `open_with: cloud`, mong rỗng, stderr nêu `open_with` |
-| Đã có nhánh báo cáo | Test script | T6: route `branches/claude%2FRUN-20261201-01-report` trả một nhánh. Mong rỗng, stderr `đã có nhánh báo cáo` |
-| Có phiên khác đang chạy | Test script | T7: danh sách nhánh có `claude/RUN-20261130-01-report`, file trên đó `running`. Mong rỗng, stderr `Đang có phiên RUN-20261130-01 chạy`. Kèm ca đối chứng: file trên nhánh đó `finished` thì mong đường dẫn |
+| Đã có nhánh báo cáo | Test script | T6: route `branches/claude%2FRUN-20261201-01-report` trả một nhánh. Mong rỗng cho `push`, rỗng cho `dispatch docs/runs/RUN-20261201-01.md`, stderr `đã có nhánh báo cáo` |
+| Có phiên khác đang chạy | Test script | T7: danh sách nhánh có `claude/RUN-20261130-01-report`, file trên đó `running`. Mong rỗng cho cả `push` và `dispatch`, stderr `Đang có phiên RUN-20261130-01 chạy`. Đối chứng: file trên nhánh đó `finished` thì mong đường dẫn |
 | Nhánh báo cáo của phiên khác ở trang 2 | Test script | T8: trang 1 có 100 nhánh khác, trang 2 có nhánh báo cáo `running`. Mong rỗng |
-| `before` toàn số 0 hay không có trong kho | Test script | T9: `before` là `0000000000000000000000000000000000000000`, rồi một mã không có. Mong đường dẫn cả hai (coi như trước đó chưa có file) |
+| Không có commit trước | Test script | T9: `--before` toàn số 0, rồi một mã không có trong kho; cha của B (A) có file `draft`: mong đường dẫn cả hai. Cha có file `approved`: mong rỗng. Kho một commit (B không có cha): mong rỗng, stderr nêu không có commit trước |
 | Hai danh sách cùng đủ điều kiện | Test script | T10: B có `RUN-20261201-02` và `RUN-20261201-01` cùng đủ. Mong `docs/runs/RUN-20261201-01.md`, stderr nêu `RUN-20261201-02` |
-| File không phải danh sách | Test script | T11: B đổi `docs/runs/README.md` và `docs/runs/patches/x.md`. Mong rỗng, mã 0 |
-| GitHub lỗi | Test script | T12: route nhánh báo cáo trả lỗi 500 (`fake-gh` thoát 1). Mong mã 1, stdout rỗng |
-| Sai tham số | Test script | T13: thiếu `--after`. Mong mã 2 |
-| Quy tắc `start:` của `run-check.py` | Test script | T14, ba ca trên danh sách thử của khối `run-check` có sẵn: `start: soon` lỗi (`start` phải là auto hay manual); `start: auto` với `open_with: cloud` lỗi; `start: auto` với `open_with: routine` không có dòng lỗi mới. Hai ca đầu đỏ trước code |
-| Cấu trúc workflow: trigger | Test script | T15 `start-run: runs on a push to main that changes a run list`: có khối `push:` với `branches: [main]` và `paths: ['docs/runs/RUN-*.md']`, vẫn có `workflow_dispatch` với `run_file`. Đỏ trước code |
-| Cấu trúc workflow: chọn danh sách | Test script | T16: job `pick` gọi `scripts/auto-start-check.py --before "${BEFORE}"`, `BEFORE` qua `env`; không dòng `run:` nào chứa `github.event.before` trực tiếp; `check` có `needs: pick` và `if: needs.pick.outputs.run_file != ''`; `fire` đọc `needs.check.outputs.run_file`; không còn `inputs.run_file` ngoài bước đặt output của `pick`. Đỏ trước code |
-| Cấu trúc workflow: quyền | Test script | T17: `actions: write` chỉ một lần (trong `fire`), `issues: write` chỉ một lần; `pick` không có khối `permissions` riêng. Qua trước code (đối chứng) |
-| Cấu trúc workflow: chờ `main-guard` | Test script | T18: bước kiểm `main-guard` có `scripts/wait-run.sh --workflow main-guard.yml` với `--timeout 25` trong nhánh `push`; `check` có `timeout-minutes: 30`. Đỏ trước code |
+| File không phải danh sách, file bị xóa, file đổi tên | Test script | T11: B đổi `docs/runs/README.md` và `docs/runs/patches/x.md`: mong rỗng, mã 0. B xóa một danh sách `approved`: mong rỗng, mã 0. B đổi tên một danh sách `draft` thành tên khác và để `approved`: mong tên mới |
+| Vừa kích hoạt một phiên, chưa có nhánh báo cáo | Test script | T12: route `actions/workflows/start-run.yml/runs?...` trả một lần chạy id 500 tạo 30 phút trước, `actions/runs/500/jobs?...` có job `fire` `success`. Mong rỗng cho `push` và cho `dispatch`, stderr `vừa kích hoạt một phiên`. `dispatch ... --force`: mong đường dẫn. Đối chứng: job `fire` `skipped` thì mong đường dẫn; lần chạy là chính `GITHUB_RUN_ID` thì mong đường dẫn |
+| GitHub lỗi | Test script | T13: route nhánh báo cáo trả lỗi (`fake-gh` thoát 1): mã 1, stdout rỗng. Route danh sách nhánh lỗi: mã 1. Route lần chạy `start-run` lỗi: mã 1 |
+| Sai tham số | Test script | T14: thiếu `--after`; `dispatch` với `docs/runs/../x.md`; `dispatch` với chuỗi có xuống dòng. Mong mã 2 cả ba, stdout rỗng |
+| Quy tắc `start:` của `run-check.py` | Test script | T15, bốn ca trên danh sách thử của khối `run-check` có sẵn: `start: soon` lỗi (`start` phải là auto hay manual); `start: auto` với `open_with: cloud` lỗi; `start: auto` với `open_with: routine` không có dòng lỗi mới; `start: auto`, `open_with: routine` và `RUN_CHECK_OPEN_WITH=cloud` không có dòng lỗi về `start`. Hai ca đầu đỏ trước code |
+| Cấu trúc workflow: trigger và ô nhập | Test script | T16 `start-run: runs on a push to main that changes a run list`: có khối `push:` với `branches: [main]` và `paths: ['docs/runs/RUN-*.md']`; vẫn có `workflow_dispatch` với `run_file`; có ô `force` kiểu `boolean` mặc định `false`. Đỏ trước code |
+| Cấu trúc workflow: chọn danh sách | Test script | T17: job `pick` gọi `scripts/auto-start-check.py push --before "${BEFORE}"` và `scripts/auto-start-check.py dispatch "${RUN_FILE_INPUT}"`; không dòng `run:` nào chứa `${{ github.event.before }}` hay `${{ inputs.run_file }}` (chỉ ở `env:`); `check` có `needs: pick` và `if: needs.pick.outputs.run_file != ''`; `fire` đọc `needs.check.outputs.run_file`. Đỏ trước code |
+| Cấu trúc workflow: quyền và hàng chờ | Test script | T18: `actions: write` đúng một lần (trong `fire`), `issues: write` đúng một lần; `pick` không có khối `permissions` hay `concurrency`; `check` và `fire` có `group: start-run`; không còn `concurrency` ở mức workflow. Phần quyền qua trước code (đối chứng), phần hàng chờ đỏ trước code |
+| Cấu trúc workflow: chờ `main-guard` | Test script | T19: bước kiểm `main-guard` có vòng `GITHUB_ACTIONS= scripts/main-guard-status.sh` với giới hạn 25 lần và `|| code=$?`, chỉ trong nhánh `push`; `check` có `timeout-minutes: 30`; không có `continue-on-error`. Đỏ trước code |
 | Không checkout nào để token | Test script | Câu mới của mục 3.5 |
-| Tự chạy thật trên GitHub | Kiểm tra thủ công (người: cần merge thật lên nhánh chính và routine thật) | Sau merge: một danh sách thử `approved`, `start: auto`, một task nhỏ (hay danh sách rỗng mà phiên kết thúc ngay theo mục 2 của `auto-run.md`), merge bằng `merge-if-green.sh`; thấy đúng một lần chạy `start-run` do push, một phiên. Merge thêm một sửa chữ của cùng file: lần chạy `start-run` xanh, `pick` không chọn gì, không có phiên mới |
+| Tự chạy thật trên GitHub | Kiểm tra thủ công (người: cần merge thật lên nhánh chính và routine thật) | Sau merge, khi không có phiên nào chạy: một danh sách thử `approved`, `start: auto`, một task nhỏ, merge bằng `merge-if-green.sh`. Thấy đúng một lần chạy `start-run` do push có `fire` xanh, một phiên. Bấm tay `start-run` cho cùng danh sách ngay sau đó: `pick` từ chối (`vừa kích hoạt một phiên` hay `đã có nhánh báo cáo`). Lần merge PR báo cáo cuối phiên (danh sách sang `finished`) là lần push thứ hai: lần chạy `start-run` xanh, `pick` không chọn gì, không có phiên mới. Phiên này đi đủ các bước cuối phiên và tốn hạn mức như một phiên thường |
 | Tài liệu đúng ý | Kiểm tra thủ công (người: đọc tài liệu) | Người duyệt PR đọc các đoạn sửa ở mục 3.1 D. `scripts/history-refs.py` qua |
 | Toàn bộ | Test script | `scripts/tests/run.sh` trên CI (`pr-check`, rồi `main-guard` sau merge). Trên máy dev macOS: `source ~/.local/share/app-project-template/env.sh` trước; bản đầy đủ in dòng tổng kết, khoảng 1570 dòng `ok`; 6 test đỏ sẵn trên máy Mac (5 `pr-check: ... order check/filter`, 1 `wait-run: a draft PR`) |
 
-**Ngoại lệ viết test trước:** tài liệu ở mục 3.1 D và chú thích đầu workflow: chỉ là chữ. Phần chờ `main-guard` trong workflow chỉ chạy được trên GitHub: test cấu trúc T18 kiểm có lệnh chờ và giới hạn, không chạy nó.
+**Ngoại lệ viết test trước:** tài liệu ở mục 3.1 D và chú thích đầu workflow: chỉ là chữ. Vòng chờ `main-guard` trong workflow chỉ chạy được trên GitHub: test cấu trúc T19 kiểm có vòng, giới hạn và cách bắt mã, không chạy nó.
 
 ### 4.1. Chạy thử
 
-Không cần (E dưới 2): trigger `push` có `paths` đã dùng ở `status-page.yml`; output giữa các job và `needs.<job>.outputs` là cách GitHub Actions thông dụng; script theo mẫu `resume-check.py`. Điểm duy nhất chưa dùng trong dự án là `github.event.before`, đã có phương án dự phòng ở mục 3.4.
+Không cần (E dưới 2): trigger `push` có `paths` đã dùng ở `status-page.yml`; output giữa các job, `needs.<job>.outputs` và `concurrency` mức job là cách GitHub Actions thông dụng; script theo mẫu `resume-check.py`. `github.event.before` lần đầu dùng, nhưng có cách xử lý khi thiếu (3.1 A) và test T9.
 
 ## 5. Chấm rủi ro
 
@@ -162,30 +174,31 @@ Không cần (E dưới 2): trigger `push` có `paths` đã dùng ở `status-pa
 
 | Tiêu chí | Điểm (0 đến 3) | Lý do |
 | --- | --- | --- |
-| A. Phạm vi thay đổi | 2 | Một workflow, một script mới, một quy tắc của `run-check.py`, test, năm tài liệu |
-| B. Độ rõ của yêu cầu | 1 | Yêu cầu rõ. Còn quyết định của người về ADR-0016 (mục 8, câu 1) |
-| C. Khả năng kiểm chứng tự động | 1 | Script và quy tắc có test đầy đủ với `gh` giả; trigger và chờ `main-guard` của workflow chỉ kiểm cấu trúc, phần chạy thật kiểm sau merge |
+| A. Phạm vi thay đổi | 2 | Một workflow, một script mới, một quy tắc của `run-check.py`, test, bảy tài liệu |
+| B. Độ rõ của yêu cầu | 1 | Yêu cầu rõ. Còn quyết định của người về ADR-0009, ADR-0016 (mục 8, câu 1) |
+| C. Khả năng kiểm chứng tự động | 1 | Script và quy tắc có test đầy đủ với `gh` giả; trigger, hàng chờ và vòng chờ `main-guard` của workflow chỉ kiểm cấu trúc, phần chạy thật kiểm sau merge |
 | D. Ảnh hưởng chéo | 3 | Sai hướng thì mở phiên ngoài ý người, hay hai phiên cùng lúc; mỗi lần gọi API là một phiên và không chống trùng |
-| E. Độ mới của kỹ thuật | 1 | `github.event.before` lần đầu dùng; có dự phòng |
+| E. Độ mới của kỹ thuật | 1 | `github.event.before` lần đầu dùng; có cách xử lý khi thiếu |
 | **Tổng** | 8 | **Mức: Cao (điểm chặn 7)** |
 
 ## 6. Ảnh hưởng chéo
 
-- File hoặc thành phần dùng chung bị chạm: `start-run.yml` (mọi phiên), `run-check.py` (mọi danh sách), mẫu danh sách chạy. `resume-run.yml` dùng chung nhóm `concurrency: start-run`, nên một lần chạy do push xếp hàng sau lần `resume-run` đang chạy, không chạy cùng lúc.
-- Task khác có thể xung đột: ADR-0048 (`proposed`) sẽ sửa `docs/CLAUDE.md` mục Khi lập danh sách chạy, `docs/ops/pre-run-review.md`, `.claude/skills/run-list/SKILL.md` và thêm `run-check.py --batch`. Hai việc sửa các đoạn khác nhau của cùng file; việc làm sau tìm chỗ sửa theo tên mục, không theo số dòng.
-- Đề xuất thứ tự chạy: làm sau khi ADR thay ADR-0016 được quyết (mục 8, câu 1). Không cần chờ ADR-0048.
+- File hoặc thành phần dùng chung bị chạm: `start-run.yml` (mọi phiên), `run-check.py` (mọi danh sách), mẫu danh sách chạy. `resume-run.yml` giữ nhóm `concurrency: start-run` ở mức workflow; `check` và `fire` dùng cùng tên nhóm ở mức job, nên không chạy cùng lúc với `resume-run`. GitHub chỉ giữ một lần chờ cho mỗi nhóm: một lần chờ có thể bị lần sau thay và thành `cancelled`; tài liệu ở bước 3 ghi bấm tay khi thấy `cancelled`.
+- Task khác có thể xung đột: ADR-0048 (`proposed`) sẽ sửa `docs/CLAUDE.md` mục Khi lập danh sách chạy, `docs/ops/pre-run-review.md`, `docs/templates/run.md`, `.claude/skills/run-list/SKILL.md` và thêm `run-check.py --batch`. Hai việc sửa các đoạn khác nhau của cùng file; việc làm sau tìm chỗ sửa theo tên mục, không theo số dòng.
+- App đã tùy biến `start-run.yml` (thời hạn job, bí mật riêng): lần đồng bộ về app phải gộp tay (`docs/ops/to-app.md`).
+- Đề xuất thứ tự chạy: làm sau khi ADR thay ADR-0009, ADR-0016 được quyết (mục 8, câu 1). Không cần chờ ADR-0048.
 
 ## 7. Điều kiện dừng riêng
 
-- Lần thử sau merge (dòng kiểm tra thủ công của mục 4) thấy một lần push mở hai phiên: dừng, người tắt `start: auto` ở mẫu (đổi thành `manual`) trong một PR, rồi xét lại.
-- `github.event.before` và phương án dự phòng của mục 3.4 đều không cho được commit trước: dừng, không chuyển sang cách "mọi danh sách `approved` chưa có nhánh báo cáo", vì cách đó mở phiên ở mọi lần push đổi danh sách.
+- Lần thử sau merge (dòng kiểm tra thủ công của mục 4) thấy một lần push mở hai phiên, hay lần bấm tay ngay sau đó không bị từ chối: dừng, người đổi mẫu về `start: manual` trong một PR, rồi xét lại.
+- Không chuyển sang cách "mọi danh sách `approved` chưa có nhánh báo cáo" dưới bất kỳ lý do nào: nhánh báo cáo bị xóa sau merge, nên cách đó mở lại danh sách cũ ở một lần push về sau.
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **ADR-0016 ghi `start-run.yml` "chạy tay".** Plan này đổi điều đó, nên theo ADR-0044 cần một ADR hợp nhất thay ADR-0016 (chép mọi quy tắc của ADR-0016 về `staging.yml`, `start-run.yml` và bí mật, đổi dòng "chạy tay" thành "chạy tay, hoặc tự chạy khi lần push lên nhánh chính chuyển một danh sách `start: auto`, `open_with: routine` sang `approved`"), được chấp nhận trước khi duyệt plan. Đề xuất: AI viết ADR đó (`proposed`) trong một PR riêng; anh duyệt ADR rồi duyệt plan.
+1. **ADR-0009 và ADR-0016 đều ghi `start-run.yml` "chạy tay"** (ADR-0009 ở đoạn hạ tầng và bảng workflow, ADR-0016 ở phần `start-run.yml`). Plan này đổi điều đó, nên theo ADR-0044 cần một ADR hợp nhất, được chấp nhận trước khi duyệt plan. Đề xuất: một ADR hợp nhất thay ADR-0016 (chép mọi quy tắc về `staging.yml`, `start-run.yml` và bí mật; đổi "chạy tay" thành "chạy tay, hoặc tự chạy khi lần push lên nhánh chính chuyển một danh sách `start: auto`, `open_with: routine` sang `approved`"), và nêu rõ nó thay đoạn nào của ADR-0009; nếu ADR-0009 còn quy tắc khác cùng đoạn đó thì hợp nhất cả ADR-0009. AI viết ADR đó (`proposed`) trong một PR riêng; anh duyệt ADR rồi duyệt plan.
 2. **Ai làm.** Ticket ghi `auto_run: false`: làm có người, một PR, vì task sửa chính workflow mở phiên và đẩy thay đổi `.github/workflows/` cần token có quyền `workflow` (phiên `routine` ghi `thử`). Đề xuất: giữ `auto_run: false`, AI làm cùng anh trên máy dev. Anh muốn chạy trong phiên tự chạy thì bỏ `auto_run: false` và danh sách chạy chạy `scripts/push-probe.sh` ở đầu phiên.
 3. **Mặc định của mẫu.** Plan để mẫu ghi `start: auto`. Danh sách cũ không có trường thì không tự chạy. Đề xuất: giữ `auto`, vì mục tiêu là bớt bước bấm tay; muốn chọn giờ thì ghi `manual`.
-4. **Khi có phiên khác đang chạy.** Plan không tự xếp hàng danh sách mới; dev bấm tay sau khi phiên kia xong. Đề xuất: giữ như vậy, vì mỗi lúc chỉ một phiên và trường hợp này hiếm.
+4. **Khoảng chặn sau một lần kích hoạt.** Plan chặn mọi lần mở phiên trong 90 phút sau một lần `fire` xanh khi chưa có nhánh báo cáo `running` (lần bấm tay bỏ qua được bằng `force`). Đề xuất: 90 phút, vì phiên bình thường đẩy nhánh báo cáo trong vài phút đầu, còn phiên đang chờ hạn mức thì `resume-run` lo khi đã có nhánh.
 
 ## 9. Quyết định duyệt
 
