@@ -1,7 +1,7 @@
 ---
 ticket: T-103
 title: Giãn dần thời gian thử lại native khi khe chưa có quảng cáo
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -268,3 +268,11 @@ E là 1 (không kỹ thuật mới), nhưng các test dựng qua điểm nối c
 - **Lệch so với plan:** không có file ngoài mục 3.2; 6 file test "chỉ sửa khi cần" không phải sửa. ADR-0032/L4 (chi tiết test viết trước khác chữ của plan, giữ ý, trong commit test): (a) `slot_coverClosed_doesNotReset` che bằng `beginStandaloneNativeTurn(..., { FakeLoadedNativeAd() })` thay cho `putPreloadedNativeFullScreenForTest`; (b) `slot_successThenFailure_waits5s` chỉ khẳng định không có dòng `retry in` sau `Loaded`, không đo chu kỳ làm mới 2 giây; (c) `nativeFullScreen_networkBack_*` kiểm "không kẹt" bằng trạng thái ở 47 999 (`WaitingRetry(75 000)`) và 55 000 (`WaitingRetry(63 000)`), vì ngay lúc gửi trạng thái là `Loading`; (d) `pool_successThenEmptyAgain_failureWaits5s` bản JVM: ô nhận quảng cáo theo nhịp riêng trước 42 000, ở 42 000 test đánh dấu lượt hiển thị và hủy ô. ADR-0031: 6 câu viết lại đúng bảng mục 3.5 (liệt kê ở mô tả PR #489). Không có thay đổi file test sau commit test.
 - **Việc còn lại:** merge PR #489 bằng `scripts/merge-if-green.sh 489`, chờ `main-guard` (gồm `ui-test`, đổi `core/`), ghi plan `done`, ticket `on-staging`; phát staging; kiểm thủ công mục 4 (log giãn 5, 10, 20, 40, 60 giây khi không có native).
 - **Cần người xem:** merge PR #489; đọc O-05, S-24, mục 11, mục 12 của `docs/ops/ads-business-rules.md` và ba chỗ của `docs/ops/ads-guide.md`; ghi chú rà soát (3), (5).
+
+### Sau phiên RUN-20261113-02, ngày 2026-11-14
+
+- **Kết quả:** đã merge. AI chạy theo lời anh Nhật trong phiên có người: "merge #489, chờ main-guard rồi phát staging, cập nhật và merge #490, merge #487, đóng #485".
+- **Merge:** `scripts/merge-if-green.sh 489`, commit merge `7603940`.
+- **Kết quả CI:** `main-guard` xanh (lần chạy 43536301200, `guard` và `ui-test`).
+- **Bản staging:** `0.1.0-staging.31` (lần chạy `staging.yml` 43537071199, nhánh chính `cc53b03`).
+- **Việc còn lại:** kiểm thủ công mục 4 (log giãn 5, 10, 20, 40, 60 giây khi không có native); `device-session.yml` chưa chạy.
