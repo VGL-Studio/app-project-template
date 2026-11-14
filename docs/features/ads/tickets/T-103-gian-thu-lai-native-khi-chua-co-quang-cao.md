@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-24]
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: approved              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # quảng cáo và :core:ads (điểm chặn 1, 7)
 size: M
 depends_on: []
 sprint:
-plan:
+plan: features/ads/plans/T-103-gian-thu-lai-native.md
 auto_run:
 created: 2026-11-11
 ---
