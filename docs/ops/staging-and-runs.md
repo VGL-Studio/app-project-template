@@ -90,6 +90,8 @@ Sau đó chuyển `google-services.json`, file khóa và `staging.keystore` ra k
    - Danh sách chạy không có trạng thái approved thì không làm task nào, kết thúc phiên và báo lý do.
 
    Nhánh: không làm việc trên nhánh mặc định của phiên này. Tạo nhánh báo cáo và nhánh riêng cho từng task đúng như docs/auto-run.md.
+
+   Merge: người duyệt plan và danh sách chạy giao cho phiên việc merge từng PR task và PR báo cáo, sau rà soát độc lập và khi CI xanh, bằng đúng lệnh scripts/merge-if-green.sh <số PR> (bước 9 và mục 4 của docs/auto-run.md); không merge bằng cách nào khác.
    ```
 
    Routine tạo sẵn cho mỗi phiên một nhánh `claude/<tên ngẫu nhiên>`. Dòng "Nhánh" của prompt yêu cầu phiên bỏ qua nhánh đó, vì một phiên có nhiều task, mỗi task cần nhánh riêng tạo từ nhánh chính.
