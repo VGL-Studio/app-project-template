@@ -226,6 +226,13 @@ class AdsController @Inject internal constructor(
     /** True while an app activity is started, as [AdsActivityTracker] reports it; native requests wait for it. */
     private val foregroundState = MutableStateFlow(false)
 
+    /**
+     * Moves when the failures in a row of every native place with no ad count from 1 again (O-05, plan T-103): the
+     * whole process back in foreground, Internet back. Not when only the app activity stops and starts (an SDK screen
+     * over the app, a rotation) nor when a full-screen ad of ours closes: that is no return to foreground.
+     */
+    private val nativeFailureResets = MutableStateFlow(0)
+
     /** The [FullScreenAdHost]s in a composition now (K-09); main thread only. */
     private var fullScreenHostCount = 0
     private val _fullScreenHostAttached = MutableStateFlow(false)
@@ -372,6 +379,10 @@ class AdsController @Inject internal constructor(
         // Foreground, not the in-screen window: the screen over the app waits for this very load (K-04, plan T-054).
         foreground = foregroundState,
         logger = logger,
+        failureResets = nativeFailureResets,
+        // Read late: the preloader is made below this line, after this one.
+        retryResets = { preloader.nativeRetryResets },
+        onRetryCutShort = ::onNativeFullScreenRetryCutShort,
     )
 
     /** "A load of the native full-screen slot ended", per placement (L-068): the combo waits for its own. */
@@ -712,7 +723,13 @@ class AdsController @Inject internal constructor(
                 .collect { preloader.onGateChanged() }
         }
         // The value read in start, so Internet is watched once (S-24, T-016).
-        scope.launch { networkReturns(online).collect { preloader.onNetworkReturned() } }
+        scope.launch {
+            networkReturns(online).collect {
+                // Before the cut short below, so the try it sends counts its failures from 1 (O-05, plan T-103).
+                resetNativeFailures("network back")
+                preloader.onNetworkReturned()
+            }
+        }
     }
 
     /**
@@ -862,8 +879,31 @@ class AdsController @Inject internal constructor(
 
     /** The whole process came to foreground or went to background ([AdsActivityTracker]): the resume ad turn. */
     internal fun onProcessForegroundChanged(foreground: Boolean) {
+        onProcessForegroundForNativeRetry(foreground)
         logger.info(TAG, if (foreground) "App in foreground" else "App in background")
         resumeAds.onProcessForegroundChanged(foreground)
+    }
+
+    /**
+     * The whole process came back to foreground: the native places with no ad count their failures from 1 again (O-05,
+     * plan T-103). [ProcessForegroundCounter] reports changes only, so each true is a return.
+     */
+    private fun onProcessForegroundForNativeRetry(foreground: Boolean) {
+        if (foreground) resetNativeFailures("foreground")
+    }
+
+    private fun resetNativeFailures(reason: String) {
+        nativeFailureResets.value += 1
+        logger.info(TAG, "Native retry counters reset: $reason")
+    }
+
+    /**
+     * The retry wait of the native full-screen ad of [placement] was cut short by Internet back (S-24): the retry is not
+     * due yet, so the slot stops waiting for it, then loads (F-04).
+     */
+    private fun onNativeFullScreenRetryCutShort(placement: AdPlacement) {
+        if (loadStates[placement] is FullScreenLoadState.WaitingRetry) loadStates -= placement
+        loadFullScreenAdIfNeeded(placement)
     }
 
     /**
@@ -1418,6 +1458,27 @@ class AdsController @Inject internal constructor(
         inScreenAdWindowState.onForeground(foreground)
     }
 
+    /**
+     * Tests only: the whole process came to foreground or went to background, as [AdsActivityTracker] reports it, for
+     * the native retry counters only (O-05, plan T-103): no resume ad turn.
+     */
+    @VisibleForTesting
+    internal fun setProcessForegroundForTest(foreground: Boolean) {
+        onProcessForegroundForNativeRetry(foreground)
+    }
+
+    /**
+     * Tests only: the send of each native full-screen load instead of the SDK's (plan T-103). It returns the ad that
+     * loaded, or null for a failure (code 3); everything before the send (foreground, gate, switch) runs for real.
+     */
+    @VisibleForTesting
+    internal var nativeFullScreenRequestForTest: ((AdPlacement) -> LoadedNativeAd?)? = null
+
+    /** Tests only: where the full-screen ad of [placement] is in its loading (F-04). */
+    @VisibleForTesting
+    internal fun nativeFullScreenLoadStateForTest(placement: AdPlacement): FullScreenLoadState =
+        fullScreenLoadState(placement)
+
     /** Tests only: the preload of S-21, which the SDK's init callback asks for (plan T-086). */
     @VisibleForTesting
     internal fun requestPreloadForTest() = preloader.request(PreloadReason.SDK_READY)
@@ -1738,6 +1799,7 @@ class AdsController @Inject internal constructor(
                     scope = scope,
                     logger = logger,
                     logKey = "${key.format.code}#$made",
+                    failureResets = nativeFailureResets,
                 )
             },
             scope = scope,
@@ -1818,9 +1880,9 @@ class AdsController @Inject internal constructor(
 
     /**
      * The states of one native ad of [placement], drawn as [format], for a slot on screen: loading, then loaded, or
-     * unavailable and a new try 5 s later (O-05), sent in foreground only and when [mayRequestNow]; Internet back cuts
-     * the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own metrics events
-     * (T-023). A native small slot or collapsible layer ([usesSingleAdSource]) claims its ad from its stock (plan
+     * unavailable and a new try 5, 10, 20, 40, then 60 s later (O-05), sent in foreground only and when [mayRequestNow];
+     * Internet back cuts the wait short (S-24). Each try waits at most [NATIVE_LOAD_TIMEOUT_MILLIS] and gets its own
+     * metrics events (T-023). A native small slot or collapsible layer ([usesSingleAdSource]) claims its ad from its stock (plan
      * T-086) and replaces it in place in foreground at the interval of its key ([reloadIntervalMillis], KB-34), the
      * first count longer by [firstRefreshExtraMillis] (plan T-040, T-087); a pooled format (medium) is a cell of its pool ([pooledCell], plan T-028); other formats
      * keep their ad, destroyed when the collection is cancelled. The caller checks consent and [isEnabled] first, like
@@ -1853,6 +1915,7 @@ class AdsController @Inject internal constructor(
                         placementKey = nativeSlotKey(placement, format),
                         intervalMillis = reloadIntervalMillis(format),
                         firstTickExtraMillis = firstRefreshExtraMillis,
+                        failureResets = nativeFailureResets,
                     ),
                 )
                 return@flow
@@ -1873,6 +1936,7 @@ class AdsController @Inject internal constructor(
                     retryResets = preloader.nativeRetryResets,
                     logger = logger,
                     placementKey = placement.key,
+                    failureResets = nativeFailureResets,
                 ),
             )
         }
@@ -1935,7 +1999,7 @@ class AdsController @Inject internal constructor(
 
     /**
      * The states of the native small row of [slot] of a list of [placement] ([inListRowStates]): its own `LIST_ROW`
-     * load on each try, tried again like a native slot (5 s, the in-screen window, the gate right before the send,
+     * load on each try, tried again like a native slot (O-05, the in-screen window, the gate right before the send,
      * Internet back) but never refreshed and never through a single-ad source (plan T-059, section 3.1). Logs under
      * `<code>#<slot>`, so rows loading at once do not mix; the metrics keep [placement]. [rowShown] is true while the
      * row is drawn. The caller checks consent and [isEnabled] first ([inListEvery]).
@@ -1969,6 +2033,7 @@ class AdsController @Inject internal constructor(
                 retryResets = preloader.nativeRetryResets,
                 logger = logger,
                 placementKey = key,
+                failureResets = nativeFailureResets,
             ),
         )
     }
@@ -2114,21 +2179,27 @@ class AdsController @Inject internal constructor(
                 nativeLoadResults.signal(placement)
                 return@launch
             }
+            val requestForTest = nativeFullScreenRequestForTest
+            if (requestForTest != null) {
+                // Tests only: the send itself is replaced; everything before it ran for real.
+                events.onRequestSent()
+                val loaded = requestForTest(placement)
+                if (loaded != null) {
+                    onNativeFullScreenLoaded(placement, loaded, cell)
+                } else {
+                    onNativeFullScreenLoadFailed(placement, events, NO_FILL_CODE_FOR_TEST, null)
+                }
+                return@launch
+            }
             try {
                 // O-06, shared with every native request (NativeRequestOptions.kt).
                 val options = fullScreenNativeRequestOptions().toNativeAdOptions()
                 val loader = AdLoader.Builder(context, unitId)
                     .forNativeAd { ad ->
                         networkLog.loaded(placement.key, ad.responseInfo)
-                        loadStates -= placement
-                        lastLoadErrors -= placement
                         ad.setOnPaidEventListener { events.onPaid(it) }
                         events.onLoaded(ad)
-                        val loaded = SdkLoadedNativeAd(ad, events)
-                        nativeFullScreenCells[loaded] = cell
-                        preloadedNativeFullScreen.put(placement, loaded, clock.nowMillis())
-                        // L-068: a combo waiting for this placement takes the ad.
-                        nativeLoadResults.signal(placement)
+                        onNativeFullScreenLoaded(placement, SdkLoadedNativeAd(ad, events), cell)
                     }
                     .withAdListener(
                         object : AdListener() {
@@ -2158,6 +2229,20 @@ class AdsController @Inject internal constructor(
                 onNativeFullScreenLoadFailed(placement, events, 0, null)
             }
         }
+    }
+
+    /**
+     * The native full-screen ad of [placement] loaded, by the SDK or by [nativeFullScreenRequestForTest]: kept in its
+     * slot for the show, with [cell] for the placement its metrics read (PL-03).
+     */
+    private fun onNativeFullScreenLoaded(placement: AdPlacement, loaded: LoadedNativeAd, cell: PlacementCell) {
+        loadStates -= placement
+        lastLoadErrors -= placement
+        nativeFullScreenCells[loaded] = cell
+        preloadedNativeFullScreen.put(placement, loaded, clock.nowMillis())
+        fullScreenReloads.onLoaded(placement)
+        // L-068: a combo waiting for this placement takes the ad.
+        nativeLoadResults.signal(placement)
     }
 
     /** The load of the native full-screen ad of [placement] failed: counted (T-023), then a retry (O-05). */
@@ -2410,6 +2495,9 @@ class AdsController @Inject internal constructor(
 
     private companion object {
         const val TAG = "Ads"
+
+        /** The SDK code of no fill, for a failed load of [nativeFullScreenRequestForTest]. */
+        const val NO_FILL_CODE_FOR_TEST = 3
 
         /** `load_state` of a shown full-screen ad. */
         const val READY = "ready"
