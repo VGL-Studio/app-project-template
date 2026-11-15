@@ -42,7 +42,7 @@ Bài học: L-125 (hợp đồng giữa `release.sh` và build: mọi thuộc t�
 
 ### 3.1. Cách làm
 
-**Lời cho phép sửa `scripts/release.sh`.** Anh Nhật, trong phiên ngày 2026-11-15, nguyên văn: "Tôi cho phép bạn sửa file scripts/release.sh lần này, bỏ qua lệnh chặn ở CLAUDE.md". Phạm vi: việc thực hiện T-073 theo plan này, ở bất kỳ phiên nào, chỉ phần mô tả ở bước 3 dưới (câu hỏi 3). Phần còn lại của ADR-0049 giữ nguyên: không đọc, tạo hay sửa thư mục phát hành (`~/.vgl-release/`), không in khóa. File không vào bảng mục 3.2 vì `scripts/plan-check.py` không cho plan nào ghi nó (`NEVER`); đây là ngoại lệ có lời cho phép, không phải lệch phạm vi. Task khác: quy tắc chặn áp lại.
+**Lời cho phép sửa `scripts/release.sh`.** Anh Nhật, trong phiên ngày 2026-11-15, nguyên văn: "Tôi cho phép bạn sửa file scripts/release.sh lần này, bỏ qua lệnh chặn ở CLAUDE.md". Phạm vi, anh Nhật nói rõ cùng ngày (câu hỏi 3), nguyên văn: "Duyệt cho phép AI thực hiện thay đổi file release.sh trong toàn bộ phiên làm việc này." Lời cho phép áp trong phiên làm việc soạn plan này; task T-073 làm ngay trong phiên đó, chỉ phần mô tả ở bước 3 dưới. Phiên khác cần lời cho phép mới. Phần còn lại của ADR-0049 giữ nguyên: không đọc, tạo hay sửa thư mục phát hành (`~/.vgl-release/`), không in khóa. File không vào bảng mục 3.2 vì `scripts/plan-check.py` không cho plan nào ghi nó (`NEVER`); đây là ngoại lệ có lời cho phép, không phải lệch phạm vi. Task khác: quy tắc chặn áp lại.
 
 Làm theo mẫu khóa AppsFlyer ở `release.sh` (T-033, issue #261: biết app có SDK qua khai báo trong `*.gradle.kts`, không in khóa, CHÚ Ý khi khóa không dùng) và mẫu lọc của flavor staging (T-068, T-071).
 
@@ -239,7 +239,7 @@ Không cần (E dưới 2): lặp lại mẫu đọc tham số, mẫu khóa Apps
 1. **App chưa có tài khoản AppLovin.** Trả lời (anh Nhật, 2026-11-15): "bỏ qua, không dùng MAX". Plan làm khóa tùy chọn ở production; không khóa thì bản phát hành chỉ chạy AdMob, `release.sh` báo CHÚ Ý và dòng "MAX: không dùng". Spec câu hỏi 43 đổi theo, chờ anh Nhật xác nhận cùng lời duyệt plan.
 2. **Chữ thông báo của `release.sh`.** Test tìm "maxSdkKey sai dạng", "maxAdUnits sai dạng", "CHÚ Ý: ...không có maxSdkKey", "CHÚ Ý: ...maxSdkKey không được dùng", "CHÚ Ý: ...maxAdUnits không được dùng" và các dòng "   MAX: ..." của mục 3.1 bước 3. Anh Nhật muốn chữ khác thì nói khi duyệt.
 
-3. **Phạm vi lời cho phép sửa `scripts/release.sh`.** Lời gốc "lần này" nói trong phiên soạn plan; plan hiểu là áp cho việc thực hiện T-073 theo plan này ở bất kỳ phiên nào, chỉ phần bước 3 của mục 3.1, và không áp cho task khác. Anh Nhật xác nhận cách hiểu này cùng lời duyệt.
+3. **Phạm vi lời cho phép sửa `scripts/release.sh`.** Trả lời (anh Nhật, 2026-11-15): "Duyệt cho phép AI thực hiện thay đổi file release.sh trong toàn bộ phiên làm việc này." Task làm trong chính phiên này; phiên khác cần lời cho phép mới.
 
 ## 9. Quyết định duyệt
 
