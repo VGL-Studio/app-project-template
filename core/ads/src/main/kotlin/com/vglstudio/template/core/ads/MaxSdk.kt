@@ -57,6 +57,9 @@ internal interface MaxPlatform {
     val isInitialized: Boolean
 
     fun initialize(sdkKey: String, onInitialized: () -> Unit)
+
+    /** A new MAX interstitial of [adUnitId] (plan T-069); built once MAX is ready. */
+    fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd
 }
 
 /**
@@ -72,6 +75,8 @@ internal class AppLovinMaxPlatform(private val context: Context) : MaxPlatform {
             .build()
         AppLovinSdk.getInstance(context).initialize(configuration) { onInitialized() }
     }
+
+    override fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd = AppLovinMaxInterstitial(adUnitId, context)
 }
 
 /**

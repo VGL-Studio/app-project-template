@@ -1474,6 +1474,13 @@ class AdsController @Inject internal constructor(
     @VisibleForTesting
     internal var nativeFullScreenRequestForTest: ((AdPlacement) -> LoadedNativeAd?)? = null
 
+    /**
+     * Tests only: the send of each AdMob interstitial load instead of the SDK's (plan T-069). It returns the ad that
+     * loaded, or null for a failure; everything before the send (switch, gate, platforms) runs for real.
+     */
+    @VisibleForTesting
+    internal var interstitialRequestForTest: ((AdPlacement) -> InterstitialAd?)? = null
+
     /** Tests only: where the full-screen ad of [placement] is in its loading (F-04). */
     @VisibleForTesting
     internal fun nativeFullScreenLoadStateForTest(placement: AdPlacement): FullScreenLoadState =

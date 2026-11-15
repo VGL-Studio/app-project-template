@@ -152,12 +152,12 @@ class MaxSdkStarterTest {
     }
 
     @Test
-    fun maxConfig_unitFor_bannerAndMrecOnly_noKeyNoUnit() {
-        // Plan T-071, step 1: one MAX ad unit per banner format, read from <slot>=<unit>;...
-        val config = MaxConfig(FAKE_KEY, "banner=a1;banner_mrec=b2;interstitial=c3")
+    fun maxConfig_unitFor_maxFormatsOnly_noKeyNoUnit() {
+        // Plans T-071, T-069: one MAX ad unit per MAX format, read from <slot>=<unit>;...
+        val config = MaxConfig(FAKE_KEY, "banner=a1;banner_mrec=b2;interstitial=c3;banner_collapsible=x4")
         assertEquals("a1", config.unitFor(AdFormat.BANNER))
         assertEquals("b2", config.unitFor(AdFormat.BANNER_MREC))
-        assertNull(config.unitFor(AdFormat.INTERSTITIAL))
+        assertEquals("c3", config.unitFor(AdFormat.INTERSTITIAL))
         assertNull(config.unitFor(AdFormat.BANNER_COLLAPSIBLE))
         // Malformed entries are skipped, not thrown.
         val malformed = MaxConfig(FAKE_KEY, "banner;=x;banner_mrec=;banner=a1")
@@ -176,7 +176,9 @@ class MaxSdkStarterTest {
         assertFalse(text, "a1" in text)
         assertFalse(text, "b2" in text)
         assertFalse(text, FAKE_KEY in text)
-        assertTrue(text, "units=2" in text)
+        assertFalse(text, "c3" in text)
+        assertFalse(text, "x4" in text)
+        assertTrue(text, "units=3" in text)
     }
 
     private companion object {
