@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -843,3 +843,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-15 | AI | Theo quyết định của anh Nhật trong phiên vẽ thiết kế T-064 (2026-11-14, PR #499) và lời xác nhận phạm vi ngày 2026-11-15 ("Xác nhận."): KB-32 tiêu chí 3 đổi (chiều cao ba biến thể nội suy theo mốc, không theo số riêng của JBase), câu hỏi 48 thêm dòng đổi, thêm câu hỏi 64. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trả lời yêu cầu xác nhận chữ đầy đủ của spec trên PR #500 (KB-32 tiêu chí 3, câu hỏi 48, 64): "Xác nhận.". Chuyển sang `confirmed` |
 | 2026-11-15 | AI | Theo trả lời của anh Nhật cho câu hỏi 1 của plan T-073 ("app chưa có tài khoản AppLovin: bỏ qua, không dùng MAX"): câu hỏi 43 thêm dòng đổi (khóa SDK MAX tùy chọn ở production, thiếu thì chỉ chạy AdMob; sai ký tự bị từ chối). Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt plan T-073 |
+| 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trên PR #501: "Xác nhận spec ads (câu hỏi 43), duyệt plan T-073," Chuyển sang `confirmed` |

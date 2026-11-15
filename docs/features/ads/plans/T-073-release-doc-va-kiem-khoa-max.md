@@ -1,7 +1,7 @@
 ---
 ticket: T-073
 title: release.sh đọc và kiểm khóa, mã đơn vị MAX
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -10,7 +10,7 @@ blocking_points: [ads, build, ci]
 run_order:                   # AI điền khi lập danh sách chạy
 reviewer: Nhật
 cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
-approved_at:
+approved_at: 2026-11-15
 lane:                        # để trống; ticket ghi auto_run: false, làm có người, một PR
 ---
 
@@ -243,8 +243,8 @@ Không cần (E dưới 2): lặp lại mẫu đọc tham số, mẫu khóa Apps
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
-- **Người duyệt:** , **duyệt chéo:**
-- **Ghi chú:**
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C), nguyên văn: "Xác nhận spec ads (câu hỏi 43), duyệt plan T-073," Câu hỏi 1 và 3 đã có trả lời ở mục 8; câu hỏi 2 không đổi chữ. Hai câu viết lại theo ADR-0031 ở mục 3.5 được duyệt cùng plan.
 
 ## 10. Nhật ký thực hiện
