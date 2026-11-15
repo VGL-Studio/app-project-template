@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * local.properties in staging. Without a key MAX never starts. [toString] hides the key, so it reaches no log.
  *
  * [adUnits] holds the MAX ad unit of each slot of the app, `<slot>=<unit>;...` with the slot named by [AdFormat.code]
- * (`banner`, `banner_mrec`; plan T-071): `-PmaxAdUnits` in production, `ads.maxAdUnits` of local.properties in
+ * (`banner`, `banner_mrec`, plan T-071; `interstitial`, plan T-069): `-PmaxAdUnits` in production, `ads.maxAdUnits` of local.properties in
  * staging. [toString] counts the slots with a unit and never shows one.
  */
 data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
@@ -30,8 +30,8 @@ data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
     }
 
     /**
-     * The MAX ad unit of [format]: only [AdFormat.BANNER] and [AdFormat.BANNER_MREC] so far (T-069 and T-070 add the
-     * full-screen slots); none without an SDK key.
+     * The MAX ad unit of [format]: [AdFormat.BANNER], [AdFormat.BANNER_MREC] and [AdFormat.INTERSTITIAL] so far (T-106
+     * and T-070 add rewarded and app open); none without an SDK key.
      */
     fun unitFor(format: AdFormat): String? {
         if (!hasKey || format !in MAX_FORMATS) return null
@@ -46,8 +46,8 @@ data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
     companion object {
         val NONE = MaxConfig("")
 
-        /** The formats that may load from MAX (plan T-071). */
-        internal val MAX_FORMATS = listOf(AdFormat.BANNER, AdFormat.BANNER_MREC)
+        /** The formats that may load from MAX (plans T-071, T-069). */
+        internal val MAX_FORMATS = listOf(AdFormat.BANNER, AdFormat.BANNER_MREC, AdFormat.INTERSTITIAL)
     }
 }
 
@@ -57,6 +57,9 @@ internal interface MaxPlatform {
     val isInitialized: Boolean
 
     fun initialize(sdkKey: String, onInitialized: () -> Unit)
+
+    /** A new MAX interstitial of [adUnitId] (plan T-069); built once MAX is ready. */
+    fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd
 }
 
 /**
@@ -72,6 +75,8 @@ internal class AppLovinMaxPlatform(private val context: Context) : MaxPlatform {
             .build()
         AppLovinSdk.getInstance(context).initialize(configuration) { onInitialized() }
     }
+
+    override fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd = AppLovinMaxInterstitial(adUnitId, context)
 }
 
 /**

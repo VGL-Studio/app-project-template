@@ -1,7 +1,7 @@
 ---
 ticket: T-069
 title: Interstitial của MAX qua cổng toàn màn hình chung
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -289,3 +289,22 @@ Không cần (E dưới 2): biến thể của banner MAX (T-071) và đường 
 - **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C), nguyên văn: "Xác nhận spec ads (câu hỏi 41, KB-31), duyệt plan T-069". Câu hỏi 1 đã trả lời; câu 2 và 3 theo đề xuất của AI (để T-072). Hai câu viết lại theo ADR-0031 ở mục 3.5 duyệt cùng plan.
 
 ## 10. Nhật ký thực hiện
+
+### Làm có người 2026-11-15, phiên bản plan 1
+
+- **Kết quả:** PR mở (PR này); merge bằng `scripts/merge-if-green.sh` khi anh Nhật nói rõ trong phiên.
+- **Nhánh, PR:** `claude/T-069-max-inter`. Commit test `60939306`; code `5c8520c4`; sửa phần dựng test `28b2fea2`; tài liệu `5a01141c`; sửa theo rà soát `36b2e504`, `d9a7b3ec`; ktlint `c0374741`.
+- **Đã làm:** mục 3.1 bước 1 tới 5: `MaxInterstitial.kt`, `MaxInterstitialSlot.kt`, `FullScreenPlatforms.kt`; `MaxConfig.MAX_FORMATS` thêm `INTERSTITIAL`, `MaxPlatform.newInterstitial`; `AdsController` (khe MAX, `platformsOf`, `admobInterstitialState`, `preloadState`, `maxInterstitialWanted`, nhánh inter của `fullScreenLoadState`, `opportunityLoadState`, `loadFullScreenAdIfNeeded`, `preloadNow`, `preloadInterstitial`, `showInterstitialTurn`, `showMaxInterstitial`, điểm nối `interstitialRequestForTest`, `putLoadedInterstitialForTest`); N-06, M-10, khóa `ads_mediation_order`, `ads-guide.md`.
+- **Test viết trước:** 54 test mới (`MaxInterstitialSlotTest` 18, `FullScreenPlatformsTest` 6, `AdsControllerMaxInterstitialTest` 30) cùng hai test cũ sửa; trên khung rỗng 51 đỏ đúng lý do (khe không gửi, hàm chọn nền tảng trả rỗng, điểm nối chưa dùng, chuỗi log và `unitFor(INTERSTITIAL)`). Rà soát thêm 3 test (`takenAd_loadWhileShowing_noLoad_thenClosedReloads`, `takenAd_showingFlagLowered_loadAllowed`, `otherPlacementLoadWhileMaxShows_noMaxLoad`), đỏ đúng lý do trước khi sửa.
+- **Đối chứng:** bỏ `AdFormat.INTERSTITIAL` khỏi `MAX_FORMATS` làm đỏ đúng `MaxSdkStarterTest.maxConfig_unitFor_maxFormatsOnly_noKeyNoUnit`; bỏ chặn sớm `if (canRequestAds.value)` làm đỏ đúng `gateClosed_loadFullScreenAdIfNeeded_noStateChange`; mỗi lần trả bằng `git checkout --`.
+- **Kết quả kiểm trên máy dev (macOS):** `scripts/check.sh` với GNU sed đứng trước trong `PATH`: "Cổng chất lượng: QUA", 2071 test JVM, 0 lỗi, 91 ảnh. Với `sed` của macOS, `check.sh` dừng ở test `pr-check: the filter output check ...` (cú pháp chỉ GNU sed hiểu), không do task.
+- **CI:** CI của PR này.
+- **Test cũ viết lại (ADR-0031):** `MaxSdkStarterTest.maxConfig_unitFor_bannerAndMrecOnly_noKeyNoUnit` thành `maxConfig_unitFor_maxFormatsOnly_noKeyNoUnit` đúng chữ mục 3.5 (`c3`, `banner_collapsible=x4`, `units=3`). Dữ liệu chuỗi log của `AdsControllerMaxTest` theo ADR-0029.
+- **Lệch so với plan (ADR-0029, ADR-0032):**
+  1. Callback hiện của MAX đi qua khe: `take(onShow)` thay cho controller gắn `ad.listener` (gắn như plan sẽ đè callback nạp của khe).
+  2. `platformsOf` coi AdMob có mã khi khe AdMob đang giữ quảng cáo, để 7 test cũ dựng không có mã AdMob mà đặt sẵn quảng cáo vẫn hiện như trước (`AdsControllerHostTest`, `AdsControllerResumeTest`, `AdsControllerStartupInterComboTest`); không đổi gì ở production.
+  3. Phần dựng test sửa sau commit test (`28b2fea2`), câu khẳng định giữ: `resume_inter`, `open_app_inter` bật bằng khóa toàn app; `GATE_REOPENED` cần một lượt nạp sẵn đầu; lượt khởi động kết thúc khi quảng cáo đóng.
+  4. Ba test của `resume_inter` gọi thẳng `showInterstitial(activity, RESUME_INTER)` thay cho đường quay lại thật.
+  5. Theo rà soát (điểm chặn): khe có cờ "đang hiện"; quảng cáo của khe đang hiện thì khe không nạp; lượt kết thúc mà SDK chưa báo đóng thì khe bỏ đối tượng cũ. Plan ghi `take()` → `Idle`.
+- **Việc còn lại:** kiểm thủ công trên máy thật (mục 4, cần khóa và mã MAX thật); T-106 (rewarded), T-070, T-072 (doanh thu MAX: phát hành app có khóa MAX sau T-072 hoặc chấp nhận thiếu doanh thu MAX).
+- **Rà soát độc lập:** vòng 1: chặn 1, nên sửa 2, ghi chú 9; vòng 2 (phần sửa): chặn 0, nên sửa 1, ghi chú 5. Đã sửa: khe gọi `load()` trên quảng cáo đang hiện (chặn); test cổng đóng bắt được hồi quy; lượt kết thúc mà SDK chưa báo đóng; bỏ callback hiện sau khi kết thúc; tài liệu M-10, N-06; đổi tên một test. Chưa sửa: `maxHidden_recordsIntervalMarkFirst_thenFinishes` chưa kiểm thứ tự "mốc trước, hoàn tất sau" (MAX đi chung `onInterstitialClosed` ghi mốc ở dòng đầu, test AdMob có sẵn kiểm I-05).
