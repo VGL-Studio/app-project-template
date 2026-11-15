@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdFunnelEvent
 import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.AdMetricPlatform
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
@@ -98,11 +99,11 @@ class AdsControllerMaxInterstitialTest {
 
     private val maxAd: FakeMaxInterstitialSdkAd get() = platform.interstitials.single()
 
-    /** Asks the slots of [placement] to load, then the MAX interstitial answers loaded. */
-    private fun loadMax(placement: AdPlacement = AdPlacement.GALLERY_INTERSTITIAL) {
+    /** Asks the slots of [placement] to load, then the MAX interstitial answers loaded with [info]. */
+    private fun loadMax(placement: AdPlacement = AdPlacement.GALLERY_INTERSTITIAL, info: MaxAdInfo = MaxAdInfo.EMPTY) {
         controller.loadFullScreenAdIfNeeded(placement)
         idle()
-        maxAd.emitLoaded()
+        maxAd.emitLoaded(info)
         idle()
     }
 
@@ -499,8 +500,67 @@ class AdsControllerMaxInterstitialTest {
         show()
         maxAd.emitClicked()
         assertEquals(
-            listOf(AdMetricEvent.Clicked("INTER", "gallery_interstitial")),
+            listOf(AdMetricEvent.Clicked("INTER", "gallery_interstitial", AdMetricPlatform.APPLOVIN)),
             metrics.events.filterIsInstance<AdMetricEvent.Clicked>(),
+        )
+    }
+
+    // Plan T-072
+
+    @Test
+    fun maxShown_revenue_recordedWithPlacementApplovin() {
+        start("max")
+        loadMax()
+        show()
+        maxAd.emitDisplayed()
+        idle()
+        maxAd.emitRevenue(MAX_INFO)
+        idle()
+        assertEquals(
+            listOf(
+                AdMetricEvent.ImpressionRevenue(
+                    adFormat = "INTER",
+                    adSource = "AppLovin",
+                    monetizationNetwork = "AppLovin",
+                    adUnitName = MAX_UNIT,
+                    currency = "USD",
+                    value = 0.0123,
+                    adPlacement = "gallery_interstitial",
+                    adapterClassName = MAX_ADAPTER,
+                    platform = AdMetricPlatform.APPLOVIN,
+                ),
+            ),
+            metrics.events.filterIsInstance<AdMetricEvent.ImpressionRevenue>(),
+        )
+    }
+
+    @Test
+    fun maxDisplayFailed_reasonFromMaxTable() {
+        start("max")
+        loadMax()
+        show()
+        maxAd.emitDisplayFailed(-23)
+        idle()
+        assertEquals(
+            listOf(AdMetricEvent.ShowFail("INTER", "gallery_interstitial", "-23", "ad_reused")),
+            metrics.events.filterIsInstance<AdMetricEvent.ShowFail>(),
+        )
+    }
+
+    @Test
+    fun maxDisplayed_funnelHasAdapter() {
+        start("max")
+        loadMax(info = MAX_INFO)
+        show()
+        maxAd.emitDisplayed()
+        idle()
+        assertEquals(
+            listOf(AdFunnelEvent.ApiCalled(AdFunnelKind.INTERS, "INTER", MAX_UNIT, MAX_ADAPTER)),
+            funnel.events.filterIsInstance<AdFunnelEvent.ApiCalled>(),
+        )
+        assertEquals(
+            listOf(AdFunnelEvent.Displayed(AdFunnelKind.INTERS, "INTER", MAX_UNIT, MAX_ADAPTER)),
+            funnel.events.filterIsInstance<AdFunnelEvent.Displayed>(),
         )
     }
 
@@ -561,5 +621,7 @@ class AdsControllerMaxInterstitialTest {
         const val MAX_UNIT = "FAKE_UNIT_A"
         const val MAX_NO_NETWORK = -1009
         val MAX_CONFIG = MaxConfig("FAKE_MAX_KEY_0123", "interstitial=$MAX_UNIT")
+        const val MAX_ADAPTER = "com.applovin.mediation.adapters.GoogleMediationAdapter"
+        val MAX_INFO = MaxAdInfo("FAKE_UNIT_OF_AD", 0.0123, "AppLovin", "exact", MAX_ADAPTER, emptyList())
     }
 }

@@ -174,6 +174,7 @@ private fun BannerSlot(
                                     now = ads::metricsNowMillis,
                                     logger = ads.logger,
                                     loadErrorLog = ads.loadErrorLog,
+                                    networkLog = ads.networkLog,
                                 )
                             }
                         }

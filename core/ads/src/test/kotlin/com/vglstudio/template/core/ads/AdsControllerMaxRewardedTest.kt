@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdFunnelEvent
 import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.AdMetricPlatform
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
@@ -99,11 +100,11 @@ class AdsControllerMaxRewardedTest {
 
     private val maxAd: FakeMaxInterstitialSdkAd get() = platform.rewardeds.last()
 
-    /** Asks the platforms of the rewarded placement to load, then the MAX rewarded answers loaded. */
-    private fun loadMax() {
+    /** Asks the platforms of the rewarded placement to load, then the MAX rewarded answers loaded with [info]. */
+    private fun loadMax(info: MaxAdInfo = MaxAdInfo.EMPTY) {
         controller.loadFullScreenAdIfNeeded(RW)
         idle()
-        maxAd.emitLoaded()
+        maxAd.emitLoaded(info)
         idle()
     }
 
@@ -681,12 +682,88 @@ class AdsControllerMaxRewardedTest {
             funnel.events.filterIsInstance<AdFunnelEvent.Displayed>(),
         )
         assertEquals(
-            listOf(AdMetricEvent.Clicked("REWARDED", "gallery_rw_action")),
+            listOf(AdMetricEvent.Clicked("REWARDED", "gallery_rw_action", AdMetricPlatform.APPLOVIN)),
             metrics.events.filterIsInstance<AdMetricEvent.Clicked>(),
         )
         assertEquals(
             listOf(AdMetricEvent.RewardEarned("REWARDED", "gallery_rw_action")),
             metrics.events.filterIsInstance<AdMetricEvent.RewardEarned>(),
+        )
+    }
+
+    // Plan T-072
+
+    @Test
+    fun maxShown_revenue_recordedWithPlacementApplovin() {
+        start("max")
+        loadMax()
+        tap()
+        maxAd.emitDisplayed()
+        maxAd.emitRevenue(MAX_INFO)
+        idle()
+        assertEquals(
+            listOf(
+                AdMetricEvent.ImpressionRevenue(
+                    adFormat = "REWARDED",
+                    adSource = "AppLovin",
+                    monetizationNetwork = "AppLovin",
+                    adUnitName = MAX_UNIT,
+                    currency = "USD",
+                    value = 0.0123,
+                    adPlacement = "gallery_rw_action",
+                    adapterClassName = MAX_ADAPTER,
+                    platform = AdMetricPlatform.APPLOVIN,
+                ),
+            ),
+            metrics.events.filterIsInstance<AdMetricEvent.ImpressionRevenue>(),
+        )
+    }
+
+    @Test
+    fun maxDisplayFailed_reasonFromMaxTable() {
+        start("max")
+        loadMax()
+        tap()
+        maxAd.emitDisplayFailed(-24)
+        idle()
+        assertEquals(
+            listOf(AdMetricEvent.ShowFail("REWARDED", "gallery_rw_action", "-24", "not_ready")),
+            metrics.events.filterIsInstance<AdMetricEvent.ShowFail>(),
+        )
+    }
+
+    @Test
+    fun maxDisplayed_funnelHasAdapter() {
+        start("max")
+        loadMax(MAX_INFO)
+        tap()
+        maxAd.emitDisplayed()
+        idle()
+        assertEquals(
+            listOf(AdFunnelEvent.ApiCalled(AdFunnelKind.REWARDED, "REWARDED", MAX_UNIT, MAX_ADAPTER)),
+            funnel.events.filterIsInstance<AdFunnelEvent.ApiCalled>(),
+        )
+        assertEquals(
+            listOf(AdFunnelEvent.Displayed(AdFunnelKind.REWARDED, "REWARDED", MAX_UNIT, MAX_ADAPTER)),
+            funnel.events.filterIsInstance<AdFunnelEvent.Displayed>(),
+        )
+    }
+
+    @Test
+    fun maxClicked_applovinPlatform() {
+        start("max")
+        loadMax()
+        tap()
+        maxAd.emitDisplayed()
+        maxAd.emitClicked()
+        idle()
+        assertEquals(
+            listOf(AdMetricPlatform.APPLOVIN),
+            metrics.events.filterIsInstance<AdMetricEvent.Clicked>().map { it.platform },
+        )
+        assertEquals(
+            listOf(AdMetricPlatform.APPLOVIN),
+            metrics.events.filterIsInstance<AdMetricEvent.LoadSuccess>().map { it.platform },
         )
     }
 
@@ -759,5 +836,7 @@ class AdsControllerMaxRewardedTest {
         const val MAX_NO_NETWORK = -1009
         const val ADMOB_NETWORK_ERROR = 2
         val MAX_CONFIG = MaxConfig(MAX_KEY, "rewarded=$MAX_UNIT")
+        const val MAX_ADAPTER = "com.applovin.mediation.adapters.GoogleMediationAdapter"
+        val MAX_INFO = MaxAdInfo("FAKE_UNIT_OF_AD", 0.0123, "AppLovin", "exact", MAX_ADAPTER, emptyList())
     }
 }

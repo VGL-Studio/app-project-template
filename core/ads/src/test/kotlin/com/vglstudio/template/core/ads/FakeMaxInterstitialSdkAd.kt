@@ -5,7 +5,7 @@ import android.app.Activity
 /**
  * The interstitial or rewarded ad of AppLovin MAX for tests (plans T-069, T-106): keeps every call in [calls] in order
  * and the activities it was shown on, and answers through its listener on command ([emitLoaded], [emitLoadFailed] and
- * the others).
+ * the others); the revenue goes through [onRevenue] ([emitRevenue], plan T-072).
  *
  * With [ignoreLoadWhileShowing], it acts like the one rewarded object of the SDK per ad unit (plan T-106): a [load]
  * between a [show] and the end of that show is dropped with no callback, recorded as [LOAD_IGNORED]. The end of a show
@@ -20,6 +20,8 @@ internal class FakeMaxInterstitialSdkAd(
     val shownOn = mutableListOf<Activity>()
 
     override var listener: MaxInterstitialListener? = null
+
+    override var onRevenue: ((MaxAdInfo) -> Unit)? = null
 
     val loadCount: Int get() = calls.count { it == LOAD }
     val showCount: Int get() = calls.count { it == SHOW }
@@ -45,9 +47,13 @@ internal class FakeMaxInterstitialSdkAd(
         onDestroy()
     }
 
-    fun emitLoaded() = listener?.onLoaded()
+    fun emitLoaded(info: MaxAdInfo = MaxAdInfo.EMPTY) = listener?.onLoaded(info)
 
-    fun emitLoadFailed(code: Int) = listener?.onLoadFailed(code)
+    fun emitLoadFailed(code: Int, networks: List<MaxNetworkAttempt> = emptyList()) =
+        listener?.onLoadFailed(code, networks)
+
+    /** The SDK reports the revenue of a show (plan T-072): through [onRevenue], never [listener]. */
+    fun emitRevenue(info: MaxAdInfo) = onRevenue?.invoke(info)
 
     fun emitDisplayed() {
         displayed = true

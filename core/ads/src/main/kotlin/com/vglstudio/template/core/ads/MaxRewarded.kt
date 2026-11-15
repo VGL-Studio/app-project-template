@@ -20,15 +20,18 @@ internal class AppLovinMaxRewarded(adUnitId: String, context: Context, private v
 
     override var listener: MaxInterstitialListener? = null
 
+    override var onRevenue: ((MaxAdInfo) -> Unit)? = null
+
     init {
+        ad.setRevenueListener { onRevenue?.invoke(maxAdInfoOf(it)) }
         ad.setListener(
             object : MaxRewardedAdListener {
                 override fun onAdLoaded(maxAd: MaxAd) {
-                    listener?.onLoaded()
+                    listener?.onLoaded(maxAdInfoOf(maxAd))
                 }
 
                 override fun onAdLoadFailed(adUnitId: String, error: MaxError) {
-                    listener?.onLoadFailed(error.code)
+                    listener?.onLoadFailed(error.code, maxNetworkAttemptsOf(error.waterfall))
                 }
 
                 override fun onAdDisplayed(maxAd: MaxAd) {

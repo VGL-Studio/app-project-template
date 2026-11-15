@@ -4,6 +4,7 @@ import android.app.Activity
 import com.vglstudio.template.core.analytics.AdFunnelEvent
 import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.AdMetricPlatform
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
@@ -74,6 +75,7 @@ class MaxRewardedSlotTest {
         format: AdFormat = AdFormat.REWARDED,
         unit: String? = UNIT,
         shouldLoadGate: suspend () -> Boolean = { shouldLoad },
+        networkLog: AdNetworkLog = AdNetworkLog.OFF,
     ) = MaxInterstitialSlot(
         format = format,
         scope = backgroundScope,
@@ -87,6 +89,7 @@ class MaxRewardedSlotTest {
         failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.REWARDED_SLOT) },
         logger = logger,
         networkError = { networkError(it) },
+        networkLog = networkLog,
     )
 
     private fun TestScope.at(millis: Long) {
@@ -124,11 +127,11 @@ class MaxRewardedSlotTest {
     private class RecordingShow : MaxInterstitialListener {
         val events = mutableListOf<String>()
 
-        override fun onLoaded() {
+        override fun onLoaded(info: MaxAdInfo) {
             events += "loaded"
         }
 
-        override fun onLoadFailed(code: Int) {
+        override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) {
             events += "loadFailed:$code"
         }
 
@@ -193,7 +196,7 @@ class MaxRewardedSlotTest {
         ad.emitLoadFailed(204)
         at(2_000)
         ad.emitLoaded()
-        slot.take(RecordingShow())
+        slot.take(A, RecordingShow())
         slot.showTaken(activity)
         ad.emitHidden()
         gateOpen = false
@@ -262,7 +265,7 @@ class MaxRewardedSlotTest {
     fun hidden_reloadsAfterTwoSeconds() = runTest {
         val slot = slot()
         loaded(slot)
-        assertSame(ad, slot.take(RecordingShow()))
+        assertSame(ad, slot.take(A, RecordingShow()))
         slot.showTaken(activity)
         ad.emitDisplayed()
         ad.emitHidden()
@@ -318,7 +321,7 @@ class MaxRewardedSlotTest {
     fun reloadAfterClose_gateClosed_noRequest() = runTest {
         val slot = slot()
         loaded(slot)
-        slot.take(RecordingShow())
+        slot.take(A, RecordingShow())
         slot.showTaken(activity)
         ad.emitHidden()
         slot.onClosedOrShowFailed()
@@ -405,7 +408,7 @@ class MaxRewardedSlotTest {
     fun reloadAfterClose_shouldLoadFalse_noRequest() = runTest {
         val slot = slot()
         loaded(slot)
-        slot.take(RecordingShow())
+        slot.take(A, RecordingShow())
         slot.showTaken(activity)
         ad.emitHidden()
         slot.onClosedOrShowFailed()
@@ -493,8 +496,8 @@ class MaxRewardedSlotTest {
         loaded(slot)
         assertTrue("Rewarded (MAX) loaded" in messages())
         // Two placements share the slot: the second take gets nothing.
-        assertNotNull(slot.take(RecordingShow()))
-        assertNull(slot.take(RecordingShow()))
+        assertNotNull(slot.take(A, RecordingShow()))
+        assertNull(slot.take(A, RecordingShow()))
         assertEquals(FullScreenLoadState.Idle, slot.state)
     }
 
@@ -505,7 +508,7 @@ class MaxRewardedSlotTest {
         val slot = slot()
         loaded(slot)
         val show = RecordingShow()
-        slot.take(show)
+        slot.take(A, show)
         slot.showTaken(activity)
         ad.emitDisplayed()
         // The second tap shows again; the SDK answers FULLSCREEN_AD_NOT_READY while the first show is on screen.
@@ -529,7 +532,7 @@ class MaxRewardedSlotTest {
         val interAd = built.single()
         interAd.emitLoaded()
         val interShow = RecordingShow()
-        inter.take(interShow)
+        inter.take(AdPlacement.GALLERY_INTERSTITIAL, interShow)
         inter.showTaken(activity)
         interAd.emitDisplayed()
         interAd.emitDisplayFailed(-24)
@@ -541,7 +544,7 @@ class MaxRewardedSlotTest {
     fun secondShowFailedBeforeFirstDisplayed_staysShowing_releaseThenNoLoad() = runTest {
         val slot = slot()
         loaded(slot)
-        slot.take(RecordingShow())
+        slot.take(A, RecordingShow())
         slot.showTaken(activity)
         slot.showTaken(activity)
         // The second show fails at once, before the first one is on screen.
@@ -569,7 +572,7 @@ class MaxRewardedSlotTest {
         val slot = slot()
         loaded(slot)
         val show = RecordingShow()
-        slot.take(show)
+        slot.take(A, show)
         slot.showTaken(activity)
         ad.emitDisplayFailed(-24)
         assertEquals(listOf("displayFailed:-24"), show.events)
@@ -590,7 +593,7 @@ class MaxRewardedSlotTest {
         val slot = slot()
         loaded(slot)
         val show = RecordingShow()
-        slot.take(show)
+        slot.take(A, show)
         slot.showTaken(activity)
         ad.emitDisplayed()
         ad.emitRewarded()
@@ -606,7 +609,7 @@ class MaxRewardedSlotTest {
     fun sdkShowing_loadIfNeeded_noLoad_thenHiddenReloads() = runTest {
         val slot = slot()
         loaded(slot)
-        slot.take(RecordingShow())
+        slot.take(A, RecordingShow())
         slot.showTaken(activity)
         // The controller ended the turn (R-04) while the SDK object still shows.
         slot.onClosedOrShowFailed()
@@ -627,7 +630,7 @@ class MaxRewardedSlotTest {
         val slot = slot()
         loaded(slot)
         val first = RecordingShow()
-        slot.take(first)
+        slot.take(A, first)
         slot.showTaken(activity)
         // Stuck recovery (F-03): the controller drops the turn; the SDK object may still show.
         slot.releaseShow()
@@ -649,7 +652,7 @@ class MaxRewardedSlotTest {
         assertEquals(0, ignoredLoads())
         ad.emitLoaded()
         val second = RecordingShow()
-        slot.take(second)
+        slot.take(A, second)
         slot.showTaken(activity)
         ad.emitRewarded()
         assertEquals(listOf("rewarded"), second.events)
@@ -661,7 +664,7 @@ class MaxRewardedSlotTest {
         val slot = slot()
         loaded(slot)
         val show = RecordingShow()
-        slot.take(show)
+        slot.take(A, show)
         val shownAt = testScheduler.currentTime
         slot.showTaken(activity)
         slot.releaseShow()
@@ -690,8 +693,225 @@ class MaxRewardedSlotTest {
         assertEquals(1, old.loadCount)
     }
 
+    // Plan T-072: network log, revenue by the placement of the take, platform, funnel adapter
+
+    @Test
+    fun loadedAndFailed_logNetworks_whenLogOn() = runTest {
+        val slot = slot(networkLog = AdNetworkLog(true, logger))
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        at(2_000)
+        ad.emitLoaded(info(networks = listOf(MaxNetworkAttempt("Google", 120, MaxNetworkResult.LOADED, null))))
+        assertEquals(
+            listOf(
+                "Network preload:rewarded/max: Mintegral, 40 ms, error 204",
+                "Network preload:rewarded/max: Google, 120 ms, loaded",
+            ),
+            networkLines(),
+        )
+        assertTrue(messages().none { UNIT in it || AD_UNIT in it })
+    }
+
+    @Test
+    fun networkLogOff_noNetworkLines() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        assertEquals(emptyList<String>(), networkLines())
+
+        // Control: the same failure on a slot with the log on writes the line.
+        val logged = slot(networkLog = AdNetworkLog(true, logger))
+        cached = null
+        logged.loadIfNeeded()
+        runCurrent()
+        built.last().emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        assertTrue(messages().toString(), networkLines().isNotEmpty())
+    }
+
+    @Test
+    fun revenue_placementOfTake() = runTest {
+        val slot = slot()
+        loaded(slot)
+        slot.take(A, RecordingShow())
+        slot.showTaken(activity)
+        ad.emitDisplayed()
+        ad.emitRevenue(info())
+        assertEquals(
+            listOf(
+                AdMetricEvent.ImpressionRevenue(
+                    adFormat = "REWARDED",
+                    adSource = "AppLovin",
+                    monetizationNetwork = "AppLovin",
+                    adUnitName = UNIT,
+                    currency = "USD",
+                    value = 0.0123,
+                    adPlacement = "gallery_rw_action",
+                    adapterClassName = ADAPTER,
+                    platform = AdMetricPlatform.APPLOVIN,
+                ),
+            ),
+            revenues(),
+        )
+    }
+
+    @Test
+    fun twoPlacements_sequentialTakes_eachRevenueOwnPlacement() = runTest {
+        val slot = slot()
+        loaded(slot)
+        slot.take(A, RecordingShow())
+        slot.showTaken(activity)
+        ad.emitDisplayed()
+        ad.emitRevenue(info())
+        val closedAt = testScheduler.currentTime
+        ad.emitHidden()
+        at(closedAt + 2_000)
+        assertEquals(2, loads())
+        ad.emitLoaded()
+        slot.take(B, RecordingShow())
+        slot.showTaken(activity)
+        ad.emitRevenue(info())
+        assertEquals(listOf(A.key, B.key), revenues().map { it.adPlacement })
+    }
+
+    @Test
+    fun sameWrapperReused_revenueListenerOnce_placementOfLatestTake() = runTest {
+        val slot = slot()
+        loaded(slot)
+        val listener = ad.onRevenue
+        assertNotNull(listener)
+        slot.take(A, RecordingShow())
+        slot.showTaken(activity)
+        slot.releaseShow()
+        // The SDK closes late; the slot loads again 2 s later on the same wrapper.
+        val closedAt = testScheduler.currentTime
+        ad.emitHidden()
+        at(closedAt + 2_000)
+        assertEquals(2, loads())
+        ad.emitLoaded()
+        slot.take(B, RecordingShow())
+
+        ad.emitRevenue(info())
+
+        assertEquals(listOf(B.key), revenues().map { it.adPlacement })
+        assertSame(listener, ad.onRevenue)
+        assertEquals(1, built.size)
+    }
+
+    @Test
+    fun rewardedWrapperRefetched_revenueListenerNotReattached() = runTest {
+        // The branch "already has a revenue listener": the slot drops its object without destroying it, then newAd
+        // hands back the same wrapper (as MaxPlatform.rewarded does for one unit). Built here with the slot that drops
+        // an object itself (the end of a turn with no close), since the rewarded slot of today never does.
+        val slot = MaxInterstitialSlot(
+            format = AdFormat.INTERSTITIAL,
+            scope = backgroundScope,
+            clock = MonotonicClock { testScheduler.currentTime },
+            unitId = { UNIT },
+            maxReady = maxReady,
+            shouldLoad = { true },
+            mayRequestNow = { true },
+            newAd = ::newAd,
+            telemetry = telemetry,
+            failuresInARow = { 0 },
+            logger = logger,
+            fullScreenBusy = { false },
+        )
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoaded()
+        val listener = ad.onRevenue
+        assertNotNull(listener)
+        slot.take(A, RecordingShow())
+        slot.loadIfNeeded()
+        runCurrent()
+        assertEquals(2, newAdCalls)
+        assertEquals(1, built.size)
+        ad.emitLoaded()
+        slot.take(B, RecordingShow())
+
+        ad.emitRevenue(info())
+
+        assertSame(listener, ad.onRevenue)
+        assertEquals(listOf(B.key), revenues().map { it.adPlacement })
+    }
+
+    @Test
+    fun wrapperDestroyedAtCap_newWrapperGetsRevenueListener() = runTest {
+        val slot = slot()
+        loaded(slot)
+        slot.take(A, RecordingShow())
+        val shownAt = testScheduler.currentTime
+        slot.showTaken(activity)
+        slot.releaseShow()
+        at(shownAt + 600_000)
+        slot.loadIfNeeded()
+        runCurrent()
+        val old = built[0]
+        val fresh = built[1]
+        assertTrue(FakeMaxInterstitialSdkAd.DESTROY in old.calls)
+        fresh.emitLoaded()
+        slot.take(B, RecordingShow())
+        assertNotNull(fresh.onRevenue)
+
+        fresh.emitRevenue(info())
+        old.emitRevenue(info())
+
+        assertEquals(listOf(B.key, A.key), revenues().map { it.adPlacement })
+    }
+
+    @Test
+    fun loadSuccessAndFail_applovinPlatform() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204)
+        at(2_000)
+        ad.emitLoaded()
+        assertEquals(
+            listOf(
+                AdMetricEvent.LoadFail("REWARDED", "preload", 1, 0, "204", "no_fill", AdMetricPlatform.APPLOVIN),
+                AdMetricEvent.LoadSuccess("REWARDED", "preload", 2, 0, AdMetricPlatform.APPLOVIN),
+            ),
+            metrics.events,
+        )
+    }
+
+    @Test
+    fun loaded_apiCalled_withAdapterOfLoadedNetwork() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoaded(info())
+        assertEquals(
+            listOf(AdFunnelEvent.ApiCalled(AdFunnelKind.REWARDED, "REWARDED", UNIT, ADAPTER)),
+            funnel.events.filterIsInstance<AdFunnelEvent.ApiCalled>(),
+        )
+        assertEquals(ADAPTER, slot.heldAdapterClassName)
+    }
+
+    private fun revenues() = metrics.events.filterIsInstance<AdMetricEvent.ImpressionRevenue>()
+
+    private fun networkLines(): List<String> = messages().filter { it.startsWith("Network ") }
+
+    private fun info(networks: List<MaxNetworkAttempt> = emptyList()) = MaxAdInfo(
+        adUnitId = AD_UNIT,
+        revenueUsd = 0.0123,
+        networkName = "AppLovin",
+        revenuePrecision = "exact",
+        adapterClassName = ADAPTER,
+        networks = networks,
+    )
+
     private companion object {
         const val UNIT = "FAKE_UNIT_R"
+        const val AD_UNIT = "FAKE_UNIT_OF_AD"
+        const val ADAPTER = "com.applovin.mediation.adapters.GoogleMediationAdapter"
+        val A = AdPlacement.GALLERY_RW_ACTION
+
+        /** A second placement: the slot keys revenue by its SDK object, whatever the format of the placement. */
+        val B = AdPlacement.GALLERY_INTERSTITIAL
         const val REWARDED_KEY = "preload:rewarded/max"
         val FLAGS: AdsGlobalFlags = runBlocking { DefaultAdsFlags(FakeRemoteSettings()).global.first() }
     }
