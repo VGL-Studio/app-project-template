@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * local.properties in staging. Without a key MAX never starts. [toString] hides the key, so it reaches no log.
  *
  * [adUnits] holds the MAX ad unit of each slot of the app, `<slot>=<unit>;...` with the slot named by [AdFormat.code]
- * (`banner`, `banner_mrec`, plan T-071; `interstitial`, plan T-069): `-PmaxAdUnits` in production, `ads.maxAdUnits` of local.properties in
+ * (`banner`, `banner_mrec`, plan T-071; `interstitial`, plan T-069; `rewarded`, plan T-106): `-PmaxAdUnits` in production, `ads.maxAdUnits` of local.properties in
  * staging. [toString] counts the slots with a unit and never shows one.
  */
 data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
@@ -30,8 +30,8 @@ data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
     }
 
     /**
-     * The MAX ad unit of [format]: [AdFormat.BANNER], [AdFormat.BANNER_MREC] and [AdFormat.INTERSTITIAL] so far (T-106
-     * and T-070 add rewarded and app open); none without an SDK key.
+     * The MAX ad unit of [format]: [AdFormat.BANNER], [AdFormat.BANNER_MREC], [AdFormat.INTERSTITIAL] and
+     * [AdFormat.REWARDED] so far (T-070 adds app open); none without an SDK key.
      */
     fun unitFor(format: AdFormat): String? {
         if (!hasKey || format !in MAX_FORMATS) return null
@@ -46,8 +46,9 @@ data class MaxConfig(val sdkKey: String, val adUnits: String = "") {
     companion object {
         val NONE = MaxConfig("")
 
-        /** The formats that may load from MAX (plans T-071, T-069). */
-        internal val MAX_FORMATS = listOf(AdFormat.BANNER, AdFormat.BANNER_MREC, AdFormat.INTERSTITIAL)
+        /** The formats that may load from MAX (plans T-071, T-069, T-106). */
+        internal val MAX_FORMATS =
+            listOf(AdFormat.BANNER, AdFormat.BANNER_MREC, AdFormat.INTERSTITIAL, AdFormat.REWARDED)
     }
 }
 
@@ -60,6 +61,12 @@ internal interface MaxPlatform {
 
     /** A new MAX interstitial of [adUnitId] (plan T-069); built once MAX is ready. */
     fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd
+
+    /**
+     * The one MAX rewarded of [adUnitId] (plan T-106): the SDK keeps one object per ad unit, so the same wrapper comes
+     * back for the same unit until it is destroyed; built once MAX is ready.
+     */
+    fun rewarded(adUnitId: String): MaxInterstitialSdkAd
 }
 
 /**
@@ -77,6 +84,13 @@ internal class AppLovinMaxPlatform(private val context: Context) : MaxPlatform {
     }
 
     override fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd = AppLovinMaxInterstitial(adUnitId, context)
+
+    /** One wrapper per ad unit, like the SDK object behind it (L-068); dropped when destroyed. */
+    private val rewardeds = mutableMapOf<String, AppLovinMaxRewarded>()
+
+    override fun rewarded(adUnitId: String): MaxInterstitialSdkAd = rewardeds.getOrPut(adUnitId) {
+        AppLovinMaxRewarded(adUnitId, context, onDestroyed = { rewardeds.remove(adUnitId) })
+    }
 }
 
 /**
