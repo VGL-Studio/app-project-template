@@ -57,8 +57,8 @@ android {
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
     //   -PassetsBaseUrl=<https address of the production files on R2>
     //   -PappsFlyerDevKey=<AppsFlyer dev key>
-    //   -PmaxSdkKey=<AppLovin MAX SDK key> (optional until T-073)
-    //   -PmaxAdUnits="banner=<MAX ad unit>;banner_mrec=<MAX ad unit>" (optional until T-073)
+    //   -PmaxSdkKey=<AppLovin MAX SDK key> (optional; characters checked)
+    //   -PmaxAdUnits="banner=<MAX ad unit>;banner_mrec=<MAX ad unit>" (optional; characters checked)
     productFlavors {
         named("staging") {
             manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
@@ -110,13 +110,14 @@ android {
                 "APPSFLYER_DEV_KEY",
                 "\"${providers.gradleProperty("appsFlyerDevKey").getOrElse("")}\"",
             )
-            // Optional until T-073 requires it with scripts/release.sh: without it MAX never starts (ADR-0037).
+            // Optional: without a key MAX never starts and the release runs AdMob only (ADR-0045, section 5.5).
+            // Characters are checked by the production pre-build task below and by scripts/release.sh.
             buildConfigField(
                 "String",
                 "MAX_SDK_KEY",
                 "\"${providers.gradleProperty("maxSdkKey").getOrElse("")}\"",
             )
-            // Optional until T-073 passes it from scripts/release.sh: a slot without a MAX unit loads from AdMob only.
+            // Optional: a slot without a MAX unit loads from AdMob only. Characters are checked like the key.
             buildConfigField(
                 "String",
                 "MAX_AD_UNITS",
@@ -131,6 +132,8 @@ android {
 // files or AppsFlyer. Checked when a production variant is built, not at configuration, so other builds and IDE
 // sync work without it. The AppsFlyer key is needed only when the SDK is on the variant's runtime classpath: an app
 // may keep the framework without the SDK (issue #261 of the template); scripts/release.sh checks the same earlier.
+// The AppLovin MAX key and ad units are optional (without a key the release runs AdMob only), but a value with
+// characters that would break the Java string of BuildConfig stops the build, without printing the value.
 val missingProductionProperties = mapOf(
     "admobAppId" to "ADR-0013",
     "adUnits" to "ADR-0013",
@@ -149,10 +152,26 @@ tasks.matching { it.name.startsWith("preProduction") && it.name.endsWith("Build"
             } else {
                 emptyMap()
             }
+        val malformed = listOfNotNull(
+            "maxSdkKey".takeIf {
+                providers.gradleProperty("maxSdkKey").orNull
+                    ?.let { value -> value.isNotEmpty() && !value.matches(Regex("[A-Za-z0-9_-]+")) } == true
+            },
+            "maxAdUnits".takeIf {
+                providers.gradleProperty("maxAdUnits").orNull
+                    ?.let { value -> !value.matches(Regex("[A-Za-z0-9_=;-]*")) } == true
+            },
+        )
         if (missing.isNotEmpty()) {
             throw GradleException(
                 "Build production cần tham số thật: " +
                     missing.entries.joinToString { "-P${it.key} (${it.value})" } + ".",
+            )
+        }
+        if (malformed.isNotEmpty()) {
+            throw GradleException(
+                "Build production có tham số sai dạng: " +
+                    malformed.joinToString { "-P$it" } + " (ADR-0045).",
             )
         }
     }
