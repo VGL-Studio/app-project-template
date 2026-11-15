@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-31]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: S
 depends_on: [T-068]
 sprint:
-plan:
+plan: features/ads/plans/T-073-release-doc-va-kiem-khoa-max.md
 auto_run: false
 created: 2026-10-29
 ---
