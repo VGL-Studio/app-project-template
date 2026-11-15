@@ -79,6 +79,8 @@ Không có.
 
 - 2026-10-23: icon mất wifi đổi sang Material Symbols Rounded "wifi_off" theo quyết định của anh Nhật ở câu hỏi 3 của plan T-017 (code dùng cùng icon); ảnh `screens/` và `context/` xuất lại bằng `scripts/figma-export.py`.
 
+- 2026-11-14: khe native nhỏ ở đáy màn hình mẫu vẽ lại theo thiết kế quảng cáo T-064 (cao 126 dp ở màn 411 dp, mép dưới cách đáy 16 dp; `docs/features/ads/design/README.md`, mục 1), anh Nhật duyệt trong phiên: "Duyệt."; ảnh `screens/` và `context/` xuất lại bằng `scripts/figma-export.py`. Hộp thoại không đổi.
+
 ## 8. Kết quả đối chiếu
 
 T-017, 2026-10-23: `scripts/design-compare/DesignCompare.java` so ảnh thiết kế với ảnh chuẩn của `:app` (`app/src/test/screenshots/`), kết quả ở `review/`.
@@ -89,3 +91,10 @@ T-017, 2026-10-23: `scripts/design-compare/DesignCompare.java` so ảnh thiết 
 | `NetworkLostScreen_default_dark` | 2.5% | Như bản sáng |
 
 Rà soát độc lập xem hai ảnh `*_compare.png` theo mục 7 và ghi thêm nhận xét nếu có.
+
+T-064, 2026-11-14: so lại với cùng ảnh chuẩn của `:app` sau khi vẽ lại khe đáy; ảnh so sánh ở `review/`. Code chưa đổi (T-065).
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `NetworkLostScreen_default_light` | 2.0% | Hộp thoại không đổi; phần khác ở khe đáy (thiết kế 126 dp có quảng cáo, ảnh chuẩn trống) và nút "Tap" như trên |
+| `NetworkLostScreen_default_dark` | 2.9% | Như bản sáng |

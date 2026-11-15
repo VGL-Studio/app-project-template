@@ -28,6 +28,7 @@ created: 2026-10-29
 - Cỡ chữ 200%: kiểm lại theo tiêu chí của KB-1 (T-060 làm trên kích thước cũ; plan thống nhất thứ tự với T-060).
 - Giới hạn 120 dp của nút CTA ở native nhỏ (T-060): bỏ hay giữ theo layout JBase; bỏ thì viết lại hai test 120 dp của T-060 (`small_ctaAtMost120dpWide_shortCtaKeepsWidth`, `sdkLayout_small_longCta_ctaAtMost120dp_headlineVisible`) theo ADR-0031, vẫn giữ kiểm tiêu đề còn ít nhất 4 ký tự và nhãn "Ad" hiện đủ (rà soát plan T-060).
 - `ads-business-rules.md` mục 5.7, D-02, D-04, mục 11 và `ads-guide.md` đã ghi kích thước đích theo ADR-0045, mục 7.7 (spec `ads`, câu hỏi 48); plan đối chiếu lại khi code xong, sửa nếu còn lệch.
+- Thiết kế T-064 bỏ số JBase, nội suy tuyến tính (`docs/features/ads/design/README.md`, mục 1): đối chiếu lại spec câu hỏi 48, KB-32 và `ads-business-rules.md` mục 5.7 (còn ghi "như JBase", "ảnh 180 dp") trước khi viết plan; đề xuất sửa spec nếu lệch.
 
 **Không bao gồm:**
 

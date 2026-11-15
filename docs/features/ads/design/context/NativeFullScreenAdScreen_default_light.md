@@ -6,7 +6,7 @@ Sinh bởi `scripts/figma-export.py`. Không sửa tay; thiết kế đổi thì
 
 - Link: https://www.figma.com/design/jDs7KImtrNL3ABPYnDhDgJ/?node-id=6-272
 - Frame: `6:272`, giao diện sáng
-- Ngày lấy: 2026-10-25
+- Ngày lấy: 2026-11-14
 
 ## 2. Giá trị dùng
 
@@ -45,14 +45,14 @@ Toạ độ và cỡ tính theo dp, gốc là góc trên trái của khung. Th�
 
 - Frame "NativeFullScreenAdScreen_default_light", vị trí 0,0, cỡ 411 x 891, nền #F7FAF8 (background, surface, surfaceBright)
   - Instance "Native/FullScreen", vị trí 0,0, cỡ 411 x 891, nền #F7FAF8 (background, surface, surfaceBright), xếp dọc, cách nhau 16 (md), lề trên/phải/dưới/trái 24 (lg)/16 (md)/32 (xl)/16 (md), căn MIN/MIN
-    - Frame "Top bar", vị trí 16,24, cỡ 379 x 36, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/0/0/0, căn SPACE_BETWEEN/CENTER
-      - Frame "Close button (36 dp)", vị trí 16,24, cỡ 36 x 36, nền #E5ECE8 (surfaceContainerHigh), bo góc 24, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/0/0/0, căn CENTER/CENTER
-        - Instance "Icon/close", vị trí 22,30, cỡ 24 x 24
-          - Vector "Vector", vị trí 28,36, cỡ 12 x 12, viền #17352F (onBackground, onSurface), dày 2.0
-      - Instance "Ad/AdChoices (SDK)", vị trí 379,34, cỡ 16 x 16, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 4
-        - Text "i", vị trí 385,34, cỡ 3 x 16, chữ "i", kiểu labelSmall (11/16, đậm 500), màu #6D8079 (onSurfaceVariant)
-    - Frame "Media (MediaView)", vị trí 16,76, cỡ 379 x 595, nền #EBF1EE (surfaceContainer), bo góc 16
-      - Text "Media label", vị trí 32,88, cỡ 36 x 16, chữ "Media", kiểu labelMedium (12/16, đậm 500), màu #6D8079 (onSurfaceVariant)
+    - Frame "Top bar", vị trí 16,24, cỡ 379 x 48, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/0/0/0, căn SPACE_BETWEEN/CENTER
+      - Frame "Close button (48 dp; countdown ring in same frame)", vị trí 16,24, cỡ 48 x 48, nền #E5ECE8 (surfaceContainerHigh), bo góc 24, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/0/0/0, căn CENTER/CENTER
+        - Instance "Icon/close", vị trí 30,38, cỡ 20 x 20
+          - Vector "Vector", vị trí 35,43, cỡ 10 x 10, viền #17352F (onBackground, onSurface), dày 2.0
+      - Instance "Ad/AdChoices (SDK)", vị trí 379,40, cỡ 16 x 16, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 4
+        - Text "i", vị trí 385,40, cỡ 3 x 16, chữ "i", kiểu labelSmall (11/16, đậm 500), màu #6D8079 (onSurfaceVariant)
+    - Frame "Media (MediaView)", vị trí 16,88, cỡ 379 x 583, nền #EBF1EE (surfaceContainer), bo góc 16
+      - Text "Media label", vị trí 32,100, cỡ 36 x 16, chữ "Media", kiểu labelMedium (12/16, đậm 500), màu #6D8079 (onSurfaceVariant)
     - Frame "Header", vị trí 16,687, cỡ 379 x 48, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/CENTER
       - Instance "Ad/Icon asset", vị trí 16,687, cỡ 48 x 48, nền #CEE9DE (secondaryContainer), bo góc 8
       - Frame "Texts", vị trí 76,689, cỡ 319 x 44, xếp dọc, cách nhau 4 (xs), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN

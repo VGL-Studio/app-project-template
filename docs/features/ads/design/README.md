@@ -24,6 +24,7 @@ docs/design-system/tokens.json.
 | --- | --- | --- | --- | --- |
 | `SampleScreen` | Sẵn sàng, native small ở đáy | `SampleScreen_ready_light` | KB-1 | T-010 |
 | `SampleScreen` | Sẵn sàng, chế độ tối | `SampleScreen_ready_dark` | KB-1 | T-010 |
+| `SampleScreen` | Sẵn sàng, điện thoại gập mở ra (673 x 841), khe đáy 200 dp | `SampleScreen_ready_light_unfolded` | KB-32 | T-064 (code: T-065) |
 | `SampleScreen` | Quảng cáo đang tải | `SampleScreen_ad-loading_light` | KB-1 | T-010 |
 | `AdGalleryScreen` (chỉ staging) | Small, medium, nút gọi quảng cáo toàn màn hình, Ad Inspector | `AdGalleryScreen_default_light` | KB-1, KB-2, KB-8 | T-014 |
 | `AdGalleryScreen` | Như trên, chế độ tối | `AdGalleryScreen_default_dark` | KB-1, KB-2, KB-8 | T-014 |
@@ -47,6 +48,18 @@ Khu "More formats" của trang mặc định (dưới y 786, ngoài khung thiế
 - Cỡ chữ 13, 10 và 17 sp không có trong bảng kiểu chữ: ghi đè trên component, code đặt cỡ chữ riêng trong composable quảng cáo của `:core:ads`.
 
 Ảnh đã đổi theo đợt này, thay ảnh của đợt 2: mọi ảnh trong bảng trên (khe đáy 80 dp đặt cách đáy 16 dp, lớp thu gọn cách đáy 16 dp, cùng mép dưới với khe, medium và toàn màn hình theo số mới), và `NetworkLostScreen_default_light`, `NetworkLostScreen_default_dark` của feature network (khe đáy). Ticket code ghi lại ảnh chuẩn screenshot theo các ảnh này: T-027 (khe đáy và lớp thu gọn), T-030 (thanh đáy), T-032 (native trong tập hợp và bước của luồng). `Native/Step` và `Native/Card` chưa có màn hình riêng; ticket dùng chúng thêm ảnh màn hình khi cần.
+
+**Vẽ lại theo bề rộng màn hình (T-064, 2026-11-14, anh Nhật duyệt trong phiên: "Duyệt.").** Spec, câu hỏi 48, nêu số của JBase; anh Nhật quyết không dùng JBase làm mẫu nữa mà nội suy tuyến tính. Spec chỉ cho mốc bề rộng (320 và 600 dp) của khe đáy; mốc của lớp thu gọn (bề rộng 320 và 600 dp) và của medium (chiều cao 640 và 891 dp, khung thấp và khung chuẩn của ADR-0020) do thiết kế chọn, được duyệt cùng lời duyệt trên. Ngoài khoảng mốc thì giữ sàn và trần: khe đáy 90 và 200 dp, vùng ảnh của lớp thu gọn 160 và 200 dp, medium 320 và 400 dp. Số riêng của JBase trong câu hỏi 48 (ví dụ "ảnh 180 dp" của lớp thu gọn) không dùng: ảnh lấp vùng ảnh nội suy (MediaView 161 dp ở màn 411 dp, vùng 173 dp trừ lề 12 dp). Các số dưới đây thay số của đợt T-035 ở mục trên cho `Native/Small`, `Native/Collapsible`, `Native/Medium` và biến thể `After interstitial` của `Native/FullScreen`; `Native/Step`, `Native/Card` và biến thể `Flow step` không đổi.
+
+- **Khe đáy theo bề rộng màn hình:** cao 90 dp ở bề rộng 320 dp, 200 dp ở 600 dp, nội suy tuyến tính giữa hai mốc: 106 dp ở 360 dp, 126 dp ở 411 dp, 200 dp ở 673 dp (trên 600 dp giữ 200 dp). Frame tham khảo "Native/Small slot height by screen width (reference)" trên trang component vẽ ba bề rộng 328, 379 và 641 dp (màn 360, 411, 673 trừ lề 16 dp mỗi bên). Khung 360 x 640 chỉ có ở frame tham khảo vì `scripts/figma-export.py` chỉ nhận frame 411 x 891 và `_unfolded`; ảnh `_small` của code là ảnh chuẩn screenshot.
+- `Native/Small` (khe đáy): một hàng ngang căn giữa theo chiều dọc ở mọi chiều cao: icon 44 dp; cột chữ gồm hàng tiêu đề (nhãn "Ad" 13 sp đứng trước tiêu đề 16 sp, một dòng, cắt cuối) và mô tả 13 sp tối đa hai dòng; CTA cao 44 dp, chữ 18 sp, rộng theo chữ, bên phải. Lề trái 12 dp, phải 24 dp, các phần cách nhau 12 dp. Trạng thái chờ: cùng chiều cao, khối icon 44 dp, hai vạch chữ (vạch trên rộng hết cột chữ, vạch dưới 120 dp), khối CTA 96 x 44 dp.
+- `Native/Collapsible`: lớp mở = vùng ảnh nội suy 160 dp ở bề rộng 320 dp tới 200 dp ở 600 dp (173 dp ở 411 dp; lề 12 dp, ảnh lấp vùng) cộng phần nội dung giống hệt khe đáy (126 dp ở 411 dp), tổng 299 dp. Nút thu gọn 27 dp tròn tại (4, 4) ở góc trên trái, biểu tượng 17 dp, nền đen 40%; AdChoices ở góc trên phải. Thu gọn thì lớp ẩn, còn khe đáy.
+- `Native/Medium`: cao cố định theo chiều cao màn hình, 320 dp ở chiều cao 640 dp tới 400 dp ở 891 dp (384 dp ở 841 dp); icon 44 dp; nhãn "Ad" 13 sp trước tiêu đề 16 sp, nhà quảng cáo 13 sp ở dòng dưới; giữ hàng sao và nền mờ sau media; CTA 44 dp chữ 18 sp (`CTA=Large` giữ 56 dp); media lấp phần còn lại (182 dp, 170 dp với `CTA=Large`).
+- `Native/FullScreen`, biến thể `After interstitial`: hàng trên cao 48 dp, nút đóng 48 dp tròn tại (16, 24), biểu tượng 20 dp, cùng khung với vòng đếm ngược; media từ y = 88. Ảnh nay khớp code từ T-053 (ADR-0038).
+- AdChoices ghim góc trên phải và tiêu đề cắt một dòng ở mọi biến thể khi đổi bề rộng.
+- Cỡ chữ 13, 16 và 18 sp không có trong bảng kiểu chữ: `context/` đánh dấu "ngoài hệ thống", plan code (T-065) đặt cỡ chữ riêng trong composable quảng cáo của `:core:ads` như đợt T-035.
+
+Ảnh đã đổi theo đợt này, thay ảnh của đợt T-035: mọi ảnh trong bảng mục 1 (khe đáy 126 dp và lớp thu gọn 299 dp, mép dưới cách đáy 16 dp; medium 400 dp; nút đóng 48 dp và media từ y = 88 của toàn màn hình), ảnh mới `SampleScreen_ready_light_unfolded`, và `NetworkLostScreen_default_light`, `_dark` của feature network (khe đáy). Code chưa đổi: T-065 ghi lại ảnh chuẩn screenshot theo các ảnh này.
 
 ## 2. Bảng chữ
 
@@ -77,12 +90,13 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 | Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium cao 196 dp, đầy đủ 200 dp ở cỡ chữ 1.0, lớp thu gọn lấp phần còn lại (134 dp). Khi chữ lớn (cỡ chữ hệ thống), media co trước, không dưới 120 dp: các phần khác giữ cỡ, thẻ giữ chiều cao; chỉ khi media đã chạm 120 dp thì thẻ cao thêm |
 | AdChoices | do SDK vẽ, góc trên phải (lớp thu gọn: góc trên trái) | | | không đè, không vẽ lại |
 | Nút thu gọn | trong lớp thu gọn của thanh đáy | nền `scrim` độ mờ 40%, icon trắng (ngoại lệ có tên `CollapseIconTint`, plan T-030, câu hỏi 8) | | vẽ 32 dp tròn cách góc trên phải 4 dp, icon 20 dp; vùng chạm 48 dp do Compose tự nới |
-| Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 48 dp tròn tại (16, 24), vùng chạm bằng khung vẽ, góc trên trái; vòng đếm ngược cùng khung (T-053, ADR-0038; ảnh thiết kế còn vẽ 36 dp) |
+| Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 48 dp tròn tại (16, 24), vùng chạm bằng khung vẽ, góc trên trái; vòng đếm ngược cùng khung (T-053, ADR-0038; ảnh thiết kế vẽ 48 dp từ T-064) |
 | Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 80 dp, medium 410 dp, đầy đủ 418 dp, thẻ dọc 300 dp hay cỡ ô) |
 | Nút của app | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` đậm 600 | |
 | Thẻ native ở bước của luồng (component `Native/Step`, T-032) | `NativeStepAd`, cỡ `NativeAdSize.STEP` | như khung native small, medium | tiêu đề `titleSmall` cỡ 13 sp | cao 250 dp ở cỡ chữ 1.0 (chữ lớn thì cao thêm, `NativeStepAdDefaults.height()`; T-045), lề trong 12 dp, các phần cách nhau 8 dp; media ngang lấp phần trên, icon 32 dp, CTA 36 dp rộng hết thẻ; AdChoices góc trên phải; khung chờ cùng chiều cao với thẻ |
 | Trang native ở bước của luồng (biến thể `Flow step` của `Native/FullScreen`, T-032) | `NativeFullScreenStep`, `NativeFullScreenStepContent` | như native toàn màn hình | như native toàn màn hình | không nút đóng, không đếm ngược; hàng trên 36 dp chỉ có AdChoices (media bắt đầu ở y = 76; bản sau inter ở y = 88 vì hàng nút 48 dp, T-053); không đệm vùng an toàn; CTA 52 dp; nút Tiếp của app nằm ngoài vùng của trang. Hai bố cục theo chiều cao (T-041): cột như bản sau inter khi trang cao từ 360 dp (ở cỡ chữ 1.0; media co trước, không dưới 120 dp, rồi mô tả bớt dòng), hàng ngang gọn từ 152 dp tới dưới 360 dp (lề 16 dp, media bên trái cao hết hàng; bên phải: đầu quảng cáo và ngay bên phải nó ô 36 dp chừa AdChoices, giữ góc trên phải của trang trống (T-049), rồi mô tả nếu còn chỗ, CTA ở đáy); đầu quảng cáo cao ít nhất 48 dp, lớn theo cỡ chữ. Trong lúc chờ quảng cáo: khung chờ tĩnh cùng bố cục (khối media, đầu, CTA; không chữ) |
 
+- **Số đo của bảng trên và câu cuối mục 5 là của đợt T-035 và code hiện có.** Thiết kế T-064 (mục 1) đổi số của khe đáy, lớp thu gọn và medium: nhãn "Ad" đứng trước tiêu đề, icon 44 dp, CTA 44 dp chữ 18 sp, chiều cao theo bề rộng hay chiều cao màn hình, nút thu gọn 27 dp ở góc trên trái (vùng chạm 48 dp, spec câu hỏi 48), AdChoices của lớp thu gọn ở góc trên phải. T-065 sửa bảng này cùng code.
 - **Giá trị "ngoài hệ thống" trong `context/`:** khoảng cách 2, 6 và 12 dp bên trong quảng cáo (giữa tiêu đề và dòng nhà quảng cáo, giữa nhãn "Ad" và chữ, lề trong khung). Plan T-010 quyết: giữ làm hằng số riêng của composable native trong `:core:ads` (kích thước của một component, như `MinHeight` của `PrimaryButton`), không thêm token.
 - **Thành phần mới cần thêm vào hệ thống thiết kế:** các composable native nằm ở `:core:ads` (ADR-0022), dùng token của `:core:designsystem`; không thêm thành phần vào `:core:designsystem`.
 
@@ -91,6 +105,7 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 - `SampleScreen`: vào màn hình, native small ở đáy hiện trạng thái đang tải rồi tới quảng cáo.
 - `AdGalleryScreen` (staging): bấm "Interstitial" hay "Native full screen" thì gọi quảng cáo toàn màn hình; bấm "Open Ad Inspector" thì mở Ad Inspector của AdMob.
 - Thu gọn: vào màn hình thì lớp thu gọn 250 dp mở trên khe đáy; chạm nút thu gọn thì lớp ẩn, lộ khe native nhỏ 80 dp bên dưới; lớp tự mở lại sau `time_expand_collap_ad` giây (mặc định 10, 0 là không mở lại), đếm từ lúc chạm (CL-03, T-030).
+- Thiết kế T-064 đổi số của luồng thu gọn: lớp mở 299 dp và khe đáy 126 dp ở màn 411 dp (mục 1); luồng không đổi.
 - `NativeFullScreenAdScreen`: chạm nút đóng hay nút quay lại của máy thì về màn hình trước.
 
 ## 5. Vị trí quảng cáo
@@ -181,3 +196,15 @@ Native ở bước của luồng (T-032, 2026-10-26): không có ảnh thiết k
 | `AdGalleryScreen_flow-full-page_landscape-phone` (T-049, khung `w873dp-h393dp-440dpi`, lề hệ thống giả của điện thoại) | Màn xem thử "Flow steps" ở màn ngang, lề trái 34 dp của khoét camera: trang 186,5 dp theo bố cục hàng gọn, media bên trái, đầu quảng cáo, mô tả 1 dòng, CTA 52 dp; nút Next dưới trang | không có trong Figma |
 | `AdGalleryScreen_flow-full-page_too-short` (T-049, cùng khung, cỡ chữ 2.0) | Vùng trang thấp hơn mức tối thiểu: dòng "Not enough room for the full-page ad" giữa vùng thay cho vùng trắng; nút Next cùng chỗ | không có trong Figma |
 | `NativeFlowStep_full-page-placeholder_light` (T-041) | Khung chờ tĩnh của trang theo bố cục cột: khối media, khối icon và hai vạch chữ, khối CTA 52 dp; không chữ, không nhãn "Ad"; nút Tiếp dưới trang | không có trong Figma, anh Nhật duyệt 2026-10-26 |
+
+Thiết kế vẽ lại theo bề rộng màn hình (T-064, 2026-11-14), so với ảnh chuẩn screenshot hiện có. Code chưa đổi (T-065), nên phần khác là lệch dự kiến giữa thiết kế mới và code của đợt T-035, T-053. Chạy thẳng `scripts/design-compare/DesignCompare.java` cho `core/ads`, `feature/sample` và `app` như T-027, chép ảnh so sánh vào `review/`; `review/summary.md` không đổi. `SampleScreen_ready_light_unfolded` chưa có ảnh chuẩn screenshot (T-065 thêm).
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `SampleScreen_ready_light`, `_dark` | 3.0%, 2.9% | Khe đáy thiết kế 126 dp (y 749 tới 875), code 80 dp (y 795 tới 875); icon, nhãn "Ad", CTA theo số mới |
+| `SampleScreen_ad-loading_light` | 1.0% | Khung chờ 126 dp so với 80 dp |
+| `AdGalleryScreen_default_light`, `_dark` | 21.0%, 21.0% | Small 126 dp và medium 400 dp đẩy mọi thứ bên dưới lệch so với code (small 80, medium 410) |
+| `AdGalleryScreen_inlist_light` | 4.9% | Dòng small và medium theo chiều cao mới |
+| `AdGalleryScreen_collapsible-expanded_light` | 5.4% | Lớp mở 299 dp so với 250 dp; nút thu gọn 27 dp góc trên trái, AdChoices góc trên phải (code ngược lại) |
+| `AdGalleryScreen_collapsible-collapsed_light` | 2.4% | Khe đáy 126 dp so với 80 dp |
+| `NativeFullScreenAdScreen_default_light`, `_dark` | 0.5%, 0.5% | Nút đóng 48 dp tại (16, 24) và media từ y = 88 nay trùng code (T-053); còn khác ở chữ "i" của AdChoices giả |
