@@ -39,8 +39,12 @@ class AdsControllerMaxInterstitialTest {
     private val settings = FakeRemoteSettings().apply {
         set(AdsSettings.IS_LOG_AD_FULLSCREEN_EVENTS, true)
         set(AdsSettings.placementEnabled(AdPlacement.GALLERY_INTERSTITIAL), true)
-        set(AdsSettings.placementEnabled(AdPlacement.RESUME_INTER), true)
-        set(AdsSettings.placementEnabled(AdPlacement.OPEN_APP_INTER), true)
+        // The app-wide placements are switched by their global keys (StartupAdChoice): resume_inter, open_app_inter.
+        set(AdsSettings.SHOW_RESUM_ADS, true)
+        set(AdsSettings.RESUME_AD_TYPE, "inter")
+        set(AdsSettings.SHOW_OPEN_ADS, true)
+        set(AdsSettings.SHOW_OPEN_ADS_FIRST_OPEN, true)
+        set(AdsSettings.OPEN_AD_TYPE, "inter")
     }
     private val metrics = RecordingAdMetrics()
     private val funnel = RecordingAdFunnel()
@@ -230,7 +234,7 @@ class AdsControllerMaxInterstitialTest {
         idle()
         maxAd.emitLoadFailed(204)
         settings.set(AdsSettings.placementEnabled(AdPlacement.GALLERY_INTERSTITIAL), false)
-        settings.set(AdsSettings.placementEnabled(AdPlacement.RESUME_INTER), false)
+        settings.set(AdsSettings.SHOW_RESUM_ADS, false)
         idle()
         idleFor(2_100)
         assertEquals(1, maxAd.loadCount)
@@ -240,7 +244,8 @@ class AdsControllerMaxInterstitialTest {
 
     @Test
     fun startupInter_maxOrder_loadsAndShowsAdmobOnly() {
-        admobAnswer = { FakeInterstitialAd() }
+        var lastAdmob: FakeInterstitialAd? = null
+        admobAnswer = { FakeInterstitialAd().also { lastAdmob = it } }
         start("max")
         // The MAX slot holds an ad, loaded for the in-app placement.
         loadMax(AdPlacement.GALLERY_INTERSTITIAL)
@@ -251,8 +256,12 @@ class AdsControllerMaxInterstitialTest {
         var interShown: Boolean? = null
         controller.showStartupAd(activity, StartupAdTurn(AdPlacement.OPEN_APP_INTER)) { interShown = it }
         idle()
-        assertEquals(true, interShown)
+        assertEquals(1, lastAdmob!!.shows)
         assertEquals(0, maxAd.showCount)
+        // The startup turn ends when the AdMob ad closes.
+        lastAdmob!!.callback!!.onAdDismissedFullScreenContent()
+        idle()
+        assertEquals(true, interShown)
     }
 
     @Test
@@ -280,7 +289,8 @@ class AdsControllerMaxInterstitialTest {
     @Test
     fun gateClosedAtSend_thenReopened_maxLoadsOnce() {
         start("max", plan = true)
-        controller.loadFullScreenAdIfNeeded(AdPlacement.GALLERY_INTERSTITIAL)
+        // The plan ran once, so the gate open again preloads (GATE_REOPENED needs a first preload).
+        controller.requestPreloadForTest()
         idle()
         maxAd.emitLoadFailed(204)
         controller.closeConsentGateForTest()
