@@ -77,15 +77,15 @@ adUnits=<khóa vị trí>=ca-app-pub-<số>/<số>;<khóa vị trí>=ca-app-pub-
 assetsBaseUrl=https://<địa chỉ production trên R2>/
 uploadKeyAlias=upload
 appsFlyerDevKey=<khóa dev AppsFlyer>
-maxSdkKey=<khóa SDK MAX>                          # tùy chọn
-maxAdUnits=banner=<mã MAX>;banner_mrec=<mã MAX>   # tùy chọn
+maxSdkKey=<khóa SDK MAX>
+maxAdUnits=banner=<mã MAX>;banner_mrec=<mã MAX>
 ```
 
 Khóa vị trí là giá trị `key` trong `AdPlacement`, ví dụ `sample_native_small`. Vị trí chưa có mã thật thì bỏ khỏi `adUnits`: script tự dùng mã quảng cáo thử của Google theo định dạng của vị trí, in tên các vị trí đó ("không có doanh thu") để người phát hành biết. App được phép phát hành khi chưa có đủ mã thật. Vị trí dùng mã thử hiện quảng cáo thử, không có doanh thu; thêm mã thật vào `adUnits` ở bản sau. Mã ứng dụng AdMob (`admobAppId`) vẫn phải là mã thật.
 
 `appsFlyerDevKey` lấy ở **AppsFlyer > App settings > Dev key** (ADR-0027); script không in khóa ra, chỉ truyền cho build qua biến môi trường. Khóa chỉ bắt buộc khi app có SDK AppsFlyer (một file `*.gradle.kts` khai báo `libs.appsflyer` hay `com.appsflyer:`); app chưa bật AppsFlyer thì bỏ dòng này, có dòng mà không có SDK thì script in CHÚ Ý và không dùng khóa. Mật khẩu khóa upload không ghi vào thư mục này, script hỏi khi chạy.
 
-`maxSdkKey` và `maxAdUnits` tùy chọn. Không có `maxSdkKey` thì bản phát hành không chạy MAX: script in CHÚ Ý và dòng "MAX: không dùng" ở phần tóm tắt, mọi khe chỉ dùng AdMob. Khóa chỉ gồm chữ, số, `_`, `-`. `maxAdUnits` có dạng `<khe>=<mã>;<khe>=<mã>`, không khoảng trắng; khe thiếu mã chỉ chạy AdMob; có mã mà không có khóa thì script in CHÚ Ý và bỏ mã. Giá trị sai dạng làm script dừng. Script không in khóa hay mã, chỉ in số khe có mã. App không có adapter MAX (không file `*.gradle.kts` nào khai báo `libs.max.mediation.google` hay nhóm `com.applovin.mediation`) mà có `maxSdkKey` thì script in CHÚ Ý và không dùng khóa.
+Hai dòng `maxSdkKey`, `maxAdUnits` tùy chọn; không ghi chú thích trên cùng dòng với giá trị (script đọc cả phần sau dấu `=` làm giá trị). Không có `maxSdkKey` thì bản phát hành không chạy MAX: script in CHÚ Ý và dòng "MAX: không dùng" ở phần tóm tắt, mọi khe chỉ dùng AdMob. Khóa chỉ gồm chữ, số, `_`, `-`. `maxAdUnits` có dạng `<khe>=<mã>;<khe>=<mã>`, không khoảng trắng, không `;` ở cuối; khe thiếu mã chỉ chạy AdMob; có mã mà không có khóa thì script in CHÚ Ý và bỏ mã. Giá trị sai dạng làm script dừng. Script không in khóa hay mã, chỉ in số khe có mã. App không có adapter MAX (không file `*.gradle.kts` nào khai báo `libs.max.mediation.google` hay nhóm `com.applovin.mediation`) mà có `maxSdkKey` thì script in CHÚ Ý và không dùng khóa.
 
 ### 2.3. Chạy script
 
