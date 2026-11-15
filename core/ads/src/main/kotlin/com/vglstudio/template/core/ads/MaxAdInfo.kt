@@ -43,7 +43,7 @@ internal fun maxAdInfoOf(ad: MaxAd?): MaxAdInfo {
     if (ad == null) return MaxAdInfo.EMPTY
     val waterfall = readOrNull { ad.waterfall }
     val loaded = waterfall?.let { info ->
-        readOrNull { info.networkResponses }?.firstOrNull { it.adLoadState == AD_LOADED }
+        readOrNull { info.networkResponses }?.firstOrNull { readOrNull { it.adLoadState } == AD_LOADED }
     }
     return MaxAdInfo(
         adUnitId = readOrNull { ad.adUnitId }.orEmpty(),
