@@ -1351,3 +1351,30 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** cấu hình quyền của routine (hay `.claude/settings.json` của repo, qua PR có người duyệt) cho phép đúng lệnh `scripts/merge-if-green.sh <số>` trong phiên tự chạy, vì script là cổng chất lượng đã duyệt (ADR-0010); hoặc ghi rõ trong lời giao của routine rằng merge bằng `merge-if-green.sh` sau rà soát độc lập là việc được yêu cầu. Nếu không đổi được, `docs/auto-run.md` mục 1 nên nói trước: phiên có thể dừng ở bước 9 và người cần merge sáng hôm sau.
 - **Trạng thái:** accepted (anh Nhật, 2026-11-14, trong phiên: "Duyệt L-173 theo A, B, D")
 - **Áp dụng:** đang làm: A, quy tắc cho phép `Bash(scripts/merge-if-green.sh:*)` trong `.claude/settings.json` (anh Nhật tự tạo, vì bộ phân loại quyền chặn AI ghi file này); B, câu Merge trong prompt routine (`docs/ops/staging-and-runs.md`); D, `docs/auto-run.md` mục 1 và bước 9. Sau khi merge, dev chép prompt mới vào routine trên claude.ai; phiên routine kế tiếp kiểm chứng quy tắc cho phép có qua được bộ phân loại không.
+
+### L-174. `failure-kind.sh --playbook` xếp nhầm lỗi tải thư viện thành PB-02 vì log có dòng test script chứa `HẠ TẦNG:`
+
+- **Ngày, nguồn:** 2026-11-15, RUN-20261115-01 (T-072, PR #508)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `pr-check` của PR #508 đỏ ở `build-and-test` vì Maven Central trả 429 khi Gradle tải `robolectric-4.17.pom` (đúng PB-09, `lich-thu-lai`). `gh run view --log-failed` lấy cả bước "Cổng chất lượng", gồm phần `scripts/tests/run.sh` đã qua; một dòng `ok - find-breaking-commit --check ui-test: the PB-02 prefix HẠ TẦNG: is not infrastructure of the emulator` khớp mẫu `HẠ TẦNG:` của PB-02, nên script in PB-02 ("GitHub không cấp máy", loại `cho`). Làm theo dòng đó thì phiên sẽ kết thúc theo mục 4, dòng "GitHub không chạy job", dù job đã chạy và chỉ cần chạy lại. Phiên đọc phần cuối log, thấy 429, chạy lại job đỏ một lần: xanh.
+- **Bằng chứng:** lần chạy 43750665108 (lần đầu), dòng 30 và phần cuối của log `--log-failed`; dòng thời gian của RUN-20261115-01, 19:15.
+- **Đề xuất sửa:** `scripts/failure-kind.sh` bỏ qua dòng kết quả test của script (`ok   - ...`, `not ok - ...` của `scripts/tests/run.sh`) trước khi so mẫu, hoặc so mẫu theo thứ tự ưu tiên lỗi thật (PB-09 trước PB-02) khi job có bước đã chạy; thêm tệp log thật vào `scripts/tests/playbook/` làm test (log có cả dòng `ok - ... HẠ TẦNG: ...` và dòng 429 phải ra PB-09).
+- **Trạng thái:** proposed
+
+### L-175. Robolectric thỉnh thoảng ném `looperControlService is null` khi dọn sandbox sau một test của `:core:ads`
+
+- **Ngày, nguồn:** 2026-11-15, RUN-20261115-01 (T-106)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** `scripts/check.sh` lần đầu của T-106 đỏ ở `AdsControllerMaxInterstitialTest.maxHidden_recordsIntervalMarkFirst_thenFinishes` với `NullPointerException: ... this.looperControlService is null` trong `ShadowPausedLooper.resetLooperToInitialState`, lúc Robolectric dọn sandbox sau khi thân test đã chạy xong. Chạy lại lớp 3 lần, module 2 lần và `check.sh` đều xanh. Rà soát độc lập đọc bytecode của `ShadowPausedLooper` (Robolectric 4.17): hàm dựng thêm Looper vào tập tĩnh `loopingLoopers` trước khi gán `looperControlService`, nên một luồng nền (ở đây luồng `AdWorker` của SDK GMS thật) dựng Looper đúng lúc dọn thì có NPE. Plan có điều kiện dừng "một test của `AdsControllerMaxInterstitialTest` đỏ"; phiên phải tự phân định đây là chập chờn, không có dòng bảng tra lỗi nào.
+- **Bằng chứng:** báo cáo phiên con và rà soát độc lập của T-106, nhật ký plan T-106; `failure-kind.sh --playbook` không khớp dòng nào.
+- **Đề xuất sửa:** thêm một dòng bảng tra lỗi (`docs/ops/failure-playbook.md`) cho mẫu `looperControlService is null` kèm `resetLooperToInitialState`, loại `chay-lai` (chạy lại một lần, không tính vào 3 lần sửa, không coi là test đỏ của điều kiện dừng), với tệp log thật trong `scripts/tests/playbook/`; gặp lại nhiều lần thì xét tắt luồng nền của SDK GMS thật trong test `AdsController` (bản giả `AdLoader`).
+- **Trạng thái:** proposed
+
+### L-176. Phiên con chèn test mới giữa KDoc và lớp hay hàm mà KDoc mô tả
+
+- **Ngày, nguồn:** 2026-11-15, RUN-20261115-01 (T-106, T-072)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** hai lần trong phiên, test mới được chèn ngay dưới KDoc của phần tử đứng cuối file test (KDoc của `FakeRewardedPort` trong `RewardedTurnsTest.kt` ở T-106; KDoc của `threeNetworks()` trong `MaxAdInfoTest.kt` ở T-072, do phiên chính khi sửa theo rà soát). KDoc gắn sai vào test mới, phần tử gốc mất mô tả. ktlint không bắt lỗi này; mỗi lần tốn một điểm nên sửa và một vòng rà soát lại (lần ở T-072 dùng hết vòng rà soát lại thứ 2).
+- **Bằng chứng:** rà soát độc lập vòng 1 của T-106 (nên sửa 1), vòng 2 của T-072; commit `8aa93b3`, `fd7b2d2`.
+- **Đề xuất sửa:** lời giao việc chung cho phiên con (`docs/auto-run.md`, mục Giao bước 3 đến 5) thêm một vế: thêm test vào file có sẵn thì chèn trước khối chú thích của phần tử đứng sau, không giữa KDoc và phần tử đó; hoặc một kiểm tra nhỏ trong `scripts/check.sh` báo KDoc đứng ngay trên `@Test` mà phần tử sau đó cách một khối khác.
+- **Trạng thái:** proposed

@@ -1,7 +1,7 @@
 ---
 ticket: T-070
 title: App open của MAX khi quay lại app
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -313,3 +313,19 @@ Không cần (E dưới 2): biến thể của khe inter MAX (T-069) và đườ
 - **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C; duyệt cả đợt 2026-11-15-01, PR #505), nguyên văn: "Xác nhận spec ads (mục 6), duyệt plan T-106, T-070, T-072 theo đề xuất ở mục 8, chấp nhận kiểm thủ công thay chạy thử cho T-106, phiên tự chạy." Mọi câu ở mục 8 theo đề xuất của AI.
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261115-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #507, commit merge `6dc28a3`, 2026-11-15 18:06 UTC).
+- **Nhánh, PR:** `claude/T-070-app-open-cua-max`, PR #507. Commit test `0430d47` (test viết trước cùng khung rỗng); code `30e7d97`.
+- **Đã làm:** mục 3.1: `AdRetryPolicy.maxReloadAfterCloseMillis`; `MaxInterstitialSlot` nhận `APP_OPEN` (`APP_OPEN_SLOT`, nhãn `App open (MAX)`, giữ lượt gửi 2 giây sau khi đóng bằng `reloadDueAt`, hết hạn A-07 dựng đối tượng mới); `MaxAppOpen.kt` (`AppLovinMaxAppOpen`, `import MaxAppOpenAd`); `MaxSdk.kt` (`MAX_FORMATS` thêm `APP_OPEN`, `MaxPlatform.newAppOpen`); `appOpenPlatforms` (chỉ `resume` theo thứ tự); nối vào `AdsController` (`loadAppOpenPlatforms`, `showMaxAppOpen`, điểm nối `appOpenRequestForTest`); bước 6b `FullScreenReloads` tách `retries` và `reloads`; KDoc `MaxInterstitial.kt`; F-05, F-06, A-07, A-08, A-09, A-16, M-10, khóa `ads_mediation_order`, `ads-guide.md`. Không dùng phương án dự phòng 3.4 và điểm nối `showResumeAppOpenForTest` (Robolectric cho resume Activity đã `finish()`).
+- **Test viết trước:** 60 test mới (`AdsControllerMaxAppOpenTest` 39, `MaxAppOpenSlotTest` 13, `AdRetryPolicyTest` 1, `FullScreenPlatformsTest` 2, `MaxSdkStarterTest` 1, `FullScreenReloadsTest` 2, `AdsControllerMaxInterstitialTest` 1, `AdsControllerMaxRewardedTest` 1) cùng dữ liệu `AdsControllerMaxTest` (ADR-0029). Trên khung rỗng 55 đỏ đúng lý do (54 test mới và test dữ liệu): khe app open chưa dựng, `appOpenPlatforms` rỗng, `maxReloadAfterCloseMillis` 0, chưa có hết hạn, khóa và nhãn còn của inter, `MAX_FORMATS` thiếu `APP_OPEN`, lịch nạp lại còn hủy lượt thử lại. 10 test viết chặt bằng đối chứng. 6 test qua ngay là test khóa hành vi không đổi, mỗi test có đột biến làm nó đỏ (`interstitialFormat_noHoldAfterClose`, `rewardedFormat_noHoldAfterClose`, `interstitialFormat_neverExpires`, `sendBlocked_cancelsRetryAndReload`, `noMaxKey_resumeAdmobOnly_noMaxObjectBuilt`, `gateClosed_loadFullScreenAdIfNeeded_appOpen_noStateChange` với đối chứng perl của plan).
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 5 ghi chú (ba thay đổi ở file test sau commit test là chi tiết dựng test; lệch nhỏ vô hại; đối tượng cũ sau gỡ kẹt chỉ bỏ listener, không `destroy()`, như inter).
+- **Kết quả CI:** `scripts/check.sh` trên máy: QUA (2202 test JVM, 91 ảnh, khoảng 9 phút). `pr-check` lần chạy 43743800067: xanh, một vòng.
+- **Lệch so với plan:**
+  1. Thay đổi ở file test sau commit test (`AdsControllerMaxAppOpenTest.kt`, bước 4, chi tiết dựng test, rà soát xác nhận không đổi điều test kiểm): `host.start()` thành `host.restart()` ở `returnToApp()` và 4 test (sau `start()` Robolectric bỏ qua lần stop kế tiếp; trước khi sửa 10 test đỏ vì không có lần quay lại thứ hai; plan ghi `host.start().resume()`); `maxInterAndAppOpen_separateSlots` thêm `resumeSuppression.onShellReported(false)` sau khi inter đóng (G-04, vai `AdsHost`); `maxAppOpenStuck_recovered_finishesOnce_newObjectNextLoad` dời lần đóng muộn ra sau lượt nạp kế, đúng chữ mục 4 ("chưa có `onHidden`").
+  2. `showMaxAppOpen` không nhận `now` (không dùng). Nguồn của A-16 đặt ở cột nguồn của bảng như N-06, R-07.
+  3. `existing-tests.py` chạy lại: "Cần xem trước" 20 thay vì 18 (trùng tên chung), không câu nào đổi, đều qua.
+  - Không có file ngoài mục 3.2, không có câu khẳng định cũ viết lại (ADR-0031).
+- **Việc còn lại:** kiểm thủ công trên máy thật với khóa và mã MAX thật (`showAd()` không nhận Activity, mục 3.4). Doanh thu MAX ở T-072.
+- **Cần người xem:** kịch bản SDK báo đóng muộn trước lượt nạp kế sau gỡ kẹt không có test riêng; rà soát kiểm bằng test tạm: kết thúc một lần, ghi khóa A-08, nạp lại sau 2 giây trên cùng đối tượng (đúng F-03, A-08, F-06). Có thể thêm test `maxAppOpenStuck_lateCloseBeforeNextLoad_reloadsSameObjectAfterTwoSeconds` nếu muốn phủ. Bước 6b đổi lượt thử lại O-05 của native toàn màn hình: lịch nạp lại 0 ms không còn hủy nó (theo plan).
