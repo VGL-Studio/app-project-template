@@ -3769,7 +3769,7 @@ release_fails_with() {
 }
 write_release_properties() {
   printf '%s\n' "admobAppId=$1" "adUnits=$2" "assetsBaseUrl=$3" "uploadKeyAlias=upload" "appsFlyerDevKey=${4-AbCdEf0123456789XyZ}" \
-    > "$release_dir/release.properties"
+    "maxSdkKey=${5-FAKE_MAX_KEY_0123456789}" "maxAdUnits=${6-}" > "$release_dir/release.properties"
 }
 mkdir -p "$release_dir"
 release_fails_with "missing files" "/release/google-services.json"
@@ -3837,6 +3837,16 @@ no_af_out="$("$no_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/nul
 expect "release.sh: an app without the AppsFlyer SDK warns that its key is not used, and goes on" "1 1" \
   "$(grep -c '^CHÚ Ý: .*appsFlyerDevKey' <<< "$no_af_out") $(grep -c '^== Kiểm tra commit phát hành' <<< "$no_af_out")"
 expect "release.sh: the unused AppsFlyer key is never printed" 0 "$(grep -c 'SecretKey0123456789' <<< "$no_af_out" || true)"
+# The same copy has no AppLovin MAX adapter either: no MAX key is needed, and a MAX key given is not used.
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "" ""
+no_af_out="$("$no_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null || true)"
+expect "release.sh: an app without the MAX adapter releases without a MAX key and prints no MAX notice" "1 0" \
+  "$(grep -c '^== Kiểm tra commit phát hành' <<< "$no_af_out" || true) $(grep -c '^CHÚ Ý: .*maxSdkKey' <<< "$no_af_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "" "FAKE_MAX_SECRET_0123456789"
+no_af_out="$("$no_af/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null || true)"
+expect "release.sh: an app without the MAX adapter warns that its MAX key is not used, never prints it" "1 1 0" \
+  "$(grep -c '^== Kiểm tra commit phát hành' <<< "$no_af_out" || true) \
+$(grep -c '^CHÚ Ý: .*maxSdkKey không được dùng' <<< "$no_af_out" || true) $(grep -c 'FAKE_MAX_SECRET_0123456789' <<< "$no_af_out" || true)"
 # The SDK declared directly by its Maven coordinates counts too.
 printf '%s\n' 'dependencies {' '    implementation("com.appsflyer:af-android-sdk:6.18.1")' '}' > "$no_af/core/analytics/build.gradle.kts"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" ""
@@ -3845,6 +3855,66 @@ expect "release.sh: the SDK given by its Maven coordinates needs the key" 1 \
 expect "release.sh never prints the AppsFlyer dev key" 0 \
   "$(write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/" "SecretKey0123456789"
      scripts/release.sh --config "$release_dir" 2>&1 < /dev/null | grep -c 'SecretKey0123456789' || true)"
+# AppLovin MAX values are optional: without a key the release runs AdMob only. The MAX check ends the folder check,
+# after the https address, so a run that passes it reaches the commit step; these runs use a copy without a real
+# origin holding this repo's build files, like the AppsFlyer copies above, and never touch git in this repository.
+repo_has_max=no
+if grep -rqsE --include='*.gradle.kts' --exclude-dir=build --exclude-dir=.gradle \
+  'libs\.max\.mediation\.|"com\.applovin\.mediation:' .; then
+  repo_has_max=yes
+fi
+max_copy="$work/release-max"
+mkdir -p "$max_copy/scripts"
+cp scripts/release.sh "$max_copy/scripts/"
+while IFS= read -r build_file; do
+  mkdir -p "$max_copy/$(dirname "$build_file")"
+  cp "$build_file" "$max_copy/$build_file"
+done < <(git ls-files '*.gradle.kts')
+git -C "$max_copy" init -q
+max_run() { "$max_copy/scripts/release.sh" --config "$release_dir" 2>&1 < /dev/null || true; }
+max_af_key="AbCdEf0123456789XyZ"
+if [[ "$repo_has_max" == no ]]; then
+  # An app that left MAX out: its own build files pass without a MAX key and print no MAX notice. The checks below
+  # then run with a module that declares the MAX adapter, the way an app with MAX declares it.
+  write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" ""
+  max_out="$(max_run)"
+  expect "release.sh: this repo has no MAX adapter, so its build files need no MAX key and print no MAX notice" "0 1" \
+    "$(grep -c 'không có maxSdkKey' <<< "$max_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true)"
+  mkdir -p "$max_copy/core/max-probe"
+  printf '%s\n' 'dependencies {' '    implementation(libs.max.mediation.google)' '}' > "$max_copy/core/max-probe/build.gradle.kts"
+fi
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" ""
+max_out="$(max_run)"
+expect "release.sh: an app with MAX and no MAX key warns and goes on (AdMob only)" "1 1" \
+  "$(grep -c '^CHÚ Ý: .*không có maxSdkKey' <<< "$max_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" \
+  "FAKE_MAX_SECRET_0123456789 x"
+max_out="$(max_run)"
+expect "release.sh refuses a MAX SDK key with odd characters, before the commit step, without printing it" "1 0 0" \
+  "$(grep -c 'maxSdkKey sai dạng' <<< "$max_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true) \
+$(grep -c 'FAKE_MAX_SECRET_0123456789' <<< "$max_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" \
+  "FAKE_MAX_KEY_0123456789" "banner"
+max_out="$(max_run)"
+expect "release.sh refuses MAX ad units without '=', before the commit step" "1 0" \
+  "$(grep -c 'maxAdUnits sai dạng' <<< "$max_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" \
+  "FAKE_MAX_KEY_0123456789" 'banner=FAKE_UNIT_SECRET"X'
+max_out="$(max_run)"
+expect "release.sh refuses MAX ad units with a quote, before the commit step, without printing them" "1 0 0" \
+  "$(grep -c 'maxAdUnits sai dạng' <<< "$max_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true) \
+$(grep -c 'FAKE_UNIT_SECRET' <<< "$max_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" \
+  "FAKE_MAX_SECRET_0123456789" "banner=FAKE_UNIT_A"
+max_out="$(max_run)"
+expect "release.sh never prints the MAX SDK key or units" "1 0 0" \
+  "$(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true) $(grep -c 'FAKE_MAX_SECRET_0123456789' <<< "$max_out" || true) \
+$(grep -c 'FAKE_UNIT_A' <<< "$max_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "https://cdn.example.vn/" "$max_af_key" "" \
+  "banner=FAKE_UNIT_A"
+max_out="$(max_run)"
+expect "release.sh: MAX ad units without a MAX key are not used, and the release goes on" "1 1" \
+  "$(grep -c '^CHÚ Ý: .*maxAdUnits không được dùng' <<< "$max_out" || true) $(grep -c '^== Kiểm tra commit phát hành' <<< "$max_out" || true)"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "sample_bottom_banner" "https://cdn.example.vn/"
 release_fails_with "malformed ad unit entry" "mục adUnits"
 write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn.example.vn/"
@@ -3876,8 +3946,8 @@ for prop in $exported_props; do
   [[ "$prop" == appsFlyerDevKey && "$repo_has_appsflyer" == no ]] && continue
   grep -q "gradleProperty(\"$prop\")" app/build.gradle.kts || unread_props="$unread_props $prop"
 done
-# The count guards against a grep that finds nothing and so passes: release.sh exports 8 properties today.
-expect "contract: app/build.gradle.kts reads every Gradle property that release.sh exports" "8 none" \
+# The count guards against a grep that finds nothing and so passes: release.sh exports 10 properties today.
+expect "contract: app/build.gradle.kts reads every Gradle property that release.sh exports" "10 none" \
   "$(wc -w <<< "$exported_props" | tr -d ' ') ${unread_props:-none}"
 # The other way: every property the production build requires is one that release.sh exports, so renaming one
 # in the build file fails here instead of on release night.
@@ -3910,6 +3980,13 @@ cp scripts/release.sh "$rl/src/scripts/"
 cp app/build.gradle.kts "$rl/src/app/"
 cp core/analytics/build.gradle.kts "$rl/src/core/analytics/"
 cp "$rl_placement" "$rl/src/$rl_placement"
+mkdir -p "$rl/src/core/ads"
+cp core/ads/build.gradle.kts "$rl/src/core/ads/"
+if [[ "$repo_has_max" == no ]]; then
+  # An app that left MAX out still runs the MAX lines below, with a module that declares the adapter.
+  mkdir -p "$rl/src/core/max-probe"
+  printf '%s\n' 'dependencies {' '    implementation(libs.max.mediation.google)' '}' > "$rl/src/core/max-probe/build.gradle.kts"
+fi
 (
   cd "$rl/src"
   git init -q -b main
@@ -3950,6 +4027,14 @@ rl_out="$(release_check_only)"
 expect "release.sh --check-only: runs every check, prints the summary and stops before the passwords" "1 1 0 0" \
   "$(grep -c "^   App: *$rl_app_id$" <<< "$rl_out" || true) $(grep -c '^== Đã kiểm xong, chưa build (--check-only)' <<< "$rl_out" || true) \
 $(grep -c 'TỪ CHỐI' <<< "$rl_out" || true) $(grep -c 'Mật khẩu' <<< "$rl_out" || true)"
+expect "release.sh --check-only: prints the MAX line without values" "1 0" \
+  "$(grep -c '^   MAX: có khóa, 0 khe có mã đơn vị$' <<< "$rl_out" || true) $(grep -c 'FAKE_MAX_KEY_0123456789' <<< "$rl_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" \
+  "${rl_first:+$rl_first=ca-app-pub-1234567890123456/1000000001}" "https://cdn.example.vn/" "AbCdEf0123456789XyZ" ""
+expect "release.sh --check-only: without a MAX key the MAX line says MAX is not used" 1 \
+  "$(release_check_only | grep -c '^   MAX: không dùng (không có maxSdkKey)$' || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" \
+  "${rl_first:+$rl_first=ca-app-pub-1234567890123456/1000000001}" "https://cdn.example.vn/"
 rl_test_units="$(grep 'Mã quảng cáo thử (không có doanh thu):' <<< "$rl_out" | sed 's/.*doanh thu)://')"
 if [[ -n "$rl_first" ]]; then
   expect "release.sh --check-only: the configured unit is not replaced by a test unit" 0 \
