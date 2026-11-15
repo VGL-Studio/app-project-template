@@ -1,7 +1,7 @@
 ---
 ticket: T-073
 title: release.sh đọc và kiểm khóa, mã đơn vị MAX
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -248,3 +248,18 @@ Không cần (E dưới 2): lặp lại mẫu đọc tham số, mẫu khóa Apps
 - **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C), nguyên văn: "Xác nhận spec ads (câu hỏi 43), duyệt plan T-073," Câu hỏi 1 và 3 đã có trả lời ở mục 8; câu hỏi 2 không đổi chữ. Hai câu viết lại theo ADR-0031 ở mục 3.5 được duyệt cùng plan.
 
 ## 10. Nhật ký thực hiện
+
+### Làm có người 2026-11-15, phiên bản plan 1
+
+- **Kết quả:** PR mở (PR này), merge bằng `scripts/merge-if-green.sh` khi anh Nhật nói rõ trong phiên.
+- **Nhánh, PR:** `claude/T-073-release-max`. Commit test `943c2399`, Gradle `8f9555e1`, `release.sh` và tài liệu `e0ea0df4`, sửa chữ CHÚ Ý `7ea4ac27`, tài liệu theo rà soát `86d216f3`.
+- **Đã làm:** mục 3.1, bước 1 tới 3: `preProduction*Build` từ chối `-PmaxSdkKey`, `-PmaxAdUnits` sai ký tự (không in giá trị), khóa tùy chọn; `scripts/release.sh` đọc, kiểm, truyền hai giá trị, CHÚ Ý khi thiếu khóa hay không dùng, dòng "   MAX:" ở tóm tắt, `unset`, chú thích đầu file (sửa theo lời cho phép của anh Nhật, mục 3.1); `release.md` mục 1.2, 1.5 mới, 2.2, 2.3; M-09, M-10; ba dòng của `ads-guide.md` mục 7.
+- **Test viết trước:** trên code cũ đỏ đúng lý do: `ProductionPropertiesTest` 3 test (`check` chưa có `"maxSdkKey".takeIf`, `"maxAdUnits".takeIf`, `Regex`); `scripts/tests/run.sh` 10 dòng (8 test `release.sh` MAX, hợp đồng `expected '10 none', got '8 none'`, 2 dòng `--check-only`). Qua ngay như mục 4 nói: lần `no_af` khóa rỗng, "không in khóa, mã MAX khi hợp lệ".
+- **Đối chứng (mục 4):** lệnh 1 (thêm `"maxSdkKey" to "ADR-0045",`) làm đỏ đúng `maxSdkKey_isOptional_charactersChecked`; lệnh 2 (thêm `"maxAdUnits" to "ADR-0045",`) làm đỏ đúng `maxAdUnits_stagingReadsLocalPropertiesFiltered_productionOptional`; mỗi lần trả bằng `git checkout --`. Lần chạy đầu của lệnh 2 sai nền: `git checkout` của lệnh 1 đã trả cả code Gradle chưa commit; đã viết lại code, commit, chạy lại cả hai lệnh.
+- **Sửa sau test:** commit `7ea4ac27` đổi chữ hai dòng CHÚ Ý trong `release.sh` ("maxSdkKey không được dùng", "maxAdUnits không được dùng" liền nhau) cho khớp hợp đồng mục 3.1; test không đổi.
+- **Kết quả kiểm trên máy dev (macOS):** `scripts/check.sh` với GNU sed đứng trước trong `PATH`: "Cổng chất lượng: QUA", 2014 test JVM, 0 lỗi, 91 ảnh, `BUILD SUCCESSFUL`. Chạy với `sed` của macOS thì dừng ở test `pr-check: the filter output check fails on a copy reading an undefined output` (cú pháp `sed '0,/.../'` chỉ GNU sed hiểu), đỏ cả trên nhánh chính, không do task.
+- **CI:** CI của PR này.
+- **Test cũ viết lại (ADR-0031):** `maxSdkKey_isOptionalUntilReleaseShPassesIt` thành `maxSdkKey_isOptional_charactersChecked` (phần tử `maxSdkKey` của `forEach` thành `"maxSdkKey" to`, thêm câu `"maxSdkKey".takeIf`); câu `assertFalse(check, "maxAdUnits" in check)` của `maxAdUnits_..._productionOptional` thành `"\"maxAdUnits\" to"`, thêm câu `"maxAdUnits".takeIf`. Ý định giữ: khóa và mã tùy chọn ở production. Đối chứng đỏ như trên.
+- **Lệch so với plan:** không có. File ngoài mục 3.2: chỉ `scripts/release.sh`, có lời cho phép.
+- **Việc còn lại:** anh Nhật chạy `scripts/release.sh --check-only` với thư mục phát hành thật (kiểm thủ công cuối mục 4); người đồng bộ báo các app nhận script mới (thư mục phát hành không phải đổi). Lỗi `sed` của test `pr-check` trên macOS nên ghi thành bài học riêng.
+- **Rà soát độc lập:** chặn 0, nên sửa 2, ghi chú 6. Đã sửa: mẫu `release.properties` trong `release.md` có chú thích trên dòng giá trị (script đọc cả chú thích làm giá trị, báo "sai dạng"); nhật ký và trạng thái plan, ticket (mục này). Ghi chú đã sửa: `release.md` nói "không `;` ở cuối", gộp ngoặc ở `ads-guide.md`. Ghi chú để người xem: CHÚ Ý "không có khóa MAX, maxAdUnits không được dùng" khi app không có adapter mà có cả khóa và mã; adapter MAX tìm trong thư mục làm việc như khối AppsFlyer; chưa có test cho dòng "MAX: không có trong app" và "n khe" với n từ 1.
