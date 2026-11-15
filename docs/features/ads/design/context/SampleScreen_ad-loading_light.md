@@ -44,8 +44,8 @@ Toạ độ và cỡ tính theo dp, gốc là góc trên trái của khung. Th�
   - Instance "Native small (sample_native_small)", vị trí 16,749, cỡ 379 x 126, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/24 (lg)/0/12 (ngoài hệ thống), căn MIN/CENTER
     - Rectangle "Icon placeholder", vị trí 29,790, cỡ 44 x 44, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
     - Frame "Lines", vị trí 85,795, cỡ 177 x 34, xếp dọc, cách nhau 8 (sm), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
-      - Rectangle "Line", vị trí 85,795, cỡ 180 x 14, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
-      - Rectangle "Line", vị trí 85,817, cỡ 200 x 12, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
+      - Rectangle "Line", vị trí 85,795, cỡ 177 x 14, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
+      - Rectangle "Line", vị trí 85,817, cỡ 120 x 12, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
     - Rectangle "CTA placeholder", vị trí 274,790, cỡ 96 x 44, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
 
 ## 4. Code tham khảo
