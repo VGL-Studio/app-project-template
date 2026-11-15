@@ -16,7 +16,9 @@ import kotlinx.coroutines.launch
  * Every way to a send goes through [send]: a load the controller asks for ([loadIfNeeded]), the wait for MAX to be
  * ready ([maxReady]), the retry after a failed load (F-05) and the reload after a close or a failed show (F-06). Right
  * before sending, [shouldLoad] (MAX in the order and a placement of the format on) and [mayRequestNow] (the consent
- * gate, S-15) are asked; a no ends the round with no retry. Unit ids never reach the log.
+ * gate, S-15) are asked; a no ends the round with no retry. Unit ids never reach the log. Loads carry the platform of
+ * MAX, their networks go to [networkLog] at staging, and each SDK object reports its revenue under the placement of
+ * the take of its show (plan T-072).
  *
  * The rewarded slot follows the show of its SDK object itself: the SDK keeps one rewarded object per ad unit and drops
  * a load sent while that object shows, with no callback. So from [showTaken] until the SDK reports the end of the show
@@ -86,8 +88,17 @@ internal class MaxInterstitialSlot(
 
     private var ad: MaxInterstitialSdkAd? = null
 
-    /** The adapter class of the network of the ad held (plan T-072), for the funnel of its show; null when unknown. */
-    val heldAdapterClassName: String? get() = null
+    /**
+     * The placement cell of each SDK object the slot holds (plan T-072, PL-03): [take] writes the placement of the
+     * turn into the cell of its object, and the revenue of that object reads it when it comes. Keyed by object (the
+     * wrappers keep the identity [equals]); an object leaves the map when the slot drops it, and keeps its revenue
+     * listener with its own cell, so a late revenue of a dropped object stays with the placement of its show.
+     */
+    private val revenueCells = mutableMapOf<MaxInterstitialSdkAd, PlacementCell>()
+
+    /** The adapter class of the network of the ad loaded last (plan T-072), read before [take] for the funnel. */
+    var heldAdapterClassName: String? = null
+        private set
 
     /** A load was asked while MAX was not ready: sent once MAX is ready (L-072). */
     private var wanted = false
@@ -139,13 +150,16 @@ internal class MaxInterstitialSlot(
     fun loadIfNeeded() = send()
 
     /**
-     * Takes the held ad out to show it; the slot is empty after. The show callbacks of the SDK go to [onShow] until
-     * the next take. Null when none is held.
+     * Takes the held ad out to show it for [placement]; the slot is empty after. The show callbacks of the SDK go to
+     * [onShow] until the next take; the revenue of the show is logged under [placement] (plan T-072). Null when none
+     * is held.
      */
     fun take(placement: AdPlacement, onShow: MaxInterstitialListener? = null): MaxInterstitialSdkAd? {
         dropIfExpired()
         if (current != FullScreenLoadState.Ready) return null
         current = FullScreenLoadState.Idle
+        // PL-03: the revenue of this show goes to this placement, whatever placement takes the object next.
+        ad?.let { revenueCells[it]?.value = placement }
         if (format != AdFormat.REWARDED) showing = true
         showCallbacks = onShow
         displayed = false
@@ -189,8 +203,12 @@ internal class MaxInterstitialSlot(
         if (format != AdFormat.REWARDED && showing) {
             if (fullScreenBusy()) return
             // The turn ended with no close from the SDK (forced end, cap of F-02): the ad may still be on screen, so
-            // its SDK object is dropped, late callbacks included, and the next load builds a new one.
-            ad?.listener = null
+            // its SDK object is dropped, late callbacks included, and the next load builds a new one. Its revenue
+            // listener stays, with the cell of that show.
+            ad?.let {
+                it.listener = null
+                revenueCells.remove(it)
+            }
             ad = null
             showing = false
             showCallbacks = null
@@ -220,6 +238,7 @@ internal class MaxInterstitialSlot(
                 it.listener = Callbacks(unit)
                 ad = it
             }
+            attachRevenue(sdkAd, unit)
             // R-03: the network flag is cleared at every send.
             lastLoadNetworkError = null
             telemetry.requestSent(slot, clock.nowMillis())
@@ -238,6 +257,7 @@ internal class MaxInterstitialSlot(
         logger.warn(TAG, "$label still showing after the cap: object dropped")
         ad?.let {
             it.listener = null
+            revenueCells.remove(it)
             it.destroy()
         }
         ad = null
@@ -258,11 +278,35 @@ internal class MaxInterstitialSlot(
         if (!expiredAt(clock.nowMillis())) return
         ad?.let {
             it.listener = null
+            revenueCells.remove(it)
             it.destroy()
         }
         ad = null
         current = FullScreenLoadState.Idle
         logger.info(TAG, "$label expired")
+    }
+
+    /**
+     * Gives [sdkAd] its revenue listener once, with a cell of its own (plan T-072). An object that has one already
+     * (the rewarded wrapper is one per ad unit, handed back by [newAd]) keeps it and its cell: no second listener.
+     */
+    private fun attachRevenue(sdkAd: MaxInterstitialSdkAd, unit: String) {
+        when (val existing = sdkAd.onRevenue) {
+            null -> {
+                val cell = PlacementCell()
+                revenueCells[sdkAd] = cell
+                sdkAd.onRevenue =
+                    RevenueRelay(cell) { info -> telemetry.maxRevenue(format, unit, { cell.value }, info) }
+            }
+            is RevenueRelay -> revenueCells.getOrPut(sdkAd) { existing.cell }
+            else -> Unit
+        }
+    }
+
+    /** The revenue listener of one SDK object, with the placement cell it reads. */
+    private class RevenueRelay(val cell: PlacementCell, private val record: (MaxAdInfo) -> Unit) :
+        (MaxAdInfo) -> Unit {
+        override fun invoke(info: MaxAdInfo) = record(info)
     }
 
     private fun scheduleReload() {
@@ -288,7 +332,8 @@ internal class MaxInterstitialSlot(
         }
     }
 
-    private fun onLoadFailed(code: Int) {
+    private fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) {
+        networkLog.maxResult(slot, networks)
         lastLoadError = telemetry.maxLoadFailed(format, slot, PRELOAD, code, clock.nowMillis())
         lastLoadNetworkError = networkError(code)
         val wait = AdRetryPolicy.fullScreenDelayMillis(failuresInARow())
@@ -304,13 +349,15 @@ internal class MaxInterstitialSlot(
             loadedAt = clock.nowMillis()
             lastLoadError = null
             lastLoadNetworkError = null
-            telemetry.loadSucceeded(format, slot, PRELOAD, clock.nowMillis())
-            telemetry.apiCalled(format, unit, null)
+            heldAdapterClassName = info.adapterClassName
+            networkLog.maxResult(slot, info.networks)
+            telemetry.loadSucceeded(format, slot, PRELOAD, clock.nowMillis(), AdPlatform.MAX)
+            telemetry.apiCalled(format, unit, info.adapterClassName)
             logger.info(TAG, "$label loaded")
         }
 
         override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) =
-            this@MaxInterstitialSlot.onLoadFailed(code)
+            this@MaxInterstitialSlot.onLoadFailed(code, networks)
 
         override fun onDisplayed() {
             if (format == AdFormat.REWARDED) {

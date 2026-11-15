@@ -622,6 +622,7 @@ class AdsController @Inject internal constructor(
         failuresInARow = { loadCounter.failuresInARow(MaxInterstitialSlot.SLOT) },
         logger = logger,
         fullScreenBusy = { presence.isBusy(clock.nowMillis()) },
+        networkLog = networkLog,
     )
 
     /**
@@ -641,6 +642,7 @@ class AdsController @Inject internal constructor(
         failuresInARow = { loadCounter.failuresInARow(MaxInterstitialSlot.REWARDED_SLOT) },
         logger = logger,
         networkError = { isMaxNetworkLoadError(it, offline = !online.value) },
+        networkLog = networkLog,
     )
 
     /**
@@ -660,6 +662,7 @@ class AdsController @Inject internal constructor(
         failuresInARow = { loadCounter.failuresInARow(MaxInterstitialSlot.APP_OPEN_SLOT) },
         logger = logger,
         fullScreenBusy = { presence.isBusy(clock.nowMillis()) },
+        networkLog = networkLog,
     )
 
     /** One slot of the preload plan per full-screen placement. */
@@ -1212,6 +1215,8 @@ class AdsController @Inject internal constructor(
         loadState: String,
     ): Boolean {
         val unit = maxConfig.unitFor(AdFormat.INTERSTITIAL).orEmpty()
+        // The adapter of the ad held, for `ad_source` of the funnel (plan T-072): read before the take empties the slot.
+        val adapter = maxInterstitials.heldAdapterClassName
         val ad = maxInterstitials.take(
             placement,
             object : MaxInterstitialListener {
@@ -1220,7 +1225,7 @@ class AdsController @Inject internal constructor(
                 override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) = Unit
 
                 override fun onDisplayed() {
-                    telemetry.displayed(AdFormat.INTERSTITIAL, unit, null)
+                    telemetry.displayed(AdFormat.INTERSTITIAL, unit, adapter)
                     // N-05, as for AdMob.
                     scope.launch {
                         val count = interDisplayCounter.increment()
@@ -1235,11 +1240,11 @@ class AdsController @Inject internal constructor(
                 }
 
                 override fun onDisplayFailed(code: Int) {
-                    onInterstitialShowFailed(placement, turn, code)
+                    onInterstitialShowFailed(placement, turn, code, AdPlatform.MAX)
                     maxInterstitials.onClosedOrShowFailed()
                 }
 
-                override fun onClicked() = telemetry.clicked(AdFormat.INTERSTITIAL, placement)
+                override fun onClicked() = telemetry.clicked(AdFormat.INTERSTITIAL, placement, AdPlatform.MAX)
             },
         )
         if (ad == null) {
@@ -1283,10 +1288,15 @@ class AdsController @Inject internal constructor(
         fullScreenReloads.onClosedOrShowFailed(placement)
     }
 
-    /** The interstitial of [turn] failed to show (SDK). */
-    internal fun onInterstitialShowFailed(placement: AdPlacement, turn: FullScreenCompletion, code: Int) {
+    /** The interstitial of [turn] failed to show (SDK of [platform]: the reason of `ad_show_fail` follows it). */
+    internal fun onInterstitialShowFailed(
+        placement: AdPlacement,
+        turn: FullScreenCompletion,
+        code: Int,
+        platform: AdPlatform = AdPlatform.ADMOB,
+    ) {
         logger.warn(TAG, "Interstitial ${placement.key} failed to show: $code")
-        telemetry.showFailed(AdFormat.INTERSTITIAL, placement, code)
+        telemetry.showFailed(AdFormat.INTERSTITIAL, placement, code, platform)
         endTurn(turn, "show_failed")
         fullScreenReloads.onClosedOrShowFailed(placement)
     }
@@ -1407,14 +1417,14 @@ class AdsController @Inject internal constructor(
 
                 override fun onDisplayFailed(code: Int) {
                     logger.warn(TAG, "App open ${placement.key} failed to show: $code")
-                    telemetry.showFailed(AdFormat.APP_OPEN, placement, code)
+                    telemetry.showFailed(AdFormat.APP_OPEN, placement, code, AdPlatform.MAX)
                     maxAppOpens.onClosedOrShowFailed()
                     endTurn(turn, "show_failed")
                     fullScreenReloads.onClosedOrShowFailed(placement)
                 }
 
                 // A-14: the next resume ad is suppressed.
-                override fun onClicked() = telemetry.clicked(AdFormat.APP_OPEN, placement)
+                override fun onClicked() = telemetry.clicked(AdFormat.APP_OPEN, placement, AdPlatform.MAX)
             },
         )
         if (ad == null) {
@@ -1600,7 +1610,8 @@ class AdsController @Inject internal constructor(
      */
     private fun takeMaxRewarded(declaration: AdPlacementDeclaration): Boolean {
         val placement = declaration.placement()
-        val show = MaxRewardedShow(declaration)
+        // The adapter of the ad held, for `ad_source` of the funnel (plan T-072): read before the take.
+        val show = MaxRewardedShow(declaration, maxRewardeds.heldAdapterClassName)
         maxRewardeds.take(placement, show) ?: return false
         showingMaxRewardeds[placement] = show
         showingRewardeds -= placement
@@ -1625,7 +1636,8 @@ class AdsController @Inject internal constructor(
      * AdMob, only while this turn is the one of its placement, since the SDK object is shared by every turn. The slot
      * loads again 2 seconds after the close or a failed show that ends the turn (F-06); no `ads_interval` mark (R-05).
      */
-    private inner class MaxRewardedShow(val declaration: AdPlacementDeclaration) : MaxInterstitialListener {
+    private inner class MaxRewardedShow(val declaration: AdPlacementDeclaration, private val adapter: String?) :
+        MaxInterstitialListener {
         private val placement = declaration.placement()
         private val current: Boolean get() = showingMaxRewardeds[placement] === this
 
@@ -1635,7 +1647,7 @@ class AdsController @Inject internal constructor(
 
         override fun onDisplayed() {
             if (!current) return
-            telemetry.displayed(AdFormat.REWARDED, maxConfig.unitFor(AdFormat.REWARDED).orEmpty(), null)
+            telemetry.displayed(AdFormat.REWARDED, maxConfig.unitFor(AdFormat.REWARDED).orEmpty(), adapter)
             rewardedTurns.onShowed(declaration)
         }
 
@@ -1655,14 +1667,14 @@ class AdsController @Inject internal constructor(
         override fun onDisplayFailed(code: Int) {
             if (!current) return
             logger.warn(TAG, "Rewarded ${placement.key} failed to show (MAX): $code")
-            telemetry.showFailed(AdFormat.REWARDED, placement, code)
+            telemetry.showFailed(AdFormat.REWARDED, placement, code, AdPlatform.MAX)
             rewardedTurns.onShowFailed(declaration, code)
             endIfTurnOver()
             fullScreenReloads.onClosedOrShowFailed(placement)
         }
 
         override fun onClicked() {
-            if (current) telemetry.clicked(AdFormat.REWARDED, placement)
+            if (current) telemetry.clicked(AdFormat.REWARDED, placement, AdPlatform.MAX)
         }
 
         /** Every show of the turn failed (R-04): the turn is over, the slot loads again (F-06). */

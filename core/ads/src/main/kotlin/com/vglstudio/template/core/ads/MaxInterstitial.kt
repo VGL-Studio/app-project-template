@@ -12,8 +12,10 @@ import com.applovin.mediation.ads.MaxInterstitialAd
  * [MaxInterstitialSlot] and `AdsController` read them.
  */
 internal interface MaxInterstitialListener {
+    /** Loaded: [info] has the adapter of the network that loaded and the networks tried (plan T-072). */
     fun onLoaded(info: MaxAdInfo)
 
+    /** The load failed with [code]; [networks] are the networks tried (plan T-072). */
     fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>)
 
     fun onDisplayed()
@@ -61,14 +63,15 @@ internal class AppLovinMaxInterstitial(adUnitId: String, context: Context) : Max
     override var onRevenue: ((MaxAdInfo) -> Unit)? = null
 
     init {
+        ad.setRevenueListener { onRevenue?.invoke(maxAdInfoOf(it)) }
         ad.setListener(
             object : MaxAdListener {
                 override fun onAdLoaded(maxAd: MaxAd) {
-                    listener?.onLoaded(MaxAdInfo.EMPTY)
+                    listener?.onLoaded(maxAdInfoOf(maxAd))
                 }
 
                 override fun onAdLoadFailed(adUnitId: String, error: MaxError) {
-                    listener?.onLoadFailed(error.code, emptyList())
+                    listener?.onLoadFailed(error.code, maxNetworkAttemptsOf(error.waterfall))
                 }
 
                 override fun onAdDisplayed(maxAd: MaxAd) {

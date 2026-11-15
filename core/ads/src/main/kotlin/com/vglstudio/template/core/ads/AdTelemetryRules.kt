@@ -1,6 +1,7 @@
 package com.vglstudio.template.core.ads
 
 import com.applovin.mediation.MaxErrorCode
+import com.applovin.mediation.adapter.MaxAdapterError
 import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.AdMetricPlatform
 
@@ -91,14 +92,31 @@ internal fun maxLoadStateAfterError(code: Int, offline: Boolean): String = when 
 internal fun isSdkThrottledMessage(message: String?): Boolean =
     message?.contains(SDK_THROTTLED_MESSAGE, ignoreCase = true) == true
 
-/** The platform of the metrics of a load, a click or a revenue of [this] platform. */
-internal fun AdPlatform.metricPlatform(): AdMetricPlatform = AdMetricPlatform.ADMOB
+/** `ad_platform` of the metrics of [this] platform (spec `ads`, question 46). Exhaustive on purpose, with no `else`. */
+internal fun AdPlatform.metricPlatform(): AdMetricPlatform = when (this) {
+    AdPlatform.ADMOB -> AdMetricPlatform.ADMOB
+    AdPlatform.MAX -> AdMetricPlatform.APPLOVIN
+}
 
-/** T-03 for MAX: an unknown network is `applovin`. */
-internal fun maxAdSourceOrApplovin(name: String?): String = ADMOB
+/** T-03 for MAX (plan T-072, question 1): an unknown network is `applovin`. */
+internal fun maxAdSourceOrApplovin(name: String?): String = if (name.isNullOrEmpty()) APPLOVIN else name
 
-/** `show_fail_reason` of a code of `onAdDisplayFailed` of MAX. */
-internal fun maxShowFailReasonOf(code: Int): String = "unknown"
+/**
+ * `show_fail_reason` of a code of `onAdDisplayFailed` of AppLovin MAX (section 8.2; plan T-072, question 3): the
+ * codes of [MaxErrorCode] and [MaxAdapterError], read with javap on applovin-sdk 13.6.4. Any other code is `unknown`.
+ */
+internal fun maxShowFailReasonOf(code: Int): String = when (code) {
+    MaxErrorCode.FULLSCREEN_AD_NOT_READY,
+    MaxAdapterError.ERROR_CODE_AD_NOT_READY,
+    MaxAdapterError.ERROR_CODE_AD_EXPIRED,
+    -> "not_ready"
+    MaxErrorCode.FULLSCREEN_AD_ALREADY_SHOWING -> "ad_reused"
+    MaxAdapterError.ERROR_CODE_MISSING_ACTIVITY, MaxErrorCode.DONT_KEEP_ACTIVITIES_ENABLED -> "app_not_foreground"
+    MaxAdapterError.ERROR_CODE_AD_DISPLAY_FAILED -> "mediation_show_error"
+    MaxErrorCode.UNSPECIFIED, MaxAdapterError.ERROR_CODE_UNSPECIFIED, MaxAdapterError.ERROR_CODE_INTERNAL_ERROR ->
+        "internal"
+    else -> "unknown"
+}
 
 /** `show_fail_reason` of a code of `FullScreenContentCallback.onAdFailedToShowFullScreenContent`. */
 internal fun showFailReasonOf(code: Int): String = when (code) {
@@ -145,5 +163,6 @@ internal const val PRELOAD = "preload"
 
 private const val POOL = "pool"
 private const val ADMOB = "admob"
+private const val APPLOVIN = "applovin"
 private const val MICROS_PER_UNIT = 1_000_000.0
 private const val SDK_THROTTLED_MESSAGE = "Too many recently failed requests"
