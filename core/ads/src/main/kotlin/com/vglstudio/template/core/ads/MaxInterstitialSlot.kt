@@ -9,9 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The one full-screen slot of AppLovin MAX of a [format] (one MAX ad unit per format, M-10): interstitial (plan T-069)
- * or rewarded (plan T-106). It holds at most one loaded ad, shared by every placement of the format that has MAX in
- * its platforms. Main thread only.
+ * The one full-screen slot of AppLovin MAX of a [format] (one MAX ad unit per format, M-10): interstitial (plan T-069),
+ * rewarded (plan T-106) or app open (plan T-070, the resume ad only). It holds at most one loaded ad, shared by every
+ * placement of the format that has MAX in its platforms. Main thread only.
  *
  * Every way to a send goes through [send]: a load the controller asks for ([loadIfNeeded]), the wait for MAX to be
  * ready ([maxReady]), the retry after a failed load (F-05) and the reload after a close or a failed show (F-06). Right
@@ -23,6 +23,11 @@ import kotlinx.coroutines.launch
  * (the close, or a failed show of every show call before the ad came on screen), the slot sends nothing, then loads
  * again 2 seconds later (F-06), even when the controller ended the turn before. With no such report within
  * [FullScreenAdPresence.SHOWING_CAP_MILLIS] (F-02), the next send destroys that object and builds a new one.
+ *
+ * The app open slot (plan T-070) reloads 2 seconds after a close or a failed show and sends nothing else before then
+ * (ADR-0045, section 2.4): the reload of the placement (0 ms for AdMob, F-06) and a resume not ready meanwhile are
+ * held. An ad an hour old is dropped (A-07): [state] reads Idle, and the next send or take destroys the SDK object, so
+ * the next load builds a new one.
  */
 internal class MaxInterstitialSlot(
     private val format: AdFormat = AdFormat.INTERSTITIAL,
@@ -42,18 +47,29 @@ internal class MaxInterstitialSlot(
     private val networkError: (code: Int) -> Boolean = { false },
 ) {
     init {
-        require(format == AdFormat.INTERSTITIAL || format == AdFormat.REWARDED) { "$format has no MAX slot here" }
+        require(format == AdFormat.INTERSTITIAL || format == AdFormat.REWARDED || format == AdFormat.APP_OPEN) {
+            "$format has no MAX slot here"
+        }
     }
 
     /** The key of the load counter of this slot (plan T-106). */
     val slot: String = slotOf(format)
 
     /** The label of the slot in the log. */
-    private val label = if (format == AdFormat.REWARDED) "Rewarded (MAX)" else "Interstitial (MAX)"
+    private val label = when (format) {
+        AdFormat.REWARDED -> "Rewarded (MAX)"
+        AdFormat.APP_OPEN -> "App open (MAX)"
+        else -> "Interstitial (MAX)"
+    }
 
-    /** Ready while an ad is held; Loading; WaitingRetry after a failure; Idle. */
-    var state: FullScreenLoadState = FullScreenLoadState.Idle
-        private set
+    /** The state as the slot keeps it; [state] reads it with the age limit of app open. */
+    private var current: FullScreenLoadState = FullScreenLoadState.Idle
+
+    /**
+     * Ready while an ad is held; Loading; WaitingRetry after a failure; Idle. An app open ad an hour old reads Idle
+     * (A-07); reading has no side effect.
+     */
+    val state: FullScreenLoadState get() = if (expiredAt(clock.nowMillis())) FullScreenLoadState.Idle else current
 
     /** `load_state` of the latest failed load (section 8.2), null once a load succeeds. */
     var lastLoadError: String? = null
@@ -97,6 +113,12 @@ internal class MaxInterstitialSlot(
     /** The one retry or reload waiting; a new one replaces it. */
     private var pending: Job? = null
 
+    /** App open only: when the reload after the last close is due; every send waits until then (plan T-070). */
+    private var reloadDueAt: Long? = null
+
+    /** App open only: when the ad held was loaded (A-07). */
+    private var loadedAt = 0L
+
     init {
         scope.launch {
             maxReady.collect { ready ->
@@ -116,8 +138,9 @@ internal class MaxInterstitialSlot(
      * the next take. Null when none is held.
      */
     fun take(onShow: MaxInterstitialListener? = null): MaxInterstitialSdkAd? {
-        if (state != FullScreenLoadState.Ready) return null
-        state = FullScreenLoadState.Idle
+        dropIfExpired()
+        if (current != FullScreenLoadState.Ready) return null
+        current = FullScreenLoadState.Idle
         if (format != AdFormat.REWARDED) showing = true
         showCallbacks = onShow
         displayed = false
@@ -154,6 +177,7 @@ internal class MaxInterstitialSlot(
     }
 
     private fun send() {
+        dropIfExpired()
         val unit = unitId() ?: return
         if (format == AdFormat.REWARDED && rewardedShowBlocksLoad()) return
         // The showing flag is the interstitial's; the rewarded slot never sets it.
@@ -166,21 +190,24 @@ internal class MaxInterstitialSlot(
             showing = false
             showCallbacks = null
         }
-        if (!needsLoad(state, clock.nowMillis(), gateOpen = true)) return
+        // App open: the reload after the close sends at its time; nothing else before (ADR-0045, section 2.4).
+        val holdUntil = reloadDueAt
+        if (holdUntil != null && clock.nowMillis() < holdUntil) return
+        if (!needsLoad(current, clock.nowMillis(), gateOpen = true)) return
         if (!maxReady.value) {
             wanted = true
             return
         }
         // Loading before anything that suspends: two calls in one frame send once (L-068).
-        state = FullScreenLoadState.Loading
+        current = FullScreenLoadState.Loading
         scope.launch {
             if (!shouldLoad()) {
-                state = FullScreenLoadState.Idle
+                current = FullScreenLoadState.Idle
                 logger.info(TAG, "$label not requested: not in order or placements off")
                 return@launch
             }
             if (!mayRequestNow()) {
-                state = FullScreenLoadState.Idle
+                current = FullScreenLoadState.Idle
                 logger.info(TAG, "$label not requested: consent gate closed")
                 return@launch
             }
@@ -213,7 +240,40 @@ internal class MaxInterstitialSlot(
         return false
     }
 
-    private fun scheduleReload() = schedule(AdRetryPolicy.reloadAfterCloseMillis(format))
+    /**
+     * App open (A-07): the ad held is an hour old. Reading only, no side effect; a negative age counts as fresh
+     * (AR-01). Reads [current], never [state].
+     */
+    private fun expiredAt(now: Long): Boolean = format == AdFormat.APP_OPEN &&
+        current == FullScreenLoadState.Ready &&
+        now - loadedAt >= APP_OPEN_MAX_AGE_MILLIS
+
+    /** An app open ad an hour old leaves the slot: its SDK object is destroyed, the next load builds a new one. */
+    private fun dropIfExpired() {
+        if (!expiredAt(clock.nowMillis())) return
+        ad?.let {
+            it.listener = null
+            it.destroy()
+        }
+        ad = null
+        current = FullScreenLoadState.Idle
+        logger.info(TAG, "$label expired")
+    }
+
+    private fun scheduleReload() {
+        val wait = AdRetryPolicy.maxReloadAfterCloseMillis(format)
+        if (format != AdFormat.APP_OPEN) {
+            schedule(wait)
+            return
+        }
+        reloadDueAt = clock.nowMillis() + wait
+        pending?.cancel()
+        pending = scope.launch {
+            delay(wait)
+            reloadDueAt = null
+            send()
+        }
+    }
 
     private fun schedule(waitMillis: Long) {
         pending?.cancel()
@@ -228,14 +288,15 @@ internal class MaxInterstitialSlot(
         lastLoadNetworkError = networkError(code)
         val wait = AdRetryPolicy.fullScreenDelayMillis(failuresInARow())
         logger.warn(TAG, "$label failed to load: $code; retry in $wait ms")
-        state = FullScreenLoadState.WaitingRetry(clock.nowMillis() + wait)
+        current = FullScreenLoadState.WaitingRetry(clock.nowMillis() + wait)
         schedule(wait)
     }
 
     /** The callbacks of the one SDK object: the load ones here, the show ones passed to [showCallbacks]. */
     private inner class Callbacks(private val unit: String) : MaxInterstitialListener {
         override fun onLoaded() {
-            state = FullScreenLoadState.Ready
+            current = FullScreenLoadState.Ready
+            loadedAt = clock.nowMillis()
             lastLoadError = null
             lastLoadNetworkError = null
             telemetry.loadSucceeded(format, slot, PRELOAD, clock.nowMillis())
@@ -305,9 +366,14 @@ internal class MaxInterstitialSlot(
     companion object {
         const val SLOT = "preload:interstitial/max"
         const val REWARDED_SLOT = "preload:rewarded/max"
+        const val APP_OPEN_SLOT = "preload:app_open/max"
         private const val TAG = "Ads"
 
         /** The key of the load counter of the MAX slot of [format]. */
-        fun slotOf(format: AdFormat): String = if (format == AdFormat.REWARDED) REWARDED_SLOT else SLOT
+        fun slotOf(format: AdFormat): String = when (format) {
+            AdFormat.REWARDED -> REWARDED_SLOT
+            AdFormat.APP_OPEN -> APP_OPEN_SLOT
+            else -> SLOT
+        }
     }
 }

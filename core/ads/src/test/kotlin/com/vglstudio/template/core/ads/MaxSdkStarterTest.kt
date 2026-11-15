@@ -194,6 +194,19 @@ class MaxSdkStarterTest {
         assertNull(MaxConfig("", "rewarded=r4").unitFor(AdFormat.REWARDED))
     }
 
+    @Test
+    fun maxConfig_unitFor_appOpenSlot() {
+        // Plan T-070 (M-10): one MAX app open unit, slot `app_open`.
+        val config = MaxConfig(FAKE_KEY, "app_open=a5")
+        assertEquals("a5", config.unitFor(AdFormat.APP_OPEN))
+        assertNull(config.unitFor(AdFormat.INTERSTITIAL))
+        val text = config.toString()
+        assertTrue(text, "units=1" in text)
+        assertFalse(text, "a5" in text)
+        // No SDK key: no unit.
+        assertNull(MaxConfig("", "app_open=a5").unitFor(AdFormat.APP_OPEN))
+    }
+
     private companion object {
         /** A fake key of the real length (86 characters), with FAKE so the secret scan lets it through. */
         val FAKE_KEY = "FAKE" + "k".repeat(82)

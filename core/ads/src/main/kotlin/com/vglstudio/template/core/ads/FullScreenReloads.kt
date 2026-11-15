@@ -12,8 +12,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Retries and reloads of the full-screen placements (F-05, F-06, S-15; O-05 for native full screen, question 4 of
- * plan T-021). One pending retry or reload per placement: a new one replaces it. The due call goes to [loadIfNeeded]
- * (`loadFullScreenAdIfNeeded` of T-022), which checks the gate at that time (F-04). Main thread only.
+ * plan T-021). One pending retry and one pending reload per placement, apart (plan T-070): a new retry replaces the
+ * retry, a new reload replaces the reload, and a reload never cancels a retry, since with two platforms the ad of one
+ * may close while the other waits for its retry. The due call goes to [loadIfNeeded] (`loadFullScreenAdIfNeeded` of
+ * T-022), which checks the gate and the state of each platform at that time (F-04). Main thread only.
  *
  * Native full screen (plan T-103): its failures in a row are its own ([NativeRetryCount] per placement, not the
  * counter of the metrics), back to 1 when it loads ([onLoaded]) or when [failureResets] moves; Internet back
@@ -36,7 +38,11 @@ internal class FullScreenReloads(
     /** Native full screen only: a retry wait cut short by [retryResets], once in foreground. */
     private val onRetryCutShort: (AdPlacement) -> Unit = {},
 ) {
-    private val pending = mutableMapOf<AdPlacement, Job>()
+    /** The retry after a failed load (F-05, O-05) waiting, per placement. */
+    private val retries = mutableMapOf<AdPlacement, Job>()
+
+    /** The reload after a close or a failed show (F-06) waiting, per placement. */
+    private val reloads = mutableMapOf<AdPlacement, Job>()
 
     /** The failures in a row of each native full-screen placement (O-05). */
     private val nativeCounts = mutableMapOf<AdPlacement, NativeRetryCount>()
@@ -55,7 +61,7 @@ internal class FullScreenReloads(
         }
         logger.info(TAG, "Retry ${placement.key} in $wait ms (failures $failures, code $code)")
         val dueAt = clock.nowMillis() + wait
-        if (native) scheduleNativeRetry(placement, wait) else schedule(placement, wait)
+        if (native) scheduleNativeRetry(placement, wait) else schedule(retries, placement, wait)
         return FullScreenLoadState.WaitingRetry(dueAt)
     }
 
@@ -64,38 +70,39 @@ internal class FullScreenReloads(
         nativeCounts[placement]?.onLoaded()
     }
 
-    /** S-15: nothing sent, not a failure, no retry. */
+    /** S-15: nothing sent, not a failure, no retry and no reload. */
     fun onSendBlocked(placement: AdPlacement): FullScreenLoadState.Idle {
-        pending.remove(placement)?.cancel()
+        retries.remove(placement)?.cancel()
+        reloads.remove(placement)?.cancel()
         return FullScreenLoadState.Idle
     }
 
-    /** F-06: reload after closing or failing to show. */
+    /** F-06: reload after closing or failing to show; a retry waiting for the placement is kept (plan T-070). */
     fun onClosedOrShowFailed(placement: AdPlacement) {
         val wait = AdRetryPolicy.reloadAfterCloseMillis(placement.format)
         logger.info(TAG, "Reload ${placement.key} in $wait ms")
-        schedule(placement, wait)
+        schedule(reloads, placement, wait)
     }
 
     /** The retry of a native full-screen placement: due at [waitMillis], or sooner when Internet is back (S-24). */
     private fun scheduleNativeRetry(placement: AdPlacement, waitMillis: Long) {
-        pending.remove(placement)?.cancel()
-        pending[placement] = scope.launch {
+        retries.remove(placement)?.cancel()
+        retries[placement] = scope.launch {
             val resets = retryResets()
             val generation = resets.value
             val cutShort = withTimeoutOrNull(waitMillis) { resets.first { it != generation } } != null
             foreground.first { it }
-            pending -= placement
+            retries -= placement
             if (cutShort) onRetryCutShort(placement) else loadIfNeeded(placement)
         }
     }
 
-    private fun schedule(placement: AdPlacement, waitMillis: Long) {
-        pending.remove(placement)?.cancel()
-        pending[placement] = scope.launch {
+    private fun schedule(jobs: MutableMap<AdPlacement, Job>, placement: AdPlacement, waitMillis: Long) {
+        jobs.remove(placement)?.cancel()
+        jobs[placement] = scope.launch {
             delay(waitMillis)
             if (placement.format == AdFormat.NATIVE_FULL_SCREEN) foreground.first { it }
-            pending -= placement
+            jobs -= placement
             loadIfNeeded(placement)
         }
     }

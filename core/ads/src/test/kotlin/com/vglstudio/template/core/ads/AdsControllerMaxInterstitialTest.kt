@@ -538,6 +538,25 @@ class AdsControllerMaxInterstitialTest {
         assertEquals(true, show())
     }
 
+    // Plan T-070, step 6b
+
+    @Test
+    fun admobWaitingRetry_maxShownAndClosed_admobRetriesAtDue() {
+        start("max_admob")
+        loadMax()
+        assertEquals(1, requested.count { it == AdPlacement.GALLERY_INTERSTITIAL })
+        // The second AdMob failure: its retry is due 4 s later (F-05).
+        idleFor(2_100)
+        assertEquals(2, requested.count { it == AdPlacement.GALLERY_INTERSTITIAL })
+        assertEquals(true, show())
+        assertEquals(1, maxAd.showCount)
+        maxAd.emitHidden()
+        idle()
+        // The reload after the close (2 s) does not cancel that retry: AdMob is sent a third time when it is due.
+        idleFor(4_000)
+        assertEquals(3, requested.count { it == AdPlacement.GALLERY_INTERSTITIAL })
+    }
+
     private companion object {
         const val MAX_UNIT = "FAKE_UNIT_A"
         const val MAX_NO_NETWORK = -1009
