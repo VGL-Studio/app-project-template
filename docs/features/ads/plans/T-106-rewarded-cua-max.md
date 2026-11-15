@@ -1,16 +1,16 @@
 ---
 ticket: T-106
 title: Rewarded của MAX qua lượt quyết định rewarded chung
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
 token_estimate: 19.4M        # cỡ M (scripts/token-usage.py estimate, 2026-11-15); gần T-069 về số test
 blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
+approved_at: 2026-11-15
 lane:                        # để trống: phiên tự chạy
 ---
 
@@ -338,8 +338,8 @@ Không đề xuất sửa spec: KB-31 và câu hỏi 41, 42 đã nói rewarded c
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C; duyệt cả đợt 2026-11-15-01, PR #505), nguyên văn: "Xác nhận spec ads (mục 6), duyệt plan T-106, T-070, T-072 theo đề xuất ở mục 8, chấp nhận kiểm thủ công thay chạy thử cho T-106, phiên tự chạy." Mọi câu ở mục 8 theo đề xuất của AI. Chấp nhận kiểm thủ công trên máy thật thay cho chạy thử (tiêu chí E = 2, mục 4.1).
 
 ## 10. Nhật ký thực hiện

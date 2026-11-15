@@ -5,9 +5,9 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-31, KB-22, KB-28]
 owner: Nhật
-status: planned
+status: approved
 risk: high
-size: S
+size: M
 depends_on: [T-069, T-106, T-070]
 sprint:
 plan: features/ads/plans/T-072-doanh-thu-va-pheu-cua-max.md
