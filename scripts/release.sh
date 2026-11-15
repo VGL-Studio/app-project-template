@@ -188,13 +188,13 @@ if grep -rqsE --include='*.gradle.kts' --exclude-dir=build --exclude-dir=.gradle
   fi
 else
   if [ -n "$max_sdk_key" ]; then
-    echo "CHÚ Ý: app không có adapter MAX, maxSdkKey trong release.properties không được dùng."
+    echo "CHÚ Ý: app không có adapter MAX, maxSdkKey không được dùng (release.properties)."
     max_sdk_key=""
   fi
   max_summary="không có trong app"
 fi
 if [ -z "$max_sdk_key" ] && [ -n "$max_ad_units" ]; then
-  echo "CHÚ Ý: không có khóa MAX, maxAdUnits trong release.properties không được dùng."
+  echo "CHÚ Ý: không có khóa MAX, maxAdUnits không được dùng (release.properties)."
   max_ad_units=""
 fi
 if [ -n "$max_sdk_key" ]; then
