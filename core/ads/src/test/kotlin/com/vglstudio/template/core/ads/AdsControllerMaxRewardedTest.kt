@@ -703,6 +703,22 @@ class AdsControllerMaxRewardedTest {
         assertEquals("network", opportunities().single().loadState)
     }
 
+    @Test
+    fun maxFirst_maxFailed_admobNeverSent_opportunityHasMaxLoadState() {
+        // MAX alone loads and fails on the network; the order then puts AdMob second, AdMob not sent yet when tapped.
+        start("max")
+        controller.loadFullScreenAdIfNeeded(RW)
+        idle()
+        maxAd.emitLoadFailed(MAX_NO_NETWORK)
+        idle()
+        settings.set(AdsSettings.ADS_MEDIATION_ORDER, "max_admob")
+        idle()
+        assertTrue(rewardedRequested.toString(), rewardedRequested.isEmpty())
+        tap()
+        assertEquals("not_ready", opportunities().single().result)
+        assertEquals("network", opportunities().single().loadState)
+    }
+
     // No MAX key: as before
 
     @Test

@@ -1280,10 +1280,6 @@ class RewardedTurnsTest {
         assertEquals(listOf(Triple("rw_get_item", "not_ready", "ready")), port.opportunities)
     }
 
-    /**
-     * The port of [RewardedTurns] without the SDK: switches and states per placement code, every call recorded.
-     * [ready] turns false once the ad is taken out to be shown, like the cache of [AdsController].
-     */
     // Plan T-106: R-03 through the port, the turn still waiting, F-08 during the wait for the switch
 
     @Test
@@ -1366,6 +1362,10 @@ class RewardedTurnsTest {
         assertTrue(port.takes.isEmpty())
     }
 
+    /**
+     * The port of [RewardedTurns] without the SDK: switches and states per placement code, every call recorded.
+     * [ready] turns false once the ad is taken out to be shown, like the cache of [AdsController].
+     */
     private class FakeRewardedPort : RewardedPort {
         lateinit var turns: RewardedTurns
         var consentOpen = true
