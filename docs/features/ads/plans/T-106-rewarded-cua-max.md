@@ -1,7 +1,7 @@
 ---
 ticket: T-106
 title: Rewarded của MAX qua lượt quyết định rewarded chung
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -343,3 +343,19 @@ Không đề xuất sửa spec: KB-31 và câu hỏi 41, 42 đã nói rewarded c
 - **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C; duyệt cả đợt 2026-11-15-01, PR #505), nguyên văn: "Xác nhận spec ads (mục 6), duyệt plan T-106, T-070, T-072 theo đề xuất ở mục 8, chấp nhận kiểm thủ công thay chạy thử cho T-106, phiên tự chạy." Mọi câu ở mục 8 theo đề xuất của AI. Chấp nhận kiểm thủ công trên máy thật thay cho chạy thử (tiêu chí E = 2, mục 4.1).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261115-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #506, commit merge `1767fd4`, 2026-11-15 17:14 UTC).
+- **Nhánh, PR:** `claude/T-106-rewarded-cua-max`, PR #506. Commit test `f3c281e` (test viết trước cùng khung rỗng và bản giả); code `a8916e5`; sửa theo rà soát `8aa93b3`.
+- **Đã làm:** mục 3.1 bước 1 tới 5: `MaxInterstitialSlot` thêm `format`, `networkError`, khóa `preload:rewarded/max`, nhãn `Rewarded (MAX)`, lượt hiện theo SDK (`sdkShowing`, `showTaken`, `releaseShow`, tự hẹn F-06, dự phòng trần 10 phút); `MaxRewarded.kt` (`AppLovinMaxRewarded`); `MaxSdk.kt` (`MAX_FORMATS` thêm `REWARDED`, `MaxPlatform.rewarded`, một bọc ngoài mỗi mã); hàm thuần `rewardedPlatforms`, `maxRewardedWanted`, `isMaxNetworkLoadError`, `rewardedNetworkError`; `RewardedTurns` (`networkError`, `hasTurn`, `DECISION_WAIT_MILLIS` thành `internal`); nối vào `AdsController` (gỡ kẹt và chủ biến mất gọi chung `endRewardedTurnsStuck()`); R-07, R-03, M-10, khóa `ads_mediation_order`, `ads-guide.md`.
+- **Test viết trước:** 70 test mới (`MaxRewardedSlotTest` 25, `AdsControllerMaxRewardedTest` 35, `FullScreenPlatformsTest` 3, `RewardedRulesTest` 2, `RewardedTurnsTest` 4, `MaxSdkStarterTest` 1) cùng dữ liệu chuỗi log của `AdsControllerMaxTest` (ADR-0029). Trên khung rỗng 69 đỏ đúng lý do (68 test mới và test dữ liệu): khe chưa phân định dạng, chưa nối `onRewarded`, chưa có `sdkShowing`, F-06, dự phòng; controller chưa có MAX rewarded và chưa nối điểm nối AdMob; hàm thuần trả mặc định. 17 test viết chặt bằng đối chứng (khóa bộ đếm, nhãn log, AdMob được gửi, trạng thái sau F-07). Qua ngay: `gateClosed_loadFullScreenAdIfNeeded_noSendNoLog` (test chặn; đối chứng perl của plan làm nó đỏ) và `RewardedTurnsTest.hostGoneDuringSwitchWait_notTaken` (khóa hành vi không đổi; đột biến bỏ kiểm `hostUsable` làm nó đỏ, do rà soát chạy). Đối chứng của plan sau commit code: cả ba đỏ rồi trả tệp.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 2 nên sửa, 6 ghi chú. Đã sửa (`8aa93b3`): (1) KDoc của `FakeRewardedPort` dời về trên lớp (ADR-0033/L12, `git diff -w` chỉ có chú thích); (2) thêm `maxFirst_maxFailed_admobNeverSent_opportunityHasMaxLoadState` theo đúng kịch bản mục 4 (MAX lỗi -1009, đổi thứ tự sang `max_admob`, AdMob chưa gửi), giữ test cũ; đột biến nhãn lấy của AdMob làm đỏ `expected:<[network]> but was:<[idle]>`. Vòng 2: 0 chặn, 0 nên sửa, 1 ghi chú (chú thích "AdMob fails with no fill (code 3)" của test cũ: AdMob giả mặc định trả lỗi no fill).
+- **Kết quả CI:** `scripts/check.sh` trên máy: lần 1 đỏ ở `AdsControllerMaxInterstitialTest.maxHidden_recordsIntervalMarkFirst_thenFinishes` (`NullPointerException ... looperControlService is null` trong `ShadowPausedLooper.resetLooperToInitialState`, lúc Robolectric dọn sandbox, sau thân test); chạy lại lớp 3 lần, module 2 lần, `check.sh` lần 2 và lần 3 đều QUA (2142 test JVM, 91 ảnh). Rà soát kết luận lỗi chập chờn của Robolectric (luồng nền của SDK GMS dựng Looper trong lúc dọn), không phải hành vi inter đổi, nên không áp điều kiện dừng ở mục 7. `pr-check` lần chạy 43738541368: xanh, một vòng.
+- **Lệch so với plan:**
+  1. `maxFirst_maxFailed_opportunityHasMaxLoadState` dựng AdMob lỗi no fill và MAX lỗi -1009 thay cho "AdMob chưa lỗi" (phiên con cho rằng không dựng được); rà soát chỉ ra dựng được, nên thêm test đúng kịch bản (mục Rà soát), test cũ giữ.
+  2. Khung rỗng trong commit test: `AppLovinMaxPlatform.rewarded` tạm trả `AppLovinMaxInterstitial`; commit code thay bằng `AppLovinMaxRewarded`.
+  3. Tài liệu: tên sự kiện thật `ad_reward_earned` (plan ghi `reward_earned`); `ads-guide.md` thêm hai dòng log có trong code (`Rewarded <khóa> failed to show (MAX): <mã>`, `Rewarded (MAX) still showing after the cap: object dropped`). Chữ R-07 không ghi mã ticket.
+  - Không có file ngoài mục 3.2, không có câu khẳng định cũ viết lại (ADR-0031), không có thay đổi ở file test sau commit test ngoài phần sửa theo rà soát.
+- **Việc còn lại:** kiểm thủ công trên máy thật với khóa và mã MAX thật (mục 4, nhất là bước 5 gỡ kẹt); không phát hành app bật rewarded MAX trước khi kiểm xong. Doanh thu MAX ở T-072.
+- **Cần người xem:** lỗi chập chờn Robolectric ở trên (gặp lại thì mở issue `flaky`); ghi chú của rà soát: lượt còn giữ (`showCallbacks != null`) thì khe không nạp kể cả sau trần 10 phút, chỉ thoát qua gỡ kẹt hay khi SDK báo kết thúc (theo plan); đường `activity == null` sau `take` (mục 3.4).
