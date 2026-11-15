@@ -86,12 +86,14 @@ internal class FakeMaxNetworkResponse(
     private val latencyMillis: Long,
     private val state: MaxNetworkResponseInfo.AdLoadState,
     private val error: MaxError? = null,
+    private val stateThrows: Boolean = false,
 ) : MaxNetworkResponseInfo {
     override fun getMediatedNetwork(): MaxMediatedNetworkInfo? = network
 
     override fun getLatencyMillis(): Long = latencyMillis
 
-    override fun getAdLoadState(): MaxNetworkResponseInfo.AdLoadState = state
+    override fun getAdLoadState(): MaxNetworkResponseInfo.AdLoadState =
+        if (stateThrows) throw IllegalStateException("load state") else state
 
     override fun getError(): MaxError? = error
 

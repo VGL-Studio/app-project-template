@@ -164,6 +164,23 @@ class MaxAdInfoTest {
     }
 
     /** AppLovin failed (-5208), Google loaded, Mintegral not tried: the order of the SDK. */
+    @Test
+    fun adInfo_loadStateGetterThrows_noCrash_adapterOfLoadedNetwork() {
+        val throwing = FakeMaxNetworkResponse(
+            FakeMaxNetwork("AppLovin", APPLOVIN_ADAPTER),
+            10,
+            AdLoadState.AD_LOADED,
+            stateThrows = true,
+        )
+        val waterfall = FakeMaxWaterfall(listOf(throwing, response(GOOGLE_ADAPTER, "Google", AdLoadState.AD_LOADED)))
+
+        val info = maxAdInfoOf(FakeMaxAd(revenue = 0.0123, waterfall = waterfall))
+
+        assertEquals(0.0123, info.revenueUsd, 0.0)
+        assertEquals(GOOGLE_ADAPTER, info.adapterClassName)
+        assertEquals(2, info.networks.size)
+    }
+
     private fun threeNetworks() = FakeMaxWaterfall(
         listOf(
             response(APPLOVIN_ADAPTER, "AppLovin", AdLoadState.FAILED_TO_LOAD, FakeMaxError(-5208), latency = 80),
