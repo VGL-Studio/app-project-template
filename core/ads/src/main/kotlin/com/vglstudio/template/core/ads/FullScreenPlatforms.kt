@@ -39,6 +39,14 @@ internal fun interstitialPlatforms(
     }
 }
 
+/** Skeleton of plan T-070. */
+internal fun appOpenPlatforms(
+    placement: AdPlacement,
+    order: MediationOrder,
+    hasAdmobUnit: Boolean,
+    hasMaxUnit: Boolean,
+): List<AdPlatform> = emptyList()
+
 /** The first of [platforms] holding an ad now, or null (ADR-0045, section 2.2). */
 internal fun readyPlatform(platforms: List<AdPlatform>, admobReady: Boolean, maxReady: Boolean): AdPlatform? =
     platforms.firstOrNull {

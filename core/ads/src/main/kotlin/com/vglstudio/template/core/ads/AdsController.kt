@@ -1696,6 +1696,10 @@ class AdsController @Inject internal constructor(
     @VisibleForTesting
     internal var rewardedRequestForTest: ((AdPlacement) -> RewardedAd?)? = null
 
+    /** Skeleton of plan T-070. */
+    @VisibleForTesting
+    internal var appOpenRequestForTest: ((AdPlacement) -> AppOpenAd?)? = null
+
     /** Tests only: the code of a failed load of [rewardedRequestForTest]; no fill by default (plan T-106). */
     @VisibleForTesting
     internal var rewardedLoadErrorCodeForTest: Int = NO_FILL_CODE_FOR_TEST

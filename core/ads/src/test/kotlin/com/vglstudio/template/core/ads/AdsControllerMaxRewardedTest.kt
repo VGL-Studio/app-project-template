@@ -732,6 +732,26 @@ class AdsControllerMaxRewardedTest {
         assertTrue(rewardedRequested.toString(), RW in rewardedRequested)
     }
 
+    // Plan T-070, step 6b
+
+    @Test
+    fun admobWaitingRetry_maxShownAndClosed_admobRetriesAtDue() {
+        start("max_admob")
+        loadMax()
+        assertEquals(1, rewardedRequested.count { it == RW })
+        // The second AdMob failure: its retry is due 4 s later (F-05).
+        idleFor(2_100)
+        assertEquals(2, rewardedRequested.count { it == RW })
+        tap()
+        assertEquals(1, maxAd.showCount)
+        maxAd.emitDisplayed()
+        maxAd.emitHidden()
+        idle()
+        // The reload after the close (2 s) does not cancel that retry: AdMob is sent a third time when it is due.
+        idleFor(4_000)
+        assertEquals(3, rewardedRequested.count { it == RW })
+    }
+
     private companion object {
         val RW = AdPlacement.GALLERY_RW_ACTION
         const val MAX_UNIT = "FAKE_UNIT_R"

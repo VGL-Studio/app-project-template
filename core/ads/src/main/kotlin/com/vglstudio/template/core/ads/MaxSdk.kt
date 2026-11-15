@@ -67,6 +67,9 @@ internal interface MaxPlatform {
      * back for the same unit until it is destroyed; built once MAX is ready.
      */
     fun rewarded(adUnitId: String): MaxInterstitialSdkAd
+
+    /** Skeleton of plan T-070. */
+    fun newAppOpen(adUnitId: String): MaxInterstitialSdkAd
 }
 
 /**
@@ -91,6 +94,8 @@ internal class AppLovinMaxPlatform(private val context: Context) : MaxPlatform {
     override fun rewarded(adUnitId: String): MaxInterstitialSdkAd = rewardeds.getOrPut(adUnitId) {
         AppLovinMaxRewarded(adUnitId, context, onDestroyed = { rewardeds.remove(adUnitId) })
     }
+
+    override fun newAppOpen(adUnitId: String): MaxInterstitialSdkAd = TODO("plan T-070")
 }
 
 /**

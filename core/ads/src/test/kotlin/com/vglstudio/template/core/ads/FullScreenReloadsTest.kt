@@ -338,6 +338,32 @@ class FullScreenReloadsTest {
         assertEquals(listOf(2_000L), loadsOf(REWARDED))
     }
 
+    @Test
+    fun closedReload_keepsPendingRetry_retryAtDue() = runTest {
+        // Plan T-070, step 6b: the reload after a close (F-06) never cancels the retry of F-05 that waits.
+        val reloads = reloads(failuresInARow = { 2 })
+        assertEquals(FullScreenLoadState.WaitingRetry(4_000), reloads.onLoadFailed(INTER, 3))
+
+        at(100)
+        reloads.onClosedOrShowFailed(INTER)
+
+        at(60_000)
+        assertEquals(listOf(2_100L, 4_000L), loadsOf(INTER))
+    }
+
+    @Test
+    fun sendBlocked_cancelsRetryAndReload() = runTest {
+        // Plan T-070, step 6b: S-15 cancels both the retry and the reload that wait.
+        val reloads = reloads(failuresInARow = { 1 })
+        reloads.onLoadFailed(INTER, 3)
+        reloads.onClosedOrShowFailed(INTER)
+
+        assertEquals(FullScreenLoadState.Idle, reloads.onSendBlocked(INTER))
+
+        at(60_000)
+        assertEquals(emptyList<Long>(), loadsOf(INTER))
+    }
+
     private companion object {
         val REWARDED = AdPlacement.GALLERY_RW_ACTION
         val INTER = AdPlacement.GALLERY_INTERSTITIAL

@@ -73,4 +73,16 @@ class AdRetryPolicyTest {
         val error = runCatching { AdRetryPolicy.reloadAfterCloseMillis(AdFormat.NATIVE_SMALL) }.exceptionOrNull()
         assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
     }
+
+    @Test
+    fun maxReloadAfterClose_twoSecondsForEveryMaxFullScreenFormat() {
+        // ADR-0045, section 2.4 (plan T-070): every full-screen format of MAX reloads 2 s after closing, app open too.
+        assertEquals(2_000L, AdRetryPolicy.maxReloadAfterCloseMillis(AdFormat.INTERSTITIAL))
+        assertEquals(2_000L, AdRetryPolicy.maxReloadAfterCloseMillis(AdFormat.REWARDED))
+        assertEquals(2_000L, AdRetryPolicy.maxReloadAfterCloseMillis(AdFormat.APP_OPEN))
+        val error = runCatching { AdRetryPolicy.maxReloadAfterCloseMillis(AdFormat.BANNER) }.exceptionOrNull()
+        assertTrue("expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+        // Control: the app open ad of AdMob still reloads at once (F-06).
+        assertEquals(0L, AdRetryPolicy.reloadAfterCloseMillis(AdFormat.APP_OPEN))
+    }
 }

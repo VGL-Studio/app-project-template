@@ -42,7 +42,9 @@ internal class MaxInterstitialSlot(
     private val networkError: (code: Int) -> Boolean = { false },
 ) {
     init {
-        require(format == AdFormat.INTERSTITIAL || format == AdFormat.REWARDED) { "$format has no MAX slot here" }
+        require(format == AdFormat.INTERSTITIAL || format == AdFormat.REWARDED || format == AdFormat.APP_OPEN) {
+            "$format has no MAX slot here"
+        }
     }
 
     /** The key of the load counter of this slot (plan T-106). */
@@ -305,6 +307,7 @@ internal class MaxInterstitialSlot(
     companion object {
         const val SLOT = "preload:interstitial/max"
         const val REWARDED_SLOT = "preload:rewarded/max"
+        const val APP_OPEN_SLOT = "preload:app_open/max"
         private const val TAG = "Ads"
 
         /** The key of the load counter of the MAX slot of [format]. */

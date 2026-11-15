@@ -3,7 +3,7 @@ package com.vglstudio.template.core.ads
 /**
  * [MaxPlatform] for unit tests (plan T-068): records every [initialize] with its key, and calls the callbacks only
  * when the test calls [finishInitialization], like the SDK that answers later. Every interstitial built is kept in
- * [interstitials] (plan T-069).
+ * [interstitials] (plan T-069); every app open built in [appOpens] (plan T-070).
  */
 internal class FakeMaxPlatform(override var isInitialized: Boolean = false) : MaxPlatform {
     private val keys = mutableListOf<String>()
@@ -45,6 +45,12 @@ internal class FakeMaxPlatform(override var isInitialized: Boolean = false) : Ma
             ).also { rewardeds += it }
         }
     }
+
+    /** The MAX app open ads built, in order (plan T-070): a new object at each call, like `MaxAppOpenAd(...)`. */
+    val appOpens = mutableListOf<FakeMaxInterstitialSdkAd>()
+
+    override fun newAppOpen(adUnitId: String): MaxInterstitialSdkAd =
+        FakeMaxInterstitialSdkAd(adUnitId).also { appOpens += it }
 
     fun finishInitialization() {
         callbacks.forEach { it() }

@@ -203,4 +203,75 @@ class FullScreenPlatformsTest {
         runCurrent()
         assertTrue(answered.await())
     }
+
+    @Test
+    fun appOpenPlatforms_resume_followsOrder_dropMissingUnits() {
+        // Plan T-070 (KB-31, question 41): the resume app open ad follows ads_mediation_order.
+        val both = mapOf(
+            MediationOrder.ADMOB to listOf(ADMOB),
+            MediationOrder.MAX to listOf(MAX),
+            MediationOrder.ADMOB_MAX to listOf(ADMOB, MAX),
+            MediationOrder.MAX_ADMOB to listOf(MAX, ADMOB),
+        )
+        both.forEach { (order, expected) ->
+            assertEquals(
+                "$order",
+                expected,
+                appOpenPlatforms(AdPlacement.RESUME, order, hasAdmobUnit = true, hasMaxUnit = true),
+            )
+        }
+        // A platform without its ad unit is dropped.
+        val noMax = mapOf(
+            MediationOrder.ADMOB to listOf(ADMOB),
+            MediationOrder.MAX to emptyList(),
+            MediationOrder.ADMOB_MAX to listOf(ADMOB),
+            MediationOrder.MAX_ADMOB to listOf(ADMOB),
+        )
+        noMax.forEach { (order, expected) ->
+            assertEquals(
+                "$order no MAX unit",
+                expected,
+                appOpenPlatforms(AdPlacement.RESUME, order, hasAdmobUnit = true, hasMaxUnit = false),
+            )
+        }
+        val noAdmob = mapOf(
+            MediationOrder.ADMOB to emptyList(),
+            MediationOrder.MAX to listOf(MAX),
+            MediationOrder.ADMOB_MAX to listOf(MAX),
+            MediationOrder.MAX_ADMOB to listOf(MAX),
+        )
+        noAdmob.forEach { (order, expected) ->
+            assertEquals(
+                "$order no AdMob unit",
+                expected,
+                appOpenPlatforms(AdPlacement.RESUME, order, hasAdmobUnit = false, hasMaxUnit = true),
+            )
+        }
+        MediationOrder.entries.forEach { order ->
+            assertEquals(
+                "$order no unit",
+                emptyList<AdPlatform>(),
+                appOpenPlatforms(AdPlacement.RESUME, order, hasAdmobUnit = false, hasMaxUnit = false),
+            )
+        }
+    }
+
+    @Test
+    fun appOpenPlatforms_openAppAndGallery_admobOnly_anyOrder() {
+        // KB-31, criterion 3: the startup app open ad (and the staging gallery one) is AdMob only.
+        listOf(AdPlacement.OPEN_APP, AdPlacement.GALLERY_APP_OPEN).forEach { placement ->
+            MediationOrder.entries.forEach { order ->
+                assertEquals(
+                    "$placement $order",
+                    listOf(ADMOB),
+                    appOpenPlatforms(placement, order, hasAdmobUnit = true, hasMaxUnit = true),
+                )
+                assertEquals(
+                    "$placement $order no AdMob unit",
+                    emptyList<AdPlatform>(),
+                    appOpenPlatforms(placement, order, hasAdmobUnit = false, hasMaxUnit = true),
+                )
+            }
+        }
+    }
 }

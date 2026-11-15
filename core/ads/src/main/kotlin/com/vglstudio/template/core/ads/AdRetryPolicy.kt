@@ -40,4 +40,7 @@ internal object AdRetryPolicy {
         AdFormat.APP_OPEN, AdFormat.NATIVE_FULL_SCREEN -> 0L
         else -> throw IllegalArgumentException("$format is not a full-screen format")
     }
+
+    /** Skeleton of plan T-070. */
+    fun maxReloadAfterCloseMillis(format: AdFormat): Long = 0L
 }
