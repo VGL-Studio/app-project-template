@@ -60,6 +60,9 @@ internal interface MaxPlatform {
 
     /** A new MAX interstitial of [adUnitId] (plan T-069); built once MAX is ready. */
     fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd
+
+    /** The one MAX rewarded of [adUnitId] (plan T-106). */
+    fun rewarded(adUnitId: String): MaxInterstitialSdkAd
 }
 
 /**
@@ -77,6 +80,9 @@ internal class AppLovinMaxPlatform(private val context: Context) : MaxPlatform {
     }
 
     override fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd = AppLovinMaxInterstitial(adUnitId, context)
+
+    // Skeleton (plan T-106, step 3): not wired yet.
+    override fun rewarded(adUnitId: String): MaxInterstitialSdkAd = AppLovinMaxInterstitial(adUnitId, context)
 }
 
 /**

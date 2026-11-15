@@ -1,5 +1,15 @@
 package com.vglstudio.template.core.ads
 
+/** Platforms a rewarded ad may load and show from, in order (KB-31, question 41; plan T-106); no unit, no platform. */
+internal fun rewardedPlatforms(order: MediationOrder, hasAdmobUnit: Boolean, hasMaxUnit: Boolean): List<AdPlatform> =
+    emptyList()
+
+/**
+ * The MAX rewarded slot may send (plan T-106): MAX in [order] and a rewarded placement on, the switches read for at
+ * most [RewardedTurns.DECISION_WAIT_MILLIS] (rules, section 11): not read in time is a no, no retry.
+ */
+internal suspend fun maxRewardedWanted(order: MediationOrder, anyRewardedOn: suspend () -> Boolean): Boolean = false
+
 /**
  * Platforms an interstitial of [placement] may load and show from, in order (KB-31, question 41; plan T-069): the
  * startup interstitial (`open_app_inter`) is AdMob only, like the startup app open ad; any other one follows [order].

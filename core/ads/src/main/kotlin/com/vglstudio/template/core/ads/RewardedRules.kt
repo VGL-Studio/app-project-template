@@ -79,6 +79,15 @@ internal fun noAdReason(
 /** R-03: a load error is a network error with code 2 (`ERROR_CODE_NETWORK_ERROR`), or any code while offline. */
 internal fun isNetworkLoadError(code: Int, offline: Boolean): Boolean = code == NETWORK_ERROR_CODE || offline
 
+/** R-03 for MAX: NETWORK_ERROR (-1000), NETWORK_TIMEOUT (-1001), NO_NETWORK (-1009), or any code while offline. */
+internal fun isMaxNetworkLoadError(code: Int, offline: Boolean): Boolean = false
+
+/**
+ * R-03 with two platforms (plan T-106): among the platforms of [platforms] with a failed load since their last send
+ * (flag not null), at least one, and every one failed on the network. A platform with no result yet does not count.
+ */
+internal fun rewardedNetworkError(platforms: List<AdPlatform>, admob: Boolean?, max: Boolean?): Boolean = false
+
 /** Whether [policy] lets the action run on a try with no ad, the [noAdInARow]-th one in a row (question 3). */
 internal fun grantsWithoutAd(policy: RewardedNoAdPolicy, noAdInARow: Int): Boolean = when (policy) {
     RewardedNoAdPolicy.Block -> false

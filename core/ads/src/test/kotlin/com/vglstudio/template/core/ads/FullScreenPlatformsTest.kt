@@ -6,11 +6,20 @@ import com.vglstudio.template.core.ads.FullScreenLoadState.Idle
 import com.vglstudio.template.core.ads.FullScreenLoadState.Loading
 import com.vglstudio.template.core.ads.FullScreenLoadState.Ready
 import com.vglstudio.template.core.ads.FullScreenLoadState.WaitingRetry
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The platforms of an interstitial turn (plan T-069, KB-31, question 41 of the ads spec). */
+/** The platforms of an interstitial turn (plan T-069) and of a rewarded turn (plan T-106); KB-31, question 41. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FullScreenPlatformsTest {
     private val inApp = AdPlacement.GALLERY_INTERSTITIAL
 
@@ -108,5 +117,90 @@ class FullScreenPlatformsTest {
         // A platform not in the turn does not hold the group.
         assertEquals(Ready, preloadSettleState(listOf(ADMOB), admob = Ready, max = Loading))
         assertEquals(Idle, preloadSettleState(emptyList(), admob = Loading, max = Loading))
+    }
+
+    @Test
+    fun rewardedPlatforms_followOrder_dropMissingUnits() {
+        val both = mapOf(
+            MediationOrder.ADMOB to listOf(ADMOB),
+            MediationOrder.MAX to listOf(MAX),
+            MediationOrder.ADMOB_MAX to listOf(ADMOB, MAX),
+            MediationOrder.MAX_ADMOB to listOf(MAX, ADMOB),
+        )
+        val noMax = mapOf(
+            MediationOrder.ADMOB to listOf(ADMOB),
+            MediationOrder.MAX to emptyList(),
+            MediationOrder.ADMOB_MAX to listOf(ADMOB),
+            MediationOrder.MAX_ADMOB to listOf(ADMOB),
+        )
+        val noAdmob = mapOf(
+            MediationOrder.ADMOB to emptyList(),
+            MediationOrder.MAX to listOf(MAX),
+            MediationOrder.ADMOB_MAX to listOf(MAX),
+            MediationOrder.MAX_ADMOB to listOf(MAX),
+        )
+        MediationOrder.entries.forEach { order ->
+            assertEquals(
+                "$order",
+                both.getValue(order),
+                rewardedPlatforms(order, hasAdmobUnit = true, hasMaxUnit = true),
+            )
+            assertEquals(
+                "$order",
+                noMax.getValue(order),
+                rewardedPlatforms(order, hasAdmobUnit = true, hasMaxUnit = false),
+            )
+            assertEquals(
+                "$order",
+                noAdmob.getValue(order),
+                rewardedPlatforms(order, hasAdmobUnit = false, hasMaxUnit = true),
+            )
+            assertEquals("$order", emptyList<AdPlatform>(), rewardedPlatforms(order, false, false))
+        }
+    }
+
+    @Test
+    fun maxRewardedWanted_maxNotInOrder_falseWithoutReadingSwitch() = runTest {
+        var read = 0
+        assertFalse(
+            maxRewardedWanted(MediationOrder.ADMOB) {
+                read++
+                true
+            },
+        )
+        assertEquals(0, read)
+        // Control: MAX in the order, a switch on: the switch is read and the answer is yes.
+        listOf(MediationOrder.MAX, MediationOrder.MAX_ADMOB, MediationOrder.ADMOB_MAX).forEach { order ->
+            val wanted = maxRewardedWanted(order) {
+                read++
+                true
+            }
+            assertTrue("$order", wanted)
+        }
+        assertEquals(3, read)
+        assertFalse(maxRewardedWanted(MediationOrder.MAX) { false })
+    }
+
+    @Test
+    fun maxRewardedWanted_switchNotReadIn5s_false() = runTest {
+        val never = CompletableDeferred<Boolean>()
+        val timedOut = async { maxRewardedWanted(MediationOrder.MAX) { never.await() } }
+        advanceTimeBy(4_999)
+        runCurrent()
+        assertFalse(timedOut.isCompleted)
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue(timedOut.isCompleted)
+        assertEquals(5_000, testScheduler.currentTime)
+        assertFalse(timedOut.await())
+        // Control: the switch answers yes just before the limit.
+        val late = CompletableDeferred<Boolean>()
+        val answered = async { maxRewardedWanted(MediationOrder.MAX) { late.await() } }
+        advanceTimeBy(4_999)
+        runCurrent()
+        assertFalse(answered.isCompleted)
+        late.complete(true)
+        runCurrent()
+        assertTrue(answered.await())
     }
 }

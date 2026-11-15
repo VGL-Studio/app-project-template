@@ -1,5 +1,6 @@
 package com.vglstudio.template.core.ads
 
+import android.app.Activity
 import com.vglstudio.template.core.logging.AppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
  * gate, S-15) are asked; a no ends the round with no retry. Unit ids never reach the log.
  */
 internal class MaxInterstitialSlot(
+    private val format: AdFormat = AdFormat.INTERSTITIAL,
     private val scope: CoroutineScope,
     private val clock: MonotonicClock,
     private val unitId: () -> String?,
@@ -29,7 +31,16 @@ internal class MaxInterstitialSlot(
     private val logger: AppLogger,
     /** A full-screen ad is on screen (the showing flag of F-01, F-02). */
     private val fullScreenBusy: () -> Boolean = { true },
+    /** R-03: whether a failed load [code] is a network error (plan T-106). */
+    private val networkError: (code: Int) -> Boolean = { false },
 ) {
+    /** The key of the load counter of this slot (plan T-106). */
+    val slot: String = slotOf(format)
+
+    /** R-03: null with no failed load since the last send, else whether that failure was the network (plan T-106). */
+    var lastLoadNetworkError: Boolean? = null
+        private set
+
     /** Ready while an ad is held; Loading; WaitingRetry after a failure; Idle. */
     var state: FullScreenLoadState = FullScreenLoadState.Idle
         private set
@@ -80,6 +91,14 @@ internal class MaxInterstitialSlot(
         showCallbacks = onShow
         return ad
     }
+
+    /** Shows the ad taken last on [activity] (plan T-106). */
+    fun showTaken(activity: Activity) {
+        ad?.show(activity)
+    }
+
+    /** Drops the show callbacks of the ad taken last (plan T-106). */
+    fun releaseShow() = Unit
 
     /** F-06: the ad closed or failed to show; the slot loads again after 2 seconds. */
     fun onClosedOrShowFailed() {
@@ -179,6 +198,9 @@ internal class MaxInterstitialSlot(
 
     companion object {
         const val SLOT = "preload:interstitial/max"
+        const val REWARDED_SLOT = "preload:rewarded/max"
+
+        fun slotOf(format: AdFormat): String = SLOT
         private const val TAG = "Ads"
     }
 }

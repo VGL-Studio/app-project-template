@@ -1557,6 +1557,17 @@ class AdsController @Inject internal constructor(
     @VisibleForTesting
     internal var interstitialRequestForTest: ((AdPlacement) -> InterstitialAd?)? = null
 
+    /**
+     * Tests only: the send of each AdMob rewarded load instead of the SDK's (plan T-106). It returns the ad that
+     * loaded, or null for a failure with [rewardedLoadErrorCodeForTest]; everything before the send runs for real.
+     */
+    @VisibleForTesting
+    internal var rewardedRequestForTest: ((AdPlacement) -> RewardedAd?)? = null
+
+    /** Tests only: the code of a failed load of [rewardedRequestForTest]; no fill by default (plan T-106). */
+    @VisibleForTesting
+    internal var rewardedLoadErrorCodeForTest: Int = NO_FILL_CODE_FOR_TEST
+
     /** Tests only: where the full-screen ad of [placement] is in its loading (F-04). */
     @VisibleForTesting
     internal fun nativeFullScreenLoadStateForTest(placement: AdPlacement): FullScreenLoadState =

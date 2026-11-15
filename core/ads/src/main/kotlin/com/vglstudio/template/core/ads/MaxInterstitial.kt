@@ -20,6 +20,9 @@ internal interface MaxInterstitialListener {
     fun onDisplayFailed(code: Int)
 
     fun onClicked()
+
+    /** R-02: the user earned the reward of a rewarded ad (plan T-106). */
+    fun onRewarded() {}
 }
 
 /** The interstitial of AppLovin MAX as :core:ads uses it (plan T-069); a fake in tests. One object per ad unit. */
