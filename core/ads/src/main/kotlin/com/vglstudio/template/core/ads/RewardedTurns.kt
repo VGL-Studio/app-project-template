@@ -251,7 +251,7 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
                 consentOpen = port.consentOpen(),
                 ready = port.ready(declaration),
                 offline = port.offline(),
-                lastLoadNetworkError = lastLoadNetworkError[declaration] == true,
+                lastLoadNetworkError = port.networkError(declaration, lastLoadNetworkError[declaration]),
             )
             networkRead = reason == RewardedNoAdReason.NETWORK
             when {
@@ -287,7 +287,8 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
             DecisionStep.NO_AD, null -> {
                 // Timed out while the switch was awaited and the consent gate was open (a closed gate ends above,
                 // MC-05): both reads wait for nothing (KB-19, criterion 4).
-                val network = networkRead ?: (port.offline() || lastLoadNetworkError[declaration] == true)
+                val network =
+                    networkRead ?: (port.offline() || port.networkError(declaration, lastLoadNetworkError[declaration]))
                 if (!notReadyRecorded) port.recordOpportunity(declaration, NOT_READY, port.loadState(declaration))
                 endWithNoAd(declaration, decision, policy, network)
             }
@@ -494,7 +495,7 @@ internal class RewardedTurns(private val port: RewardedPort, private val logger:
     }
 
     /** A turn of [declaration] waits for its ad to close (plan T-106). */
-    fun hasTurn(declaration: AdPlacementDeclaration): Boolean = false
+    fun hasTurn(declaration: AdPlacementDeclaration): Boolean = declaration in turns
 
     /** One more try with no ad in a row; back to 0 once the policy lets the action run. */
     private fun countNoAd(declaration: AdPlacementDeclaration, policy: RewardedNoAdPolicy): Boolean {

@@ -7,7 +7,10 @@ import com.applovin.mediation.MaxAdListener
 import com.applovin.mediation.MaxError
 import com.applovin.mediation.ads.MaxInterstitialAd
 
-/** The callbacks of a MAX interstitial, as [MaxInterstitialSlot] and `AdsController` read them (plan T-069). */
+/**
+ * The callbacks of a MAX interstitial (plan T-069) or rewarded ad (plan T-106), as [MaxInterstitialSlot] and
+ * `AdsController` read them.
+ */
 internal interface MaxInterstitialListener {
     fun onLoaded()
 
@@ -25,7 +28,10 @@ internal interface MaxInterstitialListener {
     fun onRewarded() {}
 }
 
-/** The interstitial of AppLovin MAX as :core:ads uses it (plan T-069); a fake in tests. One object per ad unit. */
+/**
+ * The interstitial (plan T-069) or rewarded ad (plan T-106) of AppLovin MAX as :core:ads uses it; a fake in tests. One
+ * object per ad unit.
+ */
 internal interface MaxInterstitialSdkAd {
     var listener: MaxInterstitialListener?
 
