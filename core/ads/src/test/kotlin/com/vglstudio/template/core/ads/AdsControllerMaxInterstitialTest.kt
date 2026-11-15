@@ -315,9 +315,26 @@ class AdsControllerMaxInterstitialTest {
         idle()
         controller.loadFullScreenAdIfNeeded(AdPlacement.GALLERY_INTERSTITIAL)
         idle()
+        // A placement that never loaded (AdMob idle): no Loading, no blocked round either.
+        controller.loadFullScreenAdIfNeeded(AdPlacement.RESUME_INTER)
+        idle()
         assertEquals(sent, requested.size)
         assertEquals(before, controller.nativeFullScreenLoadStateForTest(AdPlacement.GALLERY_INTERSTITIAL))
         assertTrue(logger.entries.none { "not requested: consent gate closed" in it.message })
+    }
+
+    @Test
+    fun otherPlacementRetryWhileMaxShows_noMaxLoad() {
+        // Review of T-069: the MAX ad on screen is the one SDK object of the slot; no load reaches it meanwhile.
+        start("max_admob")
+        loadMax()
+        assertEquals(true, show())
+        controller.loadFullScreenAdIfNeeded(AdPlacement.RESUME_INTER)
+        idle()
+        assertEquals(1, maxAd.loadCount)
+        maxAd.emitHidden()
+        idleFor(2_100)
+        assertEquals(2, maxAd.loadCount)
     }
 
     // L-072

@@ -27,6 +27,8 @@ internal class MaxInterstitialSlot(
     private val telemetry: AdTelemetry,
     private val failuresInARow: () -> Int,
     private val logger: AppLogger,
+    /** A full-screen ad is on screen (the showing flag of F-01, F-02). */
+    private val fullScreenBusy: () -> Boolean = { true },
 ) {
     /** Ready while an ad is held; Loading; WaitingRetry after a failure; Idle. */
     var state: FullScreenLoadState = FullScreenLoadState.Idle
@@ -40,6 +42,12 @@ internal class MaxInterstitialSlot(
 
     /** A load was asked while MAX was not ready: sent once MAX is ready (L-072). */
     private var wanted = false
+
+    /**
+     * The ad taken last is on screen: the one SDK object of the slot must not load meanwhile. Read with
+     * [fullScreenBusy], so a turn ended without a callback (stuck recovery, the cap of F-02) frees the slot.
+     */
+    private var showing = false
 
     /** The show callbacks of the ad taken last ([take]). */
     private var showCallbacks: MaxInterstitialListener? = null
@@ -68,15 +76,20 @@ internal class MaxInterstitialSlot(
     fun take(onShow: MaxInterstitialListener? = null): MaxInterstitialSdkAd? {
         if (state != FullScreenLoadState.Ready) return null
         state = FullScreenLoadState.Idle
+        showing = true
         showCallbacks = onShow
         return ad
     }
 
     /** F-06: the ad closed or failed to show; the slot loads again after 2 seconds. */
-    fun onClosedOrShowFailed() = schedule(AdRetryPolicy.reloadAfterCloseMillis(AdFormat.INTERSTITIAL))
+    fun onClosedOrShowFailed() {
+        showing = false
+        schedule(AdRetryPolicy.reloadAfterCloseMillis(AdFormat.INTERSTITIAL))
+    }
 
     private fun send() {
         val unit = unitId() ?: return
+        if (showing && fullScreenBusy()) return
         if (!needsLoad(state, clock.nowMillis(), gateOpen = true)) return
         if (!maxReady.value) {
             wanted = true
@@ -136,12 +149,19 @@ internal class MaxInterstitialSlot(
             showCallbacks?.onDisplayed()
         }
 
+        // The end of a show: its callbacks are dropped, so a stray second end of the SDK reaches nothing.
         override fun onHidden() {
-            showCallbacks?.onHidden()
+            val callbacks = showCallbacks
+            showCallbacks = null
+            showing = false
+            callbacks?.onHidden()
         }
 
         override fun onDisplayFailed(code: Int) {
-            showCallbacks?.onDisplayFailed(code)
+            val callbacks = showCallbacks
+            showCallbacks = null
+            showing = false
+            callbacks?.onDisplayFailed(code)
         }
 
         override fun onClicked() {

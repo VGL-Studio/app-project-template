@@ -199,6 +199,54 @@ class MaxInterstitialSlotTest {
     }
 
     @Test
+    fun takenAd_loadWhileShowing_noLoad_thenClosedReloads() = runTest {
+        // Review of T-069: the one SDK object shows; a load asked meanwhile (another placement's retry) waits.
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoaded()
+        slot.take()
+        slot.loadIfNeeded()
+        runCurrent()
+        at(5_000)
+        assertEquals(1, loads())
+        ad.emitHidden()
+        slot.onClosedOrShowFailed()
+        at(7_000)
+        assertEquals(2, loads())
+    }
+
+    @Test
+    fun takenAd_showingFlagLowered_loadAllowed() = runTest {
+        // The turn ended without a callback (stuck recovery, F-03): the full-screen flag is down, the slot loads.
+        var busy = true
+        val slot = MaxInterstitialSlot(
+            scope = backgroundScope,
+            clock = MonotonicClock { testScheduler.currentTime },
+            unitId = { UNIT },
+            maxReady = maxReady,
+            shouldLoad = { true },
+            mayRequestNow = { true },
+            newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
+            telemetry = telemetry,
+            failuresInARow = { 0 },
+            logger = logger,
+            fullScreenBusy = { busy },
+        )
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoaded()
+        slot.take()
+        slot.loadIfNeeded()
+        runCurrent()
+        assertEquals(1, loads())
+        busy = false
+        slot.loadIfNeeded()
+        runCurrent()
+        assertEquals(2, loads())
+    }
+
+    @Test
     fun showFailed_reloadsAfterTwoSeconds() = runTest {
         val slot = slot()
         slot.loadIfNeeded()

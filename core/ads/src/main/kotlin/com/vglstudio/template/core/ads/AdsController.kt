@@ -598,6 +598,7 @@ class AdsController @Inject internal constructor(
         telemetry = telemetry,
         failuresInARow = { loadCounter.failuresInARow(MaxInterstitialSlot.SLOT) },
         logger = logger,
+        fullScreenBusy = { presence.isBusy(clock.nowMillis()) },
     )
 
     /** One slot of the preload plan per full-screen placement. */
