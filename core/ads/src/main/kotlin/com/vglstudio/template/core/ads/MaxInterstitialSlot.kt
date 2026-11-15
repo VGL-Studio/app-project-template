@@ -45,7 +45,7 @@ internal class MaxInterstitialSlot(
 
     /**
      * The ad taken last is on screen: the one SDK object of the slot must not load meanwhile. Read with
-     * [fullScreenBusy], so a turn ended without a callback (stuck recovery, the cap of F-02) frees the slot.
+     * [fullScreenBusy]: a turn ended without a callback (stuck recovery, forced end, the cap of F-02) drops that object.
      */
     private var showing = false
 
@@ -89,7 +89,15 @@ internal class MaxInterstitialSlot(
 
     private fun send() {
         val unit = unitId() ?: return
-        if (showing && fullScreenBusy()) return
+        if (showing) {
+            if (fullScreenBusy()) return
+            // The turn ended with no close from the SDK (forced end, cap of F-02): the ad may still be on screen, so
+            // its SDK object is dropped, late callbacks included, and the next load builds a new one.
+            ad?.listener = null
+            ad = null
+            showing = false
+            showCallbacks = null
+        }
         if (!needsLoad(state, clock.nowMillis(), gateOpen = true)) return
         if (!maxReady.value) {
             wanted = true

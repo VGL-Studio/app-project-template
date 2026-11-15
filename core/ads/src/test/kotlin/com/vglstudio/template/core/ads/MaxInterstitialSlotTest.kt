@@ -48,21 +48,19 @@ class MaxInterstitialSlotTest {
         logger = logger,
     )
 
-    private fun TestScope.slot(
-        unit: String? = UNIT,
-        shouldLoadGate: suspend () -> Boolean = { shouldLoad },
-    ) = MaxInterstitialSlot(
-        scope = backgroundScope,
-        clock = MonotonicClock { testScheduler.currentTime },
-        unitId = { unit },
-        maxReady = maxReady,
-        shouldLoad = shouldLoadGate,
-        mayRequestNow = { gateOpen },
-        newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
-        telemetry = telemetry,
-        failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.SLOT) },
-        logger = logger,
-    )
+    private fun TestScope.slot(unit: String? = UNIT, shouldLoadGate: suspend () -> Boolean = { shouldLoad }) =
+        MaxInterstitialSlot(
+            scope = backgroundScope,
+            clock = MonotonicClock { testScheduler.currentTime },
+            unitId = { unit },
+            maxReady = maxReady,
+            shouldLoad = shouldLoadGate,
+            mayRequestNow = { gateOpen },
+            newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
+            telemetry = telemetry,
+            failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.SLOT) },
+            logger = logger,
+        )
 
     private fun TestScope.at(millis: Long) {
         advanceTimeBy(millis - testScheduler.currentTime)
@@ -244,6 +242,10 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         assertEquals(2, loads())
+        // The ad may still be on screen: the old SDK object is dropped (no listener) and a new one loads.
+        assertEquals(2, built.size)
+        assertEquals(1, built[1].loadCount)
+        assertNull(built[0].listener)
     }
 
     @Test

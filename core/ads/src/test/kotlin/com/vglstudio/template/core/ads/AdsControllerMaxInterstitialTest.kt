@@ -62,7 +62,12 @@ class AdsControllerMaxInterstitialTest {
     private fun idleFor(millis: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
 
     /** The controller with [order], started, consent open, AdMob ready, MAX ready (when the order has MAX). */
-    private fun start(order: String, maxConfig: MaxConfig = MAX_CONFIG, maxReady: Boolean = true, plan: Boolean = false) {
+    private fun start(
+        order: String,
+        maxConfig: MaxConfig = MAX_CONFIG,
+        maxReady: Boolean = true,
+        plan: Boolean = false,
+    ) {
         settings.set(AdsSettings.ADS_MEDIATION_ORDER, order)
         controller = testAdsController(
             context = application,
@@ -73,7 +78,10 @@ class AdsControllerMaxInterstitialTest {
             maxConfig = maxConfig,
             maxPlatform = platform,
         )
-        controller.interstitialRequestForTest = { requested += it; admobAnswer() }
+        controller.interstitialRequestForTest = {
+            requested += it
+            admobAnswer()
+        }
         if (plan) controller.setPreloadPlan(AdPreloadPlan(listOf(setOf(AdFormat.INTERSTITIAL))))
         controller.start(application, AppActivityFilter { true })
         idle()
@@ -120,7 +128,10 @@ class AdsControllerMaxInterstitialTest {
         assertEquals(true, show())
         assertEquals(1, admob.shows)
         assertEquals(0, platform.interstitials.sumOf { it.showCount })
-        assertEquals(listOf(AdMetricEvent.Opportunity("INTER", "gallery_interstitial", "shown", "ready")), opportunities())
+        assertEquals(
+            listOf(AdMetricEvent.Opportunity("INTER", "gallery_interstitial", "shown", "ready")),
+            opportunities(),
+        )
     }
 
     @Test
@@ -129,7 +140,10 @@ class AdsControllerMaxInterstitialTest {
         loadMax()
         assertEquals(true, show())
         assertEquals(1, maxAd.showCount)
-        assertEquals(listOf(AdMetricEvent.Opportunity("INTER", "gallery_interstitial", "shown", "ready")), opportunities())
+        assertEquals(
+            listOf(AdMetricEvent.Opportunity("INTER", "gallery_interstitial", "shown", "ready")),
+            opportunities(),
+        )
     }
 
     @Test
@@ -319,12 +333,16 @@ class AdsControllerMaxInterstitialTest {
         controller.loadFullScreenAdIfNeeded(AdPlacement.RESUME_INTER)
         idle()
         assertEquals(sent, requested.size)
+        assertEquals(
+            controller.nativeFullScreenLoadStateForTest(AdPlacement.GALLERY_INTERSTITIAL),
+            controller.nativeFullScreenLoadStateForTest(AdPlacement.RESUME_INTER),
+        )
         assertEquals(before, controller.nativeFullScreenLoadStateForTest(AdPlacement.GALLERY_INTERSTITIAL))
         assertTrue(logger.entries.none { "not requested: consent gate closed" in it.message })
     }
 
     @Test
-    fun otherPlacementRetryWhileMaxShows_noMaxLoad() {
+    fun otherPlacementLoadWhileMaxShows_noMaxLoad() {
         // Review of T-069: the MAX ad on screen is the one SDK object of the slot; no load reaches it meanwhile.
         start("max_admob")
         loadMax()
