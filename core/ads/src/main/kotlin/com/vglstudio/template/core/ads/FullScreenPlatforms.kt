@@ -39,13 +39,25 @@ internal fun interstitialPlatforms(
     }
 }
 
-/** Skeleton of plan T-070. */
+/**
+ * Platforms an app open ad of [placement] may load and show from, in order (KB-31, question 41; plan T-070): only the
+ * resume ad (`resume`) follows [order]; the startup one (`open_app`) and any other app open placement are AdMob only.
+ * A platform without its ad unit is dropped.
+ */
 internal fun appOpenPlatforms(
     placement: AdPlacement,
     order: MediationOrder,
     hasAdmobUnit: Boolean,
     hasMaxUnit: Boolean,
-): List<AdPlatform> = emptyList()
+): List<AdPlatform> {
+    val wanted = if (placement == AdPlacement.RESUME) order.platforms else listOf(AdPlatform.ADMOB)
+    return wanted.filter {
+        when (it) {
+            AdPlatform.ADMOB -> hasAdmobUnit
+            AdPlatform.MAX -> hasMaxUnit
+        }
+    }
+}
 
 /** The first of [platforms] holding an ad now, or null (ADR-0045, section 2.2). */
 internal fun readyPlatform(platforms: List<AdPlatform>, admobReady: Boolean, maxReady: Boolean): AdPlatform? =

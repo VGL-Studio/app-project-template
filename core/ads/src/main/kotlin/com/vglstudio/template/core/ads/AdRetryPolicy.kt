@@ -41,6 +41,12 @@ internal object AdRetryPolicy {
         else -> throw IllegalArgumentException("$format is not a full-screen format")
     }
 
-    /** Skeleton of plan T-070. */
-    fun maxReloadAfterCloseMillis(format: AdFormat): Long = 0L
+    /**
+     * F-06 for the full-screen ads of MAX: 2 s after closing or failing to show, app open included (ADR-0045, section
+     * 2.4, plan T-070); any other format is an [IllegalArgumentException].
+     */
+    fun maxReloadAfterCloseMillis(format: AdFormat): Long = when (format) {
+        AdFormat.INTERSTITIAL, AdFormat.REWARDED, AdFormat.APP_OPEN -> RELOAD_AFTER_CLOSE_MILLIS
+        else -> throw IllegalArgumentException("$format is not a MAX full-screen format")
+    }
 }
