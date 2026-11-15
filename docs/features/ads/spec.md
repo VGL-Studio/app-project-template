@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed                # draft | confirmed | changed
+status: changed                  # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -724,6 +724,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 43. **Khóa SDK MAX và mã APS đưa vào app thế nào?** MAX cần khóa SDK trong app, khác adapter AppLovin của AdMob (M-03).
     - Đề xuất của AI: tham số build lúc phát hành như `-PadUnits` (`-PmaxSdkKey`, `-PapsAppId`, mã đơn vị MAX và slot APS theo khe), `preProduction*Build` báo lỗi khi thiếu lúc thứ tự có `max`; `secret-scan.py` thêm mẫu khóa MAX. Staging không có khóa thì MAX và APS không khởi tạo và thứ tự coi như `admob`; muốn thử MAX ở staging thì dev đặt khóa trong `local.properties` như câu 40.
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). Không theo JBase ở điểm này: JBase để khóa thật trong `strings.xml`, trái quy tắc không đưa khóa vào repo (ADR-0026, mục 10).
+    - **Đổi 2026-11-15** (anh Nhật, plan T-073: "bỏ qua, không dùng MAX"): ở production khóa SDK MAX tùy chọn. App chưa có tài khoản AppLovin thì không ghi khóa vào thư mục phát hành: bản phát hành không khởi tạo MAX, chỉ chạy AdMob, `scripts/release.sh` báo CHÚ Ý và in "MAX: không dùng"; `preProduction*Build` không báo lỗi khi thiếu (bỏ vế đó của câu trả lời trên). Khóa và mã đơn vị MAX sai ký tự bị từ chối ở cả `release.sh` lẫn `preProduction*Build`.
 44. **Đồng ý của MAX và APS theo cổng nào?**
     - Đề xuất của AI: theo cổng đồng ý của `:core:ads` (S-01 tới S-19): MAX và APS chỉ khởi tạo khi cổng mở lần đầu, đọc chuỗi đồng ý của UMP; không bật luồng đồng ý riêng của MAX. Rút đồng ý thì cùng đóng như AdMob (S-15).
     - Trả lời: theo đề xuất của AI (anh Nhật, 2026-10-29). Không theo JBase ở điểm này: JBase khởi tạo MAX khi Remote Config tải xong, không chờ đồng ý, và viết cứng `setHasUserConsent(true)`, `setDoNotSell(false)`; đó là lỗi tuân thủ GDPR, không phải nghiệp vụ.
@@ -841,3 +842,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-13 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-13: "Xác nhận spec ads (ghi chú KB-24, câu hỏi 63), duyệt plan T-103 theo các đề xuất ở mục 8, duyệt danh sách RUN-20261113-02, bắt đầu phiên khi merge, merge #488". Chuyển sang `confirmed` |
 | 2026-11-15 | AI | Theo quyết định của anh Nhật trong phiên vẽ thiết kế T-064 (2026-11-14, PR #499) và lời xác nhận phạm vi ngày 2026-11-15 ("Xác nhận."): KB-32 tiêu chí 3 đổi (chiều cao ba biến thể nội suy theo mốc, không theo số riêng của JBase), câu hỏi 48 thêm dòng đổi, thêm câu hỏi 64. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trả lời yêu cầu xác nhận chữ đầy đủ của spec trên PR #500 (KB-32 tiêu chí 3, câu hỏi 48, 64): "Xác nhận.". Chuyển sang `confirmed` |
+| 2026-11-15 | AI | Theo trả lời của anh Nhật cho câu hỏi 1 của plan T-073 ("app chưa có tài khoản AppLovin: bỏ qua, không dùng MAX"): câu hỏi 43 thêm dòng đổi (khóa SDK MAX tùy chọn ở production, thiếu thì chỉ chạy AdMob; sai ký tự bị từ chối). Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt plan T-073 |
