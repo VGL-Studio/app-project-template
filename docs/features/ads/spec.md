@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed                # draft | confirmed | changed
+status: changed                  # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -522,10 +522,10 @@ Tiêu chí chấp nhận:
 
 | Tên sự kiện | Khi nào ghi | Tham số | Dùng để trả lời câu hỏi gì |
 | --- | --- | --- | --- |
-| `ad_impression_placement` (Firebase) | Mỗi lượt hiển thị có doanh thu, hoặc native sau 2 giây không có doanh thu (giá trị 0) | `ad_format`, `ad_platform`, `ad_source`, `ad_unit_name`, `currency`, `value`, `ad_placement` | Doanh thu theo vị trí và định dạng |
-| `ad_load_success`, `ad_load_fail`, `ad_opportunity`, `ad_show_fail`, `ad_clicked`, `ad_reward_earned`, `reward_dialog` (Firebase) | Khi khóa số liệu chi tiết của nhóm bật (mặc định tắt) | Theo `ads-business-rules.md`, mục 8.2 | Vì sao một vị trí ít hiển thị: không có quảng cáo, chưa tải xong, bị chặn |
-| `af_ad_revenue` (AppsFlyer) | Mỗi lượt hiển thị, kể cả lượt giá trị 0 | `monetization_network`, `mediation_network`, `af_currency`, `af_revenue`, `country`, `ad_placement`, `ad_unit`, `ad_type` | Doanh thu trên chi phí của chiến dịch thu hút người dùng |
-| `af_inters_*`, `af_rewarded_*`, `af_native_*`, `af_inters_displayed_{N}_times` (AppsFlyer) | Theo phễu: đủ điều kiện, tải xong, hiển thị; lần hiện thứ N | `ad_format`, `ad_unit_id`, `ad_source` | Phễu quảng cáo cho đối tác và chiến dịch |
+| `ad_impression_placement` (Firebase) | Mỗi lượt hiển thị có doanh thu, hoặc native sau 2 giây không có doanh thu (giá trị 0) | `ad_format`, `ad_platform`, `ad_source`, `ad_unit_name`, `currency`, `value`, `ad_placement` **Thêm 2026-11-15 (câu hỏi 46, plan T-072):** `ad_platform` là `admob` hay `applovin` (MAX); lượt của MAX có `value` theo đô la, `ad_source` là mạng MAX báo (không báo thì `applovin`). | Doanh thu theo vị trí và định dạng |
+| `ad_load_success`, `ad_load_fail`, `ad_opportunity`, `ad_show_fail`, `ad_clicked`, `ad_reward_earned`, `reward_dialog` (Firebase) | Khi khóa số liệu chi tiết của nhóm bật (mặc định tắt) | Theo `ads-business-rules.md`, mục 8.2 **Thêm 2026-11-15 (plan T-071, câu hỏi 8; plan T-072):** `ad_load_success`, `ad_load_fail`, `ad_clicked` có thêm `ad_platform` (`admob`, `applovin`). `ad_show_fail` của MAX có lý do theo bảng mã MAX (`ads-business-rules.md`, mục 8.2). | Vì sao một vị trí ít hiển thị: không có quảng cáo, chưa tải xong, bị chặn |
+| `af_ad_revenue` (AppsFlyer) | Mỗi lượt hiển thị, kể cả lượt giá trị 0 | `monetization_network`, `mediation_network`, `af_currency`, `af_revenue`, `country`, `ad_placement`, `ad_unit`, `ad_type` **Thêm 2026-11-15 (câu hỏi 46):** `mediation_network` là `admob` hay `applovinmax`. | Doanh thu trên chi phí của chiến dịch thu hút người dùng |
+| `af_inters_*`, `af_rewarded_*`, `af_native_*`, `af_inters_displayed_{N}_times` (AppsFlyer) | Theo phễu: đủ điều kiện, tải xong, hiển thị; lần hiện thứ N **Thêm 2026-11-15 (plan T-072):** lượt của MAX gửi cùng sự kiện, `ad_source` là lớp adapter MAX báo. | `ad_format`, `ad_unit_id`, `ad_source` | Phễu quảng cáo cho đối tác và chiến dịch |
 
 **Quyền của app và dịch vụ bên ngoài:**
 
@@ -540,6 +540,7 @@ Tiêu chí chấp nhận:
 - ~~**Thêm 2026-10-29 (ADR-0037, chờ câu hỏi 41 tới 47):** SDK bên ngoài mới dự kiến: AppLovin MAX và Amazon APS. Quyền chúng kéo vào manifest gộp đo ở plan, ghi vào mục này trước khi duyệt plan, như câu hỏi 18. Play Console: An toàn dữ liệu khai thêm Amazon trước khi phát hành bản có APS.~~
 - **Thêm 2026-10-29 (đo ở plan T-068):** SDK AppLovin MAX `13.6.4` (cùng thư viện mà adapter AppLovin của AdMob đã kéo vào từ T-015) và adapter Google của MAX `25.5.0.0` không thêm quyền hay thành phần nào vào manifest gộp; vẫn bỏ `AppLovinInitProvider`, `CHECK_LICENSE`, `ACCESS_WIFI_STATE` như T-015, giữ `VIBRATE`. MAX chỉ khởi động sau khi cổng đồng ý của app mở và sau Google Mobile Ads, đọc đồng ý từ chuỗi TCF của UMP; app không viết cứng đồng ý. Khóa SDK MAX đưa vào lúc build phát hành, không vào repo; bản staging không có khóa thì MAX không khởi động. Play Console: An toàn dữ liệu đã khai AppLovin (T-015); APS chưa làm.
 - **Thêm 2026-10-29:** cổng không hiện quảng cáo (KB-30) và banner MREC (KB-29) không thêm SDK hay quyền. Không thêm sự kiện phân tích mới; MREC dùng các sự kiện đã có với một mã định dạng mới (câu hỏi 38).
+- **Thêm 2026-11-15 (plan T-072):** doanh thu, nhật ký mạng con và tham số `ad_platform` của MAX không thêm sự kiện, SDK hay quyền.
 
 ## 7. File tĩnh trên R2
 
@@ -847,3 +848,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trên PR #501: "Xác nhận spec ads (câu hỏi 43), duyệt plan T-073," Chuyển sang `confirmed` |
 | 2026-11-15 | AI | Theo lựa chọn của anh Nhật khi soạn plan T-069 ("Khởi động chỉ AdMob, quay lại theo thứ tự"; "Tách: T-069 chỉ inter"): câu hỏi 41 thêm dòng đổi (`open_app_inter` chỉ AdMob, `resume_inter` theo thứ tự, rewarded ở T-106); KB-31 tiêu chí 2, 3 thêm dòng đổi theo. Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt plan T-069 |
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trên PR #503: "Xác nhận spec ads (câu hỏi 41, KB-31), duyệt plan T-069". Chuyển sang `confirmed` |
+| 2026-11-15 | AI | Theo plan T-072 (câu hỏi 46; plan T-071, câu hỏi 8): mục 6 ghi `ad_platform` của doanh thu MAX và của `ad_load_success`, `ad_load_fail`, `ad_clicked`, lý do `ad_show_fail` của MAX, `mediation_network` của AppsFlyer, `ad_source` của phễu lượt MAX. Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt đợt 2026-11-15-01 |

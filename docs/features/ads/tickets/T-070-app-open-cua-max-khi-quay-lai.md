@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-31, KB-14]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
-depends_on: [T-069]
+depends_on: [T-069, T-106]
 sprint:
-plan:
+plan: features/ads/plans/T-070-app-open-cua-max.md
 auto_run: 
 created: 2026-10-29
 ---

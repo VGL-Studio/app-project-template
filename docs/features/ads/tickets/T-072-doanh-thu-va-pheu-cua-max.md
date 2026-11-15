@@ -3,14 +3,14 @@ id: T-072
 title: Doanh thu và phễu của MAX
 feature: ads
 spec: features/ads/spec.md
-scenarios: [KB-31, KB-22]
+scenarios: [KB-31, KB-22, KB-28]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: S
-depends_on: [T-069]
+depends_on: [T-069, T-106, T-070]
 sprint:
-plan:
+plan: features/ads/plans/T-072-doanh-thu-va-pheu-cua-max.md
 auto_run: 
 created: 2026-10-29
 ---
