@@ -2,6 +2,7 @@ package com.vglstudio.template.core.ads
 
 import com.applovin.mediation.MaxErrorCode
 import com.vglstudio.template.core.analytics.AdFunnelKind
+import com.vglstudio.template.core.analytics.AdMetricPlatform
 
 /**
  * The pure mappings of the ad metrics (docs/ops/ads-business-rules.md, sections 8.1 and 8.2; plan T-023). The code
@@ -89,6 +90,15 @@ internal fun maxLoadStateAfterError(code: Int, offline: Boolean): String = when 
  */
 internal fun isSdkThrottledMessage(message: String?): Boolean =
     message?.contains(SDK_THROTTLED_MESSAGE, ignoreCase = true) == true
+
+/** The platform of the metrics of a load, a click or a revenue of [this] platform. */
+internal fun AdPlatform.metricPlatform(): AdMetricPlatform = AdMetricPlatform.ADMOB
+
+/** T-03 for MAX: an unknown network is `applovin`. */
+internal fun maxAdSourceOrApplovin(name: String?): String = ADMOB
+
+/** `show_fail_reason` of a code of `onAdDisplayFailed` of MAX. */
+internal fun maxShowFailReasonOf(code: Int): String = "unknown"
 
 /** `show_fail_reason` of a code of `FullScreenContentCallback.onAdFailedToShowFullScreenContent`. */
 internal fun showFailReasonOf(code: Int): String = when (code) {

@@ -1213,10 +1213,11 @@ class AdsController @Inject internal constructor(
     ): Boolean {
         val unit = maxConfig.unitFor(AdFormat.INTERSTITIAL).orEmpty()
         val ad = maxInterstitials.take(
+            placement,
             object : MaxInterstitialListener {
-                override fun onLoaded() = Unit
+                override fun onLoaded(info: MaxAdInfo) = Unit
 
-                override fun onLoadFailed(code: Int) = Unit
+                override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) = Unit
 
                 override fun onDisplayed() {
                     telemetry.displayed(AdFormat.INTERSTITIAL, unit, null)
@@ -1386,10 +1387,11 @@ class AdsController @Inject internal constructor(
     ): Boolean {
         lateinit var turn: FullScreenCompletion
         val ad = maxAppOpens.take(
+            placement,
             object : MaxInterstitialListener {
-                override fun onLoaded() = Unit
+                override fun onLoaded(info: MaxAdInfo) = Unit
 
-                override fun onLoadFailed(code: Int) = Unit
+                override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) = Unit
 
                 // Like the app open of AdMob, no `displayed` event.
                 override fun onDisplayed() = Unit
@@ -1599,7 +1601,7 @@ class AdsController @Inject internal constructor(
     private fun takeMaxRewarded(declaration: AdPlacementDeclaration): Boolean {
         val placement = declaration.placement()
         val show = MaxRewardedShow(declaration)
-        maxRewardeds.take(show) ?: return false
+        maxRewardeds.take(placement, show) ?: return false
         showingMaxRewardeds[placement] = show
         showingRewardeds -= placement
         return true
@@ -1627,9 +1629,9 @@ class AdsController @Inject internal constructor(
         private val placement = declaration.placement()
         private val current: Boolean get() = showingMaxRewardeds[placement] === this
 
-        override fun onLoaded() = Unit
+        override fun onLoaded(info: MaxAdInfo) = Unit
 
-        override fun onLoadFailed(code: Int) = Unit
+        override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) = Unit
 
         override fun onDisplayed() {
             if (!current) return

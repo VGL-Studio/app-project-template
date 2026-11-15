@@ -12,9 +12,9 @@ import com.applovin.mediation.ads.MaxInterstitialAd
  * [MaxInterstitialSlot] and `AdsController` read them.
  */
 internal interface MaxInterstitialListener {
-    fun onLoaded()
+    fun onLoaded(info: MaxAdInfo)
 
-    fun onLoadFailed(code: Int)
+    fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>)
 
     fun onDisplayed()
 
@@ -36,6 +36,12 @@ internal interface MaxInterstitialListener {
 internal interface MaxInterstitialSdkAd {
     var listener: MaxInterstitialListener?
 
+    /**
+     * The revenue of every show of this object (plan T-072), apart from [listener] so an object the slot dropped
+     * still reports its late revenue.
+     */
+    var onRevenue: ((MaxAdInfo) -> Unit)?
+
     fun load()
 
     fun show(activity: Activity)
@@ -52,15 +58,17 @@ internal class AppLovinMaxInterstitial(adUnitId: String, context: Context) : Max
 
     override var listener: MaxInterstitialListener? = null
 
+    override var onRevenue: ((MaxAdInfo) -> Unit)? = null
+
     init {
         ad.setListener(
             object : MaxAdListener {
                 override fun onAdLoaded(maxAd: MaxAd) {
-                    listener?.onLoaded()
+                    listener?.onLoaded(MaxAdInfo.EMPTY)
                 }
 
                 override fun onAdLoadFailed(adUnitId: String, error: MaxError) {
-                    listener?.onLoadFailed(error.code)
+                    listener?.onLoadFailed(error.code, emptyList())
                 }
 
                 override fun onAdDisplayed(maxAd: MaxAd) {

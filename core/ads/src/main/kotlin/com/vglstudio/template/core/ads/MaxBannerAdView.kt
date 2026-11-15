@@ -24,7 +24,12 @@ private const val TAG = "Ads"
 internal interface MaxBannerSdkView {
     val view: View
 
-    fun setCallbacks(onLoaded: () -> Unit, onFailed: (code: Int, message: String?) -> Unit, onClicked: () -> Unit)
+    fun setCallbacks(
+        onLoaded: (MaxAdInfo) -> Unit,
+        onFailed: (code: Int, message: String?, networks: List<MaxNetworkAttempt>) -> Unit,
+        onClicked: () -> Unit,
+        onRevenue: (MaxAdInfo) -> Unit,
+    )
 
     fun loadAd()
 
@@ -58,15 +63,17 @@ internal class AppLovinMaxBannerView(unitId: String, kind: BannerSizeKind, width
     override val view: View get() = adView
 
     override fun setCallbacks(
-        onLoaded: () -> Unit,
-        onFailed: (code: Int, message: String?) -> Unit,
+        onLoaded: (MaxAdInfo) -> Unit,
+        onFailed: (code: Int, message: String?, networks: List<MaxNetworkAttempt>) -> Unit,
         onClicked: () -> Unit,
+        onRevenue: (MaxAdInfo) -> Unit,
     ) {
         adView.setListener(
             object : MaxAdViewAdListener {
-                override fun onAdLoaded(ad: MaxAd) = onLoaded()
+                override fun onAdLoaded(ad: MaxAd) = onLoaded(MaxAdInfo.EMPTY)
 
-                override fun onAdLoadFailed(adUnitId: String, error: MaxError) = onFailed(error.code, error.message)
+                override fun onAdLoadFailed(adUnitId: String, error: MaxError) =
+                    onFailed(error.code, error.message, emptyList())
 
                 override fun onAdClicked(ad: MaxAd) = onClicked()
 
@@ -124,6 +131,7 @@ internal class MaxBannerAdView(
     private val now: () -> Long,
     private val logger: AppLogger,
     private val loadErrorLog: LoadErrorLog = LoadErrorLog.CODE_ONLY,
+    private val networkLog: AdNetworkLog = AdNetworkLog.OFF,
 ) : BannerAdView {
     // Callbacks come one at a time; the buffer keeps tryEmit from dropping a result the loop has not read yet.
     private val emitted = MutableSharedFlow<BannerLoadResult>(extraBufferCapacity = RESULT_BUFFER)
@@ -139,7 +147,12 @@ internal class MaxBannerAdView(
     override fun send() {
         val existing = sdk
         val view = existing ?: newSdkView().also { built ->
-            built.setCallbacks(onLoaded = ::onLoaded, onFailed = ::onFailed, onClicked = ::onClicked)
+            built.setCallbacks(
+                onLoaded = ::onLoaded,
+                onFailed = ::onFailed,
+                onClicked = ::onClicked,
+                onRevenue = ::onRevenue,
+            )
             sdk = built
             logger.info(TAG, "Banner $placementKey MAX view created")
         }
@@ -174,13 +187,13 @@ internal class MaxBannerAdView(
         }
     }
 
-    private fun onLoaded() {
+    private fun onLoaded(info: MaxAdInfo) {
         logger.info(TAG, "Banner $placementKey MAX loaded")
         telemetry.loadSucceeded(format, maxSlot, loadPlacement, now())
         emitted.tryEmit(BannerLoadResult.Loaded)
     }
 
-    private fun onFailed(code: Int, message: String?) {
+    private fun onFailed(code: Int, message: String?, networks: List<MaxNetworkAttempt>) {
         logger.info(TAG, "Banner $placementKey MAX failed (code ${loadErrorLog.text(code, message)})")
         telemetry.maxLoadFailed(format, maxSlot, loadPlacement, code, now())
         // No message: it is in the line above, the retry line does not repeat it (question 4 of plan T-093).
@@ -188,6 +201,8 @@ internal class MaxBannerAdView(
     }
 
     private fun onClicked() = telemetry.clicked(format, placement)
+
+    private fun onRevenue(info: MaxAdInfo) = Unit
 
     private companion object {
         const val RESULT_BUFFER = 16

@@ -47,6 +47,9 @@ internal class AdTelemetry(
         adapterClassName: String?,
     ) = logRevenue(format, unitId, placement, revenueValue(valueMicros), currency, adSource, adapterClassName, false)
 
+    /** One paid event of an AppLovin MAX ad (plan T-072). */
+    fun maxRevenue(format: AdFormat, unitId: String, placement: () -> AdPlacement?, info: MaxAdInfo) = Unit
+
     /** The zero-value impression of a native ad with no paid event 2 s after its impression (T-02). */
     fun revenueFallback(
         format: AdFormat,
@@ -107,7 +110,13 @@ internal class AdTelemetry(
         counter.onRequestSent(slot, now)
     }
 
-    fun loadSucceeded(format: AdFormat, slot: String, placement: String?, now: Long) {
+    fun loadSucceeded(
+        format: AdFormat,
+        slot: String,
+        placement: String?,
+        now: Long,
+        platform: AdPlatform = AdPlatform.ADMOB,
+    ) {
         val outcome = counter.onLoaded(slot, now)
         if (!lifecycleOn(format)) return
         log(AdMetricEvent.LoadSuccess(format.metricCode(), placement, outcome.attempt, outcome.latencyMs))
@@ -167,13 +176,13 @@ internal class AdTelemetry(
         log(AdMetricEvent.Opportunity(format.metricCode(), placement.key, result, loadState))
     }
 
-    fun showFailed(format: AdFormat, placement: AdPlacement?, code: Int) {
+    fun showFailed(format: AdFormat, placement: AdPlacement?, code: Int, platform: AdPlatform = AdPlatform.ADMOB) {
         if (!lifecycleOn(format)) return
         log(AdMetricEvent.ShowFail(format.metricCode(), placement?.key, code.toString(), showFailReasonOf(code)))
     }
 
     /** A click on an ad of any format; every click callback of :core:ads comes here, so it always skips a resume. */
-    fun clicked(format: AdFormat, placement: AdPlacement?) {
+    fun clicked(format: AdFormat, placement: AdPlacement?, platform: AdPlatform = AdPlatform.ADMOB) {
         try {
             onClicked()
         } catch (e: Exception) {

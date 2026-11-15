@@ -45,6 +45,8 @@ internal class MaxInterstitialSlot(
     private val fullScreenBusy: () -> Boolean = { true },
     /** R-03: whether a failed load [code] is a network error (plan T-106). */
     private val networkError: (code: Int) -> Boolean = { false },
+    /** The per-network log of every load (plan T-072, KB-28): on at staging only. */
+    private val networkLog: AdNetworkLog = AdNetworkLog.OFF,
 ) {
     init {
         require(format == AdFormat.INTERSTITIAL || format == AdFormat.REWARDED || format == AdFormat.APP_OPEN) {
@@ -83,6 +85,9 @@ internal class MaxInterstitialSlot(
         private set
 
     private var ad: MaxInterstitialSdkAd? = null
+
+    /** The adapter class of the network of the ad held (plan T-072), for the funnel of its show; null when unknown. */
+    val heldAdapterClassName: String? get() = null
 
     /** A load was asked while MAX was not ready: sent once MAX is ready (L-072). */
     private var wanted = false
@@ -137,7 +142,7 @@ internal class MaxInterstitialSlot(
      * Takes the held ad out to show it; the slot is empty after. The show callbacks of the SDK go to [onShow] until
      * the next take. Null when none is held.
      */
-    fun take(onShow: MaxInterstitialListener? = null): MaxInterstitialSdkAd? {
+    fun take(placement: AdPlacement, onShow: MaxInterstitialListener? = null): MaxInterstitialSdkAd? {
         dropIfExpired()
         if (current != FullScreenLoadState.Ready) return null
         current = FullScreenLoadState.Idle
@@ -294,7 +299,7 @@ internal class MaxInterstitialSlot(
 
     /** The callbacks of the one SDK object: the load ones here, the show ones passed to [showCallbacks]. */
     private inner class Callbacks(private val unit: String) : MaxInterstitialListener {
-        override fun onLoaded() {
+        override fun onLoaded(info: MaxAdInfo) {
             current = FullScreenLoadState.Ready
             loadedAt = clock.nowMillis()
             lastLoadError = null
@@ -304,7 +309,8 @@ internal class MaxInterstitialSlot(
             logger.info(TAG, "$label loaded")
         }
 
-        override fun onLoadFailed(code: Int) = this@MaxInterstitialSlot.onLoadFailed(code)
+        override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) =
+            this@MaxInterstitialSlot.onLoadFailed(code)
 
         override fun onDisplayed() {
             if (format == AdFormat.REWARDED) {

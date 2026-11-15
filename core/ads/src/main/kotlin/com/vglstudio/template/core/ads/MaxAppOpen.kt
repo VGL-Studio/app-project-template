@@ -17,15 +17,17 @@ internal class AppLovinMaxAppOpen(adUnitId: String, context: Context) : MaxInter
 
     override var listener: MaxInterstitialListener? = null
 
+    override var onRevenue: ((MaxAdInfo) -> Unit)? = null
+
     init {
         ad.setListener(
             object : MaxAdListener {
                 override fun onAdLoaded(maxAd: MaxAd) {
-                    listener?.onLoaded()
+                    listener?.onLoaded(MaxAdInfo.EMPTY)
                 }
 
                 override fun onAdLoadFailed(adUnitId: String, error: MaxError) {
-                    listener?.onLoadFailed(error.code)
+                    listener?.onLoadFailed(error.code, emptyList())
                 }
 
                 override fun onAdDisplayed(maxAd: MaxAd) {

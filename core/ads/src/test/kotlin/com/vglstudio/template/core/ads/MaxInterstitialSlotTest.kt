@@ -3,6 +3,7 @@ package com.vglstudio.template.core.ads
 import com.vglstudio.template.core.analytics.AdFunnelEvent
 import com.vglstudio.template.core.analytics.AdFunnelKind
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.AdMetricPlatform
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
@@ -48,19 +49,23 @@ class MaxInterstitialSlotTest {
         logger = logger,
     )
 
-    private fun TestScope.slot(unit: String? = UNIT, shouldLoadGate: suspend () -> Boolean = { shouldLoad }) =
-        MaxInterstitialSlot(
-            scope = backgroundScope,
-            clock = MonotonicClock { testScheduler.currentTime },
-            unitId = { unit },
-            maxReady = maxReady,
-            shouldLoad = shouldLoadGate,
-            mayRequestNow = { gateOpen },
-            newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
-            telemetry = telemetry,
-            failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.SLOT) },
-            logger = logger,
-        )
+    private fun TestScope.slot(
+        unit: String? = UNIT,
+        shouldLoadGate: suspend () -> Boolean = { shouldLoad },
+        networkLog: AdNetworkLog = AdNetworkLog.OFF,
+    ) = MaxInterstitialSlot(
+        scope = backgroundScope,
+        clock = MonotonicClock { testScheduler.currentTime },
+        unitId = { unit },
+        maxReady = maxReady,
+        shouldLoad = shouldLoadGate,
+        mayRequestNow = { gateOpen },
+        newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
+        telemetry = telemetry,
+        failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.SLOT) },
+        logger = logger,
+        networkLog = networkLog,
+    )
 
     private fun TestScope.at(millis: Long) {
         advanceTimeBy(millis - testScheduler.currentTime)
@@ -186,7 +191,7 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoaded()
-        val taken = slot.take()
+        val taken = slot.take(A)
         assertSame(ad, taken)
         assertEquals(FullScreenLoadState.Idle, slot.state)
         slot.onClosedOrShowFailed()
@@ -203,7 +208,7 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoaded()
-        slot.take()
+        slot.take(A)
         slot.loadIfNeeded()
         runCurrent()
         at(5_000)
@@ -234,7 +239,7 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoaded()
-        slot.take()
+        slot.take(A)
         slot.loadIfNeeded()
         runCurrent()
         assertEquals(1, loads())
@@ -254,7 +259,7 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoaded()
-        slot.take()
+        slot.take(A)
         slot.onClosedOrShowFailed()
         at(2_000)
         assertEquals(2, loads())
@@ -266,7 +271,7 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoaded()
-        slot.take()
+        slot.take(A)
         slot.onClosedOrShowFailed()
         gateOpen = false
         at(2_000)
@@ -280,7 +285,7 @@ class MaxInterstitialSlotTest {
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoaded()
-        slot.take()
+        slot.take(A)
         slot.onClosedOrShowFailed()
         shouldLoad = false
         at(2_000)
@@ -363,23 +368,224 @@ class MaxInterstitialSlotTest {
 
     @Test
     fun logs_neverContainUnitId() = runTest {
+        // The per-network log on (plan T-072).
+        val slot = slot(networkLog = AdNetworkLog(true, logger))
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, twoNetworks())
+        at(2_000)
+        ad.emitLoaded(info(networks = twoNetworks()))
+        ad.emitRevenue(info())
+        slot.take(A)
+        slot.onClosedOrShowFailed()
+        gateOpen = false
+        at(4_000)
+        // Control: the slot logged something.
+        assertTrue(logger.entries.isNotEmpty())
+        assertTrue(logger.entries.any { it.message.startsWith("Network preload:interstitial/max: ") })
+        assertTrue(logger.entries.none { UNIT in it.message || AD_UNIT in it.message })
+    }
+
+    // Plan T-072: network log, revenue by the placement of the take, platform, funnel adapter
+
+    @Test
+    fun loadedAndFailed_logNetworks_whenLogOn() = runTest {
+        val slot = slot(networkLog = AdNetworkLog(true, logger))
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        assertEquals(listOf("Network preload:interstitial/max: Mintegral, 40 ms, error 204"), networkLines())
+        at(2_000)
+        ad.emitLoaded(info(networks = twoNetworks()))
+        assertEquals(
+            listOf(
+                "Network preload:interstitial/max: Mintegral, 40 ms, error 204",
+                "Network preload:interstitial/max: AppLovin, 80 ms, error -5208",
+                "Network preload:interstitial/max: Google, 120 ms, loaded",
+            ),
+            networkLines(),
+        )
+    }
+
+    @Test
+    fun networkLogOff_noNetworkLines() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, twoNetworks())
+        at(2_000)
+        ad.emitLoaded(info(networks = twoNetworks()))
+        assertEquals(emptyList<String>(), networkLines())
+
+        // Control: the same calls on a slot with the log on write the lines.
+        val logged = slot(networkLog = AdNetworkLog(true, logger))
+        logged.loadIfNeeded()
+        runCurrent()
+        built.last().emitLoaded(info(networks = twoNetworks()))
+        assertTrue(logger.entries.toString(), networkLines().isNotEmpty())
+    }
+
+    @Test
+    fun revenue_placementOfTake() = runTest {
+        val slot = loadedSlot()
+        slot.take(A)
+        ad.emitDisplayed()
+        ad.emitRevenue(info())
+        assertEquals(
+            listOf(
+                AdMetricEvent.ImpressionRevenue(
+                    adFormat = "INTER",
+                    adSource = "AppLovin",
+                    monetizationNetwork = "AppLovin",
+                    adUnitName = UNIT,
+                    currency = "USD",
+                    value = 0.0123,
+                    adPlacement = "gallery_interstitial",
+                    adapterClassName = ADAPTER,
+                    platform = AdMetricPlatform.APPLOVIN,
+                ),
+            ),
+            revenues(),
+        )
+    }
+
+    @Test
+    fun revenueBeforeAnyTake_noPlacement() = runTest {
+        loadedSlot()
+        ad.emitRevenue(info())
+        val revenue = revenues().single()
+        assertNull(revenue.adPlacement)
+        assertEquals(AdMetricPlatform.APPLOVIN, revenue.platform)
+    }
+
+    @Test
+    fun revenueAfterClose_beforeNextTake_keepsPlacement() = runTest {
+        val slot = loadedSlot()
+        slot.take(A)
+        ad.emitHidden()
+        slot.onClosedOrShowFailed()
+        at(2_000)
+        ad.emitLoaded()
+        assertEquals(FullScreenLoadState.Ready, slot.state)
+        // The revenue of the show of A comes late, before any other take.
+        ad.emitRevenue(info())
+        assertEquals(listOf("gallery_interstitial"), revenues().map { it.adPlacement })
+    }
+
+    @Test
+    fun twoPlacements_sequentialTakes_eachRevenueOwnPlacement() = runTest {
+        val slot = loadedSlot()
+        slot.take(A)
+        ad.emitRevenue(info())
+        ad.emitHidden()
+        slot.onClosedOrShowFailed()
+        at(2_000)
+        ad.emitLoaded()
+        slot.take(B)
+        ad.emitRevenue(info())
+        assertEquals(listOf("gallery_interstitial", "resume_inter"), revenues().map { it.adPlacement })
+        assertEquals(1, built.size)
+    }
+
+    @Test
+    fun droppedObject_lateRevenue_keepsOldPlacement() = runTest {
+        var busy = true
+        val slot = MaxInterstitialSlot(
+            scope = backgroundScope,
+            clock = MonotonicClock { testScheduler.currentTime },
+            unitId = { UNIT },
+            maxReady = maxReady,
+            shouldLoad = { true },
+            mayRequestNow = { true },
+            newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
+            telemetry = telemetry,
+            failuresInARow = { 0 },
+            logger = logger,
+            fullScreenBusy = { busy },
+        )
+        slot.loadIfNeeded()
+        runCurrent()
+        built[0].emitLoaded()
+        slot.take(A)
+        // The turn ended with no close from the SDK: the slot drops the object and builds a new one.
+        busy = false
+        slot.loadIfNeeded()
+        runCurrent()
+        assertEquals(2, built.size)
+        built[1].emitLoaded()
+        slot.take(B)
+
+        built[0].emitRevenue(info())
+        built[1].emitRevenue(info())
+
+        assertEquals(listOf("gallery_interstitial", "resume_inter"), revenues().map { it.adPlacement })
+    }
+
+    @Test
+    fun loadSuccessAndFail_applovinPlatform() = runTest {
         val slot = slot()
         slot.loadIfNeeded()
         runCurrent()
         ad.emitLoadFailed(204)
         at(2_000)
         ad.emitLoaded()
-        slot.take()
-        slot.onClosedOrShowFailed()
-        gateOpen = false
-        at(4_000)
-        // Control: the slot logged something.
-        assertTrue(logger.entries.isNotEmpty())
-        assertTrue(logger.entries.none { UNIT in it.message })
+        assertEquals(
+            listOf(
+                AdMetricEvent.LoadFail("INTER", "preload", 1, 0, "204", "no_fill", AdMetricPlatform.APPLOVIN),
+                AdMetricEvent.LoadSuccess("INTER", "preload", 2, 0, AdMetricPlatform.APPLOVIN),
+            ),
+            metrics.events,
+        )
     }
+
+    @Test
+    fun loaded_apiCalled_withAdapterOfLoadedNetwork() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoaded(info())
+        assertEquals(
+            listOf(AdFunnelEvent.ApiCalled(AdFunnelKind.INTERS, "INTER", UNIT, ADAPTER)),
+            funnel.events.filterIsInstance<AdFunnelEvent.ApiCalled>(),
+        )
+        // The controller reads the adapter of the ad held before taking it, for the funnel of the show.
+        assertEquals(ADAPTER, slot.heldAdapterClassName)
+    }
+
+    private fun TestScope.loadedSlot(): MaxInterstitialSlot {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoaded()
+        return slot
+    }
+
+    private fun revenues() = metrics.events.filterIsInstance<AdMetricEvent.ImpressionRevenue>()
+
+    private fun networkLines(): List<String> = logger.entries.map { it.message }.filter { it.startsWith("Network ") }
+
+    private fun twoNetworks() = listOf(
+        MaxNetworkAttempt("AppLovin", 80, MaxNetworkResult.FAILED, -5208),
+        MaxNetworkAttempt("Google", 120, MaxNetworkResult.LOADED, null),
+    )
+
+    private fun info(networks: List<MaxNetworkAttempt> = emptyList()) = MaxAdInfo(
+        adUnitId = AD_UNIT,
+        revenueUsd = 0.0123,
+        networkName = "AppLovin",
+        revenuePrecision = "exact",
+        adapterClassName = ADAPTER,
+        networks = networks,
+    )
 
     private companion object {
         const val UNIT = "FAKE_UNIT_A"
+
+        /** The unit of the ad as the SDK reports it; the slot logs its own unit, never this one either. */
+        const val AD_UNIT = "FAKE_UNIT_OF_AD"
+        const val ADAPTER = "com.applovin.mediation.adapters.GoogleMediationAdapter"
+        val A = AdPlacement.GALLERY_INTERSTITIAL
+        val B = AdPlacement.RESUME_INTER
         val FLAGS: AdsGlobalFlags = runBlocking { DefaultAdsFlags(FakeRemoteSettings()).global.first() }
     }
 }

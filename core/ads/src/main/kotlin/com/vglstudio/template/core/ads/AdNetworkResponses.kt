@@ -56,6 +56,11 @@ internal class AdNetworkLog(private val enabled: Boolean, private val logger: Ap
         write(networkResponseLines(key, networkResponsesOf(error.responseInfo), loadedAdapterClassName = null))
     }
 
+    /** The networks MAX tried for one load of [key] (plan T-072, KB-28); [key] of MAX ends with `/max`. */
+    fun maxResult(key: String, attempts: List<MaxNetworkAttempt>) {
+        if (!enabled) return
+    }
+
     private fun write(lines: List<String>) = lines.forEach { logger.info(TAG, it) }
 
     companion object {
