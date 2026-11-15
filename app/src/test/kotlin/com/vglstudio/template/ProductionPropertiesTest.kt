@@ -11,6 +11,10 @@ import org.junit.Test
  * SDK cannot be built without it (note of 2026-10-29 on ADR-0027: an app without the SDK needs no key), staging has
  * none and reads no parameter. Production is not built on CI (ADR-0007), so this reads the build file, which the
  * test task declares as an input. The working directory of a unit test is the module directory.
+ *
+ * The AppLovin MAX key and ad units (plan T-073, question 43 of the ads spec) are optional in production: without a
+ * key the release runs AdMob only. A value with characters that would break the Java string of BuildConfig stops
+ * the production build, without printing the value.
  */
 class ProductionPropertiesTest {
     private val build: String by lazy {
@@ -82,10 +86,9 @@ class ProductionPropertiesTest {
     }
 
     @Test
-    fun maxSdkKey_isOptionalUntilReleaseShPassesIt() {
-        // Plan T-068, question 6: production reads -PmaxSdkKey but does not require it yet. T-073 changes this test
-        // together with the export in scripts/release.sh and the L-125 contract test of scripts/tests/run.sh (the
-        // "8 none" and "4 none" lines), so no release breaks after the passwords are typed.
+    fun maxSdkKey_isOptional_charactersChecked() {
+        // Plan T-073 (question 43 of the ads spec, changed 2026-11-15): production reads -PmaxSdkKey, never requires
+        // it (an app without an AppLovin account releases with AdMob only), and refuses a key with odd characters.
         val production = flavor("production")
         // Control: the block read is the production flavor.
         assertTrue(production, "appsFlyerDevKey" in production)
@@ -94,7 +97,30 @@ class ProductionPropertiesTest {
         val check = build
             .substringAfter("val missingProductionProperties = mapOf(")
             .substringBefore("throw GradleException(")
-        listOf("maxSdkKey", "com.applovin", "ADR-0037").forEach { assertFalse("$it in:\n$check", it in check) }
+        listOf("\"maxSdkKey\" to", "com.applovin", "ADR-0037").forEach { assertFalse("$it in:\n$check", it in check) }
+        assertTrue(check, "\"maxSdkKey\".takeIf" in check)
+    }
+
+    @Test
+    fun productionMaxValues_wrongCharactersRefused_valueNotPrinted() {
+        // Plan T-073: a quote or backslash in -PmaxSdkKey or -PmaxAdUnits would break the Java string of BuildConfig;
+        // production refuses it, naming the parameter, never its value.
+        val check = build
+            .substringAfter("val missingProductionProperties = mapOf(")
+            .substringBefore("throw GradleException(")
+        assertTrue(check, "Regex(\"[A-Za-z0-9_-]+\")" in check)
+        assertTrue(check, "Regex(\"[A-Za-z0-9_=;-]*\")" in check)
+        // Control: the check read is the one of the production pre-build task.
+        assertTrue(check, "if (missing.isNotEmpty())" in check)
+        assertTrue("No refusal of malformed values", "if (malformed.isNotEmpty())" in build)
+        val afterRefusal = build.substringAfter("if (malformed.isNotEmpty())")
+        assertTrue(afterRefusal.take(400), "(ADR-0045)." in afterRefusal)
+        val refusal = afterRefusal.substringBefore("(ADR-0045).")
+        assertTrue(refusal, "\"Build production có tham số sai dạng: \"" in refusal)
+        assertTrue(refusal, "malformed.joinToString" in refusal)
+        val interpolated = Regex("\\$\\{?([A-Za-z_]+)").findAll(refusal).map { it.groupValues[1] }.toSet()
+        assertEquals(refusal, setOf("it"), interpolated)
+        assertFalse(refusal, "gradleProperty" in refusal)
     }
 
     @Test
@@ -131,7 +157,8 @@ class ProductionPropertiesTest {
     @Test
     fun maxAdUnits_stagingReadsLocalPropertiesFiltered_productionOptional() {
         // Plan T-071, step 7: the MAX ad units of the slots are never in the repo; staging reads them from
-        // local.properties only (filtered for BuildConfig), production from -PmaxAdUnits, optional until T-073.
+        // local.properties only (filtered for BuildConfig), production from -PmaxAdUnits, optional and checked for
+        // characters (plan T-073).
         val staging = flavor("staging")
         assertTrue(staging, "getProperty(\"ads.maxAdUnits\")" in staging)
         assertTrue(staging, ".trim()" in staging)
@@ -147,7 +174,8 @@ class ProductionPropertiesTest {
             .substringBefore("throw GradleException(")
         // Control: the check read is the one that names the AppsFlyer key.
         assertTrue(check, "appsFlyerDevKey" in check)
-        assertFalse(check, "maxAdUnits" in check)
+        assertFalse(check, "\"maxAdUnits\" to" in check)
+        assertTrue(check, "\"maxAdUnits\".takeIf" in check)
     }
 
     private fun String.occurrences(part: String): Int = split(part).size - 1
