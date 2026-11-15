@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -12,7 +12,7 @@ requests:
   - requests/2026-11-11-gian-thu-lai-native-khi-chua-co-quang-cao.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-11-13
+confirmed: 2026-11-15
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -840,3 +840,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-13 | AI | Theo rà soát độc lập của đợt duyệt T-103 và lựa chọn của anh Nhật trong phiên ("Sửa spec"): KB-24 tiêu chí 2 thêm ghi chú (chỗ native dùng chung cho nhiều màn, gồm vị trí native medium, không chờ lại từ 5 giây khi mở màn mới; chờ lại khi nhóm mở lại sau khi đã đóng; native toàn màn hình cũng không chờ lại khi mở màn mới), thêm câu hỏi 63. Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt đợt |
 | 2026-11-13 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-13: "Xác nhận spec ads (ghi chú KB-24, câu hỏi 63), duyệt plan T-103 theo các đề xuất ở mục 8, duyệt danh sách RUN-20261113-02, bắt đầu phiên khi merge, merge #488". Chuyển sang `confirmed` |
 | 2026-11-15 | AI | Theo quyết định của anh Nhật trong phiên vẽ thiết kế T-064 (2026-11-14, PR #499) và lời xác nhận phạm vi ngày 2026-11-15 ("Xác nhận."): KB-32 tiêu chí 3 đổi (chiều cao ba biến thể nội suy theo mốc, không theo số riêng của JBase), câu hỏi 48 thêm dòng đổi, thêm câu hỏi 64. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
+| 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trả lời yêu cầu xác nhận chữ đầy đủ của spec trên PR #500 (KB-32 tiêu chí 3, câu hỏi 48, 64): "Xác nhận.". Chuyển sang `confirmed` |
