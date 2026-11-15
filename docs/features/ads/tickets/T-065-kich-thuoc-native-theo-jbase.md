@@ -19,7 +19,7 @@ created: 2026-10-29
 
 ## Mô tả
 
-Đổi kích thước native nhỏ ở đáy (theo bề rộng màn hình, 90 tới 200 dp), native thu gọn và native medium trong `NativeAdCard` và thanh đáy theo thiết kế T-064 (ADR-0038, quyết định 3).
+Đổi kích thước native nhỏ ở đáy (theo bề rộng màn hình, 90 tới 200 dp), native thu gọn và native medium trong `NativeAdCard` và thanh đáy theo thiết kế T-064 (ADR-0045, mục 7.7; spec `ads`, câu hỏi 64).
 
 ## Phạm vi
 
@@ -27,7 +27,7 @@ created: 2026-10-29
 - Viết lại câu khẳng định cũ của D-02 (80 dp) theo ADR-0031; ghi lại ảnh chuẩn bị đổi (liệt kê trong plan).
 - Cỡ chữ 200%: kiểm lại theo tiêu chí của KB-1 (T-060 làm trên kích thước cũ; plan thống nhất thứ tự với T-060).
 - Giới hạn 120 dp của nút CTA ở native nhỏ (T-060): bỏ hay giữ theo layout JBase; bỏ thì viết lại hai test 120 dp của T-060 (`small_ctaAtMost120dpWide_shortCtaKeepsWidth`, `sdkLayout_small_longCta_ctaAtMost120dp_headlineVisible`) theo ADR-0031, vẫn giữ kiểm tiêu đề còn ít nhất 4 ký tự và nhãn "Ad" hiện đủ (rà soát plan T-060).
-- `ads-business-rules.md` mục 5.7, D-02, D-04, mục 11 và `ads-guide.md` đã ghi kích thước đích theo ADR-0045, mục 7.7 (spec `ads`, câu hỏi 48); plan đối chiếu lại khi code xong, sửa nếu còn lệch.
+- `ads-business-rules.md` mục 5.7, D-02, D-04, mục 11 và `ads-guide.md` đã ghi kích thước đích (layout theo ADR-0045, mục 7.7; chiều cao theo spec `ads`, câu hỏi 64); plan đối chiếu lại khi code xong, sửa nếu còn lệch.
 - Thiết kế T-064 bỏ số riêng của JBase, nội suy tuyến tính (`docs/features/ads/design/README.md`, mục 1); spec (KB-32, câu hỏi 64) và `ads-business-rules.md` mục 5.7 đã ghi theo. Plan chỉ viết khi spec `ads` đã `confirmed` lại.
 
 **Không bao gồm:**

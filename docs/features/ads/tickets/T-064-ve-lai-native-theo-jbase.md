@@ -21,7 +21,7 @@ created: 2026-10-29
 
 Component native nhỏ ở đáy, native thu gọn và native medium trong file thiết kế của dự án mẫu vẽ lại theo layout của JBase (`res/layout/gnt_*.xml` của gói JBase; spec `ads`, câu hỏi 48), như T-035 đã làm theo AdsKit. Màu và chữ theo token.
 
-Kết quả: thiết kế không theo số JBase mà nội suy tuyến tính theo quyết định của anh Nhật trong phiên 2026-11-14; số ở `docs/features/ads/design/README.md`, mục 1. Anh Nhật duyệt thiết kế trong phiên 2026-11-14, nguyên văn: "Duyệt."
+Kết quả: kích thước trong thiết kế không theo số riêng của JBase (spec `ads`, câu hỏi 64) mà nội suy tuyến tính theo quyết định của anh Nhật trong phiên 2026-11-14; số ở `docs/features/ads/design/README.md`, mục 1. Anh Nhật duyệt thiết kế trong phiên 2026-11-14, nguyên văn: "Duyệt."
 
 ## Phạm vi
 

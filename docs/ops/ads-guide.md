@@ -58,7 +58,7 @@ Tùy chọn yêu cầu native (O-06: video tắt tiếng, không điều khiển
 - Có small, medium và thẻ dọc, kích thước theo mục 5.7 của `ads-business-rules.md`; native đầy đủ chưa có vị trí.
 - Medium và thẻ dọc lấy quảng cáo từ pool (P-01 tới P-07): mỗi (định dạng, mã đơn vị) một pool, cỡ 3 cho medium, 5 cho thẻ dọc (cỡ đếm cả quảng cáo đang hiện). Pool nạp tuần tự từng quảng cáo, trả theo vòng tròn, không bao giờ trả quảng cáo đang hiện, nên hai ô cùng trên màn luôn khác quảng cáo. Ô rời màn trả quảng cáo: đã ghi lượt hiển thị thì pool hủy và nạp bù, chưa thì đặt lại cuối vòng. Pool cạn (không quảng cáo rảnh, không lượt đang bay, không gửi được) thì ô ẩn, hoặc giữ khung chờ tĩnh khi vị trí khai báo `keepSpaceWhenPoolEmpty = true`; ô vẫn hỏi lại (500 ms, 2 giây khi cạn) nên quảng cáo về muộn vẫn hiện. Ngoại lệ là ô thẻ một ô trong lưới: cạn mà không giữ quảng cáo thì ô rời lưới, các mục sau dồn lên; lưới hỏi pool mỗi 2 giây, mỗi lần pool có quảng cáo rảnh thì đặt lại một ô đã rời (ô đứng trước), hết ô đã rời thì đặt lại mọi ô; pool đang nạp mà chưa có quảng cáo thì ô chưa quay lại; vị trí bật lại thì mọi ô có mặt ngay; vị trí giữ chỗ thì ô giữ khung chờ tĩnh (P-06). Đặt nhiều ô của một pool hơn cỡ pool trên một màn thì ô thừa giữ khung chờ tới khi ô khác trả quảng cáo: tránh.
 
-Small, medium và đầy đủ trong `:core:ads`. Số liệu theo mục 5.7 của luật: small và medium theo layout JBase (ADR-0045, mục 7.7), đầy đủ theo `docs/features/ads/design/`:
+Small, medium và đầy đủ trong `:core:ads`. Số liệu theo mục 5.7 của luật: small và medium: chữ, icon, CTA theo layout JBase (ADR-0045, mục 7.7), chiều cao nội suy theo mục 5.7 (spec `ads`, câu hỏi 64); đầy đủ theo `docs/features/ads/design/`:
 
 | Phần | Small | Medium | Đầy đủ (`FULL`) |
 | --- | --- | --- | --- |
