@@ -414,8 +414,8 @@ Tiêu chí chấp nhận:
 Tiêu chí chấp nhận:
 
 - [ ] Khi nền tảng thứ nhất theo `ads_mediation_order` (mặc định MAX) chưa có quảng cáo cho một lượt hiện và nền tảng thứ hai có thì người dùng thấy quảng cáo của nền tảng thứ hai; một lượt chỉ ghi một cơ hội.
-- [ ] Khi `ads_mediation_order` là `admob` hay `max` thì chỉ nền tảng đó được nạp và hiện.
-- [ ] Quảng cáo mở app lúc khởi động chỉ là app open của AdMob; app open của MAX dùng khi quay lại app.
+- [ ] Khi `ads_mediation_order` là `admob` hay `max` thì chỉ nền tảng đó được nạp và hiện. **Đổi 2026-11-15 (câu hỏi 41):** trừ interstitial lúc khởi động (`open_app_inter`), luôn là AdMob kể cả khi thứ tự là `max`.
+- [ ] Quảng cáo mở app lúc khởi động chỉ là app open của AdMob; app open của MAX dùng khi quay lại app. **Đổi 2026-11-15 (câu hỏi 41):** interstitial lúc khởi động (`open_app_inter`) cũng chỉ là AdMob; interstitial khi quay lại app (`resume_inter`) và trong app theo `ads_mediation_order`.
 - [ ] Native luôn qua AdMob, kể cả khi thứ tự là `max`.
 - [ ] MAX và APS chỉ khởi động sau khi cổng đồng ý của app mở; không bao giờ gửi yêu cầu khi chưa có đồng ý.
 - [ ] Mọi luật toàn màn hình (không chồng nhau, khoảng cách `ads_interval`, gỡ kẹt, chặn quảng cáo tự hiện) áp như nhau cho quảng cáo của MAX.
@@ -845,4 +845,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trả lời yêu cầu xác nhận chữ đầy đủ của spec trên PR #500 (KB-32 tiêu chí 3, câu hỏi 48, 64): "Xác nhận.". Chuyển sang `confirmed` |
 | 2026-11-15 | AI | Theo trả lời của anh Nhật cho câu hỏi 1 của plan T-073 ("app chưa có tài khoản AppLovin: bỏ qua, không dùng MAX"): câu hỏi 43 thêm dòng đổi (khóa SDK MAX tùy chọn ở production, thiếu thì chỉ chạy AdMob; sai ký tự bị từ chối). Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt plan T-073 |
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trên PR #501: "Xác nhận spec ads (câu hỏi 43), duyệt plan T-073," Chuyển sang `confirmed` |
-| 2026-11-15 | AI | Theo lựa chọn của anh Nhật khi soạn plan T-069 ("Khởi động chỉ AdMob, quay lại theo thứ tự"; "Tách: T-069 chỉ inter"): câu hỏi 41 thêm dòng đổi (`open_app_inter` chỉ AdMob, `resume_inter` theo thứ tự, rewarded ở T-106). Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt plan T-069 |
+| 2026-11-15 | AI | Theo lựa chọn của anh Nhật khi soạn plan T-069 ("Khởi động chỉ AdMob, quay lại theo thứ tự"; "Tách: T-069 chỉ inter"): câu hỏi 41 thêm dòng đổi (`open_app_inter` chỉ AdMob, `resume_inter` theo thứ tự, rewarded ở T-106); KB-31 tiêu chí 2, 3 thêm dòng đổi theo. Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt plan T-069 |

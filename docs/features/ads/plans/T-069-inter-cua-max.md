@@ -75,26 +75,29 @@ internal interface MaxInterstitialSdkAd {
 internal class MaxInterstitialSlot(
     private val scope: CoroutineScope,
     private val clock: MonotonicClock,
-    private val unitId: () -> String?,          // maxConfig.unitFor(INTERSTITIAL)
+    private val unitId: () -> String?,               // maxConfig.unitFor(INTERSTITIAL)
     private val maxReady: StateFlow<Boolean>,
-    private val mayRequestNow: suspend () -> Boolean,   // S-15, đọc ngay trước khi gửi
+    private val shouldLoad: suspend () -> Boolean,   // MAX trong thứ tự hiệu lực và có vị trí inter (trừ open_app_inter) bật
+    private val mayRequestNow: () -> Boolean,        // S-15
     private val newAd: (String) -> MaxInterstitialSdkAd,
     private val telemetry: AdTelemetry,
-    private val failuresInARow: () -> Int,      // loadCounter.failuresInARow(SLOT)
+    private val failuresInARow: () -> Int,           // loadCounter.failuresInARow(SLOT)
     private val logger: AppLogger,
 ) {
-    val state: FullScreenLoadState              // Ready khi có quảng cáo; Loading; WaitingRetry; Idle
-    fun loadIfNeeded()                          // F-04
-    fun take(): MaxInterstitialSdkAd?           // lấy ra để hiện; khe trống
-    fun onClosedOrShowFailed()                  // F-06: nạp lại sau reloadAfterCloseMillis(INTERSTITIAL) = 2 giây
+    val state: FullScreenLoadState                   // Ready khi có quảng cáo; Loading; WaitingRetry; Idle
+    val lastLoadError: String?                       // nhãn load_state của lỗi gần nhất (giá trị của maxLoadFailed), null khi nạp được
+    fun loadIfNeeded()                               // F-04
+    fun take(): MaxInterstitialSdkAd?                // lấy ra để hiện; khe về Idle
+    fun onClosedOrShowFailed()                       // F-06: nạp lại sau reloadAfterCloseMillis(INTERSTITIAL) = 2 giây
     companion object { const val SLOT = "preload:interstitial/max" }
 }
 ```
 
-- `loadIfNeeded()`: không có mã đơn vị thì thôi; `needsLoad(state, now, gateOpen = true)` sai thì thôi. `maxReady` còn `false` thì ghi `wanted = true`, không gửi; khi `maxReady` bật (khe theo dõi `maxReady` trong `scope`) và `wanted` thì gọi lại `loadIfNeeded()` một lần (lượt nạp sẵn đầu chạy trước khi MAX sẵn sàng, `AdsSdkStart.kt`; L-072). Đặt `Loading`, rồi trong `scope.launch`: `mayRequestNow()` sai thì về `Idle`, log `"Interstitial (MAX) not requested: consent gate closed"`, không thử lại (như `onSendBlocked`); đúng thì `telemetry.requestSent(SLOT, now)` rồi `ad.load()`.
-- Một đối tượng `MaxInterstitialSdkAd` cho khe, dựng lười ở lần gửi đầu bằng `newAd(unitId)`, dùng lại cho mọi lượt nạp (MAX nạp lại trên cùng đối tượng).
-- `onLoaded`: `state = Ready`, `telemetry.loadSucceeded(INTERSTITIAL, SLOT, loadPlacementOf(INTERSTITIAL, null) /* "preload" */, now)`, log `"Interstitial (MAX) loaded"`. `onLoadFailed(code)`: `telemetry.maxLoadFailed(INTERSTITIAL, SLOT, "preload", code, now)`, rồi hẹn thử lại sau `AdRetryPolicy.fullScreenDelayMillis(failuresInARow())` (F-05), `state = WaitingRetry(dueAt)`; tới hạn gọi `loadIfNeeded()`. Một lượt hẹn đang chờ (thử lại hay nạp lại): lượt mới thay lượt cũ.
-- `take()`: trả quảng cáo khi `state == Ready`, về `Idle`; không thì `null`.
+- **Mọi đường tới lượt gửi đi qua một hàm riêng `send()`**: lượt nạp do controller gọi (`loadIfNeeded`), lượt chờ `maxReady` (cờ `wanted`), lượt thử lại F-05 khi tới hạn, lượt nạp lại F-06 sau khi đóng hay hiện lỗi. `send()` kiểm theo thứ tự, ngay trước khi gửi: có mã đơn vị; `needsLoad(state, now, gateOpen = true)`; `maxReady` (sai thì `wanted = true`, dừng); `shouldLoad()` (sai thì về `Idle`, log `"Interstitial (MAX) not requested: not in order or placements off"`, không thử lại); `mayRequestNow()` (sai thì về `Idle`, log `"Interstitial (MAX) not requested: consent gate closed"`, không thử lại, như `onSendBlocked`). Qua hết thì `state = Loading`, `telemetry.requestSent(SLOT, now)`, `ad.load()`.
+- `wanted`: khe theo dõi `maxReady` trong `scope`; khi `maxReady` bật và `wanted` thì gọi `send()` một lần (lượt nạp sẵn đầu chạy trước khi MAX sẵn sàng, `AdsSdkStart.kt`; L-072). Khe chưa được hỏi lần nào thì `maxReady` bật không gửi.
+- Một đối tượng `MaxInterstitialSdkAd` cho khe, dựng lười ở lần gửi đầu bằng `newAd(unitId)`, dùng lại cho mọi lượt nạp.
+- `onLoaded`: `state = Ready`, `lastLoadError = null`, `telemetry.loadSucceeded(INTERSTITIAL, SLOT, "preload", now)`, `telemetry.apiCalled(INTERSTITIAL, unitId, null)` (`af_inters_api_called` như đường AdMob), log `"Interstitial (MAX) loaded"`. `onLoadFailed(code)`: `lastLoadError = telemetry.maxLoadFailed(INTERSTITIAL, SLOT, "preload", code, now)`, hẹn thử lại sau `AdRetryPolicy.fullScreenDelayMillis(failuresInARow())` (F-05), `state = WaitingRetry(dueAt)`; tới hạn gọi `send()`. Một lượt hẹn đang chờ (thử lại hay nạp lại): lượt mới thay lượt cũ.
+- `take()`: trả quảng cáo khi `state == Ready`, về `Idle`; không thì `null`. Quảng cáo đang giữ khi thứ tự đổi bỏ MAX vẫn nằm trong khe (không hiện, vì controller không chọn MAX), không hủy.
 - Không bao giờ ghi mã đơn vị vào log.
 
 **Bước 3. Chọn nền tảng (`FullScreenPlatforms.kt`, mới, hàm thuần).**
@@ -112,34 +115,41 @@ internal fun interstitialPlatforms(
 internal fun readyPlatform(platforms: List<AdPlatform>, admobReady: Boolean, maxReady: Boolean): AdPlatform?
 
 /** The load state of a turn: Ready when a platform holds an ad, else the state of the first platform; Idle when none. */
-internal fun turnLoadState(
-    platforms: List<AdPlatform>,
-    admob: FullScreenLoadState,
-    max: FullScreenLoadState,
-): FullScreenLoadState
+internal fun turnLoadState(platforms: List<AdPlatform>, admob: FullScreenLoadState, max: FullScreenLoadState): FullScreenLoadState
+
+/** For the preload plan (S-22): Loading while any of [platforms] loads, else [turnLoadState]. */
+internal fun preloadSettleState(platforms: List<AdPlatform>, admob: FullScreenLoadState, max: FullScreenLoadState): FullScreenLoadState
 ```
 
-`interstitialPlatforms`: `placement == AdPlacement.OPEN_APP_INTER` thì `[ADMOB]` (nếu có mã AdMob), bỏ qua thứ tự; còn lại `order.platforms` bỏ nền tảng không có mã (như `bannerPlatforms`). `maxReady` của khe MAX nghĩa là "khe có quảng cáo", không phải "SDK sẵn sàng": SDK chưa sẵn sàng thì khe không bao giờ `Ready`.
+`interstitialPlatforms`: `placement == AdPlacement.OPEN_APP_INTER` thì `[ADMOB]` (nếu có mã AdMob), bỏ qua thứ tự; còn lại `order.platforms` bỏ nền tảng không có mã (như `bannerPlatforms`).
 
-**Bước 4. Nối vào `AdsController`.**
+**Bước 4. Nối vào `AdsController`.** Trạng thái gộp chỉ dùng để quyết định lượt hiện; việc nạp mỗi nền tảng đọc trạng thái của riêng nó.
 
-- Thuộc tính `maxInterstitials = MaxInterstitialSlot(scope, clock, { maxConfig.unitFor(AdFormat.INTERSTITIAL) }, maxReady, ::mayRequestNow, maxPlatform::newInterstitial, telemetry, { loadCounter.failuresInARow(MaxInterstitialSlot.SLOT) }, logger)`.
-- Hàm riêng `platformsOf(placement) = interstitialPlatforms(placement, mediationOrder.value, unitId(placement) != null, maxConfig.unitFor(INTERSTITIAL) != null)`.
-- `fullScreenLoadState(placement)`, nhánh `INTERSTITIAL`: `turnLoadState(platformsOf(placement), <trạng thái AdMob như hôm nay>, maxInterstitials.state)`. Nhờ vậy `isFullScreenAdReady`, `decideFullScreenTurn`, `opportunityLoadState` dùng chung không đổi chữ ký; `opportunityLoadState` vẫn ghép `lastLoadErrors[placement]` của AdMob (lỗi gần nhất của MAX ghi qua `maxLoadFailed` ở số liệu nạp).
-- `loadFullScreenAdIfNeeded` và `preloadNow`, nhánh `INTERSTITIAL`: `ADMOB in platformsOf(p)` thì `preloadInterstitial(p)` (đường AdMob như hôm nay, kiểm `needsLoad` của riêng AdMob); `MAX in platformsOf(p)` thì kiểm công tắc của vị trí (`isEnabled(p).first()` trong `scope.launch`) rồi `maxInterstitials.loadIfNeeded()`. Thứ tự `max` thì vị trí không nạp AdMob (KB-31, tiêu chí 2).
+- Thuộc tính `maxInterstitials = MaxInterstitialSlot(scope, clock, { maxConfig.unitFor(AdFormat.INTERSTITIAL) }, maxReady, shouldLoad = ::maxInterstitialWanted, mayRequestNow = ::mayRequestNow, maxPlatform::newInterstitial, telemetry, { loadCounter.failuresInARow(MaxInterstitialSlot.SLOT) }, logger)`.
+- `private suspend fun maxInterstitialWanted(): Boolean`: `AdPlatform.MAX in mediationOrder.value.platforms` và có ít nhất một vị trí trong `fullScreenPlacements()` có định dạng `INTERSTITIAL`, khác `OPEN_APP_INTER`, mà `isEnabled(it).first()`.
+- `private fun platformsOf(placement) = interstitialPlatforms(placement, mediationOrder.value, unitIds.of(placement, placement.format) != null, maxConfig.unitFor(INTERSTITIAL) != null)` (đọc `unitIds.of` thẳng, không qua `unitId(...)` vì hàm đó ghi `Log.e` mỗi lần thiếu mã, mà `platformsOf` được đọc mỗi 200 ms).
+- `private fun admobInterstitialState(placement)`: `Ready` khi `placement in loadedInterstitials`, không thì `loadStates[placement] ?: Idle` (đúng phần AdMob của `fullScreenLoadState` hôm nay).
+- `fullScreenLoadState(placement)`, nhánh `INTERSTITIAL`: `turnLoadState(platformsOf(placement), admobInterstitialState(placement), maxInterstitials.state)`. Nhờ vậy `isFullScreenAdReady`, `decideFullScreenTurn` không đổi chữ ký.
+- `opportunityLoadState(placement)`, với inter: nhãn lỗi theo nền tảng đầu của `platformsOf(placement)`: `MAX` thì `maxInterstitials.lastLoadError`, `ADMOB` thì `lastLoadErrors[placement]` như hôm nay (mục 8.2).
+- `preloadInterstitial(placement)` đổi dòng kiểm đầu thành `needsLoad(admobInterstitialState(placement), ...)` (không đọc trạng thái gộp).
+- `loadFullScreenAdIfNeeded(placement)` và `preloadNow(placement)`, nhánh `INTERSTITIAL`: không kiểm trạng thái gộp; `ADMOB in platformsOf(p)` thì `preloadInterstitial(p)` (tự kiểm trạng thái AdMob); `MAX in platformsOf(p)` thì `maxInterstitials.loadIfNeeded()` (khe tự kiểm trạng thái, `shouldLoad`, cổng). Thứ tự `max` thì vị trí không nạp AdMob (KB-31, tiêu chí 2); thứ tự hai nền tảng thì cả hai cùng nạp sẵn (ADR-0045, mục 2.3), lượt nạp lại F-06 hay F-07 của nền tảng này không bị trạng thái của nền tảng kia chặn.
+- `preloadSlots`: vị trí inter dùng `state = { preloadSettleState(platformsOf(p), admobInterstitialState(p), maxInterstitials.state) }`, để nhóm nạp sẵn chờ cả hai nền tảng (S-22).
+- Điểm nối test: `@VisibleForTesting internal var interstitialRequestForTest: ((AdPlacement) -> Unit)? = null`; trong `preloadInterstitial`, ngay sau `telemetry.requestSent(slot, ...)`, nếu khác `null` thì gọi nó thay cho `InterstitialAd.load(...)` (mọi kiểm trước đó giữ nguyên; callback nạp không chạy, khe AdMob ở `Loading`).
 - `showInterstitialTurn`: sau `beginInterstitialTurn(...)` (cổng đã qua, cờ đã bật, `af_inters_ad_eligible`, combo đã gói), chọn `readyPlatform(platformsOf(placement), placement in loadedInterstitials, maxInterstitials.state == Ready)`:
   - `ADMOB`: đường hôm nay, không đổi.
-  - `MAX`: `val ad = maxInterstitials.take()`; `null` thì `onInterstitialLost(placement, turn, loadState)` (như AdMob). Có thì `recordShownOpportunity(placement)`, gắn `ad.listener`: `onDisplayed` → `telemetry.displayed(INTERSTITIAL, unitId MAX, null)` và đếm `interDisplayCounter` như AdMob (N-05); `onHidden` → `onInterstitialClosed(placement, turn)` rồi `maxInterstitials.onClosedOrShowFailed()`; `onDisplayFailed(code)` → `onInterstitialShowFailed(placement, turn, code)` rồi `maxInterstitials.onClosedOrShowFailed()`; `onClicked` → `telemetry.clicked(INTERSTITIAL, placement)`. Log `"Interstitial shown (MAX): ${placement.key}"`, rồi `ad.show(activity)`.
+  - `MAX`: `val ad = maxInterstitials.take()`; `null` thì `onInterstitialLost(placement, turn, loadState)`. Có thì `recordShownOpportunity(placement)`, gắn `ad.listener`: `onDisplayed` → `telemetry.displayed(INTERSTITIAL, mã MAX, null)` và đếm `interDisplayCounter` như AdMob (N-05); `onHidden` → `onInterstitialClosed(placement, turn)` rồi `maxInterstitials.onClosedOrShowFailed()`; `onDisplayFailed(code)` → `onInterstitialShowFailed(placement, turn, code)` rồi `maxInterstitials.onClosedOrShowFailed()`; `onClicked` → `telemetry.clicked(INTERSTITIAL, placement)`. Log `"Interstitial shown (MAX): ${placement.key}"`, rồi `ad.show(activity)`.
   - `null` (cả hai không còn quảng cáo giữa cổng và lúc hiện): `onInterstitialLost`.
-  - `onInterstitialClosed`, `onInterstitialShowFailed` gọi `fullScreenReloads.onClosedOrShowFailed(placement)` như hôm nay; với thứ tự không có AdMob, lượt nạp lại đó tới `loadFullScreenAdIfNeeded` và chỉ nạp MAX (theo nhánh trên), nên không gửi AdMob.
-- Đường khởi động (`showStartupAd`) và đường quay lại (`ResumeAdPort.showInterstitial`) giữ lời gọi `showInterstitialTurn` như cũ; khác nhau chỉ ở `interstitialPlatforms` (`OPEN_APP_INTER` chỉ AdMob, `RESUME_INTER` theo thứ tự).
+- Sau khi đóng hay hiện lỗi có hai lịch nạp lại 2 giây: `fullScreenReloads.onClosedOrShowFailed(placement)` (lịch của vị trí, như hôm nay, đi qua `loadFullScreenAdIfNeeded` nên nạp mọi nền tảng còn thiếu) và `maxInterstitials.onClosedOrShowFailed()` (lịch của khe MAX, cho khe dùng chung khi vị trí vừa hiện không còn MAX trong thứ tự hay đã tắt). Hai lịch cùng mốc; `needsLoad` của mỗi nền tảng chặn gửi trùng.
+- Đường khởi động (`showStartupAd`) và đường quay lại (`ResumeAdPort.showInterstitial`) giữ lời gọi `showInterstitialTurn` như cũ; khác nhau chỉ ở `interstitialPlatforms`.
 - Gỡ kẹt (F-03), chủ biến mất (F-08), trần 10 phút, combo, mốc: không đổi, vì đi qua `presence`, `FullScreenCompletion`, `onInterstitialClosed` chung. Lỗi hiện của MAX ghi qua `telemetry.showFailed` với mã của MAX; `showFailReasonOf` trả `unknown` cho mã ngoài 0 tới 4 (câu hỏi 2).
-- Không thêm lý do nạp sẵn mới: khe MAX nạp ở lượt nạp sẵn của vị trí interstitial (kế hoạch nạp sẵn S-22 có vị trí đó), cờ `wanted` giữ lượt khi MAX chưa sẵn sàng.
+- Không thêm lý do nạp sẵn mới. Khe MAX nạp ở lượt nạp sẵn của vị trí interstitial (S-22), cờ `wanted` giữ lượt khi MAX chưa sẵn sàng; cổng mở lại thì `GATE_REOPENED` của kế hoạch nạp sẵn gọi lại. Thứ tự đổi từ `admob` sang có MAX giữa phiên: khe MAX nạp ở lượt `not_ready` kế tiếp (F-07) hay lượt nạp sẵn kế tiếp; chấp nhận, không thêm phản ứng khi khóa đổi.
+- Không có bước chờ có giới hạn mới trước khi hiện quảng cáo, nên không cần test đưa activity ra nền.
 
 **Bước 5. Tài liệu.**
 
 - `docs/ops/ads-business-rules.md`: M-10 thêm khe `interstitial` ("một khe interstitial MAX dùng chung mọi vị trí"); luật mới N-06 ở mục 5.1: "Interstitial hỏi nền tảng theo `ads_mediation_order` sau khi qua cổng; `open_app_inter` chỉ AdMob; nền tảng có trong thứ tự thì nạp sẵn; khe MAX dùng chung, thử lại F-05, nạp lại F-06; MAX chưa sẵn sàng thì coi như không có quảng cáo (ADR-0045, mục 2.2, 2.3; spec `ads`, câu hỏi 41)"; dòng khóa `ads_mediation_order` (mục 10) bỏ "interstitial ... của MAX chưa có", ghi interstitial đã theo thứ tự, rewarded và app open khi quay lại chưa.
 - `docs/ops/ads-guide.md`, mục 7, tiểu mục MAX: thêm một gạch "Interstitial của MAX (N-06, M-10)": khe dùng chung, mã `interstitial` trong `-PmaxAdUnits` / `ads.maxAdUnits`, log `Interstitial (MAX) loaded`, `Interstitial shown (MAX)`, cách thử trên staging (khóa và mã trong `local.properties`, `ads_mediation_order`).
+- `docs/ops/ads-guide.md`: câu "phễu của MAX ... chưa có" ở gạch banner và MREC của MAX sửa theo: inter của MAX có phễu `af_inters_*`.
 - `docs/ops/release.md`, mục 1.2: dòng mã đơn vị MAX đã có `interstitial`, không đổi.
 
 ### 3.2. Danh sách file
@@ -157,6 +167,7 @@ internal fun turnLoadState(
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenPlatformsTest.kt` | Mục 4 |
 | Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerMaxInterstitialTest.kt` | Mục 4 |
 | Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerMaxTest.kt` | Dữ liệu chuỗi log thiếu mã (mục 3.5) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/MaxSdkStarterTest.kt` | Câu viết lại của `maxConfig_unitFor_bannerAndMrecOnly_noKeyNoUnit` (mục 3.5) |
 | Sửa | `docs/ops/ads-business-rules.md` | M-10, N-06, dòng khóa `ads_mediation_order` |
 | Sửa | `docs/ops/ads-guide.md` | Mục 7, gạch interstitial của MAX |
 
@@ -164,7 +175,7 @@ internal fun turnLoadState(
 
 Nơi đọc các file bị sửa (`grep -rn` trong `scripts/ .github/ */src/test`):
 
-- `MaxSdk.kt` (`MaxConfig`, `MAX_FORMATS`): `AdsController.missingMaxUnits` (dòng log thiếu mã, nay kể thêm `interstitial`; test `AdsControllerMaxTest.start_keyWithoutBannerUnits_logsMissingOnce_noUnitInLog` trong bảng), `MaxConfig.toString` (đếm khe có mã, không test nào so chuỗi đó có số khe), `app/src/main/kotlin/com/vglstudio/template/di/MaxConfigModule.kt` (chỉ dựng, không đổi).
+- `MaxSdk.kt` (`MaxConfig`, `MAX_FORMATS`): `AdsController.missingMaxUnits` (dòng log thiếu mã, nay kể thêm `interstitial`; test `AdsControllerMaxTest.start_keyWithoutBannerUnits_logsMissingOnce_noUnitInLog` trong bảng), `MaxConfig.toString` (đếm khe có mã; `MaxSdkStarterTest.maxConfig_unitFor_bannerAndMrecOnly_noKeyNoUnit` so `units=2`, trong bảng và mục 3.5), `app/src/main/kotlin/com/vglstudio/template/di/MaxConfigModule.kt` (chỉ dựng, không đổi).
 - `MaxPlatform`: `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/di/MaxPlatformModule.kt` dựng `AppLovinMaxPlatform` (không đổi), `FakeMaxPlatform` (trong bảng).
 - `AdsController.kt`: mọi test `AdsController*` dựng qua `testAdsController` (`maxConfig = MaxConfig.NONE` mặc định: thứ tự hiệu lực là `admob`, `interstitialPlatforms` trả `[ADMOB]`, đường AdMob không đổi).
 - `docs/ops/ads-business-rules.md`, `docs/ops/ads-guide.md`: chú thích trong test `:core:ads`, `:core:analytics` (`core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdFormatTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdNetworkResponsesTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdTelemetryRulesTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/ConsentGateTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/FullScreenAdGuardTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/LoadAttemptCounterTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardScreenshotTest.kt`, `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdCardTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerEventsTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerSettingsTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerSwitchesTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/AppsFlyerTrackerTest.kt`, `core/analytics/src/test/kotlin/com/vglstudio/template/core/analytics/FirebaseAdMetricsTest.kt`) chỉ dẫn mã luật (`grep` mọi dòng nhắc hai file đều là chú thích, không đọc file); plan thêm N-06, sửa M-10, không đổi mã luật nào. `scripts/history-refs.py` quét hai tài liệu (không ghi mã ticket); `scripts/ads-plan.py` đọc `docs/remote-config-keys.md`, không đọc hai tài liệu này.
@@ -173,7 +184,7 @@ Nơi đọc các file bị sửa (`grep -rn` trong `scripts/ .github/ */src/test
 
 - Cờ tính năng: Không có (thứ tự từ khóa `ads_mediation_order` có sẵn)
 - Quảng cáo: không thêm vị trí; interstitial có thêm nền tảng MAX (KB-31, câu hỏi 41, 42)
-- Sự kiện phân tích: dùng sự kiện có sẵn cho lượt nạp, cơ hội, hiện, hiện lỗi, bấm của MAX (cùng tên, như banner MAX ở T-071); không thêm sự kiện; doanh thu MAX là T-072
+- Sự kiện phân tích: dùng sự kiện có sẵn cho lượt nạp, cơ hội, `af_inters_api_called`, hiện, hiện lỗi, bấm của MAX (cùng tên, như banner MAX ở T-071); không thêm sự kiện; doanh thu MAX là T-072
 - File R2: Không chạm
 - **Quyền truy cập:** Không thêm
 - **Thư viện và SDK:** Không thêm. `com.applovin.mediation.ads.MaxInterstitialAd`, `MaxAdListener`, `MaxAd`, `MaxError` nằm trong `applovin-sdk` 13.6.4 (`libs.applovin.sdk`, đã là `implementation` của `:core:ads` từ T-068); đã kiểm có trong `classes.jar` của bản AAR trên máy dev
@@ -195,33 +206,44 @@ Nơi đọc các file bị sửa (`grep -rn` trong `scripts/ .github/ */src/test
 | --- | --- | --- | --- |
 | Dòng log thiếu mã MAX kể `banner`, `banner_mrec` | `MAX_FORMATS` thêm `INTERSTITIAL`, dòng log kể thêm `interstitial` (bước 1) | `AdsControllerMaxTest.start_keyWithoutBannerUnits_logsMissingOnce_noUnitInLog`: chuỗi `"MAX ad units missing for banner_mrec; ..."` và `"... for banner, banner_mrec; ..."` | Cập nhật dữ liệu theo dòng enum plan thêm (ADR-0029): `"MAX ad units missing for banner_mrec, interstitial; those slots run without MAX"` và `"MAX ad units missing for banner, banner_mrec, interstitial; those slots run without MAX"`; câu không lộ mã và câu không khóa giữ nguyên |
 | `maxUnitId(INTERSTITIAL)` luôn `null` | Có mã `interstitial` thì trả mã | `AdsControllerMaxTest.maxUnitId_readsConfig`: `assertNull(controller.maxUnitId(AdFormat.INTERSTITIAL))` với cấu hình `"banner=u1;banner_mrec=m2"` | Giữ: cấu hình đó không có mã `interstitial`, vẫn `null` |
+| `MaxConfig` chỉ có khe banner, MREC: `unitFor(INTERSTITIAL)` luôn `null`, `toString` đếm 2 khe | `MAX_FORMATS` thêm `INTERSTITIAL` (bước 1) | `MaxSdkStarterTest.maxConfig_unitFor_bannerAndMrecOnly_noKeyNoUnit`: với `"banner=a1;banner_mrec=b2;interstitial=c3"`, `assertNull(config.unitFor(AdFormat.INTERSTITIAL))` và `"units=2" in text` | Viết lại (ADR-0031), đổi tên `maxConfig_unitFor_maxFormatsOnly_noKeyNoUnit`. Câu của plan nói điều mới: "`MaxConfig.MAX_FORMATS` thêm `AdFormat.INTERSTITIAL`" (bước 1). Câu ý định: chỉ các khe MAX có mã; định dạng ngoài danh sách luôn `null`. Câu mới: `assertEquals("c3", config.unitFor(AdFormat.INTERSTITIAL))`; cấu hình thêm `rewarded=r4` và `assertNull(config.unitFor(AdFormat.REWARDED))` (giữ ý "định dạng ngoài danh sách"); `"units=3" in text`; `assertFalse(text, "c3" in text)`. Mọi câu khác giữ. Đối chứng: tạm bỏ `AdFormat.INTERSTITIAL` khỏi `MAX_FORMATS` thì đỏ |
 | Interstitial chỉ nạp và hiện AdMob | Theo `interstitialPlatforms`; `MaxConfig.NONE` (mọi test cũ) cho thứ tự hiệu lực `admob`, nên `[ADMOB]` | Mọi test inter trong `AdsControllerNativeComboTest`, `AdsControllerStartupInterComboTest`, `AdsControllerResumeTest`, `AdsControllerHostTest`, `FullScreenAdsTest` | Giữ: không câu nào đổi, vì thứ tự hiệu lực không khóa là `admob` |
 
 ## 4. Kiểm thử
 
-Test viết trước, ở commit test. `MaxInterstitialSlotTest`, `FullScreenPlatformsTest` là unit test thuần với `TestScope` và đồng hồ giả; `AdsControllerMaxInterstitialTest` chạy Robolectric (`@RunWith(AndroidJUnit4::class)`), dựng controller bằng `testAdsController(maxConfig = MaxConfig("FAKE_MAX_KEY_0123", "interstitial=FAKE_UNIT"), maxPlatform = fakePlatform)`, mở cổng bằng `openConsentGateForTest()`, đặt `maxReady` bằng `fakePlatform.finishInitialization()` sau `admobReadyForTest()`, đặt thứ tự bằng `FakeRemoteSettings` khóa `ads_mediation_order`, quảng cáo AdMob bằng `putLoadedInterstitialForTest`, quảng cáo MAX bằng `fakePlatform.interstitials.single().emitLoaded()`. Mã giả có chữ `FAKE` để `scripts/secret-scan.py` không chặn.
+Test viết trước, ở commit test. `MaxInterstitialSlotTest`, `FullScreenPlatformsTest` là unit test thuần: khe chạy trong `backgroundScope` của `runTest` (khe theo dõi `maxReady` mãi, `scope` thường làm test treo), đồng hồ giả, `maxReady`, `shouldLoad`, `mayRequestNow` là biến của test. `AdsControllerMaxInterstitialTest` chạy Robolectric (`@RunWith(AndroidJUnit4::class)`), trình tự dựng:
+
+1. `testAdsController(maxConfig = MaxConfig("FAKE_MAX_KEY_0123", "interstitial=FAKE_UNIT_A"), maxPlatform = fakePlatform, flags = DefaultAdsFlags(remote))`, `remote` là `FakeRemoteSettings` có `ads_mediation_order` và công tắc `is_show_<vị trí>` của vị trí thử bật.
+2. `controller.interstitialRequestForTest = { requested += it }` (điểm nối mới của bước 4: truyền vị trí; bỏ lời gọi SDK `InterstitialAd.load`, không có callback nạp, khe AdMob ở `Loading`). Câu "AdMob được gửi / không được gửi" đọc `requested`.
+3. `start(...)`, `openConsentGateForTest()`, `admobReadyForTest()`; MAX sẵn sàng bằng `fakePlatform.finishInitialization()`.
+4. Test kế hoạch nạp sẵn: `setPreloadPlan(...)` có vị trí thử, rồi `requestPreloadForTest()`.
+5. Quảng cáo AdMob có sẵn bằng `putLoadedInterstitialForTest(placement, FakeInterstitialAd(...))`; quảng cáo MAX bằng `fakePlatform.interstitials.single().emitLoaded()`.
+
+Mã giả có chữ `FAKE`, không khớp mẫu của `scripts/secret-scan.py`.
 
 | Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
 | --- | --- | --- |
-| Chọn nền tảng theo thứ tự, `open_app_inter` chỉ AdMob | Unit test | `FullScreenPlatformsTest.interstitialPlatforms_followOrder_dropMissingUnits`: bốn thứ tự × có/không mã mỗi nền tảng; `interstitialPlatforms_openAppInter_admobOnly_anyOrder` (kể cả `max`: `[ADMOB]`); `interstitialPlatforms_resumeInter_followsOrder` |
-| Hiện nền tảng đầu đã có quảng cáo | Unit test | `FullScreenPlatformsTest.readyPlatform_firstWithAd_elseNext_elseNull`; `turnLoadState_readyWhenAny_elseFirstPlatformState_idleWhenNone` |
-| KB-31 tiêu chí 1: thứ nhất chưa có, thứ hai có thì hiện thứ hai, một cơ hội | Robolectric | `AdsControllerMaxInterstitialTest.maxFirst_noMaxAd_admobReady_showsAdmob_oneOpportunity` (thứ tự `max_admob`, chỉ AdMob có quảng cáo: `FakeInterstitialAd` được `show`, khe MAX không `show`, đúng một sự kiện cơ hội `shown`); `admobFirst_noAdmobAd_maxReady_showsMax_oneOpportunity` (đối xứng); `bothReady_firstPlatformShown` |
-| KB-31 tiêu chí 2: `admob`/`max` chỉ nạp, hiện nền tảng đó | Robolectric | `orderAdmob_maxSlotNeverLoads`: nạp sẵn vị trí, `fakePlatform.interstitials` rỗng; `orderMax_noAdmobRequest_onlyMaxLoads`: nạp sẵn, không `InterstitialAd.load` (đếm `telemetry.requestSent` theo bộ đếm `preload:<key>` bằng `RecordingAdMetrics`), khe MAX `load()` một lần; `orderMax_onlyMaxShown` |
-| KB-31 tiêu chí 3 (mở rộng): `open_app_inter` chỉ AdMob, `resume_inter` theo thứ tự | Robolectric | `startupInter_maxOrder_loadsAndShowsAdmobOnly` (đi qua `showStartupAd` với `StartupAdTurn(OPEN_APP_INTER)`, thứ tự `max`: chỉ AdMob nạp và hiện, khe MAX không `load`); `resumeInter_maxFirst_showsMax` |
-| KB-31 tiêu chí 5: không gửi khi cổng đồng ý đóng, mọi đường | Unit test + Robolectric | `MaxInterstitialSlotTest.load_gateClosedAtSend_noRequest_idle_noRetry` (đường nạp đầu); `retryDue_gateClosed_noRequest` (đường thử lại F-05); `reloadAfterClose_gateClosed_noRequest` (đường nạp lại F-06); `maxReadyLater_gateClosed_noRequest` (đường chờ `maxReady`); controller: `consentClosedAfterLoad_maxAdNotShown` (cổng đóng sau khi khe có quảng cáo: `decideFullScreenTurn` trả `CONSENT_CLOSED`, không `show`) |
-| Lượt nạp sẵn đầu trước khi MAX sẵn sàng (L-072) | Unit test + Robolectric | `MaxInterstitialSlotTest.load_beforeMaxReady_sentOnceWhenReady` (không `load()` trước, đúng một `load()` khi `maxReady` bật); `load_beforeMaxReady_neverAskedAgain_noLoadIfNotWanted` (đối chứng: khe chưa được hỏi thì `maxReady` bật không gửi); controller: `preloadPlan_beforeMaxReady_maxLoadsWhenReady` |
-| F-05: thử lại sau lỗi nạp | Unit test | `MaxInterstitialSlotTest.loadFailed_retriesAfterFullScreenDelay` (lỗi lần 1: chờ 2 s, lần 2: 4 s, theo `failuresInARow`; `state` là `WaitingRetry(dueAt)` đúng mốc; tới hạn `load()` lại); `loadFailed_metricsHaveMaxLabels` (`maxLoadFailed` với bộ đếm `preload:interstitial/max`, `load_state` theo `maxLoadStateAfterError`) |
-| F-06: nạp lại 2 giây sau khi đóng hay hiện lỗi | Unit test + Robolectric | `MaxInterstitialSlotTest.closed_reloadsAfterTwoSeconds` (1999 ms chưa `load`, 2000 ms có); `showFailed_reloadsAfterTwoSeconds`; controller: `maxShown_hidden_reloadsMaxSlot_notAdmobWhenOrderMax` |
-| L-068: hai yêu cầu chồng nhau | Unit test | `MaxInterstitialSlotTest.loadTwiceWhileLoading_oneRequest` (`loadIfNeeded` hai lần khi đang `Loading`: một `load()`, một `requestSent`); `twoPlacementsShareSlot_secondTurnNotReadyAfterTake` (controller: hai vị trí inter cùng khe MAX, lượt thứ nhất lấy quảng cáo, lượt thứ hai `not_ready` hay hiện AdMob, không hiện cùng một quảng cáo MAX hai lần) |
-| KB-31 tiêu chí 6: một cổng, cờ đang hiện, mốc, combo, gỡ kẹt cho MAX | Robolectric | `maxShown_raisesPresence_secondTurnBusy` (lượt thứ hai trong lúc MAX đang hiện: `BUSY`); `maxHidden_recordsIntervalMarkFirst_thenFinishes` (mốc ghi trước khi `onFinished` chạy, I-05; lượt sau trong `ads_interval` bị `THROTTLED`); `maxHidden_opensCombo_whenNativeAfterInterOn` (`is_show_native_after_inter` bật: combo mở như `AdsControllerNativeComboTest.closed_opensCombo`); `maxDisplayFailed_finishesOnce_showFailMetric` (`onFinished` đúng một lần, `ad_show_fail` có mã MAX); `maxStuck_recovered_finishesOnce` (Activity chủ pause rồi resume, không callback: F-03 hạ cờ, `onFinished` một lần); `maxHostGone_skipsBeforeTurn` (Activity không dùng được: `shown` rồi `ad_show_fail` `app_not_foreground`, khe MAX không `show`, F-08) |
-| Số liệu của lượt hiện MAX | Robolectric | `maxDisplayed_funnelAndInterCount` (`displayed` gửi phễu `af_inters_*` một lần, bộ đếm N-05 tăng); `maxClicked_recordsClick` |
-| Log không lộ mã | Unit test | `MaxInterstitialSlotTest.logs_neverContainUnitId` (mọi dòng log của khe không chứa `FAKE_UNIT`) |
+| Chọn nền tảng theo thứ tự, `open_app_inter` chỉ AdMob | Unit test | `FullScreenPlatformsTest.interstitialPlatforms_followOrder_dropMissingUnits` (bốn thứ tự × có/không mã mỗi nền tảng); `interstitialPlatforms_openAppInter_admobOnly_anyOrder` (kể cả `max`: `[ADMOB]`); `interstitialPlatforms_resumeInter_followsOrder` |
+| Hiện nền tảng đầu đã có quảng cáo; trạng thái của lượt và của nạp sẵn | Unit test | `FullScreenPlatformsTest.readyPlatform_firstWithAd_elseNext_elseNull`; `turnLoadState_readyWhenAny_elseFirstPlatformState_idleWhenNone`; `preloadSettleState_loadingWhileAnyLoads` |
+| KB-31 tiêu chí 1: thứ nhất chưa có, thứ hai có thì hiện thứ hai, một cơ hội | Robolectric | `AdsControllerMaxInterstitialTest.maxFirst_noMaxAd_admobReady_showsAdmob_oneOpportunity` (thứ tự `max_admob`, chỉ AdMob có quảng cáo: `FakeInterstitialAd` được `show`, khe MAX không `show`, đúng một sự kiện cơ hội `shown` trong `RecordingAdMetrics`); `admobFirst_noAdmobAd_maxReady_showsMax_oneOpportunity`; `bothReady_firstPlatformShown` |
+| ADR-0045 mục 2.3: nền tảng trong thứ tự đều nạp sẵn, không chặn nhau | Robolectric | `maxAdmob_preload_bothPlatformsLoad` (một lượt nạp sẵn: `requested` có vị trí và khe MAX `load()` một lần); `maxReady_admobEmpty_notReadyTurn_loadsAdmob` (MAX có quảng cáo, thứ tự `admob_max`, AdMob trống và đang không nạp: `loadFullScreenAdIfNeeded` vẫn gửi AdMob); `admobShown_maxWaitingRetry_admobReloadsAfterTwoSeconds` (khe MAX lỗi đang chờ thử lại, AdMob hiện rồi đóng: sau 2 s `requested` có vị trí) |
+| KB-31 tiêu chí 2: `admob`/`max` chỉ nạp, hiện nền tảng đó | Robolectric | `orderAdmob_maxSlotNeverLoads` (nạp sẵn: `fakePlatform.interstitials` rỗng); `orderMax_noAdmobRequest_onlyMaxLoads` (nạp sẵn: `requested` rỗng, khe MAX `load()` một lần); `orderMax_onlyMaxShown` |
+| Khóa thứ tự hay công tắc đổi giữa chừng khi khe MAX đang giữ tài nguyên | Unit test + Robolectric | `orderChangedToAdmob_whileMaxHoldsAd_maxNotShown_admobShown`; `MaxInterstitialSlotTest.retryDue_shouldLoadFalse_noRequest_idle` (đổi thứ tự sang `admob` khi khe chờ thử lại); `reloadAfterClose_shouldLoadFalse_noRequest`; `maxReadyLater_shouldLoadFalse_noRequest`; controller: `allInterPlacementsOff_maxRetryDue_noRequest` (tắt mọi vị trí inter khi khe chờ thử lại: tới hạn không `load()`) |
+| KB-31 tiêu chí 3 (mở rộng): `open_app_inter` chỉ AdMob, `resume_inter` theo thứ tự | Robolectric | `startupInter_maxOrder_loadsAndShowsAdmobOnly` (`showStartupAd` với `StartupAdTurn(OPEN_APP_INTER)`, thứ tự `max`, MAX có quảng cáo: chỉ AdMob được gửi (`requested`) và hiện, khe MAX không `show`); `resumeInter_maxFirst_showsMax` |
+| KB-31 tiêu chí 5: không gửi khi cổng đồng ý đóng, mọi đường, cả sau khi mở rồi đóng | Unit test + Robolectric | `MaxInterstitialSlotTest.load_gateClosedAtSend_noRequest_idle_noRetry` (đường nạp do controller gọi); `retryDue_gateClosed_noRequest` (thử lại F-05); `reloadAfterClose_gateClosed_noRequest` (nạp lại F-06); `maxReadyLater_gateClosed_noRequest` (đường chờ `maxReady`); controller: `consentClosedAfterLoad_maxAdNotShown` (cổng đóng sau khi khe có quảng cáo: `CONSENT_CLOSED`, không `show`); `gateClosedAtSend_thenReopened_maxLoadsOnce` (`closeConsentGateForTest`, lượt nạp bị chặn; `reopenConsentGateForTest`: khe MAX `load()` đúng một lần) |
+| Lượt nạp sẵn đầu trước khi MAX sẵn sàng (L-072) | Unit test + Robolectric | `MaxInterstitialSlotTest.load_beforeMaxReady_sentOnceWhenReady`; `maxReady_notWanted_noRequest` (đối chứng); controller: `preloadPlan_beforeMaxReady_maxLoadsWhenReady` (trình tự bước 4 trước bước 3 phần MAX: kế hoạch chạy, `fakePlatform.interstitials` rỗng; `finishInitialization()`: một `load()`) |
+| F-05: thử lại sau lỗi nạp | Unit test | `MaxInterstitialSlotTest.loadFailed_retriesAfterFullScreenDelay` (lỗi lần 1: chờ 2 s, lần 2: 4 s theo `failuresInARow`; `state` là `WaitingRetry(dueAt)` đúng mốc; tới hạn `load()` lại); `loadFailed_metricsHaveMaxLabels_lastLoadErrorKept` (`maxLoadFailed` với bộ đếm `preload:interstitial/max`; `lastLoadError` bằng nhãn trả về; nạp được thì `null`) |
+| F-06: nạp lại 2 giây sau khi đóng hay hiện lỗi | Unit test + Robolectric | `MaxInterstitialSlotTest.closed_reloadsAfterTwoSeconds` (1999 ms chưa `load`, 2000 ms có); `showFailed_reloadsAfterTwoSeconds`; controller: `maxShown_hidden_reloadsMaxSlot_noAdmobWhenOrderMax` |
+| L-068: hai yêu cầu chồng nhau | Unit test + Robolectric | `MaxInterstitialSlotTest.loadTwiceWhileLoading_oneRequest` (một `load()`, một `requestSent`); controller: `twoPlacementsShareSlot_secondTurnNotShownSameMaxAd` (hai vị trí inter cùng khe MAX: lượt thứ nhất lấy quảng cáo, lượt thứ hai `not_ready` hay hiện AdMob, quảng cáo MAX không hiện hai lần) |
+| KB-31 tiêu chí 6: một cổng, cờ đang hiện, mốc, combo, gỡ kẹt cho MAX | Robolectric | `maxShown_raisesPresence_secondTurnBusy`; `maxHidden_recordsIntervalMarkFirst_thenFinishes` (mốc ghi trước khi `onFinished` chạy, I-05; lượt sau trong `ads_interval` bị `THROTTLED`); `maxHidden_opensCombo_whenNativeAfterInterOn` (như `AdsControllerNativeComboTest.closed_opensCombo`); `maxDisplayFailed_finishesOnce_showFailMetric`; `maxStuck_recovered_finishesOnce` (F-03); `maxHostGone_skipsBeforeTurn` (F-08: `shown` rồi `ad_show_fail` `app_not_foreground`, khe MAX không `show`) |
+| Số liệu của lượt MAX | Unit test + Robolectric | `MaxInterstitialSlotTest.loaded_recordsApiCalled` (`af_inters_api_called` một lần, trong `RecordingAdFunnel`); controller: `maxDisplayed_funnelAndInterCount` (`displayed` một lần, bộ đếm N-05 tăng); `maxClicked_recordsClick`; `maxFirst_maxFailed_opportunityHasMaxLoadState` (thứ tự `max_admob`, khe MAX lỗi, AdMob chưa lỗi: cơ hội `not_ready` mang nhãn lỗi của MAX) |
+| Log không lộ mã | Unit test | `MaxInterstitialSlotTest.logs_neverContainUnitId` |
 | Không khóa MAX: như hôm nay | Robolectric | Các test inter có sẵn chạy không đổi (`MaxConfig.NONE`); thêm `noMaxKey_interstitialAdmobOnly_noMaxObjectBuilt` |
 | Thử trên máy thật | Kiểm tra thủ công (máy thật: quảng cáo thật, cần khóa và mã MAX thật trong `local.properties`) | Bản staging dựng trên máy dev có `ads.maxSdkKey`, `ads.maxAdUnits` (thêm `interstitial=<mã>`), `ads_mediation_order` = `max_admob` trên Firebase staging: (1) vào "Ad gallery", bấm "Interstitial": log thẻ `Ads` có `Interstitial (MAX) loaded` rồi `Interstitial shown (MAX)`, quảng cáo MAX hiện, đóng xong app tiếp tục; (2) đặt `admob_max`: hiện AdMob; (3) mở app lần đầu với `open_app_inter` bật: inter lúc khởi động là AdMob |
 
 **Ngoại lệ viết test trước:**
 
-- `AppLovinMaxInterstitial` (bọc SDK thật) và `AppLovinMaxPlatform.newInterstitial`: không chạy được trong test JVM vì cần SDK đã khởi tạo; kiểm bằng kiểm thủ công 1.
+- `AppLovinMaxInterstitial` (bọc SDK thật) và `AppLovinMaxPlatform.newInterstitial`: không chạy được trong test JVM vì cần SDK đã khởi tạo; kiểm bằng kiểm thủ công.
 - Tài liệu (`ads-business-rules.md`, `ads-guide.md`): chỉ chữ.
 
 ### 4.1. Chạy thử
@@ -246,6 +268,7 @@ Không cần (E dưới 2): biến thể của banner MAX (T-071) và đường 
 - File hoặc thành phần dùng chung bị chạm: `AdsController.kt`, `MaxSdk.kt` (`MaxPlatform`, `MaxConfig`), `FakeMaxPlatform`.
 - Task khác: T-106 (rewarded của MAX) dùng `FullScreenPlatforms.kt` (thêm hàm cho rewarded) và mẫu `MaxInterstitialSlot`; T-070 (app open của MAX khi quay lại) và T-072 (doanh thu MAX: thêm listener doanh thu vào `MaxInterstitialSdkAd`) chạy sau. Issue #498 (`collapsibleLayer`) không chạm file của plan.
 - Đề xuất thứ tự chạy: trước T-106, T-070, T-072. Không cùng phiên với plan khác sửa `AdsController.kt`.
+- Phát hành: inter của MAX chưa ghi doanh thu tới khi T-072 xong (KB-31, tiêu chí 7). App bật MAX ở production (có khóa) nên phát hành sau T-072, hoặc chấp nhận thiếu doanh thu MAX trên Firebase, AppsFlyer trong khoảng đó.
 
 ## 7. Điều kiện dừng riêng
 
