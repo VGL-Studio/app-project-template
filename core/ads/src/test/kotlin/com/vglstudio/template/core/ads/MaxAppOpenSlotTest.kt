@@ -1,6 +1,7 @@
 package com.vglstudio.template.core.ads
 
 import com.vglstudio.template.core.analytics.AdMetricEvent
+import com.vglstudio.template.core.analytics.AdMetricPlatform
 import com.vglstudio.template.core.analytics.RecordingAdFunnel
 import com.vglstudio.template.core.analytics.RecordingAdMetrics
 import com.vglstudio.template.core.logging.RecordingAppLogger
@@ -47,19 +48,21 @@ class MaxAppOpenSlotTest {
         logger = logger,
     )
 
-    private fun TestScope.slot(format: AdFormat = AdFormat.APP_OPEN) = MaxInterstitialSlot(
-        format = format,
-        scope = backgroundScope,
-        clock = MonotonicClock { testScheduler.currentTime },
-        unitId = { UNIT },
-        maxReady = maxReady,
-        shouldLoad = { shouldLoad },
-        mayRequestNow = { gateOpen },
-        newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
-        telemetry = telemetry,
-        failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.slotOf(format)) },
-        logger = logger,
-    )
+    private fun TestScope.slot(format: AdFormat = AdFormat.APP_OPEN, networkLog: AdNetworkLog = AdNetworkLog.OFF) =
+        MaxInterstitialSlot(
+            format = format,
+            scope = backgroundScope,
+            clock = MonotonicClock { testScheduler.currentTime },
+            unitId = { UNIT },
+            maxReady = maxReady,
+            shouldLoad = { shouldLoad },
+            mayRequestNow = { gateOpen },
+            newAd = { FakeMaxInterstitialSdkAd(it).also { fake -> built += fake } },
+            telemetry = telemetry,
+            failuresInARow = { counter.failuresInARow(MaxInterstitialSlot.slotOf(format)) },
+            logger = logger,
+            networkLog = networkLog,
+        )
 
     /** The key of the load counter the controller reads for the MAX app open slot. */
     private fun TestScope.appOpenSlot() = MaxInterstitialSlot(
@@ -91,7 +94,7 @@ class MaxAppOpenSlotTest {
         runCurrent()
         ad.emitLoaded()
         assertEquals(FullScreenLoadState.Ready, slot.state)
-        assertSame(ad, slot.take(onShow))
+        assertSame(ad, slot.take(AdPlacement.RESUME, onShow))
     }
 
     // F-06, ADR-0045 section 2.4
@@ -128,9 +131,9 @@ class MaxAppOpenSlotTest {
         val slot = appOpenSlot()
         val failed = mutableListOf<Int>()
         val onShow = object : MaxInterstitialListener {
-            override fun onLoaded() = Unit
+            override fun onLoaded(info: MaxAdInfo) = Unit
 
-            override fun onLoadFailed(code: Int) = Unit
+            override fun onLoadFailed(code: Int, networks: List<MaxNetworkAttempt>) = Unit
 
             override fun onDisplayed() = Unit
 
@@ -226,7 +229,7 @@ class MaxAppOpenSlotTest {
         // Reading the state has no side effect.
         assertTrue(messages().none { it == "App open (MAX) expired" })
         assertFalse(built[0].calls.contains(FakeMaxInterstitialSdkAd.DESTROY))
-        assertNull(slot.take())
+        assertNull(slot.take(AdPlacement.RESUME))
         val old = built[0]
         assertTrue(old.calls.toString(), old.calls.contains(FakeMaxInterstitialSdkAd.DESTROY))
         assertNull(old.listener)
@@ -248,7 +251,7 @@ class MaxAppOpenSlotTest {
         ad.emitLoaded()
         at(7_200_000)
         assertEquals(FullScreenLoadState.Ready, slot.state)
-        assertSame(ad, slot.take())
+        assertSame(ad, slot.take(AdPlacement.GALLERY_INTERSTITIAL))
         assertFalse(ad.calls.contains(FakeMaxInterstitialSdkAd.DESTROY))
     }
 
@@ -297,7 +300,7 @@ class MaxAppOpenSlotTest {
         ad.emitLoadFailed(204)
         at(2_000)
         ad.emitLoaded()
-        slot.take()
+        slot.take(AdPlacement.RESUME)
         slot.onClosedOrShowFailed()
         gateOpen = false
         at(4_000)
@@ -365,8 +368,98 @@ class MaxAppOpenSlotTest {
         assertTrue(messages().toString(), "App open (MAX) not requested: consent gate closed" in messages())
     }
 
+    // Plan T-072: network log, revenue of `resume`, platform
+
+    @Test
+    fun loadedAndFailed_logNetworks_whenLogOn() = runTest {
+        val slot = slot(networkLog = AdNetworkLog(true, logger))
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        at(2_000)
+        ad.emitLoaded(info(networks = listOf(MaxNetworkAttempt("AppLovin", 90, MaxNetworkResult.LOADED, null))))
+        assertEquals(
+            listOf(
+                "Network preload:app_open/max: Mintegral, 40 ms, error 204",
+                "Network preload:app_open/max: AppLovin, 90 ms, loaded",
+            ),
+            networkLines(),
+        )
+        assertTrue(messages().none { UNIT in it || AD_UNIT in it })
+    }
+
+    @Test
+    fun networkLogOff_noNetworkLines() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        assertEquals(emptyList<String>(), networkLines())
+
+        // Control: the same failure on a slot with the log on writes the line.
+        val logged = slot(networkLog = AdNetworkLog(true, logger))
+        logged.loadIfNeeded()
+        runCurrent()
+        built.last().emitLoadFailed(204, listOf(MaxNetworkAttempt("Mintegral", 40, MaxNetworkResult.FAILED, 204)))
+        assertTrue(messages().toString(), networkLines().isNotEmpty())
+    }
+
+    @Test
+    fun revenue_placementOfTake() = runTest {
+        val slot = slot()
+        loadedAndTaken(slot)
+        ad.emitDisplayed()
+        ad.emitRevenue(info())
+        assertEquals(
+            listOf(
+                AdMetricEvent.ImpressionRevenue(
+                    adFormat = "APP_OPEN",
+                    adSource = "AppLovin",
+                    monetizationNetwork = "AppLovin",
+                    adUnitName = UNIT,
+                    currency = "USD",
+                    value = 0.0123,
+                    adPlacement = "resume",
+                    adapterClassName = ADAPTER,
+                    platform = AdMetricPlatform.APPLOVIN,
+                ),
+            ),
+            metrics.events.filterIsInstance<AdMetricEvent.ImpressionRevenue>(),
+        )
+    }
+
+    @Test
+    fun loadSuccessAndFail_applovinPlatform() = runTest {
+        val slot = slot()
+        slot.loadIfNeeded()
+        runCurrent()
+        ad.emitLoadFailed(204)
+        at(2_000)
+        ad.emitLoaded()
+        assertEquals(
+            listOf(
+                AdMetricEvent.LoadFail("APP_OPEN", "preload", 1, 0, "204", "no_fill", AdMetricPlatform.APPLOVIN),
+                AdMetricEvent.LoadSuccess("APP_OPEN", "preload", 2, 0, AdMetricPlatform.APPLOVIN),
+            ),
+            metrics.events,
+        )
+    }
+
+    private fun networkLines(): List<String> = messages().filter { it.startsWith("Network ") }
+
+    private fun info(networks: List<MaxNetworkAttempt> = emptyList()) = MaxAdInfo(
+        adUnitId = AD_UNIT,
+        revenueUsd = 0.0123,
+        networkName = "AppLovin",
+        revenuePrecision = "exact",
+        adapterClassName = ADAPTER,
+        networks = networks,
+    )
+
     private companion object {
         const val UNIT = "FAKE_UNIT_AO"
+        const val AD_UNIT = "FAKE_UNIT_OF_AD"
+        const val ADAPTER = "com.applovin.mediation.adapters.GoogleMediationAdapter"
 
         /** The key the controller reads the failures in a row of the MAX app open slot with. */
         const val APP_OPEN_COUNTER = "preload:app_open/max"
