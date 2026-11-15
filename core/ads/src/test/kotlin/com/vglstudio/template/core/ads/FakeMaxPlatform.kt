@@ -25,6 +25,27 @@ internal class FakeMaxPlatform(override var isInitialized: Boolean = false) : Ma
     override fun newInterstitial(adUnitId: String): MaxInterstitialSdkAd =
         FakeMaxInterstitialSdkAd(adUnitId).also { interstitials += it }
 
+    /** The distinct MAX rewarded objects built, in order (plan T-106). */
+    val rewardeds = mutableListOf<FakeMaxInterstitialSdkAd>()
+
+    /** The calls of [rewarded] (plan T-106). */
+    var rewardedCalls = 0
+        private set
+
+    private val rewardedByUnit = mutableMapOf<String, FakeMaxInterstitialSdkAd>()
+
+    /** Like `MaxRewardedAd.getInstance`: the same object per unit until it is destroyed (plan T-106). */
+    override fun rewarded(adUnitId: String): MaxInterstitialSdkAd {
+        rewardedCalls++
+        return rewardedByUnit.getOrPut(adUnitId) {
+            FakeMaxInterstitialSdkAd(
+                adUnitId,
+                ignoreLoadWhileShowing = true,
+                onDestroy = { rewardedByUnit.remove(adUnitId) },
+            ).also { rewardeds += it }
+        }
+    }
+
     fun finishInitialization() {
         callbacks.forEach { it() }
         callbacks.clear()

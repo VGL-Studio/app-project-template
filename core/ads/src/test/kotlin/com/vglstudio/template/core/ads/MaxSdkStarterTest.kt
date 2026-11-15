@@ -181,6 +181,19 @@ class MaxSdkStarterTest {
         assertTrue(text, "units=3" in text)
     }
 
+    @Test
+    fun maxConfig_unitFor_rewardedSlot() {
+        // Plan T-106 (M-10): one MAX rewarded unit, slot `rewarded`.
+        val config = MaxConfig(FAKE_KEY, "rewarded=r4")
+        assertEquals("r4", config.unitFor(AdFormat.REWARDED))
+        assertNull(config.unitFor(AdFormat.INTERSTITIAL))
+        val text = config.toString()
+        assertTrue(text, "units=1" in text)
+        assertFalse(text, "r4" in text)
+        // No SDK key: no unit.
+        assertNull(MaxConfig("", "rewarded=r4").unitFor(AdFormat.REWARDED))
+    }
+
     private companion object {
         /** A fake key of the real length (86 characters), with FAKE so the secret scan lets it through. */
         val FAKE_KEY = "FAKE" + "k".repeat(82)
