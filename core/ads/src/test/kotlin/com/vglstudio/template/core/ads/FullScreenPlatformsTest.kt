@@ -23,12 +23,19 @@ class FullScreenPlatformsTest {
             MediationOrder.MAX_ADMOB to listOf(MAX, ADMOB),
         )
         both.forEach { (order, expected) ->
-            assertEquals("$order", expected, interstitialPlatforms(inApp, order, hasAdmobUnit = true, hasMaxUnit = true))
+            assertEquals(
+                "$order",
+                expected,
+                interstitialPlatforms(inApp, order, hasAdmobUnit = true, hasMaxUnit = true),
+            )
         }
         // A platform without its ad unit is dropped (like bannerPlatforms).
         assertEquals(listOf(ADMOB), interstitialPlatforms(inApp, MediationOrder.MAX_ADMOB, true, hasMaxUnit = false))
         assertEquals(listOf(MAX), interstitialPlatforms(inApp, MediationOrder.MAX_ADMOB, hasAdmobUnit = false, true))
-        assertEquals(emptyList<AdPlatform>(), interstitialPlatforms(inApp, MediationOrder.MAX, true, hasMaxUnit = false))
+        assertEquals(
+            emptyList<AdPlatform>(),
+            interstitialPlatforms(inApp, MediationOrder.MAX, true, hasMaxUnit = false),
+        )
         assertEquals(emptyList<AdPlatform>(), interstitialPlatforms(inApp, MediationOrder.ADMOB, false, true))
     }
 
@@ -43,7 +50,12 @@ class FullScreenPlatformsTest {
         }
         assertEquals(
             emptyList<AdPlatform>(),
-            interstitialPlatforms(AdPlacement.OPEN_APP_INTER, MediationOrder.MAX, hasAdmobUnit = false, hasMaxUnit = true),
+            interstitialPlatforms(
+                AdPlacement.OPEN_APP_INTER,
+                MediationOrder.MAX,
+                hasAdmobUnit = false,
+                hasMaxUnit = true,
+            ),
         )
     }
 
@@ -51,7 +63,12 @@ class FullScreenPlatformsTest {
     fun interstitialPlatforms_resumeInter_followsOrder() {
         assertEquals(
             listOf(MAX, ADMOB),
-            interstitialPlatforms(AdPlacement.RESUME_INTER, MediationOrder.MAX_ADMOB, hasAdmobUnit = true, hasMaxUnit = true),
+            interstitialPlatforms(
+                AdPlacement.RESUME_INTER,
+                MediationOrder.MAX_ADMOB,
+                hasAdmobUnit = true,
+                hasMaxUnit = true,
+            ),
         )
         assertEquals(
             listOf(MAX),

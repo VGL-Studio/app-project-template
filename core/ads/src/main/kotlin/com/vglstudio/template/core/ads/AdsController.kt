@@ -1721,11 +1721,10 @@ class AdsController @Inject internal constructor(
      * The MAX interstitial slot may send (plan T-069): MAX is in the order and an interstitial placement that may
      * show MAX (not `open_app_inter`) is on. Asked right before each send of the slot.
      */
-    private suspend fun maxInterstitialWanted(): Boolean =
-        AdPlatform.MAX in mediationOrder.value.platforms &&
-            fullScreenPlacements().any {
-                it.format == AdFormat.INTERSTITIAL && it != AdPlacement.OPEN_APP_INTER && isEnabled(it).first()
-            }
+    private suspend fun maxInterstitialWanted(): Boolean = AdPlatform.MAX in mediationOrder.value.platforms &&
+        fullScreenPlacements().any {
+            it.format == AdFormat.INTERSTITIAL && it != AdPlacement.OPEN_APP_INTER && isEnabled(it).first()
+        }
 
     /**
      * `load_state` of an opportunity of [placement], taken at the decision (section 8.2); an interstitial takes the
