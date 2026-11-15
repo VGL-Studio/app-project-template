@@ -1,7 +1,7 @@
 ---
 ticket: T-072
 title: Doanh thu, phễu và nhật ký mạng con của MAX
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # tổng điểm theo risk-scoring.md, để trống nếu chạm điểm chặn
 risk_level: high             # low | medium | high
@@ -369,3 +369,16 @@ Không cần (E dưới 2): các lớp và hàm của SDK MAX dùng ở đây đ
 - **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-15 (ADR-0048, phần C; duyệt cả đợt 2026-11-15-01, PR #505), nguyên văn: "Xác nhận spec ads (mục 6), duyệt plan T-106, T-070, T-072 theo đề xuất ở mục 8, chấp nhận kiểm thủ công thay chạy thử cho T-106, phiên tự chạy." Mọi câu ở mục 8 theo đề xuất của AI. Câu 7: cỡ ticket đổi thành M.
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261115-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #508, commit merge `92272df`, 2026-11-15 19:28 UTC).
+- **Nhánh, PR:** `claude/T-072-doanh-thu-va-pheu-cua-max`, PR #508. Commit test `3266984` (test viết trước cùng khung rỗng); code `7855a6f`; sửa theo rà soát `f4921dc` (test), `d301f2c` (code), `fd7b2d2` (chú thích).
+- **Đã làm:** mục 3.1: `MaxAdInfo.kt` (đọc `MaxAd`, mỗi getter bọc riêng; `maxNetworkAttemptsOf`); doanh thu MAX qua `setRevenueListener` ở bốn lớp bọc (banner, inter, rewarded, app open), ô vị trí theo đối tượng SDK, `take(placement, …)` ghi vị trí của lượt lấy gần nhất (`RevenueRelay`); `AdTelemetry` và `AdTelemetryRules` (`ad_platform`, `mediation_network`, `ad_source`, đô la, `USD`, bảng `show_fail_reason` của MAX, phễu mang lớp adapter, dòng `Network <khóa>/max`); `AdMetrics`, `FirebaseAdMetrics`, `AppsFlyerEvents` (`ad_platform` ở tải, bấm, doanh thu; `mediation_network`); T-01, T-03, mục 8.2, 8.3, HD-07; `ads-guide.md`; `scripts/ads-plan.py`.
+- **Test viết trước:** 70 test mới cùng dữ liệu mục 3.5 của 9 test có sẵn. Trên khung rỗng 77 test đỏ đúng lý do (analytics 6, ads 71): chưa có sự kiện doanh thu MAX, `ad_platform` thiếu hay sai, `mediation_network` là `admob`, `show_fail_reason` `unknown`, `ad_source` của phễu rỗng, chưa có dòng `Network`, `MaxAdInfo` rỗng, test quét thiếu các lời nối. 12 test viết chặt bằng đối chứng. 4 test chặn qua ngay theo plan, mỗi test có đột biến làm nó đỏ. `existing-tests.py` chạy lại: "Cần xem trước" 9, không câu nào đổi ngoài mục 3.5.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 3 ghi chú. Đã sửa: getter `adLoadState` trong `maxAdInfoOf` chưa bọc riêng (trái bước 2, L-A21): test viết trước `MaxAdInfoTest.adInfo_loadStateGetterThrows_noCrash_adapterOfLoadedNetwork` đỏ `IllegalStateException: load state`, sửa `readOrNull { it.adLoadState }`; `FakeMaxNetworkResponse` thêm tham số `stateThrows` (mặc định `false`). Vòng 2: 0 chặn, 1 nên sửa (KDoc của `threeNetworks()` bị test mới tách ra), đã sửa theo ADR-0033/L12 (`git diff -w` chỉ có chú thích). Vòng 3: 0 chặn, 0 nên sửa, 0 ghi chú. Ghi chú vòng 1: các mục phiên con ghi "L1, L2, L3" không phải lệch theo nghĩa ADR-0032 mà là chi tiết plan cho tự chọn; `precision=null` trong dòng log khi MAX không báo độ chính xác.
+- **Kết quả CI:** `scripts/check.sh` trên máy: QUA (2273 test JVM, 91 ảnh). `pr-check` lần chạy 43750665108: lần đầu đỏ ở `build-and-test` vì Maven Central trả 429 khi tải `robolectric-4.17.pom` (PB-09, hạ tầng; `failure-kind.sh --playbook` in nhầm PB-02 vì log có dòng test script chứa chuỗi `HẠ TẦNG:`); chạy lại job đỏ một lần: xanh. Không tính vào 3 lần sửa.
+- **Lệch so với plan:** HD-07 trong hai tài liệu viết "bản đầu tiên có tham số `ad_platform`" thay cho "bản đầu tiên có T-072" (không ghi mã ticket, theo chỉ dẫn của rà soát trước duyệt); bảng 8.2 thêm `ad_platform` vào cột tham số (đúng bước 9). Các chi tiết dựng test plan cho tự chọn: test `rewardedWrapperRefetched_revenueListenerNotReattached` dựng bằng khe INTERSTITIAL với `newAd` của test; vị trí thứ hai là `GALLERY_INTERSTITIAL`; hàm phụ `code(text)` của `AdNetworkLogWiringTest`. Không có file ngoài mục 3.2.
+- **Test cũ viết lại (ADR-0031):** `AdNetworkLogWiringTest.maxLoadFailure_passesMessage`, mẫu `MAX_FAILED` theo mục 3.5: câu ý định "thông điệp lỗi của MAX tới được `onFailed`"; mẫu mới đòi thêm `maxNetworkAttemptsOf(\1.waterfall)` (chặt hơn); đối chứng ba đối số với `null` và `emptyList()` không khớp; đột biến `onFailed(error.code, null, …)` trong `MaxBannerAdView.kt` làm test đỏ (rà soát chạy). 9 test khác chỉ cập nhật dữ liệu theo ADR-0029.
+- **Việc còn lại:** kiểm thủ công 1 và 2 của mục 4 (cần khóa và mã MAX thật); HD-07: báo nhóm UA trước bản phát hành đầu tiên có tham số `ad_platform` (kể cả bản không có khóa MAX) và trước bản đầu tiên có mã MAX; không bật tích hợp doanh thu S2S của AppLovin MAX trên AppsFlyer.
+- **Cần người xem:** phần nối SDK thật (`setRevenueListener`, `maxAdInfoOf(maxAd)`, `maxNetworkAttemptsOf(error.waterfall)`) chỉ kiểm bằng test quét (banner có chạy trên `MaxAdView` thật trong Robolectric); nhánh `RevenueRelay` chỉ test dựng tay chạm tới.
