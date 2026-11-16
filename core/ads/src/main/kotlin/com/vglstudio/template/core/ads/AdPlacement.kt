@@ -29,7 +29,7 @@ enum class AdFormat(val code: String) {
     NATIVE_MEDIUM("native_medium"),
 
     /**
-     * The layer of a bottom bar ([BottomAdBarScaffold], 299 dp on a 411 dp wide screen) floating over its slot: the
+     * The layer of a bottom bar ([BottomAdBarScaffold], 299 dp on a 411 x 891 dp window, none when the window has no room, CL-05) floating over its slot: the
      * user collapses it, and it opens again `time_expand_collap_ad` seconds later (CL-01 to CL-04). Not drawn on its
      * own (D-01).
      */

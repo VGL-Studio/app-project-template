@@ -241,7 +241,7 @@ private fun BoxScope.AdChoicesMarker() {
  *   or as soon as an ad is there (CL-03), and calls [onReexpanded]; 0 never. The wait is worked out again from the
  *   kept mark each time this runs, so a restored state goes on with the time left.
  * - [allowed] false (no ad unit for the layer): nothing collected, nothing sent.
- * - [hasRoom] false (the window has no room for the layer, [NativeAdDimens.collapsibleLayer]; CL-05): as not
+ * - [hasRoom] false (must match the real window; the window has no room for the layer, [NativeAdDimens.collapsibleLayer]; CL-05): as not
  *   [allowed]: nothing collected (no ad taken from the stock, no request), nothing drawn, no timer and no
  *   [onReexpanded]. [state] stays as it is, so an open layer opens again with room, and a collapsed one keeps its mark:
  *   with room again the timer goes on from the mark (due already: open at once with an ad). Losing room while
