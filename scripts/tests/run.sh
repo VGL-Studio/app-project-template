@@ -2982,9 +2982,8 @@ json.dump(fx, open(sys.argv[1], "w"))
 PY
 expect "resume-check: finds a report branch on page 2 of the branches" docs/runs/RUN-20261018-01.md \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z python3 -I scripts/resume-check.py 2> /dev/null)"
-# A job of the repository waits for a self-hosted runner as wait-run.sh code 7 sees it (75 minutes since it could
-# start, nothing of its run going): the session stopped on it, so it is not continued (ADR-0042). A job queued for
-# less does not hold the session back. A read that fails is exit 1, nothing continued.
+# A job of the repository waits for a self-hosted runner: the session may still be waiting for it, so it is not
+# continued, however long the job has waited (ADR-0042). A read that fails is exit 1, nothing continued.
 rs_job() { # <status> <labels JSON> <created at>
   printf '{"id": 120, "name": "build-and-test", "status": "%s", "runner_name": null, "labels": %s, "created_at": "%s"}' "$1" "$2" "$3"
 }
@@ -3002,30 +3001,17 @@ rs_resume() { # <where run 91 is: queued or in_progress> <job JSON>; "<exit code
 }
 expect "resume-check: no resume while a job waits for a self-hosted runner" "0||1" \
   "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)")"
-expect "resume-check: a job queued a minute ago on a self-hosted runner does not stop the resume" \
-  "0|docs/runs/RUN-20261018-01.md|0" "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T02:59:00Z)")"
-rs_guard() { # <completed at>; a finished job of run 91
-  printf '{"id": 119, "name": "guard", "status": "completed", "runner_name": "r1", "labels": ["vgl-android"], "created_at": "2026-10-18T01:00:00Z", "completed_at": "%s"}' "$1"
-}
-expect "resume-check: the wait counts from the latest finished job of the run, as in wait-run.sh" \
-  "0|docs/runs/RUN-20261018-01.md|0 0||1" \
-  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:00:00Z), $(rs_guard 2026-10-18T02:30:00Z)") $(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:00:00Z), $(rs_guard 2026-10-18T01:40:00Z)")"
-expect "resume-check: a waiting job while another job of its run runs does not stop the resume" \
-  "0|docs/runs/RUN-20261018-01.md|0" \
-  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z), {\"id\": 119, \"name\": \"guard\", \"status\": \"in_progress\", \"runner_name\": \"r1\", \"labels\": [\"vgl-android\"], \"created_at\": \"2026-10-18T01:00:00Z\"}")"
-rs_wait90="$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)"
-expect "resume-check: RUNNER_QUEUE_MINUTES of runners-app.conf sets the wait" "0||1 0|docs/runs/RUN-20261018-01.md|0" \
-  "$(rs_resume queued "$rs_wait90") $(RUNNERS_APP_CONF="$work/rconf/wait-120.conf" rs_resume queued "$rs_wait90")"
-expect "resume-check: RESUME_RUNNER_QUEUE_MINUTES wins over runners-app.conf" "0||1 0|docs/runs/RUN-20261018-01.md|0" \
-  "$(RESUME_RUNNER_QUEUE_MINUTES=60 RUNNERS_APP_CONF="$work/rconf/wait-120.conf" rs_resume queued "$rs_wait90") $(RESUME_RUNNER_QUEUE_MINUTES=100 rs_resume queued "$rs_wait90")"
+expect "resume-check: a job queued a minute ago on a self-hosted runner also stops the resume" "0||1" \
+  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T02:59:00Z)")"
+rs_waiting="$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)"
 expect "resume-check: RUNNER_LABELS watches only jobs with one of its labels" \
-  "0|docs/runs/RUN-20261018-01.md|0 0||1" \
-  "$(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$rs_wait90") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$(rs_job queued '["self-hosted","photune"]' 2026-10-18T01:30:00Z)")"
-rs_resume queued "$rs_wait90" > /dev/null
+  "0||1 0|docs/runs/RUN-20261018-01.md|0 0||1" \
+  "$(rs_resume queued "$rs_waiting") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$rs_waiting") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$(rs_job queued '["self-hosted","photune"]' 2026-10-18T01:30:00Z)")"
+rs_resume queued "$rs_waiting" > /dev/null
 rs_msg="$(grep 'đang chờ runner tự host' "$work/resume.err" || true)"
-RUNNERS_APP_CONF="$work/rconf/doc.conf" rs_resume queued "$rs_wait90" > /dev/null
-expect "resume-check: the message names the wait, and the app's runner page with RUNNER_DOC" "1 0|1 1" \
-  "$(grep -c 'từ 2026-10-18 01:30 UTC, quá 75 phút' <<<"$rs_msg" || true) $(grep -c 'self-hosted-runner-app' <<<"$rs_msg" || true)|$(grep -c 'đang chờ runner tự host' "$work/resume.err" || true) $(grep -c 'xem docs/ops/self-hosted-runner-app.md' "$work/resume.err" || true)"
+RUNNERS_APP_CONF="$work/rconf/doc.conf" rs_resume queued "$rs_waiting" > /dev/null
+expect "resume-check: with RUNNER_DOC the message names the app's runner page" "1 0|1 1" \
+  "$(grep -c '(ADR-0042)' <<<"$rs_msg" || true) $(grep -c 'self-hosted-runner-app' <<<"$rs_msg" || true)|$(grep -c 'đang chờ runner tự host' "$work/resume.err" || true) $(grep -c 'xem docs/ops/self-hosted-runner-app.md' "$work/resume.err" || true)"
 rs_code=0
 rs_out="$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" RESUME_ERR="$work/resume.err" resume_check running 120)" || rs_code=$?
 expect "resume-check: an unknown key in runners-app.conf continues nothing, exit 1" "1||1" \

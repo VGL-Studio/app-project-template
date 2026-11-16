@@ -90,7 +90,7 @@ Kiểm tra, test và cấu hình riêng của app không đặt trong file của
 
 - `scripts/setup-check-app.sh`: `scripts/setup-check.sh` nạp file này ở cuối. File dùng được `ok`, `problem`, `note`, `http_status` (hỏi lại khi 000, 429, 5xx), `cdn_hint`, `$STAGING`, `$work`, `$base_url`. Bí mật riêng mà file cần thì thêm vào bước kiểm tra thiết lập của hai workflow (bảng trên).
 - `scripts/tests/app.sh`: `scripts/tests/run.sh` nạp file này trước dòng tổng kết. File dùng `expect`, `$work` và các bản giả của `run.sh`; lỗi tính vào cùng tổng. Test của `setup-check.sh` trong `run.sh` đặt `SETUP_CHECK_APP_CHECKS=none`, nên test của `setup-check-app.sh` nằm trong `app.sh`. Tương tự, test của `wait-run.sh`, `resume-check.py` và `run-watchdog.py` trong `run.sh` đọc một tệp cấu hình runner không có (`RUNNERS_APP_CONF`), nên test với `runners-app.conf` của app nằm trong `app.sh` (đặt `RUNNERS_APP_CONF=scripts/runners-app.conf` cho lần gọi).
-- `scripts/runners-app.conf`: app chọn mô hình runner khác ADR-0042 bằng ADR của app thì đặt ngưỡng chờ, nhãn runner, tài liệu runner của app và việc bỏ test workflow theo ADR-0042 ở đây (`self-hosted-runner.md`, mục 10).
+- `scripts/runners-app.conf`: app chọn mô hình runner khác ADR-0042 bằng ADR của app thì đặt ngưỡng chờ của `wait-run.sh` và `run-watchdog.py`, nhãn runner, tài liệu runner của app và việc bỏ test workflow theo ADR-0042 ở đây (`self-hosted-runner.md`, mục 10).
 
 ## 7. Lưu ý
 
