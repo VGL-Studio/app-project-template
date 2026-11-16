@@ -215,7 +215,7 @@ internal fun NativeAdSlotContent(
 
 /**
  * The native slot of a bottom bar ([BottomAdBarScaffold], D-02): like [NativeAdSlot] for native small (gate,
- * placeholder as high as the slot of the screen width, nothing with no ad, availability reported), with its first refresh [firstRefreshExtraMillis] later
+ * placeholder as high as the slot of the window's short edge, nothing with no ad, availability reported), with its first refresh [firstRefreshExtraMillis] later
  * than the interval of `time_reload_native_small` (section 5.7). The stream is built once per placement: a new extra
  * (the layer turned on or off) applies from the next slot, without destroying the ad or loading again.
  */

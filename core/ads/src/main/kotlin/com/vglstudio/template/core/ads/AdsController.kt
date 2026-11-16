@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import androidx.compose.ui.unit.DpSize
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdLoader
@@ -2475,6 +2476,11 @@ class AdsController @Inject internal constructor(
     /** The layers of the bottom bar of [placement] changed ([BottomAdBarScaffold]). Logged only (ADR-0019). */
     internal fun onBottomBarLayers(placement: AdPlacement, layers: BottomAdBarLayers?) {
         logger.info(TAG, bottomBarLayersLog(placement, layers))
+    }
+
+    /** The collapsible layer of [placement] has no room on a window of [window] (CL-05). Logged only (ADR-0019). */
+    internal fun onCollapsibleNoRoom(placement: AdPlacement, window: DpSize) {
+        logger.info(TAG, collapsibleNoRoomLog(placement, window))
     }
 
     /** The collapsible layer of [placement] opened again [seconds] after the user collapsed it (CL-03). Logged only. */

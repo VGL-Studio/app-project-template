@@ -109,6 +109,15 @@ class NativeAdSlotTest {
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
     }
 
+    /** KB-1, KB-32 criterion 3: the space kept for small on a landscape window follows its short edge, 126 dp. */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun keptSpace_landscape_followsShortEdge() {
+        setSlotContent(NativeAdState.Unavailable, NativeAdSize.SMALL, keepSpaceWhenEmpty = true)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(126.dp)
+        composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
+    }
+
     @Test
     fun buttonDoesNotMove_whenAdBecomesUnavailable_withKeptSpace() {
         var state by mutableStateOf<NativeAdState>(NativeAdState.Loading)

@@ -63,6 +63,27 @@ class BottomAdBarScreenshotTest {
         captureRoboImage("src/test/screenshots/BottomAdBar_collapsed_light.png") { Bar(layerShown = false) }
     }
 
+    /** A 891 x 411 dp window (KB-4 added 2026-11-16): the 126 dp slot only, no layer, the content keeping 142 dp. */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun landscape_light() {
+        captureRoboImage("src/test/screenshots/BottomAdBar_landscape_light.png") { Bar(layerShown = true) }
+    }
+
+    /** A 411 x 445 dp window (split screen): the 126 dp slot only, no layer. */
+    @Test
+    @Config(qualifiers = "w411dp-h445dp-xxhdpi")
+    fun split_light() {
+        captureRoboImage("src/test/screenshots/BottomAdBar_split_light.png") { Bar(layerShown = true) }
+    }
+
+    /** A 411 x 600 dp window: the layer 284 dp (MediaView 146 dp), its top at half the window (300 dp). */
+    @Test
+    @Config(qualifiers = "w411dp-h600dp-xxhdpi")
+    fun shortWindow_light() {
+        captureRoboImage("src/test/screenshots/BottomAdBar_short-window_light.png") { Bar(layerShown = true) }
+    }
+
     private companion object {
         /** The illustration texts of the collapsible frames (design/context/). */
         val screenshotAd = NativeAdAssets(

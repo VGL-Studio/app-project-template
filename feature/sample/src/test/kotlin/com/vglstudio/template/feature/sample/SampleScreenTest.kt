@@ -85,7 +85,7 @@ class SampleScreenTest {
     /**
      * Stands in for the bottom bar (tests have no ads controller): the real layout of the bar with a box as high as
      * the native slot of this screen, the content keeping the space of a slot with an ad, and with [layer] a box as
-     * high as the open collapsible layer, floating over the slot.
+     * high as the open collapsible layer, floating over the slot (none when the window has no room for it).
      */
     private fun fakeBar(layer: Boolean = false): @Composable (@Composable (PaddingValues) -> Unit) -> Unit =
         { content ->
@@ -93,7 +93,11 @@ class SampleScreenTest {
                 reservation = BottomAdBarDefaults.nativeReservation(),
                 slot = { Box(modifier = it.height(BottomAdBarDefaults.nativeSlotHeight()).testTag(AD)) },
                 layer = if (layer) {
-                    { Box(modifier = it.height(BottomAdBarDefaults.collapsibleLayerHeight()).testTag(LAYER)) }
+                    { modifier ->
+                        BottomAdBarDefaults.collapsibleLayerHeight()?.let { height ->
+                            Box(modifier = modifier.height(height).testTag(LAYER))
+                        }
+                    }
                 } else {
                     null
                 },
@@ -216,6 +220,35 @@ class SampleScreenTest {
         // button: 640 - 16 - 272 = 352 dp.
         assertEquals(352f, layer.top.value, 1f)
         assertTrue("layer starts ${layer.top - button.bottom} below the button", layer.top >= button.bottom)
+    }
+
+    /**
+     * KB-4 added 2026-11-16, KB-17, KB-32: on a 891 x 411 dp window the layer has no room, so the fake bar draws only
+     * the 126 dp slot; the content ends at its top and the main button can be scrolled to, above the slot.
+     */
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun whenLandscape_thenNoLayer_buttonReachable() {
+        composeRule.setContent {
+            AppTheme {
+                SampleScreen(
+                    uiState = SampleUiState.Ready(count = 3, saveFailed = true),
+                    onIncrement = {},
+                    bottomBar = fakeBar(layer = true),
+                )
+            }
+        }
+        composeRule.onNodeWithTag(LAYER).assertDoesNotExist()
+        val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
+        assertEquals("slot height", 126f, (ad.bottom - ad.top).value, 0.5f)
+        assertEquals("slot top", 269f, ad.top.value, 1f)
+        val content = composeRule.onNodeWithTag(SampleTestTags.CONTENT).getUnclippedBoundsInRoot()
+        assertEquals("content ends at the slot top", 269f, content.bottom.value, 1f)
+        val buttonNode = composeRule.onNodeWithText(string(R.string.sample_increment))
+        buttonNode.performScrollTo().assertIsDisplayed()
+        val button = buttonNode.getUnclippedBoundsInRoot()
+        assertTrue("button bottom ${button.bottom}, slot top ${ad.top}", button.bottom <= ad.top)
     }
 
     private companion object {

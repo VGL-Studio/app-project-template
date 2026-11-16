@@ -792,6 +792,23 @@ class NativeAdCardTest {
     @Config(qualifiers = "w673dp-h841dp-xxhdpi")
     fun small_heightFollowsScreenWidth_673() = assertSmallHeight(200f)
 
+    /**
+     * KB-1 criterion 2, KB-32 criterion 3 (changed 2026-11-16): a phone turned landscape keeps the portrait slot, the
+     * height following the short edge of the window: 126 dp at 891 x 411 dp (200 dp by the width), the card 859 dp
+     * wide.
+     */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun small_landscape_followsShortEdge() {
+        assertSmallHeight(126f)
+        assertEquals("card width", 859f, bounds(NativeAdTestTags.CARD).w(), 0.5f)
+    }
+
+    /** As above on a 640 x 360 dp window: 106 dp (200 dp by the width). */
+    @Test
+    @Config(qualifiers = "w640dp-h360dp-xxhdpi")
+    fun small_landscape360_followsShortEdge() = assertSmallHeight(106f)
+
     private fun assertSmallHeight(expected: Float) {
         composeRule.setContent {
             AdsTestTheme {

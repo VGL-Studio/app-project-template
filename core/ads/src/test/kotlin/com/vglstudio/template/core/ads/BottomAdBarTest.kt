@@ -283,14 +283,24 @@ class BottomAdBarTest {
     fun reservation_nativeWithAd_isSlotPlusMargin() {
         assertEquals(
             142.dp,
-            bottomBarReservation(BottomSlotKind.NATIVE, slotHasAd = true, bannerHeight = 62.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.NATIVE,
+                slotHasAd = true,
+                bannerHeight = 62.dp,
+                windowShortEdge = 411.dp,
+            ),
         )
         var reservation = 0.dp
         composeRule.setContent { reservation = BottomAdBarDefaults.nativeReservation() }
         composeRule.waitForIdle()
         assertEquals(142.dp, reservation)
         assertEquals(
-            bottomBarReservation(BottomSlotKind.NATIVE, slotHasAd = true, bannerHeight = 0.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.NATIVE,
+                slotHasAd = true,
+                bannerHeight = 0.dp,
+                windowShortEdge = 411.dp,
+            ),
             reservation,
         )
     }
@@ -299,7 +309,12 @@ class BottomAdBarTest {
     fun reservation_bannerWithAd_isBannerHeight() {
         assertEquals(
             62.dp,
-            bottomBarReservation(BottomSlotKind.BANNER, slotHasAd = true, bannerHeight = 62.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.BANNER,
+                slotHasAd = true,
+                bannerHeight = 62.dp,
+                windowShortEdge = 411.dp,
+            ),
         )
     }
 
@@ -307,26 +322,46 @@ class BottomAdBarTest {
     fun reservation_noAd_isZero() {
         assertEquals(
             0.dp,
-            bottomBarReservation(BottomSlotKind.NATIVE, slotHasAd = false, bannerHeight = 62.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.NATIVE,
+                slotHasAd = false,
+                bannerHeight = 62.dp,
+                windowShortEdge = 411.dp,
+            ),
         )
         assertEquals(
             0.dp,
-            bottomBarReservation(BottomSlotKind.BANNER, slotHasAd = false, bannerHeight = 62.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.BANNER,
+                slotHasAd = false,
+                bannerHeight = 62.dp,
+                windowShortEdge = 411.dp,
+            ),
         )
         // Control: the same slot with an ad keeps space (L-055): bottomSlotHeight(411 dp) + 16 dp.
         assertEquals(
             NativeAdDimens.bottomSlotHeight(411.dp) + 16.dp,
-            bottomBarReservation(BottomSlotKind.NATIVE, slotHasAd = true, bannerHeight = 62.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.NATIVE,
+                slotHasAd = true,
+                bannerHeight = 62.dp,
+                windowShortEdge = 411.dp,
+            ),
         )
         assertEquals(
             142.dp,
-            bottomBarReservation(BottomSlotKind.NATIVE, slotHasAd = true, bannerHeight = 62.dp, screenWidth = 411.dp),
+            bottomBarReservation(
+                BottomSlotKind.NATIVE,
+                slotHasAd = true,
+                bannerHeight = 62.dp,
+                windowShortEdge = 411.dp,
+            ),
         )
     }
 
     @Test
     fun reservation_notAllowed_isZero() {
-        assertEquals(0.dp, bottomBarReservation(null, slotHasAd = true, bannerHeight = 62.dp, screenWidth = 411.dp))
+        assertEquals(0.dp, bottomBarReservation(null, slotHasAd = true, bannerHeight = 62.dp, windowShortEdge = 411.dp))
     }
 
     @Test
@@ -335,7 +370,7 @@ class BottomAdBarTest {
             BottomSlotKind.NATIVE,
             slotHasAd = true,
             bannerHeight = 0.dp,
-            screenWidth = 411.dp,
+            windowShortEdge = 411.dp,
         ) - BottomAdBarDimens.SlotMargin
         assertEquals(NativeAdDimens.bottomSlotHeight(411.dp), reserved)
         setBar()
@@ -356,7 +391,7 @@ class BottomAdBarTest {
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun nativeReservation_followsScreenWidth_360() = assertNativeReservation(expected = 122.dp)
 
-    private fun assertNativeReservation(expected: Dp) {
+    private fun assertNativeReservation(expected: Dp, expectedSlot: Dp? = null) {
         var reservation = 0.dp
         var slotHeight = 0.dp
         composeRule.setContent {
@@ -378,8 +413,105 @@ class BottomAdBarTest {
         // Control: a banner keeps its own frame, whatever the screen width.
         assertEquals(
             62.dp,
-            bottomBarReservation(BottomSlotKind.BANNER, slotHasAd = true, bannerHeight = 62.dp, screenWidth = 360.dp),
+            bottomBarReservation(
+                BottomSlotKind.BANNER,
+                slotHasAd = true,
+                bannerHeight = 62.dp,
+                windowShortEdge = 360.dp,
+            ),
         )
+        if (expectedSlot != null) assertEquals("slot height", expectedSlot.value, slotHeight.value, 0.5f)
+    }
+
+    // Landscape, split screen and low windows (KB-4 added 2026-11-16, KB-17, KB-32 criterion 3).
+
+    /** KB-17 criterion 5, D-04: on a 891 x 411 dp window the slot and the space kept follow the short edge. */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun nativeReservation_landscape_followsShortEdge() =
+        assertNativeReservation(expected = 142.dp, expectedSlot = 126.dp)
+
+    /**
+     * KB-4 added 2026-11-16, KB-17: on a 891 x 411 dp window the layer has no room (not even with its media at 120
+     * dp): only the 126 dp slot, 16 dp above the bottom, the content kept above it, the layer's ads never collected.
+     */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun landscape_slotOnly_noLayer() {
+        setBar()
+        loadBoth()
+        val slot = bounds(SLOT_AD)
+        assertEquals("slot height", 126f, (slot.bottom - slot.top).value, TOLERANCE)
+        assertEquals("slot top", 269f, slot.top.value, TOLERANCE)
+        assertEquals("slot bottom", 395f, slot.bottom.value, TOLERANCE)
+        assertContentBottom("content ends at the slot top", 269f)
+        assertEquals(listOf(0.dp, 142.dp), reservations)
+        assertAbsent(CollapsibleNativeAdTestTags.AD)
+        assertEquals("layer collections", 0, layerFeed.collections)
+    }
+
+    /** KB-4 added 2026-11-16: a 411 x 445 dp window (split screen) has no room for the layer either. */
+    @Test
+    @Config(qualifiers = "w411dp-h445dp-xxhdpi")
+    fun split_slotOnly_noLayer() {
+        setBar()
+        loadBoth()
+        val slot = bounds(SLOT_AD)
+        assertEquals("slot height", 126f, (slot.bottom - slot.top).value, TOLERANCE)
+        assertEquals("slot top", 303f, slot.top.value, TOLERANCE)
+        assertAbsent(CollapsibleNativeAdTestTags.AD)
+        assertEquals("layer collections", 0, layerFeed.collections)
+    }
+
+    /**
+     * KB-4 added 2026-11-16, KB-32 criterion 3: on a 411 x 600 dp window the layer with its 16 dp margin reaches half
+     * the window, its media shrinking first: 284 dp (media area 158 dp, MediaView 146 dp, content 126 dp), top 300 dp.
+     */
+    @Test
+    @Config(qualifiers = "w411dp-h600dp-xxhdpi")
+    fun shortWindow_layerMediaShrinks() {
+        var layerHeight: Dp? = 0.dp
+        composeRule.setContent {
+            layerHeight = BottomAdBarDefaults.collapsibleLayerHeight()
+            Bar()
+        }
+        composeRule.waitForIdle()
+        loadBoth()
+        val layer = bounds(CollapsibleNativeAdTestTags.AD)
+        assertEquals("layer height", 284f, (layer.bottom - layer.top).value, TOLERANCE)
+        assertEquals("layer top at half the window", 300f, layer.top.value, TOLERANCE)
+        val media = bounds(CollapsibleNativeAdTestTags.MEDIA)
+        assertEquals("MediaView height", 146f, (media.bottom - media.top).value, TOLERANCE)
+        val content = bounds(CollapsibleNativeAdTestTags.CONTENT)
+        assertEquals("content height", 126f, (content.bottom - content.top).value, TOLERANCE)
+        assertEquals("collapsibleLayerHeight()", 284f, layerHeight?.value ?: -1f, 0.5f)
+    }
+
+    /** The layer height for screens drawing a fake bar: 299 dp on the 411 x 891 dp frame of this class. */
+    @Test
+    fun collapsibleLayerHeight_nullWhenNoRoom() {
+        assertEquals(299f, collapsibleLayerHeight()?.value ?: -1f, 0.5f)
+    }
+
+    /** No room on a 891 x 411 dp window: no height, so a fake bar draws no layer. */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun collapsibleLayerHeight_nullWhenNoRoom_landscape() {
+        assertNull(collapsibleLayerHeight())
+    }
+
+    /** No room on a 411 x 445 dp window (split screen). */
+    @Test
+    @Config(qualifiers = "w411dp-h445dp-xxhdpi")
+    fun collapsibleLayerHeight_nullWhenNoRoom_split() {
+        assertNull(collapsibleLayerHeight())
+    }
+
+    private fun collapsibleLayerHeight(): Dp? {
+        var height: Dp? = (-1).dp
+        composeRule.setContent { height = BottomAdBarDefaults.collapsibleLayerHeight() }
+        composeRule.waitForIdle()
+        return height
     }
 
     @Test
