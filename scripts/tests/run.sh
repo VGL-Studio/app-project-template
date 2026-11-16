@@ -41,6 +41,7 @@ export RUNNERS_APP_CONF="$work/no-runners-app.conf"
 read_runners_conf() { # <file>; prints its "KEY=value" lines (nothing when there is no file), or "ERROR <why>", exit 1
   local LC_ALL=C file="$1" n=0 line key value pattern seen=" " out=""
   [ -f "$file" ] || return 0
+  if [ ! -r "$file" ]; then echo "ERROR không đọc được tệp"; return 1; fi
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1))
     line="${line%$'\r'}"
@@ -48,7 +49,7 @@ read_runners_conf() { # <file>; prints its "KEY=value" lines (nothing when there
     if [[ ! "$line" =~ ^([A-Z_]+)=(.*)$ ]]; then echo "ERROR dòng $n không có dạng KHÓA=giá trị"; return 1; fi
     key="${BASH_REMATCH[1]}" value="${BASH_REMATCH[2]}"
     case "$key" in
-      RUNNER_QUEUE_MINUTES) pattern='^[0-9]+$' ;;
+      RUNNER_QUEUE_MINUTES) pattern='^[1-9][0-9]*$' ;;
       RUNNER_LABELS) pattern='^[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*$' ;;
       RUNNER_DOC) pattern='^[A-Za-z0-9_][A-Za-z0-9._/-]*$' ;;
       RUNNER_TESTS) pattern='^skip$' ;;
@@ -88,9 +89,24 @@ expect "runners-app.conf: an unknown key, a wrong value, a key twice and spaces 
   "$(runner_tests_mode "$work/rconf/unknown.conf" | cut -d' ' -f1-6)|$(runner_tests_mode "$work/rconf/bad-minutes.conf" | cut -d' ' -f1-7)|$(runner_tests_mode "$work/rconf/bad-doc.conf" | cut -d' ' -f1-7)|$(runner_tests_mode "$work/rconf/twice.conf")|$(runner_tests_mode "$work/rconf/spaces.conf")"
 expect "runners-app.conf: CRLF line ends and a last line without a newline are read" "skip ADR-1034" \
   "$(runner_tests_mode "$work/rconf/crlf.conf")"
+printf '%s\n' 'RUNNER_QUEUE_MINUTES=0' > "$work/rconf/zero.conf"
+printf '%s\n' 'RUNNER_QUEUE_MINUTES=1' > "$work/rconf/one.conf"
+expect "runners-app.conf: RUNNER_QUEUE_MINUTES must be at least 1" "ERROR dòng 1: giá trị của RUNNER_QUEUE_MINUTES|run" \
+  "$(runner_tests_mode "$work/rconf/zero.conf" | cut -d' ' -f1-7)|$(runner_tests_mode "$work/rconf/one.conf")"
+# A file that is there but cannot be read is an error, not a missing file. Root reads every file: skipped then.
+cp "$work/rconf/skip.conf" "$work/rconf/unreadable.conf"
+chmod 000 "$work/rconf/unreadable.conf"
+if [[ -r "$work/rconf/unreadable.conf" ]]; then
+  echo "skip - runners-app.conf: a file that cannot be read (root reads everything)"
+  rconf_unreadable=""
+else
+  rconf_unreadable=yes
+  expect "runners-app.conf: a file that cannot be read is an error" "ERROR không đọc được tệp|skip ADR-1034" \
+    "$(runner_tests_mode "$work/rconf/unreadable.conf")|$(runner_tests_mode "$work/rconf/skip.conf")"
+fi
 expect "runners-app.conf: run.sh reads the file as wait-run.sh does" \
   "$(sed -n '/^read_runners_conf() {/,/^}/p' scripts/wait-run.sh)" "$(sed -n '/^read_runners_conf() {/,/^}/p' scripts/tests/run.sh)"
-rconf_py() { sed -n '/^RUNNERS_CONF_KEYS = {/,/^}/p; /^def runners_conf():/,/^    return values/p; /^def watched(labels):/,/^    return any(not/p' "$1"; }
+rconf_py() { sed -n '/^RUNNERS_CONF_KEYS = {/,/^}/p; /^def runners_conf():/,/^    return values/p' "$1"; }
 expect "runners-app.conf: resume-check.py and run-watchdog.py read the file the same way" "$(rconf_py scripts/resume-check.py)" \
   "$(rconf_py scripts/run-watchdog.py)"
 # The mode of this repository: a wrong file is a failure, and the runner tests then run.
@@ -2935,8 +2951,12 @@ rw_doc_line="$(RUNNERS_APP_CONF="$work/rconf/doc.conf" WAIT_RUN_NOW="$rw_now" wa
 expect "wait-run: with RUNNER_DOC the CHỜ RUNNER line names the app's runner page, not HEAVY_RUNNER" "1 0|0 1|1 1" \
   "$(grep -c 'máy runner tự host của repo (docs/ops/self-hosted-runner-app.md)' <<<"$rw_doc_line" || true) $(grep -c 'HEAVY_RUNNER' <<<"$rw_doc_line" || true)|$(grep -c 'self-hosted-runner-app' <<<"$rw_main_line" || true) $(grep -c 'HEAVY_RUNNER' <<<"$rw_main_line" || true)|$(grep -c 'docs/auto-run.md, mục 4' <<<"$rw_doc_line" || true) $(grep -c '^7 CHỜ RUNNER' <<<"$rw_doc_line" || true)"
 rw_bad_line="$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" WAIT_RUN_NOW="$rw_now" wait_line "$rw_fx" 2 --pr 7)"
-expect "wait-run: an unknown key or a wrong value in runners-app.conf stops with code 3" "3 LỖI|1|3 LỖI" \
-  "$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" rw_code "$rw_fx" 2 --pr 7)|$(grep -c 'dòng 2: khóa lạ HEAVY_RUNNER' <<<"$rw_bad_line" || true)|$(RUNNERS_APP_CONF="$work/rconf/bad-minutes.conf" rw_code "$rw_fx" 2 --pr 7)"
+expect "wait-run: an unknown key or a wrong value in runners-app.conf stops with code 3" "3 LỖI|1|3 LỖI|3 LỖI" \
+  "$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" rw_code "$rw_fx" 2 --pr 7)|$(grep -c 'dòng 2: khóa lạ HEAVY_RUNNER' <<<"$rw_bad_line" || true)|$(RUNNERS_APP_CONF="$work/rconf/bad-minutes.conf" rw_code "$rw_fx" 2 --pr 7)|$(RUNNERS_APP_CONF="$work/rconf/zero.conf" rw_code "$rw_fx" 2 --pr 7)"
+if [[ -n "$rconf_unreadable" ]]; then
+  expect "wait-run: a runners-app.conf that cannot be read stops with code 3" "3 LỖI|1" \
+    "$(RUNNERS_APP_CONF="$work/rconf/unreadable.conf" rw_code "$rw_fx" 2 --pr 7)|$(RUNNERS_APP_CONF="$work/rconf/unreadable.conf" WAIT_RUN_NOW="$rw_now" wait_line "$rw_fx" 2 --pr 7 | grep -c 'không đọc được tệp' || true)"
+fi
 # The draft and conflict checks come first (ADR-0041, L-064).
 rw_draft="$(draft_routes "$(draft_pr true)" "$pending" | jq -c --argjson j "$(rw_jobs "$rw_queued")" '.routes["actions/runs/91/jobs?per_page=50"] = $j')"
 rw_conflict="$(conflict_routes dirty "$no_runs" | jq -c --argjson j "$(rw_jobs "$rw_queued")" '.routes["actions/runs/91/jobs?per_page=50"] = $j')"
@@ -3004,9 +3024,11 @@ expect "resume-check: no resume while a job waits for a self-hosted runner" "0||
 expect "resume-check: a job queued a minute ago on a self-hosted runner also stops the resume" "0||1" \
   "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T02:59:00Z)")"
 rs_waiting="$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)"
-expect "resume-check: RUNNER_LABELS watches only jobs with one of its labels" \
-  "0||1 0|docs/runs/RUN-20261018-01.md|0 0||1" \
-  "$(rs_resume queued "$rs_waiting") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$rs_waiting") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$(rs_job queued '["self-hosted","photune"]' 2026-10-18T01:30:00Z)")"
+# RUNNER_LABELS narrows wait-run.sh and run-watchdog.py only: a self-hosted job with a label left out of the file
+# still stops the resume, else a second session could start while the first waits for it.
+expect "resume-check: a self-hosted job with a label outside RUNNER_LABELS still stops the resume" \
+  "0||1 0||1 0|docs/runs/RUN-20261018-01.md|0" \
+  "$(rs_resume queued "$rs_waiting") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$rs_waiting") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$(rs_job queued '["ubuntu-latest"]' 2026-10-18T01:30:00Z)")"
 rs_resume queued "$rs_waiting" > /dev/null
 rs_msg="$(grep 'đang chờ runner tự host' "$work/resume.err" || true)"
 RUNNERS_APP_CONF="$work/rconf/doc.conf" rs_resume queued "$rs_waiting" > /dev/null
@@ -3016,6 +3038,12 @@ rs_code=0
 rs_out="$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" RESUME_ERR="$work/resume.err" resume_check running 120)" || rs_code=$?
 expect "resume-check: an unknown key in runners-app.conf continues nothing, exit 1" "1||1" \
   "$rs_code|$rs_out|$(grep -c 'dòng 2: khóa lạ HEAVY_RUNNER' "$work/resume.err" || true)"
+if [[ -n "$rconf_unreadable" ]]; then
+  rs_code=0
+  rs_out="$(RUNNERS_APP_CONF="$work/rconf/unreadable.conf" RESUME_ERR="$work/resume.err" resume_check running 120)" || rs_code=$?
+  expect "resume-check: a runners-app.conf that cannot be read continues nothing, exit 1" "1||1" \
+    "$rs_code|$rs_out|$(grep -c 'LỖI:' "$work/resume.err" || true)"
+fi
 expect "resume-check: a waiting job of a run in progress also stops the resume" "0||1" \
   "$(rs_resume in_progress "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)")"
 rs_file="0|docs/runs/RUN-20261018-01.md|0"

@@ -17,7 +17,8 @@
 #             1 the run of the PR's current head finished red, or was cancelled while that commit stayed the head
 #               (the failed jobs are named)
 #             2 still not finished when the time ran out: call again
-#             3 wrong arguments, the PR cannot be read, or --sha is not a commit GitHub knows
+#             3 wrong arguments, the PR cannot be read, --sha is not a commit GitHub knows, or
+#               scripts/runners-app.conf is wrong (fix the file; calling again gives the same answer)
 #             4 GitHub never started the failed jobs (no runner: spending limit, billing): not a code failure (L-064)
 #             5 (--pr) no run, and the PR conflicts with main: GitHub runs no pull_request workflow for it (L-064)
 #             6 (--pr) the PR is a draft: pr-check does not run for drafts (ADR-0041)
@@ -44,6 +45,7 @@ die() { echo "LỖI: $*" >&2; exit 3; }
 read_runners_conf() { # <file>; prints its "KEY=value" lines (nothing when there is no file), or "ERROR <why>", exit 1
   local LC_ALL=C file="$1" n=0 line key value pattern seen=" " out=""
   [ -f "$file" ] || return 0
+  if [ ! -r "$file" ]; then echo "ERROR không đọc được tệp"; return 1; fi
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1))
     line="${line%$'\r'}"
@@ -51,7 +53,7 @@ read_runners_conf() { # <file>; prints its "KEY=value" lines (nothing when there
     if [[ ! "$line" =~ ^([A-Z_]+)=(.*)$ ]]; then echo "ERROR dòng $n không có dạng KHÓA=giá trị"; return 1; fi
     key="${BASH_REMATCH[1]}" value="${BASH_REMATCH[2]}"
     case "$key" in
-      RUNNER_QUEUE_MINUTES) pattern='^[0-9]+$' ;;
+      RUNNER_QUEUE_MINUTES) pattern='^[1-9][0-9]*$' ;;
       RUNNER_LABELS) pattern='^[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*$' ;;
       RUNNER_DOC) pattern='^[A-Za-z0-9_][A-Za-z0-9._/-]*$' ;;
       RUNNER_TESTS) pattern='^skip$' ;;

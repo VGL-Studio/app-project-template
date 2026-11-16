@@ -46,7 +46,7 @@ STALL_MINUTES = int(os.environ.get("WATCHDOG_STALL_MINUTES", "60"))
 HARD_MINUTES = int(os.environ.get("WATCHDOG_HARD_MINUTES", "90"))
 GITHUB_LABEL = re.compile(r"^(ubuntu|windows|macos)-")
 RUNNERS_CONF_KEYS = {
-    "RUNNER_QUEUE_MINUTES": r"[0-9]+",
+    "RUNNER_QUEUE_MINUTES": r"[1-9][0-9]*",
     "RUNNER_LABELS": r"[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*",
     "RUNNER_DOC": r"[A-Za-z0-9_][A-Za-z0-9._/-]*",
     "RUNNER_TESTS": r"skip",

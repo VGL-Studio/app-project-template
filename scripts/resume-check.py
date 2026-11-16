@@ -16,9 +16,9 @@ its own. It is not continued when it started more than MAX_HOURS ago: people dec
 self-hosted runner (ADR-0042; scripts/wait-run.sh exit 7), however long it has waited: below the wait of exit 7 the
 session may still be waiting for it, so a second session would overlap.
 
-scripts/runners-app.conf, only in an app whose runner model is not ADR-0042 (an ADR of the app), may set the labels
-of the jobs watched (RUNNER_LABELS; default: every label of no GitHub runner) and the runner page the message names
-(RUNNER_DOC), read as scripts/wait-run.sh reads it. RUNNERS_APP_CONF (tests) names another file.
+scripts/runners-app.conf, only in an app whose runner model is not ADR-0042 (an ADR of the app), may set the runner
+page the message names (RUNNER_DOC); the file is read and checked as scripts/wait-run.sh reads it, and its
+RUNNER_QUEUE_MINUTES and RUNNER_LABELS do not apply here. RUNNERS_APP_CONF (tests) names another file.
 
 The workflow runs it every hour while its schedule is on; it turns itself off when idle (scripts/schedule-idle.py).
 
@@ -100,7 +100,7 @@ def last_commit(branch):
 
 GITHUB_LABEL = re.compile(r"^(ubuntu|windows|macos)-")
 RUNNERS_CONF_KEYS = {
-    "RUNNER_QUEUE_MINUTES": r"[0-9]+",
+    "RUNNER_QUEUE_MINUTES": r"[1-9][0-9]*",
     "RUNNER_LABELS": r"[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*",
     "RUNNER_DOC": r"[A-Za-z0-9_][A-Za-z0-9._/-]*",
     "RUNNER_TESTS": r"skip",
@@ -138,17 +138,11 @@ def runners_conf():
     return values
 
 
-def watched(labels):
-    """Whether a job with these labels waits for a runner this script watches: one of RUNNER_LABELS when the app
-    sets them, else any label of no GitHub runner."""
-    if RUNNER_LABELS:
-        return any(str(label) in RUNNER_LABELS for label in labels)
-    return any(not GITHUB_LABEL.match(str(label)) for label in labels)
-
-
 def waiting_job():
-    """(job name, Actions run id) of the first queued job with a label watched (watched()), in the runs queued or in
-    progress (ADR-0042); None when there is none. An answer of another shape is a failed read."""
+    """(job name, Actions run id) of the first queued job that carries a label of no GitHub runner, in the runs
+    queued or in progress (ADR-0042); None when there is none. RUNNER_LABELS of scripts/runners-app.conf does not
+    narrow this: a self-hosted job with a label left out of the file would then let a second session start. An
+    answer of another shape is a failed read."""
     for status in ("queued", "in_progress"):
         path = f"actions/runs?status={status}&per_page=20"
         runs = api(path)
@@ -160,7 +154,8 @@ def waiting_job():
             if not isinstance(jobs, dict) or not isinstance(jobs.get("jobs"), list):
                 raise LookupError(jobs_path)
             for job in jobs["jobs"]:
-                if job.get("status") == "queued" and watched(job.get("labels") or []):
+                labels = job.get("labels") or []
+                if job.get("status") == "queued" and any(not GITHUB_LABEL.match(str(label)) for label in labels):
                     return job.get("name"), run.get("id")
     return None
 
@@ -221,7 +216,6 @@ if __name__ == "__main__":
     except (OSError, UnicodeDecodeError, ValueError) as error:
         say(f"LỖI: {error}. Không tiếp tục phiên nào.")
         sys.exit(1)
-    RUNNER_LABELS = set(RUNNERS["RUNNER_LABELS"].split(",")) if "RUNNER_LABELS" in RUNNERS else set()
     RUNNER_DOC = RUNNERS.get("RUNNER_DOC", "")
     try:
         sys.exit(main())
