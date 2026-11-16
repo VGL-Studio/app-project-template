@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the signed production release (Android App Bundle) on the release owner's machine (ADR-0009, ADR-0017).
+# Builds the signed production release (Android App Bundle) on the release owner's machine (ADR-0049).
 # The person then uploads the bundle in Play Console. Nothing here runs on GitHub.
 #
 # Usage:  scripts/release.sh [--commit <sha>] [--config <folder>] [--check-only]
@@ -26,7 +26,7 @@
 # Only commits of main that passed main-guard.yml are built (commits touching docs only reuse the run of
 # the code below them). The build runs in a temporary worktree, so local changes never reach a release.
 #
-# Written during the template phase only. AI never changes this file afterwards (ADR-0009), except when the
+# Written during the template phase only. AI never changes this file afterwards (ADR-0049), except when the
 # release owner allows it for one session (2026-10-23: native formats and staging-only placements; 2026-10-24:
 # placements with attributes; 2026-10-26: AppsFlyer dev key, Google test units for placements without a real unit;
 # 2026-10-29: the AppsFlyer dev key only for an app with the AppsFlyer SDK; --check-only;
@@ -244,7 +244,7 @@ placement_file="$(git ls-tree -r --name-only "$target" core/ads/src/main | grep 
 [ -n "$placement_file" ] || die "không tìm thấy AdPlacement.kt trong :core:ads."
 placement_lines="$(git show "$target:$placement_file" | placement_formats)"
 placements="$(cut -d' ' -f1 <<< "$placement_lines")"
-# A placement without an ad unit would silently show no ad (ConfiguredAdUnitIds.missing, ADR-0013), so it gets
+# A placement without an ad unit would silently show no ad (ConfiguredAdUnitIds.missing, ADR-0045), so it gets
 # Google's test unit of its format instead, with a warning.
 ad_units="$(fill_test_units "$ad_units" <<< "$placement_lines")"
 test_unit_keys="$(tr ';' '\n' <<< "$ad_units" | grep "=ca-app-pub-$TEST_PUBLISHER/" | cut -d= -f1 | tr '\n' ' ' || true)"

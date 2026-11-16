@@ -18,7 +18,7 @@ internal interface AppsFlyerSink {
 
 /**
  * The AppsFlyer SDK: the only file of the repo that uses it (AppsFlyerSdkUseTest). `init` reads the TCF consent
- * string of UMP (ADR-0013) and sets no customer id, no conversion listener and no debug log; events go through the
+ * string of UMP (ADR-0045) and sets no customer id, no conversion listener and no debug log; events go through the
  * plain event call of the SDK, never its ad revenue module (section 8.3).
  */
 internal class AppsFlyerLibSink @Inject constructor(@param:ApplicationContext private val context: Context) :

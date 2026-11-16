@@ -11,7 +11,7 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.ElementsIntoSet
 
 /**
- * Remote Config values of staging builds only, used when Firebase has no value for the key (ADR-0023).
+ * Remote Config values of staging builds only, used when Firebase has no value for the key (ADR-0046).
  * A value set on the staging Firebase project still wins, so the team can switch a placement off remotely.
  * Production builds have no such module: keys there read Firebase, then their default.
  */
@@ -19,7 +19,7 @@ import dagger.multibindings.ElementsIntoSet
 @InstallIn(SingletonComponent::class)
 object StagingRemoteValuesModule {
     /**
-     * Every placement shows Google test ads on staging (ADR-0013); placements added later are included. App-wide
+     * Every placement shows Google test ads on staging (ADR-0045); placements added later are included. App-wide
      * placements have no switch of their own: [globalAdSwitchesOn] turns them on (plan T-024).
      */
     @Provides

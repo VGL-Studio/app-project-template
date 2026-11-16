@@ -44,7 +44,7 @@ internal fun SampleRoute(viewModel: SampleViewModel = hiltViewModel()) {
  * Stateless screen: everything it shows comes from [uiState]. Tested on the JVM and by screenshots.
  * [bottomBar] wraps the content in the bottom ad bar of the screen (native small or banner at the bottom, collapsible
  * layer over it), only when the feature is ready; the content keeps the bar's space at its bottom. Tests pass a
- * [BottomAdBarLayout] with fake ads because they have no ads controller (ADR-0013).
+ * [BottomAdBarLayout] with fake ads because they have no ads controller (ADR-0045).
  * Public so the screenshot test of the network dialog in :app can draw it under the dialog, as the design does
  * (plan T-017); other modules still open this feature only through its navigation destination.
  */

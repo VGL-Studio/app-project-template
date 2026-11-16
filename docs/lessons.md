@@ -1398,6 +1398,15 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #497; PR VGL-Studio/camera-pose#349 (sửa quy tắc).
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: lần đo tạm ghi cả vị trí tương đối của các phần tử cạnh nhau và mở ảnh lần đo vẽ ra. `CLAUDE.md`, bước 10: kiểm chữ không bị cắt bằng `getLineRight` so với bề rộng node, hay số dòng và `isLineEllipsized`; không dùng `didOverflowWidth`.
 
+### L-179. Code và trang sinh ra của mẫu còn dẫn ADR đã bị thay, mà `template-sync.sh` xóa các ADR đó khỏi app
+
+- **Ngày, nguồn:** 2026-11-14, Photune (issue #493; PR VGL-App/photo-video-maker-with-music#168, rà soát độc lập, ghi chú 13)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** ADR-0023 đã bị ADR-0046 thay, và `template-sync.sh` xóa ADR bị thay khỏi app (ADR-0044); nhưng chú thích trong `:core:config`, `:app` và trang sinh ra `docs/remote-config-keys.md` vẫn dẫn ADR-0023, nên sau mỗi đợt đồng bộ app dẫn tới một ADR không còn trong repo. `scripts/history-refs.py` chỉ kiểm tài liệu Markdown. Kiểm ở mẫu ngày 2026-11-16: 13 ADR bị thay còn được dẫn ở 118 chỗ trong code, script, workflow và trang sinh ra; đợt đồng bộ camera-pose PR VGL-Studio/camera-pose#351 cũng thấy `scripts/release.sh` và `.github/workflows/staging.yml` còn dẫn ADR-0009, ADR-0016, ADR-0017.
+- **Bằng chứng:** issue #493; rà soát độc lập của PR camera-pose #351, ghi chú 6.
+- **Đề xuất sửa:** đổi mọi chỗ dẫn sang ADR thay nó (theo bảng "Mục mới ← ADR cũ" khi có số mục); `scripts/history-refs.py` kiểm cả file không phải Markdown và `docs/remote-config-keys.md`, trừ `scripts/tests/` (dữ liệu test cố ý dùng mã ADR cũ).
+- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Mọi ADR bị thay + kiểm tự động"; sửa mã ADR trong `scripts/release.sh`, `scripts/check.sh`, `.github/workflows/staging.yml` theo lựa chọn "Cho sửa, chỉ mã ADR")
+
 ### L-180. Danh sách chạy lập ra rồi không dùng không có trạng thái đúng sự thật
 
 - **Ngày, nguồn:** 2026-11-13, camera-pose (issue #479; danh sách `docs/runs/RUN-20261021-04.md` của camera-pose, trùng với RUN-20261022-01)

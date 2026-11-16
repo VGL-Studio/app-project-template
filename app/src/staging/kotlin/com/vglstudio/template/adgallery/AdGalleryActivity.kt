@@ -31,7 +31,7 @@ class AdGalleryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Shows the consent form when required; the ads SDK starts only after it (ADR-0004).
+        // Shows the consent form when required; the ads SDK starts only after it (ADR-0045).
         ads.gatherConsent(this)
         setContent {
             // Provides the ads controller and reports the block of resume ads (G-04).
@@ -44,7 +44,7 @@ class AdGalleryActivity : ComponentActivity() {
                             modifier = Modifier.safeDrawingPadding(),
                         )
                     }
-                    // Native full-screen ads open as a dialog over the gallery, as in MainActivity (ADR-0022).
+                    // Native full-screen ads open as a dialog over the gallery, as in MainActivity (ADR-0045).
                     FullScreenAdHost()
                 }
             }

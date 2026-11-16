@@ -48,7 +48,7 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
 /**
  * Shows the banner of [placement] in a screen. Features call this, never an ads SDK directly.
  *
- * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0038), loaded again by :core:ads after
+ * - [AdFormat.BANNER]: a fixed banner at the anchored adaptive size (B-01, ADR-0045), loaded again by :core:ads after
  *   each load at the interval of `time_reload_banner` (60 s by default; 0 keeps the banner), never by the refresh of
  *   its ad unit; a failure is retried (B-02). [AdFormat.BANNER_COLLAPSIBLE]: a
  *   collapsible banner at the large anchored adaptive size, loaded again by :core:ads after each load at the interval
@@ -66,7 +66,7 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  * - Consent withdrawn after the banner had an ad: the frame keeps its height, the ad is hidden and paused; consent
  *   given again loads a new ad in the same frame (B-06).
  * - [AdFormat.BANNER] and [AdFormat.BANNER_MREC] load from AppLovin MAX and AdMob in the order of
- *   `ads_mediation_order` (KB-31, ADR-0037, plan T-071): the first platform without an ad hands the turn to the
+ *   `ads_mediation_order` (KB-31, ADR-0045, plan T-071): the first platform without an ad hands the turn to the
  *   second one in the same frame, as tall as the tallest of them; a collapsible banner is AdMob only.
  */
 @Composable
@@ -330,7 +330,7 @@ private fun BannerFrameContent(
 
 /**
  * The banner slot of a bottom bar ([BottomAdBarScaffold], D-01): the fixed banner at the anchored adaptive size
- * (loaded again by :core:ads at the interval of `time_reload_banner`, B-01, B-02, ADR-0038) as a layer of the bar's
+ * (loaded again by :core:ads at the interval of `time_reload_banner`, B-01, B-02, ADR-0045) as a layer of the bar's
  * [placement], with the unit of [AdFormat.BANNER] for it; no unit (production without the `banner` slot key) sends
  * nothing and takes no space (B-04). [onHeight] gets the frame's height for the space the bar keeps.
  */
@@ -345,7 +345,7 @@ internal fun BottomBannerSlot(
 }
 
 /**
- * Returns an action that shows the full-screen ad of [placement] if the guardrails allow it (ADR-0004).
+ * Returns an action that shows the full-screen ad of [placement] if the guardrails allow it (ADR-0045).
  * Call the action at a natural break only. It does nothing in tests and previews.
  * New code uses [rememberShowFullScreenAd], which shows both interstitial and native full-screen placements.
  */

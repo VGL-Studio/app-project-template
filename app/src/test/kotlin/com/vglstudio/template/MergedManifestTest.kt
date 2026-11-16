@@ -13,7 +13,7 @@ import org.w3c.dom.Element
  * The mediation SDKs bring start-up providers, receivers and permissions into the app.
  * core/ads/src/main/AndroidManifest.xml removes the AppLovin provider and two AppLovin permissions and keeps VIBRATE
  * (plan T-015), and removes the Meta provider and the exported Mintegral receiver (plan T-034): no network code runs
- * before consent (ADR-0004, ADR-0026). The permission list is fixed: a new permission from an SDK upgrade fails the
+ * before consent (ADR-0045). The permission list is fixed: a new permission from an SDK upgrade fails the
  * test, so a plan decides it.
  * This reads the main merged manifest of stagingDebug: the unit test manifest (`android_merged_manifest`) does not
  * apply `tools:node="remove"`. The working directory of a unit test is the module directory.

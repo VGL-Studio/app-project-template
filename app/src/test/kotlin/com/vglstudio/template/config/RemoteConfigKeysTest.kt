@@ -13,7 +13,7 @@ import org.junit.Test
 
 /**
  * docs/remote-config-keys.md and docs/remote-config-template.json list every Remote Config key of the app
- * (ADR-0023). They are generated from [AppRemoteKeys]; this test fails when they no longer match the code.
+ * (ADR-0046). They are generated from [AppRemoteKeys]; this test fails when they no longer match the code.
  * To update both files after adding or changing a key:
  * ./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true
  */
@@ -118,7 +118,7 @@ class RemoteConfigKeysTest {
         assertEquals(names.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
     }
 
-    /** Ad keys keep the AdsKit names and state their unit in the description (ADR-0026, decision 9). */
+    /** Ad keys keep the AdsKit names and state their unit in the description (ADR-0045, section 6). */
     @Test
     fun everyNumberKey_endsWithUnit() {
         val numberKeys = AppRemoteKeys.byModule.filterKeys { it != ":core:ads" }.values.flatten()
@@ -126,7 +126,7 @@ class RemoteConfigKeysTest {
         assertTrue("No number keys listed", numberKeys.isNotEmpty())
         numberKeys.forEach { key ->
             assertTrue(
-                "Number key '${key.name}' must end with _seconds, _count or _percent (ADR-0023)",
+                "Number key '${key.name}' must end with _seconds, _count or _percent (ADR-0046)",
                 Regex("_(seconds|count|percent)$").containsMatchIn(key.name),
             )
         }
@@ -153,7 +153,7 @@ class RemoteConfigKeysTest {
         assertTrue("No number keys in :core:ads", numberKeys.isNotEmpty())
         numberKeys.forEach { key ->
             assertTrue(
-                "Number key '${key.name}' must state its unit (seconds, items) in the description (ADR-0026)",
+                "Number key '${key.name}' must state its unit (seconds, items) in the description (ADR-0045)",
                 Regex("\\b(seconds|items)\\b").containsMatchIn(key.description),
             )
         }
@@ -213,7 +213,7 @@ internal fun keysMarkdown(byModule: Map<String, List<RemoteKey<*>>>): String = b
     )
     appendLine()
     appendLine(
-        "Mọi khóa Remote Config của bản app hiện tại (ADR-0023). " +
+        "Mọi khóa Remote Config của bản app hiện tại (ADR-0046). " +
             "File mẫu để nhập vào Firebase: `remote-config-template.json`.",
     )
     appendLine()

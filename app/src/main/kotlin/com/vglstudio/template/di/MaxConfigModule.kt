@@ -8,7 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
 /**
- * The AppLovin MAX SDK key of the build flavor, set in app/build.gradle.kts (ADR-0037, plan T-068): `-PmaxSdkKey` in
+ * The AppLovin MAX SDK key of the build flavor, set in app/build.gradle.kts (ADR-0045, plan T-068): `-PmaxSdkKey` in
  * production, `ads.maxSdkKey` of local.properties in staging; none on CI, so MAX never starts there. With it the MAX
  * ad units of the slots (plan T-071): `-PmaxAdUnits` in production, `ads.maxAdUnits` of local.properties in staging.
  */
