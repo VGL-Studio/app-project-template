@@ -229,9 +229,10 @@ internal fun rememberRewardedActionOf(
  * (R-08): the very gate [RewardedAction.start] reads (`is_show_ads` with ad removal, `is_show_<code>`, the consent
  * gate). A screen reads it to mark an option "watch an ad", or to pick the free option by default, so the mark never
  * shows when a tap would not open the dialog. null until the first value of the gate is known (never guessed, as
- * [RewardedAction.start] waits for it); false with no ads controller (tests, previews) or no activity, where `start()`
- * runs the action at once. Follows the gate: read it on every composition. The tap still decides through `start()`.
- * Loads nothing and records nothing. A placement of another format is an [IllegalArgumentException].
+ * [RewardedAction.start] waits for it), also right after the placement changes; false with no ads controller (tests,
+ * previews) or no activity, where `start()` runs the action at once. Follows the gate: read it on every composition.
+ * The tap still decides through `start()`. Loads nothing and records nothing. A placement of another format is an
+ * [IllegalArgumentException].
  */
 @Composable
 fun rememberRewardedAdRequired(placement: AdPlacement): Boolean? {
