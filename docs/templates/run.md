@@ -1,6 +1,6 @@
 ---
 id: RUN-YYYYMMDD-NN
-status: draft                # draft | approved | running | finished
+status: draft                # draft | approved | running | finished | cancelled (danh sách chưa chạy không dùng nữa; docs/CLAUDE.md, mục Khi lập danh sách chạy)
 sprint: <tên hoặc số sprint>
 approved_by: <dev duyệt danh sách và kích hoạt phiên>   # người duyệt danh sách (AI ghi theo lời đồng ý trong phiên khi người duyệt nói trong phiên)
 max_tasks: <số task tối đa>      # dev quyết định theo ước tính; mặc định bằng số task trong danh sách (docs/CLAUDE.md, mục Khi lập danh sách chạy)

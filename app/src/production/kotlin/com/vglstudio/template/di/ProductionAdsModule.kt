@@ -11,7 +11,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
-/** Production uses the real ad units given when the release is built (ADR-0009, ADR-0013). */
+/** Production uses the real ad units given when the release is built (ADR-0049, ADR-0045). */
 @Module
 @InstallIn(SingletonComponent::class)
 object ProductionAdsModule {

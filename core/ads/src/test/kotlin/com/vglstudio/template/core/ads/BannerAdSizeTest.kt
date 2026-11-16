@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 /**
- * The size of each banner format (plan T-067, ADR-0038): a fixed banner at the anchored adaptive size of JBase
+ * The size of each banner format (plan T-067, ADR-0045): a fixed banner at the anchored adaptive size of JBase
  * (B-01, KB-18, KB-32), a collapsible banner at the large anchored size (B-03), and the height the banner slot of a
  * bottom bar reports for the space it keeps (KB-17).
  */

@@ -5237,6 +5237,13 @@ write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 expect "run-check: a ready list passes" pass "$(run_check)"
 expect "run-check: a ready list has no warning" 0 "$(grep -c 'CHÚ Ý' "$work/run-check.out")"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)" cancelled
+expect "run-check: a cancelled list is refused, so nobody approves it again" "stop 1" \
+  "$(run_check) $(grep -c 'cancelled' "$work/run-check.out")"
+expect "run-check --batch: a cancelled list is refused too, without the hint to run again without --batch" "1 1 0" \
+  "$(RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" RUN_CHECK_BASE=HEAD python3 -I scripts/run-check.py --batch "$rr/docs/runs/RUN-1.md" > "$work/run-check-batch.out" 2>&1; echo $?) $(
+    grep -c 'danh sách đã cancelled' "$work/run-check-batch.out") $(grep -c 'chỉ dùng cho danh sách draft' "$work/run-check-batch.out" || true)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 # The start field: auto or manual, and auto only with open_with routine in the file (T-104).
 rc_start() { # <start line> <open_with line>; the list with these front matter lines
   write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
@@ -6155,6 +6162,26 @@ expect "status: only the text after the first colon decides \"không có\"" 1 \
   "$(grep -c 'T-040: ghi chú, không có test cho trường hợp revert$' "$page" || true)"
 expect "status: items after the next heading and the done items are not listed" "0 0 0 6" \
   "$(grep -c 'Không phải việc' "$page" || true) $(grep -c 'Đã xem ảnh' "$page" || true) $(grep -c 'issue flaky' "$page" || true) $(grep -c '^- \[RUN-20261004-01\]' "$page" || true)"
+# A cancelled run list (never run) waits for nobody and holds no ticket; the session table still lists it.
+sc="$work/status-cancel/docs"
+mkdir -p "$sc/features/demo/tickets" "$sc/features/demo/plans" "$sc/runs"
+printf -- '---\nfeature: demo\nstatus: confirmed\n---\n' > "$sc/features/demo/spec.md"
+printf -- '---\ntitle: Ba\nstatus: approved\n---\n' > "$sc/features/demo/tickets/T-003-ba.md"
+printf -- '---\nstatus: approved\nversion: 1\n---\n' > "$sc/features/demo/plans/T-003-ba.md"
+write_status_run() { # <id> <status>
+  printf -- '---\nid: %s\nstatus: %s\n---\n\n## 1. Danh sách chạy\n\n| 1 | T-003 | demo |\n\n## 2. Khác\n' "$1" "$2" > "$sc/runs/$1.md"
+}
+write_status_run RUN-20261007-01 cancelled
+STATUS_ROOT="$work/status-cancel" python3 -I scripts/status.py > /dev/null
+cpage="$sc/STATUS.md"
+expect "status: a cancelled run list does not wait for approval, and its ticket is in no list again" "0 1 1" \
+  "$(grep -c 'RUN-20261007-01.md' <<< "$(awk '/^## 1\./ { s = 1; next } /^## / { s = 0 } s' "$cpage")" || true) $(
+    grep -c 'Ticket đã duyệt, chưa vào danh sách chạy nào: .*T-003' "$cpage" || true) $(grep -c 'cancelled' "$cpage" || true)"
+write_status_run RUN-20261007-01 draft
+STATUS_ROOT="$work/status-cancel" python3 -I scripts/status.py > /dev/null
+expect "status: control: the same list as draft waits for approval and holds its ticket" "1 0" \
+  "$(grep -c 'Danh sách chạy .draft. chờ duyệt: .*RUN-20261007-01' "$cpage" || true) $(
+    grep -c 'Ticket đã duyệt, chưa vào danh sách chạy nào: .*T-003' "$cpage" || true)"
 expect "status: the run template still has the manual check section" yes \
   "$(awk '/^### Cần người kiểm tra$/ { s = 1; next } s && /^- \[ \] / { found = 1 } END { print (found ? "yes" : "no") }' docs/templates/run.md)"
 expect "status: manual checks skip runs not finished" "0 1" \
@@ -6332,6 +6359,34 @@ else
   code=0; out="$(history_refs)" || code=$?
   expect "history-refs: a guide in docs/features that is not a spec, design or ticket is a rule document" "1 1" \
     "$code $(grep -cx '   docs/features/README.md: L-124' <<< "$out")"
+  # Code, scripts, workflows and the generated key page of a git work tree name no superseded ADR: template-sync.sh
+  # deletes those ADRs from the apps. Lesson and ticket codes in code pass, and scripts/tests/ holds test data.
+  hc="$work/history-code"
+  mkdir -p "$hc/docs/adr" "$hc/app/src" "$hc/scripts/tests" "$hc/.github/workflows"
+  printf -- '---\nid: ADR-0001\nstatus: accepted\n---\n\n- **Việc AI phải tuân thủ:** làm A.\n' > "$hc/docs/adr/0001-a.md"
+  printf -- '---\nid: ADR-0002\nstatus: superseded\n---\n\n- **Việc AI phải tuân thủ:** làm B.\n' > "$hc/docs/adr/0002-b.md"
+  printf '// Keys of the app (ADR-0002).\n' > "$hc/app/src/Keys.kt"
+  printf '// Plan T-080, lesson L-123, ADR-0001.\n' > "$hc/app/src/Clean.kt"
+  printf '# old ADR as data: ADR-0002\n' > "$hc/scripts/tests/data.sh"
+  printf '# docs/adr/0002-b.md\n' > "$hc/.github/workflows/build.yml"
+  printf 'Mọi khóa (ADR-0002).\n' > "$hc/docs/remote-config-keys.md"
+  printf 'ADR-0002\0binary' > "$hc/app/src/image.bin"
+  git -C "$hc" init -q && git -C "$hc" add -A
+  code=0; out="$(HISTORY_REFS_ROOT="$hc" python3 -I scripts/history-refs.py)" || code=$?
+  expect "history-refs: code, a workflow path and the generated key page naming a superseded ADR fail" "1 1 1 1" \
+    "$code $(grep -cx '   app/src/Keys.kt: ADR-0002' <<< "$out") $(grep -cx '   .github/workflows/build.yml: ADR-0002' <<< "$out") $(
+      grep -cx '   docs/remote-config-keys.md: ADR-0002' <<< "$out")"
+  expect "history-refs: lesson and ticket codes in code, test data and binary files pass" 0 \
+    "$(grep -cE 'Clean\.kt|scripts/tests/data\.sh|image\.bin' <<< "$out" || true)"
+  mkdir -p "$hc/scripts/tests"
+  printf 'app/src/Keys.kt\n.github/workflows/build.yml\ndocs/remote-config-keys.md\n' > "$hc/scripts/tests/history-refs-allow.txt"
+  git -C "$hc" add -A
+  expect "history-refs: a code file in the allow list passes" 0 \
+    "$(HISTORY_REFS_ROOT="$hc" python3 -I scripts/history-refs.py > /dev/null; echo $?)"
+  # template-sync.sh lists what an app still names of an ADR it just deleted with --mentions: code included.
+  expect "history-refs --mentions: lists code and the generated key page that name a removed ADR, not test data" \
+    "   .github/workflows/build.yml: ADR-0002|   app/src/Keys.kt: ADR-0002|   docs/remote-config-keys.md: ADR-0002" \
+    "$(python3 -I scripts/history-refs.py --mentions "$hc" ADR-0002 | paste -sd '|' -)"
   rm "$hr/docs/features/README.md"
   # A file that is not UTF-8 and a file in a merge conflict (one index entry per stage) are each listed once.
   cr="$work/history-conflict"
@@ -7864,7 +7919,7 @@ enum class AdPlacement(
     INTER_SAVE("inter_save", AdFormat.INTERSTITIAL, intervalGroup = AdIntervalGroup.named("save", 60)),
     RW_EXPORT("rw_export", AdFormat.REWARDED, noAdPolicy = RewardedNoAdPolicy.AllowAfter(3)),
     HOME_GRID("home_grid", AdFormat.NATIVE_IN_COLLECTION, nativeEvery = 6, firstOpenOnly = true),
-    GALLERY_BANNER("gallery_banner", AdFormat.NATIVE_SMALL),
+    GALLERY_BANNER("gallery_banner", AdFormat.NATIVE_SMALL, collapsibleLayer = false),
     ;
 }
 KT
@@ -7908,6 +7963,8 @@ expect "ads-plan: a placement of the code is off at launch until the team says s
   "$(ap_get 'P["home_bottom"]["launch"] + " " + P["home_bottom"]["status"]')"
 expect "ads-plan: the KDoc of a placement becomes its note" "Bottom bar of Home." "$(ap_get 'P["home_bottom"]["note"]')"
 expect "ads-plan: a first-open-only placement says so in its note" firstOpenOnly "$(ap_get 'P["home_grid"]["note"]')"
+expect "ads-plan: a bottom bar without the collapsible layer says so in its note" "collapsibleLayer = false" \
+  "$(ap_get 'P["gallery_banner"]["note"]' --with-staging)"
 expect "ads-plan: derived keys are not listed twice (they come from the placements sheet)" "False False" \
   "$(ap_get 'str("is_show_home_bottom" in K) + " " + str("native_every_home_grid" in K)')"
 expect "ads-plan: a shared key goes in its group" "Mở app" "$(ap_get 'K["show_open_ads"][0]')"

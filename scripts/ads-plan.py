@@ -278,7 +278,7 @@ UNUSED_ADSKIT_KEYS = [
     ("resume_ads_interval", "Không phải khóa của AdsKit; bộ PARTNER không có cổng thời gian ở resume."),
     ("time_reload_bottom_ad", "Không phải khóa của AdsKit; không thành phần nào đọc."),
     ("is_show_inter_<màn>, inter_choose_<...>", "Kiểu khóa riêng từng app cũ; dự án mẫu dùng is_show_<mã vị trí>."),
-    ("ads_behavior_profile, ads_partner_kill", "Chỉ có một bộ hành vi PARTNER, không đổi bộ qua Remote Config (ADR-0026)."),
+    ("ads_behavior_profile, ads_partner_kill", "Chỉ có một bộ hành vi PARTNER, không đổi bộ qua Remote Config (ADR-0045)."),
 ]
 
 AD_PARAMS = "ad_format, ad_placement"
@@ -441,6 +441,8 @@ def read_placements(with_staging):
                   if re.search(name + r"\s*=\s*true", attrs)]
         if re.search(r"recordInterval\s*=\s*false", attrs):
             extras.append("recordInterval = false")
+        if re.search(r"collapsibleLayer\s*=\s*false", attrs):
+            extras.append("collapsibleLayer = false")
         placements.append({
             "code": code, "format": formats.get(fmt, fmt.lower()), "wide": "Có" if "appWide = true" in attrs else "Không",
             "group": group[0] if group else None, "seconds": group[1] if group else None,

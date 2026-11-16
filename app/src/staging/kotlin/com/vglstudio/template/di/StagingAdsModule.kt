@@ -13,7 +13,7 @@ import dagger.hilt.components.SingletonComponent
 
 /**
  * Staging shows Google's test ads only (ADR-0007) and treats every device as being in the EEA,
- * so the team can test the consent form from anywhere (ADR-0013). A developer's build may also treat their own phones
+ * so the team can test the consent form from anywhere (ADR-0045). A developer's build may also treat their own phones
  * as test devices and logs the networks of every load (plan T-058).
  */
 @Module
@@ -28,7 +28,7 @@ object StagingAdsModule {
     /**
      * The build half of the ERROR_ALLOWED switch is on, so testers can try ERROR_ALLOWED by switching
      * is_enable_consent_shortcut on in the staging Firebase project; the remote key stays off by default (S-12).
-     * CACHED_EARLY needs no switch (ADR-0038).
+     * CACHED_EARLY needs no switch (ADR-0045).
      */
     @Provides
     fun consentShortcutConfig(): ConsentShortcutConfig = ConsentShortcutConfig(enabledInBuild = true)

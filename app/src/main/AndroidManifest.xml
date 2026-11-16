@@ -19,7 +19,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.App"
         tools:replace="android:allowBackup">
-        <!-- Set per build flavor in app/build.gradle.kts: Google's test app id in staging (ADR-0013). -->
+        <!-- Set per build flavor in app/build.gradle.kts: Google's test app id in staging (ADR-0045). -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}" />
