@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1, KB-2, KB-4, KB-17, KB-32]
 owner: Nhật
-status: backlog
+status: approved
 risk: high
 size: M
 depends_on: [T-064]
 sprint:
-plan:
+plan: features/ads/plans/T-065-kich-thuoc-native-theo-jbase.md
 auto_run: 
 created: 2026-10-29
 ---
