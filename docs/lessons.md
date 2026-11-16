@@ -1441,3 +1441,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** cùng tệp `scripts/runners-app.conf` của L-181: `RUNNER_TESTS=skip` cùng `RUNNER_ADR=ADR-NNNN` (bắt buộc khi skip) làm `run.sh` in dòng `skip - runners: app theo <ADR>` thay cho các test kiểm workflow thật theo ADR-0042; app tự kiểm workflow của mình trong `scripts/tests/app.sh`. Thiếu `RUNNER_ADR` khi skip là lỗi test.
 - **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR"; PR #524 merge theo lời anh Nhật "merge 524")
 - **Áp dụng:** PR #524: `RUNNER_TESTS=skip` cùng `RUNNER_ADR` của `scripts/runners-app.conf` bỏ qua các test đọc workflow thật theo ADR-0042 trong `scripts/tests/run.sh`; `docs/ops/to-app.md` mục 2 và 6.
+
+### L-183. Màn không biết trước khi bấm hành động có điều kiện sẽ cần xem quảng cáo thưởng hay làm thẳng
+
+- **Ngày, nguồn:** 2026-11-16, Photune (issue #519; spec `export` của app, KB-9, KB-14, câu hỏi 25; ADR-1036 của app, quyết định 7)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** bảng "Export video" của Photune có hai gói; gói 1080p giữ sau một vị trí rewarded. Dev muốn khi vị trí có hiệu lực thì chọn sẵn gói miễn phí và gắn dấu "xem quảng cáo" lên gói 1080p, khi không có hiệu lực (khóa tắt, công tắc tổng tắt, chưa có đồng ý, đã mua gói bỏ quảng cáo) thì không có dấu. Mẫu chỉ cho biết kết quả sau khi bấm (`RewardedAction.start()`); cổng `AdsController.rewardedSwitch` là `internal`, còn feature tự đọc khóa thì thiếu công tắc tổng, cổng đồng ý và gói bỏ quảng cáo, nên dấu lệch với hộp thoại.
+- **Bằng chứng:** issue #519.
+- **Đề xuất sửa:** composable công khai `rememberRewardedAdRequired(placement): Boolean?` trong `RewardedAction.kt`, đọc đúng `rewardedSwitch` mà `start()` đọc (`null` trước giá trị đầu, `false` khi không có `AdsController`), không nạp, không ghi số liệu; luật R-08 ở `ads-business-rules.md`; `ads-guide.md` mục 3 và mục 5 nhắc hàm.
+- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16 cho #519: "Nhận, trả Boolean?")
