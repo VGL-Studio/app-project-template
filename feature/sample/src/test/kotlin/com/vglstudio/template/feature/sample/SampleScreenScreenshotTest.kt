@@ -36,6 +36,17 @@ class SampleScreenScreenshotTest {
         }
     }
 
+    /** The unfolded foldable (ADR-0020): the bottom slot follows the screen width, 200 dp at 673 dp (KB-32). */
+    @Test
+    @Config(qualifiers = "w673dp-h841dp-xxhdpi")
+    fun ready_light_unfolded() {
+        captureRoboImage("src/test/screenshots/SampleScreen_ready_light_unfolded.png") {
+            AppTheme(darkTheme = false) {
+                SampleScreen(uiState = SampleUiState.Ready(count = 3), onIncrement = {}, bottomBar = fakeBar())
+            }
+        }
+    }
+
     @Test
     fun ready_dark() {
         captureRoboImage("src/test/screenshots/SampleScreen_ready_dark.png") {
@@ -55,7 +66,7 @@ class SampleScreenScreenshotTest {
                     bottomBar = { content ->
                         // The placeholder of the first load; the screenshot keeps the space of the slot, as before.
                         BottomAdBarLayout(
-                            reservation = BottomAdBarDefaults.nativeReservation,
+                            reservation = BottomAdBarDefaults.nativeReservation(),
                             slot = { NativeAdPlaceholder(NativeAdSize.SMALL, it, animated = false) },
                             layer = null,
                             content = content,
@@ -83,7 +94,7 @@ class SampleScreenScreenshotTest {
     @Test
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun bar_expanded_small() {
-        // L-028: the open 250 dp collapsible layer on the low frame does not cover the main button.
+        // L-028: the open collapsible layer (272 dp on this 360 dp screen) does not cover the main button.
         captureRoboImage("src/test/screenshots/SampleScreen_bar-expanded_small.png") {
             AppTheme(darkTheme = false) {
                 SampleScreen(
@@ -106,7 +117,7 @@ class SampleScreenScreenshotTest {
     private fun fakeBar(layer: Boolean = false): @Composable (@Composable (PaddingValues) -> Unit) -> Unit =
         { content ->
             BottomAdBarLayout(
-                reservation = BottomAdBarDefaults.nativeReservation,
+                reservation = BottomAdBarDefaults.nativeReservation(),
                 slot = { NativeAdCard(assets = adAssets, size = NativeAdSize.SMALL, modifier = it) },
                 layer = if (layer) {
                     { CollapsibleNativeAdCard(assets = adAssets.copy(body = null), onCollapse = {}, modifier = it) }

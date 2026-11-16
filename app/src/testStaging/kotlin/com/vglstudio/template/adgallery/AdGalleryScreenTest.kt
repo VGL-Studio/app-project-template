@@ -173,16 +173,16 @@ class AdGalleryScreenTest {
         assertTrue("ad first in the list", textBounds("List item 1").top < firstAd.top)
         assertTrue(firstAd.top >= textBounds("List item 3").bottom)
         assertTrue(firstAd.bottom <= textBounds("List item 4").top)
-        // Small: 80 dp and 16 dp above and below.
-        assertDp("first ad row height", 112.dp, firstAd.height)
+        // Small: 126 dp at 411 dp and 16 dp above and below.
+        assertDp("first ad row height", 158.dp, firstAd.height)
 
         composeRule.onNodeWithTag(AdGalleryTestTags.IN_LIST)
             .performScrollToNode(hasText("List item 7"))
         val secondAd = bounds(PreviewAdTags.inList(1))
         assertTrue(secondAd.top >= textBounds("List item 6").bottom)
         assertTrue(secondAd.bottom <= textBounds("List item 7").top)
-        // Medium: 410 dp and 16 dp above and below.
-        assertDp("second ad row height", 442.dp, secondAd.height)
+        // Medium: 400 dp at 891 dp and 16 dp above and below.
+        assertDp("second ad row height", 432.dp, secondAd.height)
     }
 
     @Test
@@ -205,23 +205,23 @@ class AdGalleryScreenTest {
         assertDp("start margin", 16.dp, ad.left - root.left)
         assertDp("end margin", 16.dp, root.right - ad.right)
         // Control: the ad is the open layer, so it is pinned with its own height, not stretched.
-        assertDp("open layer height", 250.dp, ad.height)
-        // Design: the layer floats over the 80 dp slot, same bottom edge (y 625 to 875).
-        assertDp("layer top", 625.dp, ad.top)
+        assertDp("open layer height", 299.dp, ad.height)
+        // Design: the layer floats over the 126 dp slot, same bottom edge (y 576 to 875).
+        assertDp("layer top", 576.dp, ad.top)
         assertDp("same bottom as the slot", bounds(PreviewAdTags.BOTTOM_SLOT).bottom, ad.bottom)
     }
 
     @Test
-    fun collapsibleCollapsed_slotAt795() {
+    fun collapsibleCollapsed_slotAt749() {
         setScreen(AdGalleryUiState.Collapsible(6), PreviewAdGallerySlots(collapsed = true))
 
         composeRule.onAllNodesWithTag(PreviewAdTags.COLLAPSIBLE).assertCountEquals(0)
         val slot = bounds(PreviewAdTags.BOTTOM_SLOT)
-        assertDp("slot top", 795.dp, slot.top)
-        assertDp("slot height", 80.dp, slot.height)
+        assertDp("slot top", 749.dp, slot.top)
+        assertDp("slot height", 126.dp, slot.height)
         assertDp("start margin", 16.dp, slot.left)
         // The list ends where the slot starts (D-04).
-        assertDp("list bottom", 795.dp, bounds(AdGalleryTestTags.COLLAPSIBLE_LIST).bottom)
+        assertDp("list bottom", 749.dp, bounds(AdGalleryTestTags.COLLAPSIBLE_LIST).bottom)
     }
 
     @Test

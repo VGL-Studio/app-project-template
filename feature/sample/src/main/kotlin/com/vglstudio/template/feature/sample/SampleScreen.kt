@@ -134,7 +134,7 @@ private fun SampleScreenWithAdPreview() {
             onIncrement = {},
             bottomBar = { content ->
                 BottomAdBarLayout(
-                    reservation = BottomAdBarDefaults.nativeReservation,
+                    reservation = BottomAdBarDefaults.nativeReservation(),
                     slot = {
                         NativeAdCard(
                             assets = NativeAdAssets(

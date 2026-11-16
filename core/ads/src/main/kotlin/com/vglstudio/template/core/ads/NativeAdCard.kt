@@ -239,6 +239,15 @@ internal object NativeAdDimens {
         NativeAdSize.STEP -> StepHeight
     }
 
+    // Skeleton for the tests written first (plan T-065, step 3); the code comes in the next commit.
+    fun bottomSlotHeight(screenWidth: Dp): Dp = BottomSlotHeight
+
+    fun collapsibleMediaAreaHeight(screenWidth: Dp): Dp = 0.dp
+
+    fun mediumHeight(screenHeight: Dp): Dp = MediumHeight
+
+    fun mediumIsCompact(screenHeight: Dp): Boolean = false
+
     /** The call to action of medium: 44 dp, 56 dp when large. */
     fun mediumCallToActionHeight(ctaLarge: Boolean): Dp =
         if (ctaLarge) LargeCallToActionHeight else MediumCallToActionHeight
@@ -260,6 +269,9 @@ internal object NativeAdTestTags {
     const val STAR_ROW = "native_ad_star_row"
     const val STAR = "native_ad_star"
     const val PLACEHOLDER_CTA = "native_ad_placeholder_cta"
+    const val PLACEHOLDER_ICON = "native_ad_placeholder_icon"
+    const val SECOND_LINE = "native_ad_second_line"
+    const val BODY = "native_ad_body"
 }
 
 /** Filled stars of [rating] (O-08): none without a real rating above 0, else rounded half up, at most 5. */

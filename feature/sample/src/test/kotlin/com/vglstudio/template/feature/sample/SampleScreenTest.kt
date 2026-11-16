@@ -83,17 +83,17 @@ class SampleScreenTest {
     }
 
     /**
-     * Stands in for the bottom bar (tests have no ads controller): the real layout of the bar with an 80 dp box as
-     * the native slot, the content keeping the space of a slot with an ad, and with [layer] a 250 dp box floating
-     * over the slot like the open collapsible layer.
+     * Stands in for the bottom bar (tests have no ads controller): the real layout of the bar with a box as high as
+     * the native slot of this screen, the content keeping the space of a slot with an ad, and with [layer] a box as
+     * high as the open collapsible layer, floating over the slot.
      */
     private fun fakeBar(layer: Boolean = false): @Composable (@Composable (PaddingValues) -> Unit) -> Unit =
         { content ->
             BottomAdBarLayout(
-                reservation = BottomAdBarDefaults.nativeReservation,
-                slot = { Box(modifier = it.height(80.dp).testTag(AD)) },
+                reservation = BottomAdBarDefaults.nativeReservation(),
+                slot = { Box(modifier = it.height(BottomAdBarDefaults.nativeSlotHeight()).testTag(AD)) },
                 layer = if (layer) {
-                    { Box(modifier = it.height(250.dp).testTag(LAYER)) }
+                    { Box(modifier = it.height(BottomAdBarDefaults.collapsibleLayerHeight()).testTag(LAYER)) }
                 } else {
                     null
                 },
@@ -112,7 +112,7 @@ class SampleScreenTest {
         val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
         assertEquals(16f, (screen.bottom - ad.bottom).value, 0.5f)
         assertEquals(379f, (ad.right - ad.left).value, 0.5f)
-        assertEquals(80f, (ad.bottom - ad.top).value, 0.5f)
+        assertEquals(126f, (ad.bottom - ad.top).value, 0.5f)
     }
 
     @Test
@@ -126,7 +126,7 @@ class SampleScreenTest {
         val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
         // D-04: the scrolling content ends where the slot starts, no gap and no overlap.
         assertEquals(ad.top.value, content.bottom.value, 1f)
-        assertEquals(795f, ad.top.value, 1f)
+        assertEquals(749f, ad.top.value, 1f)
     }
 
     @Test
@@ -212,8 +212,9 @@ class SampleScreenTest {
         }
         val button = composeRule.onNodeWithText(string(R.string.sample_increment)).getUnclippedBoundsInRoot()
         val layer = composeRule.onNodeWithTag(LAYER).getUnclippedBoundsInRoot()
-        // L-028: the 250 dp layer floats over the bottom of the content, below the main button.
-        assertEquals(374f, layer.top.value, 1f)
+        // L-028: the layer (272 dp on this 360 dp screen) floats over the bottom of the content, below the main
+        // button: 640 - 16 - 272 = 352 dp.
+        assertEquals(352f, layer.top.value, 1f)
         assertTrue("layer starts ${layer.top - button.bottom} below the button", layer.top >= button.bottom)
     }
 

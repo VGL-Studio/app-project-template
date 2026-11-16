@@ -18,9 +18,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Screenshots of the bottom bar with fake ads (Roborazzi, plan T-030): the 80 dp native slot 16 dp from the edges,
- * the 250 dp collapsible layer floating over it, and the content keeping the slot's 96 dp (drawn as a tinted block,
- * so the kept space shows). Nothing here animates, so the screen settles (L-048).
+ * Screenshots of the bottom bar with fake ads (Roborazzi, plan T-030): the native slot (126 dp at 411 dp) 16 dp
+ * from the edges, the collapsible layer (299 dp) floating over it, and the content keeping the slot and its margin
+ * (142 dp; drawn as a tinted block, so the kept space shows). Nothing here animates, so the screen settles (L-048).
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -31,7 +31,7 @@ class BottomAdBarScreenshotTest {
         AdsTestTheme(darkTheme = false) {
             Surface {
                 BottomAdBarLayout(
-                    reservation = BottomAdBarDefaults.nativeReservation,
+                    reservation = BottomAdBarDefaults.nativeReservation(),
                     slot = { NativeAdCard(sampleNativeAdAssets, NativeAdSize.SMALL, it) },
                     layer = if (layerShown) {
                         { CollapsibleNativeAdCard(screenshotAd, onCollapse = {}, modifier = it) }

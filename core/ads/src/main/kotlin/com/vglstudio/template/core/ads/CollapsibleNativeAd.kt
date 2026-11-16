@@ -129,6 +129,7 @@ internal object CollapsibleNativeAdTestTags {
     const val AD = "collapsible_ad"
     const val MEDIA = "collapsible_ad_media"
     const val COLLAPSE = "collapsible_ad_collapse"
+    const val CONTENT = "collapsible_ad_content"
 }
 
 /** Top and bottom margin inside the border, so the parts add up to the 250 dp of the design (media 134 dp). */
