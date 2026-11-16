@@ -4,7 +4,8 @@
 
 Usage: scripts/resume-check.py
 Prints the run file to continue (docs/runs/RUN-YYYYMMDD-NN.md) on stdout, or nothing. Explains on stderr.
-Exit 0 when the check ran (with or without a session to continue), 1 when GitHub could not be read.
+Exit 0 when the check ran (with or without a session to continue), 1 when GitHub could not be read or
+scripts/runners-app.conf is wrong.
 
 A session has stopped when its run file on its report branch is still "running" and none of its branches
 (the report branch, claude/T-NNN-... and claude/fix-T-NNN-... of the tickets in its run list) got a commit
@@ -12,12 +13,20 @@ for STALE_MINUTES. A session that is alive pushes at every step (docs/auto-run.m
 wait (CI, emulator) is shorter than that, except a job waiting for a self-hosted runner, which this script checks on
 its own. It is not continued when it started more than MAX_HOURS ago: people decide then. Nor while main is red
 (main-broken) or the cloud environment is broken (env-broken), or while a job of the repository waits for a
-self-hosted runner (ADR-0042; scripts/wait-run.sh exit 7).
+self-hosted runner as scripts/wait-run.sh exit 7 sees it (ADR-0042): queued, no runner, a label of no GitHub runner,
+no job of its run in progress, waiting since the latest finished job of its run (else since it was created) for
+RESUME_RUNNER_QUEUE_MINUTES (75) or more.
+
+scripts/runners-app.conf, only in an app whose runner model is not ADR-0042 (an ADR of the app), may set that wait
+(RUNNER_QUEUE_MINUTES; RESUME_RUNNER_QUEUE_MINUTES still wins), the labels of the jobs watched (RUNNER_LABELS) and
+the runner page the message names (RUNNER_DOC), read as scripts/wait-run.sh reads it. RUNNERS_APP_CONF (tests) names
+another file.
 
 The workflow runs it every hour while its schedule is on; it turns itself off when idle (scripts/schedule-idle.py).
 
 Uses only `gh api` (REST); GITHUB_REPOSITORY or the origin remote gives the repository.
-RESUME_STALE_MINUTES, RESUME_MAX_HOURS and RESUME_NOW (ISO time, tests) override the defaults.
+RESUME_STALE_MINUTES, RESUME_MAX_HOURS, RESUME_RUNNER_QUEUE_MINUTES and RESUME_NOW (ISO time, tests) override the
+defaults.
 Messages are in Vietnamese for the team.
 """
 
@@ -93,11 +102,57 @@ def last_commit(branch):
 
 
 GITHUB_LABEL = re.compile(r"^(ubuntu|windows|macos)-")
+RUNNERS_CONF_KEYS = {
+    "RUNNER_QUEUE_MINUTES": r"[0-9]+",
+    "RUNNER_LABELS": r"[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*",
+    "RUNNER_DOC": r"[A-Za-z0-9_][A-Za-z0-9._/-]*",
+    "RUNNER_TESTS": r"skip",
+    "RUNNER_ADR": r"ADR-[0-9]{4}",
+}
 
 
-def waiting_job():
-    """(job name, Actions run id) of the first queued job that carries a label of no GitHub runner, in the runs
-    queued or in progress (ADR-0042); None when there is none. An answer of another shape is a failed read."""
+def runners_conf():
+    """The values of scripts/runners-app.conf, {} when there is no file: lines KEY=value, '#' comments and blank
+    lines, only the keys of RUNNERS_CONF_KEYS, each once, with plain values. Read, never run. ValueError says what is
+    wrong."""
+    path = os.environ.get("RUNNERS_APP_CONF") or os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                              "runners-app.conf")
+    values = {}
+    if not os.path.isfile(path):
+        return values
+    with open(path, encoding="utf-8") as handle:
+        lines = handle.read().split("\n")
+    for number, line in enumerate(lines, 1):
+        line = line.removesuffix("\r")
+        if re.fullmatch(r"[ \t]*(#.*)?", line):
+            continue
+        match = re.fullmatch(r"([A-Z_]+)=(.*)", line)
+        if not match:
+            raise ValueError(f"{path}: dòng {number} không có dạng KHÓA=giá trị")
+        key, value = match.groups()
+        if key not in RUNNERS_CONF_KEYS:
+            raise ValueError(f"{path}: dòng {number}: khóa lạ {key} (chỉ nhận {', '.join(RUNNERS_CONF_KEYS)})")
+        if not re.fullmatch(RUNNERS_CONF_KEYS[key], value, re.ASCII):
+            raise ValueError(f"{path}: dòng {number}: giá trị của {key} sai dạng "
+                             "(xem docs/ops/self-hosted-runner.md, mục 10)")
+        if key in values:
+            raise ValueError(f"{path}: dòng {number}: {key} ghi hai lần")
+        values[key] = value
+    return values
+
+
+def watched(labels):
+    """Whether a job with these labels waits for a runner this script watches: one of RUNNER_LABELS when the app
+    sets them, else any label of no GitHub runner."""
+    if RUNNER_LABELS:
+        return any(str(label) in RUNNER_LABELS for label in labels)
+    return any(not GITHUB_LABEL.match(str(label)) for label in labels)
+
+
+def waiting_job(now):
+    """(job name, Actions run id, since) of the first job that waits for a self-hosted runner as scripts/wait-run.sh
+    exit 7 sees it, in the runs queued or in progress (ADR-0042); None when there is none. The same rule as
+    runner_waits of scripts/run-watchdog.py. An answer of another shape is a failed read."""
     for status in ("queued", "in_progress"):
         path = f"actions/runs?status={status}&per_page=20"
         runs = api(path)
@@ -108,10 +163,19 @@ def waiting_job():
             jobs = api(jobs_path)
             if not isinstance(jobs, dict) or not isinstance(jobs.get("jobs"), list):
                 raise LookupError(jobs_path)
-            for job in jobs["jobs"]:
-                labels = job.get("labels") or []
-                if job.get("status") == "queued" and any(not GITHUB_LABEL.match(str(label)) for label in labels):
-                    return job.get("name"), run.get("id")
+            jobs = jobs["jobs"]
+            if any(job.get("status") == "in_progress" for job in jobs):
+                continue
+            done = [moment(job.get("completed_at")) for job in jobs if job.get("status") == "completed"]
+            done = [d for d in done if d]
+            for job in jobs:
+                if job.get("status") != "queued" or job.get("runner_name"):
+                    continue
+                if not watched(job.get("labels") or []):
+                    continue
+                since = max(done) if done else moment(job.get("created_at"))
+                if since and now - since >= timedelta(minutes=RUNNER_QUEUE_MINUTES):
+                    return job.get("name"), run.get("id"), since
     return None
 
 
@@ -151,10 +215,12 @@ def main():
         if api("issues?state=open&labels=env-broken&per_page=10"):
             say(f"{run_id} đã dừng giữa chừng, nhưng môi trường cloud đang lỗi (env-broken): không tiếp tục.")
             continue
-        waiting = waiting_job()
+        waiting = waiting_job(now)
         if waiting:
-            job_name, actions_run = waiting
-            say(f"Không tiếp tục: job {job_name} (lần chạy {actions_run}) đang chờ runner tự host (ADR-0042).")
+            job_name, actions_run, since = waiting
+            where = f"; xem {RUNNER_DOC}" if RUNNER_DOC else ""
+            say(f"Không tiếp tục: job {job_name} (lần chạy {actions_run}) đang chờ runner tự host từ "
+                f"{since.strftime('%Y-%m-%d %H:%M UTC')}, quá {RUNNER_QUEUE_MINUTES} phút (ADR-0042{where}).")
             continue
         since = f"{int((now - latest).total_seconds() // 60)} phút" if latest else "không rõ bao lâu"
         say(f"{run_id} đã dừng giữa chừng: không có commit nào trong {since}. Tiếp tục phiên.")
@@ -165,6 +231,15 @@ def main():
 
 if __name__ == "__main__":
     REPO = repository()
+    try:
+        RUNNERS = runners_conf()
+    except (OSError, UnicodeDecodeError, ValueError) as error:
+        say(f"LỖI: {error}. Không tiếp tục phiên nào.")
+        sys.exit(1)
+    RUNNER_QUEUE_MINUTES = int(os.environ.get("RESUME_RUNNER_QUEUE_MINUTES")
+                               or RUNNERS.get("RUNNER_QUEUE_MINUTES", "75"))
+    RUNNER_LABELS = set(RUNNERS["RUNNER_LABELS"].split(",")) if "RUNNER_LABELS" in RUNNERS else set()
+    RUNNER_DOC = RUNNERS.get("RUNNER_DOC", "")
     try:
         sys.exit(main())
     except (LookupError, json.JSONDecodeError) as error:

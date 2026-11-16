@@ -31,6 +31,79 @@ expect() {
   fi
 }
 
+# scripts/runners-app.conf: only in an app whose runner model is not ADR-0042, chosen by an ADR of the app
+# (docs/ops/self-hosted-runner.md, section 10). wait-run.sh, resume-check.py and run-watchdog.py read it; their tests
+# below read another file through RUNNERS_APP_CONF, none by default, so they behave as in the template in every app.
+# RUNNER_TESTS=skip with RUNNER_ADR=ADR-NNNN skips the tests of this file that check the real workflows against
+# ADR-0042: the app checks its own workflows in scripts/tests/app.sh.
+export RUNNERS_APP_CONF="$work/no-runners-app.conf"
+# The same reading as read_runners_conf of scripts/wait-run.sh: change both together.
+read_runners_conf() { # <file>; prints its "KEY=value" lines (nothing when there is no file), or "ERROR <why>", exit 1
+  local LC_ALL=C file="$1" n=0 line key value pattern seen=" " out=""
+  [ -f "$file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n + 1))
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*(#.*)?$ ]] && continue
+    if [[ ! "$line" =~ ^([A-Z_]+)=(.*)$ ]]; then echo "ERROR dòng $n không có dạng KHÓA=giá trị"; return 1; fi
+    key="${BASH_REMATCH[1]}" value="${BASH_REMATCH[2]}"
+    case "$key" in
+      RUNNER_QUEUE_MINUTES) pattern='^[0-9]+$' ;;
+      RUNNER_LABELS) pattern='^[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*$' ;;
+      RUNNER_DOC) pattern='^[A-Za-z0-9_][A-Za-z0-9._/-]*$' ;;
+      RUNNER_TESTS) pattern='^skip$' ;;
+      RUNNER_ADR) pattern='^ADR-[0-9]{4}$' ;;
+      *) echo "ERROR dòng $n: khóa lạ $key (chỉ nhận RUNNER_QUEUE_MINUTES, RUNNER_LABELS, RUNNER_DOC, RUNNER_TESTS, RUNNER_ADR)"; return 1 ;;
+    esac
+    if [[ ! "$value" =~ $pattern ]]; then echo "ERROR dòng $n: giá trị của $key sai dạng (xem docs/ops/self-hosted-runner.md, mục 10)"; return 1; fi
+    if [[ "$seen" == *" $key "* ]]; then echo "ERROR dòng $n: $key ghi hai lần"; return 1; fi
+    seen="$seen$key " out="$out$key=$value"$'\n'
+  done < "$file"
+  printf '%s' "$out"
+}
+runner_tests_mode() { # <file>; "run", "skip ADR-NNNN", or "ERROR <why>"
+  local conf adr
+  if ! conf="$(read_runners_conf "$1")"; then echo "$conf"; return; fi
+  if ! grep -qx 'RUNNER_TESTS=skip' <<<"$conf"; then echo run; return; fi
+  adr="$(sed -n 's/^RUNNER_ADR=//p' <<<"$conf")"
+  if [[ -z "$adr" ]]; then echo "ERROR RUNNER_TESTS=skip cần RUNNER_ADR=ADR-NNNN (ADR runner của app)"; return; fi
+  echo "skip $adr"
+}
+mkdir -p "$work/rconf"
+printf '%s\n' '# runners of the app' '' 'RUNNER_TESTS=skip' 'RUNNER_ADR=ADR-1034' > "$work/rconf/skip.conf"
+printf '%s\n' 'RUNNER_TESTS=skip' > "$work/rconf/skip-no-adr.conf"
+printf '%s\n' 'RUNNER_QUEUE_MINUTES=120' 'RUNNER_LABELS=photune' > "$work/rconf/no-skip.conf"
+printf '%s\n' 'RUNNER_QUEUE_MINUTES=120' 'HEAVY_RUNNER=x' > "$work/rconf/unknown.conf"
+printf '%s\n' 'RUNNER_QUEUE_MINUTES=2h' > "$work/rconf/bad-minutes.conf"
+printf '%s\n' 'RUNNER_DOC=docs/a.md; rm -rf x' > "$work/rconf/bad-doc.conf"
+printf '%s\n' 'RUNNER_ADR=ADR-1034' 'RUNNER_ADR=ADR-1035' > "$work/rconf/twice.conf"
+printf '%s\n' 'RUNNER_QUEUE_MINUTES = 120' > "$work/rconf/spaces.conf"
+printf 'RUNNER_TESTS=skip\r\nRUNNER_ADR=ADR-1034' > "$work/rconf/crlf.conf"
+expect "runners-app.conf: no file runs the runner tests, skip with RUNNER_ADR skips them" "run|skip ADR-1034|run" \
+  "$(runner_tests_mode "$work/rconf/none.conf")|$(runner_tests_mode "$work/rconf/skip.conf")|$(runner_tests_mode "$work/rconf/no-skip.conf")"
+expect "runners-app.conf: RUNNER_TESTS=skip without RUNNER_ADR is an error" \
+  "ERROR RUNNER_TESTS=skip cần RUNNER_ADR=ADR-NNNN (ADR runner của app)" "$(runner_tests_mode "$work/rconf/skip-no-adr.conf")"
+expect "runners-app.conf: an unknown key, a wrong value, a key twice and spaces around = are errors" \
+  "ERROR dòng 2: khóa lạ HEAVY_RUNNER|ERROR dòng 1: giá trị của RUNNER_QUEUE_MINUTES|ERROR dòng 1: giá trị của RUNNER_DOC|ERROR dòng 2: RUNNER_ADR ghi hai lần|ERROR dòng 1 không có dạng KHÓA=giá trị" \
+  "$(runner_tests_mode "$work/rconf/unknown.conf" | cut -d' ' -f1-6)|$(runner_tests_mode "$work/rconf/bad-minutes.conf" | cut -d' ' -f1-7)|$(runner_tests_mode "$work/rconf/bad-doc.conf" | cut -d' ' -f1-7)|$(runner_tests_mode "$work/rconf/twice.conf")|$(runner_tests_mode "$work/rconf/spaces.conf")"
+expect "runners-app.conf: CRLF line ends and a last line without a newline are read" "skip ADR-1034" \
+  "$(runner_tests_mode "$work/rconf/crlf.conf")"
+expect "runners-app.conf: run.sh reads the file as wait-run.sh does" \
+  "$(sed -n '/^read_runners_conf() {/,/^}/p' scripts/wait-run.sh)" "$(sed -n '/^read_runners_conf() {/,/^}/p' scripts/tests/run.sh)"
+rconf_py() { sed -n '/^RUNNERS_CONF_KEYS = {/,/^}/p; /^def runners_conf():/,/^    return values/p; /^def watched(labels):/,/^    return any(not/p' "$1"; }
+expect "runners-app.conf: resume-check.py and run-watchdog.py read the file the same way" "$(rconf_py scripts/resume-check.py)" \
+  "$(rconf_py scripts/run-watchdog.py)"
+# The mode of this repository: a wrong file is a failure, and the runner tests then run.
+runner_tests="$(runner_tests_mode scripts/runners-app.conf)"
+if [[ "$runner_tests" == ERROR* ]]; then
+  expect "runners-app.conf: scripts/runners-app.conf is valid" "" "${runner_tests#ERROR }"
+  runner_tests=run
+fi
+runner_tests_skip() { # [what]; prints the skip line and succeeds when the app skips the runner tests
+  [[ "$runner_tests" == skip* ]] || return 1
+  echo "skip - runners: app theo ${runner_tests#skip }${1:+ ($1)}"
+}
+
 # Commits: A=aaaaaa1, B=bbbbbb2, C=ccccc03, D=ddddd04 (D is the red head).
 find_breaking() {
   rm -f "$work/fx.json.calls"
@@ -631,10 +704,12 @@ pr_sim_has() { # <workflow> <step name> <path>...; how many lines of the pr_sim 
   grep -cxF "$name" <<<"$out" || true
 }
 pr_runner_step='Kiểm runner tự host (scripts/runner-check.sh)'
+if ! runner_tests_skip "pr-check: bước kiểm runner"; then
 expect "pr-check: the sample PR runs the runner check only on a self-hosted runner" "0 1 1" \
   "$(pr_sim_has "$pr_wf" "$pr_runner_step" app/src/main/java/A.kt) $(PR_SIM_RUNNER=self-hosted pr_sim_has "$pr_wf" "$pr_runner_step" app/src/main/java/A.kt) $(PR_SIM_RUNNER=self-hosted pr_sim_has "$pr_wf" "$pr_runner_step" docs/a.md)"
 expect "pr-check: on a self-hosted runner the runner check is the step right after checkout" "$pr_runner_step" \
   "$(PR_SIM_RUNNER=self-hosted pr_sim "$pr_wf" app/src/main/java/A.kt | awk 'p { print; exit } $0 == "actions/checkout@v5" { p = 1 }')"
+fi
 expect "pr-check: a self-hosted runner does not change what a PR with code runs" \
   "code=true release=false gate=yes gradle=yes docs=no r8=no" \
   "$(PR_SIM_RUNNER=self-hosted pr_sim_summary "$pr_wf" app/src/main/java/A.kt)"
@@ -2843,6 +2918,25 @@ expect "wait-run: WAIT_RUN_RUNNER_QUEUE_MINUTES must be a number" "3 LỖI" \
 rw_workflow="{\"routes\": {\"actions/workflows/main-guard.yml/runs?branch=main&per_page=20\": {\"workflow_runs\": [{\"id\": 91, \"created_at\": \"$(rw_at 95)\", \"status\": \"in_progress\", \"conclusion\": null, \"html_url\": \"u\"}]}, \"actions/runs/91/jobs?per_page=50\": $(rw_jobs "$(rw_job ui-test queued '["vgl-android"]' 90)")}}"
 expect "wait-run: --workflow also says CHỜ RUNNER" "7 CHỜ" \
   "$(rw_code "$rw_workflow" 2 --workflow main-guard.yml --since "$(rw_at 100)")"
+# scripts/runners-app.conf of an app (docs/ops/self-hosted-runner.md, section 10): the wait, the labels watched and
+# the runner page of the message. Each case pairs with the same fixture without the file.
+printf '%s\n' '# runners of the app' 'RUNNER_QUEUE_MINUTES=120' > "$work/rconf/wait-120.conf"
+printf '%s\n' 'RUNNER_LABELS=gpu,photune' > "$work/rconf/labels.conf"
+printf '%s\n' 'RUNNER_DOC=docs/ops/self-hosted-runner-app.md' > "$work/rconf/doc.conf"
+rw_fx="$(pr_routes "$pending" "$(rw_jobs "$rw_queued")")"
+expect "wait-run: RUNNER_QUEUE_MINUTES of runners-app.conf sets the wait of CHỜ RUNNER" "7 CHỜ|2 CHƯA" \
+  "$(rw_code "$rw_fx" 2 --pr 7)|$(RUNNERS_APP_CONF="$work/rconf/wait-120.conf" rw_code "$rw_fx" 2 --pr 7)"
+expect "wait-run: WAIT_RUN_RUNNER_QUEUE_MINUTES wins over runners-app.conf" "7 CHỜ|2 CHƯA" \
+  "$(WAIT_RUN_RUNNER_QUEUE_MINUTES=60 RUNNERS_APP_CONF="$work/rconf/wait-120.conf" rw_code "$rw_fx" 2 --pr 7)|$(WAIT_RUN_RUNNER_QUEUE_MINUTES=100 rw_code "$rw_fx" 2 --pr 7)"
+rw_fx_app="$(pr_routes "$pending" "$(rw_jobs "$(rw_job build-and-test queued '["self-hosted","photune"]' 90)")")"
+expect "wait-run: RUNNER_LABELS watches only jobs with one of its labels" "7 CHỜ|2 CHƯA|7 CHỜ" \
+  "$(rw_code "$rw_fx" 2 --pr 7)|$(RUNNERS_APP_CONF="$work/rconf/labels.conf" rw_code "$rw_fx" 2 --pr 7)|$(RUNNERS_APP_CONF="$work/rconf/labels.conf" rw_code "$rw_fx_app" 2 --pr 7)"
+rw_doc_line="$(RUNNERS_APP_CONF="$work/rconf/doc.conf" WAIT_RUN_NOW="$rw_now" wait_line "$rw_fx" 2 --pr 7)"
+expect "wait-run: with RUNNER_DOC the CHỜ RUNNER line names the app's runner page, not HEAVY_RUNNER" "1 0|0 1|1 1" \
+  "$(grep -c 'máy runner tự host của repo (docs/ops/self-hosted-runner-app.md)' <<<"$rw_doc_line" || true) $(grep -c 'HEAVY_RUNNER' <<<"$rw_doc_line" || true)|$(grep -c 'self-hosted-runner-app' <<<"$rw_main_line" || true) $(grep -c 'HEAVY_RUNNER' <<<"$rw_main_line" || true)|$(grep -c 'docs/auto-run.md, mục 4' <<<"$rw_doc_line" || true) $(grep -c '^7 CHỜ RUNNER' <<<"$rw_doc_line" || true)"
+rw_bad_line="$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" WAIT_RUN_NOW="$rw_now" wait_line "$rw_fx" 2 --pr 7)"
+expect "wait-run: an unknown key or a wrong value in runners-app.conf stops with code 3" "3 LỖI|1|3 LỖI" \
+  "$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" rw_code "$rw_fx" 2 --pr 7)|$(grep -c 'dòng 2: khóa lạ HEAVY_RUNNER' <<<"$rw_bad_line" || true)|$(RUNNERS_APP_CONF="$work/rconf/bad-minutes.conf" rw_code "$rw_fx" 2 --pr 7)"
 # The draft and conflict checks come first (ADR-0041, L-064).
 rw_draft="$(draft_routes "$(draft_pr true)" "$pending" | jq -c --argjson j "$(rw_jobs "$rw_queued")" '.routes["actions/runs/91/jobs?per_page=50"] = $j')"
 rw_conflict="$(conflict_routes dirty "$no_runs" | jq -c --argjson j "$(rw_jobs "$rw_queued")" '.routes["actions/runs/91/jobs?per_page=50"] = $j')"
@@ -2888,8 +2982,9 @@ json.dump(fx, open(sys.argv[1], "w"))
 PY
 expect "resume-check: finds a report branch on page 2 of the branches" docs/runs/RUN-20261018-01.md \
   "$(PATH="$work/bin:$PATH" FIXTURE="$work/resume.json" GITHUB_REPOSITORY=o/r RESUME_NOW=2026-10-18T03:00:00Z python3 -I scripts/resume-check.py 2> /dev/null)"
-# A job of the repository waits for a self-hosted runner: the session may still be waiting for it, so it is not
-# continued, however long the job has waited (ADR-0042). A read that fails is exit 1, nothing continued.
+# A job of the repository waits for a self-hosted runner as wait-run.sh code 7 sees it (75 minutes since it could
+# start, nothing of its run going): the session stopped on it, so it is not continued (ADR-0042). A job queued for
+# less does not hold the session back. A read that fails is exit 1, nothing continued.
 rs_job() { # <status> <labels JSON> <created at>
   printf '{"id": 120, "name": "build-and-test", "status": "%s", "runner_name": null, "labels": %s, "created_at": "%s"}' "$1" "$2" "$3"
 }
@@ -2907,8 +3002,34 @@ rs_resume() { # <where run 91 is: queued or in_progress> <job JSON>; "<exit code
 }
 expect "resume-check: no resume while a job waits for a self-hosted runner" "0||1" \
   "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)")"
-expect "resume-check: a job queued a minute ago on a self-hosted runner also stops the resume" "0||1" \
-  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T02:59:00Z)")"
+expect "resume-check: a job queued a minute ago on a self-hosted runner does not stop the resume" \
+  "0|docs/runs/RUN-20261018-01.md|0" "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T02:59:00Z)")"
+rs_guard() { # <completed at>; a finished job of run 91
+  printf '{"id": 119, "name": "guard", "status": "completed", "runner_name": "r1", "labels": ["vgl-android"], "created_at": "2026-10-18T01:00:00Z", "completed_at": "%s"}' "$1"
+}
+expect "resume-check: the wait counts from the latest finished job of the run, as in wait-run.sh" \
+  "0|docs/runs/RUN-20261018-01.md|0 0||1" \
+  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:00:00Z), $(rs_guard 2026-10-18T02:30:00Z)") $(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:00:00Z), $(rs_guard 2026-10-18T01:40:00Z)")"
+expect "resume-check: a waiting job while another job of its run runs does not stop the resume" \
+  "0|docs/runs/RUN-20261018-01.md|0" \
+  "$(rs_resume queued "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z), {\"id\": 119, \"name\": \"guard\", \"status\": \"in_progress\", \"runner_name\": \"r1\", \"labels\": [\"vgl-android\"], \"created_at\": \"2026-10-18T01:00:00Z\"}")"
+rs_wait90="$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)"
+expect "resume-check: RUNNER_QUEUE_MINUTES of runners-app.conf sets the wait" "0||1 0|docs/runs/RUN-20261018-01.md|0" \
+  "$(rs_resume queued "$rs_wait90") $(RUNNERS_APP_CONF="$work/rconf/wait-120.conf" rs_resume queued "$rs_wait90")"
+expect "resume-check: RESUME_RUNNER_QUEUE_MINUTES wins over runners-app.conf" "0||1 0|docs/runs/RUN-20261018-01.md|0" \
+  "$(RESUME_RUNNER_QUEUE_MINUTES=60 RUNNERS_APP_CONF="$work/rconf/wait-120.conf" rs_resume queued "$rs_wait90") $(RESUME_RUNNER_QUEUE_MINUTES=100 rs_resume queued "$rs_wait90")"
+expect "resume-check: RUNNER_LABELS watches only jobs with one of its labels" \
+  "0|docs/runs/RUN-20261018-01.md|0 0||1" \
+  "$(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$rs_wait90") $(RUNNERS_APP_CONF="$work/rconf/labels.conf" rs_resume queued "$(rs_job queued '["self-hosted","photune"]' 2026-10-18T01:30:00Z)")"
+rs_resume queued "$rs_wait90" > /dev/null
+rs_msg="$(grep 'đang chờ runner tự host' "$work/resume.err" || true)"
+RUNNERS_APP_CONF="$work/rconf/doc.conf" rs_resume queued "$rs_wait90" > /dev/null
+expect "resume-check: the message names the wait, and the app's runner page with RUNNER_DOC" "1 0|1 1" \
+  "$(grep -c 'từ 2026-10-18 01:30 UTC, quá 75 phút' <<<"$rs_msg" || true) $(grep -c 'self-hosted-runner-app' <<<"$rs_msg" || true)|$(grep -c 'đang chờ runner tự host' "$work/resume.err" || true) $(grep -c 'xem docs/ops/self-hosted-runner-app.md' "$work/resume.err" || true)"
+rs_code=0
+rs_out="$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" RESUME_ERR="$work/resume.err" resume_check running 120)" || rs_code=$?
+expect "resume-check: an unknown key in runners-app.conf continues nothing, exit 1" "1||1" \
+  "$rs_code|$rs_out|$(grep -c 'dòng 2: khóa lạ HEAVY_RUNNER' "$work/resume.err" || true)"
 expect "resume-check: a waiting job of a run in progress also stops the resume" "0||1" \
   "$(rs_resume in_progress "$(rs_job queued '["vgl-android"]' 2026-10-18T01:30:00Z)")"
 rs_file="0|docs/runs/RUN-20261018-01.md|0"
@@ -3102,6 +3223,28 @@ WD_IN_PROGRESS="$(wd_run120)" WD_ROUTES="$({ wd_job build-and-test queued '["vgl
 expect "run-watchdog: the wait counts from the latest finished job of the run" "0 1" "$wd_w5 $(wd_waits)"
 WATCHDOG_RUNNER_QUEUE_MINUTES=20 WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r2" watchdog running 70 > /dev/null
 expect "run-watchdog: WATCHDOG_RUNNER_QUEUE_MINUTES sets the wait" 1 "$(wd_waits)"
+# scripts/runners-app.conf of an app: the wait, the labels watched and the runner page of the issue body. wd_r1 is a
+# job queued 100 minutes ago, named without the file.
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 > /dev/null
+wd_c1="$(wd_waits) $(grep -c 'quá 75 phút' "$work/wd.out" || true)"
+RUNNERS_APP_CONF="$work/rconf/wait-120.conf" WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 > /dev/null
+expect "run-watchdog: RUNNER_QUEUE_MINUTES of runners-app.conf sets the wait" "1 1|POST issues 0" "$wd_c1|$(wd_writes) $(wd_waits)"
+WATCHDOG_RUNNER_QUEUE_MINUTES=60 RUNNERS_APP_CONF="$work/rconf/wait-120.conf" WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" \
+  watchdog running 70 > /dev/null
+expect "run-watchdog: WATCHDOG_RUNNER_QUEUE_MINUTES wins over runners-app.conf" "1 1" \
+  "$(wd_waits) $(grep -c 'quá 60 phút' "$work/wd.out" || true)"
+RUNNERS_APP_CONF="$work/rconf/labels.conf" WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 > /dev/null
+wd_c2="$(wd_waits)"
+RUNNERS_APP_CONF="$work/rconf/labels.conf" WD_QUEUED="$(wd_run120)" \
+  WD_ROUTES="$(wd_job build-and-test queued '["self-hosted","photune"]' 100 | wd_jobs120)" watchdog running 70 > /dev/null
+expect "run-watchdog: RUNNER_LABELS watches only jobs with one of its labels" "0 1" "$wd_c2 $(wd_waits)"
+WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 > /dev/null
+wd_c3="$(grep -c 'HEAVY_RUNNER' "$work/wd.out" || true) $(grep -c 'self-hosted-runner-app' "$work/wd.out" || true)"
+RUNNERS_APP_CONF="$work/rconf/doc.conf" WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 > /dev/null
+expect "run-watchdog: with RUNNER_DOC the issue names the app's runner page, not HEAVY_RUNNER" "1 0|0 1 1" \
+  "$wd_c3|$(grep -c 'HEAVY_RUNNER' "$work/wd.out" || true) $(grep -c 'máy runner tự host của repo trước (docs/ops/self-hosted-runner-app.md)' "$work/wd.out") $(wd_waits)"
+expect "run-watchdog: an unknown key in runners-app.conf exits 1 and changes no issue" "1 none 1" \
+  "$(RUNNERS_APP_CONF="$work/rconf/unknown.conf" WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70) $(wd_writes) $(grep -c 'dòng 2: khóa lạ HEAVY_RUNNER' "$work/wd.out" || true)"
 expect "run-watchdog: a server error on the jobs of a run exits 1 and opens no issue" "1 none" \
   "$(WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 - "[]" "" "$wd_e120") $(wd_writes)"
 WD_QUEUED="$(wd_run120)" WD_ROUTES="$wd_r1" watchdog running 70 - "$wd_open" > /dev/null
@@ -3281,6 +3424,9 @@ expect "status-page: a separate job enables the schedules for a pending run list
 # Self-hosted runner for the heavy jobs (ADR-0042). A heavy job runs scripts/check.sh, ./gradlew or the emulator and
 # reads no secret: it runs on the runner the repository variable HEAVY_RUNNER names, else on ubuntu-latest. Every
 # other job stays on ubuntu-latest. Each check takes a directory or a workflow, so it also runs on broken copies.
+# An app with RUNNER_TESTS=skip in scripts/runners-app.conf skips this whole part, down to the clean checkout check
+# (the block is not indented).
+if ! runner_tests_skip; then
 heavy_runs_on="    runs-on: \${{ vars.HEAVY_RUNNER || 'ubuntu-latest' }}"
 job_kind() { # <workflow> <job>; secret, heavy or light (comment lines do not count)
   local body
@@ -3540,10 +3686,12 @@ awk '{ print } /^  guard:$/ { g = 1 } g && $0 == "          fetch-depth: 50" { p
   "$guard_wf" > "$rwd/main-guard.yml"
 expect "runners: the clean check fails on a copy whose guard checkout keeps old files" "no main-guard.yml:guard" \
   "$(heavy_clean "$rwd")"
+fi # runner_tests_skip
 
 # resume-check.py reads the Actions runs that wait (ADR-0042).
 expect "resume-run: the workflow may read Actions runs" "1 0" \
   "$(wf_level .github/workflows/resume-run.yml | grep -cx '  actions: read' || true) $(wf_level .github/workflows/resume-run.yml | grep -c 'actions: write' || true)"
+mkdir -p "$work/rwf"
 grep -vx '  actions: read' .github/workflows/resume-run.yml > "$work/rwf/resume-run.yml" || true
 expect "resume-run: the Actions read check fails on a copy without it" "0 0" \
   "$(wf_level "$work/rwf/resume-run.yml" | grep -cx '  actions: read' || true) $(wf_level "$work/rwf/resume-run.yml" | grep -c 'actions: write' || true)"
@@ -3673,9 +3821,11 @@ rcl_lines() { # <workflow> <job>; lines "RUNNER_CHECK_LOG: build.log" in the env
     j && s && $0 == "        env:" { e = 1; next } j && s && e && !/^          / { e = 0 }
     j && s && e && $0 == "          RUNNER_CHECK_LOG: build.log" { n++ } END { print n + 0 }' "$1"
 }
+if ! runner_tests_skip "pr-check: RUNNER_CHECK_LOG"; then
 grep -vxF '          RUNNER_CHECK_LOG: build.log' "$pr_wf" > "$work/pr-no-log.yml" || true
 expect "pr-check: the runner check writes its result lines to build.log" "1 0|0" \
   "$(rcl_lines "$pr_wf" build-and-test) $(grep -c 'RUNNER_CHECK_LOG' "$guard_wf" || true)|$(rcl_lines "$work/pr-no-log.yml" build-and-test)"
+fi
 
 # The failure comment step of pr-check.yml, run like GitHub in the work directory after a refused runner, shows the
 # lines of runner-check.sh instead of "Không có log." (T-095). A gh of its own: fake-gh only answers `gh api`.
