@@ -513,7 +513,9 @@ def main(argv):
     if batch:
         status = front_matter(run.read_text()).get("status", "")
         base = os.environ.get("RUN_CHECK_BASE") or "origin/main"
-        if status != "draft":
+        if status == "cancelled":
+            pass  # check() refuses a cancelled list with its own message; no hint to run again without --batch.
+        elif status != "draft":
             batch_errors.append(f"--batch chỉ dùng cho danh sách draft (đang '{status}'); danh sách approved phải qua "
                                 "run-check.py không có --batch.")
         else:
