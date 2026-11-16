@@ -1381,3 +1381,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** lời giao việc chung cho phiên con (`docs/auto-run.md`, mục Giao bước 3 đến 5) thêm một vế: thêm test vào file có sẵn thì chèn trước khối chú thích của phần tử đứng sau, không giữa KDoc và phần tử đó; hoặc một kiểm tra nhỏ trong `scripts/check.sh` báo KDoc đứng ngay trên `@Test` mà phần tử sau đó cách một khối khác.
 - **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận"; cách sửa lời giao việc ở `auto-run.md`, không thêm kiểm tra vào `check.sh`; PR #517 merge theo lời "merge #517")
 - **Áp dụng:** PR #517: lời giao việc chung cho phiên con (`auto-run.md`, mục Giao bước 3 đến 5) thêm vế đặt test trước KDoc của phần tử đứng sau.
+
+### L-178. Lần đo tạm của plan lấy trên bố cục có phần tử đè nhau; `didOverflowWidth` không phát hiện chữ bị cắt
+
+- **Ngày, nguồn:** 2026-11-15, camera-pose (issue #497; PR VGL-Studio/camera-pose#348, #349; bài học L-104, L-105 của app)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** một plan sửa màn hình đo tạm vị trí thông báo lỗi ở màn ngang và chỉ ghi chiều cao; lúc đo, nút hành động của Snackbar một hàng vẽ đè lên đầu chữ, nên test viết trước khóa luôn số sai và phiên tự chạy phải dừng task khi code vẽ đúng. Plan khác kiểm nhãn không tràn bằng `TextLayoutResult.didOverflowWidth`: cờ bật cả trên code ở nhánh chính khi chữ vẫn hiện đủ, vì node co theo bề rộng chữ còn đoạn văn dựng theo cả bề rộng ràng buộc (Compose 1.9.1); phiên con phải đổi cách kiểm sau commit test.
+- **Bằng chứng:** issue #497; PR VGL-Studio/camera-pose#349 (sửa quy tắc).
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: lần đo tạm ghi cả vị trí tương đối của các phần tử cạnh nhau và mở ảnh lần đo vẽ ra. `CLAUDE.md`, bước 10: kiểm chữ không bị cắt bằng `getLineRight` so với bề rộng node, hay số dòng và `isLineEllipsized`; không dùng `didOverflowWidth`.
+- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479)
