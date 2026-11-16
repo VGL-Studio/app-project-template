@@ -5076,9 +5076,9 @@ expect "run-check: a ready list has no warning" 0 "$(grep -c 'CHÚ Ý' "$work/ru
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)" cancelled
 expect "run-check: a cancelled list is refused, so nobody approves it again" "stop 1" \
   "$(run_check) $(grep -c 'cancelled' "$work/run-check.out")"
-expect "run-check --batch: a cancelled list is refused too" "1 1" \
+expect "run-check --batch: a cancelled list is refused too, without the hint to run again without --batch" "1 1 0" \
   "$(RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" RUN_CHECK_BASE=HEAD python3 -I scripts/run-check.py --batch "$rr/docs/runs/RUN-1.md" > "$work/run-check-batch.out" 2>&1; echo $?) $(
-    grep -c 'danh sách đã cancelled' "$work/run-check-batch.out")"
+    grep -c 'danh sách đã cancelled' "$work/run-check-batch.out") $(grep -c 'chỉ dùng cho danh sách draft' "$work/run-check-batch.out" || true)"
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 # The start field: auto or manual, and auto only with open_with routine in the file (T-104).
 rc_start() { # <start line> <open_with line>; the list with these front matter lines
