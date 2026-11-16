@@ -66,12 +66,16 @@ internal fun bottomAdBarLayers(
  * screen [screenWidth] wide with its bottom margin ([NativeAdDimens.bottomSlotHeight], the function the slot is drawn
  * with; AR-02), the banner its own height. The floating layer keeps none.
  */
-internal fun bottomBarReservation(slot: BottomSlotKind?, slotHasAd: Boolean, bannerHeight: Dp, screenWidth: Dp): Dp =
-    when {
-        slot == null || !slotHasAd -> 0.dp
-        slot == BottomSlotKind.NATIVE -> NativeAdDimens.bottomSlotHeight(screenWidth) + BottomAdBarDimens.SlotMargin
-        else -> bannerHeight
-    }
+internal fun bottomBarReservation(
+    slot: BottomSlotKind?,
+    slotHasAd: Boolean,
+    bannerHeight: Dp,
+    windowShortEdge: Dp,
+): Dp = when {
+    slot == null || !slotHasAd -> 0.dp
+    slot == BottomSlotKind.NATIVE -> NativeAdDimens.bottomSlotHeight(windowShortEdge) + BottomAdBarDimens.SlotMargin
+    else -> bannerHeight
+}
 
 /**
  * What the first refresh count of the native bottom slot adds to the interval of its key (section 5.7, plan T-087):
@@ -109,7 +113,7 @@ object BottomAdBarDefaults {
      */
     @Composable
     @ReadOnlyComposable
-    fun collapsibleLayerHeight(): Dp {
+    fun collapsibleLayerHeight(): Dp? {
         val width = nativeScreenSize().width
         return NativeAdDimens.collapsibleMediaAreaHeight(width) + NativeAdDimens.bottomSlotHeight(width)
     }

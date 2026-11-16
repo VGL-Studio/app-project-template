@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -90,6 +92,9 @@ class CollapsibleNativeAdTest {
     private var collapsedReports = 0
     private var reexpandReports = 0
     private var attempt by mutableIntStateOf(0)
+
+    /** Whether the window has room for the layer (KB-4 added 2026-11-16), passed to the host. */
+    private var hasRoom by mutableStateOf(true)
     private lateinit var state: CollapsibleAdState
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
@@ -117,6 +122,7 @@ class CollapsibleNativeAdTest {
                             onCollapsed = { collapsedReports++ },
                             onReexpanded = { reexpandReports++ },
                             modifier = modifier,
+                            hasRoom = hasRoom,
                         )
                     } else {
                         CollapsibleNativeAdLayerHost(
@@ -127,6 +133,7 @@ class CollapsibleNativeAdTest {
                             onCollapsed = { collapsedReports++ },
                             onReexpanded = { reexpandReports++ },
                             modifier = modifier,
+                            hasRoom = hasRoom,
                             renderAd = renderAd,
                         )
                     }
@@ -602,6 +609,128 @@ class CollapsibleNativeAdTest {
         assertFalse("open 30 s from the tap, not from the restoration", state.collapsed)
         frame()
         assertShown()
+    }
+
+    // A window with no room for the layer (KB-4 added 2026-11-16; questions 1 and 2 of the ticket).
+
+    /** No room: nothing collected (no ad taken from the stock, no request), nothing drawn; with room it opens. */
+    @Test
+    fun noRoom_collectsNothing_drawsNothing() {
+        hasRoom = false
+        composeRule.setContent { Host(expandAfterSeconds = 0) }
+        composeRule.waitForIdle()
+        update { feed.load(collapsibleTestAd()) }
+        assertAbsent(AD)
+        assertEquals("collections without room", 0, feed.collections)
+
+        // Control: room again, the layer collects and opens at its ad.
+        update { hasRoom = true }
+        update { feed.load(collapsibleTestAd()) }
+        assertEquals("collections with room", 1, feed.collections)
+        assertShown()
+    }
+
+    /**
+     * The window loses its room while the layer is open (no rebuilt activity): the layer goes and its ad is destroyed,
+     * the state stays open (not collapsed, no mark, no report); with room again it opens at a new ad.
+     */
+    @Test
+    fun roomLostWhileOpen_layerGoes_stateKept_roomBackOpens() {
+        val first = collapsibleTestAd()
+        setHost(ad = first)
+        assertShown()
+
+        update { hasRoom = false }
+        assertAbsent(AD)
+        assertEquals("the held ad is destroyed", 1, first.destroyCount)
+        assertFalse("not collapsed", state.collapsed)
+        assertNull("no mark", state.collapsedAtMillis)
+        assertEquals("no collapse reported", 0, collapsedReports)
+
+        update { hasRoom = true }
+        update { feed.load(collapsibleTestAd("Second ad")) }
+        assertEquals("collected again", 2, feed.collections)
+        assertShown()
+        composeRule.onNodeWithText("Second ad", useUnmergedTree = true).assertExists()
+    }
+
+    /** The activity is rebuilt (rotation) into a window with no room: the open state is kept, nothing collected. */
+    @Test
+    fun restoredWithoutRoom_staysOpenState_opensWhenRoom() {
+        val restoration = StateRestorationTester(composeRule)
+        restoration.setContent { Host(expandAfterSeconds = 0) }
+        composeRule.waitForIdle()
+        update { feed.load(collapsibleTestAd()) }
+        assertShown()
+        assertEquals(1, feed.collections)
+
+        composeRule.runOnIdle { hasRoom = false }
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
+        assertAbsent(AD)
+        assertEquals("nothing collected after restoring without room", 1, feed.collections)
+        assertFalse("still the open state", state.collapsed)
+
+        update { hasRoom = true }
+        update { feed.load(collapsibleTestAd()) }
+        assertShown()
+    }
+
+    /** CL-03 with no room: due while there is no room, it waits; with room again it opens at once with an ad. */
+    @Test
+    fun noRoom_dueReexpand_waitsForRoom() {
+        setTimedHost(expandAfterSeconds = 30)
+        val mark = collapseTimed()
+        hasRoom = false
+        frame()
+
+        advanceTo(mark + 40_000)
+        frame()
+        assertTrue("still collapsed without room", state.collapsed)
+        assertEquals("no re-expand without room", 0, reexpandReports)
+        assertEquals("the mark is kept", mark, state.collapsedAtMillis)
+
+        hasRoom = true
+        frame()
+        feed.load(collapsibleTestAd())
+        frame()
+        frame()
+        assertFalse("open once there is room and an ad", state.collapsed)
+        assertEquals(1, reexpandReports)
+        assertShown()
+    }
+
+    /** CL-03: room back before the time is due, it waits the rest counted from the tap, not from the room. */
+    @Test
+    fun noRoom_thenRoomBeforeDue_waitsRestFromTap() {
+        setTimedHost(expandAfterSeconds = 30)
+        val mark = collapseTimed()
+        hasRoom = false
+        frame()
+        advanceTo(mark + 10_000)
+
+        hasRoom = true
+        frame()
+        feed.load(collapsibleTestAd())
+        frame()
+        // Control: the room gate stopped the collection, so the layer collected again.
+        assertEquals("collected again with room", 2, feed.collections)
+
+        advanceTo(mark + 29_999)
+        assertTrue("still collapsed before 30 s from the tap", state.collapsed)
+        advanceTo(mark + 30_000)
+        assertFalse("open 30 s from the tap", state.collapsed)
+        frame()
+        assertShown()
+    }
+
+    /** The log line of a layer with no room (ADR-0019). */
+    @Test
+    fun noRoomLog_text() {
+        assertEquals(
+            "Collapsible sample_native_small not shown: window 891x411 dp has no room",
+            collapsibleNoRoomLog(AdPlacement.SAMPLE_NATIVE_SMALL, DpSize(891.dp, 411.dp)),
+        )
     }
 
     @Test

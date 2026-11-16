@@ -37,6 +37,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
@@ -247,6 +248,7 @@ internal fun CollapsibleNativeAdLayerHost(
     onReexpanded: () -> Unit,
     modifier: Modifier = Modifier,
     allowed: Boolean = true,
+    hasRoom: Boolean = NativeAdDimens.collapsibleLayer(nativeScreenSize()) != null,
     renderAd: @Composable (ad: LoadedNativeAd, onCollapse: () -> Unit) -> Unit = { ad, onCollapse ->
         BoundNativeAd(ad) { binder ->
             CollapsibleNativeAdLayout(ad.assets, onCollapse, binder, showAdChoicesMarker = false)
@@ -312,6 +314,10 @@ internal fun CollapsibleNativeAdLayer(placement: AdPlacement, expandAfterSeconds
         allowed = unitId != null,
     )
 }
+
+// TODO(T-107): stub so the tests written first compile.
+@Suppress("UNUSED_PARAMETER")
+internal fun collapsibleNoRoomLog(placement: AdPlacement, window: DpSize): String = ""
 
 @Preview
 @Composable

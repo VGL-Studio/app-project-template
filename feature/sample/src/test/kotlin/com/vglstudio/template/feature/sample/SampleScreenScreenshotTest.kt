@@ -106,6 +106,36 @@ class SampleScreenScreenshotTest {
         }
     }
 
+    /** KB-4 added 2026-11-16: on a 891 x 411 dp window the layer has no room, only the 126 dp slot is drawn. */
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun bar_expanded_landscape() {
+        captureRoboImage("src/test/screenshots/SampleScreen_bar-expanded_landscape.png") {
+            AppTheme(darkTheme = false) {
+                SampleScreen(
+                    uiState = SampleUiState.Ready(count = 3, saveFailed = true),
+                    onIncrement = {},
+                    bottomBar = fakeBar(layer = true),
+                )
+            }
+        }
+    }
+
+    /** The same on a 411 x 445 dp window (split screen). */
+    @Test
+    @Config(qualifiers = "w411dp-h445dp-xxhdpi")
+    fun bar_expanded_split() {
+        captureRoboImage("src/test/screenshots/SampleScreen_bar-expanded_split.png") {
+            AppTheme(darkTheme = false) {
+                SampleScreen(
+                    uiState = SampleUiState.Ready(count = 3, saveFailed = true),
+                    onIncrement = {},
+                    bottomBar = fakeBar(layer = true),
+                )
+            }
+        }
+    }
+
     @Test
     fun disabled_light() {
         captureRoboImage("src/test/screenshots/SampleScreen_disabled_light.png") {

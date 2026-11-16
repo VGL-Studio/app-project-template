@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import androidx.compose.ui.unit.DpSize
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdLoader
@@ -2476,6 +2477,10 @@ class AdsController @Inject internal constructor(
     internal fun onBottomBarLayers(placement: AdPlacement, layers: BottomAdBarLayers?) {
         logger.info(TAG, bottomBarLayersLog(placement, layers))
     }
+
+    // TODO(T-107): stub so the tests written first compile.
+    @Suppress("UNUSED_PARAMETER")
+    internal fun onCollapsibleNoRoom(placement: AdPlacement, window: DpSize) = Unit
 
     /** The collapsible layer of [placement] opened again [seconds] after the user collapsed it (CL-03). Logged only. */
     internal fun onNativeReexpanded(placement: AdPlacement, seconds: Long) {

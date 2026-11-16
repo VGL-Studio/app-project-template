@@ -276,11 +276,20 @@ internal object NativeAdDimens {
      * The bottom slot (native small; D-02, KB-32, design T-064): 90 dp on a 320 dp wide screen to 200 dp on a 600 dp
      * one, linear between, kept outside. One function for the drawn ad, its placeholder and the space kept (D-04).
      */
-    fun bottomSlotHeight(screenWidth: Dp): Dp = interpolated(screenWidth, NarrowScreen, WideScreen, 90.dp, 200.dp)
+    fun bottomSlotHeight(shortEdge: Dp): Dp = interpolated(shortEdge, NarrowScreen, WideScreen, 90.dp, 200.dp)
 
     /** The media area of the collapsible layer, above its small native content: 160 dp to 200 dp, as the slot. */
-    fun collapsibleMediaAreaHeight(screenWidth: Dp): Dp =
-        interpolated(screenWidth, NarrowScreen, WideScreen, 160.dp, 200.dp)
+    fun collapsibleMediaAreaHeight(shortEdge: Dp): Dp =
+        interpolated(shortEdge, NarrowScreen, WideScreen, 160.dp, 200.dp)
+
+    /** The open collapsible layer: its media area over the content as high as the bottom slot. */
+    data class CollapsibleLayerSize(val mediaArea: Dp, val slot: Dp) {
+        val height: Dp get() = mediaArea + slot
+    }
+
+    // TODO(T-107): stub so the tests written first compile; the ceiling comes with the code.
+    fun collapsibleLayer(window: DpSize): CollapsibleLayerSize? =
+        CollapsibleLayerSize(collapsibleMediaAreaHeight(window.width), bottomSlotHeight(window.width))
 
     /** Medium (KB-32): 320 dp on a 640 dp high screen to 400 dp on a 891 dp one, linear between, kept outside. */
     fun mediumHeight(screenHeight: Dp): Dp = interpolated(screenHeight, LowScreen, HighScreen, 320.dp, 400.dp)
@@ -311,6 +320,9 @@ internal object NativeAdDimens {
  * The width and height of the screen, from the configuration (as [AdSlot] reads its width): the native ads that follow
  * the screen (KB-32) read it, never the width of their own card.
  */
+// TODO(T-107): stub so the tests written first compile.
+internal val DpSize.shortEdge: Dp get() = width
+
 @Composable
 @ReadOnlyComposable
 internal fun nativeScreenSize(): DpSize {
