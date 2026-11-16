@@ -22,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -220,6 +222,32 @@ internal fun rememberRewardedActionOf(
         onGranted = onGranted,
         notify = { showRewardedNotice(context, it) },
     )
+}
+
+/**
+ * Whether a tap on the action of the rewarded [placement] would open its dialog now, rather than run the action at
+ * once (R-08): the very gate [RewardedAction.start] reads (`is_show_ads` with ad removal, `is_show_<code>`, the consent
+ * gate). A screen reads it to mark an option "watch an ad", or to pick the free option by default, so the mark never
+ * shows when a tap would not open the dialog. null until the first value of the gate is known (never guessed, as
+ * [RewardedAction.start] waits for it); false with no ads controller (tests, previews), where `start()` runs the action
+ * at once. Follows the gate: read it on every composition. The tap still decides through `start()`. Loads nothing and
+ * records nothing. A placement of another format is an [IllegalArgumentException].
+ */
+@Composable
+fun rememberRewardedAdRequired(placement: AdPlacement): Boolean? {
+    require(placement.format == AdFormat.REWARDED) { "${placement.key} is not a rewarded placement" }
+    val ads = LocalAdsController.current
+    // The same cases as rememberRewardedActionOf: without a controller or an activity, start() runs at once.
+    if (ads == null || LocalActivity.current == null) return false
+    val switch = remember(ads, placement) { ads.rewardedSwitch(placement) }
+    return rememberRewardedAdRequiredOf(switch)
+}
+
+/** [rememberRewardedAdRequired] on a given [gate]: null until its first value, then its value. */
+@Composable
+internal fun rememberRewardedAdRequiredOf(gate: Flow<Boolean>): Boolean? {
+    val value by gate.collectAsState(initial = null)
+    return value
 }
 
 /**
