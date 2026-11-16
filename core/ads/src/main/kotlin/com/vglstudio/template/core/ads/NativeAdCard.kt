@@ -155,6 +155,17 @@ internal object NativeAdDimens {
 
     /** From this font scale the "Ad" label of small starts the line below the headline (plan T-065, question 8). */
     const val SMALL_BADGE_ON_BODY_LINE_FONT_SCALE = 1.5f
+
+    /**
+     * From this font scale small has 8 dp gaps between its icon, text column and call to action and a 16 dp end
+     * margin, so the headline keeps room next to a long call to action at its 120 dp ceiling (plan T-065, section
+     * 3.4 and question 15).
+     */
+    const val SMALL_TIGHT_FONT_SCALE = 1.3f
+
+    /** The gaps and the end margin of small from [SMALL_TIGHT_FONT_SCALE]. */
+    val SmallTightPartGap = 8.dp
+    val SmallTightInnerEnd = 16.dp
     val BorderWidth = 1.dp
 
     /** Inner margin of the frame; outside the design system scale (design README, section 3). */
@@ -413,13 +424,20 @@ internal fun NativeAdLayout(
 /**
  * Small (design T-064, component `Native/Small`; the bottom slot, a slot of its own and a row of a list): the 44 dp
  * icon, the text column ([SmallTexts]) and a 44 dp call to action with 18 sp text, as wide as its text from 80 to
- * 120 dp, all centered in the [slotHeight] of the card. The content of the collapsible layer is this same layout.
+ * 120 dp, all centered in the [slotHeight] of the card, 12 dp apart with a 24 dp end margin; from font scale 1.3
+ * 8 dp apart with a 16 dp end margin ([NativeAdDimens.SMALL_TIGHT_FONT_SCALE]). The content of the collapsible layer
+ * is this same layout.
  */
 @Composable
 internal fun SmallLayout(assets: NativeAdAssets, binder: NativeAdBinder, slotHeight: Dp) {
+    val tight = LocalDensity.current.fontScale >= NativeAdDimens.SMALL_TIGHT_FONT_SCALE
     Row(
-        modifier = Modifier.fillMaxSize().padding(start = InnerStart, end = SmallInnerEnd),
-        horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = InnerStart, end = if (tight) NativeAdDimens.SmallTightInnerEnd else SmallInnerEnd),
+        horizontalArrangement = Arrangement.spacedBy(
+            if (tight) NativeAdDimens.SmallTightPartGap else NativeAdDimens.PartGap,
+        ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NativeAdIcon(assets.icon, binder, size = NativeAdDimens.SmallMediumIconSize)
