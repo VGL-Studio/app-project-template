@@ -175,6 +175,12 @@ enum class AdPlacement(
      * `declaration.firstOpenOnly`.
      */
     firstOpenOnly: Boolean = false,
+    /**
+     * False: the bottom bar of this placement never has the floating collapsible layer, even with
+     * `is_show_native_collap` on (D-01); native small bottom bars only. Passed to [declaration] only: read
+     * `declaration.collapsibleLayer`.
+     */
+    collapsibleLayer: Boolean = true,
 ) {
     /** The bottom bar of the sample screen ([BottomAdBarScaffold], plan T-030, question 1). */
     SAMPLE_NATIVE_SMALL("sample_native_small", AdFormat.NATIVE_SMALL),
@@ -225,6 +231,7 @@ enum class AdPlacement(
             keepSpaceWhenPoolEmpty,
             noAdPolicy,
             firstOpenOnly,
+            collapsibleLayer,
         )
 }
 
@@ -253,6 +260,8 @@ internal data class AdPlacementDeclaration(
     val noAdPolicy: RewardedNoAdPolicy? = null,
     /** On only in the first open since install (A-01, OB-03); flow step formats only, never app-wide. */
     val firstOpenOnly: Boolean = false,
+    /** The bottom bar has the floating collapsible layer (D-01); false for a native small bottom bar only. */
+    val collapsibleLayer: Boolean = true,
 ) {
     /** The policy of this placement: [noAdPolicy], or [RewardedNoAdPolicy.Block] (MC-05). */
     val effectiveNoAdPolicy: RewardedNoAdPolicy get() = noAdPolicy ?: RewardedNoAdPolicy.Block
@@ -281,6 +290,9 @@ internal data class AdPlacementDeclaration(
             "Placement $code: firstOpenOnly is for flow step formats only"
         }
         require(!firstOpenOnly || !appWide) { "Placement $code: firstOpenOnly is not for an app-wide placement" }
+        require(collapsibleLayer || (format == AdFormat.NATIVE_SMALL && nativeEvery == null)) {
+            "Placement $code: collapsibleLayer is for a native small bottom bar only"
+        }
         if (nativeEvery != null) {
             require(format in NATIVE_EVERY_FORMATS) { "Placement $code: nativeEvery is for list formats only" }
             require(nativeEvery >= 1) { "Placement $code: nativeEvery must be 1 or more" }
