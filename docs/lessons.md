@@ -1309,8 +1309,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** sau khi phiên con của T-102 commit test (`e0d6ad8`, 06:37 UTC) và đang sửa hai file nguồn, container khởi động lại; phiên con và lệnh `push-on-commit.sh` nền dừng. Phiên chính đẩy commit test, chạy lại `mark T-102`, rồi gửi tin cho chính phiên con đó (công cụ cho phép tiếp tục từ transcript đã lưu) kèm trạng thái worktree. Phiên con làm tiếp từ file chưa commit, không chạy lại phần đỏ của bước 3 vì đã ghi nhận trước khi dừng, xong bước 4, 5 trong 17 phút. `docs/auto-run.md` (mục Giao bước 3 đến 5 cho phiên con, ý "Phiên con kết thúc mà không có báo cáo") chỉ nêu hai cách: phiên chính tự làm tiếp, hay giao một phiên con mới; không nêu cách tiếp tục chính phiên con cũ, nên phải đoán.
 - **Bằng chứng:** dòng thời gian của RUN-20261111-01 (06:37, 06:54); nhật ký plan T-102; token T-102 0,9 lần ước tính.
 - **Đề xuất sửa:** `docs/auto-run.md`, ý "Phiên con kết thúc mà không có báo cáo": thêm cách thứ ba, ưu tiên khi công cụ cho phép tiếp tục phiên con từ transcript (sau khi container khởi động lại): gửi tin tiếp tục cho chính phiên con kèm `git status`, commit cuối và việc đã đẩy; chỉ giao phiên con mới khi tiếp tục không được. Nhắc chạy lại `push-on-commit.sh` vì lệnh nền mất cùng container.
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận")
-- **Áp dụng:** chưa.
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận")
+- **Áp dụng:** PR #517: `auto-run.md`, ý phiên con kết thúc mà không có báo cáo, ưu tiên gửi tin tiếp tục cho chính phiên con khi công cụ cho phép; container khởi động lại thì chạy lại `push-on-commit.sh`.
 
 ### L-170. Test của `:core:ads` khẳng định không vị trí nào khai `firstOpenOnly`, nên đỏ ở app có vị trí khai hợp lệ
 
@@ -1359,7 +1359,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `pr-check` của PR #508 đỏ ở `build-and-test` vì Maven Central trả 429 khi Gradle tải `robolectric-4.17.pom` (đúng PB-09, `lich-thu-lai`). `gh run view --log-failed` lấy cả bước "Cổng chất lượng", gồm phần `scripts/tests/run.sh` đã qua; một dòng `ok - find-breaking-commit --check ui-test: the PB-02 prefix HẠ TẦNG: is not infrastructure of the emulator` khớp mẫu `HẠ TẦNG:` của PB-02, nên script in PB-02 ("GitHub không cấp máy", loại `cho`). Làm theo dòng đó thì phiên sẽ kết thúc theo mục 4, dòng "GitHub không chạy job", dù job đã chạy và chỉ cần chạy lại. Phiên đọc phần cuối log, thấy 429, chạy lại job đỏ một lần: xanh.
 - **Bằng chứng:** lần chạy 43750665108 (lần đầu), dòng 30 và phần cuối của log `--log-failed`; dòng thời gian của RUN-20261115-01, 19:15.
 - **Đề xuất sửa:** `scripts/failure-kind.sh` bỏ qua dòng kết quả test của script (`ok   - ...`, `not ok - ...` của `scripts/tests/run.sh`) trước khi so mẫu, hoặc so mẫu theo thứ tự ưu tiên lỗi thật (PB-09 trước PB-02) khi job có bước đã chạy; thêm tệp log thật vào `scripts/tests/playbook/` làm test (log có cả dòng `ok - ... HẠ TẦNG: ...` và dòng 429 phải ra PB-09).
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận")
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận")
+- **Áp dụng:** PR #517: `failure-kind.sh --playbook` bỏ dòng kết quả test của `scripts/tests/run.sh` trước khi so mẫu; tệp log thật `scripts/tests/playbook/PB-09-script-tests.log` và test trong `run.sh`.
 
 ### L-175. Robolectric thỉnh thoảng ném `looperControlService is null` khi dọn sandbox sau một test của `:core:ads`
 
@@ -1368,7 +1369,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** `scripts/check.sh` lần đầu của T-106 đỏ ở `AdsControllerMaxInterstitialTest.maxHidden_recordsIntervalMarkFirst_thenFinishes` với `NullPointerException: ... this.looperControlService is null` trong `ShadowPausedLooper.resetLooperToInitialState`, lúc Robolectric dọn sandbox sau khi thân test đã chạy xong. Chạy lại lớp 3 lần, module 2 lần và `check.sh` đều xanh. Rà soát độc lập đọc bytecode của `ShadowPausedLooper` (Robolectric 4.17): hàm dựng thêm Looper vào tập tĩnh `loopingLoopers` trước khi gán `looperControlService`, nên một luồng nền (ở đây luồng `AdWorker` của SDK GMS thật) dựng Looper đúng lúc dọn thì có NPE. Plan có điều kiện dừng "một test của `AdsControllerMaxInterstitialTest` đỏ"; phiên phải tự phân định đây là chập chờn, không có dòng bảng tra lỗi nào.
 - **Bằng chứng:** báo cáo phiên con và rà soát độc lập của T-106, nhật ký plan T-106; `failure-kind.sh --playbook` không khớp dòng nào.
 - **Đề xuất sửa:** thêm một dòng bảng tra lỗi (`docs/ops/failure-playbook.md`) cho mẫu `looperControlService is null` kèm `resetLooperToInitialState`, loại `chay-lai` (chạy lại một lần, không tính vào 3 lần sửa, không coi là test đỏ của điều kiện dừng), với tệp log thật trong `scripts/tests/playbook/`; gặp lại nhiều lần thì xét tắt luồng nền của SDK GMS thật trong test `AdsController` (bản giả `AdLoader`).
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận")
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận")
+- **Áp dụng:** PR #517: PB-22 trong `failure-playbook.md` (loại `chay-lai`, tệp log dựng `PB-22.log`); `auto-run.md` bước 8, ý 2: lỗi `chay-lai` qua khi chạy lại chưa phải test đỏ của điều kiện dừng.
 
 ### L-176. Phiên con chèn test mới giữa KDoc và lớp hay hàm mà KDoc mô tả
 
@@ -1377,4 +1379,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** hai lần trong phiên, test mới được chèn ngay dưới KDoc của phần tử đứng cuối file test (KDoc của `FakeRewardedPort` trong `RewardedTurnsTest.kt` ở T-106; KDoc của `threeNetworks()` trong `MaxAdInfoTest.kt` ở T-072, do phiên chính khi sửa theo rà soát). KDoc gắn sai vào test mới, phần tử gốc mất mô tả. ktlint không bắt lỗi này; mỗi lần tốn một điểm nên sửa và một vòng rà soát lại (lần ở T-072 dùng hết vòng rà soát lại thứ 2).
 - **Bằng chứng:** rà soát độc lập vòng 1 của T-106 (nên sửa 1), vòng 2 của T-072; commit `8aa93b3`, `fd7b2d2`.
 - **Đề xuất sửa:** lời giao việc chung cho phiên con (`docs/auto-run.md`, mục Giao bước 3 đến 5) thêm một vế: thêm test vào file có sẵn thì chèn trước khối chú thích của phần tử đứng sau, không giữa KDoc và phần tử đó; hoặc một kiểm tra nhỏ trong `scripts/check.sh` báo KDoc đứng ngay trên `@Test` mà phần tử sau đó cách một khối khác.
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận"; cách sửa lời giao việc ở `auto-run.md`, không thêm kiểm tra vào `check.sh`)
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận"; cách sửa lời giao việc ở `auto-run.md`, không thêm kiểm tra vào `check.sh`)
+- **Áp dụng:** PR #517: lời giao việc chung cho phiên con (`auto-run.md`, mục Giao bước 3 đến 5) thêm vế đặt test trước KDoc của phần tử đứng sau.
