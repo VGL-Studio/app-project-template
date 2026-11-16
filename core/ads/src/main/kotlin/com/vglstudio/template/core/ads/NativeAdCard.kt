@@ -227,9 +227,9 @@ internal object NativeAdDimens {
     /**
      * Card of a flow step (5.7, component `Native/Step` of the design, T-035): 250 dp at the default font scale
      * ([NativeStepAdDefaults.height] at others, plan T-045), 32 dp icon, 36 dp call to
-     * action, 13 sp headline; the 250 dp layout of design/context/AdGalleryScreen_collapsible-expanded_light.md (12 dp
-     * margin, 8 dp gaps, media filling the rest). Its own constants on purpose: `Native/Collapsible` has the same
-     * numbers today, but the two components change apart.
+     * action, 13 sp headline, 12 dp margin, 8 dp gaps, media filling the rest (the former 250 dp layout of
+     * `Native/Collapsible`, plan T-032). Its own constants on purpose: `Native/Collapsible` follows the T-064 design
+     * since T-065 and no longer shares these numbers.
      */
     val StepHeight = 250.dp
     val StepIconSize = 32.dp

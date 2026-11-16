@@ -105,7 +105,7 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 
 - `SampleScreen`: vào màn hình, native small ở đáy hiện trạng thái đang tải rồi tới quảng cáo.
 - `AdGalleryScreen` (staging): bấm "Interstitial" hay "Native full screen" thì gọi quảng cáo toàn màn hình; bấm "Open Ad Inspector" thì mở Ad Inspector của AdMob.
-- Thu gọn: vào màn hình thì lớp thu gọn 250 dp mở trên khe đáy; chạm nút thu gọn thì lớp ẩn, lộ khe native nhỏ 80 dp bên dưới; lớp tự mở lại sau `time_expand_collap_ad` giây (mặc định 10, 0 là không mở lại), đếm từ lúc chạm (CL-03, T-030).
+- Thu gọn: vào màn hình thì lớp thu gọn (299 dp ở màn 411 dp) mở trên khe đáy; chạm nút thu gọn thì lớp ẩn, lộ khe native nhỏ (126 dp ở màn 411 dp) bên dưới; lớp tự mở lại sau `time_expand_collap_ad` giây (mặc định 10, 0 là không mở lại), đếm từ lúc chạm (CL-03, T-030).
 - Thiết kế T-064 đổi số của luồng thu gọn: lớp mở 299 dp và khe đáy 126 dp ở màn 411 dp (mục 1); luồng không đổi.
 - `NativeFullScreenAdScreen`: chạm nút đóng hay nút quay lại của máy thì về màn hình trước.
 
