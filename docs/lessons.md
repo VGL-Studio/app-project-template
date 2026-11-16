@@ -1381,3 +1381,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** lời giao việc chung cho phiên con (`docs/auto-run.md`, mục Giao bước 3 đến 5) thêm một vế: thêm test vào file có sẵn thì chèn trước khối chú thích của phần tử đứng sau, không giữa KDoc và phần tử đó; hoặc một kiểm tra nhỏ trong `scripts/check.sh` báo KDoc đứng ngay trên `@Test` mà phần tử sau đó cách một khối khác.
 - **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận"; cách sửa lời giao việc ở `auto-run.md`, không thêm kiểm tra vào `check.sh`; PR #517 merge theo lời "merge #517")
 - **Áp dụng:** PR #517: lời giao việc chung cho phiên con (`auto-run.md`, mục Giao bước 3 đến 5) thêm vế đặt test trước KDoc của phần tử đứng sau.
+
+### L-180. Danh sách chạy lập ra rồi không dùng không có trạng thái đúng sự thật
+
+- **Ngày, nguồn:** 2026-11-13, camera-pose (issue #479; danh sách `docs/runs/RUN-20261021-04.md` của camera-pose, trùng với RUN-20261022-01)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** danh sách chạy chỉ có `draft | approved | running | finished`. Danh sách `draft` lập ra rồi không dùng để `draft` thì trang tiến độ mãi ghi "chờ duyệt" (ở camera-pose từ 2026-10-21); ghi `finished` thì sai, vì danh sách chưa chạy; xóa file thì trái quy tắc không xóa tài liệu.
+- **Bằng chứng:** issue #479.
+- **Đề xuất sửa:** trạng thái `cancelled` (người ghi, kèm lý do); `status.py` không đưa danh sách `cancelled` vào mục chờ người và không coi ticket của nó là đã vào danh sách; `run-check.py` từ chối kiểm danh sách `cancelled`; mẫu `run.md` và `docs/CLAUDE.md`, mục Khi lập danh sách chạy, nói trạng thái này.
+- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479)

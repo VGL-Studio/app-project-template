@@ -325,6 +325,9 @@ def check(run_path, batch_files=None):
             warnings.append(f"(--batch) bỏ qua trạng thái: {name} đang '{status}', đổi trong nhánh này.")
         return True
 
+    if front_matter(run_path.read_text()).get("status") == "cancelled":
+        # A cancelled list is never run; checking it again invites approving it by mistake.
+        return ["danh sách đã cancelled (không chạy): không kiểm, không duyệt lại; cần chạy thì lập danh sách mới."], []
     rows = run_rows(run_path.read_text())
     if not rows:
         return ["mục 1 không có dòng nào đúng mẫu (Thứ tự | Ticket | Feature | Plan | ...)."], []
