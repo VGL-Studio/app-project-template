@@ -6192,6 +6192,10 @@ else
   git -C "$hc" add -A
   expect "history-refs: a code file in the allow list passes" 0 \
     "$(HISTORY_REFS_ROOT="$hc" python3 -I scripts/history-refs.py > /dev/null; echo $?)"
+  # template-sync.sh lists what an app still names of an ADR it just deleted with --mentions: code included.
+  expect "history-refs --mentions: lists code and the generated key page that name a removed ADR, not test data" \
+    "   .github/workflows/build.yml: ADR-0002|   app/src/Keys.kt: ADR-0002|   docs/remote-config-keys.md: ADR-0002" \
+    "$(python3 -I scripts/history-refs.py --mentions "$hc" ADR-0002 | paste -sd '|' -)"
   rm "$hr/docs/features/README.md"
   # A file that is not UTF-8 and a file in a merge conflict (one index entry per stage) are each listed once.
   cr="$work/history-conflict"

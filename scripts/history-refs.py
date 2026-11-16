@@ -13,9 +13,10 @@ docs/inbox/, docs/test-sessions/ (a README.md there is a rule document), docs/fe
 requests are history; specs and designs keep their own history section), the rest of each ADR, and generated pages.
 
 The check fails when a rule document names a lesson, ticket or run (`L-` or `T-` and three digits, `RUN-` and eight
-digits), or names a superseded ADR. It also fails when a tracked file that is not Markdown (code, scripts, workflows,
-build files) or the generated page docs/remote-config-keys.md names a superseded ADR, since template-sync.sh deletes
-superseded ADRs from the apps; scripts/tests/ is left out, its data names old ADRs on purpose. Files and ADRs not cleaned yet are listed in scripts/tests/history-refs-allow.txt
+digits), or names a superseded ADR. It also fails when a tracked file that is not Markdown (code, scripts,
+workflows, build files) or the generated page docs/remote-config-keys.md names a superseded ADR, since template-
+sync.sh deletes superseded ADRs from the apps; scripts/tests/ is left out, its data names old ADRs on purpose.
+--mentions lists those files too. Files and ADRs not cleaned yet are listed in scripts/tests/history-refs-allow.txt
 (one path or `ADR-NNNN` per line); the list only shrinks, so an entry that is already clean is an error too.
 HISTORY_REFS_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
@@ -105,7 +106,7 @@ def code_texts(root):
         if path.startswith(("docs/adr/", "docs/features/", "scripts/tests/") + HISTORY_DIRS):
             continue
         file = root / path
-        if not file.is_file():
+        if file.is_symlink() or not file.is_file():
             continue
         data = file.read_bytes()
         if b"\0" in data[:8192]:
@@ -132,7 +133,8 @@ def check(root):
     names = set()
     errors = []
     checked = [(name, problems(text, superseded)) for name, text in rule_texts(root)]
-    checked += [(name, sorted({f"ADR-{n}" for n in ADR_REF.findall(text)} & superseded)) for name, text in code_texts(root)]
+    checked += [(name, sorted({f"ADR-{n}" for n in ADR_REF.findall(text)} & superseded))
+                for name, text in code_texts(root)]
     for name, found in checked:
         names.add(name)
         if found and name not in allowed:
@@ -184,7 +186,7 @@ def check_links(root):
 def mentions(root, ids):
     wanted = set(ids)
     hits = []
-    for name, text in rule_texts(root):
+    for name, text in rule_texts(root) + code_texts(root):
         found = sorted({f"ADR-{n}" for n in ADR_REF.findall(text)} & wanted)
         if found:
             hits.append(f"   {name}: {', '.join(found)}")
