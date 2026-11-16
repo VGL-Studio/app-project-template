@@ -8,7 +8,7 @@ Cột Mẫu là biểu thức chính quy kiểu `grep -E` trong dấu backtick; 
 
 Loại `bo-qua-loai` (ADR-0032/L8): môi trường của phiên không làm được một loại việc, nhưng các việc khác vẫn làm được. Phiên giữ task đang làm theo `auto-run.md` mục Khi không đẩy được, bỏ qua mọi task còn lại của danh sách thuộc loại đó và làm tiếp các task khác, không kết thúc phiên. Cột Việc phải làm của mỗi dòng `bo-qua-loai` có lệnh `scripts/plan-check.py --touches <tiền tố> <plan>`, cho biết task nào thuộc loại bị chặn. Khác `moi-truong`: `moi-truong` là môi trường hỏng cho mọi task (build, Java, proxy), nên phiên kết thúc.
 
-Script bỏ qua các dòng bắt đầu bằng kết quả test của `scripts/tests/run.sh` (`ok   - <tên>`, `FAIL - <tên>`; sau cột job, bước và dấu giờ nếu có) trước khi so mẫu; dòng tiếp theo của một giá trị nhiều dòng trong dòng `FAIL - ` vẫn được so, vì tên test có thể chứa chữ của một mẫu và log của job đỏ có cả các test script đã qua.
+Script bỏ qua các dòng bắt đầu bằng kết quả test của `scripts/tests/run.sh` (`ok   - <tên>`, `FAIL - <tên>`; sau cột job, bước và dấu giờ nếu có) trước khi so mẫu, vì tên test có thể chứa chữ của một mẫu và log của job đỏ có cả các test script đã qua. Dòng tiếp theo của một giá trị nhiều dòng trong dòng `FAIL - ` vẫn được so.
 
 <!-- playbook:start -->
 | Mã | Mẫu | Thấy ở | Loại | Việc phải làm | Nguồn |
