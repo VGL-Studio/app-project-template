@@ -1,7 +1,7 @@
 ---
 ticket: T-107
 title: Khe đáy và lớp thu gọn ở màn ngang, chia đôi màn hình
-status: approved                # draft | approved | stopped | done
+status: done                    # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -292,3 +292,15 @@ Kết quả `scripts/existing-tests.py` (2026-11-16): 598 test dùng tên hay ta
 - **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-16 (ADR-0048, phần C), nguyên văn: "Duyệt plan T-107, câu 1–8 theo đề xuất. Làm luôn trong phiên này." Câu 1 tới 8 theo đề xuất của mục 8 (câu 8: chấp nhận theo câu hỏi 65, máy gập mở ra xoay ngang không có lớp thu gọn).
 
 ## 10. Nhật ký thực hiện
+
+### Làm có người 2026-11-16, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #515), `main-guard` xanh (lần chạy 43824405102, gồm `ui-test`).
+- **Nhánh, PR:** `claude/T-107-native-man-ngang`, PR #515. Commit test `8db6894f`; sửa phần dựng test `bbe0456c`; code `93c9e797`; ảnh chuẩn `38645999`; tài liệu `d84a9eff`; chú thích theo rà soát.
+- **Đã làm:** mục 3.1: cạnh ngắn của cửa sổ cho khe đáy, native nhỏ, khoảng chừa và vùng ảnh lớp thu gọn; `NativeAdDimens.collapsibleLayer` (trần nửa chiều cao cửa sổ kể cả lề, MediaView không dưới 120 dp); lớp không đủ chỗ không lấy kho, không nạp, không vẽ, không bung lại, không ghi cơ hội, giữ trạng thái và mốc CL-03, ghi nhật ký; `bottomBarReservation(..., windowShortEdge)`, `collapsibleLayerHeight(): Dp?`; `ads-business-rules.md` (D-02, D-07, 5.7, CL-05, mục 11), `ads-guide.md`, README thiết kế.
+- **Test viết trước:** 24 test hành vi mới, 23 đỏ đúng lý do (test còn lại là đối chứng ở khung dọc), 5 screenshot mới. Đối chứng: 6 đột biến (cạnh ngắn, điều kiện đủ chỗ, báo cơ hội, trần 0,6, nhật ký, sàn vùng ảnh), đều đỏ.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 4 ghi chú: 3 đã sửa theo ADR-0033/L12 (chú thích còn nói bề rộng màn hình, KDoc `hasRoom`, câu về `af_native_ad_eligible` ở CL-05); 1 để người xem (CL-05, D-07 mô tả quy tắc đích của khe đáy nhường lớp nổi, phần code còn ở các ticket sau). Rà soát chạy test nháp với `AdsController` thật đổi dọc, ngang qua lại: mỗi quảng cáo hủy đúng một lần, không yêu cầu thêm.
+- **Kết quả CI:** `scripts/check.sh` trên máy (macOS, GNU sed) QUA, 2327 test JVM, 97 ảnh; `pr-check` xanh (lần chạy 43822542951).
+- **Lệch so với plan:** thêm một `frame()` trước khi nạp quảng cáo giả ở hai test bộ đếm sau commit test (luồng giả đặt lại `Loading` lúc bắt đầu thu thập; điều test kiểm giữ nguyên, rà soát xác nhận không che lỗi thật); tên hằng theo ktlint; `assertNativeReservation` thêm tham số tùy chọn; chú thích `NativeAdSlot.kt`, `AdPlacement.kt` ngoài mục 3.2 (ADR-0029).
+- **Việc còn lại:** không có.
+- **Cần người xem:** kiểm tay mục 4 trên máy thật: xoay máy khi lớp đang mở, chia đôi màn hình với quảng cáo thật, trang "Collapsible ad" của Ad gallery ở màn ngang không có lớp (đúng quy tắc).
