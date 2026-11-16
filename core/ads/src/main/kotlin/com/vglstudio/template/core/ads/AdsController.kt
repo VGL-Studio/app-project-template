@@ -2478,9 +2478,10 @@ class AdsController @Inject internal constructor(
         logger.info(TAG, bottomBarLayersLog(placement, layers))
     }
 
-    // TODO(T-107): stub so the tests written first compile.
-    @Suppress("UNUSED_PARAMETER")
-    internal fun onCollapsibleNoRoom(placement: AdPlacement, window: DpSize) = Unit
+    /** The collapsible layer of [placement] has no room on a window of [window] (CL-05). Logged only (ADR-0019). */
+    internal fun onCollapsibleNoRoom(placement: AdPlacement, window: DpSize) {
+        logger.info(TAG, collapsibleNoRoomLog(placement, window))
+    }
 
     /** The collapsible layer of [placement] opened again [seconds] after the user collapsed it (CL-03). Logged only. */
     internal fun onNativeReexpanded(placement: AdPlacement, seconds: Long) {

@@ -58,11 +58,13 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -256,8 +258,8 @@ internal object NativeAdDimens {
     val SmallPlaceholderCallToActionWidth = 96.dp
 
     /**
-     * The design height of [size] on a screen of [screen], at the default font scale (KB-32): small as high as the
-     * bottom slot of the screen width ([bottomSlotHeight]), medium as the screen height says ([mediumHeight]; the
+     * The design height of [size] on a window of [screen], at the default font scale (KB-32): small as high as the
+     * bottom slot of the short edge of the window ([bottomSlotHeight]; 126 dp at 411 x 891 and at 891 x 411 dp), medium as the screen height says ([mediumHeight]; the
      * same with the large call to action, whose media is 12 dp lower). Medium keeps this height while its media stays
      * above 120 dp; past that it grows (on a 891 dp screen at font scale 2.0, 406 dp; plan T-065). Full keeps 418 dp
      * up to font scale 2.0. The step card grows with larger text, so composables read [NativeStepAdDefaults.height]
@@ -265,7 +267,7 @@ internal object NativeAdDimens {
      */
     @Suppress("UNUSED_PARAMETER")
     fun heightOf(size: NativeAdSize, ctaLarge: Boolean, screen: DpSize): Dp = when (size) {
-        NativeAdSize.SMALL -> bottomSlotHeight(screen.width)
+        NativeAdSize.SMALL -> bottomSlotHeight(screen.shortEdge)
         NativeAdSize.MEDIUM -> mediumHeight(screen.height)
         NativeAdSize.FULL -> FullPlaceholderHeight
         NativeAdSize.CARD -> CardHeight
@@ -273,23 +275,50 @@ internal object NativeAdDimens {
     }
 
     /**
-     * The bottom slot (native small; D-02, KB-32, design T-064): 90 dp on a 320 dp wide screen to 200 dp on a 600 dp
-     * one, linear between, kept outside. One function for the drawn ad, its placeholder and the space kept (D-04).
+     * The bottom slot (native small; D-02, KB-32, design T-064): 90 dp on a window whose short edge is 320 dp to 200 dp
+     * at 600 dp, linear between, kept outside; a phone turned landscape keeps its portrait slot. One function for the
+     * drawn ad, its placeholder and the space kept (D-04).
      */
     fun bottomSlotHeight(shortEdge: Dp): Dp = interpolated(shortEdge, NarrowScreen, WideScreen, 90.dp, 200.dp)
 
-    /** The media area of the collapsible layer, above its small native content: 160 dp to 200 dp, as the slot. */
+    /**
+     * The design media area of the collapsible layer, above its small native content: 160 dp to 200 dp by the short
+     * edge of the window, as the slot; [collapsibleLayer] shrinks it on a low window.
+     */
     fun collapsibleMediaAreaHeight(shortEdge: Dp): Dp =
         interpolated(shortEdge, NarrowScreen, WideScreen, 160.dp, 200.dp)
 
-    /** The open collapsible layer: its media area over the content as high as the bottom slot. */
+    /** The open collapsible layer: its media area (MediaView and its 12 dp top margin) over the slot's content. */
     data class CollapsibleLayerSize(val mediaArea: Dp, val slot: Dp) {
         val height: Dp get() = mediaArea + slot
     }
 
-    // TODO(T-107): stub so the tests written first compile; the ceiling comes with the code.
-    fun collapsibleLayer(window: DpSize): CollapsibleLayerSize? =
-        CollapsibleLayerSize(collapsibleMediaAreaHeight(window.width), bottomSlotHeight(window.width))
+    /** The share of the window height the open layer with its bottom margin may take (KB-32 criterion 3). */
+    const val COLLAPSIBLE_WINDOW_SHARE = 0.5f
+
+    /** The bottom margin of the layer, counted in its ceiling. */
+    val CollapsibleLayerMargin = BottomAdBarDimens.SlotMargin
+
+    /** The least MediaView of the layer (KB-2 criterion 1, AdMob). */
+    val CollapsibleMediaFloor = MinMediaSize
+
+    /** The least media area: the MediaView floor and its top margin, 132 dp. */
+    val CollapsibleMediaAreaFloor = CollapsibleMediaFloor + CollapsibleNativeAdDimens.MediaMargin
+
+    /**
+     * The open collapsible layer on a window of [window] (KB-4, KB-32 criterion 3): the design media area and slot of
+     * the short edge, the layer with its 16 dp bottom margin never past half the window height. Past it the media area
+     * shrinks first, to whole dp; below [CollapsibleMediaAreaFloor] there is no room and this is null (no layer: a
+     * phone in landscape, a split screen). 299 dp at 411 x 891 dp, 284 dp at 411 x 600 dp, null below 411 x 548 dp.
+     */
+    fun collapsibleLayer(window: DpSize): CollapsibleLayerSize? {
+        val edge = window.shortEdge
+        val slot = bottomSlotHeight(edge)
+        val design = collapsibleMediaAreaHeight(edge)
+        val room = floor(window.height.value * COLLAPSIBLE_WINDOW_SHARE - slot.value - CollapsibleLayerMargin.value).dp
+        val mediaArea = min(design, room)
+        return if (mediaArea < CollapsibleMediaAreaFloor) null else CollapsibleLayerSize(mediaArea, slot)
+    }
 
     /** Medium (KB-32): 320 dp on a 640 dp high screen to 400 dp on a 891 dp one, linear between, kept outside. */
     fun mediumHeight(screenHeight: Dp): Dp = interpolated(screenHeight, LowScreen, HighScreen, 320.dp, 400.dp)
@@ -316,13 +345,14 @@ internal object NativeAdDimens {
         if (ctaLarge) LargeCallToActionHeight else MediumCallToActionHeight
 }
 
-/**
- * The width and height of the screen, from the configuration (as [AdSlot] reads its width): the native ads that follow
- * the screen (KB-32) read it, never the width of their own card.
- */
-// TODO(T-107): stub so the tests written first compile.
-internal val DpSize.shortEdge: Dp get() = width
+/** The short edge of a window: the native ads that follow the window (KB-32) read it, so landscape keeps portrait. */
+internal val DpSize.shortEdge: Dp get() = min(width, height)
 
+/**
+ * The width and height of the app's window, from the configuration (as [AdSlot] reads its width; in multi-window mode
+ * the window, not the display): the native ads that follow the window (KB-32) read it, never the width of their own
+ * card.
+ */
 @Composable
 @ReadOnlyComposable
 internal fun nativeScreenSize(): DpSize {
@@ -423,7 +453,7 @@ internal fun NativeAdLayout(
             .testTag(NativeAdTestTags.CARD),
     ) {
         when (size) {
-            NativeAdSize.SMALL -> SmallLayout(assets, binder, NativeAdDimens.bottomSlotHeight(screen.width))
+            NativeAdSize.SMALL -> SmallLayout(assets, binder, NativeAdDimens.bottomSlotHeight(screen.shortEdge))
             NativeAdSize.MEDIUM -> MediumLayout(assets, binder, ctaLarge, screen)
             NativeAdSize.FULL -> FullLayout(assets, binder)
             NativeAdSize.CARD -> CardLayout(assets, binder)
