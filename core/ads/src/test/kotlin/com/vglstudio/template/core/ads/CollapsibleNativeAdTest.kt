@@ -691,6 +691,8 @@ class CollapsibleNativeAdTest {
         assertEquals("the mark is kept", mark, state.collapsedAtMillis)
 
         hasRoom = true
+        // One frame composes the layer again, the next one starts its collection (which starts at Loading).
+        frame()
         frame()
         feed.load(collapsibleTestAd())
         frame()
@@ -710,6 +712,8 @@ class CollapsibleNativeAdTest {
         advanceTo(mark + 10_000)
 
         hasRoom = true
+        // One frame composes the layer again, the next one starts its collection (which starts at Loading).
+        frame()
         frame()
         feed.load(collapsibleTestAd())
         frame()
