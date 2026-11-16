@@ -74,8 +74,8 @@ private fun collapsibleTestAd(headline: String = "Headline of the ad") = FakeLoa
 )
 
 /**
- * The collapsible layer of the bottom bar (KB-4, D-03, CL-01 to CL-04; plan T-030): opens 250 dp high with a 32 dp
- * collapse button in the top end corner, hides on a tap, and opens again `time_expand_collap_ad` seconds after the
+ * The collapsible layer of the bottom bar (KB-4, D-03, CL-01 to CL-04; plans T-030, T-065): opens 299 dp high at
+ * 411 dp (media area plus bottom slot) with a 27 dp collapse button in the top start corner, hides on a tap, and opens again `time_expand_collap_ad` seconds after the
  * tap, counted from the tap whatever the refresh does. Sizes from design/context/, 1 dp tolerance. Timing tests stop
  * the clock of Compose and read the monotonic clock from it, so both move together.
  */
@@ -198,50 +198,51 @@ class CollapsibleNativeAdTest {
     // Size and parts of the open layer (KB-4, design/context/AdGalleryScreen_collapsible-expanded_light.md).
 
     @Test
-    fun firstShown_isExpanded250dp() {
+    fun firstShown_isExpanded299dp() {
         setHost()
         node(MEDIA).assertExists()
         node(COLLAPSE).assertExists()
-        assertHeight(AD, 250f)
+        assertHeight(AD, 299f)
         composeRule.onNodeWithText(badge, useUnmergedTree = true).assertExists()
         composeRule.onNodeWithContentDescription("Collapse ad", useUnmergedTree = true).assertExists()
     }
 
     @Test
-    fun collapseButton_drawn32dp_inTopEndCorner4dp_touchAtLeast48dp() {
+    fun collapseButton_drawn27dp_inTopStartCorner4dp_touchAtLeast48dp() {
         setHost()
         val ad = bounds(AD)
         val button = bounds(COLLAPSE)
-        assertEquals("button width", 32f, (button.right - button.left).value, TOLERANCE)
-        assertEquals("button height", 32f, (button.bottom - button.top).value, TOLERANCE)
+        assertEquals("button width", 27f, (button.right - button.left).value, TOLERANCE)
+        assertEquals("button height", 27f, (button.bottom - button.top).value, TOLERANCE)
         assertEquals("gap to the top", 4f, (button.top - ad.top).value, TOLERANCE)
-        assertEquals("gap to the end", 4f, (ad.right - button.right).value, TOLERANCE)
+        assertEquals("gap to the start", 4f, (button.left - ad.left).value, TOLERANCE)
         val centerY = (button.top + button.bottom) / 2
         val centerX = (button.left + button.right) / 2
 
-        // The touch area is widened to 48 dp around the 32 dp button: 5 dp outside still collapses.
-        tapAt(button.left - 5.dp, centerY)
-        assertEquals("5 dp left of the button", 1, collapsedReports)
+        // The touch area is widened to 48 dp around the 27 dp button, 10.5 dp on each side: 5 dp outside still
+        // collapses. Not to the left or above: the button is only 4 dp from those edges of the layer.
+        tapAt(button.right + 5.dp, centerY)
+        assertEquals("5 dp right of the button", 1, collapsedReports)
 
         update { attempt++ }
         update { feed.load(collapsibleTestAd()) }
         tapAt(centerX, button.bottom + 5.dp)
         assertEquals("5 dp below the button", 2, collapsedReports)
 
-        // Control: 10 dp left of the button is outside the 48 dp area.
+        // Control: 12 dp right of the button is outside the 48 dp area.
         update { attempt++ }
         update { feed.load(collapsibleTestAd()) }
-        tapAt(button.left - 10.dp, centerY)
-        assertEquals("10 dp left of the button", 2, collapsedReports)
+        tapAt(button.right + 12.dp, centerY)
+        assertEquals("12 dp right of the button", 2, collapsedReports)
         assertShown()
     }
 
     @Test
-    fun layer_leavesAdChoicesTopStartCornerFree() {
+    fun layer_leavesAdChoicesTopEndCornerFree() {
         setHost()
         val ad = bounds(AD)
-        // The SDK pins AdChoices in the top start corner of this layer (ADCHOICES_TOP_LEFT): nothing to tap there.
-        val corner = with(composeRule.density) { DpRect(ad.left, ad.top, ad.left + 24.dp, ad.top + 24.dp).toRect() }
+        // The SDK pins AdChoices in the top end corner of this layer (ADCHOICES_TOP_RIGHT): nothing to tap there.
+        val corner = with(composeRule.density) { DpRect(ad.right - 24.dp, ad.top, ad.right, ad.top + 24.dp).toRect() }
         val clickable = composeRule
             .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true)
             .fetchSemanticsNodes()
@@ -254,22 +255,24 @@ class CollapsibleNativeAdTest {
         }
     }
 
+    /** The part under the media is the small native (design T-064, "Content (as small slot)"). */
     @Test
-    fun layer_iconIs32dp_headline13sp_ctaIs36dp() {
+    fun layer_contentIsSmallNative() {
         setHost()
         val icon = bounds(NativeAdTestTags.ICON)
-        assertEquals(32f, (icon.right - icon.left).value, TOLERANCE)
-        assertEquals(32f, (icon.bottom - icon.top).value, TOLERANCE)
-        assertHeight(NativeAdTestTags.CTA, 36f)
+        assertEquals(44f, (icon.right - icon.left).value, TOLERANCE)
+        assertEquals(44f, (icon.bottom - icon.top).value, TOLERANCE)
+        assertHeight(NativeAdTestTags.CTA, 44f)
         val cta = bounds(NativeAdTestTags.CTA)
         val ad = bounds(AD)
         val ctaWidth = (cta.right - cta.left).value
-        assertEquals("CTA as wide as the layer, 12 dp in", (ad.right - ad.left).value - 24f, ctaWidth, TOLERANCE)
+        assertTrue("CTA $ctaWidth dp wide, from 80 to 120 dp", ctaWidth >= 80f - 0.5f && ctaWidth <= 120f + 0.5f)
+        assertEquals("CTA end to the layer end", 24f, (ad.right - cta.right).value, 0.5f)
 
         val results = mutableListOf<TextLayoutResult>()
         composeRule.onNodeWithText("Headline of the ad", useUnmergedTree = true)
             .fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
-        assertEquals(13f, results.single().layoutInput.style.fontSize.value, 0.01f)
+        assertEquals(16f, results.single().layoutInput.style.fontSize.value, 0.01f)
     }
 
     @Test
@@ -277,8 +280,50 @@ class CollapsibleNativeAdTest {
         setHost()
         val media = bounds(MEDIA)
         assertTrue("media is ${media.right - media.left} wide", (media.right - media.left).value >= 120f)
-        // 250 - 2 x (1 + 12) margins - 38 header - 36 call to action - 2 x 8 gaps = 134 dp, as in the design.
-        assertHeight(MEDIA, 134f)
+        // The media area of 173 dp at 411 dp (collapsibleMediaAreaHeight) less its 12 dp top margin = 161 dp, as in
+        // the design.
+        assertHeight(MEDIA, 161f)
+    }
+
+    /** KB-4, KB-32: the layer is the interpolated media area plus the bottom slot: 173 + 126 = 299 dp at 411 dp. */
+    @Test
+    fun expanded_heightIsMediaAreaPlusSlot() {
+        setHost()
+        assertEquals(299f, bounds(AD).let { (it.bottom - it.top).value }, 0.5f)
+        assertEquals(161f, bounds(MEDIA).let { (it.bottom - it.top).value }, 0.5f)
+        assertEquals(126f, bounds(CONTENT).let { (it.bottom - it.top).value }, 0.5f)
+    }
+
+    /** The same on a 360 dp screen: 166 + 106 = 272 dp. */
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun expanded_heightIsMediaAreaPlusSlot_360() {
+        setHost()
+        assertEquals(272f, bounds(AD).let { (it.bottom - it.top).value }, 0.5f)
+        assertEquals(106f, bounds(CONTENT).let { (it.bottom - it.top).value }, 0.5f)
+    }
+
+    /** KB-4 criterion 1: the collapse button drawn 27 dp, 4 dp from the start and the top, 48 dp to touch. */
+    @Test
+    fun collapseButton_27dpTopStart_touch48dp() {
+        setHost()
+        val ad = bounds(AD)
+        val button = bounds(COLLAPSE)
+        assertEquals("button width", 27f, (button.right - button.left).value, 0.5f)
+        assertEquals("button height", 27f, (button.bottom - button.top).value, 0.5f)
+        assertEquals("gap to the start", 4f, (button.left - ad.left).value, 0.5f)
+        assertEquals("gap to the top", 4f, (button.top - ad.top).value, 0.5f)
+        val touch = node(COLLAPSE).fetchSemanticsNode().touchBoundsInRoot
+        val touchWidth = with(composeRule.density) { touch.width.toDp().value }
+        val touchHeight = with(composeRule.density) { touch.height.toDp().value }
+        assertTrue("touch area $touchWidth x $touchHeight dp", touchWidth >= 48f - 0.5f && touchHeight >= 48f - 0.5f)
+        val corner = with(composeRule.density) { DpRect(ad.right - 24.dp, ad.top, ad.right, ad.top + 24.dp).toRect() }
+        composeRule
+            .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick), useUnmergedTree = true)
+            .fetchSemanticsNodes()
+            .forEach {
+                assertFalse("clickable ${it.boundsInRoot} in the top end corner", it.boundsInRoot.overlaps(corner))
+            }
     }
 
     @Test
@@ -354,7 +399,7 @@ class CollapsibleNativeAdTest {
         composeRule.setContent {
             AdsTestTheme(darkTheme = false) {
                 BottomAdBarLayout(
-                    reservation = BottomAdBarDefaults.nativeReservation,
+                    reservation = BottomAdBarDefaults.nativeReservation(),
                     slot = { NativeAdCard(sampleNativeAdAssets, NativeAdSize.SMALL, it.testTag(SLOT)) },
                     layer = {
                         CollapsibleNativeAdLayerHost(
@@ -379,13 +424,19 @@ class CollapsibleNativeAdTest {
         update { feed.load(collapsibleTestAd()) }
         assertShown()
         node(SLOT).assertExists()
+
+        // KB-4 criterion 2, KB-17: a tap on the collapse button hides the layer and shows the slot below, as high
+        // as the bottom slot of this screen (126 dp at 411 dp).
+        collapse()
+        assertAbsent(AD)
+        assertEquals(126f, bounds(SLOT).let { (it.bottom - it.top).value }, 0.5f)
     }
 
     @Test
     fun unavailable_drawsNothing() {
         setHost()
         // Control: the host has the layer's height while an ad is shown.
-        assertHeight(HOST, 250f)
+        assertHeight(HOST, 299f)
 
         update { feed.state.value = NativeAdState.Unavailable }
         assertAbsent(AD)
@@ -589,7 +640,7 @@ class CollapsibleNativeAdTest {
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun layer_smallScreen_fitsOnScreen() {
         setHost()
-        assertHeight(AD, 250f)
+        assertHeight(AD, 272f)
         val screen = Rect(0f, 0f, 360f, 640f)
         listOf(COLLAPSE, NativeAdTestTags.CTA).forEach { tag ->
             val b = bounds(tag)
@@ -650,6 +701,7 @@ class CollapsibleNativeAdTest {
         const val AD = "collapsible_ad"
         const val MEDIA = "collapsible_ad_media"
         const val COLLAPSE = "collapsible_ad_collapse"
+        const val CONTENT = "collapsible_ad_content"
         const val HOST = "host"
         const val SLOT = "slot"
         const val TOLERANCE = 1f

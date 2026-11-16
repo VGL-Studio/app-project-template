@@ -115,7 +115,7 @@ class PreviewAdGallerySlots(
     @Composable
     override fun BottomBar(content: @Composable (PaddingValues) -> Unit) {
         BottomAdBarLayout(
-            reservation = BottomAdBarDefaults.nativeReservation,
+            reservation = BottomAdBarDefaults.nativeReservation(),
             slot = { NativeAdCard(assets, NativeAdSize.SMALL, it.testTag(PreviewAdTags.BOTTOM_SLOT)) },
             layer = if (collapsed) {
                 null
