@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Shows the consent form when required; the ads SDK starts only after it (ADR-0004).
+        // Shows the consent form when required; the ads SDK starts only after it (ADR-0045).
         ads.gatherConsent(this)
         setContent {
             // Provides the ads controller and reports the block of resume ads (G-04).
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
                             AppNavHost(onScreenChanged = networkDialog::setScreen)
                         }
                     }
-                    // Native full-screen ads open as a dialog over the current screen (ADR-0022).
+                    // Native full-screen ads open as a dialog over the current screen (ADR-0045).
                     FullScreenAdHost()
                 }
             }

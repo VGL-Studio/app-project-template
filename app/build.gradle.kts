@@ -30,7 +30,7 @@ android {
     }
 
     // Staging builds sent to the team are signed with a fixed staging-only key, so each build installs over
-    // the previous one (ADR-0016). staging.yml provides it; without it, stagingRelease stays unsigned.
+    // the previous one (ADR-0049). staging.yml provides it; without it, stagingRelease stays unsigned.
     // The debug build type keeps the debug key.
     providers.gradleProperty("stagingKeystoreFile").orNull?.let { keystore ->
         signingConfigs.create("staging") {
@@ -42,7 +42,7 @@ android {
     }
 
     // Production releases are signed with the upload key; Play App Signing re-signs them for users (ADR-0007).
-    // Only scripts/release.sh provides it, from the release folder kept outside the repo (ADR-0017).
+    // Only scripts/release.sh provides it, from the release folder kept outside the repo (ADR-0049).
     providers.gradleProperty("uploadKeystoreFile").orNull?.let { keystore ->
         signingConfigs.create("upload") {
             storeFile = file(keystore)
@@ -53,7 +53,7 @@ android {
     }
 
     // Configuration per environment (ADR-0007). Staging uses Google's public test app id and the staging folder
-    // on R2; production values are given by the person building the release, never stored in the repo (ADR-0009):
+    // on R2; production values are given by the person building the release, never stored in the repo (ADR-0049):
     //   -PadmobAppId=<AdMob app id> -PadUnits="<placement key>=<ad unit>;<placement key>=<ad unit>"
     //   -PassetsBaseUrl=<https address of the production files on R2>
     //   -PappsFlyerDevKey=<AppsFlyer dev key>
@@ -74,7 +74,7 @@ android {
                 .filter { it.matches(Regex("[0-9A-Za-z]+")) }
                 .joinToString(",")
             buildConfigField("String", "ADS_TEST_DEVICE_IDS", "\"$adsTestDeviceIds\"")
-            // An AppLovin MAX SDK key to try MAX on a developer's phone (T-068, ADR-0037): the key ads.maxSdkKey of
+            // An AppLovin MAX SDK key to try MAX on a developer's phone (T-068, ADR-0045): the key ads.maxSdkKey of
             // local.properties, never a parameter, so CI always builds staging without MAX. Filtered, as a quote or a
             // backslash would break the Java string of BuildConfig; the value is never printed.
             val maxSdkKeyRead = localProperties.getProperty("ads.maxSdkKey").orEmpty().trim()
@@ -83,7 +83,7 @@ android {
                 logger.warn("ads.maxSdkKey in local.properties ignored: only letters, digits, _ and - are allowed")
             }
             buildConfigField("String", "MAX_SDK_KEY", "\"$maxSdkKey\"")
-            // The MAX ad unit of each slot (T-071, ADR-0037): the key ads.maxAdUnits of local.properties, as
+            // The MAX ad unit of each slot (T-071, ADR-0045): the key ads.maxAdUnits of local.properties, as
             // "banner=<unit>;banner_mrec=<unit>". A value with other characters is dropped, not printed; the app then
             // logs the slots without a MAX unit.
             val maxAdUnits = localProperties.getProperty("ads.maxAdUnits").orEmpty().trim()
@@ -135,8 +135,8 @@ android {
 // The AppLovin MAX key and ad units are optional (without a key the release runs AdMob only), but a value with
 // characters that would break the Java string of BuildConfig stops the build, without printing the value.
 val missingProductionProperties = mapOf(
-    "admobAppId" to "ADR-0013",
-    "adUnits" to "ADR-0013",
+    "admobAppId" to "ADR-0045",
+    "adUnits" to "ADR-0045",
     "assetsBaseUrl" to "ADR-0015",
 ).filterKeys { !providers.gradleProperty(it).isPresent }
 tasks.matching { it.name.startsWith("preProduction") && it.name.endsWith("Build") }.configureEach {
@@ -183,7 +183,7 @@ tasks.matching { it.name.endsWith("GoogleServices") }.configureEach {
     outputs.doNotCacheIf("google-services.json is chosen at execution time") { true }
 }
 
-// RemoteConfigKeysTest rewrites the two generated key files when run with -PremoteConfigKeys.update=true (ADR-0023).
+// RemoteConfigKeysTest rewrites the two generated key files when run with -PremoteConfigKeys.update=true (ADR-0046).
 // The files are inputs, so editing one by hand runs the test again instead of leaving it UP-TO-DATE.
 val remoteConfigKeysMarkdown = rootProject.file("docs/remote-config-keys.md")
 val remoteConfigKeysTemplate = rootProject.file("docs/remote-config-template.json")

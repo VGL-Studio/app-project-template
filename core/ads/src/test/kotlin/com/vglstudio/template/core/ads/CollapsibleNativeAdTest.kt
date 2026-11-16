@@ -521,7 +521,7 @@ class CollapsibleNativeAdTest {
 
     @Test
     fun collapsed_reexpandsAfterDefaultSeconds() {
-        // CL-03, KB-32: 10 s when the team did not set time_expand_collap_ad (ADR-0038).
+        // CL-03, KB-32: 10 s when the team did not set time_expand_collap_ad (ADR-0045).
         setTimedHost(expandAfterSeconds = AdsSettings.TIME_EXPAND_COLLAP_AD.default)
         val mark = collapseTimed()
         assertAbsent(AD)

@@ -2,7 +2,7 @@
 
 <!-- Sinh từ code bởi RemoteConfigKeysTest (:app). Không sửa tay. Sinh lại: ./gradlew :app:testStagingDebugUnitTest -PremoteConfigKeys.update=true -->
 
-Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu để nhập vào Firebase: `remote-config-template.json`.
+Mọi khóa Remote Config của bản app hiện tại (ADR-0046). File mẫu để nhập vào Firebase: `remote-config-template.json`.
 
 | Khóa | Kiểu | Mặc định | Module | Mô tả |
 | --- | --- | --- | --- | --- |
@@ -10,7 +10,7 @@ Mọi khóa Remote Config của bản app hiện tại (ADR-0023). File mẫu đ
 | `feature_sample_enabled` | boolean | `false` | `:core:config` | Shows the sample feature screen, the reference pattern for new features. |
 | `ads_interval` | long | `45` | `:core:ads` | Minimum time between two full-screen ads of the default interval group, in seconds. |
 | `ads_mediation_order` | string | `"max_admob"` | `:core:ads` | Order of the two ad platforms for banner, MREC, interstitial, rewarded and resume app open ads: admob, max, admob_max or max_admob; any other value uses max_admob. Without a MAX SDK key in the build, admob. Name set by the template, not an AdsKit key. |
-| `is_enable_consent_shortcut` | boolean | `false` | `:core:ads` | Remote switch of ERROR_ALLOWED, the temporary right when UMP fails on the network (S-12); also needs the build setting of the app. CACHED_EARLY is always on (ADR-0038). False takes ERROR_ALLOWED back at once. Name set by the template, not an AdsKit key. |
+| `is_enable_consent_shortcut` | boolean | `false` | `:core:ads` | Remote switch of ERROR_ALLOWED, the temporary right when UMP fails on the network (S-12); also needs the build setting of the app. CACHED_EARLY is always on (ADR-0045). False takes ERROR_ALLOWED back at once. Name set by the template, not an AdsKit key. |
 | `is_log_ad_fullscreen_events` | boolean | `false` | `:core:ads` | Logs the Firebase lifecycle events of full-screen ads. Name set by the template, not an AdsKit key. |
 | `is_log_ad_slot_events` | boolean | `false` | `:core:ads` | Logs the Firebase lifecycle events of ad slots (banner, native). Name set by the template, not an AdsKit key. |
 | `is_show_ads` | boolean | `true` | `:core:ads` | Master switch for every ad. When false, the app loads and shows no ad at all. Name set by the template, not an AdsKit key. |

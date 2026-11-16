@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The only class that talks to the ads SDKs (ADR-0004). :app calls [start] once in `Application.onCreate` (HD-01),
+ * The only class that talks to the ads SDKs (ADR-0045). :app calls [start] once in `Application.onCreate` (HD-01),
  * [gatherConsent] from its activity, places [AdsHost] at the root of its UI
  * (it provides [LocalAdsController], G-04), and draws native full-screen ads with [FullScreenAdHost]. Features use
  * [AdSlot], [NativeAdSlot], [rememberShowFullScreenAd], [rememberRewardedAction], [rememberAdSuppression],
@@ -94,7 +94,7 @@ import kotlinx.coroutines.withContext
  * Mediation adapters (AppLovin, plan T-015) are initialized by the SDK at the same time, with no code of their own;
  * their status is logged.
  *
- * AppLovin MAX (plan T-068, ADR-0037) is the second ad platform. [MaxSdkStarter] initializes it once, after the consent
+ * AppLovin MAX (plan T-068, ADR-0045) is the second ad platform. [MaxSdkStarter] initializes it once, after the consent
  * gate opened and once [sdkReady] of AdMob is on (its callback or the 35 s cap of S-21), never before
  * ([startAdsSdks]), and only while the gate is open at that moment: a gate closed meanwhile starts nothing, the gate
  * open again starts it if it has not started (S-14). No consent flag is set: MAX reads the TCF and AC strings of UMP.
@@ -248,7 +248,7 @@ class AdsController @Inject internal constructor(
     /** Failures in a row per load slot: the metrics and the retry waits read the same counter (plan T-021). */
     private val loadCounter = LoadAttemptCounter()
 
-    /** The switch of each full-screen placement, as last read in [start]; off until then (ADR-0014). */
+    /** The switch of each full-screen placement, as last read in [start]; off until then (ADR-0045). */
     private val enabledNow = mutableMapOf<AdPlacement, Boolean>()
 
     /** Latest values read by the metrics, collected from [start]; before it nothing is served (S-19). */
@@ -289,7 +289,7 @@ class AdsController @Inject internal constructor(
     private val maxStarter = MaxSdkStarter(maxConfig, maxPlatform, logger) { gate.state.value.allowed }
 
     /**
-     * The order of the two ad platforms that applies (`ads_mediation_order`, ADR-0037): [MediationOrder.ADMOB] in a
+     * The order of the two ad platforms that applies (`ads_mediation_order`, ADR-0045): [MediationOrder.ADMOB] in a
      * build without an AppLovin MAX SDK key. Read by the loads of MAX (T-069 to T-071).
      */
     internal val mediationOrder: StateFlow<MediationOrder> = globalFlags
@@ -2178,7 +2178,7 @@ class AdsController @Inject internal constructor(
     /**
      * Whether [placement] may load and show ads: the master switch `is_show_ads` (off too while ad-free, KB-30,
      * [AdFreeStatus]) and the placement's own switch
-     * `is_show_<code>` (KB-7, ADR-0014); for an app-wide placement, whether the keys of this open choose it
+     * `is_show_<code>` (KB-7, ADR-0045); for an app-wide placement, whether the keys of this open choose it
      * ([placementSwitch], A-01, A-02); for a first-open-only placement ([firstOpenOnlyOf], OB-03), its own switch and
      * the first open. Every ad format, including native ones added later, must check this before loading or showing
      * an ad.

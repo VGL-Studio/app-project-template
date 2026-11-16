@@ -13,7 +13,9 @@ docs/inbox/, docs/test-sessions/ (a README.md there is a rule document), docs/fe
 requests are history; specs and designs keep their own history section), the rest of each ADR, and generated pages.
 
 The check fails when a rule document names a lesson, ticket or run (`L-` or `T-` and three digits, `RUN-` and eight
-digits), or names a superseded ADR. Files and ADRs not cleaned yet are listed in scripts/tests/history-refs-allow.txt
+digits), or names a superseded ADR. It also fails when a tracked file that is not Markdown (code, scripts, workflows,
+build files) or the generated page docs/remote-config-keys.md names a superseded ADR, since template-sync.sh deletes
+superseded ADRs from the apps; scripts/tests/ is left out, its data names old ADRs on purpose. Files and ADRs not cleaned yet are listed in scripts/tests/history-refs-allow.txt
 (one path or `ADR-NNNN` per line); the list only shrinks, so an entry that is already clean is an error too.
 HISTORY_REFS_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
@@ -90,6 +92,28 @@ def rule_texts(root):
     return texts
 
 
+def code_texts(root):
+    """(path, text) of every tracked text file that is not Markdown, plus docs/remote-config-keys.md, outside the
+    places kept for history and outside scripts/tests/ (test data)."""
+    result = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True)
+    if result.returncode != 0 or not (root / ".git").exists():
+        return []
+    texts = []
+    for path in sorted({p for p in result.stdout.decode().split("\0") if p}):
+        if path.endswith(".md") and path != "docs/remote-config-keys.md":
+            continue
+        if path.startswith(("docs/adr/", "docs/features/", "scripts/tests/") + HISTORY_DIRS):
+            continue
+        file = root / path
+        if not file.is_file():
+            continue
+        data = file.read_bytes()
+        if b"\0" in data[:8192]:
+            continue
+        texts.append((path, data.decode("utf-8", errors="replace")))
+    return texts
+
+
 def problems(text, superseded):
     found = sorted(set(HISTORY_REF.findall(text)))
     found += sorted({f"ADR-{n}" for n in ADR_REF.findall(text)} & superseded)
@@ -107,9 +131,10 @@ def check(root):
                 allowed.append(line)
     names = set()
     errors = []
-    for name, text in rule_texts(root):
+    checked = [(name, problems(text, superseded)) for name, text in rule_texts(root)]
+    checked += [(name, sorted({f"ADR-{n}" for n in ADR_REF.findall(text)} & superseded)) for name, text in code_texts(root)]
+    for name, found in checked:
         names.add(name)
-        found = problems(text, superseded)
         if found and name not in allowed:
             errors.append(f"   {name}: {', '.join(found)}")
         elif not found and name in allowed:
@@ -118,9 +143,9 @@ def check(root):
         if name not in names:
             errors.append(f"   {name}: không còn là tài liệu quy tắc, xóa dòng này khỏi {ALLOW}")
     if errors:
-        print("LỖI: tài liệu quy tắc ghi mã lịch sử hay dẫn ADR đã bị thay (ADR-0044):")
+        print("LỖI: tài liệu quy tắc ghi mã lịch sử hay dẫn ADR đã bị thay, hoặc code dẫn ADR đã bị thay (ADR-0044):")
         print("\n".join(errors))
-        print("Viết quy tắc ở thì hiện tại, lý do thành một vế câu; mã bài học ghi trong mô tả PR.")
+        print("Viết quy tắc ở thì hiện tại, lý do thành một vế câu; mã bài học ghi trong mô tả PR. Code dẫn ADR thay nó.")
         return 1
     print(f"Tài liệu quy tắc sạch, còn {len(allowed)} mục chưa dọn trong {ALLOW}.")
     return 0

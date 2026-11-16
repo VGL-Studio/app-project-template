@@ -97,7 +97,7 @@ class ProductionPropertiesTest {
         val check = build
             .substringAfter("val missingProductionProperties = mapOf(")
             .substringBefore("throw GradleException(")
-        listOf("\"maxSdkKey\" to", "com.applovin", "ADR-0037").forEach { assertFalse("$it in:\n$check", it in check) }
+        listOf("\"maxSdkKey\" to", "com.applovin").forEach { assertFalse("$it in:\n$check", it in check) }
         assertTrue(check, "\"maxSdkKey\".takeIf" in check)
     }
 

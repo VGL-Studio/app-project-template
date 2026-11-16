@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Only the staging source set gives remote keys local values (ADR-0023): production builds read Firebase,
+ * Only the staging source set gives remote keys local values (ADR-0046): production builds read Firebase,
  * then the key's default. CI runs unit tests of the staging variant only, so this scans the sources of :app.
  * The working directory of a unit test is the module directory.
  */

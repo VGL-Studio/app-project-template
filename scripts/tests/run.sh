@@ -6168,6 +6168,30 @@ else
   code=0; out="$(history_refs)" || code=$?
   expect "history-refs: a guide in docs/features that is not a spec, design or ticket is a rule document" "1 1" \
     "$code $(grep -cx '   docs/features/README.md: L-124' <<< "$out")"
+  # Code, scripts, workflows and the generated key page of a git work tree name no superseded ADR: template-sync.sh
+  # deletes those ADRs from the apps. Lesson and ticket codes in code pass, and scripts/tests/ holds test data.
+  hc="$work/history-code"
+  mkdir -p "$hc/docs/adr" "$hc/app/src" "$hc/scripts/tests" "$hc/.github/workflows"
+  printf -- '---\nid: ADR-0001\nstatus: accepted\n---\n\n- **Việc AI phải tuân thủ:** làm A.\n' > "$hc/docs/adr/0001-a.md"
+  printf -- '---\nid: ADR-0002\nstatus: superseded\n---\n\n- **Việc AI phải tuân thủ:** làm B.\n' > "$hc/docs/adr/0002-b.md"
+  printf '// Keys of the app (ADR-0002).\n' > "$hc/app/src/Keys.kt"
+  printf '// Plan T-080, lesson L-123, ADR-0001.\n' > "$hc/app/src/Clean.kt"
+  printf '# old ADR as data: ADR-0002\n' > "$hc/scripts/tests/data.sh"
+  printf '# docs/adr/0002-b.md\n' > "$hc/.github/workflows/build.yml"
+  printf 'Mọi khóa (ADR-0002).\n' > "$hc/docs/remote-config-keys.md"
+  printf 'ADR-0002\0binary' > "$hc/app/src/image.bin"
+  git -C "$hc" init -q && git -C "$hc" add -A
+  code=0; out="$(HISTORY_REFS_ROOT="$hc" python3 -I scripts/history-refs.py)" || code=$?
+  expect "history-refs: code, a workflow path and the generated key page naming a superseded ADR fail" "1 1 1 1" \
+    "$code $(grep -cx '   app/src/Keys.kt: ADR-0002' <<< "$out") $(grep -cx '   .github/workflows/build.yml: ADR-0002' <<< "$out") $(
+      grep -cx '   docs/remote-config-keys.md: ADR-0002' <<< "$out")"
+  expect "history-refs: lesson and ticket codes in code, test data and binary files pass" 0 \
+    "$(grep -cE 'Clean\.kt|scripts/tests/data\.sh|image\.bin' <<< "$out" || true)"
+  mkdir -p "$hc/scripts/tests"
+  printf 'app/src/Keys.kt\n.github/workflows/build.yml\ndocs/remote-config-keys.md\n' > "$hc/scripts/tests/history-refs-allow.txt"
+  git -C "$hc" add -A
+  expect "history-refs: a code file in the allow list passes" 0 \
+    "$(HISTORY_REFS_ROOT="$hc" python3 -I scripts/history-refs.py > /dev/null; echo $?)"
   rm "$hr/docs/features/README.md"
   # A file that is not UTF-8 and a file in a merge conflict (one index entry per stage) are each listed once.
   cr="$work/history-conflict"
