@@ -1415,3 +1415,21 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Bằng chứng:** issue #479.
 - **Đề xuất sửa:** trạng thái `cancelled` (người ghi, kèm lý do); `status.py` không đưa danh sách `cancelled` vào mục chờ người và không coi ticket của nó là đã vào danh sách; `run-check.py` từ chối kiểm danh sách `cancelled`; mẫu `run.md` và `docs/CLAUDE.md`, mục Khi lập danh sách chạy, nói trạng thái này.
 - **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479)
+
+### L-181. `wait-run.sh` mã 7, `resume-check.py` và `run-watchdog.py` coi mọi job tự host đang xếp hàng là máy runner hỏng và nhắc `HEAVY_RUNNER`, ở app có mô hình runner riêng
+
+- **Ngày, nguồn:** 2026-11-14, Photune (issue #492; PR VGL-App/photo-video-maker-with-music#168, rà soát độc lập điểm 3)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** sau đợt đồng bộ, ba script theo ADR-0042 chạy ở Photune, app chọn runner tự host chạy lâu dài cho mọi job bằng ADR của app (hai runner, mọi job mang nhãn của app, `ui-test` tới 60 phút). Ở đó job xếp hàng chờ runner kia là chuyện thường, nhưng `wait-run.sh` trả mã 7 sau 75 phút, `resume-check.py` không tự tiếp tục phiên khi có bất kỳ job `queued` nào mang nhãn không phải GitHub (không có ngưỡng thời gian), và `run-watchdog.py` ghi job đó vào issue `session-stalled`. Thông báo của cả ba bảo kiểm biến `HEAVY_RUNNER` và mục 8 của `self-hosted-runner.md`, không có nghĩa ở app không dùng biến đó. Ngưỡng chỉ đổi được bằng biến môi trường của lần gọi.
+- **Bằng chứng:** issue #492; ADR-1034 của Photune (mục Hệ quả, ghi chú 2026-11-14), `docs/ops/self-hosted-runner-app.md` của Photune, mục 7; lần chạy `main-guard` 43538320341 của Photune (API không trả job đang chờ `needs`).
+- **Đề xuất sửa:** tệp tùy chọn chỉ của app `scripts/runners-app.conf` (`KHÓA=giá trị`, chỉ đọc, không chạy như shell): `RUNNER_QUEUE_MINUTES` (ngưỡng của `wait-run.sh` và `run-watchdog.py`, biến môi trường vẫn thắng), `RUNNER_LABELS` (chỉ theo dõi job mang các nhãn này), `RUNNER_DOC` (thông báo dẫn tài liệu runner của app thay cho `HEAVY_RUNNER`). Ba script cùng đọc và kiểm tệp; `resume-check.py` chỉ đổi thông báo theo `RUNNER_DOC`, giữ chặn mọi job tự host đang chờ, không dùng ngưỡng hay bộ nhãn, vì job chờ dưới ngưỡng, hay mang nhãn quên ghi vào tệp, có thể là job mà phiên cũ vẫn đang chờ, tự tiếp tục lúc đó sẽ mở phiên thứ hai chồng lên.
+- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR")
+
+### L-182. Test `runners:` của `scripts/tests/run.sh` đọc workflow thật, nên app có ADR runner riêng phải sửa tệp của mẫu
+
+- **Ngày, nguồn:** 2026-11-14, Photune (issue #491; PR VGL-App/photo-video-maker-with-music#168, commit `e6c9e60d`, `040823a4`)
+- **Loại, phạm vi:** môi trường, chung
+- **Chuyện gì:** phần test `runners:` và các test bước kiểm runner của `pr-check` trong `scripts/tests/run.sh` đọc `.github/workflows/*.yml` thật và đòi đúng mô hình của ADR-0042 (job nặng theo `HEAVY_RUNNER`, job nhẹ `ubuntu-latest`, bước `runner-check.sh`). Photune chọn mô hình khác bằng ADR của app (mọi job theo một biến runner của app, runner chạy lâu dài nên không có bước `runner-check.sh`), nên các test đó đỏ trên workflow đúng với ADR của app. App phải sửa `run.sh`, tệp "của dự án mẫu, app không sửa": Photune cho test đọc một bản sao workflow của mẫu trong `scripts/tests/fixtures/`, phải làm mới bản sao và gộp tay `run.sh` ở mỗi đợt đồng bộ.
+- **Bằng chứng:** issue #491; commit `e6c9e60d`, `040823a4` của Photune.
+- **Đề xuất sửa:** cùng tệp `scripts/runners-app.conf` của L-181: `RUNNER_TESTS=skip` cùng `RUNNER_ADR=ADR-NNNN` (bắt buộc khi skip) làm `run.sh` in dòng `skip - runners: app theo <ADR>` thay cho các test kiểm workflow thật theo ADR-0042; app tự kiểm workflow của mình trong `scripts/tests/app.sh`. Thiếu `RUNNER_ADR` khi skip là lỗi test.
+- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR")
