@@ -1583,6 +1583,23 @@ printf '%s\n' "Chờ: chưa thấy kiểm tra 'build-and-test' trên commit abc1
   > "$work/pb20-other-check.log"
 expect "playbook: waiting for the build-and-test check is not PB-20" "" "$(pb_head "$work/pb20-other-check.log" | grep PB-20)"
 expect "playbook: PB-21 a Gradle daemon disappeared -> chay-lai" "PB-21 chay-lai" "$(pb_head $pb_dir/PB-21.log)"
+expect "playbook: PB-22 Robolectric looperControlService NPE while resetting the sandbox -> chay-lai" "PB-22 chay-lai" \
+  "$(pb_head $pb_dir/PB-22.log)"
+printf '%s\n' 'FooTest > bar FAILED' '    java.lang.NullPointerException at ShadowPausedLooper.java:312' > "$work/pb22-short.log"
+expect "playbook: PB-22 also matches the short Gradle line of the NPE" "PB-22 chay-lai" "$(pb_head "$work/pb22-short.log")"
+printf '%s\n' 'FooTest > bar FAILED' '    java.lang.NullPointerException at FooTest.kt:12' > "$work/pb22-other-npe.log"
+expect "playbook: an NPE in the test itself is not PB-22" khong-co "$(pb_head "$work/pb22-other-npe.log")"
+# Result lines of scripts/tests/run.sh are dropped before matching: a passed script test whose name quotes the PB-02
+# prefix does not hide the real 429 of the library download.
+expect "playbook: a passed script test quoting HẠ TẦNG: does not make a 429 download PB-02" "PB-09 lich-thu-lai" \
+  "$(pb_head $pb_dir/PB-09-script-tests.log)"
+awk 'BEGIN { OFS = "\t" } { print "build-and-test", "Cổng chất lượng", $0 }' $pb_dir/PB-09-script-tests.log > "$work/pb09-log-failed.log"
+expect "playbook: the job and step columns of gh run view --log-failed do not keep a script test line" "PB-09 lich-thu-lai" \
+  "$(pb_head "$work/pb09-log-failed.log")"
+printf '%s\n' '2026-11-15T19:08:09.0000000Z FAIL - x: expected HẠ TẦNG: got y' > "$work/pb-fail-line.log"
+expect "playbook: a failed script test line is not matched either" khong-co "$(pb_head "$work/pb-fail-line.log")"
+printf '%s\n' '2026-11-15T19:08:09.0000000Z HẠ TẦNG: GitHub không cấp máy' > "$work/pb02-timestamp.log"
+expect "playbook: a real HẠ TẦNG: line with a timestamp is still PB-02" "PB-02 cho" "$(pb_head "$work/pb02-timestamp.log")"
 printf '%s\n' 'The hosted runner: GitHub Actions 2 lost communication with the server.' > "$work/pb-hosted-lost.log"
 printf '%s\n' 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.' > "$work/pb-shutdown.log"
 printf '%s\n' 'No space left on device' > "$work/pb-no-space.log"
