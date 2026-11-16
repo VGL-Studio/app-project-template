@@ -186,7 +186,7 @@ Phiên thử là log của một lần dùng thử bản staging trên máy th�
 - Dùng đúng [mẫu ADR](templates/adr.md). Mục "Việc AI phải tuân thủ" viết thành các vế ngắn nối bằng dấu chấm phẩy: mỗi vế thành một dòng của `foundation.md`.
 - Mã ADR: ở dự án mẫu (repo có `docs/ops/new-app.md`) lấy số tiếp theo dưới 1000 và ghi `origin: template`. Ở app, lấy số tiếp theo từ 1001 và ghi `origin: app`, để không trùng với ADR mà dự án mẫu thêm sau này.
 - Trong app, không sửa ADR có `origin: template`. Muốn khác thì viết ADR của app, ghi rõ thay quy tắc nào và vì sao (`supersedes`), và đề xuất về dự án mẫu nếu có ích chung (`docs/ops/from-app.md`).
-- PR thêm hay đổi trạng thái ADR thì chạy `scripts/foundation.py` và commit `docs/foundation.md` cùng PR. ADR chuyển sang `superseded` thì đổi mọi chỗ code, script, workflow và trang sinh ra còn dẫn nó sang ADR thay nó, cùng PR, vì `template-sync.sh` xóa ADR bị thay khỏi app; `scripts/history-refs.py` báo chỗ còn sót. Test của script báo lỗi khi trang chưa khớp.
+- PR thêm hay đổi trạng thái ADR thì chạy `scripts/foundation.py` và commit `docs/foundation.md` cùng PR. Test của script báo lỗi khi trang chưa khớp. ADR chuyển sang `superseded` thì đổi mọi chỗ code, script, workflow và trang sinh ra còn dẫn nó sang ADR thay nó, cùng PR, vì `template-sync.sh` xóa ADR bị thay khỏi app; `scripts/history-refs.py` báo chỗ còn sót.
 - ADR mới sửa một phần một ADR chưa `superseded` thì là ADR hợp nhất: chép lại mọi quy tắc còn đúng của ADR cũ cùng phần mới, ghi `supersedes`, và chuyển ADR cũ sang `superseded`. Một quy tắc không được nằm rải ở hai ADR còn hiệu lực trở lên (ADR-0044).
 
 ## Trang tiến độ

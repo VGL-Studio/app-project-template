@@ -215,7 +215,7 @@ print_removed_adrs() {
     printf '%s' "$changed_adrs"
   fi
   if [ -n "$stale_mentions" ]; then
-    echo "Tài liệu quy tắc của app còn nhắc ADR đã bị thay (sửa sang ADR thay nó, trong cùng PR):"
+    echo "Tài liệu quy tắc và code của app còn nhắc ADR đã bị thay (sửa sang ADR thay nó, trong cùng PR):"
     printf '%s\n' "$stale_mentions"
   fi
 }

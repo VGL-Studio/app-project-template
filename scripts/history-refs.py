@@ -14,10 +14,11 @@ requests are history; specs and designs keep their own history section), the res
 
 The check fails when a rule document names a lesson, ticket or run (`L-` or `T-` and three digits, `RUN-` and eight
 digits), or names a superseded ADR. It also fails when a tracked file that is not Markdown (code, scripts,
-workflows, build files) or the generated page docs/remote-config-keys.md names a superseded ADR, since template-
-sync.sh deletes superseded ADRs from the apps; scripts/tests/ is left out, its data names old ADRs on purpose.
---mentions lists those files too. Files and ADRs not cleaned yet are listed in scripts/tests/history-refs-allow.txt
-(one path or `ADR-NNNN` per line); the list only shrinks, so an entry that is already clean is an error too.
+workflows, build files) or the generated page docs/remote-config-keys.md names a superseded ADR, since
+template-sync.sh deletes superseded ADRs from the apps; scripts/tests/ is left out, its data names old ADRs on
+purpose. --mentions lists those files too. Files and ADRs not cleaned yet are listed in
+scripts/tests/history-refs-allow.txt (one path or `ADR-NNNN` per line); the list only shrinks, so an entry that is
+already clean is an error too.
 HISTORY_REFS_ROOT overrides the repository root (tests). Messages are in Vietnamese for the team.
 """
 
