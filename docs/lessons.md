@@ -1389,6 +1389,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** mọi thanh đáy native nhỏ (`BottomAdBarScaffold`) có lớp native thu gọn nổi khi `is_show_native_collap` bật (D-01). Màn xem lại ảnh vừa chụp của camera-pose không được che ảnh và hàng nút, nên chỉ được có khe đáy. Tắt `is_show_native_collap` thì tắt cho cả app, nên app thêm thuộc tính khai báo `collapsibleLayer` vào `:core:ads` của mình và giữ nó qua mỗi đợt đồng bộ.
 - **Bằng chứng:** issue #498; PR VGL-Studio/camera-pose#346 (commit `4c2a437`); đoạn giữ phần riêng trong `docs/template-sync.txt` của camera-pose.
 - **Đề xuất sửa:** `AdPlacement` nhận `collapsibleLayer: Boolean = true`, chỉ chuyển vào `AdPlacementDeclaration` (kiểm khai báo: chỉ thanh đáy native nhỏ không có `nativeEvery` được tắt); `layerFormats` bỏ `NATIVE_COLLAPSIBLE` khi tắt; `bottomAdBarLayers` và `rememberBottomAdBarLayers` nhận tham số không có giá trị mặc định; D-01, MC-08 của `ads-business-rules.md`, mục 5 của `ads-guide.md` và ghi chú của `ads-plan.py` nói thuộc tính này.
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479; PR #521 merge theo lời anh Nhật "merge 520 và 521")
+- **Áp dụng:** PR #521: thuộc tính `collapsibleLayer` của `AdPlacement` (`AdPlacement.kt`, `AdUnitIds.kt`, `BottomAdBar.kt`), D-01 và MC-08 của `ads-business-rules.md`, mục 5 của `ads-guide.md`, ghi chú của `ads-plan.py`.
 
 ### L-178. Lần đo tạm của plan lấy trên bố cục có phần tử đè nhau; `didOverflowWidth` không phát hiện chữ bị cắt
 
@@ -1397,6 +1399,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** một plan sửa màn hình đo tạm vị trí thông báo lỗi ở màn ngang và chỉ ghi chiều cao; lúc đo, nút hành động của Snackbar một hàng vẽ đè lên đầu chữ, nên test viết trước khóa luôn số sai và phiên tự chạy phải dừng task khi code vẽ đúng. Plan khác kiểm nhãn không tràn bằng `TextLayoutResult.didOverflowWidth`: cờ bật cả trên code ở nhánh chính khi chữ vẫn hiện đủ, vì node co theo bề rộng chữ còn đoạn văn dựng theo cả bề rộng ràng buộc (Compose 1.9.1); phiên con phải đổi cách kiểm sau commit test.
 - **Bằng chứng:** issue #497; PR VGL-Studio/camera-pose#349 (sửa quy tắc).
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: lần đo tạm ghi cả vị trí tương đối của các phần tử cạnh nhau và mở ảnh lần đo vẽ ra. `CLAUDE.md`, bước 10: kiểm chữ không bị cắt bằng `getLineRight` so với bề rộng node, hay số dòng và `isLineEllipsized`; không dùng `didOverflowWidth`.
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479; PR #520 merge theo lời anh Nhật "merge 520 và 521")
+- **Áp dụng:** PR #520: `docs/CLAUDE.md`, Khi viết plan: lần đo tạm ghi vị trí tương đối; `CLAUDE.md`, bước 10: kiểm chữ bị cắt bằng `getLineRight` hay `isLineEllipsized`, không dùng `didOverflowWidth`.
 
 ### L-179. Code và trang sinh ra của mẫu còn dẫn ADR đã bị thay, mà `template-sync.sh` xóa các ADR đó khỏi app
 
@@ -1405,7 +1409,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** ADR-0023 đã bị ADR-0046 thay, và `template-sync.sh` xóa ADR bị thay khỏi app (ADR-0044); nhưng chú thích trong `:core:config`, `:app` và trang sinh ra `docs/remote-config-keys.md` vẫn dẫn ADR-0023, nên sau mỗi đợt đồng bộ app dẫn tới một ADR không còn trong repo. `scripts/history-refs.py` chỉ kiểm tài liệu Markdown. Kiểm ở mẫu ngày 2026-11-16: 13 ADR bị thay còn được dẫn ở 118 chỗ trong code, script, workflow và trang sinh ra; đợt đồng bộ camera-pose PR VGL-Studio/camera-pose#351 cũng thấy `scripts/release.sh` và `.github/workflows/staging.yml` còn dẫn ADR-0009, ADR-0016, ADR-0017.
 - **Bằng chứng:** issue #493; rà soát độc lập của PR camera-pose #351, ghi chú 6.
 - **Đề xuất sửa:** đổi mọi chỗ dẫn sang ADR thay nó (theo bảng "Mục mới ← ADR cũ" khi có số mục); `scripts/history-refs.py` kiểm cả file không phải Markdown và `docs/remote-config-keys.md`, trừ `scripts/tests/` (dữ liệu test cố ý dùng mã ADR cũ).
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Mọi ADR bị thay + kiểm tự động"; sửa mã ADR trong `scripts/release.sh`, `scripts/check.sh`, `.github/workflows/staging.yml` theo lựa chọn "Cho sửa, chỉ mã ADR")
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Mọi ADR bị thay + kiểm tự động"; sửa mã ADR trong `scripts/release.sh`, `scripts/check.sh`, `.github/workflows/staging.yml` theo lựa chọn "Cho sửa, chỉ mã ADR"; PR #523 merge theo lời anh Nhật "merge #522 và #523")
+- **Áp dụng:** PR #523: 118 chỗ dẫn 13 ADR đã bị thay trong code, script, workflow và trang sinh ra đổi sang ADR thay nó; `history-refs.py` kiểm cả file không phải Markdown, `--mentions` quét cả code; `docs/CLAUDE.md`, Khi viết ADR.
 
 ### L-180. Danh sách chạy lập ra rồi không dùng không có trạng thái đúng sự thật
 
@@ -1414,7 +1419,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** danh sách chạy chỉ có `draft | approved | running | finished`. Danh sách `draft` lập ra rồi không dùng để `draft` thì trang tiến độ mãi ghi "chờ duyệt" (ở camera-pose từ 2026-10-21); ghi `finished` thì sai, vì danh sách chưa chạy; xóa file thì trái quy tắc không xóa tài liệu.
 - **Bằng chứng:** issue #479.
 - **Đề xuất sửa:** trạng thái `cancelled` (người ghi, kèm lý do); `status.py` không đưa danh sách `cancelled` vào mục chờ người và không coi ticket của nó là đã vào danh sách; `run-check.py` từ chối kiểm danh sách `cancelled`; mẫu `run.md` và `docs/CLAUDE.md`, mục Khi lập danh sách chạy, nói trạng thái này.
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479)
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479; PR #522 merge theo lời anh Nhật "merge #522 và #523")
+- **Áp dụng:** PR #522: trạng thái `cancelled` ở mẫu `run.md`, `docs/CLAUDE.md` (Khi lập danh sách chạy) và `docs/README.md`; `run-check.py` từ chối danh sách `cancelled` (quy tắc 12); test của `status.py`.
 
 ### L-181. `wait-run.sh` mã 7, `resume-check.py` và `run-watchdog.py` coi mọi job tự host đang xếp hàng là máy runner hỏng và nhắc `HEAVY_RUNNER`, ở app có mô hình runner riêng
 
@@ -1423,7 +1429,8 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** sau đợt đồng bộ, ba script theo ADR-0042 chạy ở Photune, app chọn runner tự host chạy lâu dài cho mọi job bằng ADR của app (hai runner, mọi job mang nhãn của app, `ui-test` tới 60 phút). Ở đó job xếp hàng chờ runner kia là chuyện thường, nhưng `wait-run.sh` trả mã 7 sau 75 phút, `resume-check.py` không tự tiếp tục phiên khi có bất kỳ job `queued` nào mang nhãn không phải GitHub (không có ngưỡng thời gian), và `run-watchdog.py` ghi job đó vào issue `session-stalled`. Thông báo của cả ba bảo kiểm biến `HEAVY_RUNNER` và mục 8 của `self-hosted-runner.md`, không có nghĩa ở app không dùng biến đó. Ngưỡng chỉ đổi được bằng biến môi trường của lần gọi.
 - **Bằng chứng:** issue #492; ADR-1034 của Photune (mục Hệ quả, ghi chú 2026-11-14), `docs/ops/self-hosted-runner-app.md` của Photune, mục 7; lần chạy `main-guard` 43538320341 của Photune (API không trả job đang chờ `needs`).
 - **Đề xuất sửa:** tệp tùy chọn chỉ của app `scripts/runners-app.conf` (`KHÓA=giá trị`, chỉ đọc, không chạy như shell): `RUNNER_QUEUE_MINUTES` (ngưỡng của `wait-run.sh` và `run-watchdog.py`, biến môi trường vẫn thắng), `RUNNER_LABELS` (chỉ theo dõi job mang các nhãn này), `RUNNER_DOC` (thông báo dẫn tài liệu runner của app thay cho `HEAVY_RUNNER`). Ba script cùng đọc và kiểm tệp; `resume-check.py` chỉ đổi thông báo theo `RUNNER_DOC`, giữ chặn mọi job tự host đang chờ, không dùng ngưỡng hay bộ nhãn, vì job chờ dưới ngưỡng, hay mang nhãn quên ghi vào tệp, có thể là job mà phiên cũ vẫn đang chờ, tự tiếp tục lúc đó sẽ mở phiên thứ hai chồng lên.
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR")
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR"; PR #524 merge theo lời anh Nhật "merge 524")
+- **Áp dụng:** PR #524: `scripts/runners-app.conf` (`RUNNER_QUEUE_MINUTES`, `RUNNER_LABELS`, `RUNNER_DOC`) cho `wait-run.sh` và `run-watchdog.py`; `resume-check.py` chỉ đổi thông báo theo `RUNNER_DOC`, vẫn chặn mọi job tự host đang chờ.
 
 ### L-182. Test `runners:` của `scripts/tests/run.sh` đọc workflow thật, nên app có ADR runner riêng phải sửa tệp của mẫu
 
@@ -1432,4 +1439,5 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** phần test `runners:` và các test bước kiểm runner của `pr-check` trong `scripts/tests/run.sh` đọc `.github/workflows/*.yml` thật và đòi đúng mô hình của ADR-0042 (job nặng theo `HEAVY_RUNNER`, job nhẹ `ubuntu-latest`, bước `runner-check.sh`). Photune chọn mô hình khác bằng ADR của app (mọi job theo một biến runner của app, runner chạy lâu dài nên không có bước `runner-check.sh`), nên các test đó đỏ trên workflow đúng với ADR của app. App phải sửa `run.sh`, tệp "của dự án mẫu, app không sửa": Photune cho test đọc một bản sao workflow của mẫu trong `scripts/tests/fixtures/`, phải làm mới bản sao và gộp tay `run.sh` ở mỗi đợt đồng bộ.
 - **Bằng chứng:** issue #491; commit `e6c9e60d`, `040823a4` của Photune.
 - **Đề xuất sửa:** cùng tệp `scripts/runners-app.conf` của L-181: `RUNNER_TESTS=skip` cùng `RUNNER_ADR=ADR-NNNN` (bắt buộc khi skip) làm `run.sh` in dòng `skip - runners: app theo <ADR>` thay cho các test kiểm workflow thật theo ADR-0042; app tự kiểm workflow của mình trong `scripts/tests/app.sh`. Thiếu `RUNNER_ADR` khi skip là lỗi test.
-- **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR")
+- **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả hai, một PR"; PR #524 merge theo lời anh Nhật "merge 524")
+- **Áp dụng:** PR #524: `RUNNER_TESTS=skip` cùng `RUNNER_ADR` của `scripts/runners-app.conf` bỏ qua các test đọc workflow thật theo ADR-0042 trong `scripts/tests/run.sh`; `docs/ops/to-app.md` mục 2 và 6.
