@@ -214,6 +214,22 @@ class AdUnitIdsTest {
     }
 
     @Test
+    fun noCollapsibleLayer_layerFormatsBannerOnly() {
+        // A bottom bar declared without the floating layer (D-01) needs no collapsible slot key.
+        val bar = AdPlacementDeclaration("bar_r", AdFormat.NATIVE_SMALL, collapsibleLayer = false)
+        assertEquals(listOf(AdFormat.BANNER), bar.layerFormats)
+        assertEquals(listOf("banner"), missingUnitKeys(listOf(bar), setOf("bar_r")))
+        // Control: the default bottom bar has both layers and needs both slot keys.
+        val withLayer = AdPlacementDeclaration("bar_a", AdFormat.NATIVE_SMALL)
+        assertEquals(listOf(AdFormat.BANNER, AdFormat.NATIVE_COLLAPSIBLE), withLayer.layerFormats)
+        assertEquals(listOf("banner", "native_collap"), missingUnitKeys(listOf(withLayer), setOf("bar_a")))
+        assertEquals(
+            listOf("banner", "native_collap"),
+            missingUnitKeys(listOf(bar, withLayer), setOf("bar_r", "bar_a")),
+        )
+    }
+
+    @Test
     fun missingUnitsWarning_listsMissingKeys() {
         val placementUnits = "sample_native_small=unit/1;open_app=unit/3;open_app_inter=unit/4;" +
             "native_combo=unit/5;resume=unit/6;resume_inter=unit/7"
