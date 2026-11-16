@@ -1382,6 +1382,22 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Trạng thái:** applied (accepted, AI ghi theo lựa chọn của anh Nhật ở retro ngày 2026-11-16: "Nhận"; cách sửa lời giao việc ở `auto-run.md`, không thêm kiểm tra vào `check.sh`; PR #517 merge theo lời "merge #517")
 - **Áp dụng:** PR #517: lời giao việc chung cho phiên con (`auto-run.md`, mục Giao bước 3 đến 5) thêm vế đặt test trước KDoc của phần tử đứng sau.
 
+### L-177. Khung không cho một thanh đáy native tắt riêng lớp thu gọn nổi
+
+- **Ngày, nguồn:** 2026-11-15, camera-pose (issue #498; PR VGL-Studio/camera-pose#346, vị trí `review_bottom`)
+- **Loại, phạm vi:** quy tắc code, chung
+- **Chuyện gì:** mọi thanh đáy native nhỏ (`BottomAdBarScaffold`) có lớp native thu gọn nổi khi `is_show_native_collap` bật (D-01). Màn xem lại ảnh vừa chụp của camera-pose không được che ảnh và hàng nút, nên chỉ được có khe đáy. Tắt `is_show_native_collap` thì tắt cho cả app, nên app thêm thuộc tính khai báo `collapsibleLayer` vào `:core:ads` của mình và giữ nó qua mỗi đợt đồng bộ.
+- **Bằng chứng:** issue #498; PR VGL-Studio/camera-pose#346 (commit `4c2a437`); đoạn giữ phần riêng trong `docs/template-sync.txt` của camera-pose.
+- **Đề xuất sửa:** `AdPlacement` nhận `collapsibleLayer: Boolean = true`, chỉ chuyển vào `AdPlacementDeclaration` (kiểm khai báo: chỉ thanh đáy native nhỏ không có `nativeEvery` được tắt); `layerFormats` bỏ `NATIVE_COLLAPSIBLE` khi tắt; `bottomAdBarLayers` và `rememberBottomAdBarLayers` nhận tham số không có giá trị mặc định; D-01, MC-08 của `ads-business-rules.md`, mục 5 của `ads-guide.md` và ghi chú của `ads-plan.py` nói thuộc tính này.
+
+### L-178. Lần đo tạm của plan lấy trên bố cục có phần tử đè nhau; `didOverflowWidth` không phát hiện chữ bị cắt
+
+- **Ngày, nguồn:** 2026-11-15, camera-pose (issue #497; PR VGL-Studio/camera-pose#348, #349; bài học L-104, L-105 của app)
+- **Loại, phạm vi:** plan, chung
+- **Chuyện gì:** một plan sửa màn hình đo tạm vị trí thông báo lỗi ở màn ngang và chỉ ghi chiều cao; lúc đo, nút hành động của Snackbar một hàng vẽ đè lên đầu chữ, nên test viết trước khóa luôn số sai và phiên tự chạy phải dừng task khi code vẽ đúng. Plan khác kiểm nhãn không tràn bằng `TextLayoutResult.didOverflowWidth`: cờ bật cả trên code ở nhánh chính khi chữ vẫn hiện đủ, vì node co theo bề rộng chữ còn đoạn văn dựng theo cả bề rộng ràng buộc (Compose 1.9.1); phiên con phải đổi cách kiểm sau commit test.
+- **Bằng chứng:** issue #497; PR VGL-Studio/camera-pose#349 (sửa quy tắc).
+- **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: lần đo tạm ghi cả vị trí tương đối của các phần tử cạnh nhau và mở ảnh lần đo vẽ ra. `CLAUDE.md`, bước 10: kiểm chữ không bị cắt bằng `getLineRight` so với bề rộng node, hay số dòng và `isLineEllipsized`; không dùng `didOverflowWidth`.
+
 ### L-180. Danh sách chạy lập ra rồi không dùng không có trạng thái đúng sự thật
 
 - **Ngày, nguồn:** 2026-11-13, camera-pose (issue #479; danh sách `docs/runs/RUN-20261021-04.md` của camera-pose, trùng với RUN-20261022-01)

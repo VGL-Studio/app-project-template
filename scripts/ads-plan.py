@@ -441,6 +441,8 @@ def read_placements(with_staging):
                   if re.search(name + r"\s*=\s*true", attrs)]
         if re.search(r"recordInterval\s*=\s*false", attrs):
             extras.append("recordInterval = false")
+        if re.search(r"collapsibleLayer\s*=\s*false", attrs):
+            extras.append("collapsibleLayer = false")
         placements.append({
             "code": code, "format": formats.get(fmt, fmt.lower()), "wide": "Có" if "appWide = true" in attrs else "Không",
             "group": group[0] if group else None, "seconds": group[1] if group else None,
