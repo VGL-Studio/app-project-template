@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: confirmed                # draft | confirmed | changed
+status: changed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -799,6 +799,10 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 64. **Kích thước ba biến thể native theo số của JBase hay nội suy giữa các mốc?** (KB-32, câu hỏi 48, thiết kế T-064)
     - Bối cảnh: theo bản phân tích mã JBase ngày 2026-10-29 (mã nguồn JBase không có trong repo, các số dưới chưa đối chiếu lại với dòng mã), JBase cũng nội suy tuyến tính chiều cao native nhỏ và medium (lớp `NativeAdsManager`, hằng `NATIVE_BANNER_MIN_HEIGHT_DP`, `NATIVE_BANNER_MAX_HEIGHT_DP`, `NATIVE_MREC_MIN_HEIGHT_DP`, `NATIVE_MREC_MAX_HEIGHT_DP`). Chỗ khác với cách vẽ của T-064: lớp thu gọn của JBase đặt ảnh 180 dp trong vùng 160 tới 200 dp (`gnt_collapsible_banner_template_view.xml`, hằng `COLLAPSIBLE_AREA_MIN_DP`, `COLLAPSIBLE_AREA_MAX_DP`); medium của JBase nội suy theo chiều cao màn hình 600 tới 900 dp. Khe đáy (90 tới 200 dp theo bề rộng 320 tới 600 dp) trùng JBase.
     - Trả lời: anh Nhật quyết trong phiên vẽ thiết kế T-064 (2026-11-14): kích thước không theo số riêng của JBase mà nội suy tuyến tính giữa các mốc; mốc của lớp thu gọn (bề rộng 320 và 600 dp) và của medium (chiều cao 640 và 891 dp, khung thấp và khung chuẩn của ADR-0020) do thiết kế chọn, anh Nhật duyệt cùng thiết kế ("Duyệt."). Ngày 2026-11-15 anh Nhật xác nhận phạm vi ("Xác nhận."): quyết định chỉ áp cho kích thước của ba biến thể native; JBase vẫn đứng thứ hai trong thứ tự phân xử nghiệp vụ quảng cáo (ADR-0045, mục 1.2), các luật khác đã đổi theo JBase (K-02, K-03, CL-03, S-03, S-12, B-01, nút thu gọn 27 dp góc trên trái) giữ nguyên.
+65. **Native nhỏ ở đáy và lớp thu gọn ở màn ngang, chia đôi màn hình?** (KB-1, KB-4, KB-32, rà soát độc lập PR #512)
+    - Bối cảnh: từ T-065, khe đáy và lớp thu gọn nội suy theo bề rộng màn hình. Điện thoại 411 x 891 dp xoay ngang có bề rộng 891 dp: khe kẹp ở 200 dp, lớp thu gọn khoảng 400 dp cộng lề 16 dp, cao hơn màn 411 dp, phủ hết nội dung (tính trên giấy, chưa có test ở khung `w891dp-h411dp`). Trước T-065 là khe 80 dp, lớp 250 dp. App không khóa hướng màn hình.
+    - Đề xuất của AI: (1) khe đáy và lớp thu gọn nội suy theo cạnh ngắn của cửa sổ (nhỏ hơn giữa bề rộng và chiều cao), không theo bề rộng: điện thoại dọc không đổi, điện thoại ngang dùng như dọc (126 dp và 299 dp ở 411 dp); (2) thêm trần theo chiều cao cửa sổ: lớp thu gọn (kể cả lề) không cao quá nửa chiều cao cửa sổ; chạm trần thì vùng ảnh của lớp co trước, không dưới 120 dp (KB-2 tiêu chí 1); vẫn không vừa thì không mở lớp thu gọn, chỉ có khe native nhỏ (như khi đã thu gọn). Medium đã theo chiều cao cửa sổ (kẹp ở 320 dp), không đổi. Số trần cụ thể và ảnh chuẩn ở khung ngang do plan đo và chốt.
+    - Trả lời: anh Nhật, trong phiên ngày 2026-11-16, trả lời ba hướng (a) cạnh ngắn, (b) trần theo chiều cao, (c) chấp nhận như JBase mà rà soát nêu: "Màn ngang: Theo đề xuất của AI." Đề xuất ở dòng trên ghép (a) và (b), AI viết sau lời trả lời; anh Nhật xác nhận chữ này khi xác nhận spec (ticket T-107).
 
 ## 10. Lịch sử
 
@@ -850,3 +854,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trên PR #503: "Xác nhận spec ads (câu hỏi 41, KB-31), duyệt plan T-069". Chuyển sang `confirmed` |
 | 2026-11-15 | AI | Theo plan T-072 (câu hỏi 46; plan T-071, câu hỏi 8): mục 6 ghi `ad_platform` của doanh thu MAX và của `ad_load_success`, `ad_load_fail`, `ad_clicked`, lý do `ad_show_fail` của MAX, `mediation_network` của AppsFlyer, `ad_source` của phễu lượt MAX. Chuyển sang `changed`, chờ anh Nhật xác nhận cùng lời duyệt đợt 2026-11-15-01 |
 | 2026-11-15 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-15, trên PR #505: "Xác nhận spec ads (mục 6), duyệt plan T-106, T-070, T-072 theo đề xuất ở mục 8, chấp nhận kiểm thủ công thay chạy thử cho T-106, phiên tự chạy." Chuyển sang `confirmed` |
+| 2026-11-16 | AI | Theo trả lời của anh Nhật trong phiên ngày 2026-11-16 ("Màn ngang: Theo đề xuất của AI."): thêm câu hỏi 65 (khe đáy và lớp thu gọn ở màn ngang, chia đôi màn hình theo cạnh ngắn của cửa sổ, lớp thu gọn có trần nửa chiều cao cửa sổ), tách ticket T-107. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ của đề xuất |
