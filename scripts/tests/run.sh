@@ -5073,6 +5073,13 @@ write_run_plan T-002 feature/demo/B.kt '| KB-1 | Unit | `bTest` |'
 write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 expect "run-check: a ready list passes" pass "$(run_check)"
 expect "run-check: a ready list has no warning" 0 "$(grep -c 'CHÚ Ý' "$work/run-check.out")"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)" cancelled
+expect "run-check: a cancelled list is refused, so nobody approves it again" "stop 1" \
+  "$(run_check) $(grep -c 'cancelled' "$work/run-check.out")"
+expect "run-check --batch: a cancelled list is refused too, without the hint to run again without --batch" "1 1 0" \
+  "$(RUN_CHECK_ROOT="$rr" PLAN_CHECK_ROOT="$rr" RUN_CHECK_BASE=HEAD python3 -I scripts/run-check.py --batch "$rr/docs/runs/RUN-1.md" > "$work/run-check-batch.out" 2>&1; echo $?) $(
+    grep -c 'danh sách đã cancelled' "$work/run-check-batch.out") $(grep -c 'chỉ dùng cho danh sách draft' "$work/run-check-batch.out" || true)"
+write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
 # The start field: auto or manual, and auto only with open_with routine in the file (T-104).
 rc_start() { # <start line> <open_with line>; the list with these front matter lines
   write_run "$(run_row 1 T-001)$(run_row 2 T-002)"
@@ -5991,6 +5998,26 @@ expect "status: only the text after the first colon decides \"không có\"" 1 \
   "$(grep -c 'T-040: ghi chú, không có test cho trường hợp revert$' "$page" || true)"
 expect "status: items after the next heading and the done items are not listed" "0 0 0 6" \
   "$(grep -c 'Không phải việc' "$page" || true) $(grep -c 'Đã xem ảnh' "$page" || true) $(grep -c 'issue flaky' "$page" || true) $(grep -c '^- \[RUN-20261004-01\]' "$page" || true)"
+# A cancelled run list (never run) waits for nobody and holds no ticket; the session table still lists it.
+sc="$work/status-cancel/docs"
+mkdir -p "$sc/features/demo/tickets" "$sc/features/demo/plans" "$sc/runs"
+printf -- '---\nfeature: demo\nstatus: confirmed\n---\n' > "$sc/features/demo/spec.md"
+printf -- '---\ntitle: Ba\nstatus: approved\n---\n' > "$sc/features/demo/tickets/T-003-ba.md"
+printf -- '---\nstatus: approved\nversion: 1\n---\n' > "$sc/features/demo/plans/T-003-ba.md"
+write_status_run() { # <id> <status>
+  printf -- '---\nid: %s\nstatus: %s\n---\n\n## 1. Danh sách chạy\n\n| 1 | T-003 | demo |\n\n## 2. Khác\n' "$1" "$2" > "$sc/runs/$1.md"
+}
+write_status_run RUN-20261007-01 cancelled
+STATUS_ROOT="$work/status-cancel" python3 -I scripts/status.py > /dev/null
+cpage="$sc/STATUS.md"
+expect "status: a cancelled run list does not wait for approval, and its ticket is in no list again" "0 1 1" \
+  "$(grep -c 'RUN-20261007-01.md' <<< "$(awk '/^## 1\./ { s = 1; next } /^## / { s = 0 } s' "$cpage")" || true) $(
+    grep -c 'Ticket đã duyệt, chưa vào danh sách chạy nào: .*T-003' "$cpage" || true) $(grep -c 'cancelled' "$cpage" || true)"
+write_status_run RUN-20261007-01 draft
+STATUS_ROOT="$work/status-cancel" python3 -I scripts/status.py > /dev/null
+expect "status: control: the same list as draft waits for approval and holds its ticket" "1 0" \
+  "$(grep -c 'Danh sách chạy .draft. chờ duyệt: .*RUN-20261007-01' "$cpage" || true) $(
+    grep -c 'Ticket đã duyệt, chưa vào danh sách chạy nào: .*T-003' "$cpage" || true)"
 expect "status: the run template still has the manual check section" yes \
   "$(awk '/^### Cần người kiểm tra$/ { s = 1; next } s && /^- \[ \] / { found = 1 } END { print (found ? "yes" : "no") }' docs/templates/run.md)"
 expect "status: manual checks skip runs not finished" "0 1" \

@@ -1397,4 +1397,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** một plan sửa màn hình đo tạm vị trí thông báo lỗi ở màn ngang và chỉ ghi chiều cao; lúc đo, nút hành động của Snackbar một hàng vẽ đè lên đầu chữ, nên test viết trước khóa luôn số sai và phiên tự chạy phải dừng task khi code vẽ đúng. Plan khác kiểm nhãn không tràn bằng `TextLayoutResult.didOverflowWidth`: cờ bật cả trên code ở nhánh chính khi chữ vẫn hiện đủ, vì node co theo bề rộng chữ còn đoạn văn dựng theo cả bề rộng ràng buộc (Compose 1.9.1); phiên con phải đổi cách kiểm sau commit test.
 - **Bằng chứng:** issue #497; PR VGL-Studio/camera-pose#349 (sửa quy tắc).
 - **Đề xuất sửa:** `docs/CLAUDE.md`, mục Khi viết plan: lần đo tạm ghi cả vị trí tương đối của các phần tử cạnh nhau và mở ảnh lần đo vẽ ra. `CLAUDE.md`, bước 10: kiểm chữ không bị cắt bằng `getLineRight` so với bề rộng node, hay số dòng và `isLineEllipsized`; không dùng `didOverflowWidth`.
+
+### L-180. Danh sách chạy lập ra rồi không dùng không có trạng thái đúng sự thật
+
+- **Ngày, nguồn:** 2026-11-13, camera-pose (issue #479; danh sách `docs/runs/RUN-20261021-04.md` của camera-pose, trùng với RUN-20261022-01)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** danh sách chạy chỉ có `draft | approved | running | finished`. Danh sách `draft` lập ra rồi không dùng để `draft` thì trang tiến độ mãi ghi "chờ duyệt" (ở camera-pose từ 2026-10-21); ghi `finished` thì sai, vì danh sách chưa chạy; xóa file thì trái quy tắc không xóa tài liệu.
+- **Bằng chứng:** issue #479.
+- **Đề xuất sửa:** trạng thái `cancelled` (người ghi, kèm lý do); `status.py` không đưa danh sách `cancelled` vào mục chờ người và không coi ticket của nó là đã vào danh sách; `run-check.py` từ chối kiểm danh sách `cancelled`; mẫu `run.md` và `docs/CLAUDE.md`, mục Khi lập danh sách chạy, nói trạng thái này.
 - **Trạng thái:** accepted (AI ghi theo lựa chọn của anh Nhật ngày 2026-11-16: "Nhận cả ba" cho #498, #497, #479)
