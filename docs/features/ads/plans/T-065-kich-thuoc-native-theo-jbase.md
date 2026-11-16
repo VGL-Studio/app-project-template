@@ -1,16 +1,16 @@
 ---
 ticket: T-065
 title: Code kích thước native theo JBase
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20.2M        # cỡ M, số gợi ý 20.2M (scripts/token-usage.py estimate, 2026-11-15), không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
+approved_at: 2026-11-16
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -327,7 +327,7 @@ Kết quả `scripts/existing-tests.py` (2026-11-15): 211 test dùng tên hay ta
 1. **Nút thu gọn 27 dp góc trên trái và AdChoices góc trên phải.** Theo spec (câu hỏi 48, 64, KB-32 tiêu chí 3) và thiết kế T-064; code hôm nay chưa làm. Plan làm trong T-065, gồm đổi góc AdChoices xin từ SDK. Chỉ cần người duyệt xác nhận phạm vi ticket gồm phần này.
 2. **Native nhỏ ở khe đứng riêng và hàng trong danh sách.** Thiết kế đặt số "khe đáy theo bề rộng màn hình"; `ads-guide.md` ghi native nhỏ nói chung "cao theo bề rộng màn hình, cùng một hàm". Đề xuất: mọi `NativeAdSize.SMALL` dùng cùng hàm và bố cục (một component `Native/Small`). Phương án khác: khe đứng riêng giữ 80 dp và bố cục cũ, thêm biến thể riêng.
 3. **Làm tròn.** Nội suy cho số lẻ (125,75 dp ở 411 dp); thiết kế ghi 126. Đề xuất: làm tròn tới dp nguyên gần nhất. Phương án khác: giữ số lẻ (ảnh chuẩn có thể lệch nửa điểm ảnh giữa các máy).
-4. **Giới hạn 120 dp của CTA native nhỏ (T-060).** Thiết kế ghi CTA "rộng theo chữ", không ghi trần. CTA 18 sp dài không có trần thì chiếm hết chỗ của tiêu đề (lỗi T-060 sửa). Đề xuất: giữ trần 120 dp, giữ hai test 120 dp của T-060; chỉ viết lại câu "CTA ngắn rộng đúng 80 dp" thành "CTA ngắn hiện đủ chữ, rộng 80 tới 120 dp" (chữ 18 sp làm "Install" rộng 83,33 dp, đo ở mục 4.1; ở cỡ chữ 2.0 rộng 117,33 dp, vẫn dưới 120) và câu chiều cao 80 dp thành 126 dp. Phương án khác: bỏ trần, viết lại hai test theo ADR-0031 với điều kiện tiêu đề còn ít nhất 4 ký tự và "Ad" hiện đủ.
+4. **Giới hạn 120 dp của CTA native nhỏ (T-060).** Thiết kế ghi CTA "rộng theo chữ", không ghi trần. CTA 18 sp dài không có trần thì chiếm hết chỗ của tiêu đề (lỗi T-060 sửa). Đề xuất: giữ trần 120 dp, giữ hai test 120 dp của T-060; chỉ viết lại câu "CTA ngắn rộng đúng 80 dp" thành "CTA ngắn rộng 83,33 dp, sai số 0,5" (phép bằng, mục 3.5, mục 4; chữ 18 sp làm "Install" rộng 83,33 dp, đo ở mục 4.1; ở cỡ chữ 2.0 rộng 117,33 dp, vẫn dưới 120) và câu chiều cao 80 dp thành 126 dp. Phương án khác: bỏ trần, viết lại hai test theo ADR-0031 với điều kiện tiêu đề còn ít nhất 4 ký tự và "Ad" hiện đủ.
 5. **Nguồn chiều cao màn hình của medium.** Plan đọc `Configuration.screenHeightDp` (Robolectric khung h891 cho 891). Trên máy Android 14 trở xuống số này trừ thanh hệ thống, nên medium thấp hơn vài dp so với máy Android 15 cùng màn. Đề xuất: chấp nhận, như banner đang đọc `screenWidthDp`. Phương án khác: đọc `LocalWindowInfo.current.containerSize`.
 6. **Chạy thử.** Plan không chạy `scripts/check.sh` vì E là 1. Đã đo bằng test tạm hai lần (mục 4.1): lần 1 ngày 2026-11-15 (đáy nút "Tap", bề rộng CTA "Install"); lần 2 ngày 2026-11-16 (`TmpT065MeasureTest`, commit `d3c23b08`): native nhỏ ở cỡ chữ 1.0 tới 2.0 tại 320, 360, 411 dp, medium ở 640 và 891 dp, trên bố cục dựng lại bằng composable tạm. Phần còn chưa chắc (bố cục thật khác composable tạm) có phương án dự phòng ở mục 3.4. Đề xuất: như vậy.
 7. **Medium ở khung thấp 640 dp (chặn của rà soát).** Thẻ 320 dp trừ phần cố định khoảng 218 dp (đầu thẻ, mô tả, CTA, lề, khoảng cách) thì media còn khoảng 102 dp (90 dp với `cta_large`), dưới 120 dp của KB-2 tiêu chí 1 (sàn MediaView của AdMob). Phương án: (a) giữ cách của plan T-045, thẻ cao thêm cho media giữ 120 dp (khoảng 338 dp, 350 dp với `cta_large`), lệch KB-32 tiêu chí 3 ở khung thấp; (b) ở khung thấp bớt phần cố định (mô tả một dòng, khoảng cách 8 dp) để thẻ giữ 320 dp và media 120 dp; (c) đổi mốc thấp của medium (ví dụ 340 dp ở 640 dp), cần sửa spec KB-32 và câu hỏi 64. Đề xuất: (b), không phải sửa spec. Ảnh `AdGalleryScreen_default_small.png` phụ thuộc câu này.
@@ -340,3 +340,11 @@ Kết quả `scripts/existing-tests.py` (2026-11-15): 211 test dùng tên hay ta
 12. **Medium ở màn 891 dp, cỡ chữ 2.0 cao 406 dp (418 dp với `cta_large`).** Plan T-045 hứa "thẻ medium giữ chiều cao tới cỡ chữ 2.0"; với bố cục T-064 (icon 44 dp, CTA 18 sp, đầu thẻ 60 dp) số đo cho thấy media xuống 114 dp (102 dp) nếu giữ 400 dp, dưới sàn 120 dp của KB-2. Plan giữ sàn 120 dp và để thẻ cao thêm 6 dp (18 dp), theo cách của T-045 khi media chạm sàn; KDoc của `NativeAdDimens.heightOf` và `MediumLayout` viết lại (mục 3.1 bước 3, mục 3.2). Đề xuất: chấp nhận. Phương án khác: ở cỡ chữ 2.0 dùng luôn bố cục khung thấp ở màn 891 dp để giữ 400 dp (thêm điều kiện theo cỡ chữ, cần test riêng).
 13. **Ghi chú ở spec cho hai quy tắc mới.** Plan ghi hai quy tắc (native nhỏ từ cỡ chữ 1.5 "Ad" ở dòng mô tả; medium khung thấp) vào `ads-business-rules.md` (O-08, bảng 5.7) và README thiết kế, không sửa spec theo lời trả lời câu hỏi 7. Spec KB-32 tiêu chí 3 và câu hỏi 48 ghi "chữ, icon, CTA theo JBase". Đề xuất: không sửa spec; hai quy tắc là cách giữ KB-1 (cỡ chữ 200%) và KB-2 tiêu chí 1 ở chỗ thiết kế không phủ. Phương án khác: thêm một câu ghi chú vào KB-32 (spec chuyển `changed`, cần người xác nhận spec duyệt lại cùng plan).
 14. **Dòng dưới của native nhỏ còn 1 dòng từ cỡ chữ 1.5 (AI chọn, chờ người xác nhận).** Lời trả lời câu hỏi 8 chỉ nói nhãn "Ad" xuống dòng mô tả. Plan thêm: cùng ngưỡng 1.5, chữ dòng dưới (mô tả khi không có nhà quảng cáo) `maxLines = 1`. Lý do: khe 90 dp (màn 320 dp) tràn khi dòng dưới 2 dòng từ cỡ chữ 1.5 (cột chữ 91,7 dp; 1 dòng 63,7 dp, mục 4.1); khe 106 dp tràn ở 2.0 (112 dp). Đề xuất: như vậy ở mọi khung, một quy tắc. Phương án khác: chỉ giới hạn theo chỗ còn lại trong khe (2 dòng khi vừa, ví dụ màn 411 dp), đo bằng `Layout`; phức tạp hơn và cần thêm test theo khung.
+
+## 9. Quyết định duyệt
+
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-16 (ADR-0048, phần C), nguyên văn: "Duyệt plan T-065, câu 1–6, 9–14 theo đề xuất". Câu 7 và 8 đã trả lời trước đó (mục 8). Câu 1–6, 9–14 theo đề xuất của mục 8: câu 11 ngưỡng `MediumCompactBelow = 350.dp` một ngưỡng cho cả hai kiểu CTA; câu 12 medium ở màn 891 dp cỡ chữ 2.0 cao 406/418 dp; câu 13 không sửa spec, hai quy tắc ghi ở `ads-business-rules.md` và README thiết kế; câu 14 dòng dưới của native nhỏ `maxLines = 1` từ cỡ chữ 1.5. Các câu viết lại theo ADR-0031 ở mục 3.5 duyệt cùng plan.
+
+## 10. Nhật ký thực hiện
