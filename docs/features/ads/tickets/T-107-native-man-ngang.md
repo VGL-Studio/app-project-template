@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1, KB-4, KB-32, KB-33]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
 depends_on: [T-065]
 sprint:
-plan:
+plan: features/ads/plans/T-107-native-man-ngang.md
 auto_run:
 created: 2026-11-16
 ---
