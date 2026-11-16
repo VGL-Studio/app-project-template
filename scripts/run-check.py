@@ -41,6 +41,8 @@ documents behind it, the mistakes that stopped or slowed earlier sessions:
      other status, and every other check, is unchanged. A list that is not draft is an error with --batch, since an
      approved list must pass without it. A diff git cannot read is an error and nothing is waived. The base is
      RUN_CHECK_BASE (tests) or origin/main; the caller runs `git fetch origin` first.
+  12. A list whose status is cancelled (never run, not used any more) is refused before any other check, with or
+     without --batch, so nobody approves it again.
 RUN_CHECK_ROOT overrides the repository root (tests). RUN_CHECK_OPEN_WITH overrides `open_with` (a session opened
 another way than the list says). Messages are in Vietnamese for the team.
 """

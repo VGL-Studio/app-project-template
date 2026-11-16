@@ -112,7 +112,7 @@ Trạng thái được ghi ở trường `status` trong phần đầu (frontmatt
 | ADR | `proposed` → `accepted`, sau này có thể `superseded` |
 | Khảo sát app mẫu | `draft` → `reviewed` |
 | Đề xuất app | `draft` → `approved` |
-| Phiên tự chạy | `draft` → `approved` → `running` → `finished` |
+| Phiên tự chạy | `draft` → `approved` → `running` → `finished`, hoặc `cancelled` khi chưa chạy mà không dùng nữa |
 
 ## Nguyên tắc chung
 
