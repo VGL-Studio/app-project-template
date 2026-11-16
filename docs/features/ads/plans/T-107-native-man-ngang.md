@@ -1,16 +1,16 @@
 ---
 ticket: T-107
 title: Khe đáy và lớp thu gọn ở màn ngang, chia đôi màn hình
-status: draft                # draft | approved | stopped | done
+status: approved                # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
 token_estimate: 20.2M        # cỡ M, số gợi ý 20.2M (scripts/token-usage.py estimate, 2026-11-16), không chỉnh
 blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật
+cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
+approved_at: 2026-11-16
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -287,8 +287,8 @@ Kết quả `scripts/existing-tests.py` (2026-11-16): 598 test dùng tên hay ta
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** Duyệt
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, `risk-scoring.md` mục 3)
+- **Ghi chú:** AI ghi theo lời anh Nhật trong phiên ngày 2026-11-16 (ADR-0048, phần C), nguyên văn: "Duyệt plan T-107, câu 1–8 theo đề xuất. Làm luôn trong phiên này." Câu 1 tới 8 theo đề xuất của mục 8 (câu 8: chấp nhận theo câu hỏi 65, máy gập mở ra xoay ngang không có lớp thu gọn).
 
 ## 10. Nhật ký thực hiện
