@@ -132,7 +132,8 @@ FORMATS = [
      "BANNER_MREC", "Khe", "Không có", "is_show_<mã>, time_reload_banner_mrec"),
     ("native_small", "Native nhỏ / thanh đáy", "Trong nội dung, hoặc thanh đáy của một màn",
      "NativeAdSlot(placement); thanh đáy: BottomAdBarScaffold",
-     "Cao 80 dp, không có media. Thanh đáy: khe đáy 80 dp (native hoặc banner) + lớp native thu gọn 250 dp nổi trên",
+     "Cao 106 dp ở cỡ chữ mặc định, cao thêm theo chữ, không có media. Thanh đáy: khe đáy (D-02) + lớp native thu "
+     "gọn nổi trên; lúc lớp mở khe không có quảng cáo (D-07)",
      "Thay nội dung tại chỗ theo time_reload_native_small (mặc định 60 giây; 0 là không thay), chỉ khi app ở "
      "foreground; hàng trong danh sách không thay", "NATIVE_SMALL", "Khe", "af_native_*",
      "is_show_<mã>, time_reload_native_small; thanh đáy: is_show_native_bottom, is_show_native_collap, "
@@ -156,7 +157,8 @@ FORMATS = [
      "NATIVE_FULL", "Toàn màn hình", "af_native_*", "is_show_<mã>"),
     ("native_collap", "Lớp native thu gọn (không phải vị trí)", "Chỉ nổi trên thanh đáy, đi theo vị trí của thanh đáy",
      "Tự có trong BottomAdBarScaffold",
-     "Cao 250 dp, nút thu gọn 32 dp góc trên phải; tự bung lại sau time_expand_collap_ad giây",
+     "Cao theo cửa sổ (299 dp ở 411 dp, mục 5.7), nút thu gọn 27 dp góc trên trái; tự bung lại sau "
+     "time_expand_collap_ad giây; lúc lớp mở, khe đáy nhường, không có quảng cáo (D-07)",
      "Thay nội dung theo time_reload_collap_ad (mặc định 60 giây; 0 là không thay), giữ trạng thái thu gọn",
      "NATIVE_COLLAP", "Khe", "af_native_*",
      "is_show_native_bottom, is_show_native_collap, time_expand_collap_ad, time_reload_collap_ad"),
@@ -224,9 +226,12 @@ KNOWN_KEYS = {
                           "Đếm ngược trước khi đóng được native toàn màn hình (combo và lượt độc lập).",
                           "Đọc lúc màn native mở. Chỉ đặt quá 5 giây khi đã kiểm chính sách của AdMob.", "JBase"),
     "is_show_native_bottom": ("Thanh đáy", "true", "true / false",
-                              "Khe đáy của mọi thanh đáy: true là native nhỏ 80 dp, false là banner.",
+                              "Khe đáy của mọi thanh đáy: true là native nhỏ (106 dp ở cỡ chữ mặc định), false là "
+                              "banner.",
                               "Từng màn có thanh đáy vẫn cần is_show_<mã vị trí> bật.", "AdsKit"),
-    "is_show_native_collap": ("Thanh đáy", "true", "true / false", "Lớp native thu gọn 250 dp nổi trên khe đáy.",
+    "is_show_native_collap": ("Thanh đáy", "true", "true / false",
+                              "Lớp native thu gọn nổi trên khe đáy, cao theo cửa sổ; lúc lớp mở, khe đáy không có "
+                              "quảng cáo.",
                               "Chỉ có tác dụng khi is_show_native_bottom = true. Tắt lớp này không mất khe đáy.", "ta đặt"),
     "time_expand_collap_ad": ("Thanh đáy", "10", "giây; 0 = không bung lại",
                               "Thời gian từ lúc người dùng thu gọn tới lúc lớp native thu gọn tự bung lại.",
@@ -374,7 +379,8 @@ CONSTANTS = [
     ("Mức sàn của nhịp làm mới", "30 giây"),
     ("Trễ nhịp đầu của khe đáy native khi có lớp thu gọn", "500 ms"),
     ("Đếm ngược native sau inter", "3 giây"),
-    ("Chiều cao: lớp native thu gọn / thẻ native_step / khe đáy native", "250 dp / 250 dp / 80 dp"),
+    ("Chiều cao: lớp native thu gọn / thẻ native_step / khe đáy native",
+     "theo cửa sổ (299 dp ở 411 dp) / 250 dp / 106 dp ở cỡ chữ mặc định"),
     ("Cỡ pool: native_in_collection / native_step / native_medium", "5 / 3 / 3 quảng cáo"),
     ("Trần cờ đang hiện quảng cáo toàn màn hình", "10 phút"),
     ("Chờ một lần quyết định rewarded", "5 giây, quá thì coi như chưa có quảng cáo"),

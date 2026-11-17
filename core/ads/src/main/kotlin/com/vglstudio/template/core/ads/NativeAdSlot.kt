@@ -72,9 +72,11 @@ internal fun nativeSlotAllowed(canRequestAds: Boolean, enabled: Boolean, unitId:
  * Draws the slot while [allowed], nothing otherwise, and reports availability to the app: true on an ad, false on
  * no ad, never while loading; and false when [allowed] turns false after true was reported (L-061).
  * [onTakesSpaceChange] gets whether the slot takes space now, at each state: true while it loads (the placeholder
- * always shows then; [placeholderWhenEmpty] only chooses what fills the kept space of a pool cell with no ad), while
+ * shows then; [placeholderWhenEmpty] only chooses what fills the kept space of a pool cell with no ad), while
  * the ad shows, and with no ad when [keepSpaceWhenEmpty] keeps the space; false once it draws nothing (no ad without
- * [keepSpaceWhenEmpty], or no longer [allowed]). A bottom bar keeps exactly that space for the content (D-04). With
+ * [keepSpaceWhenEmpty], or no longer [allowed]). [placeholderWhileLoading] false (the native slot of a bottom bar
+ * coming back after the collapsible layer when it had shrunk to 0, D-07, plan T-090): nothing drawn while it loads,
+ * and no space taken until its ad arrives. A bottom bar keeps exactly that space for the content (D-04). With
  * [onPoolOpportunity] the slot is a cell of a pool ([NativeAdCellHost]): it records the opportunity of P-07, seen
  * while [viewed]; [cardHeight] is the height of its card placeholders (the caller passes it to the card it draws).
  */
@@ -93,6 +95,7 @@ internal fun NativeAdSlotGate(
     onScreen: Boolean = true,
     cardHeight: Dp? = null,
     onTakesSpaceChange: (Boolean) -> Unit = {},
+    placeholderWhileLoading: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     // `af_native_ad_eligible` once each time the slot comes on screen allowed (plan T-033): a page of a pager kept in
@@ -125,7 +128,7 @@ internal fun NativeAdSlotGate(
             reported.available = available
             currentOnChange(available)
         }
-        val takesSpace = available != false || keepSpaceWhenEmpty
+        val takesSpace = (available ?: placeholderWhileLoading) || keepSpaceWhenEmpty
         if (takesSpace != reported.takesSpace) {
             reported.takesSpace = takesSpace
             currentOnTakesSpace(takesSpace)
@@ -154,6 +157,7 @@ internal fun NativeAdSlotGate(
         keepSpaceWhenEmpty = keepSpaceWhenEmpty,
         modifier = modifier,
         onStateChange = onStateChange,
+        placeholderWhileLoading = placeholderWhileLoading,
         adContent = adContent,
     )
 }
@@ -175,6 +179,7 @@ internal fun requireNativeFormat(format: AdFormat): NativeAdSize = when (format)
 /**
  * Collects [states] while in composition (not by lifecycle: the ad loads again only when the screen is entered
  * again). Leaving the composition cancels the collection, which destroys the ad. [onStateChange] gets each new state.
+ * [placeholderWhileLoading] false draws nothing while loading.
  */
 @Composable
 internal fun NativeAdSlotHost(
@@ -183,6 +188,7 @@ internal fun NativeAdSlotHost(
     keepSpaceWhenEmpty: Boolean,
     modifier: Modifier,
     onStateChange: (NativeAdState) -> Unit = {},
+    placeholderWhileLoading: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     val state by states.collectAsState(initial = NativeAdState.Loading)
@@ -190,13 +196,20 @@ internal fun NativeAdSlotHost(
     // The value of this composition, not the delegate: the effect may run after a newer state arrived.
     val shown = state
     LaunchedEffect(shown) { currentOnStateChange(shown) }
-    NativeAdSlotContent(shown, size, keepSpaceWhenEmpty, modifier, adContent = adContent)
+    NativeAdSlotContent(
+        shown,
+        size,
+        keepSpaceWhenEmpty,
+        modifier,
+        placeholderWhileLoading = placeholderWhileLoading,
+        adContent = adContent,
+    )
 }
 
 /**
  * What the slot draws for [state]; [ctaLarge] sizes the placeholder and the kept space of a medium ad with the large
  * call to action. [contentModifier] wraps the placeholder and the ad, never the empty state. [cardHeight] is the height
- * of the loading placeholder of a card.
+ * of the loading placeholder of a card. [placeholderWhileLoading] false draws nothing while loading (plan T-090).
  */
 @Composable
 internal fun NativeAdSlotContent(
@@ -207,12 +220,15 @@ internal fun NativeAdSlotContent(
     ctaLarge: Boolean = false,
     contentModifier: Modifier = Modifier,
     cardHeight: Dp? = null,
+    placeholderWhileLoading: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (state) {
             NativeAdState.Loading ->
-                Box(contentModifier) { NativeAdPlaceholder(size, ctaLarge = ctaLarge, cardHeight = cardHeight) }
+                if (placeholderWhileLoading) {
+                    Box(contentModifier) { NativeAdPlaceholder(size, ctaLarge = ctaLarge, cardHeight = cardHeight) }
+                }
             // A new NativeAdView for each ad: the binder registers a view once, so a swapped ad is bound only
             // in a fresh frame (refresh in place, plan T-040).
             is NativeAdState.Loaded -> Box(contentModifier) { key(state.ad) { adContent(state.ad) } }
@@ -232,6 +248,8 @@ internal fun NativeAdSlotContent(
  * ([onTakesSpaceChange]: placeholder or ad, D-04), with its first refresh [firstRefreshExtraMillis] later
  * than the interval of `time_reload_native_small` (section 5.7). The stream is built once per placement: a new extra
  * (the layer turned on or off) applies from the next slot, without destroying the ad or loading again.
+ * [placeholderWhileLoading] false: no placeholder while it loads, and no space taken until its ad arrives (the bar
+ * builds the slot so when it comes back after the collapsible layer having shrunk to 0, D-07, plan T-090).
  */
 @Composable
 internal fun BottomNativeSlot(
@@ -239,6 +257,7 @@ internal fun BottomNativeSlot(
     firstRefreshExtraMillis: Long,
     onTakesSpaceChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    placeholderWhileLoading: Boolean = true,
 ) {
     val ads = LocalAdsController.current
     if (ads == null) {
@@ -256,6 +275,7 @@ internal fun BottomNativeSlot(
             onAdAvailabilityChange = {},
             modifier = modifier,
             onTakesSpaceChange = onTakesSpaceChange,
+            placeholderWhileLoading = placeholderWhileLoading,
         )
     }
 }
@@ -269,6 +289,7 @@ internal fun BottomNativeSlotHost(
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onTakesSpaceChange: (Boolean) -> Unit = {},
+    placeholderWhileLoading: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit = { BoundNativeAd(it, NativeAdSize.SMALL) },
 ) {
     // A cold flow: nothing loads until the gate opens and the host collects it.
@@ -281,6 +302,7 @@ internal fun BottomNativeSlotHost(
         onAdAvailabilityChange = onAdAvailabilityChange,
         modifier = modifier,
         onTakesSpaceChange = onTakesSpaceChange,
+        placeholderWhileLoading = placeholderWhileLoading,
         adContent = adContent,
     )
 }
