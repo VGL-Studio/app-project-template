@@ -81,6 +81,8 @@ Không có.
 
 - 2026-11-14: khe native nhỏ ở đáy màn hình mẫu vẽ lại theo thiết kế quảng cáo T-064 (cao 126 dp ở màn 411 dp, mép dưới cách đáy 16 dp; `docs/features/ads/design/README.md`, mục 1), anh Nhật duyệt trong phiên: "Duyệt."; ảnh `screens/` và `context/` xuất lại bằng `scripts/figma-export.py`. Hộp thoại không đổi.
 
+- 2026-11-17: khe native nhỏ ở đáy vẽ lại theo thiết kế quảng cáo T-108 (hai tầng, cao 106 dp ở mọi bề rộng, mép dưới cách đáy 16 dp; `docs/features/ads/design/README.md`, mục 1), anh Nhật duyệt trong phiên: "Duyệt thiết kế T-108"; ảnh `screens/` và `context/` xuất lại bằng `scripts/figma-export.py`. Hộp thoại không đổi.
+
 ## 8. Kết quả đối chiếu
 
 T-017, 2026-10-23: `scripts/design-compare/DesignCompare.java` so ảnh thiết kế với ảnh chuẩn của `:app` (`app/src/test/screenshots/`), kết quả ở `review/`.
@@ -98,3 +100,10 @@ T-064, 2026-11-14: so lại với cùng ảnh chuẩn của `:app` sau khi vẽ 
 | --- | --- | --- |
 | `NetworkLostScreen_default_light` | 2.0% | Hộp thoại không đổi; phần khác ở khe đáy (thiết kế 126 dp có quảng cáo, ảnh chuẩn trống) và nút "Tap" như trên |
 | `NetworkLostScreen_default_dark` | 2.9% | Như bản sáng |
+
+T-108, 2026-11-17: so lại với cùng ảnh chuẩn của `:app` sau khi vẽ lại khe đáy theo thẻ JBase vẽ ra; ảnh so sánh ở `review/`. Code chưa đổi (T-109).
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `NetworkLostScreen_default_light` | 1.9% | Hộp thoại không đổi; phần khác ở khe đáy (thiết kế 106 dp hai tầng có quảng cáo, ảnh chuẩn trống) và nút "Tap" như trên |
+| `NetworkLostScreen_default_dark` | 6.1% | Như bản sáng; khối CTA ngang hết thẻ của bản tối khác nền nhiều hơn nên tỷ lệ cao hơn |

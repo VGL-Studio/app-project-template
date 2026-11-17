@@ -24,7 +24,7 @@ docs/design-system/tokens.json.
 | --- | --- | --- | --- | --- |
 | `SampleScreen` | Sẵn sàng, native small ở đáy | `SampleScreen_ready_light` | KB-1 | T-010 |
 | `SampleScreen` | Sẵn sàng, chế độ tối | `SampleScreen_ready_dark` | KB-1 | T-010 |
-| `SampleScreen` | Sẵn sàng, điện thoại gập mở ra (673 x 841), khe đáy 200 dp | `SampleScreen_ready_light_unfolded` | KB-32 | T-064 (code: T-065) |
+| `SampleScreen` | Sẵn sàng, điện thoại gập mở ra (673 x 841), khe đáy 106 dp như mọi bề rộng | `SampleScreen_ready_light_unfolded` | KB-32 | T-064 (code: T-065); vẽ lại T-108 (code: T-109) |
 | `SampleScreen` | Quảng cáo đang tải | `SampleScreen_ad-loading_light` | KB-1 | T-010 |
 | `AdGalleryScreen` (chỉ staging) | Small, medium, nút gọi quảng cáo toàn màn hình, Ad Inspector | `AdGalleryScreen_default_light` | KB-1, KB-2, KB-8 | T-014 |
 | `AdGalleryScreen` | Như trên, chế độ tối | `AdGalleryScreen_default_dark` | KB-1, KB-2, KB-8 | T-014 |
@@ -61,6 +61,15 @@ Khu "More formats" của trang mặc định (dưới y 786, ngoài khung thiế
 
 Ảnh đã đổi theo đợt này, thay ảnh của đợt T-035: mọi ảnh trong bảng mục 1 (khe đáy 126 dp và lớp thu gọn 299 dp, mép dưới cách đáy 16 dp; medium 400 dp; nút đóng 48 dp và media từ y = 88 của toàn màn hình), ảnh mới `SampleScreen_ready_light_unfolded`, và `NetworkLostScreen_default_light`, `_dark` của feature network (khe đáy). Code chưa đổi: T-065 ghi lại ảnh chuẩn screenshot theo các ảnh này.
 
+**Vẽ lại theo thẻ JBase vẽ ra (T-108, 2026-11-17, anh Nhật duyệt trong phiên: "Duyệt thiết kế T-108").** Spec, câu hỏi 66: kích thước ba biến thể theo thẻ mà JBase vẽ, không theo số JBase đưa cho game để chừa chỗ (mã JBase ở yêu cầu 2026-11-17). Component sửa tại chỗ trên trang "Components / Native ads", các màn hình đổi theo instance.
+
+- `Native/Small` (quảng cáo và khung chờ; khe đáy, đứng riêng, hàng trong danh sách): hai tầng, cao theo nội dung, **106 dp** ở mọi bề rộng: đệm trên 6 dp; hàng trên 44 dp gồm icon 44 dp, cách 12 dp, cột chữ (hàng nhãn "Ad" 13 sp trước tiêu đề 16/22 sp một dòng, cách 4 dp, mô tả 13/18 sp một dòng, cắt cuối), hàng trên chừa 16 dp bên phải cho AdChoices; cách 6 dp; CTA ngang hết thẻ, cao 44 dp, chữ 18 sp; đệm dưới 6 dp. Lề trái phải 12 dp như các thẻ native khác (JBase 8 dp). Viền 1 dp vẽ phía trong, không làm thẻ cao thêm. Khung chờ cùng bố cục: khối icon 44 dp, hai vạch (14 dp rộng hết cột, 12 dp rộng 120 dp), khối CTA ngang hết thẻ cao 44 dp. Khe đáy cách đáy 16 dp (y 769 tới 875 ở khung 411 x 891; y 719 tới 825 ở khung gập mở 673 x 841).
+- `Native/Collapsible`: mở cao **299 dp** ở khung 411 dp (tổng nội suy theo cạnh ngắn như spec, câu hỏi 66): vùng ảnh 193 dp (lề trên, trái, phải 12 dp; MediaView 181 dp) cộng khối nội dung giống hệt `Native/Small` 106 dp. Nút thu gọn 27 dp tại (4, 4) góc trên trái, AdChoices góc trên phải như trước. Thu gọn: 106 dp như native nhỏ.
+- `Native/Medium` (CTA thường, CTA lớn, khung chờ): **250 dp**. Ảnh ở trên, sát mép thẻ (thẻ cắt theo bo góc 12 dp), lấp phần còn lại: 144 dp với CTA thường, 132 dp với CTA lớn 56 dp. Dưới ảnh là khối nội dung như native nhỏ; dòng dưới tiêu đề là nhà quảng cáo (một dòng, cắt cuối) với hàng sao 4 x 16 dp ở cuối dòng, nên hàng trên giữ 44 dp; bỏ đoạn mô tả hai dòng. Khung chờ: khối ảnh 144 dp, khối icon và hai vạch, khối CTA 44 dp.
+- Khung tham chiếu bên cạnh `Native/Small` đổi thành "cao theo nội dung, mọi bề rộng như nhau" (328, 379, 641 x 106 dp).
+
+Ảnh đã đổi theo đợt này, thay ảnh của đợt T-064: mọi ảnh `SampleScreen_*`, `AdGalleryScreen_*` trong bảng mục 1 và `NetworkLostScreen_default_light`, `_dark` của feature network. `NativeFullScreenAdScreen_*` không đổi. Code chưa đổi: T-109 ghi lại ảnh chuẩn screenshot theo các ảnh này.
+
 ## 2. Bảng chữ
 
 Chữ của quảng cáo (tiêu đề, nhà quảng cáo, mô tả, CTA, ảnh) do SDK trả về; trên thiết kế là chữ minh họa, không vào `strings.xml`. Chữ của app:
@@ -81,23 +90,23 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 
 | Phần tử trên thiết kế | Thành phần trong code | Màu (vai trò) | Kiểu chữ | Khoảng cách |
 | --- | --- | --- | --- | --- |
-| Khung native small, medium, thu gọn | composable native của `:core:ads` (T-010) | nền `surfaceContainerLow`, viền 1 dp `outlineVariant` | | bo `MaterialTheme.shapes.medium` (12 dp); lề 12 dp. Native nhỏ cao theo cạnh ngắn của cửa sổ (90 dp ở 320 dp tới 200 dp ở 600 dp; 126 dp ở 411 dp, cả màn ngang), medium theo chiều cao màn hình (320 dp ở 640 dp tới 400 dp ở 891 dp), một hàm cho thẻ, khung chờ và khoảng chừa (T-065). Lớp thu gọn = vùng ảnh nội suy theo cạnh ngắn (160 tới 200 dp) + nội dung của native nhỏ: 299 dp ở 411 x 891 dp, không cao thêm khi chữ lớn; cộng lề đáy không quá nửa chiều cao cửa sổ (vùng ảnh co trước, MediaView ít nhất 120 dp), không đủ chỗ thì không có lớp. Thẻ ở bước 250 dp ở cỡ chữ 1.0, cao thêm khi media chạm 120 dp (chữ lớn; T-045) |
+| Khung native small, medium, thu gọn | composable native của `:core:ads` (T-010) | nền `surfaceContainerLow`, viền 1 dp `outlineVariant` | | bo `MaterialTheme.shapes.medium` (12 dp); lề 12 dp. Native nhỏ hai tầng, cao theo nội dung: 106 dp ở cỡ chữ 1.0, mọi bề rộng; cao thêm khi chữ lớn; khung chờ và khoảng chừa (cộng lề đáy 16 dp) theo cùng chiều cao. Medium 250 dp, cao thêm khi ảnh dưới 120 dp. Lớp thu gọn = tổng nội suy theo cạnh ngắn (90 tới 200 dp cộng 160 tới 200 dp; 299 dp ở 411 x 891 dp), vùng ảnh lấy phần còn lại trên khối nội dung của native nhỏ; chữ lớn làm ảnh dưới 120 dp thì lớp cao thêm; cộng lề đáy không quá nửa chiều cao cửa sổ (vùng ảnh co trước, MediaView ít nhất 120 dp), không đủ chỗ thì không có lớp (spec, câu hỏi 65, 66; thiết kế T-108, code T-109). Thẻ ở bước 250 dp ở cỡ chữ 1.0, cao thêm khi media chạm 120 dp (chữ lớn; T-045) |
 | Nhãn "Ad" | trong composable native; small, medium và lớp thu gọn: đứng trước tiêu đề cùng hàng; thẻ ở bước, đầy đủ: đầu dòng dưới tiêu đề | nền `tertiary`, chữ `onTertiary` | `labelSmall` (small, medium: cỡ 13 sp, chiều cao dòng giữ của `labelSmall`) | bo 4 dp, lề ngang 4 dp, cách tiêu đề 6 dp |
 | Tiêu đề quảng cáo | asset headline | `onSurface` | small, medium: 16/22 sp, đậm 500 (hằng riêng); `titleSmall` (đầy đủ), `titleMedium` (toàn màn hình) | |
 | Nhà quảng cáo, mô tả | asset advertiser, body | `onSurfaceVariant` | small (dòng dưới tiêu đề: nhà quảng cáo, không có thì mô tả, tối đa 2 dòng) và nhà quảng cáo của medium: 13/18 sp; mô tả của medium `bodyMedium` | small: dòng dưới cách hàng tiêu đề 4 dp |
 | CTA quảng cáo | asset call to action | nền `tertiaryContainer`, chữ `onTertiaryContainer` | `labelLarge` (small, medium: cỡ 18 sp; medium `cta_large`: 17 sp) | cao 44 dp ở small (rộng theo chữ, 80 tới 120 dp) và medium (56 dp khi `cta_large`), 36 dp ở đầy đủ và thẻ dọc, 52 dp ở toàn màn hình; bo 8 dp. Số trên là ở cỡ chữ 1.0; chữ lớn thì CTA cao vừa một dòng chữ (T-045) |
 | Icon quảng cáo | asset icon | | | 44 dp ở small và medium, 40 dp ở đầy đủ, 48 dp ở toàn màn hình; bo 8 dp. Đầu quảng cáo của toàn màn hình 48 dp ở cỡ chữ 1.0, cao theo chữ khi chữ lớn (nhãn "Ad" không bị cắt; T-045) |
-| Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium lấp phần còn lại (182 dp trong thẻ 400 dp, 170 dp khi `cta_large`), đầy đủ 200 dp ở cỡ chữ 1.0, lớp thu gọn lấp vùng ảnh trừ lề 12 dp (161 dp ở 411 dp). Khi chữ lớn (cỡ chữ hệ thống), media co trước, không dưới 120 dp: các phần khác giữ cỡ, thẻ giữ chiều cao; chỉ khi media đã chạm 120 dp thì thẻ cao thêm (medium ở màn 891 dp, cỡ chữ 2.0: 406 dp, 418 dp khi `cta_large`) |
+| Media | `MediaView` | nền chờ `surfaceContainer` | | ít nhất 120 x 120 dp; medium lấp phần trên, sát mép thẻ (144 dp trong thẻ 250 dp, 132 dp khi `cta_large`), đầy đủ 200 dp ở cỡ chữ 1.0, lớp thu gọn lấp vùng ảnh trừ lề 12 dp (181 dp ở 411 dp). Khi chữ lớn (cỡ chữ hệ thống), media co trước, không dưới 120 dp: các phần khác giữ cỡ, thẻ giữ chiều cao; chỉ khi media đã chạm 120 dp thì thẻ cao thêm (medium ở màn 891 dp, cỡ chữ 2.0: 406 dp, 418 dp khi `cta_large`) |
 | AdChoices | do SDK vẽ, góc trên phải (cả lớp thu gọn) | | | không đè, không vẽ lại |
 | Nút thu gọn | trong lớp thu gọn của thanh đáy | nền `scrim` độ mờ 40%, icon trắng (ngoại lệ có tên `CollapseIconTint`, plan T-030, câu hỏi 8) | | vẽ 27 dp tròn tại (4, 4) góc trên trái, icon 17 dp; vùng chạm 48 dp do Compose tự nới |
 | Nút đóng toàn màn hình | trong `NativeFullScreenAdScreen` | nền `surfaceContainerHigh`, icon `onSurface` | | vẽ 48 dp tròn tại (16, 24), vùng chạm bằng khung vẽ, góc trên trái; vòng đếm ngược cùng khung (T-053, ADR-0038; ảnh thiết kế vẽ 48 dp từ T-064) |
-| Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small và medium theo màn hình như khung, ví dụ 126 dp và 400 dp ở 411 x 891 dp; đầy đủ 418 dp, thẻ dọc 300 dp hay cỡ ô); small: khối icon 44 dp, hai vạch, khối CTA 96 x 44 dp |
+| Trạng thái đang tải | trong composable native | khối `surfaceContainerHighest` | | giữ đúng chiều cao của quảng cáo (small 106 dp ở cỡ chữ 1.0, medium 250 dp; đầy đủ 418 dp, thẻ dọc 300 dp hay cỡ ô); small: khối icon 44 dp, hai vạch, khối CTA ngang hết thẻ cao 44 dp |
 | Nút của app | `PrimaryButton` | `primary`, `onPrimary` | `labelLarge` đậm 600 | |
 | Thẻ native ở bước của luồng (component `Native/Step`, T-032) | `NativeStepAd`, cỡ `NativeAdSize.STEP` | như khung native small, medium | tiêu đề `titleSmall` cỡ 13 sp | cao 250 dp ở cỡ chữ 1.0 (chữ lớn thì cao thêm, `NativeStepAdDefaults.height()`; T-045), lề trong 12 dp, các phần cách nhau 8 dp; media ngang lấp phần trên, icon 32 dp, CTA 36 dp rộng hết thẻ; AdChoices góc trên phải; khung chờ cùng chiều cao với thẻ |
 | Trang native ở bước của luồng (biến thể `Flow step` của `Native/FullScreen`, T-032) | `NativeFullScreenStep`, `NativeFullScreenStepContent` | như native toàn màn hình | như native toàn màn hình | không nút đóng, không đếm ngược; hàng trên 36 dp chỉ có AdChoices (media bắt đầu ở y = 76; bản sau inter ở y = 88 vì hàng nút 48 dp, T-053); không đệm vùng an toàn; CTA 52 dp; nút Tiếp của app nằm ngoài vùng của trang. Hai bố cục theo chiều cao (T-041): cột như bản sau inter khi trang cao từ 360 dp (ở cỡ chữ 1.0; media co trước, không dưới 120 dp, rồi mô tả bớt dòng), hàng ngang gọn từ 152 dp tới dưới 360 dp (lề 16 dp, media bên trái cao hết hàng; bên phải: đầu quảng cáo và ngay bên phải nó ô 36 dp chừa AdChoices, giữ góc trên phải của trang trống (T-049), rồi mô tả nếu còn chỗ, CTA ở đáy); đầu quảng cáo cao ít nhất 48 dp, lớn theo cỡ chữ. Trong lúc chờ quảng cáo: khung chờ tĩnh cùng bố cục (khối media, đầu, CTA; không chữ) |
 
-- **Số đo của bảng trên theo thiết kế T-064, code từ T-065.** Câu cuối mục 5 (CTA cao 36 dp) là của thẻ đầy đủ và thẻ dọc; CTA của small, medium cao 44 dp.
-- **Hai quy tắc ngoài thiết kế (plan T-065):** native nhỏ (khe đáy, khe riêng, hàng trong danh sách, nội dung của lớp thu gọn) từ cỡ chữ 1.3 các phần cách nhau 8 dp, lề phải 16 dp (tiêu đề còn chỗ cạnh CTA dài 120 dp, câu hỏi 15); từ cỡ chữ 1.5 nhãn "Ad" xuống đầu dòng mô tả và dòng đó còn 1 dòng (câu hỏi 8, 14). Medium ở khung thấp (thẻ dưới 350 dp, màn cao tới 732 dp): mô tả 1 dòng, các phần cách nhau 8 dp, nên thẻ 320 dp giữ media 134 dp (câu hỏi 7).
+- **Số đo của bảng trên theo thiết kế T-108, code từ T-109** (trước đó thiết kế T-064, code T-065). Câu cuối mục 5 (CTA cao 36 dp) là của thẻ đầy đủ và thẻ dọc; CTA của small, medium cao 44 dp.
+- **Hai quy tắc ngoài thiết kế (plan T-065; viết cho bố cục một hàng, plan T-109 xem lại với CTA ngang hết thẻ):** native nhỏ (khe đáy, khe riêng, hàng trong danh sách, nội dung của lớp thu gọn) từ cỡ chữ 1.3 các phần cách nhau 8 dp, lề phải 16 dp (tiêu đề còn chỗ cạnh CTA dài 120 dp, câu hỏi 15); từ cỡ chữ 1.5 nhãn "Ad" xuống đầu dòng mô tả và dòng đó còn 1 dòng (câu hỏi 8, 14). Medium ở khung thấp (thẻ dưới 350 dp, màn cao tới 732 dp): mô tả 1 dòng, các phần cách nhau 8 dp, nên thẻ 320 dp giữ media 134 dp (câu hỏi 7).
 - **Giá trị "ngoài hệ thống" trong `context/`:** khoảng cách 2, 6 và 12 dp bên trong quảng cáo (giữa tiêu đề và dòng nhà quảng cáo, giữa nhãn "Ad" và chữ, lề trong khung). Plan T-010 quyết: giữ làm hằng số riêng của composable native trong `:core:ads` (kích thước của một component, như `MinHeight` của `PrimaryButton`), không thêm token.
 - **Thành phần mới cần thêm vào hệ thống thiết kế:** các composable native nằm ở `:core:ads` (ADR-0022), dùng token của `:core:designsystem`; không thêm thành phần vào `:core:designsystem`.
 
@@ -105,8 +114,8 @@ Chữ của màn hình xem thử chỉ ở staging, tiếng Anh, vẫn đặt tr
 
 - `SampleScreen`: vào màn hình, native small ở đáy hiện trạng thái đang tải rồi tới quảng cáo.
 - `AdGalleryScreen` (staging): bấm "Interstitial" hay "Native full screen" thì gọi quảng cáo toàn màn hình; bấm "Open Ad Inspector" thì mở Ad Inspector của AdMob.
-- Thu gọn: vào màn hình thì lớp thu gọn (299 dp ở màn 411 dp) mở trên khe đáy; chạm nút thu gọn thì lớp ẩn, lộ khe native nhỏ (126 dp ở màn 411 dp) bên dưới; lớp tự mở lại sau `time_expand_collap_ad` giây (mặc định 10, 0 là không mở lại), đếm từ lúc chạm (CL-03, T-030).
-- Thiết kế T-064 đổi số của luồng thu gọn: lớp mở 299 dp và khe đáy 126 dp ở màn 411 dp (mục 1); luồng không đổi.
+- Thu gọn: vào màn hình thì lớp thu gọn (299 dp ở màn 411 dp) mở trên khe đáy; chạm nút thu gọn thì lớp ẩn, lộ khe native nhỏ (106 dp) bên dưới; lớp tự mở lại sau `time_expand_collap_ad` giây (mặc định 10, 0 là không mở lại), đếm từ lúc chạm (CL-03, T-030).
+- Thiết kế T-064 đổi số của luồng thu gọn: lớp mở 299 dp và khe đáy 126 dp ở màn 411 dp; thiết kế T-108 giữ lớp mở 299 dp, khe đáy còn 106 dp (mục 1); luồng không đổi.
 - `NativeFullScreenAdScreen`: chạm nút đóng hay nút quay lại của máy thì về màn hình trước.
 
 ## 5. Vị trí quảng cáo
@@ -223,3 +232,15 @@ Kích thước native theo JBase (T-065, 2026-11-16), so với thiết kế T-06
 | `AdGalleryScreen_collapsible-collapsed_light` | 1.2% | Khe đáy 126 dp ở y 749 tới 875 trùng thiết kế; khác ở dòng dưới tiêu đề và chữ "i" như trên |
 
 Lệch theo chiều cao của khe đáy, lớp thu gọn và medium đều dưới 4 dp (mục 7 của plan T-065).
+
+Thiết kế vẽ lại theo thẻ JBase vẽ ra (T-108, 2026-11-17), so với ảnh chuẩn screenshot hiện có. Code chưa đổi (T-109), nên phần khác là lệch dự kiến giữa thiết kế mới và code của T-065. Chạy thẳng `scripts/design-compare/DesignCompare.java` cho `feature/sample` và `app` như T-064, chép ảnh so sánh vào `review/`; `review/summary.md` không đổi. `NativeFullScreenAdScreen_*` không đổi (0.5%), không chép lại.
+
+| Màn hình | Điểm ảnh khác | Nhận xét |
+| --- | --- | --- |
+| `SampleScreen_ready_light`, `_dark` | 6.5%, 6.5% | Khe đáy thiết kế 106 dp hai tầng (y 769 tới 875, CTA ngang hết thẻ), code 126 dp một hàng (y 749 tới 875, CTA bên phải); nút "Tap" lệch khoảng 1 dp như trước |
+| `SampleScreen_ad-loading_light` | 1.1% | Khung chờ 106 dp với khối CTA ngang hết thẻ, so với 126 dp và khối CTA 96 x 44 dp |
+| `SampleScreen_ready_light_unfolded` | 7.0% | Khe đáy 106 dp (y 719 tới 825) so với 200 dp của code |
+| `AdGalleryScreen_default_light`, `_dark` | 28.9%, 33.2% | Small 106 dp và medium 250 dp (ảnh ở trên 144 dp, khối nội dung hai tầng, hàng sao cuối dòng nhà quảng cáo, không có đoạn mô tả) so với code 126 dp và 400 dp; mọi thứ bên dưới lệch lên khoảng 170 dp |
+| `AdGalleryScreen_inlist_light` | 7.0% | Dòng small 138 dp và dòng medium 282 dp so với 158 dp và 432 dp |
+| `AdGalleryScreen_collapsible-expanded_light` | 5.8% | Lớp mở vẫn 299 dp ở y 576 tới 875; vùng ảnh 193 dp (MediaView 181 dp) và khối nội dung hai tầng 106 dp, so với 173 dp và 126 dp |
+| `AdGalleryScreen_collapsible-collapsed_light` | 6.0% | Khe đáy 106 dp hai tầng so với 126 dp một hàng |
