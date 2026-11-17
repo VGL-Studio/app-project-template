@@ -36,7 +36,7 @@ class SampleScreenScreenshotTest {
         }
     }
 
-    /** The unfolded foldable (ADR-0020): the bottom slot follows the screen width, 200 dp at 673 dp (KB-32). */
+    /** The unfolded foldable (ADR-0020): the bottom slot is 106 dp on every width, also at 673 dp (KB-32). */
     @Test
     @Config(qualifiers = "w673dp-h841dp-xxhdpi")
     fun ready_light_unfolded() {
@@ -94,7 +94,7 @@ class SampleScreenScreenshotTest {
     @Test
     @Config(qualifiers = "w360dp-h640dp-xxhdpi")
     fun bar_expanded_small() {
-        // L-028: the open collapsible layer (272 dp on this 360 dp screen) does not cover the main button.
+        // L-028: the open collapsible layer (271 dp on this 360 dp screen) does not cover the main button.
         captureRoboImage("src/test/screenshots/SampleScreen_bar-expanded_small.png") {
             AppTheme(darkTheme = false) {
                 SampleScreen(
@@ -106,7 +106,7 @@ class SampleScreenScreenshotTest {
         }
     }
 
-    /** KB-4 added 2026-11-16: on a 891 x 411 dp window the layer has no room, only the 126 dp slot is drawn. */
+    /** KB-4 added 2026-11-16: on a 891 x 411 dp window the layer has no room, only the 106 dp slot is drawn. */
     @Test
     @Config(qualifiers = "w891dp-h411dp-xxhdpi")
     fun bar_expanded_landscape() {

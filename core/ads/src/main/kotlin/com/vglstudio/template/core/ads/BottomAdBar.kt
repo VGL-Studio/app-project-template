@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -23,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vglstudio.template.core.designsystem.theme.Spacing
 
-/** What the bottom slot of a bottom bar draws (D-01): the native small (height by the window's short edge), or the banner. */
+/** What the bottom slot of a bottom bar draws (D-01): the native small (height by the font scale), or the banner. */
 internal enum class BottomSlotKind { NATIVE, BANNER }
 
 /** The layers of a bottom bar: its slot, and whether the collapsible layer floats above it (D-01, D-03). */
@@ -68,9 +67,8 @@ internal fun bottomAdBarLayers(
 /**
  * The space the content of the screen keeps at the bottom (D-04): the space the slot takes now, ad or not, so the
  * content always ends where the slot starts. The native slot, while it takes space ([nativeTakesSpace]: its
- * placeholder from the first load, or its ad), keeps its height on a window whose short edge is [windowShortEdge] with
- * its bottom margin ([NativeAdDimens.bottomSlotHeight], the function the slot is drawn with; AR-02); none once it
- * draws nothing (a failure, and the retries after it until an ad loads). The banner slot keeps [bannerHeight], the
+ * placeholder from the first load, or its ad), keeps [nativeSlotHeight] with its bottom margin (the height the slot is
+ * drawn with, [rememberSmallNativeHeight]; AR-02, plan T-109); none once it draws nothing (a failure, and the retries after it until an ad loads). The banner slot keeps [bannerHeight], the
  * height its frame takes now ([BannerSlotHost]): the frame height from the moment the bar is allowed (while it loads,
  * with an ad, kept by B-06), 0 after a failure before its first ad until an ad loads. The floating layer keeps none.
  */
@@ -78,11 +76,10 @@ internal fun bottomBarReservation(
     slot: BottomSlotKind?,
     nativeTakesSpace: Boolean,
     bannerHeight: Dp,
-    windowShortEdge: Dp,
+    nativeSlotHeight: Dp,
 ): Dp = when (slot) {
     null -> 0.dp
-    BottomSlotKind.NATIVE ->
-        if (nativeTakesSpace) NativeAdDimens.bottomSlotHeight(windowShortEdge) + BottomAdBarDimens.SlotMargin else 0.dp
+    BottomSlotKind.NATIVE -> if (nativeTakesSpace) nativeSlotHeight + BottomAdBarDimens.SlotMargin else 0.dp
     BottomSlotKind.BANNER -> bannerHeight
 }
 
@@ -100,35 +97,39 @@ object BottomAdBarDimens {
     val SlotMargin: Dp = Spacing.md
 }
 
-/** Values for screens and tests that draw a bottom bar with fake ads ([BottomAdBarLayout]). */
+/**
+ * Values for screens and tests that draw a bottom bar with fake ads ([BottomAdBarLayout]). Read them in composition,
+ * under the app's theme: they follow the font scale (`LocalDensity`) and the type scale (`MaterialTheme`).
+ */
 object BottomAdBarDefaults {
     /**
-     * The space kept for the native slot on this window while it shows its placeholder or its ad: the slot (by the
-     * window's short edge, KB-32) and its 16 dp margin below (D-04); 142 dp at 411 x 891 and at 891 x 411 dp.
+     * The space kept for the native slot while it shows its placeholder or its ad: the slot ([nativeSlotHeight]) and
+     * its 16 dp margin below (D-04): 122 dp at the default font scale on every window, more with larger text (KB-32,
+     * plan T-109). A screen sets its own bottom space with this function, never with a fixed number.
      */
     @Composable
-    @ReadOnlyComposable
     fun nativeReservation(): Dp = bottomBarReservation(
         BottomSlotKind.NATIVE,
         nativeTakesSpace = true,
         bannerHeight = 0.dp,
-        windowShortEdge = nativeScreenSize().shortEdge,
+        nativeSlotHeight = rememberSmallNativeHeight(),
     )
 
-    /** The height of the native slot on this window (KB-32): 126 dp at 411 x 891 and at 891 x 411 dp. */
-    @Composable
-    @ReadOnlyComposable
-    fun nativeSlotHeight(): Dp = NativeAdDimens.bottomSlotHeight(nativeScreenSize().shortEdge)
-
     /**
-     * The height of the open collapsible layer on this window at the default font scale: its media area and the
-     * native slot below it (KB-4, KB-32); 299 dp at 411 x 891 dp, 284 dp at 411 x 600 dp (the layer with its margin
-     * reaches half the window). Null when the window has no room for the layer (landscape phone, split screen): draw
-     * no layer then.
+     * The height of the native slot (KB-32, question 66): 106 dp at the default font scale, whatever the width of the
+     * window; more with larger text, so its texts are never cut (plan T-109).
      */
     @Composable
-    @ReadOnlyComposable
-    fun collapsibleLayerHeight(): Dp? = NativeAdDimens.collapsibleLayer(nativeScreenSize())?.height
+    fun nativeSlotHeight(): Dp = rememberSmallNativeHeight()
+
+    /**
+     * The height of the open collapsible layer on this window at the current font scale: its media area and the small
+     * native content below it (KB-4, KB-32); 299 dp at 411 x 891 dp, 284 dp at 411 x 600 dp (the layer with its margin
+     * reaches half the window) at the default font scale. Null when the window has no room for the layer (landscape
+     * phone, split screen, or a low window with large text): draw no layer then.
+     */
+    @Composable
+    fun collapsibleLayerHeight(): Dp? = rememberCollapsibleLayer()?.height
 }
 
 internal object BottomAdBarTestTags {
@@ -190,12 +191,13 @@ fun BottomAdBarLayout(
  * call this, never an ads SDK directly; [placement] is the bar's own placement, declared as native small, and every
  * layer reports its ads under it, so revenue and clicks go to the screen on show (D-05).
  *
- * - The bottom slot is native small (as high as the short edge of the window says, KB-32: 126 dp at 411 x 891 and at
- *   891 x 411 dp) with `is_show_native_bottom`, the fixed banner otherwise; with `is_show_native_collap` too, the
+ * - The bottom slot is native small (KB-32, question 66: 106 dp at the default font scale on every window, more
+ *   with larger text) with `is_show_native_bottom`, the fixed banner otherwise; with `is_show_native_collap` too, the
  *   collapsible layer floats over the slot, opens at its first ad, collapses on a tap and opens again
  *   `time_expand_collap_ad` seconds later (CL-01 to CL-04). The layer is its media area over a small native content
- *   (299 dp at 411 x 891 dp) at every font scale (plan T-065); with its 16 dp margin it never takes more than half
- *   the window height, its media shrinking first, and a window with no room has no layer, only the slot (CL-05).
+ *   (299 dp at 411 x 891 dp at the default font scale, taller when large text leaves the media below 120 dp; plan
+ *   T-109); with its 16 dp margin it never takes more than half the window height, its media shrinking first, and a
+ *   window with no room has no layer, only the slot (CL-05).
  * - [content] gets the space the slot takes as bottom padding, never the layer's (D-04), so a taller layer covers more
  *   of the content but moves nothing: from the moment the bar is allowed, while the slot loads (native placeholder,
  *   banner frame) and once it has an ad; 0 after a failure before its first ad, until an ad loads.
@@ -308,7 +310,7 @@ internal fun BottomAdBarHost(
         }
     }
     BottomAdBarLayout(
-        reservation = bottomBarReservation(kind, nativeTakesSpace, bannerHeight, nativeScreenSize().shortEdge),
+        reservation = bottomBarReservation(kind, nativeTakesSpace, bannerHeight, rememberSmallNativeHeight()),
         slot = slot,
         layer = if (layers?.collapsible == true) layer else null,
         modifier = modifier,

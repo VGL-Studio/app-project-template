@@ -116,7 +116,7 @@ class SampleScreenTest {
         val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
         assertEquals(16f, (screen.bottom - ad.bottom).value, 0.5f)
         assertEquals(379f, (ad.right - ad.left).value, 0.5f)
-        assertEquals(126f, (ad.bottom - ad.top).value, 0.5f)
+        assertEquals(106f, (ad.bottom - ad.top).value, 0.5f)
     }
 
     @Test
@@ -130,7 +130,7 @@ class SampleScreenTest {
         val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
         // D-04: the scrolling content ends where the slot starts, no gap and no overlap.
         assertEquals(ad.top.value, content.bottom.value, 1f)
-        assertEquals(749f, ad.top.value, 1f)
+        assertEquals(769f, ad.top.value, 1f)
     }
 
     @Test
@@ -216,15 +216,15 @@ class SampleScreenTest {
         }
         val button = composeRule.onNodeWithText(string(R.string.sample_increment)).getUnclippedBoundsInRoot()
         val layer = composeRule.onNodeWithTag(LAYER).getUnclippedBoundsInRoot()
-        // L-028: the layer (272 dp on this 360 dp screen) floats over the bottom of the content, below the main
-        // button: 640 - 16 - 272 = 352 dp.
-        assertEquals(352f, layer.top.value, 1f)
+        // L-028: the layer (271 dp on this 360 dp screen) floats over the bottom of the content, below the main
+        // button: 640 - 16 - 271 = 353 dp (0.5 dp: the former 272 dp layer is 1 dp off).
+        assertEquals(353f, layer.top.value, 0.5f)
         assertTrue("layer starts ${layer.top - button.bottom} below the button", layer.top >= button.bottom)
     }
 
     /**
      * KB-4 added 2026-11-16, KB-17, KB-32: on a 891 x 411 dp window the layer has no room, so the fake bar draws only
-     * the 126 dp slot; the content ends at its top and the main button can be scrolled to, above the slot.
+     * the 106 dp slot; the content ends at its top and the main button can be scrolled to, above the slot.
      */
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -241,10 +241,10 @@ class SampleScreenTest {
         }
         composeRule.onNodeWithTag(LAYER).assertDoesNotExist()
         val ad = composeRule.onNodeWithTag(AD).getUnclippedBoundsInRoot()
-        assertEquals("slot height", 126f, (ad.bottom - ad.top).value, 0.5f)
-        assertEquals("slot top", 269f, ad.top.value, 1f)
+        assertEquals("slot height", 106f, (ad.bottom - ad.top).value, 0.5f)
+        assertEquals("slot top", 289f, ad.top.value, 1f)
         val content = composeRule.onNodeWithTag(SampleTestTags.CONTENT).getUnclippedBoundsInRoot()
-        assertEquals("content ends at the slot top", 269f, content.bottom.value, 1f)
+        assertEquals("content ends at the slot top", 289f, content.bottom.value, 1f)
         val buttonNode = composeRule.onNodeWithText(string(R.string.sample_increment))
         buttonNode.performScrollTo().assertIsDisplayed()
         val button = buttonNode.getUnclippedBoundsInRoot()

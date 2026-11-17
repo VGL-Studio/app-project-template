@@ -15,6 +15,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.Dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.core.analytics.AdFunnelEvent
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -208,7 +210,7 @@ class AdsControllerNativeStockTest {
 
     /**
      * KB-4 added 2026-11-16: the window changes without the activity being rebuilt (from 411 x 891 to 891 x 411 dp):
-     * the open layer goes and its ad is destroyed (L-061), the slot stays at 126 dp, the line is logged, and no new
+     * the open layer goes and its ad is destroyed (L-061), the slot stays at 106 dp, the line is logged, and no new
      * display opportunity is reported.
      */
     @Test
@@ -241,9 +243,61 @@ class AdsControllerNativeStockTest {
         assertTrue(shownIn(BottomAdBarTestTags.SLOT, STOCK_AD))
         val slot = composeRule.onNodeWithTag(BottomAdBarTestTags.SLOT, useUnmergedTree = true)
             .getUnclippedBoundsInRoot()
-        assertEquals("slot height", 126f, (slot.bottom - slot.top).value, 1f)
+        assertEquals("slot height", 106f, (slot.bottom - slot.top).value, 1f)
         assertTrue(loggedNoRoom("891x411"))
         assertEquals("no new display opportunity", eligibleBefore, eligibleEvents().size)
+    }
+
+    private fun noRoomLines(window: String): Int = logger.entries.count {
+        it.message == "Collapsible sample_native_small not shown: window $window dp has no room"
+    }
+
+    /**
+     * KB-4 criterion 4, CL-05, MC-14 (plan T-109): on a 411 x 520 dp window at font scale 2.0 the small native leaves
+     * the layer no room, so the layer never takes the ad of the `native_collap` stock, reports no display opportunity
+     * and logs one line; the slot shows its stock ad and reports its own opportunity.
+     */
+    @Test
+    @Config(qualifiers = "w411dp-h520dp-xxhdpi")
+    fun largeText_layerNoRoom_stockKept_noEligible_logged() {
+        startAndPreload()
+        deliver(AdFormat.NATIVE_SMALL, STOCK_AD)
+        val layerAd = deliver(AdFormat.NATIVE_COLLAPSIBLE, LAYER_AD)
+
+        var roomAtDefault: Dp? = null
+        show {
+            // Control: the same window has room at font scale 1.0, so the missing layer is the text's doing.
+            WithFontScale(1f) { roomAtDefault = BottomAdBarDefaults.collapsibleLayerHeight() }
+            WithFontScale(2f) { BottomAdBarScaffold(AdPlacement.SAMPLE_NATIVE_SMALL) {} }
+        }
+
+        assertNotNull("room at font scale 1.0", roomAtDefault)
+        assertTrue(shownIn(BottomAdBarTestTags.SLOT, STOCK_AD))
+        assertFalse("no layer without room", layerDrawn())
+        assertEquals("the stock was not claimed: no next load", 1, requestsOf(AdFormat.NATIVE_COLLAPSIBLE))
+        assertEquals("the stock keeps its ad", 0, layerAd.destroyCount)
+        assertEquals(listOf(AdFunnelEvent.Eligible(AdFunnelKind.NATIVE)), eligibleEvents())
+        assertEquals("one no-room line", 1, noRoomLines("411x520"))
+    }
+
+    /** Control of the test above: the same window at font scale 1.0 has room, the layer shows and reports. */
+    @Test
+    @Config(qualifiers = "w411dp-h520dp-xxhdpi")
+    fun largeText_layerNoRoom_fontScale1_layerShown() {
+        startAndPreload()
+        deliver(AdFormat.NATIVE_SMALL, STOCK_AD)
+        deliver(AdFormat.NATIVE_COLLAPSIBLE, LAYER_AD)
+
+        show { WithFontScale(1f) { BottomAdBarScaffold(AdPlacement.SAMPLE_NATIVE_SMALL) {} } }
+
+        assertTrue("the layer shows", layerDrawn())
+        assertTrue(shownIn(CollapsibleNativeAdTestTags.AD, LAYER_AD))
+        assertEquals(
+            "one display opportunity for the slot and one for the layer",
+            List(2) { AdFunnelEvent.Eligible(AdFunnelKind.NATIVE) },
+            eligibleEvents(),
+        )
+        assertEquals("no no-room line", 0, noRoomLines("411x520"))
     }
 
     @Test
