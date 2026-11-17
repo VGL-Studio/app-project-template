@@ -181,8 +181,8 @@ class AdGalleryScreenTest {
         val secondAd = bounds(PreviewAdTags.inList(1))
         assertTrue(secondAd.top >= textBounds("List item 6").bottom)
         assertTrue(secondAd.bottom <= textBounds("List item 7").top)
-        // Medium: 400 dp at 891 dp and 16 dp above and below.
-        assertDp("second ad row height", 432.dp, secondAd.height)
+        // Medium: 250 dp and 16 dp above and below (plan T-110).
+        assertDp("second ad row height", 282.dp, secondAd.height)
     }
 
     @Test
