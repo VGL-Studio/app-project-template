@@ -414,6 +414,17 @@ internal fun smallNativeHeight(measurer: TextMeasurer, typography: Typography, d
     if (card < NativeAdDimens.SmallHeight) NativeAdDimens.SmallHeight else card
 }
 
+// T-110 skeleton (step 3): replaced in step 4.
+internal fun nativeContentHeight(
+    measurer: TextMeasurer,
+    typography: Typography,
+    density: Density,
+    ctaLarge: Boolean,
+): Dp = 0.dp
+
+internal fun mediumNativeHeight(measurer: TextMeasurer, typography: Typography, density: Density, ctaLarge: Boolean): Dp =
+    0.dp
+
 /** Text measured for one line; the height of a line depends on the style, not on the text. */
 private const val SMALL_LINE_SAMPLE = "Ad"
 
@@ -458,6 +469,8 @@ internal object NativeAdTestTags {
     const val SMALL_TOP_ROW = "native_ad_small_top_row"
     const val PLACEHOLDER_LINE = "native_ad_placeholder_line"
     const val BODY = "native_ad_body"
+    const val CONTENT = "native_ad_content"
+    const val PLACEHOLDER_MEDIA = "native_ad_placeholder_media"
 }
 
 /** Filled stars of [rating] (O-08): none without a real rating above 0, else rounded half up, at most 5. */
