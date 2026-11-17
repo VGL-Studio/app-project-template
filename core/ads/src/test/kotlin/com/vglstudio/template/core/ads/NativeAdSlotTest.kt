@@ -105,8 +105,53 @@ class NativeAdSlotTest {
 
         size = NativeAdSize.MEDIUM
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(400.dp)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(250.dp)
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    /**
+     * KB-2 criterion 2, KB-32 criterion 3 (plan T-110, section 4): a medium slot with its ad, loading and keeping its
+     * space when empty is one height, 250 dp at font scale 1.0 and more, still one height, at 2.0.
+     */
+    @Test
+    fun mediumHeight_equalsDrawnCardAndPlaceholderHeight() {
+        var fontScale by mutableStateOf(1f)
+        composeRule.setContent {
+            WithFontScale(fontScale) {
+                AdsTestTheme {
+                    Column {
+                        listOf(
+                            "loaded" to NativeAdState.Loaded(FakeLoadedNativeAd()),
+                            "loading" to NativeAdState.Loading,
+                            "kept" to NativeAdState.Unavailable,
+                        ).forEach { (tag, state) ->
+                            NativeAdSlotContent(
+                                state = state,
+                                size = NativeAdSize.MEDIUM,
+                                keepSpaceWhenEmpty = true,
+                                modifier = Modifier.width(CARD_WIDTH).testTag(tag),
+                                adContent = { NativeAdCard(it.assets, NativeAdSize.MEDIUM) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        fun height(tag: String): Float {
+            val rect = composeRule.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            return (rect.bottom - rect.top).value
+        }
+        listOf(1f, 2f).forEach { scale ->
+            fontScale = scale
+            composeRule.waitForIdle()
+            val loaded = height("loaded")
+            if (scale == 1f) assertEquals("loaded at 1.0", 250f, loaded, 0.5f)
+            if (scale == 2f) assertTrue("loaded at 2.0 is $loaded", loaded > 250f + 0.5f)
+            assertEquals("loading at $scale", loaded, height("loading"), 0.5f)
+            assertEquals("kept space at $scale", loaded, height("kept"), 0.5f)
+        }
+        // Control: the first slot draws the ad, so the heights compared are of three different states.
+        composeRule.onAllNodesWithTag(NativeAdTestTags.CARD, useUnmergedTree = true).assertCountEquals(1)
     }
 
     /** KB-1, KB-32 criterion 3 (plan T-109): the space kept for small on a landscape window is 106 dp, as on any. */
