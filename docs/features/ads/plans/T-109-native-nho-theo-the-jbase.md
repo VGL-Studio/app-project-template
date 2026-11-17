@@ -1,7 +1,7 @@
 ---
 ticket: T-109
 title: Code native nhỏ và lớp thu gọn theo thẻ JBase vẽ ra
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -282,3 +282,15 @@ Phiên bản 1:
 - **Ghi chú:** năm câu hỏi ở mục 8 theo đề xuất: (1) tách medium sang T-110, chạy liền sau T-109 trong cùng danh sách; (2) bỏ hai quy tắc chữ lớn của plan T-065, nhãn "Ad" luôn trước tiêu đề; (3) tổng lớp thu gọn nội suy thẳng 250 tới 400 dp (271 dp ở 360 dp); (4) chỗ chừa của thanh đáy đổi theo cỡ chữ, ghi vào `ads-guide.md`; (5) giữ công thức, bỏ ví dụ máy gập xoay ngang khỏi CL-05.
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261117-01, phiên bản plan 2
+
+- **Kết quả:** đã merge (PR #538, commit `eb6927a`, 09:02 UTC).
+- **Nhánh, PR:** `claude/T-109-native-nho-jbase`, #538.
+- **Đã làm:** native nhỏ hai tầng 106 dp ở cỡ chữ 1.0, cao theo chữ (`smallNativeHeight`, `rememberSmallNativeHeight`, `nativeAdHeight`); khung chờ SMALL hai tầng; thanh đáy chừa `nativeSlotHeight + 16` (122 dp); lớp thu gọn tổng nội suy 250 tới 400 dp, vùng ảnh phần còn lại, trần nửa cửa sổ theo cả cỡ chữ; tài liệu luật, hướng dẫn, README thiết kế và 9 ảnh so sánh; 30 ảnh chuẩn ghi lại. Bước 3 đến 5 do phiên con làm trong worktree `../task-T-109`.
+- **Test viết trước:** commit `304aad3`: 15 test mới và khoảng 60 test viết lại theo mục 3.5. Lần đầu thất bại vì lỗi biên dịch của phần chưa có; với khung rỗng tạm (không commit), 71 test thất bại ở câu khẳng định (126 thay 106, 749 thay 769, 142 thay 122, 161 thay 181, CTA 120 thay 355 dp, dòng dưới 2 dòng). 6 test viết chặt thêm bằng bước đối chứng (`small_leavesAdChoicesCornerFree`, `slotLoading_largeText_reservesPlaceholderSpace`, `layer_smallScreen_fitsOnScreen` và `whenSmallScreen_thenOpenLayerDoesNotCoverButton` dung sai 1 thành 0.5 dp, `smallAndCard_headlineBadgeCta_notCut_fontScales_small`, `largeText_layerNoRoom_stockKept_noEligible_logged`). Ba biến thể khung qua cả trên code cũ vì giá trị cũ trùng giá trị mới ở khung đó: `small_heightIs106dp_everyWindow_360`, `_landscape360`, `nativeReservation_sameEveryWindow_360` (các khung khác của cùng nhóm thất bại trước).
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 11 ghi chú (báo cáo phiên, mục Cần người kiểm tra).
+- **Kết quả CI:** `pr-check` xanh (lần chạy 44049607840); `check.sh` trên nhánh: 2357 test JVM, 0 lỗi, 97 ảnh.
+- **Lệch so với plan:** (1) ADR-0032/L4: `AdGalleryScreen_default-more_light.png` (mục 3.2) không đổi khi ghi lại: ảnh cuộn tới cuối trang nên phần nhìn thấy canh theo đáy, native nhỏ thấp đi 20 dp không lộ ra. (2) Dữ liệu test sau commit test (bước 4 cho phép): `NativeAdCardTest.small_ctaFullWidth_longCtaEllipsized` dùng chữ CTA dài hơn chữ của fixture chung (chữ cũ vừa trọn CTA 355 dp), câu khẳng định giữ; trước: đỏ "long call to action not cut with an ellipsis", sau: qua. (3) Thêm hai tag test `SMALL_TOP_ROW`, `PLACEHOLDER_LINE` trong `NativeAdCard.kt` (file của mục 3.2). (4) `SmallLayout` không có CTA thì vẽ `Spacer` 44 dp để giữ hai tầng (mục 3.1 không nêu). Phương án dự phòng 3.4 không dùng. Ngoài mục 3.2: không có. Câu khẳng định viết lại thêm ở bước 4 (ADR-0031): không có.
+- **Việc còn lại:** T-110 (medium) đổi phần medium của `AdGalleryScreen_default_*`, `inlist_*`, `NativeAdCard_font-scale-2_light`.
+- **Cần người xem:** khe đáy và lớp thu gọn với quảng cáo thật trên máy ở cỡ chữ mặc định và lớn nhất; máy gập dọc và ngang (khe 106 dp, lớp 400 / 320 dp); đọc diff của `ads-business-rules.md`, `ads-guide.md`.
