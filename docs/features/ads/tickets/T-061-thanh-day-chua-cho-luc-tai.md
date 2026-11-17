@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-17]
 owner: Nhật
-status: backlog
+status: planned
 risk: high
 size: M
 depends_on: [T-065]
 sprint:
-plan:
+plan: features/ads/plans/T-061-thanh-day-chua-cho-luc-tai.md
 auto_run: 
 created: 2026-10-29
 ---
