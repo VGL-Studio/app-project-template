@@ -91,6 +91,9 @@ class CollapsibleNativeAdTest {
     private val feed = FakeNativeFeed()
     private var collapsedReports = 0
     private var reexpandReports = 0
+
+    /** Each value the host reports through `onShowingChange` (plan T-090). */
+    private val showingReports = mutableListOf<Boolean>()
     private var attempt by mutableIntStateOf(0)
 
     /** Whether the window has room for the layer (KB-4 added 2026-11-16), passed to the host. */
@@ -123,6 +126,7 @@ class CollapsibleNativeAdTest {
                             onReexpanded = { reexpandReports++ },
                             modifier = modifier,
                             hasRoom = hasRoom,
+                            onShowingChange = { showingReports += it },
                         )
                     } else {
                         CollapsibleNativeAdLayerHost(
@@ -134,6 +138,7 @@ class CollapsibleNativeAdTest {
                             onReexpanded = { reexpandReports++ },
                             modifier = modifier,
                             hasRoom = hasRoom,
+                            onShowingChange = { showingReports += it },
                             renderAd = renderAd,
                         )
                     }
@@ -767,6 +772,66 @@ class CollapsibleNativeAdTest {
         assertFalse("open 30 s from the tap", state.collapsed)
         frame()
         assertShown()
+    }
+
+    // Whether the layer shows its ad, for the bottom slot that gives way to it (D-07, plan T-090).
+
+    @Test
+    fun collapsibleShowing_table() {
+        val loaded = NativeAdState.Loaded(collapsibleTestAd())
+        assertTrue(collapsibleShowing(allowed = true, hasRoom = true, state = loaded, collapsed = false))
+        assertFalse("collapsed", collapsibleShowing(allowed = true, hasRoom = true, state = loaded, collapsed = true))
+        assertFalse(
+            "no ad unit",
+            collapsibleShowing(allowed = false, hasRoom = true, state = loaded, collapsed = false),
+        )
+        assertFalse("no room", collapsibleShowing(allowed = true, hasRoom = false, state = loaded, collapsed = false))
+        listOf(NativeAdState.Loading, NativeAdState.Unavailable).forEach { state ->
+            assertFalse("$state", collapsibleShowing(allowed = true, hasRoom = true, state = state, collapsed = false))
+        }
+    }
+
+    /**
+     * The host reports each change of whether it shows its ad: open at its ad, collapsed, open again (CL-03), room
+     * lost while open, room back with an ad, and gone from the composition; nothing while it first loads.
+     */
+    @Test
+    fun host_reportsShowing_openCollapseReexpandDispose() {
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent { Host(expandAfterSeconds = 30) }
+        frame()
+        assertEquals("nothing while loading", emptyList<Boolean>(), showingReports)
+        feed.load(collapsibleTestAd())
+        frame()
+        frame()
+        assertEquals(listOf(true), showingReports)
+
+        val mark = collapseTimed()
+        assertEquals(listOf(true, false), showingReports)
+
+        advanceTo(mark + 30_000)
+        frame()
+        assertEquals(listOf(true, false, true), showingReports)
+
+        hasRoom = false
+        frame()
+        frame()
+        assertEquals(listOf(true, false, true, false), showingReports)
+
+        hasRoom = true
+        // One frame composes the layer again, the next one starts its collection (which starts at Loading).
+        frame()
+        frame()
+        feed.load(collapsibleTestAd("Second ad"))
+        frame()
+        frame()
+        assertEquals(listOf(true, false, true, false, true), showingReports)
+
+        // A new host takes its place: the old one leaves the composition, the new one loads and reports nothing.
+        attempt++
+        frame()
+        frame()
+        assertEquals(listOf(true, false, true, false, true, false), showingReports)
     }
 
     /** The log line of a layer with no room (ADR-0019). */

@@ -219,13 +219,13 @@ fun BottomAdBarScaffold(
     val bar = rememberBottomAdBarState(ads, placement)
     BottomAdBarHost(
         layers = bar.choice.layers,
-        nativeSlot = { extra, onTakesSpace, slotModifier ->
+        nativeSlot = { extra, onTakesSpace, slotModifier, _ ->
             BottomNativeSlot(placement, extra, onTakesSpace, slotModifier)
         },
         bannerSlot = { onAvailability, onHeight, slotModifier ->
             BottomBannerSlot(placement, onAvailability, onHeight, slotModifier)
         },
-        layer = { layerModifier -> CollapsibleNativeAdLayer(placement, bar.expandAfterSeconds, layerModifier) },
+        layer = { layerModifier, _ -> CollapsibleNativeAdLayer(placement, bar.expandAfterSeconds, layerModifier) },
         modifier = modifier,
         onLayersChange = { ads?.onBottomBarLayers(placement, it) },
         onSlotHasAdChange = bar.choice.onSlotHasAdChange,
@@ -277,12 +277,18 @@ internal fun rememberBottomAdBarLayers(
 @Composable
 internal fun BottomAdBarHost(
     layers: BottomAdBarLayers?,
-    nativeSlot: @Composable (firstRefreshExtraMillis: Long, onTakesSpace: (Boolean) -> Unit, Modifier) -> Unit,
+    nativeSlot: @Composable (
+        firstRefreshExtraMillis: Long,
+        onTakesSpace: (Boolean) -> Unit,
+        Modifier,
+        placeholderWhileLoading: Boolean,
+    ) -> Unit,
     bannerSlot: @Composable (onAvailability: (Boolean) -> Unit, onHeight: (Dp) -> Unit, Modifier) -> Unit,
-    layer: @Composable (Modifier) -> Unit,
+    layer: @Composable (Modifier, onShowingChange: (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier,
     onLayersChange: (BottomAdBarLayers?) -> Unit = {},
     onSlotHasAdChange: (Boolean) -> Unit = {},
+    onSlotYieldChange: (Boolean) -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val kind = layers?.slot
@@ -302,6 +308,7 @@ internal fun BottomAdBarHost(
                     bottomSlotFirstRefreshExtraMillis(layers.collapsible),
                     { takesSpace -> if (takesSpace != nativeTakesSpace) nativeTakesSpace = takesSpace },
                     slotModifier,
+                    true,
                 )
             }
         }
@@ -312,7 +319,7 @@ internal fun BottomAdBarHost(
     BottomAdBarLayout(
         reservation = bottomBarReservation(kind, nativeTakesSpace, bannerHeight, rememberSmallNativeHeight()),
         slot = slot,
-        layer = if (layers?.collapsible == true) layer else null,
+        layer = if (layers?.collapsible == true) { layerModifier -> layer(layerModifier) {} } else null,
         modifier = modifier,
         slotMargin = if (kind == BottomSlotKind.BANNER) 0.dp else BottomAdBarDimens.SlotMargin,
         content = content,
@@ -325,3 +332,9 @@ internal fun bottomBarLayersLog(placement: AdPlacement, layers: BottomAdBarLayer
 } else {
     "Bottom bar ${placement.key}: slot=${layers.slot} collapsible=${layers.collapsible}"
 }
+
+/** Skeleton (T-090, step 3): whether the bottom slot gives way to the collapsible layer (D-07). */
+internal fun bottomSlotYields(kind: BottomSlotKind?, collapsible: Boolean, layerShowing: Boolean): Boolean = false
+
+/** Skeleton (T-090, step 3): the log line of the bottom slot giving way or coming back (ADR-0019). */
+internal fun bottomSlotYieldLog(placement: AdPlacement, yielded: Boolean): String = ""

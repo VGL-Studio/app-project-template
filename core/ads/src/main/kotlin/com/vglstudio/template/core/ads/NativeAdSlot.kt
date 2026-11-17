@@ -93,6 +93,7 @@ internal fun NativeAdSlotGate(
     onScreen: Boolean = true,
     cardHeight: Dp? = null,
     onTakesSpaceChange: (Boolean) -> Unit = {},
+    placeholderWhileLoading: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit,
 ) {
     // `af_native_ad_eligible` once each time the slot comes on screen allowed (plan T-033): a page of a pager kept in
@@ -239,6 +240,7 @@ internal fun BottomNativeSlot(
     firstRefreshExtraMillis: Long,
     onTakesSpaceChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    placeholderWhileLoading: Boolean = true,
 ) {
     val ads = LocalAdsController.current
     if (ads == null) {
@@ -269,6 +271,7 @@ internal fun BottomNativeSlotHost(
     onAdAvailabilityChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onTakesSpaceChange: (Boolean) -> Unit = {},
+    placeholderWhileLoading: Boolean = true,
     adContent: @Composable (LoadedNativeAd) -> Unit = { BoundNativeAd(it, NativeAdSize.SMALL) },
 ) {
     // A cold flow: nothing loads until the gate opens and the host collects it.

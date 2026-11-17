@@ -261,6 +261,7 @@ internal fun CollapsibleNativeAdLayerHost(
     modifier: Modifier = Modifier,
     allowed: Boolean = true,
     hasRoom: Boolean = rememberCollapsibleLayer() != null,
+    onShowingChange: (Boolean) -> Unit = {},
     renderAd: @Composable (ad: LoadedNativeAd, onCollapse: () -> Unit) -> Unit = { ad, onCollapse ->
         BoundNativeAd(ad) { binder ->
             CollapsibleNativeAdLayout(ad.assets, onCollapse, binder, showAdChoicesMarker = false)
@@ -309,7 +310,12 @@ internal fun CollapsibleNativeAdLayerHost(
  * room.
  */
 @Composable
-internal fun CollapsibleNativeAdLayer(placement: AdPlacement, expandAfterSeconds: Long, modifier: Modifier = Modifier) {
+internal fun CollapsibleNativeAdLayer(
+    placement: AdPlacement,
+    expandAfterSeconds: Long,
+    modifier: Modifier = Modifier,
+    onShowingChange: (Boolean) -> Unit = {},
+) {
     val ads = LocalAdsController.current ?: return
     // Outside any branch that depends on the ad: a new ad never opens it again.
     val state = rememberCollapsibleAdState()
@@ -337,6 +343,10 @@ internal fun CollapsibleNativeAdLayer(placement: AdPlacement, expandAfterSeconds
         hasRoom = hasRoom,
     )
 }
+
+/** Skeleton (T-090, step 3): whether the layer shows its ad now. */
+internal fun collapsibleShowing(allowed: Boolean, hasRoom: Boolean, state: NativeAdState, collapsed: Boolean): Boolean =
+    false
 
 /** The log line of a collapsible layer with no room on its window (ADR-0019, CL-05). */
 internal fun collapsibleNoRoomLog(placement: AdPlacement, window: DpSize): String =
