@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-17]
 owner: Nhật
-status: backlog
+status: on-staging
 risk: high
 size: M
 depends_on: [T-065]
@@ -16,6 +16,10 @@ created: 2026-10-29
 ---
 
 # T-061: THANH ĐÁY CHỪA CHỖ LÚC ĐANG TẢI
+
+## Kết quả
+
+Làm ở PR #531 (from-app #527, bài học L-184, merge 2026-11-17), không qua plan riêng: thanh đáy chừa đúng chỗ khe đang chiếm ở mọi trạng thái theo D-04, nạp lỗi thì về 0; PR #538 (T-109) giữ luật này khi đổi chiều cao khe. Plan soạn sẵn (PR #540) kết luận không còn code phải đổi; anh Nhật chọn ghi ticket xong theo PR #531 (2026-11-17). Có trên bản staging từ versionCode 33.
 
 ## Mô tả
 
