@@ -263,7 +263,7 @@ Native medium theo thẻ JBase vẽ ra (T-110, 2026-11-17), so với thiết k�
 
 | Màn hình | Điểm ảnh khác | Nhận xét |
 | --- | --- | --- |
-| `AdGalleryScreen_default_light`, `_dark` | 7.2%, 7.2% | Native nhỏ 106 dp và medium 250 dp trùng thiết kế: ảnh 144 dp sát mép trên và hai bên, icon 44 dp cách đáy ảnh 6 dp, nhãn "Ad" trước tiêu đề, dòng nhà quảng cáo với bốn sao ở cuối, CTA 44 dp ngang hết thẻ cách đáy 6 dp; các nút "Interstitial", "Native full screen", "Open Ad Inspector" trùng vị trí. Khác: ảnh chuẩn dài hơn thiết kế (hàng nút "In-list ads", "Collapsible ad" và mục "More formats" ngoài thiết kế, như T-014), dòng dưới của quảng cáo giả ("Advertiser or short body"), ô AdChoices giả không có chữ "i", media giả không có nhãn "Media" và nền mờ |
+| `AdGalleryScreen_default_light`, `_dark` | 7.2%, 7.2% | Native nhỏ 106 dp và medium 250 dp trùng thiết kế: ảnh 144 dp sát mép trên và hai bên, icon 44 dp cách đáy ảnh 6 dp, nhãn "Ad" trước tiêu đề, dòng nhà quảng cáo một dòng, CTA 44 dp ngang hết thẻ cách đáy 6 dp; các nút "Interstitial", "Native full screen", "Open Ad Inspector" trùng vị trí. Khác: ảnh chuẩn dài hơn thiết kế (hàng nút "In-list ads", "Collapsible ad" và mục "More formats" ngoài thiết kế, như T-014), dòng dưới của quảng cáo giả ("Advertiser or short body"), quảng cáo giả của màn xem thử không có điểm sao nên không vẽ sao và chữ lấy cả dòng (câu hỏi 2 của plan T-110; hàng sao đo bằng test và ảnh `NativeAdCard_medium_*`), ô AdChoices giả không có chữ "i", media giả không có nhãn "Media" và nền mờ |
 | `AdGalleryScreen_inlist_light` | 1.3% | Dòng small 138 dp và dòng medium 282 dp (250 + 16 + 16) đúng vị trí; khác ở chữ quảng cáo giả như trên |
 
 Phần medium lệch thiết kế dưới 4 dp (mục 4 của plan T-110).
