@@ -215,3 +215,15 @@ Không cần (E dưới 2): đo dòng chữ cho chiều cao thẻ là cách củ
 - **Ghi chú:** lời duyệt không nêu khác đề xuất, nên hai câu hỏi ở mục 8 theo đề xuất: (1) bỏ đoạn mô tả theo thiết kế, mô tả chỉ hiện (và đăng ký với SDK) ở dòng dưới tiêu đề khi không có nhà quảng cáo; (2) không có điểm sao thì chữ lấy cả dòng.
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261117-01, phiên bản plan 1
+
+- **Kết quả:** dừng ở bước 3 (lệnh bị bộ kiểm an toàn từ chối). Plan và ticket giữ `approved`: không phải lỗi của plan (như `auto-run.md`, mục Khi không đẩy được, ý 3, và bước 9 khi lệnh merge bị từ chối).
+- **Nhánh, PR:** `claude/T-110-medium-jbase`, commit `f70a447` (khung rỗng, chưa build, chưa có test). Không có PR.
+- **Đã làm:** phiên con đọc plan, xác nhận T-109 đã có trên nhánh chính (điều kiện dừng đầu của mục 7 không xảy ra), `NativeAdSlot.kt`, `NativeAdCell.kt`, `InListAds.kt` không cần sửa (không còn chỗ gọi `heightOf(` ngoài `NativeAdCard.kt`), số của `design/context/AdGalleryScreen_default_light.md` khớp mục 3.1. Khung rỗng trong `NativeAdCard.kt`: `NativeAdTestTags.CONTENT = "native_ad_content"`, `PLACEHOLDER_MEDIA`, `nativeContentHeight` và `mediumNativeHeight` trả `0.dp`.
+- **Test viết trước:** chưa có. Lệnh sửa `NativeAdDimensTest.kt` theo mục 3.5 (bỏ `mediumHeight_interpolatesAndClamps`, `mediumIsCompact_belowCard350dp`, bỏ dòng medium của `heights_areWholeDp`) bị bộ kiểm an toàn từ chối với lý do "[Destructive or Unwanted Actions]". Phiên con dừng ngay; phiên chính không chạy lại lệnh đó dưới dạng khác và không giao cho phiên khác.
+- **Rà soát độc lập:** chưa tới.
+- **Kết quả CI:** chưa tới.
+- **Lệch so với plan:** Không có.
+- **Việc còn lại:** cả task, tiếp tục trên nhánh `claude/T-110-medium-jbase` (danh sách chạy nháp RUN-20261117-02).
+- **Cần người xem:** (1) xóa hai test của `NativeAdDimensTest` mà mục 3.5 nêu cần người làm hay cho phép rõ (trong phiên có người theo dõi), vì phiên tự chạy bị chặn; (2) hai chỗ phiên con thấy plan có thể thiếu: `medium_partsInsideCard_mediaAtLeast120_fontScales` đòi CTA không có dấu ba chấm, nhưng chữ dài "Install now and get the full version" khó vừa CTA 355 dp ở cỡ chữ 2.0 (có thể chỉ giữ được cho chữ ngắn, chữ dài kiểm không bị cắt chiều cao và hiện ít nhất 1 ký tự như native nhỏ); `medium_heightFollowsScreenHeight_841` đang khẳng định "body 2 dòng", trái mục 3.1 (medium không còn đoạn mô tả) mà mục 3.5 chưa có câu thay (đề xuất: dòng dưới 1 dòng, không có node `BODY`). Hai điểm chưa chạy thử.
