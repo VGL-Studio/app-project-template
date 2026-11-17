@@ -320,6 +320,10 @@ internal object NativeAdDimens {
     /** Medium (KB-32): 320 dp on a 640 dp high screen to 400 dp on a 891 dp one, linear between, kept outside. */
     fun mediumHeight(screenHeight: Dp): Dp = interpolated(screenHeight, LowScreen, HighScreen, 320.dp, 400.dp)
 
+    // T-110 skeleton (step 3): replaced in step 4.
+    @Suppress("UNUSED_PARAMETER")
+    fun mediumMediaHeight(content: Dp): Dp = 0.dp
+
     /** Whether medium on a screen of [screenHeight] is the low frame ([MediumCompactBelow]). */
     fun mediumIsCompact(screenHeight: Dp): Boolean = mediumHeight(screenHeight) < MediumCompactBelow
 
@@ -422,8 +426,12 @@ internal fun nativeContentHeight(
     ctaLarge: Boolean,
 ): Dp = 0.dp
 
-internal fun mediumNativeHeight(measurer: TextMeasurer, typography: Typography, density: Density, ctaLarge: Boolean): Dp =
-    0.dp
+internal fun mediumNativeHeight(
+    measurer: TextMeasurer,
+    typography: Typography,
+    density: Density,
+    ctaLarge: Boolean,
+): Dp = 0.dp
 
 /** Text measured for one line; the height of a line depends on the style, not on the text. */
 private const val SMALL_LINE_SAMPLE = "Ad"
