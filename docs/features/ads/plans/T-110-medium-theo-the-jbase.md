@@ -1,7 +1,7 @@
 ---
 ticket: T-110
 title: Code native medium theo thẻ JBase vẽ ra
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 2                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -10,7 +10,7 @@ blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
 reviewer: Nhật
 cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
-approved_at:
+approved_at: 2026-11-17
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -223,7 +223,7 @@ Không cần (E dưới 2): đo dòng chữ cho chiều cao thẻ là cách củ
 
 ### Phiên bản 2
 
-- **Quyết định:** chưa duyệt.
+- **Quyết định:** duyệt, 2026-11-17, trong phiên có người theo dõi (ADR-0048, phần C). Lời đồng ý nguyên văn của anh Nhật: "Duyệt plan T-110 phiên bản 2, duyệt danh sách RUN-20261117-02, bắt đầu phiên khi merge, merge PR."
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
 - **Ghi chú:** hai câu hỏi ở mục 8 giữ câu trả lời của bản 1.
 
