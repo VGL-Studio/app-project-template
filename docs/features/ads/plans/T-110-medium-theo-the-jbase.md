@@ -1,7 +1,7 @@
 ---
 ticket: T-110
 title: Code native medium theo thẻ JBase vẽ ra
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -10,7 +10,7 @@ blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
 reviewer: Nhật
 cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
-approved_at:
+approved_at: 2026-11-17
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -210,8 +210,8 @@ Không cần (E dưới 2): đo dòng chữ cho chiều cao thẻ là cách củ
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
+- **Quyết định:** duyệt, 2026-11-17, trong phiên có người theo dõi (ADR-0048, phần C). Lời đồng ý nguyên văn của anh Nhật: "Duyệt."
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
-- **Ghi chú:**
+- **Ghi chú:** lời duyệt không nêu khác đề xuất, nên hai câu hỏi ở mục 8 theo đề xuất: (1) bỏ đoạn mô tả theo thiết kế, mô tả chỉ hiện (và đăng ký với SDK) ở dòng dưới tiêu đề khi không có nhà quảng cáo; (2) không có điểm sao thì chữ lấy cả dòng.
 
 ## 10. Nhật ký thực hiện
