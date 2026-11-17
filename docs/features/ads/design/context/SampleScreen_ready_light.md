@@ -6,7 +6,7 @@ Sinh bởi `scripts/figma-export.py`. Không sửa tay; thiết kế đổi thì
 
 - Link: https://www.figma.com/design/jDs7KImtrNL3ABPYnDhDgJ/?node-id=5-2
 - Frame: `5:2`, giao diện sáng
-- Ngày lấy: 2026-11-14
+- Ngày lấy: 2026-11-17
 
 ## 2. Giá trị dùng
 
@@ -52,18 +52,19 @@ Toạ độ và cỡ tính theo dp, gốc là góc trên trái của khung. Th�
     - Text "Count", vị trí 191,108, cỡ 29 x 52, chữ "3", kiểu displayMedium (45/52, đậm 400), màu #17352F (onBackground, onSurface)
     - Instance "Button/Primary", vị trí 16,176, cỡ 379 x 52, nền #147D68 (primary, surfaceTint), bo góc 16, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/24 (lg)/0/24 (lg), căn CENTER/CENTER
       - Text "Label", vị trí 193,192, cỡ 25 x 20, chữ "Tap", kiểu ngoài hệ thống (14/20, đậm 600), màu #FFFFFF (onPrimary, onSecondary, onTertiary, onError, surfaceContainerLowest)
-  - Instance "Native small (sample_native_small)", vị trí 16,749, cỡ 379 x 126, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/24 (lg)/0/12 (ngoài hệ thống), căn MIN/CENTER
-    - Instance "Ad/Icon asset", vị trí 29,790, cỡ 44 x 44, nền #CEE9DE (secondaryContainer), bo góc 8
-    - Frame "Texts", vị trí 85,781, cỡ 189 x 62, xếp dọc, cách nhau 4 (xs), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
-      - Frame "Title row", vị trí 85,781, cỡ 189 x 22, xếp ngang, cách nhau 6 (ngoài hệ thống), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/CENTER
-        - Instance "Ad/Badge", vị trí 85,783, cỡ 26 x 18, nền #3F6374 (tertiary), bo góc 4, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/4 (xs)/0/4 (xs), căn MIN/MIN
-          - Text "Label", vị trí 89,783, cỡ 18 x 18, chữ "Ad", kiểu ngoài hệ thống (13/18, đậm 500), màu #FFFFFF (onPrimary, onSecondary, onTertiary, onError, surfaceContainerLowest)
-        - Text "Headline", vị trí 117,781, cỡ 157 x 22, chữ "Headline of the ad", kiểu ngoài hệ thống (16/22, đậm 500), màu #17352F (onBackground, onSurface)
-      - Text "Body", vị trí 85,807, cỡ 189 x 36, chữ "Short description of the ad, up to two lines", kiểu ngoài hệ thống (13/18, đậm 400), màu #6D8079 (onSurfaceVariant)
-    - Instance "Ad/CTA", vị trí 286,790, cỡ 84 x 44, nền #C3E8FB (tertiaryContainer), bo góc 8, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/16 (md)/0/16 (md), căn CENTER/CENTER
-      - Text "Label", vị trí 302,800, cỡ 52 x 24, chữ "Install", kiểu ngoài hệ thống (18/24, đậm 500), màu #001F2A (onTertiaryContainer)
-    - Instance "Ad/AdChoices (SDK)", vị trí 375,753, cỡ 16 x 16, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 4
-      - Text "i", vị trí 381,753, cỡ 3 x 16, chữ "i", kiểu labelSmall (11/16, đậm 500), màu #6D8079 (onSurfaceVariant)
+  - Instance "Native small (sample_native_small)", vị trí 16,769, cỡ 379 x 106, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp dọc, cách nhau 6 (ngoài hệ thống), lề trên/phải/dưới/trái 6 (ngoài hệ thống)/12 (ngoài hệ thống)/6 (ngoài hệ thống)/12 (ngoài hệ thống), căn MIN/MIN
+    - Frame "Top row", vị trí 28,775, cỡ 355 x 44, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/16 (md)/0/0, căn MIN/CENTER
+      - Instance "Ad/Icon asset", vị trí 28,775, cỡ 44 x 44, nền #CEE9DE (secondaryContainer), bo góc 8
+      - Frame "Texts", vị trí 84,775, cỡ 283 x 44, xếp dọc, cách nhau 4 (xs), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
+        - Frame "Title row", vị trí 84,775, cỡ 283 x 22, xếp ngang, cách nhau 6 (ngoài hệ thống), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/CENTER
+          - Instance "Ad/Badge", vị trí 84,777, cỡ 26 x 18, nền #3F6374 (tertiary), bo góc 4, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/4 (xs)/0/4 (xs), căn MIN/MIN
+            - Text "Label", vị trí 88,777, cỡ 18 x 18, chữ "Ad", kiểu ngoài hệ thống (13/18, đậm 500), màu #FFFFFF (onPrimary, onSecondary, onTertiary, onError, surfaceContainerLowest)
+          - Text "Headline", vị trí 116,775, cỡ 251 x 22, chữ "Headline of the ad", kiểu ngoài hệ thống (16/22, đậm 500), màu #17352F (onBackground, onSurface)
+        - Text "Body", vị trí 84,801, cỡ 283 x 18, chữ "Short description of the ad", kiểu ngoài hệ thống (13/18, đậm 400), màu #6D8079 (onSurfaceVariant)
+    - Instance "Ad/CTA", vị trí 28,825, cỡ 355 x 44, nền #C3E8FB (tertiaryContainer), bo góc 8, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/16 (md)/0/16 (md), căn CENTER/CENTER
+      - Text "Label", vị trí 180,835, cỡ 52 x 24, chữ "Install", kiểu ngoài hệ thống (18/24, đậm 500), màu #001F2A (onTertiaryContainer)
+    - Instance "Ad/AdChoices (SDK)", vị trí 375,773, cỡ 16 x 16, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 4
+      - Text "i", vị trí 381,773, cỡ 3 x 16, chữ "i", kiểu labelSmall (11/16, đậm 500), màu #6D8079 (onSurfaceVariant)
 
 ## 4. Code tham khảo
 

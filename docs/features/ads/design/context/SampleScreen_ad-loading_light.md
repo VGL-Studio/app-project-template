@@ -6,7 +6,7 @@ Sinh bởi `scripts/figma-export.py`. Không sửa tay; thiết kế đổi thì
 
 - Link: https://www.figma.com/design/jDs7KImtrNL3ABPYnDhDgJ/?node-id=5-43
 - Frame: `5:43`, giao diện sáng
-- Ngày lấy: 2026-11-14
+- Ngày lấy: 2026-11-17
 
 ## 2. Giá trị dùng
 
@@ -18,6 +18,7 @@ nào trùng; plan quyết định làm tròn về token gần nhất hay thêm t
 | khoảng cách | 12 | ngoài hệ thống |
 | khoảng cách | 16 | md |
 | khoảng cách | 24 | lg |
+| khoảng cách | 6 | ngoài hệ thống |
 | khoảng cách | 8 | sm |
 | kiểu chữ | 14/20, đậm 600 | ngoài hệ thống |
 | kiểu chữ | 16/24, đậm 400 | bodyLarge |
@@ -41,12 +42,13 @@ Toạ độ và cỡ tính theo dp, gốc là góc trên trái của khung. Th�
     - Text "Count", vị trí 191,108, cỡ 29 x 52, chữ "3", kiểu displayMedium (45/52, đậm 400), màu #17352F (onBackground, onSurface)
     - Instance "Button/Primary", vị trí 16,176, cỡ 379 x 52, nền #147D68 (primary, surfaceTint), bo góc 16, xếp ngang, cách nhau 0, lề trên/phải/dưới/trái 0/24 (lg)/0/24 (lg), căn CENTER/CENTER
       - Text "Label", vị trí 193,192, cỡ 25 x 20, chữ "Tap", kiểu ngoài hệ thống (14/20, đậm 600), màu #FFFFFF (onPrimary, onSecondary, onTertiary, onError, surfaceContainerLowest)
-  - Instance "Native small (sample_native_small)", vị trí 16,749, cỡ 379 x 126, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/24 (lg)/0/12 (ngoài hệ thống), căn MIN/CENTER
-    - Rectangle "Icon placeholder", vị trí 29,790, cỡ 44 x 44, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
-    - Frame "Lines", vị trí 85,795, cỡ 177 x 34, xếp dọc, cách nhau 8 (sm), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
-      - Rectangle "Line", vị trí 85,795, cỡ 177 x 14, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
-      - Rectangle "Line", vị trí 85,817, cỡ 120 x 12, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
-    - Rectangle "CTA placeholder", vị trí 274,790, cỡ 96 x 44, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
+  - Instance "Native small (sample_native_small)", vị trí 16,769, cỡ 379 x 106, nền #F1F6F3 (surfaceContainerLow), viền #C3D1CA (outlineVariant), dày 1.0, bo góc 12, xếp dọc, cách nhau 6 (ngoài hệ thống), lề trên/phải/dưới/trái 6 (ngoài hệ thống)/12 (ngoài hệ thống)/6 (ngoài hệ thống)/12 (ngoài hệ thống), căn MIN/MIN
+    - Frame "Top row", vị trí 28,775, cỡ 355 x 44, xếp ngang, cách nhau 12 (ngoài hệ thống), lề trên/phải/dưới/trái 0/16 (md)/0/0, căn MIN/CENTER
+      - Rectangle "Icon placeholder", vị trí 28,775, cỡ 44 x 44, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
+      - Frame "Lines", vị trí 84,780, cỡ 283 x 34, xếp dọc, cách nhau 8 (sm), lề trên/phải/dưới/trái 0/0/0/0, căn MIN/MIN
+        - Rectangle "Line", vị trí 84,780, cỡ 283 x 14, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
+        - Rectangle "Line", vị trí 84,802, cỡ 120 x 12, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 5
+    - Rectangle "CTA placeholder", vị trí 28,825, cỡ 355 x 44, nền #DFEAE4 (surfaceVariant, surfaceContainerHighest), bo góc 8
 
 ## 4. Code tham khảo
 

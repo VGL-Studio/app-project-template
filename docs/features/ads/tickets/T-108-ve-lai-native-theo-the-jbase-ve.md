@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-1, KB-2, KB-3, KB-4, KB-32]
 owner: Nhật
-status: backlog
+status: accepted
 risk: high
 size: M
 depends_on: []
@@ -20,6 +20,8 @@ created: 2026-11-17
 ## Mô tả
 
 Component `Native/Small`, `Native/Collapsible` và `Native/Medium` trong file thiết kế của dự án mẫu vẽ lại theo bố cục và chiều cao mà JBase vẽ thẻ (spec `ads`, KB-32 tiêu chí 3, câu hỏi 66; mã JBase ở yêu cầu 2026-11-17). Mọi native nhỏ (khe đáy, đứng riêng, hàng trong danh sách) xếp hai tầng, cao theo nội dung; lớp thu gọn có ảnh lấy phần còn lại của tổng nội suy; medium 250 dp. Màu và chữ theo token.
+
+Kết quả: số đo ở `docs/features/ads/design/README.md`, mục 1 (đợt T-108). Anh Nhật duyệt thiết kế trong phiên 2026-11-17, nguyên văn: "Duyệt thiết kế T-108".
 
 ## Phạm vi
 
