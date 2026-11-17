@@ -66,19 +66,24 @@ internal fun bottomAdBarLayers(
 }
 
 /**
- * The space the content of the screen keeps at the bottom (D-04): only once the slot has an ad; the native slot of a
- * window whose short edge is [windowShortEdge] with its bottom margin ([NativeAdDimens.bottomSlotHeight], the function the slot is drawn
- * with; AR-02), the banner its own height. The floating layer keeps none.
+ * The space the content of the screen keeps at the bottom (D-04): the space the slot takes now, ad or not, so the
+ * content always ends where the slot starts. The native slot, while it takes space ([nativeTakesSpace]: its
+ * placeholder from the first load, or its ad), keeps its height on a window whose short edge is [windowShortEdge] with
+ * its bottom margin ([NativeAdDimens.bottomSlotHeight], the function the slot is drawn with; AR-02); none once it
+ * draws nothing (a failure, and the retries after it until an ad loads). The banner slot keeps [bannerHeight], the
+ * height its frame takes now ([BannerSlotHost]): the frame height from the moment the bar is allowed (while it loads,
+ * with an ad, kept by B-06), 0 after a failure before its first ad until an ad loads. The floating layer keeps none.
  */
 internal fun bottomBarReservation(
     slot: BottomSlotKind?,
-    slotHasAd: Boolean,
+    nativeTakesSpace: Boolean,
     bannerHeight: Dp,
     windowShortEdge: Dp,
-): Dp = when {
-    slot == null || !slotHasAd -> 0.dp
-    slot == BottomSlotKind.NATIVE -> NativeAdDimens.bottomSlotHeight(windowShortEdge) + BottomAdBarDimens.SlotMargin
-    else -> bannerHeight
+): Dp = when (slot) {
+    null -> 0.dp
+    BottomSlotKind.NATIVE ->
+        if (nativeTakesSpace) NativeAdDimens.bottomSlotHeight(windowShortEdge) + BottomAdBarDimens.SlotMargin else 0.dp
+    BottomSlotKind.BANNER -> bannerHeight
 }
 
 /**
@@ -98,14 +103,14 @@ object BottomAdBarDimens {
 /** Values for screens and tests that draw a bottom bar with fake ads ([BottomAdBarLayout]). */
 object BottomAdBarDefaults {
     /**
-     * The space kept for the native slot with an ad on this window: the slot (by the window's short edge, KB-32) and
-     * its 16 dp margin below (D-04); 142 dp at 411 x 891 and at 891 x 411 dp.
+     * The space kept for the native slot on this window while it shows its placeholder or its ad: the slot (by the
+     * window's short edge, KB-32) and its 16 dp margin below (D-04); 142 dp at 411 x 891 and at 891 x 411 dp.
      */
     @Composable
     @ReadOnlyComposable
     fun nativeReservation(): Dp = bottomBarReservation(
         BottomSlotKind.NATIVE,
-        slotHasAd = true,
+        nativeTakesSpace = true,
         bannerHeight = 0.dp,
         windowShortEdge = nativeScreenSize().shortEdge,
     )
@@ -191,8 +196,9 @@ fun BottomAdBarLayout(
  *   `time_expand_collap_ad` seconds later (CL-01 to CL-04). The layer is its media area over a small native content
  *   (299 dp at 411 x 891 dp) at every font scale (plan T-065); with its 16 dp margin it never takes more than half
  *   the window height, its media shrinking first, and a window with no room has no layer, only the slot (CL-05).
- * - [content] gets the slot's height as bottom padding once the slot has an ad, never for the layer (D-04), so a
- *   taller layer covers more of the content but moves nothing.
+ * - [content] gets the space the slot takes as bottom padding, never the layer's (D-04), so a taller layer covers more
+ *   of the content but moves nothing: from the moment the bar is allowed, while the slot loads (native placeholder,
+ *   banner frame) and once it has an ad; 0 after a failure before its first ad, until an ad loads.
  * - A placement declared with `collapsibleLayer = false` never has the floating layer, even with
  *   `is_show_native_collap` on; its slot is as above.
  * - Nothing is drawn, and nothing kept, without consent or with `is_show_<code>` off; tests and previews (no ads
@@ -211,8 +217,8 @@ fun BottomAdBarScaffold(
     val bar = rememberBottomAdBarState(ads, placement)
     BottomAdBarHost(
         layers = bar.choice.layers,
-        nativeSlot = { extra, onAvailability, slotModifier ->
-            BottomNativeSlot(placement, extra, onAvailability, slotModifier)
+        nativeSlot = { extra, onTakesSpace, slotModifier ->
+            BottomNativeSlot(placement, extra, onTakesSpace, slotModifier)
         },
         bannerSlot = { onAvailability, onHeight, slotModifier ->
             BottomBannerSlot(placement, onAvailability, onHeight, slotModifier)
@@ -261,14 +267,15 @@ internal fun rememberBottomAdBarLayers(
 
 /**
  * The bar for [layers], testable without an ads controller: [nativeSlot], [bannerSlot] and [layer] draw each layer.
- * The space kept follows the availability the slot reports, changed only when it differs (a refreshed slot reports
- * true again on each new ad); it starts at none for each new slot, also after the activity is rebuilt, since the ad
- * does not survive it. [onLayersChange] and [onSlotHasAdChange] get each change.
+ * The space kept is the space the slot reports it takes, whatever its availability: the native slot reports whether
+ * it takes space (`onTakesSpace`: placeholder or ad), the banner slot the height its frame takes (`onHeight`). Both
+ * start at none for each new slot, until the slot reports. [onLayersChange] gets each change of the layers, and
+ * [onSlotHasAdChange] each change of whether the banner slot has an ad (B-06).
  */
 @Composable
 internal fun BottomAdBarHost(
     layers: BottomAdBarLayers?,
-    nativeSlot: @Composable (firstRefreshExtraMillis: Long, onAvailability: (Boolean) -> Unit, Modifier) -> Unit,
+    nativeSlot: @Composable (firstRefreshExtraMillis: Long, onTakesSpace: (Boolean) -> Unit, Modifier) -> Unit,
     bannerSlot: @Composable (onAvailability: (Boolean) -> Unit, onHeight: (Dp) -> Unit, Modifier) -> Unit,
     layer: @Composable (Modifier) -> Unit,
     modifier: Modifier = Modifier,
@@ -278,7 +285,8 @@ internal fun BottomAdBarHost(
 ) {
     val kind = layers?.slot
     var slotHasAd by remember(kind) { mutableStateOf(false) }
-    var bannerHeight by remember { mutableStateOf(0.dp) }
+    var nativeTakesSpace by remember(kind) { mutableStateOf(false) }
+    var bannerHeight by remember(kind) { mutableStateOf(0.dp) }
     val currentOnLayersChange by rememberUpdatedState(onLayersChange)
     val currentOnSlotHasAdChange by rememberUpdatedState(onSlotHasAdChange)
     LaunchedEffect(layers) { currentOnLayersChange(layers) }
@@ -288,7 +296,11 @@ internal fun BottomAdBarHost(
         null -> null
         BottomSlotKind.NATIVE -> { slotModifier ->
             key(kind) {
-                nativeSlot(bottomSlotFirstRefreshExtraMillis(layers.collapsible), onAvailability, slotModifier)
+                nativeSlot(
+                    bottomSlotFirstRefreshExtraMillis(layers.collapsible),
+                    { takesSpace -> if (takesSpace != nativeTakesSpace) nativeTakesSpace = takesSpace },
+                    slotModifier,
+                )
             }
         }
         BottomSlotKind.BANNER -> { slotModifier ->
@@ -296,7 +308,7 @@ internal fun BottomAdBarHost(
         }
     }
     BottomAdBarLayout(
-        reservation = bottomBarReservation(kind, slotHasAd, bannerHeight, nativeScreenSize().shortEdge),
+        reservation = bottomBarReservation(kind, nativeTakesSpace, bannerHeight, nativeScreenSize().shortEdge),
         slot = slot,
         layer = if (layers?.collapsible == true) layer else null,
         modifier = modifier,

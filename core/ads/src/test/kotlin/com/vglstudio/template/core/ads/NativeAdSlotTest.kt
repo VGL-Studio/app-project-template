@@ -426,7 +426,7 @@ class NativeAdSlotTest {
             AdsTestTheme {
                 BottomAdBarHost(
                     layers = BottomAdBarLayers(BottomSlotKind.NATIVE, collapsible = collapsible()),
-                    nativeSlot = { extra, onAvailability, modifier ->
+                    nativeSlot = { extra, onTakesSpace, modifier ->
                         BottomNativeSlotHost(
                             allowed = true,
                             newStates = { first ->
@@ -434,8 +434,9 @@ class NativeAdSlotTest {
                                 feed.states()
                             },
                             firstRefreshExtraMillis = extra,
-                            onAdAvailabilityChange = onAvailability,
+                            onAdAvailabilityChange = {},
                             modifier = modifier,
+                            onTakesSpaceChange = onTakesSpace,
                             adContent = { NativeAdCard(it.assets, NativeAdSize.SMALL) },
                         )
                     },
