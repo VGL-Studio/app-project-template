@@ -1,6 +1,6 @@
 ---
 feature: ads
-status: changed                  # draft | confirmed | changed
+status: confirmed                # draft | confirmed | changed
 owner: Nhật
 product_owner: Nhật
 requests:
@@ -13,7 +13,7 @@ requests:
   - requests/2026-11-17-kich-thuoc-native-theo-cach-jbase-ve.md
 design: features/ads/design/README.md
 created: 2026-10-21
-confirmed: 2026-11-15
+confirmed: 2026-11-17
 ---
 
 # SPEC: QUẢNG CÁO CỦA DỰ ÁN MẪU (NATIVE, REMOTE CONFIG, HÀNH VI THEO ADSKIT)
@@ -809,7 +809,7 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 66. **Kích thước ba biến thể native theo số JBase đưa cho game hay theo thẻ JBase vẽ ra?** (KB-1, KB-2, KB-3, KB-4, KB-32, câu hỏi 48, 64, 65; yêu cầu 2026-11-17)
     - Bối cảnh: anh Nhật thấy khe đáy cao hơn bản trước. Đọc lại mã của gói JBase (đường dẫn và dòng ở yêu cầu 2026-11-17): các hàm 90 tới 200 dp (native nhỏ), cộng thêm 160 tới 200 dp (lớp thu gọn) và 320 tới 400 dp (medium) chỉ trả số qua cầu nối sang game (game C# chỉ gọi hàm của native nhỏ và medium để tự chừa chỗ), không đặt chiều cao thẻ. Thẻ quảng cáo JBase vẽ ra đặt `wrap_content`: native nhỏ xếp hai tầng, cao khoảng 106 dp ở mọi bề rộng; medium cố định 250 dp; riêng lớp thu gọn chép lại công thức tổng nội suy trong mã vẽ, ảnh bằng tổng trừ chiều cao đo được của khối nội dung. Câu hỏi 48 và 64 dựa trên bản đối chiếu ngày 2026-10-29 đọc nhầm số chừa chỗ thành chiều cao vẽ. Ở 411 dp, cỡ chữ mặc định: khe đáy của mẫu 126 dp so với JBase khoảng 106 dp; medium 320 tới 400 dp so với 250 dp.
     - Đề xuất của AI: native nhỏ hai tầng như JBase, cao theo nội dung; chừa đúng chiều cao thẻ cộng lề 16 dp (giữ D-04, không chừa theo số 90 tới 200 dp như game JBase); lớp thu gọn tổng như JBase, ảnh lấy phần còn lại, giữ cạnh ngắn và trần của câu hỏi 65; medium 250 dp, thẻ cao thêm khi ảnh dưới 120 dp (KB-2). Phương án khác đã nêu: giữ hàng ngang của thiết kế hiện tại, chỉ cao theo nội dung (khoảng 68 dp); chừa 90 tới 200 dp như game JBase; ảnh lớp thu gọn cố định 180 dp như XML của JBase; medium 250 dp bỏ hàng sao, hay giữ 320 tới 400 dp.
-    - Trả lời: anh Nhật, trong phiên ngày 2026-11-17: "Sửa theo JBase.", rồi chọn bốn lựa chọn AI hỏi lại: "Bố cục hai tầng như JBase (Recommended)", "Chừa đúng chiều cao thẻ (Recommended)", "Tổng như JBase, ảnh lấy phần còn lại (Recommended)", "250 dp, nở thêm khi ảnh dưới 120 dp (Recommended)". Sau rà soát độc lập, anh Nhật chọn thêm hai lựa chọn: "Mọi native nhỏ (Recommended)" (khe đáy, đứng riêng, hàng trong danh sách cùng bố cục hai tầng) và "Lớp cao thêm để ảnh đủ 120 dp (Recommended)" (lớp thu gọn khi chữ lớn, vẫn chịu trần của câu hỏi 65). Vẽ lại trên Figma trước khi code (T-108), rồi code và ghi lại ảnh chuẩn (T-109). Chờ anh Nhật xác nhận chữ đầy đủ của KB-32 tiêu chí 3 và câu hỏi này.
+    - Trả lời: anh Nhật, trong phiên ngày 2026-11-17: "Sửa theo JBase.", rồi chọn bốn lựa chọn AI hỏi lại: "Bố cục hai tầng như JBase (Recommended)", "Chừa đúng chiều cao thẻ (Recommended)", "Tổng như JBase, ảnh lấy phần còn lại (Recommended)", "250 dp, nở thêm khi ảnh dưới 120 dp (Recommended)". Sau rà soát độc lập, anh Nhật chọn thêm hai lựa chọn: "Mọi native nhỏ (Recommended)" (khe đáy, đứng riêng, hàng trong danh sách cùng bố cục hai tầng) và "Lớp cao thêm để ảnh đủ 120 dp (Recommended)" (lớp thu gọn khi chữ lớn, vẫn chịu trần của câu hỏi 65). Vẽ lại trên Figma trước khi code (T-108), rồi code và ghi lại ảnh chuẩn (T-109). Anh Nhật xác nhận chữ đầy đủ ngày 2026-11-17 (mục 10).
 
 ## 10. Lịch sử
 
@@ -864,3 +864,4 @@ Không có cờ tính năng mới. Khóa Remote Config mới (mặc định tron
 | 2026-11-16 | AI | Theo trả lời của anh Nhật trong phiên ngày 2026-11-16 ("Màn ngang: Theo đề xuất của AI."; lúc đó AI chưa nêu đề xuất cụ thể, chữ đề xuất và hệ quả viết sau, anh Nhật chưa xem): thêm câu hỏi 65, dòng đổi chờ xác nhận ở KB-32 tiêu chí 3, trường hợp đặc biệt ở KB-4 (khe đáy và lớp thu gọn ở màn ngang, chia đôi màn hình theo cạnh ngắn của cửa sổ, lớp thu gọn có trần nửa chiều cao cửa sổ), tách ticket T-107. Chuyển sang `changed`, chờ anh Nhật xác nhận chữ của đề xuất |
 | 2026-11-16 | AI | Theo lựa chọn của anh Nhật trong phiên ngày 2026-11-16, sau khi AI hỏi lại với chữ đề xuất và hệ quả của câu hỏi 65: "Xác nhận đề xuất (Recommended)". Chuyển sang `confirmed` |
 | 2026-11-17 | AI | Theo yêu cầu 2026-11-17 và lựa chọn của anh Nhật trong phiên ("Sửa theo JBase." cùng bốn lựa chọn ở câu hỏi 66, và hai lựa chọn thêm sau rà soát độc lập: mọi native nhỏ kể cả hàng trong danh sách KB-3, lớp thu gọn cao thêm khi chữ lớn): thêm câu hỏi 66, dòng đổi ở KB-1 (hai tiêu chí), KB-32 tiêu chí 3, câu hỏi 37, 48, 49, 64 (kích thước ba biến thể native theo thẻ JBase vẽ ra, không theo số chừa chỗ JBase đưa cho game); tách ticket T-108 (vẽ lại trên Figma), T-109 (code). Chuyển sang `changed`, chờ anh Nhật xác nhận chữ đầy đủ |
+| 2026-11-17 | AI | Theo lời anh Nhật trong phiên, ngày 2026-11-17, sau rà soát độc lập trên PR #533: "Xác nhận spec ads (KB-32 tiêu chí 3, câu hỏi 66) trên PR #533". Chuyển sang `confirmed` |
