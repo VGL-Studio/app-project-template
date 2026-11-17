@@ -97,6 +97,9 @@ class BottomAdBarTest {
     private val slotFeed = FakeNativeFeed()
     private val layerFeed = FakeNativeFeed()
     private val banners = FakeBannerAdViews()
+
+    /** Whether the screen of the banner slot shows: false holds its first send (B-05). */
+    private val bannerVisible = MutableStateFlow(true)
     private val recordedDelays = mutableListOf<Long>()
     private val reservations = mutableListOf<Dp>()
     private val layerChanges = mutableListOf<BottomAdBarLayers?>()
@@ -134,13 +137,12 @@ class BottomAdBarTest {
                     )
                 },
                 bannerSlot = { onAvailability, onHeight, modifier ->
-                    SideEffect { onHeight(BANNER_HEIGHT_DP.dp) }
                     BannerSlotHost(
                         gateOpen = canRequest,
                         enabled = barEnabled,
                         unitId = layerUnitIds.of(placement, AdFormat.BANNER),
                         heightDp = BANNER_HEIGHT_DP,
-                        visible = MutableStateFlow(true),
+                        visible = bannerVisible,
                         covered = MutableStateFlow(false),
                         mayRequestNow = { canRequest },
                         retryResets = MutableStateFlow(0),
@@ -150,6 +152,8 @@ class BottomAdBarTest {
                         newView = banners::newView,
                         modifier = modifier,
                         onAdAvailabilityChange = onAvailability,
+                        inBottomBar = true,
+                        onSlotHeight = onHeight,
                     )
                 },
                 layer = { modifier ->
@@ -404,8 +408,19 @@ class BottomAdBarTest {
                 windowShortEdge = 411.dp,
             ),
         )
+        // D-04: the banner slot keeps the height its frame takes, ad or not: 0 once the frame takes none (a failure
+        // before the first ad); control: its frame height while it loads (issue #527).
         assertEquals(
             0.dp,
+            bottomBarReservation(
+                BottomSlotKind.BANNER,
+                slotHasAd = false,
+                bannerHeight = 0.dp,
+                windowShortEdge = 411.dp,
+            ),
+        )
+        assertEquals(
+            62.dp,
             bottomBarReservation(
                 BottomSlotKind.BANNER,
                 slotHasAd = false,
@@ -614,6 +629,96 @@ class BottomAdBarTest {
         // Control: the ad arrives and the space is kept.
         update { slotFeed.load(FakeLoadedNativeAd()) }
         assertContentBottom("content with an ad", 749f)
+    }
+
+    // The banner slot of the bar (D-04, B-06): the space kept always equals the frame drawn (issue #527).
+
+    @Test
+    fun bannerSlot_reservationEqualsFrame_noSendLoadingAdKept() {
+        flags = barFlags(nativeBottom = false, collap = false)
+        bannerVisible.value = false
+        setTimedBar()
+        assertEquals(1, banners.createdCount)
+        assertEquals(0, banners.last.sendCount)
+        assertBannerFrameEqualsReservation("no send yet", BANNER_HEIGHT_DP)
+
+        timedUpdate { bannerVisible.value = true }
+        assertEquals(1, banners.last.sendCount)
+        assertBannerFrameEqualsReservation("first load in flight", BANNER_HEIGHT_DP)
+
+        // Control: with an ad both are the frame height, not 0, so the equality is not met by two zeros.
+        timedUpdate { banners.last.emitLoaded() }
+        assertPresent(FAKE_BANNER_TAG)
+        assertBannerFrameEqualsReservation("ad shown", BANNER_HEIGHT_DP)
+
+        // A failure after an ad keeps the frame and the ad it had.
+        timedUpdate { banners.last.emitFailed(3) }
+        assertBannerFrameEqualsReservation("failure after an ad", BANNER_HEIGHT_DP)
+
+        // B-06: consent withdrawn after an ad keeps the frame and the space.
+        timedUpdate { canRequest = false }
+        assertEquals(0, banners.last.destroyCount)
+        assertBannerFrameEqualsReservation("consent withdrawn after an ad", BANNER_HEIGHT_DP)
+    }
+
+    @Test
+    fun bannerSlot_reservationEqualsFrame_failedBeforeAd_retry_adAgain() {
+        flags = barFlags(nativeBottom = false, collap = false)
+        setTimedBar()
+        val start = composeRule.mainClock.currentTime
+        val view = banners.last
+        assertEquals(1, view.sendCount)
+        // Control: loading keeps the frame height.
+        assertBannerFrameEqualsReservation("first load in flight", BANNER_HEIGHT_DP)
+
+        timedUpdate { view.emitFailed(3) }
+        assertEquals(0, view.destroyCount)
+        assertBannerFrameEqualsReservation("failed before the first ad", 0)
+
+        // B-02: the view retries 2 s later in the empty frame; nothing is kept until an ad loads (D-04).
+        advanceTo(start + RETRY_AFTER_FIRST_FAILURE_MILLIS)
+        assertEquals(2, view.sendCount)
+        assertBannerFrameEqualsReservation("retry in flight", 0)
+
+        timedUpdate { view.emitLoaded() }
+        assertPresent(FAKE_BANNER_TAG)
+        assertBannerFrameEqualsReservation("ad after the failure", BANNER_HEIGHT_DP)
+    }
+
+    /** [setBar] with the clock of Compose stopped: the test moves it ([advanceTo], [timedUpdate]). */
+    private fun setTimedBar() {
+        composeRule.mainClock.autoAdvance = false
+        setBar()
+        frames()
+    }
+
+    /** Two frames: one for a change, one for the space the slot reports back to the bar. */
+    private fun frames() {
+        repeat(2) {
+            composeRule.mainClock.advanceTimeByFrame()
+            composeRule.waitForIdle()
+        }
+    }
+
+    private fun timedUpdate(change: () -> Unit) {
+        composeRule.runOnIdle(change)
+        frames()
+    }
+
+    private fun advanceTo(timeMillis: Long) {
+        val step = timeMillis - composeRule.mainClock.currentTime
+        if (step > 0) composeRule.mainClock.advanceTimeBy(step, ignoreFrameDuration = true)
+        frames()
+    }
+
+    /** The banner frame drawn by the bar and the bottom space of the content are equal, and [expectedDp] high. */
+    private fun assertBannerFrameEqualsReservation(state: String, expectedDp: Int) {
+        val slot = bounds(BottomAdBarTestTags.SLOT)
+        val frame = (slot.bottom - slot.top).value
+        val reservation = SCREEN_HEIGHT - contentBottom()
+        assertEquals("$state: space kept equals the frame drawn", frame, reservation, TOLERANCE)
+        assertEquals("$state: frame drawn", expectedDp.toFloat(), frame, TOLERANCE)
+        assertEquals("$state: padding given to the content", expectedDp.toFloat(), reservations.last().value, TOLERANCE)
     }
 
     @Test
@@ -998,6 +1103,9 @@ class BottomAdBarTest {
         const val SLOT_AD = "bar_slot_ad"
         const val SCREEN_HEIGHT = 891f
         const val BANNER_HEIGHT_DP = 62
+
+        /** The retry of a banner after its first failure (B-02: n x 2 s), with room for the frames of the failure. */
+        const val RETRY_AFTER_FIRST_FAILURE_MILLIS = 2_100L
         const val TOLERANCE = 1f
 
         val DEFAULT_FLAGS: AdsGlobalFlags = runBlocking { DefaultAdsFlags(FakeRemoteSettings()).global.first() }

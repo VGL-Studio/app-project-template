@@ -66,19 +66,23 @@ internal fun bottomAdBarLayers(
 }
 
 /**
- * The space the content of the screen keeps at the bottom (D-04): only once the slot has an ad; the native slot of a
- * window whose short edge is [windowShortEdge] with its bottom margin ([NativeAdDimens.bottomSlotHeight], the function the slot is drawn
- * with; AR-02), the banner its own height. The floating layer keeps none.
+ * The space the content of the screen keeps at the bottom (D-04). The native slot keeps space only once it has an ad:
+ * its height on a window whose short edge is [windowShortEdge] with its bottom margin ([NativeAdDimens.bottomSlotHeight],
+ * the function the slot is drawn with; AR-02). The banner slot keeps [bannerHeight], the height its frame takes now
+ * ([BannerSlotHost]), whether it has an ad or not: the frame height from the moment the bar is allowed (while it loads,
+ * with an ad, kept by B-06), 0 after a failure before its first ad until an ad loads; so the content always ends at
+ * the top of the frame drawn. The floating layer keeps none.
  */
 internal fun bottomBarReservation(
     slot: BottomSlotKind?,
     slotHasAd: Boolean,
     bannerHeight: Dp,
     windowShortEdge: Dp,
-): Dp = when {
-    slot == null || !slotHasAd -> 0.dp
-    slot == BottomSlotKind.NATIVE -> NativeAdDimens.bottomSlotHeight(windowShortEdge) + BottomAdBarDimens.SlotMargin
-    else -> bannerHeight
+): Dp = when (slot) {
+    null -> 0.dp
+    BottomSlotKind.NATIVE ->
+        if (slotHasAd) NativeAdDimens.bottomSlotHeight(windowShortEdge) + BottomAdBarDimens.SlotMargin else 0.dp
+    BottomSlotKind.BANNER -> bannerHeight
 }
 
 /**
@@ -191,8 +195,9 @@ fun BottomAdBarLayout(
  *   `time_expand_collap_ad` seconds later (CL-01 to CL-04). The layer is its media area over a small native content
  *   (299 dp at 411 x 891 dp) at every font scale (plan T-065); with its 16 dp margin it never takes more than half
  *   the window height, its media shrinking first, and a window with no room has no layer, only the slot (CL-05).
- * - [content] gets the slot's height as bottom padding once the slot has an ad, never for the layer (D-04), so a
- *   taller layer covers more of the content but moves nothing.
+ * - [content] gets the slot's height as bottom padding, never the layer's (D-04), so a taller layer covers more of
+ *   the content but moves nothing: the native slot's once it has an ad; the banner's from the moment the bar is
+ *   allowed, equal to the frame drawn (0 after a failure before its first ad, until an ad loads).
  * - A placement declared with `collapsibleLayer = false` never has the floating layer, even with
  *   `is_show_native_collap` on; its slot is as above.
  * - Nothing is drawn, and nothing kept, without consent or with `is_show_<code>` off; tests and previews (no ads
@@ -261,9 +266,10 @@ internal fun rememberBottomAdBarLayers(
 
 /**
  * The bar for [layers], testable without an ads controller: [nativeSlot], [bannerSlot] and [layer] draw each layer.
- * The space kept follows the availability the slot reports, changed only when it differs (a refreshed slot reports
- * true again on each new ad); it starts at none for each new slot, also after the activity is rebuilt, since the ad
- * does not survive it. [onLayersChange] and [onSlotHasAdChange] get each change.
+ * The space kept for the native slot follows the availability the slot reports, changed only when it differs (a
+ * refreshed slot reports true again on each new ad); it starts at none for each new slot, also after the activity is
+ * rebuilt, since the ad does not survive it. The space kept for the banner slot is the height its frame reports
+ * (`onHeight`), whatever its availability. [onLayersChange] and [onSlotHasAdChange] get each change.
  */
 @Composable
 internal fun BottomAdBarHost(
@@ -278,7 +284,7 @@ internal fun BottomAdBarHost(
 ) {
     val kind = layers?.slot
     var slotHasAd by remember(kind) { mutableStateOf(false) }
-    var bannerHeight by remember { mutableStateOf(0.dp) }
+    var bannerHeight by remember(kind) { mutableStateOf(0.dp) }
     val currentOnLayersChange by rememberUpdatedState(onLayersChange)
     val currentOnSlotHasAdChange by rememberUpdatedState(onSlotHasAdChange)
     LaunchedEffect(layers) { currentOnLayersChange(layers) }
