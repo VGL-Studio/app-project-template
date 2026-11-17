@@ -435,7 +435,9 @@ class NativeAdCardTest {
      */
     @Test
     fun small_ctaFullWidth_longCtaEllipsized() {
-        var assets by mutableStateOf(longFullNativeAdAssets)
+        // Longer than the 331 dp a 355 dp call to action holds at 18 sp (the long fixture's text fits it whole).
+        val longCta = "Install now and get the full version of the app with every feature for free"
+        var assets by mutableStateOf(longFullNativeAdAssets.copy(callToAction = longCta))
         composeRule.setContent {
             AdsTestTheme { NativeAdCard(assets, NativeAdSize.SMALL, Modifier.width(CARD_WIDTH)) }
         }
@@ -444,7 +446,7 @@ class NativeAdCardTest {
         val measured = "CTA ${(cta.right - cta.left).value} dp, headline ${(headline.right - headline.left).value} dp"
         assertEquals("long call to action width; $measured", 355f, (cta.right - cta.left).value, 0.5f)
         assertTrue("headline has no width; $measured", (headline.right - headline.left).value > 0f)
-        val long = textLayout(longFullNativeAdAssets.callToAction!!)
+        val long = textLayout(longCta)
         assertTrue("long call to action not cut with an ellipsis", long.isLineEllipsized(0))
         assertTrue("long call to action shows no character", long.getLineEnd(0, visibleEnd = true) >= 1)
 

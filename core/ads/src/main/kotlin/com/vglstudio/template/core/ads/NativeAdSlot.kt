@@ -218,12 +218,9 @@ internal fun NativeAdSlotContent(
             is NativeAdState.Loaded -> Box(contentModifier) { key(state.ad) { adContent(state.ad) } }
             NativeAdState.Unavailable ->
                 if (keepSpaceWhenEmpty) {
-                    // The step card's height follows the font scale, like the card and its placeholder (plan T-045).
-                    val height = when (size) {
-                        NativeAdSize.STEP -> NativeStepAdDefaults.height()
-                        else -> NativeAdDimens.heightOf(size, ctaLarge, nativeScreenSize())
-                    }
-                    Spacer(Modifier.fillMaxWidth().height(height))
+                    // Small and the step card follow the font scale, like the card and its placeholder (plans
+                    // T-045, T-109).
+                    Spacer(Modifier.fillMaxWidth().height(nativeAdHeight(size, ctaLarge)))
                 }
         }
     }
@@ -231,7 +228,7 @@ internal fun NativeAdSlotContent(
 
 /**
  * The native slot of a bottom bar ([BottomAdBarScaffold], D-02): like [NativeAdSlot] for native small (gate,
- * placeholder as high as the slot of the window's short edge, nothing with no ad), reporting whether it takes space
+ * placeholder as high as the slot, [rememberSmallNativeHeight]: 106 dp at the default font scale, nothing with no ad), reporting whether it takes space
  * ([onTakesSpaceChange]: placeholder or ad, D-04), with its first refresh [firstRefreshExtraMillis] later
  * than the interval of `time_reload_native_small` (section 5.7). The stream is built once per placement: a new extra
  * (the layer turned on or off) applies from the next slot, without destroying the ad or loading again.
