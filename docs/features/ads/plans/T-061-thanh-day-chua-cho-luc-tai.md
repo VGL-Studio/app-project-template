@@ -30,7 +30,7 @@ Ticket xử lý các kịch bản sau trong `features/ads/spec.md`:
 | --- | --- | --- |
 | KB-17, tiêu chí 5 (đổi 2026-10-29, ADR-0036, câu hỏi 37) | Nội dung của màn hình chừa đúng chiều cao của khe đáy từ lúc khe đang tải và khi khe có quảng cáo, nên nội dung không bị đẩy khi quảng cáo về; khi khe nạp lỗi thì không chừa gì. Không chừa thừa hay thiếu | Đã có từ PR #531. Kiểm bởi `BottomAdBarTest.slotLoading_reservesPlaceholderSpace` (đáy nội dung ở đỉnh khe 769 dp cả lúc tải và lúc có quảng cáo), `nativeSlot_reservationEqualsSlot_loadingLayerOpenAd`, `bannerSlot_reservationEqualsFrame_noSendLoadingAdKept`, và hai test nối production của `BottomBarSlotWiringTest` |
 | KB-17, tiêu chí 5, đổi 2026-11-06 (KB-35) | Lúc lớp nổi mở, khoảng chừa giữ như đang có | Phần "khe đáy nhường lớp nổi" thuộc T-090 (backlog, phụ thuộc T-061). Hôm nay lớp nổi không tính vào khoảng chừa (`layer_notCountedInReservation`); plan không đổi |
-| Câu hỏi 37 (nạp lại sau lỗi không chừa lại tới khi có quảng cáo) | Lượt nạp lại sau lỗi không chừa lại cho tới khi có quảng cáo | Đã có: khe native `retryingNativeAdStates` không phát `Loading` lần nữa (KDoc "Never emits Loading again"); khe banner `bannerSlotHeightDp` về 0 tới khi có quảng cáo (`bannerSlot_reservationEqualsFrame_failedBeforeAd_retry_adAgain`). Plan thêm test của khe native qua `AdsController` thật |
+| Câu hỏi 37 (nạp lại sau lỗi không chừa lại tới khi có quảng cáo) | Lượt nạp lại sau lỗi không chừa lại cho tới khi có quảng cáo | Đã có: khe native `retryingNativeAdStates` không phát `Loading` lần nữa (KDoc "Never emits Loading again"), nhưng ở production khe đáy đi qua `AdsController.nativeAd` → `singleAdSlotStates` → `NativeAdSource.claim` (`NativeAdSources.kt`), đường mà luồng giả `slotFeed` của `BottomAdBarTest` không chạy; khe banner `bannerSlotHeightDp` về 0 tới khi có quảng cáo (`bannerSlot_reservationEqualsFrame_failedBeforeAd_retry_adAgain`). Plan thêm test của khe native qua `AdsController` thật |
 | Câu hỏi 49, câu hỏi 66 (một chiều cao cho vẽ, khung chờ, chừa chỗ) | Chiều cao chừa tính trước khi có quảng cáo, cùng hàm với chiều cao vẽ | Đã có: `rememberSmallNativeHeight`, `reservedSlot_equalsDrawnSlotHeight`, `nativeReservation_followsFontScale` (T-109) |
 
 Thiết kế tham chiếu: Không có thiết kế riêng cho khoảng chừa (docs/ops/design-workflow.md); chiều cao khe theo `design/context/` của T-109.
@@ -44,7 +44,7 @@ ADR liên quan: ADR-0036 (điểm 2, thay luật D-04 cũ), ADR-0045 (mục 7.2)
 Đối chiếu ticket với nhánh chính (commit `4297ca6`):
 
 - Phạm vi 1 của ticket (đổi `BottomAdBar.kt` dòng 68-72): đã làm ở PR #531. `bottomBarReservation(slot, nativeTakesSpace, bannerHeight, nativeSlotHeight)` chừa theo chỗ khe đang chiếm; `NativeAdSlotGate.onTakesSpaceChange` báo khe native có chiếm chỗ (khung chờ hay quảng cáo); `BannerSlotHost` báo chiều cao khung (`onHeight`), `bannerSlotHeightDp(inBottomBar = true)` về 0 khi nạp lỗi trước quảng cáo đầu.
-- Phạm vi 2 (viết lại câu khẳng định cũ theo ADR-0031, ảnh chuẩn): PR #531 đã viết lại `slotLoading_reservesNothing` (nay `slotLoading_reservesPlaceholderSpace`), `placementOnAgain_barBuiltFresh`, `restore_reservationZeroUntilAvailableAgain`, `reservation_noAd_isZero`. Không ảnh chuẩn nào đổi: screenshot test của màn mẫu và màn xem thử chạy không có `AdsController`, thanh đáy không dựng, nội dung không có lề (`withoutAdsController_drawsContentOnly_noPadding`).
+- Phạm vi 2 (viết lại câu khẳng định cũ theo ADR-0031, ảnh chuẩn): PR #531 đã viết lại `slotLoading_reservesNothing` (nay `slotLoading_reservesPlaceholderSpace`), `placementOnAgain_barBuiltFresh`, `restore_reservationFollowsNewSlot` (tên cũ `restore_reservationZeroUntilAvailableAgain`), `reservation_noAd_isZero`. Không ảnh chuẩn nào đổi: screenshot test của màn mẫu và màn xem thử chạy không có `AdsController`, thanh đáy không dựng, nội dung không có lề (`withoutAdsController_drawsContentOnly_noPadding`).
 - Phạm vi 3 (đối chiếu `ads-business-rules.md` D-04 và `ads-guide.md`): đã đối chiếu, khớp code; PR #531 sửa cả hai.
 
 Việc còn lại của plan: thêm test `bottomNativeSlot_retryAfterFailure_takesNoSpaceUntilAd` vào `BottomBarSlotWiringTest`, dựng như `bottomNativeSlot_placeholderTakesSpace_failureDoesNot` (`testAdsController` với `FakeNativeAdLoader`, `start`, `openConsentGateForTest`, `admobReadyForTest`, `setAppForegroundForTest(true)`, `BottomNativeSlot` với `onTakesSpaceChange` ghi vào danh sách):
@@ -52,7 +52,7 @@ Việc còn lại của plan: thêm test `bottomNativeSlot_retryAfterFailure_tak
 1. Lượt đầu đang bay: `reported == [true]`.
 2. Mọi yêu cầu đang mở nạp lỗi (`loader.fail(3)`): `reported == [true, false]`, không có khung chờ.
 3. Đẩy đồng hồ tới lượt thử lại (O-05: 5 giây sau lỗi đầu): `composeRule.mainClock.advanceTimeBy(6_000)` rồi `shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(6))`, `waitForIdle`. Khẳng định: `loader.requests.size` lớn hơn trước bước này (đối chứng: lượt thử lại thật sự đã gửi, nên câu sau không qua vì chưa có lượt nào), `placeholders() == 0`, `reported == [true, false]` (thử lại không chừa lại).
-4. Lượt thử lại có quảng cáo (`loader.deliver(FakeLoadedNativeAd())`): `reported == [true, false, true]`.
+4. Lượt thử lại có quảng cáo (`loader.deliver(FakeLoadedNativeAd())`): `reported == [true, false, true]`, `placeholders() == 0` (không có khung chờ hiện cùng quảng cáo).
 
 Không đổi code ngoài thư mục test.
 
@@ -120,7 +120,7 @@ Không có: plan không sửa code Kotlin ngoài thư mục test, chỉ thêm m�
 ## 6. Ảnh hưởng chéo
 
 - File hoặc thành phần dùng chung bị chạm: chỉ `BottomBarSlotWiringTest.kt` (test của `:core:ads`); dùng `AdsController`, `FakeNativeAdLoader`, `testAdsController` mà không sửa.
-- Task khác trong sprint có thể xung đột: T-090 (`depends_on: [T-061, T-087]`). T-090 (`depends_on: [T-061, T-087]`). `scripts/plan-queue.py` chỉ nhận T-061 làm phụ thuộc xong khi ticket ở `on-staging`, `accepted`, `released` hay có plan; ticket `cancelled` thì T-090 bị chặn (DEAD). Vì vậy câu 1 ở mục 8 nêu cả cách gỡ chặn T-090.
+- Task khác trong sprint có thể xung đột: T-090 (`depends_on: [T-061, T-087]`). `scripts/plan-queue.py` chỉ nhận T-061 làm phụ thuộc xong khi ticket ở `on-staging`, `accepted`, `released` hay có plan; ticket `cancelled` thì T-090 bị chặn (DEAD). Vì vậy câu 1 ở mục 8 nêu cả cách gỡ chặn T-090.
 - Đề xuất thứ tự chạy: không có plan approved nào sửa `BottomBarSlotWiringTest.kt`; chạy lúc nào cũng được, trước T-090.
 
 ## 7. Điều kiện dừng riêng
@@ -129,7 +129,7 @@ Không có ngoài điều kiện chung của auto-run.md. Nếu test mới thấ
 
 ## 8. Câu hỏi cho người duyệt
 
-1. **Ticket đã được PR #531 làm xong. Anh chọn cách nào?** (a) Không chạy plan: ghi ticket `on-staging` (hành vi đã có trên nhánh chính từ PR #531, bản staging sau merge có nó), plan này `stopped` hay xóa trong PR duyệt; T-090 được gỡ chặn ngay. (b) Duyệt plan để thêm một test canh hồi quy qua đường nối production (mục 3.1), rồi ticket đi đường thường. (c) Hủy ticket (`cancelled`): khi đó phải bỏ T-061 khỏi `depends_on` của T-090, vì `plan-queue.py` coi phụ thuộc bị hủy là chặn. Đề xuất của AI: (a), vì test thêm chỉ phủ một đường mà `retryingNativeAdStates` đã ghi rõ và `BottomAdBarTest` đã kiểm bằng luồng giả.
+1. **Ticket đã được PR #531 làm xong. Anh chọn cách nào?** (a) Không chạy plan: ghi ticket `on-staging` (hành vi đã có trên nhánh chính từ PR #531, bản staging sau merge có nó), plan này `stopped` hay xóa trong PR duyệt; T-090 được gỡ chặn ngay. (b) Duyệt plan để thêm một test canh hồi quy qua đường nối production (mục 3.1), rồi ticket đi đường thường. (c) Hủy ticket (`cancelled`): khi đó phải bỏ T-061 khỏi `depends_on` của T-090, vì `plan-queue.py` coi phụ thuộc bị hủy là chặn. Đề xuất của AI: (a), vì hành vi đã có và đã có test qua luồng giả. Lưu ý khi cân (b): luồng giả của `BottomAdBarTest` không chạy đường production `singleAdSlotStates` / `NativeAdSource.claim`, còn `BottomBarSlotWiringTest` chạy đường đó nhưng dừng ở lần lỗi; test của plan là test duy nhất kiểm lượt thử lại qua đường production. Chọn (a) mà muốn bỏ plan thì người xóa plan và để trống `plan:` của ticket, ghi "làm ở PR #531" trong ticket, thay vì để plan `stopped`.
 2. Ticket ghi cỡ M; plan ghi `token_estimate` theo cỡ S (7.4M) vì chỉ còn một test. Anh có muốn sửa cỡ của ticket thành S cho số liệu đo token không?
 3. Ngoại lệ viết test trước (mục 4): test mới qua ngay trên code hiện tại. Anh đồng ý thay bước "thất bại đúng lý do" bằng câu đối chứng trong test không?
 
