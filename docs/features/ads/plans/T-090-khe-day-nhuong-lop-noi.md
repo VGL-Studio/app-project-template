@@ -1,16 +1,16 @@
 ---
 ticket: T-090
 title: Khe đáy nhường lớp native thu gọn
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 20.2M        # cỡ M, số gợi ý 20.2M của scripts/token-usage.py estimate (2026-11-17, trung vị 37 task M); không chỉnh
 blocking_points: [ads, analytics, core]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-17
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -213,8 +213,8 @@ Nguồn giả của `BottomAdBarTest` (`FakeNativeFeed`) thêm hai bộ đếm t
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
-- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
-- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+- **Quyết định:** duyệt, 2026-11-17, trong phiên có người theo dõi (ADR-0048, phần C). Lời đồng ý nguyên văn của anh Nhật: "Duyệt plan T-090, duyệt danh sách RUN-20261117-03, bắt đầu phiên khi merge, merge PR."
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** câu trả lời của mục 8 ghi ở từng câu (anh Nhật trả lời trong phiên cùng ngày).
 
 ## 10. Nhật ký thực hiện
