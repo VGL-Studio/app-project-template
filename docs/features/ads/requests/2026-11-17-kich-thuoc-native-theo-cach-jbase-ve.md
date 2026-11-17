@@ -11,12 +11,13 @@ Ghi lại từ trao đổi với AI ngày 2026-11-17.
 
 ## Mình muốn gì
 
-Anh Nhật thấy native ở khe đáy cao hơn bản trước. AI đọc lại mã của gói JBase và thấy JBase không vẽ thẻ native cao 90 tới 200 dp: con số đó chỉ là chiều cao mà game hỏi để tự chừa chỗ. Thẻ quảng cáo JBase vẽ ra cao theo nội dung. Anh Nhật: "Sửa theo JBase."
+Anh Nhật thấy native ở khe đáy cao hơn bản trước. AI đọc lại mã của gói JBase và thấy JBase không vẽ thẻ native cao 90 tới 200 dp: con số đó chỉ là chiều cao JBase trả cho game để game tự chừa chỗ. Thẻ quảng cáo JBase vẽ ra cao theo nội dung. Anh Nhật: "Sửa theo JBase."
 
 Bốn lựa chọn anh Nhật chọn trong phiên:
 
 - Native nhỏ ở đáy: bố cục hai tầng như JBase (hàng icon và chữ, dưới là nút ngang hết bề rộng), cao theo nội dung, khoảng 106 dp ở cỡ chữ mặc định, không đổi theo bề rộng màn hình.
-- Chỗ chừa ở đáy màn hình bằng đúng chiều cao thẻ, không chừa thêm khoảng trống như game JBase.
+- Chỗ chừa ở đáy màn hình bằng chiều cao thẻ cộng lề đáy như hôm nay, không chừa theo số 90 tới 200 dp như game JBase.
+- Sau rà soát: bố cục hai tầng áp cho mọi native nhỏ (khe đáy, đứng riêng, hàng trong danh sách); lớp thu gọn cao thêm khi chữ lớn làm ảnh còn dưới 120 dp.
 - Lớp thu gọn khi mở: tổng chiều cao tính như JBase, ảnh lấy phần còn lại sau phần nội dung.
 - Native medium: 250 dp như JBase; trường hợp ảnh còn dưới 120 dp thì thẻ cao thêm để giữ ảnh 120 dp.
 
@@ -46,4 +47,4 @@ Không thêm vị trí, sự kiện hay file tĩnh nào. Chỉ đổi kích thư
   - `gnt_medium_template_view.xml`: cao 250 dp, ảnh lấp phần còn lại, dưới là khối nội dung như native nhỏ.
   - `java/game/NativeBannerTemplate.java`, dòng 121 tới 133: thẻ đặt `MATCH_PARENT` x `WRAP_CONTENT`; dòng 567 tới 589 (`computeExpandedMediaHeightPx`): ảnh của lớp thu gọn bằng tổng (90 tới 200 dp cộng 160 tới 200 dp theo bề rộng) trừ chiều cao đo được của khối nội dung.
   - `java/game/NativePositionedTemplateBase.java`, dòng 81 tới 94: khung chứa `MATCH_PARENT` x `WRAP_CONTENT`, đặt ở đáy bằng `gravity`.
-  - `java/game/NativeAdsManager.java`, dòng 497 tới 605: `getNativeBannerHeight`, `getNativeCollapsibleHeight`, `getNativeMrecHeight` chỉ trả số cho game qua `LibraryBridge` và `Assets/JBase/Scripts/Bridge/AndroidBridge.cs`, dòng 564 tới 571; không chỗ nào phía Java đặt chiều cao thẻ theo các số này.
+  - `java/game/NativeAdsManager.java`, dòng 497 tới 605: `getNativeBannerHeight`, `getNativeCollapsibleHeight`, `getNativeMrecHeight` chỉ trả số qua `LibraryBridge`; game C# chỉ gọi hàm của native nhỏ và medium (`Assets/JBase/Scripts/Bridge/AndroidBridge.cs`, dòng 564 tới 571). Ba hàm này không đặt chiều cao thẻ; riêng lớp thu gọn, `NativeBannerTemplate.getAdaptiveCollapsibleTotalHeight` (dòng 531 tới 565) chép lại công thức tổng để tính ảnh.
