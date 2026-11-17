@@ -391,7 +391,7 @@ class BottomAdBarTest {
             62.dp,
             bottomBarReservation(
                 BottomSlotKind.BANNER,
-                nativeTakesSpace = true,
+                nativeTakesSpace = false,
                 bannerHeight = 62.dp,
                 windowShortEdge = 411.dp,
             ),
@@ -509,7 +509,7 @@ class BottomAdBarTest {
             62.dp,
             bottomBarReservation(
                 BottomSlotKind.BANNER,
-                nativeTakesSpace = true,
+                nativeTakesSpace = false,
                 bannerHeight = 62.dp,
                 windowShortEdge = 360.dp,
             ),
@@ -650,7 +650,9 @@ class BottomAdBarTest {
         assertPresent(NativeAdTestTags.PLACEHOLDER)
         assertNativeSlotEqualsReservation("first load in flight", NATIVE_RESERVATION_DP)
 
-        // The layer opens over the loading slot: the space stays as it is (D-04, D-07), the layer keeps none.
+        // The layer opens over the loading slot: the layer keeps no space (D-04). This is the behaviour before the
+        // bottom slot gives way to the layer (D-07): the slot still draws below it, so the space is still its own.
+        // Rewrite this step when the slot gives way.
         update { layerFeed.load(FakeLoadedNativeAd(sampleNativeAdAssets.copy(headline = "Layer ad"))) }
         assertPresent(CollapsibleNativeAdTestTags.AD)
         assertNativeSlotEqualsReservation("layer open, slot loading", NATIVE_RESERVATION_DP)
@@ -672,7 +674,7 @@ class BottomAdBarTest {
         assertNativeSlotEqualsReservation("failed before the first ad", 0)
 
         // The flow of the slot retries without showing the placeholder again (it never emits Loading again):
-        // nothing is kept, also while the layer opens over the empty slot (D-04, D-07).
+        // nothing is kept, also while the layer opens over the empty slot (D-04; before the slot gives way, D-07).
         update { layerFeed.load(FakeLoadedNativeAd(sampleNativeAdAssets.copy(headline = "Layer ad"))) }
         assertPresent(CollapsibleNativeAdTestTags.AD)
         assertAbsent(NativeAdTestTags.PLACEHOLDER)

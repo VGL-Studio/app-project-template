@@ -71,9 +71,10 @@ internal fun nativeSlotAllowed(canRequestAds: Boolean, enabled: Boolean, unitId:
 /**
  * Draws the slot while [allowed], nothing otherwise, and reports availability to the app: true on an ad, false on
  * no ad, never while loading; and false when [allowed] turns false after true was reported (L-061).
- * [onTakesSpaceChange] gets whether the slot takes space now, at each state: true while the placeholder or the ad
- * shows, false once it draws nothing (no ad without [keepSpaceWhenEmpty], or no longer [allowed]); a bottom bar keeps
- * exactly that space for the content (D-04). With
+ * [onTakesSpaceChange] gets whether the slot takes space now, at each state: true while it loads (the placeholder
+ * always shows then; [placeholderWhenEmpty] only chooses what fills the kept space of a pool cell with no ad), while
+ * the ad shows, and with no ad when [keepSpaceWhenEmpty] keeps the space; false once it draws nothing (no ad without
+ * [keepSpaceWhenEmpty], or no longer [allowed]). A bottom bar keeps exactly that space for the content (D-04). With
  * [onPoolOpportunity] the slot is a cell of a pool ([NativeAdCellHost]): it records the opportunity of P-07, seen
  * while [viewed]; [cardHeight] is the height of its card placeholders (the caller passes it to the card it draws).
  */
