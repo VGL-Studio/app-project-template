@@ -24,7 +24,7 @@ created: 2026-11-17
 ## Phạm vi
 
 - Bố cục hai tầng của native nhỏ (trong khe đáy, đứng riêng, hàng trong danh sách và trong lớp thu gọn); chiều cao theo nội dung thay `NativeAdDimens.bottomSlotHeight`; một chiều cao cho vẽ, khung chờ và chừa chỗ (D-04, câu hỏi 49). Chiều cao chừa lúc chưa có quảng cáo phải biết trước khi tải, kể cả ở cỡ chữ lớn: plan chọn cách tính (đo khối nội dung hay tính từ cỡ chữ).
-- Lớp thu gọn: tổng theo câu hỏi 66, ảnh bằng tổng trừ chiều cao khối nội dung; giữ cạnh ngắn, trần nửa cửa sổ, ảnh không dưới 120 dp (câu hỏi 65); phần còn lại cho ảnh dưới 120 dp (chữ lớn, màn hẹp) thì lớp cao thêm, vượt trần thì không mở lớp.
+- Lớp thu gọn: tổng theo câu hỏi 66, ảnh bằng tổng trừ chiều cao khối nội dung; giữ cạnh ngắn, trần nửa cửa sổ, ảnh không dưới 120 dp (câu hỏi 65); chữ lớn làm phần còn lại cho ảnh dưới 120 dp thì lớp cao thêm; chạm trần thì vùng ảnh co trước, không dưới 120 dp, vẫn vượt trần thì không mở lớp.
 - Medium 250 dp, cao thêm khi ảnh dưới 120 dp; xem lại khung thấp của medium (`MediumCompactBelow`) có còn cần không.
 - Viết lại câu khẳng định cũ về chiều cao (126 dp, 320 tới 400 dp) theo ADR-0031; ghi lại ảnh chuẩn bị đổi (liệt kê trong plan), kể cả `:feature:sample` (`SampleScreen_*`, `SampleScreenTest` dùng `nativeReservation()`, `nativeSlotHeight()`, `collapsibleLayerHeight()`), feature network và `:app` (`AdGalleryScreenTest`, `PreviewAdGallerySlots`). `BottomAdBarDefaults.nativeReservation()` nay phụ thuộc cỡ chữ: plan nói cách feature đọc nó.
 - Giới hạn bề rộng 120 dp của nút ở native nhỏ không còn hợp với nút ngang hết bề rộng: plan quyết bỏ và viết lại các test liên quan theo ADR-0031, vẫn giữ kiểm tiêu đề và nhãn "Ad" hiện đủ ở cỡ chữ lớn (KB-1).

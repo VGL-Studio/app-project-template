@@ -17,9 +17,13 @@ Bốn lựa chọn anh Nhật chọn trong phiên:
 
 - Native nhỏ ở đáy: bố cục hai tầng như JBase (hàng icon và chữ, dưới là nút ngang hết bề rộng), cao theo nội dung, khoảng 106 dp ở cỡ chữ mặc định, không đổi theo bề rộng màn hình.
 - Chỗ chừa ở đáy màn hình bằng chiều cao thẻ cộng lề đáy như hôm nay, không chừa theo số 90 tới 200 dp như game JBase.
-- Sau rà soát: bố cục hai tầng áp cho mọi native nhỏ (khe đáy, đứng riêng, hàng trong danh sách); lớp thu gọn cao thêm khi chữ lớn làm ảnh còn dưới 120 dp.
 - Lớp thu gọn khi mở: tổng chiều cao tính như JBase, ảnh lấy phần còn lại sau phần nội dung.
 - Native medium: 250 dp như JBase; trường hợp ảnh còn dưới 120 dp thì thẻ cao thêm để giữ ảnh 120 dp.
+
+Hai lựa chọn thêm sau rà soát độc lập:
+
+- Bố cục hai tầng áp cho mọi native nhỏ: khe đáy, đứng riêng, hàng trong danh sách.
+- Lớp thu gọn cao thêm khi chữ lớn làm ảnh còn dưới 120 dp, vẫn chịu trần nửa chiều cao cửa sổ.
 
 ## Vì sao
 
