@@ -198,9 +198,16 @@ fun BottomAdBarLayout(
  *   (299 dp at 411 x 891 dp at the default font scale, taller when large text leaves the media below 120 dp; plan
  *   T-109); with its 16 dp margin it never takes more than half the window height, its media shrinking first, and a
  *   window with no room has no layer, only the slot (CL-05).
+ * - The slot and the layer start together: the slot loads at once, never waiting for the layer. While the layer shows
+ *   its ad (open), the native slot gives way to it (D-07): its ad is destroyed and nothing is drawn, not even the
+ *   placeholder; it loads, refreshes and retries nothing, takes nothing from its stock and reports nothing (MC-14),
+ *   while a load it sent before goes on for its stock (the exception of O-03). Collapsed, or the layer gone or out
+ *   of ads, the slot comes back as a new display opportunity: its placeholder while it loads (none when it had shrunk
+ *   to 0), the ad of its stock first (O-01). The banner slot never gives way.
  * - [content] gets the space the slot takes as bottom padding, never the layer's (D-04), so a taller layer covers more
  *   of the content but moves nothing: from the moment the bar is allowed, while the slot loads (native placeholder,
- *   banner frame) and once it has an ad; 0 after a failure before its first ad, until an ad loads.
+ *   banner frame) and once it has an ad; 0 after a failure before its first ad, until an ad loads. While the native
+ *   slot gives way to the layer the space stays as it was when the layer opened.
  * - A placement declared with `collapsibleLayer = false` never has the floating layer, even with
  *   `is_show_native_collap` on; its slot is as above.
  * - Nothing is drawn, and nothing kept, without consent or with `is_show_<code>` off; tests and previews (no ads
@@ -219,16 +226,19 @@ fun BottomAdBarScaffold(
     val bar = rememberBottomAdBarState(ads, placement)
     BottomAdBarHost(
         layers = bar.choice.layers,
-        nativeSlot = { extra, onTakesSpace, slotModifier ->
-            BottomNativeSlot(placement, extra, onTakesSpace, slotModifier)
+        nativeSlot = { extra, onTakesSpace, slotModifier, placeholderWhileLoading ->
+            BottomNativeSlot(placement, extra, onTakesSpace, slotModifier, placeholderWhileLoading)
         },
         bannerSlot = { onAvailability, onHeight, slotModifier ->
             BottomBannerSlot(placement, onAvailability, onHeight, slotModifier)
         },
-        layer = { layerModifier -> CollapsibleNativeAdLayer(placement, bar.expandAfterSeconds, layerModifier) },
+        layer = { layerModifier, onShowingChange ->
+            CollapsibleNativeAdLayer(placement, bar.expandAfterSeconds, layerModifier, onShowingChange)
+        },
         modifier = modifier,
         onLayersChange = { ads?.onBottomBarLayers(placement, it) },
         onSlotHasAdChange = bar.choice.onSlotHasAdChange,
+        onSlotYieldChange = { ads?.onBottomSlotYield(placement, it) },
         content = content,
     )
 }
@@ -273,36 +283,73 @@ internal fun rememberBottomAdBarLayers(
  * it takes space (`onTakesSpace`: placeholder or ad), the banner slot the height its frame takes (`onHeight`). Both
  * start at none for each new slot, until the slot reports. [onLayersChange] gets each change of the layers, and
  * [onSlotHasAdChange] each change of whether the banner slot has an ad (B-06).
+ *
+ * D-07 (plan T-090): [layer] reports whether it shows its ad (`onShowingChange`); while it does, the native slot is
+ * not called at all ([bottomSlotYields]), so it leaves the composition (its collection cancelled, its ad destroyed),
+ * and the space kept stays as the slot last reported it. When the layer stops showing, [nativeSlot] is called anew,
+ * with `placeholderWhileLoading` true when the slot took space as it went, false when it had shrunk to 0 (its first
+ * call always true). [onSlotYieldChange] gets each change of whether the slot gives way, not the first false.
  */
 @Composable
 internal fun BottomAdBarHost(
     layers: BottomAdBarLayers?,
-    nativeSlot: @Composable (firstRefreshExtraMillis: Long, onTakesSpace: (Boolean) -> Unit, Modifier) -> Unit,
+    nativeSlot: @Composable (
+        firstRefreshExtraMillis: Long,
+        onTakesSpace: (Boolean) -> Unit,
+        Modifier,
+        placeholderWhileLoading: Boolean,
+    ) -> Unit,
     bannerSlot: @Composable (onAvailability: (Boolean) -> Unit, onHeight: (Dp) -> Unit, Modifier) -> Unit,
-    layer: @Composable (Modifier) -> Unit,
+    layer: @Composable (Modifier, onShowingChange: (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier,
     onLayersChange: (BottomAdBarLayers?) -> Unit = {},
     onSlotHasAdChange: (Boolean) -> Unit = {},
+    onSlotYieldChange: (Boolean) -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val kind = layers?.slot
+    val collapsible = layers?.collapsible == true
     var slotHasAd by remember(kind) { mutableStateOf(false) }
     var nativeTakesSpace by remember(kind) { mutableStateOf(false) }
     var bannerHeight by remember(kind) { mutableStateOf(0.dp) }
+    var layerShowing by remember { mutableStateOf(false) }
+
+    // Whether the native slot gave way at least once: from then on, it comes back with the space it kept.
+    var slotYielded by remember(kind) { mutableStateOf(false) }
+    val yields = bottomSlotYields(kind, collapsible, layerShowing)
+    val currentYields by rememberUpdatedState(yields)
     val currentOnLayersChange by rememberUpdatedState(onLayersChange)
     val currentOnSlotHasAdChange by rememberUpdatedState(onSlotHasAdChange)
+    val currentOnSlotYieldChange by rememberUpdatedState(onSlotYieldChange)
+    val yieldReport = remember { YieldReport() }
     LaunchedEffect(layers) { currentOnLayersChange(layers) }
     LaunchedEffect(slotHasAd) { currentOnSlotHasAdChange(slotHasAd) }
+    LaunchedEffect(yields) {
+        if (yields) slotYielded = true
+        if (yields != yieldReport.yielded) {
+            yieldReport.yielded = yields
+            currentOnSlotYieldChange(yields)
+        }
+    }
     val onAvailability: (Boolean) -> Unit = { available -> if (available != slotHasAd) slotHasAd = available }
     val slot: (@Composable (Modifier) -> Unit)? = when (kind) {
         null -> null
         BottomSlotKind.NATIVE -> { slotModifier ->
             key(kind) {
-                nativeSlot(
-                    bottomSlotFirstRefreshExtraMillis(layers.collapsible),
-                    { takesSpace -> if (takesSpace != nativeTakesSpace) nativeTakesSpace = takesSpace },
-                    slotModifier,
-                )
+                // Giving way leaves the composition; coming back is a new slot, with a new stream (O-01: its stock
+                // first), and the placeholder pinned for this entry from the space kept.
+                if (!yields) {
+                    val placeholderWhileLoading = remember { !slotYielded || nativeTakesSpace }
+                    nativeSlot(
+                        bottomSlotFirstRefreshExtraMillis(layers.collapsible),
+                        { takesSpace ->
+                            // A slot that left gives no report: the space stays as it was while it gives way.
+                            if (!currentYields && takesSpace != nativeTakesSpace) nativeTakesSpace = takesSpace
+                        },
+                        slotModifier,
+                        placeholderWhileLoading,
+                    )
+                }
             }
         }
         BottomSlotKind.BANNER -> { slotModifier ->
@@ -312,7 +359,11 @@ internal fun BottomAdBarHost(
     BottomAdBarLayout(
         reservation = bottomBarReservation(kind, nativeTakesSpace, bannerHeight, rememberSmallNativeHeight()),
         slot = slot,
-        layer = if (layers?.collapsible == true) layer else null,
+        layer = if (collapsible) {
+            { layerModifier -> layer(layerModifier) { showing -> layerShowing = showing } }
+        } else {
+            null
+        },
         modifier = modifier,
         slotMargin = if (kind == BottomSlotKind.BANNER) 0.dp else BottomAdBarDimens.SlotMargin,
         content = content,
@@ -324,4 +375,23 @@ internal fun bottomBarLayersLog(placement: AdPlacement, layers: BottomAdBarLayer
     "Bottom bar ${placement.key}: off"
 } else {
     "Bottom bar ${placement.key}: slot=${layers.slot} collapsible=${layers.collapsible}"
+}
+
+/** The last value [BottomAdBarHost] reported to `onSlotYieldChange`; not state, nothing is drawn from it. */
+private class YieldReport {
+    var yielded = false
+}
+
+/**
+ * Whether the bottom slot gives way to the collapsible layer (D-07, plan T-090): only the native slot, with the layer
+ * on the bar ([collapsible]) and showing its ad ([layerShowing], [collapsibleShowing]). The banner never does (D-01).
+ */
+internal fun bottomSlotYields(kind: BottomSlotKind?, collapsible: Boolean, layerShowing: Boolean): Boolean =
+    kind == BottomSlotKind.NATIVE && collapsible && layerShowing
+
+/** The log line of the native slot of the bar of [placement] giving way to the layer, or coming back (ADR-0019). */
+internal fun bottomSlotYieldLog(placement: AdPlacement, yielded: Boolean): String = if (yielded) {
+    "Bottom bar ${placement.key}: slot yields to the collapsible layer"
+} else {
+    "Bottom bar ${placement.key}: slot back after the collapsible layer"
 }

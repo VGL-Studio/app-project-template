@@ -2478,6 +2478,14 @@ class AdsController @Inject internal constructor(
         logger.info(TAG, bottomBarLayersLog(placement, layers))
     }
 
+    /**
+     * The native slot of the bottom bar of [placement] gave way to the open collapsible layer, or came back (D-07,
+     * [BottomAdBarScaffold]). Logged only (ADR-0019).
+     */
+    internal fun onBottomSlotYield(placement: AdPlacement, yielded: Boolean) {
+        logger.info(TAG, bottomSlotYieldLog(placement, yielded))
+    }
+
     /** The collapsible layer of [placement] has no room on a window of [window] (CL-05). Logged only (ADR-0019). */
     internal fun onCollapsibleNoRoom(placement: AdPlacement, window: DpSize) {
         logger.info(TAG, collapsibleNoRoomLog(placement, window))
