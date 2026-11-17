@@ -1,7 +1,7 @@
 ---
 ticket: T-109
 title: Code native nhỏ và lớp thu gọn theo thẻ JBase vẽ ra
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # để trống: chạm điểm chặn (ads, core)
 risk_level: high             # low | medium | high
@@ -10,7 +10,7 @@ blocking_points: [ads, core]
 run_order:                   # AI điền khi lập danh sách chạy
 reviewer: Nhật
 cross_reviewer: Nhật         # nhóm một dev (risk-scoring.md, mục 3)
-approved_at:
+approved_at: 2026-11-17
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -266,8 +266,8 @@ Không cần (E dưới 2): `TextMeasurer` đo dòng chữ cho chiều cao thẻ
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:**
+- **Quyết định:** duyệt, 2026-11-17, trong phiên có người theo dõi (ADR-0048, phần C). Lời đồng ý nguyên văn của anh Nhật: "Duyệt. Chấp nhận câu trả lời theo đề xuất của AI."
 - **Người duyệt:** Nhật, **duyệt chéo:** Nhật
-- **Ghi chú:**
+- **Ghi chú:** năm câu hỏi ở mục 8 theo đề xuất: (1) tách medium sang T-110, chạy liền sau T-109 trong cùng danh sách; (2) bỏ hai quy tắc chữ lớn của plan T-065, nhãn "Ad" luôn trước tiêu đề; (3) tổng lớp thu gọn nội suy thẳng 250 tới 400 dp (271 dp ở 360 dp); (4) chỗ chừa của thanh đáy đổi theo cỡ chữ, ghi vào `ads-guide.md`; (5) giữ công thức, bỏ ví dụ máy gập xoay ngang khỏi CL-05.
 
 ## 10. Nhật ký thực hiện
