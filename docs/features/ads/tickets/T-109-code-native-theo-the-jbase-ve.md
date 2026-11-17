@@ -3,7 +3,7 @@ id: T-109
 title: Code native nhỏ và lớp thu gọn theo thẻ JBase vẽ ra
 feature: ads
 spec: features/ads/spec.md
-scenarios: [KB-1, KB-2, KB-3, KB-4, KB-17, KB-32]
+scenarios: [KB-1, KB-3, KB-4, KB-17, KB-32]
 owner: Nhật
 status: planned
 risk: high

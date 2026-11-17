@@ -24,8 +24,8 @@ Tách từ T-109 khi viết plan (2026-11-17), để mỗi ticket vừa một l�
 ## Phạm vi
 
 - Bố cục và chiều cao medium (thẻ, khung chờ, chỗ giữ khi trống) theo thiết kế T-108, dùng lại khối nội dung hai tầng của T-109; bỏ chiều cao nội suy theo chiều cao màn hình (`mediumHeight`) và khung thấp (`MediumCompactBelow`, plan T-065 câu hỏi 7).
-- Viết lại câu khẳng định cũ về medium (400 dp, 182 dp, 432 dp, khung thấp) theo ADR-0031; ghi lại ảnh chuẩn bị đổi (`NativeAdCard_medium_*`, `NativeAdPlaceholder_medium_light`, `AdGalleryScreen_default_*`, `AdGalleryScreen_inlist_*`, `NativeAdCard_font-scale-2_light`), plan liệt kê đủ.
-- `ads-business-rules.md` mục 5.7 (dòng native medium) và `ads-guide.md` mục 4 (cột Medium).
+- Viết lại câu khẳng định cũ về medium (400 dp, 182 dp, 432 dp, khung thấp) theo ADR-0031; ghi lại ảnh chuẩn bị đổi (`NativeAdCard_medium_*`, `NativeAdPlaceholder_medium_light`, `AdGalleryScreen_default_light`, `_dark`, `_small`, `AdGalleryScreen_default-more_light`, `AdGalleryScreen_inlist_light`, `_small`, `NativeAdCard_font-scale-2_light`), plan liệt kê đủ.
+- `ads-business-rules.md` mục 5.7 (dòng native medium) và `ads-guide.md` mục 4 (cột Medium); README thiết kế: số medium ở cỡ chữ lớn (dòng Media của mục 3), bỏ ghi chú khung thấp.
 
 **Không bao gồm:**
 
