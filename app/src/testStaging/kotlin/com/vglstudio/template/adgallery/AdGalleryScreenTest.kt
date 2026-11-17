@@ -173,8 +173,8 @@ class AdGalleryScreenTest {
         assertTrue("ad first in the list", textBounds("List item 1").top < firstAd.top)
         assertTrue(firstAd.top >= textBounds("List item 3").bottom)
         assertTrue(firstAd.bottom <= textBounds("List item 4").top)
-        // Small: 126 dp at 411 dp and 16 dp above and below.
-        assertDp("first ad row height", 158.dp, firstAd.height)
+        // Small: 106 dp on every width and 16 dp above and below (plan T-109).
+        assertDp("first ad row height", 138.dp, firstAd.height)
 
         composeRule.onNodeWithTag(AdGalleryTestTags.IN_LIST)
             .performScrollToNode(hasText("List item 7"))
@@ -206,22 +206,22 @@ class AdGalleryScreenTest {
         assertDp("end margin", 16.dp, root.right - ad.right)
         // Control: the ad is the open layer, so it is pinned with its own height, not stretched.
         assertDp("open layer height", 299.dp, ad.height)
-        // Design: the layer floats over the 126 dp slot, same bottom edge (y 576 to 875).
+        // Design: the layer floats over the 106 dp slot, same bottom edge (y 576 to 875).
         assertDp("layer top", 576.dp, ad.top)
         assertDp("same bottom as the slot", bounds(PreviewAdTags.BOTTOM_SLOT).bottom, ad.bottom)
     }
 
     @Test
-    fun collapsibleCollapsed_slotAt749() {
+    fun collapsibleCollapsed_slotAt769() {
         setScreen(AdGalleryUiState.Collapsible(6), PreviewAdGallerySlots(collapsed = true))
 
         composeRule.onAllNodesWithTag(PreviewAdTags.COLLAPSIBLE).assertCountEquals(0)
         val slot = bounds(PreviewAdTags.BOTTOM_SLOT)
-        assertDp("slot top", 749.dp, slot.top)
-        assertDp("slot height", 126.dp, slot.height)
+        assertDp("slot top", 769.dp, slot.top)
+        assertDp("slot height", 106.dp, slot.height)
         assertDp("start margin", 16.dp, slot.left)
         // The list ends where the slot starts (D-04).
-        assertDp("list bottom", 749.dp, bounds(AdGalleryTestTags.COLLAPSIBLE_LIST).bottom)
+        assertDp("list bottom", 769.dp, bounds(AdGalleryTestTags.COLLAPSIBLE_LIST).bottom)
     }
 
     @Test

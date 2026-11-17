@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +26,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.State
@@ -49,20 +49,25 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import com.vglstudio.template.core.designsystem.theme.AppTheme
 import com.vglstudio.template.core.designsystem.theme.Spacing
 import kotlin.math.PI
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.max
@@ -119,7 +124,8 @@ fun NativeAdCard(
 /**
  * The loading state of a native ad: same frame and height as the ad, so nothing moves when the ad arrives (KB-1).
  * [animated] off keeps screenshots independent of time. [ctaLarge] is the medium ad with the large call to action.
- * The step card's placeholder is [NativeStepAdDefaults.height] high, like the card, at every font scale (plan T-045).
+ * The step card's placeholder is [NativeStepAdDefaults.height] high, like the card, at every font scale (plan T-045),
+ * and small's [rememberSmallNativeHeight] (plan T-109).
  * [cardHeight] is the height of a card placeholder, as for [NativeAdCard].
  */
 @Composable
@@ -133,9 +139,8 @@ fun NativeAdPlaceholder(
     NativeAdPlaceholderLayout(
         size = size,
         height = when (size) {
-            NativeAdSize.STEP -> NativeStepAdDefaults.height()
             NativeAdSize.CARD -> cardHeight ?: NativeAdDimens.CardHeight
-            else -> NativeAdDimens.heightOf(size, ctaLarge, nativeScreenSize())
+            else -> nativeAdHeight(size, ctaLarge)
         },
         modifier = modifier,
         animated = animated,
@@ -155,19 +160,17 @@ internal object NativeAdDimens {
      */
     val MediumCompactBelow = 350.dp
 
-    /** From this font scale the "Ad" label of small starts the line below the headline (plan T-065, question 8). */
-    const val SMALL_BADGE_ON_BODY_LINE_FONT_SCALE = 1.5f
-
     /**
-     * From this font scale small has 8 dp gaps between its icon, text column and call to action and a 16 dp end
-     * margin, so the headline keeps room next to a long call to action at its 120 dp ceiling (plan T-065, section
-     * 3.4 and question 15).
+     * Small (design T-108, `Native/Small`): its height at font scale 1.0, 6 + 44 + 6 + 44 + 6 dp; with larger text it
+     * grows ([smallNativeHeight], plan T-109).
      */
-    const val SMALL_TIGHT_FONT_SCALE = 1.3f
+    val SmallHeight = 106.dp
 
-    /** The gaps and the end margin of small from [SMALL_TIGHT_FONT_SCALE]. */
-    val SmallTightPartGap = 8.dp
-    val SmallTightInnerEnd = 16.dp
+    /** The top and bottom padding of small and the gap between its two tiers; outside the design system scale. */
+    val SmallTierGap = 6.dp
+
+    /** The end margin of the top row of small inside the inner margin: room for AdChoices in the top end corner. */
+    val SmallTopRowEnd = 16.dp
     val BorderWidth = 1.dp
 
     /** Inner margin of the frame; outside the design system scale (design README, section 3). */
@@ -195,14 +198,8 @@ internal object NativeAdDimens {
     val LargeCallToActionHeight = 56.dp
     val LargeCallToActionTextSize = 17.sp
 
-    /** The least width of a call to action; small's grows with its text ("Install" at 18 sp is 83.33 dp). */
+    /** The least width of a call to action. */
     val CallToActionMinWidth = 80.dp
-
-    /**
-     * Small: the widest its call to action gets, so a long label (cut with "…") leaves room for the headline and the
-     * "Ad" label (KB-1, O-08; plan T-060). "Install" stays under it up to font scale 2.0.
-     */
-    val SmallCallToActionMaxWidth = 120.dp
     val MediaHeight = 196.dp
     val FullMediaHeight = 200.dp
 
@@ -252,22 +249,25 @@ internal object NativeAdDimens {
     val ShortLineWidth = 120.dp
     val CallToActionPlaceholderWidth = CallToActionMinWidth
 
-    /** The loading blocks of small (design/context/SampleScreen_ad-loading_light.md): two bars, a 96 x 44 dp CTA. */
+    /**
+     * The loading bars of small (design/context/SampleScreen_ad-loading_light.md, two tiers since T-108): 14 dp as
+     * wide as the text column, then 12 x 120 dp; the call-to-action block spans the card.
+     */
     val SmallPlaceholderTopLineHeight = 14.dp
     val SmallPlaceholderBottomLineHeight = 12.dp
-    val SmallPlaceholderCallToActionWidth = 96.dp
 
     /**
-     * The design height of [size] on a window of [screen], at the default font scale (KB-32): small as high as the
-     * bottom slot of the short edge of the window ([bottomSlotHeight]; 126 dp at 411 x 891 and at 891 x 411 dp), medium as the screen height says ([mediumHeight]; the
-     * same with the large call to action, whose media is 12 dp lower). Medium keeps this height while its media stays
-     * above 120 dp; past that it grows (on a 891 dp screen at font scale 2.0, 406 dp; plan T-065). Full keeps 418 dp
-     * up to font scale 2.0. The step card grows with larger text, so composables read [NativeStepAdDefaults.height]
-     * for it (plan T-045).
+     * The design height of [size] on a window of [screen], at the default font scale (KB-32): medium as the screen
+     * height says ([mediumHeight]; the same with the large call to action, whose media is 12 dp lower). Medium keeps
+     * this height while its media stays above 120 dp; past that it grows (on a 891 dp screen at font scale 2.0,
+     * 406 dp; plan T-065). Full keeps 418 dp up to font scale 2.0. Small and the step card grow with larger text, so
+     * composables read [nativeAdHeight] for them (plans T-045, T-109); small here is an [IllegalArgumentException].
      */
     @Suppress("UNUSED_PARAMETER")
     fun heightOf(size: NativeAdSize, ctaLarge: Boolean, screen: DpSize): Dp = when (size) {
-        NativeAdSize.SMALL -> bottomSlotHeight(screen.shortEdge)
+        NativeAdSize.SMALL -> throw IllegalArgumentException(
+            "Small follows the font scale: read nativeAdHeight(NativeAdSize.SMALL, ctaLarge) in a composable",
+        )
         NativeAdSize.MEDIUM -> mediumHeight(screen.height)
         NativeAdSize.FULL -> FullPlaceholderHeight
         NativeAdSize.CARD -> CardHeight
@@ -275,20 +275,14 @@ internal object NativeAdDimens {
     }
 
     /**
-     * The bottom slot (native small; D-02, KB-32, design T-064): 90 dp on a window whose short edge is 320 dp to 200 dp
-     * at 600 dp, linear between, kept outside; a phone turned landscape keeps its portrait slot. One function for the
-     * drawn ad, its placeholder and the space kept (D-04).
+     * The open collapsible layer (KB-32 criterion 3, question 66; plan T-109): its media area and the small native
+     * content below it add up to 250 dp on a window whose short edge is 320 dp to 400 dp at 600 dp, linear between,
+     * kept outside: 271 dp at 360 dp, 299 dp at 411 dp. [collapsibleLayer] gives the media area what the content
+     * leaves.
      */
-    fun bottomSlotHeight(shortEdge: Dp): Dp = interpolated(shortEdge, NarrowScreen, WideScreen, 90.dp, 200.dp)
+    fun collapsibleTotalHeight(shortEdge: Dp): Dp = interpolated(shortEdge, NarrowScreen, WideScreen, 250.dp, 400.dp)
 
-    /**
-     * The design media area of the collapsible layer, above its small native content: 160 dp to 200 dp by the short
-     * edge of the window, as the slot; [collapsibleLayer] shrinks it on a low window.
-     */
-    fun collapsibleMediaAreaHeight(shortEdge: Dp): Dp =
-        interpolated(shortEdge, NarrowScreen, WideScreen, 160.dp, 200.dp)
-
-    /** The open collapsible layer: its media area (MediaView and its 12 dp top margin) over the slot's content. */
+    /** The open collapsible layer: its media area (MediaView and its 12 dp top margin) over the small native content. */
     data class CollapsibleLayerSize(val mediaArea: Dp, val slot: Dp) {
         val height: Dp get() = mediaArea + slot
     }
@@ -306,18 +300,21 @@ internal object NativeAdDimens {
     val CollapsibleMediaAreaFloor = CollapsibleMediaFloor + CollapsibleNativeAdDimens.MediaMargin
 
     /**
-     * The open collapsible layer on a window of [window] (KB-4, KB-32 criterion 3): the design media area and slot of
-     * the short edge, the layer with its 16 dp bottom margin never past half the window height. Past it the media area
-     * shrinks first, to whole dp; below [CollapsibleMediaAreaFloor] there is no room and this is null (no layer: a
-     * phone in landscape, a split screen). 299 dp at 411 x 891 dp, 284 dp at 411 x 600 dp, null below 411 x 548 dp.
+     * The open collapsible layer on a window of [window] over a small native [content] (KB-4, KB-32 criterion 3,
+     * question 66; plan T-109): the media area is what [collapsibleTotalHeight] of the short edge leaves over
+     * [content], never below [CollapsibleMediaAreaFloor] (with large text the layer grows instead), and the layer with
+     * its 16 dp bottom margin never past half the window height: past it the media area shrinks, to whole dp; below
+     * [CollapsibleMediaAreaFloor] there is no room and this is null (no layer: a phone in landscape, a split screen).
+     * With the 106 dp content of font scale 1.0: 299 dp at 411 x 891 dp, 284 dp at 411 x 600 dp, null below 411 x 508
+     * dp.
      */
-    fun collapsibleLayer(window: DpSize): CollapsibleLayerSize? {
-        val edge = window.shortEdge
-        val slot = bottomSlotHeight(edge)
-        val design = collapsibleMediaAreaHeight(edge)
-        val room = floor(window.height.value * COLLAPSIBLE_WINDOW_SHARE - slot.value - CollapsibleLayerMargin.value).dp
-        val mediaArea = min(design, room)
-        return if (mediaArea < CollapsibleMediaAreaFloor) null else CollapsibleLayerSize(mediaArea, slot)
+    fun collapsibleLayer(window: DpSize, content: Dp): CollapsibleLayerSize? {
+        val wanted = max(collapsibleTotalHeight(window.shortEdge) - content, CollapsibleMediaAreaFloor)
+        val room = floor(
+            window.height.value * COLLAPSIBLE_WINDOW_SHARE - content.value - CollapsibleLayerMargin.value,
+        ).dp
+        val mediaArea = min(wanted, room)
+        return if (mediaArea < CollapsibleMediaAreaFloor) null else CollapsibleLayerSize(mediaArea, content)
     }
 
     /** Medium (KB-32): 320 dp on a 640 dp high screen to 400 dp on a 891 dp one, linear between, kept outside. */
@@ -333,7 +330,7 @@ internal object NativeAdDimens {
 
     /**
      * [low] at [from] to [high] at [to], linear between, kept outside; rounded to the nearest whole dp like the numbers
-     * of the design (126 dp at 411 dp), so screenshots never fall between two pixels.
+     * of the design (299 dp at 411 dp), so screenshots never fall between two pixels.
      */
     private fun interpolated(at: Dp, from: Dp, to: Dp, low: Dp, high: Dp): Dp {
         val fraction = ((at - from) / (to - from)).coerceIn(0f, 1f)
@@ -359,6 +356,75 @@ internal fun nativeScreenSize(): DpSize {
     val configuration = LocalConfiguration.current
     return DpSize(configuration.screenWidthDp.dp, configuration.screenHeightDp.dp)
 }
+
+/**
+ * The height of a native ad of [size] at the current font scale, for the ad, its placeholder and the space kept when
+ * empty: small [rememberSmallNativeHeight], the step card [NativeStepAdDefaults.height] (both grow with larger text),
+ * the others [NativeAdDimens.heightOf] on this window. [ctaLarge] is the medium ad with the large call to action.
+ */
+@Composable
+internal fun nativeAdHeight(size: NativeAdSize, ctaLarge: Boolean): Dp = when (size) {
+    NativeAdSize.SMALL -> rememberSmallNativeHeight()
+    NativeAdSize.STEP -> NativeStepAdDefaults.height()
+    else -> NativeAdDimens.heightOf(size, ctaLarge, nativeScreenSize())
+}
+
+/**
+ * The height of small at the current font scale ([smallNativeHeight]), the same on every window: 106 dp at the
+ * default font scale. The card, its placeholder, the space kept for the bottom slot and the content of the collapsible
+ * layer all take it (KB-1, KB-32, D-04; plan T-109).
+ */
+@Composable
+internal fun rememberSmallNativeHeight(): Dp {
+    val measurer = rememberTextMeasurer()
+    val typography = MaterialTheme.typography
+    val density = LocalDensity.current
+    return remember(measurer, typography, density) { smallNativeHeight(measurer, typography, density) }
+}
+
+/**
+ * The height of small (design T-108, two tiers) for one line of each of its texts, measured with [measurer] at
+ * [density] (the same measuring `Text` does, so the non-linear font scale of Android 14 is in it, as
+ * [stepCardHeight]): the headline row (the 16/22 sp headline or the 13 sp "Ad" label), 4 dp and the 13/18 sp line
+ * below make the text column; the top row is the 44 dp icon or that column; the call to action 44 dp or one line of
+ * its 18 sp text; 6 dp above, between and below. Added in pixels, then rounded up to a whole dp, never under 106 dp.
+ */
+internal fun smallNativeHeight(measurer: TextMeasurer, typography: Typography, density: Density): Dp = with(density) {
+    fun line(style: TextStyle): Int =
+        measurer.measure(SMALL_LINE_SAMPLE, style, maxLines = 1, density = density).size.height
+    val headline = line(
+        typography.titleSmall.merge(
+            TextStyle(fontSize = NativeHeadlineFontSize, lineHeight = NativeHeadlineLineHeight),
+        ),
+    )
+    val badge = line(typography.labelSmall.merge(TextStyle(fontSize = NativeBadgeFontSize)))
+    val second = line(
+        typography.bodySmall.merge(
+            TextStyle(fontSize = NativeSecondLineFontSize, lineHeight = NativeSecondLineLineHeight),
+        ),
+    )
+    val column = max(headline, badge) + SmallHeadlineBodyGap.roundToPx() + second
+    val topRow = max(NativeAdDimens.SmallMediumIconSize.roundToPx(), column)
+    val callToAction = max(
+        NativeAdDimens.MediumCallToActionHeight.roundToPx(),
+        line(typography.labelLarge.merge(TextStyle(fontSize = NativeCallToActionFontSize))),
+    )
+    val gap = NativeAdDimens.SmallTierGap.roundToPx()
+    val card = ceil((gap + topRow + gap + callToAction + gap).toDp().value).dp
+    if (card < NativeAdDimens.SmallHeight) NativeAdDimens.SmallHeight else card
+}
+
+/** Text measured for one line; the height of a line depends on the style, not on the text. */
+private const val SMALL_LINE_SAMPLE = "Ad"
+
+/**
+ * The open collapsible layer on this window at the current font scale ([NativeAdDimens.collapsibleLayer] over
+ * [rememberSmallNativeHeight]); null when the window has no room. A change of font scale is a change of
+ * configuration, so the screen is drawn again and this is worked out again, as when it turns (plan T-109).
+ */
+@Composable
+internal fun rememberCollapsibleLayer(): NativeAdDimens.CollapsibleLayerSize? =
+    NativeAdDimens.collapsibleLayer(nativeScreenSize(), rememberSmallNativeHeight())
 
 /**
  * Text sizes of small and medium outside the type scale (design T-064, design/context/AdGalleryScreen_default_light.md):
@@ -389,6 +455,8 @@ internal object NativeAdTestTags {
     const val PLACEHOLDER_CTA = "native_ad_placeholder_cta"
     const val PLACEHOLDER_ICON = "native_ad_placeholder_icon"
     const val SECOND_LINE = "native_ad_second_line"
+    const val SMALL_TOP_ROW = "native_ad_small_top_row"
+    const val PLACEHOLDER_LINE = "native_ad_placeholder_line"
     const val BODY = "native_ad_body"
 }
 
@@ -406,9 +474,6 @@ private const val MAX_STARS = 5
  * the design's export places side parts 1 dp further in, inside the border, which is within its 4 dp tolerance.
  */
 private val InnerStart = NativeAdDimens.InnerPadding
-
-/** End margin of small; it keeps the AdChoices corner free. */
-private val SmallInnerEnd = Spacing.lg
 
 /** Bottom margin of medium inside the border, so the parts add up to the 400 dp of the design. */
 private val MediumInnerBottom = NativeAdDimens.BorderWidth + NativeAdDimens.InnerPadding
@@ -447,13 +512,14 @@ internal fun NativeAdLayout(
                     // The step card: 250 dp, more with large text so its media keeps 120 dp (plan T-045).
                     NativeAdSize.STEP -> Modifier.height(NativeStepAdDefaults.height())
                     NativeAdSize.CARD -> Modifier.height(cardHeight ?: NativeAdDimens.CardHeight)
-                    else -> Modifier.height(NativeAdDimens.heightOf(size, ctaLarge, screen))
+                    // Small: 106 dp at font scale 1.0 on every window, more with larger text (plan T-109).
+                    NativeAdSize.SMALL -> Modifier.height(rememberSmallNativeHeight())
                 },
             )
             .testTag(NativeAdTestTags.CARD),
     ) {
         when (size) {
-            NativeAdSize.SMALL -> SmallLayout(assets, binder, NativeAdDimens.bottomSlotHeight(screen.shortEdge))
+            NativeAdSize.SMALL -> SmallLayout(assets, binder)
             NativeAdSize.MEDIUM -> MediumLayout(assets, binder, ctaLarge, screen)
             NativeAdSize.FULL -> FullLayout(assets, binder)
             NativeAdSize.CARD -> CardLayout(assets, binder)
@@ -464,47 +530,55 @@ internal fun NativeAdLayout(
 }
 
 /**
- * Small (design T-064, component `Native/Small`; the bottom slot, a slot of its own and a row of a list): the 44 dp
- * icon, the text column ([SmallTexts]) and a 44 dp call to action with 18 sp text, as wide as its text from 80 to
- * 120 dp, all centered in the [slotHeight] of the card, 12 dp apart with a 24 dp end margin; from font scale 1.3
- * 8 dp apart with a 16 dp end margin ([NativeAdDimens.SMALL_TIGHT_FONT_SCALE]). The content of the collapsible layer
- * is this same layout.
+ * Small (design T-108, component `Native/Small`; the bottom slot, a slot of its own, a row of a list and the content
+ * of the collapsible layer): two tiers, 12 dp side margins, 6 dp above, between and below. The top row, at least 44 dp
+ * high with a 16 dp end margin that keeps the AdChoices corner free: the 44 dp icon and, 12 dp after it, the text
+ * column ([SmallTexts]), centered. Below it a 44 dp call to action with 18 sp text as wide as the card. The card is
+ * [rememberSmallNativeHeight] high (106 dp at font scale 1.0, more with larger text, plan T-109).
  */
 @Composable
-internal fun SmallLayout(assets: NativeAdAssets, binder: NativeAdBinder, slotHeight: Dp) {
-    val tight = LocalDensity.current.fontScale >= NativeAdDimens.SMALL_TIGHT_FONT_SCALE
-    Row(
+internal fun SmallLayout(assets: NativeAdAssets, binder: NativeAdBinder) {
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = InnerStart, end = if (tight) NativeAdDimens.SmallTightInnerEnd else SmallInnerEnd),
-        horizontalArrangement = Arrangement.spacedBy(
-            if (tight) NativeAdDimens.SmallTightPartGap else NativeAdDimens.PartGap,
-        ),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = InnerStart, vertical = NativeAdDimens.SmallTierGap),
+        verticalArrangement = Arrangement.spacedBy(NativeAdDimens.SmallTierGap),
     ) {
-        NativeAdIcon(assets.icon, binder, size = NativeAdDimens.SmallMediumIconSize)
-        SmallTexts(assets, binder, slotHeight, Modifier.weight(1f))
-        assets.callToAction?.let {
+        Row(
+            modifier = Modifier
+                .testTag(NativeAdTestTags.SMALL_TOP_ROW)
+                .fillMaxWidth()
+                .heightIn(min = NativeAdDimens.SmallMediumIconSize)
+                .padding(end = NativeAdDimens.SmallTopRowEnd),
+            horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NativeAdIcon(assets.icon, binder, size = NativeAdDimens.SmallMediumIconSize)
+            SmallTexts(assets, binder, Modifier.weight(1f))
+        }
+        val callToAction = assets.callToAction
+        if (callToAction != null) {
             NativeAdCallToAction(
-                text = it,
+                text = callToAction,
                 binder = binder,
-                modifier = Modifier.widthIn(max = NativeAdDimens.SmallCallToActionMaxWidth),
+                modifier = Modifier.fillMaxWidth(),
                 height = NativeAdDimens.MediumCallToActionHeight,
                 fontSize = NativeCallToActionFontSize,
             )
+        } else {
+            // Keeps the two tiers where they are when the ad has no call to action.
+            Spacer(Modifier.fillMaxWidth().height(NativeAdDimens.MediumCallToActionHeight))
         }
     }
 }
 
 /**
  * The text column of small: the headline row ("Ad" before a one-line 16/22 sp headline), 4 dp, then the line below
- * (the advertiser, else the body; 13/18 sp, up to two lines; question 9 of plan T-065). From font scale 1.5 the "Ad"
- * label starts the line below instead, so the headline keeps room on narrow screens, and that line keeps one line so
- * the column fits the 90 dp slot (questions 8, 14). The column is never higher than the slot.
+ * (the advertiser, else the body; 13/18 sp, one line at every font scale, cut with "…"; question 9 of plan T-065,
+ * question 2 of plan T-109); no line below without either.
  */
 @Composable
-private fun SmallTexts(assets: NativeAdAssets, binder: NativeAdBinder, slotHeight: Dp, modifier: Modifier = Modifier) {
-    val badgeOnBodyLine = LocalDensity.current.fontScale >= NativeAdDimens.SMALL_BADGE_ON_BODY_LINE_FONT_SCALE
+private fun SmallTexts(assets: NativeAdAssets, binder: NativeAdBinder, modifier: Modifier = Modifier) {
     val advertiser = assets.advertiser
     val body = assets.body
     val secondLine = when {
@@ -512,13 +586,10 @@ private fun SmallTexts(assets: NativeAdAssets, binder: NativeAdBinder, slotHeigh
         body != null -> NativeAdAsset.BODY to body
         else -> null
     }
-    Column(
-        modifier = modifier.heightIn(max = slotHeight),
-        verticalArrangement = Arrangement.spacedBy(SmallHeadlineBodyGap),
-    ) {
-        SmallTitleRow(assets.headline, binder, withBadge = !badgeOnBodyLine)
-        if (badgeOnBodyLine || secondLine != null) {
-            SmallSecondLine(secondLine, binder, withBadge = badgeOnBodyLine, maxLines = if (badgeOnBodyLine) 1 else 2)
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(SmallHeadlineBodyGap)) {
+        SmallTitleRow(assets.headline, binder, withBadge = true)
+        if (secondLine != null) {
+            SecondLineText(secondLine.first, secondLine.second, binder, maxLines = 1, Modifier.fillMaxWidth())
         }
     }
 }
@@ -539,24 +610,6 @@ private fun SmallTitleRow(headline: String, binder: NativeAdBinder, withBadge: B
             fontSize = NativeHeadlineFontSize,
             lineHeight = NativeHeadlineLineHeight,
         )
-    }
-}
-
-/** The line below the headline of small: [text] at 13/18 sp, after the "Ad" label when [withBadge]. */
-@Composable
-private fun SmallSecondLine(
-    text: Pair<NativeAdAsset, String>?,
-    binder: NativeAdBinder,
-    withBadge: Boolean,
-    maxLines: Int,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.BadgeGap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (withBadge) NativeAdBadge(fontSize = NativeBadgeFontSize)
-        if (text != null) SecondLineText(text.first, text.second, binder, maxLines, Modifier.weight(1f))
     }
 }
 
@@ -1116,10 +1169,12 @@ internal fun NativeAdPlaceholderLayout(
     NativeAdFrame(modifier = modifier.fillMaxWidth().height(height).testTag(NativeAdTestTags.PLACEHOLDER)) {
         val pulse = Modifier.graphicsLayer { this.alpha = alpha.value }
         when (size) {
-            NativeAdSize.SMALL -> Row(
-                modifier = Modifier.fillMaxSize().padding(start = InnerStart, end = SmallInnerEnd).then(pulse),
-                horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
-                verticalAlignment = Alignment.CenterVertically,
+            NativeAdSize.SMALL -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = InnerStart, vertical = NativeAdDimens.SmallTierGap)
+                    .then(pulse),
+                verticalArrangement = Arrangement.spacedBy(NativeAdDimens.SmallTierGap),
             ) {
                 SmallPlaceholderBlocks()
             }
@@ -1157,21 +1212,41 @@ internal fun NativeAdPlaceholderLayout(
     }
 }
 
-/** Small (design/context/SampleScreen_ad-loading_light.md): 44 dp icon, two bars, a 96 x 44 dp call to action. */
+/**
+ * Small (design/context/SampleScreen_ad-loading_light.md, two tiers since T-108): the top row (44 dp icon, a 14 dp bar
+ * as wide as the text column and a 12 x 120 dp bar, 8 dp apart; 16 dp end margin), then a 44 dp call-to-action block
+ * as wide as the card. The top row takes what the call to action leaves, so with larger text the block keeps its
+ * 6 dp to the bottom.
+ */
 @Composable
-private fun RowScope.SmallPlaceholderBlocks() {
-    PlaceholderBlock(Modifier.size(NativeAdDimens.SmallMediumIconSize).testTag(NativeAdTestTags.PLACEHOLDER_ICON))
-    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        val bar = RoundedCornerShape(NativeAdDimens.LineHeight / 2)
-        PlaceholderBlock(Modifier.fillMaxWidth().height(NativeAdDimens.SmallPlaceholderTopLineHeight), bar)
-        PlaceholderBlock(
-            Modifier.size(NativeAdDimens.ShortLineWidth, NativeAdDimens.SmallPlaceholderBottomLineHeight),
-            bar,
-        )
+private fun ColumnScope.SmallPlaceholderBlocks() {
+    Row(
+        modifier = Modifier.fillMaxWidth().weight(1f).padding(end = NativeAdDimens.SmallTopRowEnd),
+        horizontalArrangement = Arrangement.spacedBy(NativeAdDimens.PartGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PlaceholderBlock(Modifier.size(NativeAdDimens.SmallMediumIconSize).testTag(NativeAdTestTags.PLACEHOLDER_ICON))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            val bar = RoundedCornerShape(NativeAdDimens.LineHeight / 2)
+            PlaceholderBlock(
+                Modifier
+                    .fillMaxWidth()
+                    .height(NativeAdDimens.SmallPlaceholderTopLineHeight)
+                    .testTag(NativeAdTestTags.PLACEHOLDER_LINE),
+                bar,
+            )
+            PlaceholderBlock(
+                Modifier
+                    .size(NativeAdDimens.ShortLineWidth, NativeAdDimens.SmallPlaceholderBottomLineHeight)
+                    .testTag(NativeAdTestTags.PLACEHOLDER_LINE),
+                bar,
+            )
+        }
     }
     PlaceholderBlock(
         Modifier
-            .size(NativeAdDimens.SmallPlaceholderCallToActionWidth, NativeAdDimens.MediumCallToActionHeight)
+            .fillMaxWidth()
+            .height(NativeAdDimens.MediumCallToActionHeight)
             .testTag(NativeAdTestTags.PLACEHOLDER_CTA),
     )
 }

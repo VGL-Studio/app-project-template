@@ -61,7 +61,7 @@ class NativeAdSlotTest {
     @Test
     fun loading_showsPlaceholder() {
         setSlotContent(NativeAdState.Loading, NativeAdSize.SMALL)
-        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(126.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(106.dp)
     }
 
     @Test
@@ -78,8 +78,8 @@ class NativeAdSlotTest {
                 )
             }
         }
-        // Control: the same slot takes 126 dp while loading, so 0 dp below is the slot giving its space back.
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(126.dp)
+        // Control: the same slot takes 106 dp while loading, so 0 dp below is the slot giving its space back.
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(106.dp)
 
         state = NativeAdState.Unavailable
         composeRule.waitForIdle()
@@ -100,7 +100,7 @@ class NativeAdSlotTest {
                 )
             }
         }
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(126.dp)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(106.dp)
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
 
         size = NativeAdSize.MEDIUM
@@ -109,12 +109,12 @@ class NativeAdSlotTest {
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
     }
 
-    /** KB-1, KB-32 criterion 3: the space kept for small on a landscape window follows its short edge, 126 dp. */
+    /** KB-1, KB-32 criterion 3 (plan T-109): the space kept for small on a landscape window is 106 dp, as on any. */
     @Test
     @Config(qualifiers = "w891dp-h411dp-xxhdpi")
-    fun keptSpace_landscape_followsShortEdge() {
+    fun keptSpace_landscape_is106dp() {
         setSlotContent(NativeAdState.Unavailable, NativeAdSize.SMALL, keepSpaceWhenEmpty = true)
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(126.dp)
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(106.dp)
         composeRule.onAllNodes(hasAnyText, useUnmergedTree = true).assertCountEquals(0)
     }
 
@@ -136,8 +136,8 @@ class NativeAdSlotTest {
             }
         }
         val before = composeRule.onNodeWithTag(BUTTON).getUnclippedBoundsInRoot()
-        // Control: the button sits below the 126 dp placeholder, so the comparison below is not 0 against 0.
-        assertEquals(126f, before.top.value, 0.5f)
+        // Control: the button sits below the 106 dp placeholder, so the comparison below is not 0 against 0.
+        assertEquals(106f, before.top.value, 0.5f)
 
         state = NativeAdState.Unavailable
         composeRule.waitForIdle()
@@ -265,15 +265,17 @@ class NativeAdSlotTest {
             }
         }
         composeRule.onNodeWithText("Headline of the ad", useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(126.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.CARD).assertHeightIsEqualTo(106.dp)
     }
 
     @Test
-    fun bottomSlotHeight_equalsDrawnCardAndPlaceholderHeight() {
-        // One function for the drawn bottom slot and the space kept for it (D-02, D-04, AR-02), 126 dp at 411 dp.
-        assertEquals(126f, NativeAdDimens.bottomSlotHeight(411.dp).value, 0.5f)
+    fun smallHeight_equalsDrawnCardAndPlaceholderHeight() {
+        // One function for the drawn small native, its placeholder and the space kept for it (D-02, D-04, AR-02):
+        // BottomAdBarDefaults.nativeSlotHeight(), 106 dp at font scale 1.0 (plan T-109).
+        var slotHeight = 0.dp
         composeRule.setContent {
             AdsTestTheme {
+                slotHeight = BottomAdBarDefaults.nativeSlotHeight()
                 Column {
                     NativeAdCard(sampleNativeAdAssets, NativeAdSize.SMALL, Modifier.width(CARD_WIDTH))
                     NativeAdPlaceholder(NativeAdSize.SMALL, Modifier.width(CARD_WIDTH), animated = false)
@@ -282,8 +284,9 @@ class NativeAdSlotTest {
         }
         val card = composeRule.onNodeWithTag(NativeAdTestTags.CARD).getUnclippedBoundsInRoot()
         val placeholder = composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).getUnclippedBoundsInRoot()
-        assertEquals(NativeAdDimens.bottomSlotHeight(411.dp).value, (card.bottom - card.top).value, 0.5f)
-        assertEquals(NativeAdDimens.bottomSlotHeight(411.dp).value, (placeholder.bottom - placeholder.top).value, 0.5f)
+        assertEquals(106f, slotHeight.value, 0.5f)
+        assertEquals(slotHeight.value, (card.bottom - card.top).value, 0.5f)
+        assertEquals(slotHeight.value, (placeholder.bottom - placeholder.top).value, 0.5f)
     }
 
     @Test
@@ -401,7 +404,7 @@ class NativeAdSlotTest {
     fun bottomNativeSlot_loading_showsPlaceholderOfSlotHeight() {
         val reports = mutableListOf<Boolean>()
         setBottomSlot(FakeNativeFeed(), reports)
-        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(126.dp)
+        composeRule.onNodeWithTag(NativeAdTestTags.PLACEHOLDER).assertHeightIsEqualTo(106.dp)
         assertEquals("nothing reported while loading", emptyList<Boolean>(), reports)
     }
 
@@ -410,8 +413,8 @@ class NativeAdSlotTest {
         val feed = FakeNativeFeed()
         val reports = mutableListOf<Boolean>()
         setBottomSlot(feed, reports)
-        // Control: the slot takes 126 dp while loading.
-        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(126.dp)
+        // Control: the slot takes 106 dp while loading.
+        composeRule.onNodeWithTag(SLOT).assertHeightIsEqualTo(106.dp)
 
         composeRule.runOnIdle { feed.state.value = NativeAdState.Unavailable }
         composeRule.waitForIdle()
