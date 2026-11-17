@@ -1,7 +1,7 @@
 ---
 ticket: T-090
 title: Khe đáy nhường lớp native thu gọn
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -218,3 +218,19 @@ Nguồn giả của `BottomAdBarTest` (`FakeNativeFeed`) thêm hai bộ đếm t
 - **Ghi chú:** câu trả lời của mục 8 ghi ở từng câu (anh Nhật trả lời trong phiên cùng ngày).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261117-03, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #549, commit merge `f37cc1a`, 2026-11-17 15:57 UTC).
+- **Nhánh, PR:** `claude/T-090-khe-day-nhuong-lop-noi`, PR #549. Commit test `3104f3a`, commit code `8e3668e`.
+- **Đã làm:** khe đáy native rời cây giao diện khi lớp native thu gọn đang hiện quảng cáo (`BottomAdBarHost` giữ `layerShowing`, `if (!yields)` trong `key(kind)`), vào lại với luồng mới khi lớp thu gọn hay mất quảng cáo; khung chờ ghim theo lượt vào lại (`placeholderWhileLoading`, cả `NativeAdSlotHost`); lớp báo trạng thái hiện qua `SideEffect`, báo `false` ở nhánh `return` sớm và khi rời cây; log nhường qua `AdsController.onBottomSlotYield`. Tài liệu `docs/ops/ads-guide.md` và `scripts/ads-plan.py` theo câu trả lời 8.5. Phương án dự phòng 3.4 không dùng.
+- **Test viết trước:** 23 test mới (`BottomAdBarTest` 12, `CollapsibleNativeAdTest` 2, `NativeAdSlotTest` 1, `AdsControllerNativeStockTest` 1, `BottomSlotYieldWiringTest` mới 7) và các câu viết lại theo mục 3.5. Trên khung rỗng 31 test thất bại đúng lý do (ví dụ khung chờ còn, `slotAd.destroyCount` 0 thay vì 1, số yêu cầu 2 thành 3); test JVM của mọi module trên khung rỗng: 2383 test, chỉ 31 test này đỏ. 3 test viết chặt bằng bước đối chứng (`yielded_activityBackToForeground_noSlotRequest`, `layerFails_slotRuns`, `collapseWhileOldRequestInFlight_slotGetsOldLoad`). Không xóa, không đổi tên test nào.
+- **Rà soát độc lập:** 0 chặn, 0 nên sửa, 3 ghi chú: (1) hai lệch dưới đây không thuộc loại L4 của ADR-0032, rà soát kiểm không làm yếu test, đề nghị người xác nhận; (2) `slotYielded` đặt trong `LaunchedEffect(yields)`, lớp mở rồi thu gọn trước khi hiệu ứng chạy thì khe đã co về 0 vẫn hiện khung chờ, khó xảy ra, không có test; (3) khe vào lại chậm một khung hình vì lớp báo qua `SideEffect`, plan đã chấp nhận (câu hỏi 1, phương án A).
+- **Kết quả CI:** `scripts/check.sh` cục bộ QUA (2383 test JVM, 0 lỗi; 97 ảnh screenshot, không ảnh chuẩn mới hay đổi). `pr-check` xanh vòng đầu (lần chạy 44117235539). `main-guard` của commit merge: xem báo cáo phiên.
+- **Lệch so với plan:**
+  - Khác chữ của mục 4, không đổi điều test kiểm (không thuộc danh sách L1 tới L10 của ADR-0032; rà soát độc lập không xếp chặn, người xác nhận): test `yielded_noRequest_noRefresh_noRetry` tách đường thử lại sang test mới `yielded_failedBeforeLayer_noRetry_networkBack_noRequest` (đường thử lại cần lượt nạp của khe lỗi ngay trước khi lớp mở), mọi câu khẳng định của mục 4 còn đủ; `ad_load_success` đo bằng số yêu cầu và dòng log `Native sample_native_small loaded`, vì `nativeLoaderForTest` đi vòng `NativeAdEvents` (mục 4.1 đoán sai chỗ này).
+  - Thay đổi ở file test sau commit test: hàm phụ `collapse()` của `BottomSlotYieldWiringTest` chạy `frames()` hai lần thay vì một, thêm KDoc (chi tiết chờ theo bước 4: lớp báo thu gọn sau một khung hình, khe vào lại ở khung hình kế). Trước khi sửa 4 test đỏ ("placeholder while it waits expected:<1> but was:<0>"), sau khi sửa 7/7 qua.
+  - Cách cài khác chi tiết mục 3.1, cùng hành vi mà test của mục 4 kiểm: `SideEffect` thay `LaunchedEffect(showing)`; `if (!yields)` thay `key` đếm lượt; khung chờ ghim bằng `remember`.
+  - Phần ngoài mục 3.2: không có. Câu khẳng định cũ viết lại ngoài mục 3.5 (ADR-0031): không có.
+- **Việc còn lại:** T-091 (một quảng cáo neo đáy) và T-092 chờ T-090, vào hàng chờ plan cuối phiên.
+- **Cần người xem:** hai dòng kiểm thủ công của mục 4: khe nhường, thu gọn, bung lại với quảng cáo thật trên bản staging (máy thật); đọc diff của `docs/ops/ads-guide.md`, `scripts/ads-plan.py` (người). Xác nhận hai lệch khác chữ của mục 4 ở trên.
