@@ -1,0 +1,209 @@
+---
+ticket: T-090
+title: Khe đáy nhường lớp native thu gọn
+status: draft                # draft | approved | stopped | done
+version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
+risk_score:                  # chạm điểm chặn, không tính điểm
+risk_level: high             # low | medium | high
+token_estimate: 20.2M        # cỡ M, số gợi ý 20.2M của scripts/token-usage.py estimate (2026-11-17, trung vị 37 task M); không chỉnh
+blocking_points: [ads, analytics, core]
+run_order:                   # AI điền khi lập danh sách chạy
+reviewer:                    # người duyệt
+cross_reviewer:              # bắt buộc khi risk_level là high
+approved_at:
+lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
+---
+
+# PLAN T-090: KHE ĐÁY NHƯỜNG LỚP NATIVE THU GỌN
+
+## 1. Tóm tắt
+
+Thanh đáy không còn hai quảng cáo chồng nhau (D-07): khi lớp native thu gọn đang hiện quảng cáo, khe đáy native rời cây giao diện (quảng cáo bị hủy, yêu cầu đang bay bị bỏ theo O-03, không nạp, không làm mới, không thử lại, không ghi số liệu), còn khoảng chừa của nội dung giữ giá trị lúc lớp mở; lớp thu gọn hay mất quảng cáo thì khe vào lại cây, hiện khung chờ (hay không hiện nếu trước đó đã co về 0) và nạp, lấy kho nạp sẵn nếu có. Kiểm bằng test JVM của `BottomAdBarHost` với nguồn giả, và test nối với `AdsController` thật và bộ nạp giả để đếm yêu cầu và sự kiện.
+
+Phần đã có trên nhánh chính: tiêu chí 1 (khe đáy chạy ngay, không chờ lớp nổi) đúng từ trước; luật chừa chỗ lúc khe đang tải mà T-061 nhắm tới đã có từ PR #531 (bài học L-184, test `BottomAdBarTest.nativeSlot_reservationEqualsSlot_*`, `BottomBarSlotWiringTest`), plan chỉ thêm test giữ hai điều đó. Nhịp làm mới đầu của T-087 (500 ms khi có lớp) giữ nguyên. Chưa có dòng code nào của D-07: chạy thử trên commit `4297ca6` (mục 4.1) thấy khe và lớp cùng hiện quảng cáo.
+
+## 2. Hiểu yêu cầu
+
+Ticket xử lý các kịch bản sau trong `features/ads/spec.md`:
+
+| Kịch bản | Tiêu chí chấp nhận | Cách hiểu của AI |
+| --- | --- | --- |
+| KB-35 | Tiêu chí 1: vào màn có thanh đáy thì khe đáy nạp và hiện ngay, không chờ lớp nổi | Đã đúng trên nhánh chính (khe và lớp dựng cùng lúc). Giữ, có test chặn lùi |
+| KB-35 | Tiêu chí 2: lớp nổi có quảng cáo và mở (lần đầu, mở muộn, bung lại) thì khe hủy quảng cáo, không vẽ gì kể cả khung chờ, không nạp, không làm mới; khoảng chừa giữ như đang có | "Lớp mở" là: lớp được phép (có mã đơn vị), cửa sổ đủ chỗ (CL-05), trạng thái `Loaded` và chưa thu gọn, đúng điều kiện mà `CollapsibleNativeAdLayerHost` vẽ quảng cáo. Khe rời cây giao diện nên mọi đường nạp (lượt đầu, lấy kho, thử lại, làm mới, nạp lại khi mạng về hay Activity quay lại) dừng cùng một chỗ |
+| KB-35 | Tiêu chí 3: thu gọn, hay lớp đang mở mà mất quảng cáo, thì khe hiện khung chờ và nạp mới; khe đã co về 0 vì nạp lỗi thì không hiện khung chờ, chỉ nạp | Khe vào lại cây với luồng mới (lấy kho trước, O-01). Khoảng chừa lúc lớp mở bằng 0 thì khe không vẽ khung chờ và không báo chiếm chỗ tới khi có quảng cáo |
+| KB-35 | Tiêu chí 6 (phần của thanh đáy): lượt bị chặn không ghi số liệu | Lúc khe nhường, không có `af_native_ad_eligible`, yêu cầu, hiển thị nào của khe. Khe vào lại sau khi thu gọn là một cơ hội hiển thị mới, ghi `af_native_ad_eligible` một lần (cùng cách với CL-05 khi cửa sổ có chỗ lại; câu hỏi 2 ở mục 8) |
+| KB-4 | Tiêu chí 2 (đổi 2026-11-06): lúc lớp mở, khe đáy không có quảng cáo; thu gọn thì khe hiện khung chờ rồi nạp quảng cáo mới | Như KB-35 tiêu chí 2, 3 |
+| KB-17 | Tiêu chí 1, 3, 5 (đổi 2026-11-06): lớp nổi và quảng cáo của khe không hiện cùng lúc; lớp mở thì khe không vẽ khung chờ; khoảng chừa giữ như đang có | Như trên. Phần "màn có quảng cáo trong nội dung không có lớp nổi" là T-092, ngoài plan |
+
+Luật: `docs/ops/ads-business-rules.md` D-01, D-02, D-04, D-07, O-01, O-03, CL-01, CL-03, CL-05, MC-14.
+
+Thiết kế tham chiếu: không có thiết kế riêng (docs/ops/design-workflow.md). Ảnh `AdGalleryScreen_collapsible-*` của thiết kế T-064 vẽ lớp đè kín khe, không đổi.
+
+ADR liên quan: ADR-0045 (mục 1.2, 7.2: bộ PARTNER, chỗ khác PARTNER), ADR-0036 (khoảng chừa), ADR-0019 (log), ADR-0031 (test cũ viết lại), ADR-0029.
+
+## 3. Giải pháp
+
+### 3.1. Cách làm
+
+**Lớp báo đang mở.** `CollapsibleNativeAdLayerHost` thêm tham số `onShowingChange: (Boolean) -> Unit = {}`. Giá trị là hàm thuần mới `collapsibleShowing(allowed, hasRoom, state: NativeAdState, collapsed): Boolean` (true khi `allowed && hasRoom && state is Loaded && !collapsed`), báo khi đổi (`LaunchedEffect(showing)`), và báo `false` khi host rời cây (`DisposableEffect` `onDispose`), để tắt `is_show_native_collap`, rút đồng ý hay rời màn khi lớp đang mở không để khe kẹt ở trạng thái nhường. Lớp làm mới tại chỗ (`Loaded` sang `Loaded`, nạp lỗi giữ quảng cáo cũ theo `NativeAdRefresh.kt`) không đổi giá trị, nên khe không chớp. Lớp chờ quá 10 giây rồi quảng cáo mới về (CL-01) vẫn chuyển sang `Loaded`, nên vẫn tính là mở. `CollapsibleNativeAdLayer` truyền tiếp tham số.
+
+**Thanh đáy nhường.** `BottomAdBarHost`:
+
+- Giữ `layerShowing` (từ `onShowingChange` của lớp, chỉ khi `layers.collapsible`; tắt lớp thì về `false`).
+- Hàm thuần mới `bottomSlotYields(kind, collapsible, layerShowing): Boolean`: true chỉ với khe `NATIVE` có lớp đang mở. Khe banner không bao giờ nhường (D-01).
+- Khi nhường: không gọi `nativeSlot(...)`, nên khe rời cây. `NativeAdSlotHost` thôi thu luồng: quảng cáo đang hiện bị hủy (L-061), yêu cầu đang bay bị bỏ theo O-03 (yêu cầu của kho chạy tiếp, ngoại lệ của O-03), vòng làm mới, thử lại và nạp lại cùng dừng vì chúng nằm trong luồng. `nativeTakesSpace` không đổi trong lúc nhường (cổng không báo gì khi rời cây; host bỏ qua mọi báo cáo tới từ khe đã rời), nên `bottomBarReservation` giữ giá trị lúc lớp mở: 122 dp ở cỡ chữ mặc định nếu khe đang chiếm chỗ, 0 nếu đã co về 0.
+- Khi thôi nhường: gọi lại `nativeSlot(...)` trong một `key` mới (đếm lượt vào lại), nên `BottomNativeSlotHost` dựng luồng mới qua `ads.nativeAd(placement, NATIVE_SMALL, extra)`: lấy kho `native_small` nếu có (O-01, KB-33), không thì gửi yêu cầu. Tham số mới `placeholderWhileLoading = nativeTakesSpace` (giá trị giữ lúc nhường): đang chiếm chỗ thì hiện khung chờ như lượt đầu; đã co về 0 thì lúc `Loading` không vẽ gì và không báo chiếm chỗ, có quảng cáo mới báo chiếm chỗ (D-04).
+- Chữ ký `nativeSlot` thêm tham số thứ tư `placeholderWhileLoading: Boolean`; `layer` thêm `onShowingChange: (Boolean) -> Unit`. `BottomAdBarScaffold` nối hai tham số này tới `BottomNativeSlot` và `CollapsibleNativeAdLayer`.
+- Mỗi lần đổi nhường ghi một dòng log qua `AdsController` (ADR-0019): `Bottom bar <mã vị trí>: slot yields to the collapsible layer` và `Bottom bar <mã vị trí>: slot back after the collapsible layer` (hàm thuần `bottomSlotYieldLog`, cạnh `bottomBarLayersLog`).
+
+**Cổng của khe.** `NativeAdSlotGate`, `NativeAdSlotContent`, `BottomNativeSlot`, `BottomNativeSlotHost` thêm `placeholderWhileLoading: Boolean = true`. `false`: trạng thái `Loading` không vẽ khung chờ, và `onTakesSpaceChange` báo `false` cho `Loading` (hiện nay `Loading` luôn tính là chiếm chỗ). Mọi chỗ gọi khác giữ mặc định, không đổi hành vi.
+
+**Số liệu (MC-14).** Các chỗ đang ghi số liệu của khe đáy native, và cách giữ im lặng lúc nhường:
+
+| Chỗ ghi | Hiện nay | Lúc khe nhường |
+| --- | --- | --- |
+| `af_native_ad_eligible`: `ReportNativeEligible` trong `NativeAdSlotGate` | Một lần mỗi lần khe vào cây và được phép | Khe không ở trong cây: không ghi. Vào lại sau khi thu gọn: ghi một lần (cơ hội mới) |
+| Yêu cầu gửi, nạp được, nạp lỗi (`ad_load_*`, `requestSent`, `loadSucceeded`, `loadFailed`): bộ nạp trong `AdsController` | Mỗi yêu cầu của khe | Khe không thu luồng nên không gửi yêu cầu mới. Yêu cầu đã gửi trước lúc nhường (vẫn bay) ghi kết quả như hiện nay khi nó về (O-03 hủy quảng cáo về muộn); đó là số của một lượt đã gửi, không phải lượt bị chặn |
+| `apiCalled`, `displayed` của `NativeFunnel` khi gắn quảng cáo vào view | Khi quảng cáo được vẽ | Không vẽ: không ghi |
+| Doanh thu, lượt bấm (callback của SDK) | Chỉ quảng cáo đã hiện | Quảng cáo bị hủy: không còn callback |
+| Kho `native_small` (O-01) | Lấy kho thì kho nạp cái kế | Không lấy kho lúc nhường; vào lại thì lấy kho như lượt đầu |
+
+Khe đáy native không có `opportunity` riêng (chỉ ô của pool, P-07), nên không có gì để chặn ở đó.
+
+**Lượt hiển thị chớp nhoáng (ticket yêu cầu nêu).** Theo D-07 khe chạy ngay khi vào màn, lớp mở thì khe hủy quảng cáo. Có hai trường hợp khe hiện quảng cáo rất ngắn rồi bị hủy:
+
+1. Vào màn khi cả hai kho đã có quảng cáo (KB-33): khe lấy kho và vẽ ở khung hình đầu, lớp lấy kho cùng lúc, khe nhường ở khung hình kế (cách một lần dựng lại, dưới 20 ms). Chạy thử trên nhánh chính: cả hai cùng hiện, 2 `af_native_ad_eligible` (mục 4.1). Mỗi lần vào màn như vậy có tối đa một lượt hiển thị chớp nhoáng của khe (một `af_native_ad_eligible`, có thể một `displayed`, và một quảng cáo của kho bị dùng mà gần như không ai thấy; SDK có thể tính một lượt hiển thị nếu view kịp gắn). Lớp đè kín khe nên người dùng không thấy khe.
+2. Lớp mở muộn khi khe đã có quảng cáo hiện đủ lâu: không phải chớp nhoáng, đó là luật D-07.
+
+Plan làm đúng D-07 (khe chạy ngay) và hỏi người phụ trách sản phẩm ở câu hỏi 1, mục 8, nếu muốn khe chờ khi kho `native_collap` đã có quảng cáo lúc vào màn.
+
+**Tài liệu.** `docs/ops/ads-guide.md`: đoạn thanh đáy (dòng của MC-08, D-01 tới D-05) thêm câu khe nhường lớp nổi theo D-07; đoạn màn xem thử staging, trang "Collapsible ad", ghi thử nhường và thu gọn, sửa "lớp thu gọn 250 dp" thành kích thước theo mục 5.7. `scripts/ads-plan.py`: dòng `native_small` (mô tả thanh đáy "khe đáy 80 dp + lớp 250 dp nổi trên" thành "khe đáy (D-02) + lớp native thu gọn nổi trên; lúc lớp mở khe không có quảng cáo (D-07)"), dòng `native_collap` (thêm câu khe đáy nhường), mô tả khóa `is_show_native_collap` (thêm "lúc lớp mở, khe đáy không có quảng cáo"). Số cũ 80 dp, 250 dp ở các dòng này đổi theo mục 5.7 (106 dp, lớp theo cửa sổ) vì T-109 chưa sửa.
+
+Mẫu làm theo: cổng `allowed` của `NativeAdSlotGate` (L-061), `CollapsibleNativeAdLayerHost` với `hasRoom` (CL-05, plan T-109), test của `BottomAdBarTest` và `AdsControllerNativeStockTest`.
+
+### 3.2. Danh sách file
+
+| Thao tác | Đường dẫn | Nội dung thay đổi |
+| --- | --- | --- |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/BottomAdBar.kt` | `bottomSlotYields`, `bottomSlotYieldLog`; `BottomAdBarHost` giữ `layerShowing`, bỏ khe khỏi cây khi nhường, giữ `nativeTakesSpace`, dựng lại khe với `placeholderWhileLoading`; chữ ký `nativeSlot` và `layer` thêm tham số; `BottomAdBarScaffold` nối; KDoc theo D-07 |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAd.kt` | `collapsibleShowing`; `CollapsibleNativeAdLayerHost` thêm `onShowingChange` (đổi và rời cây); `CollapsibleNativeAdLayer` nhận và truyền tiếp; KDoc |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/NativeAdSlot.kt` | `placeholderWhileLoading` cho `NativeAdSlotGate`, `NativeAdSlotContent`, `BottomNativeSlot`, `BottomNativeSlotHost`; `Loading` không khung chờ thì không báo chiếm chỗ |
+| Sửa | `core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdsController.kt` | `onBottomSlotYield(placement, yielded)` ghi dòng log của `bottomSlotYieldLog` (cạnh `onBottomBarLayers`) |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/BottomAdBarTest.kt` | `Bar` truyền tham số mới (commit test của bước 3); test mới của mục 4; test cũ viết lại theo mục 3.5 |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/CollapsibleNativeAdTest.kt` | Test `onShowingChange` của host |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/NativeAdSlotTest.kt` | Test `placeholderWhileLoading = false` |
+| Sửa | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsControllerNativeStockTest.kt` | `layer_entersAfterPreload_showsStockAd` viết lại theo mục 3.5; test kho khi thu gọn |
+| Tạo | `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/BottomSlotYieldWiringTest.kt` | Thanh đáy với `AdsController` thật và `FakeNativeAdLoader`: yêu cầu, làm mới, thử lại, sự kiện lúc nhường và sau khi thu gọn |
+| Sửa | `docs/ops/ads-guide.md` | Đoạn thanh đáy và đoạn màn xem thử staging (mục 3.1) |
+| Sửa | `scripts/ads-plan.py` | Mô tả dòng `native_small`, `native_collap`, khóa `is_show_native_collap` (mục 3.1) |
+
+Không đổi: `BottomAdBarLayout` (không trạng thái), nên `BottomAdBarScreenshotTest`, `CollapsibleNativeAdScreenshotTest` và ảnh chuẩn của chúng không đổi; `AdGalleryScreen.kt` dùng `BottomAdBarScaffold` nên tự theo luật mới, ảnh `AdGalleryScreen_*` vẽ bằng thẻ giả không qua thanh thật. Nơi đọc `scripts/ads-plan.py`: `scripts/tests/run.sh` chạy script trên một repo giả và kiểm cột, khóa, file sinh ra, không so chữ mô tả của ba dòng này (`grep -n "native_collap\|nổi trên\|80 dp\|250 dp" scripts/tests/run.sh` không khớp phần của `ads-plan.py`, 2026-11-17), nên không bị ảnh hưởng. Nơi nhắc `docs/ops/ads-guide.md`: `core/ads/src/test/kotlin/com/vglstudio/template/core/ads/AdsSettingsTest.kt` chỉ nhắc trong một chú thích về khóa Remote Config, không đọc file, nên không bị ảnh hưởng.
+
+### 3.3. Cờ tính năng, quảng cáo, dữ liệu, quyền, thư viện
+
+- Cờ tính năng: Không có. Khóa đang có: `is_show_native_bottom`, `is_show_native_collap`, `time_expand_collap_ad`, `time_reload_native_small`, `time_reload_collap_ad` không đổi.
+- Quảng cáo: Không thêm vị trí. Đổi lúc hiện của khe đáy native của mọi vị trí thanh đáy (D-07), spec KB-35 đã xác nhận.
+- Sự kiện phân tích: Không thêm sự kiện. Khe đáy ghi ít `af_native_ad_eligible`, `ad_load_*`, hiển thị hơn (MC-14); thu gọn thì ghi một `af_native_ad_eligible` mới (câu hỏi 2).
+- File R2: Không chạm.
+- **Quyền truy cập:** Không thêm
+- **Thư viện và SDK:** Không thêm
+
+### 3.4. Phương án dự phòng
+
+- **Điểm chưa chắc:** bỏ khe khỏi cây rồi dựng lại có thể làm `NativeAdSlotHost` giữ luồng cũ (vì `remember { newStates(...) }` nằm trong `BottomNativeSlotHost`), nên lần vào lại không gửi yêu cầu mới.
+- **Điều kiện chuyển:** test `collapse_slotShowsPlaceholder_newCollection` hay `collapse_slotTakesStock_eligibleOnce` vẫn thất bại vì luồng không được thu lại (số lần thu không tăng) sau 2 lần sửa.
+- **Cách làm thay:** giữ khe trong cây và truyền `allowed = false` vào `NativeAdSlotGate` lúc nhường (cổng hiện có hủy luồng và quảng cáo), thêm cờ cho cổng để không báo "không chiếm chỗ" lúc nhường và không ghi `af_native_ad_eligible` khi cổng mở lại vì nhường; cùng file `NativeAdSlot.kt`, `BottomAdBar.kt` (dự phòng). Test giữ nguyên.
+
+### 3.5. Hành vi đã có bị đổi
+
+`scripts/existing-tests.py` chạy trên plan này (2026-11-17), kết quả ở mục 4.1. Từng test đã đọc:
+
+| Hành vi cũ | Hành vi mới (câu của mục 3.1) | Test có sẵn khẳng định hành vi cũ | Giữ, hay câu khẳng định mới |
+| --- | --- | --- | --- |
+| Lớp mở trên khe đang tải: khe vẫn vẽ khung chờ, khoảng chừa bằng khung chờ | Khe nhường: không khung chờ, khoảng chừa giữ 122 dp | `BottomAdBarTest.nativeSlot_reservationEqualsSlot_loadingLayerOpenAd` (bước "layer open, slot loading"; chú thích của test đã ghi "Rewrite this step when the slot gives way") | Câu mới cho bước đó: `assertAbsent(PLACEHOLDER)`, `assertEquals(1, slotFeed.cancellations)`, `reservations.last() == 122.dp`, chiều cao node `SLOT` bằng 0. Bước cuối (khe có quảng cáo) thêm thu gọn trước khi nạp quảng cáo của khe; câu khẳng định 122 dp giữ |
+| Lớp mở trên khe đã co về 0: khe vẫn thử lại và nhận quảng cáo dưới lớp | Khe nhường, không thử lại; thu gọn thì nạp, không khung chờ | `BottomAdBarTest.nativeSlot_reservationEqualsSlot_failedBeforeAd_layerOpen_adAgain` | Bước "retrying, layer open": giữ chừa 0, thêm `slotFeed.activeCollectors == 0`. Bước cuối: thu gọn, `assertAbsent(PLACEHOLDER)`, chừa 0, `slotFeed.collections == 2`, rồi nạp quảng cáo: chừa 122 dp |
+| `loadBoth()` cho khe và lớp cùng có quảng cáo, khe vẫn hiện dưới lớp | Lớp mở thì quảng cáo của khe bị hủy | `collapse_revealsSlot`, `layer_takesOnlyWidth_touchAboveReachesContent`, `reservedSlot_equalsDrawnSlotHeight`, `collapSwitchedOffWhileShown_layerRemovedAndAdDestroyed_slotStays`, `nativeBottomSwitchedOff_nativeAdDestroyed_bannerSlotShown`, `placementSwitchedOff_barGone_reservationZero_adsDestroyed`, `adFreeMidSession_barGone_reservationZero_adsDestroyed`, `consentWithdrawn_barGone_adsDestroyed`, `placementOnAgain_barBuiltFresh`, `configuredSlotUnits_layerLoads`, `landscape_slotOnly_noLayer`, `split_slotOnly_noLayer`, `shortWindow_layerMediaShrinks` | Hàm phụ `loadBoth()` đổi trong commit test (bước 3): nạp lớp, thu gọn lớp, nạp khe, trả hai quảng cáo, nên các test đo vị trí khe và lớp cùng lúc giữ câu khẳng định. Riêng: `collapse_revealsSlot` câu mới "sau khi thu gọn khung chờ hiện ở đúng chỗ khe, đáy nội dung không đổi"; `collapSwitchedOffWhileShown_...` câu mới "lớp mở thì `slotAd.destroyCount == 1`; tắt lớp thì khe vào lại, khung chờ hiện, đáy nội dung không đổi"; `layer_takesOnlyWidth_...` so bề rộng lớp với bề rộng node `SLOT` lúc thu gọn rồi bung lại bằng `layerFeed`; ba test khung không đủ chỗ giữ nguyên câu (lớp không mở nên khe chạy như thường, chính là D-07) |
+| Vào màn khi cả hai kho có quảng cáo: khe và lớp cùng hiện | Khe lấy kho, lớp mở, khe hủy quảng cáo ở khung hình kế | `AdsControllerNativeStockTest.layer_entersAfterPreload_showsStockAd` | Giữ hai câu cũ (lớp hiện quảng cáo kho, 2 yêu cầu collap, 2 `Eligible`); thêm: quảng cáo kho của khe `destroyCount == 1`, không còn trong node `SLOT`. Câu này đổi nếu câu hỏi 1 chọn phương án B |
+| Lớp và khe dựng cùng lúc, khe không chờ lớp | Giữ | `BottomAdBarTest.slotLoading_reservesPlaceholderSpace`, `slotLoading_largeText_reservesPlaceholderSpace`, `BottomBarSlotWiringTest.bottomNativeSlot_placeholderTakesSpace_failureDoesNot` | Giữ nguyên |
+| Cổng của khe: `Loading` luôn vẽ khung chờ và báo chiếm chỗ | Giữ với mặc định `placeholderWhileLoading = true` | `NativeAdSlotTest` (các test khung chờ, `onTakesSpaceChange`) | Giữ nguyên |
+| Lớp: vẽ, thu gọn, bung lại | Giữ; thêm báo `onShowingChange` | `CollapsibleNativeAdTest`, `CollapsibleReexpandTest` | Giữ nguyên |
+
+## 4. Kiểm thử
+
+Nguồn giả của `BottomAdBarTest` (`FakeNativeFeed`) thêm hai bộ đếm trong commit test: `activeCollectors` (tăng lúc bắt đầu thu, giảm trong `finally`) và `cancellations`. `Bar` truyền `placeholderWhileLoading` vào `NativeAdSlotGate` và `onShowingChange` vào `CollapsibleNativeAdLayerHost`; `BottomAdBarHost` là code thật, nên phần nhường được test thật, không giả lập trong `Bar`. Thời gian bung lại dùng `composeRule.mainClock` như hiện nay (`expandAfterSeconds = 30`).
+
+| Tiêu chí chấp nhận | Loại test | Tên test hoặc cách kiểm tra |
+| --- | --- | --- |
+| KB-35 tc 1: khe chạy ngay, không chờ lớp | Compose UI test | `BottomAdBarTest.entry_slotCollectsAtOnce_beforeLayerAd`: `slotFeed.collections == 1`, khung chờ hiện, lớp còn `Loading`. Hành vi đã có: test qua ngay trên code cũ, ghi là test chặn lùi (ngoại lệ bên dưới) |
+| KB-35 tc 2, lần đầu, khe đang tải | Compose UI test | `BottomAdBarTest.layerOpens_slotLoading_noPlaceholder_noCollect_reservationKept`: nạp lớp; khung chờ không còn, `activeCollectors == 0`, `cancellations == 1`, chừa 122 dp, chiều cao node `SLOT` 0 |
+| KB-35 tc 2, mở muộn khi khe có quảng cáo | Compose UI test | `BottomAdBarTest.layerOpensLate_slotAdDestroyed_reservationKept`: khe có quảng cáo, rồi nạp lớp: `slotAd.destroyCount == 1`, `SLOT_AD` vắng, chừa 122 dp; quảng cáo lớp về sau 10 giây (đồng hồ `mainClock` tới 10 500 ms) vẫn mở lớp và khe nhường |
+| KB-35 tc 2, bung lại | Compose UI test | `BottomAdBarTest.reexpand_slotAdDestroyedAgain`: thu gọn, khe nhận quảng cáo mới, đồng hồ qua 30 giây, lớp bung lại: quảng cáo mới của khe `destroyCount == 1`, chừa giữ |
+| KB-35 tc 2, không nạp, không làm mới, không thử lại (mọi đường) | Unit test JVM với controller thật | `BottomSlotYieldWiringTest.yielded_noRequest_noRefresh_noRetry`: `BottomAdBarScaffold` thật, `FakeNativeAdLoader`, `time_reload_native_small` 60 giây. Đường lượt đầu: yêu cầu của khe đang bay khi lớp có quảng cáo, giao quảng cáo khe sau đó: quảng cáo bị hủy, không hiện (O-03). Đường thử lại: yêu cầu khe lỗi ngay trước lúc lớp mở, chờ quá giãn thử lại: không gửi yêu cầu `NATIVE_SMALL` nào ngoài lượt nạp kho. Đường làm mới: khe có quảng cáo, lớp mở, chờ 130 giây: không yêu cầu khe nào mới. Đường lấy kho: kho `native_small` có quảng cáo lúc khe đang nhường: khe không lấy (kho vẫn giữ) |
+| KB-35 tc 2, nạp lại khi Activity quay lại | Unit test JVM với controller thật | `BottomSlotYieldWiringTest.yielded_activityBackToForeground_noSlotRequest`: lớp mở, `setAppForegroundForTest(false)` rồi `true`: không yêu cầu `NATIVE_SMALL` mới cho khe |
+| KB-35 tc 2, cổng mở rồi đóng lại | Compose UI test | `BottomAdBarTest.collapseThenReexpandBeforeSlotAd_requestDropped`: thu gọn, khe gửi luồng mới, lớp bung lại trước khi khe có quảng cáo: `activeCollectors == 0`, quảng cáo khe về sau đó bị hủy (`destroyCount == 1`), không vẽ |
+| KB-35 tc 3, thu gọn: khung chờ và nạp mới | Compose UI test | `BottomAdBarTest.collapse_slotShowsPlaceholder_newCollection`: lớp mở trên khe có quảng cáo, thu gọn: khung chờ hiện ngay ở đúng chỗ khe, `collections == 2`, chừa 122 dp không đổi; nạp quảng cáo: `SLOT_AD` hiện |
+| KB-35 tc 3, thu gọn: lấy kho | Unit test JVM với controller thật | `AdsControllerNativeStockTest.collapse_slotTakesStock_eligibleOnce`: hai kho có quảng cáo, vào màn, nạp lại kho `native_small`, thu gọn: khe hiện quảng cáo kho, không gửi yêu cầu riêng của khe, đúng một `Eligible` mới |
+| KB-35 tc 3, khe đã co về 0 | Compose UI test | `nativeSlot_reservationEqualsSlot_failedBeforeAd_layerOpen_adAgain` viết lại (mục 3.5) |
+| KB-35 tc 3, lớp mất quảng cáo | Compose UI test | `BottomAdBarTest.layerLosesAd_slotBack`: lớp `Loaded` rồi `Unavailable` (hết hạn, không có quảng cáo thay): khe vào lại, khung chờ hiện, `collections == 2` |
+| D-07: lớp nạp lỗi, không mã, không đủ chỗ thì khe chạy như thường | Compose UI test | `BottomAdBarTest.layerFails_slotRuns` (`layerFeed` `Unavailable`: `activeCollectors == 1`, khe có quảng cáo); `layerUnitIdNull_noLoad_slotStays` thêm câu khe hiện quảng cáo; `landscape_slotOnly_noLayer` giữ (khe có quảng cáo, `destroyCount == 0`) |
+| D-07: lớp làm mới không làm khe chớp | Compose UI test | `BottomAdBarTest.layerRefresh_slotStaysYielded`: lớp `Loaded(A)` rồi `Loaded(B)`: `collections == 1`, `activeCollectors == 0`, khung chờ không hiện |
+| D-07: tắt lớp, rời màn lúc lớp mở | Compose UI test | `BottomAdBarTest.collapOffWhileYielded_slotBack`: lớp mở, `is_show_native_collap` tắt: lớp mất, khe vào lại với khung chờ; `placementSwitchedOff_barGone_reservationZero_adsDestroyed` giữ (chừa 0) |
+| D-01: khe banner không nhường | Unit test | `BottomAdBarTest.yields_onlyNativeSlotWithLayerShowing`: bảng của `bottomSlotYields` (NATIVE/BANNER/null x có lớp x lớp mở) |
+| Lớp báo đang mở đúng điều kiện | Unit test, Compose UI test | `CollapsibleNativeAdTest.collapsibleShowing_table` (hàm thuần: allowed, hasRoom, Loading/Loaded/Unavailable, thu gọn); `CollapsibleNativeAdTest.host_reportsShowing_openCollapseReexpandDispose`: dãy báo `[false, true, false, true, false]` khi nạp, thu gọn, bung lại, rời cây |
+| Cổng không khung chờ | Compose UI test | `NativeAdSlotTest.noPlaceholderWhileLoading_drawsNothing_takesNoSpaceUntilAd`: `placeholderWhileLoading = false`, `Loading`: không node khung chờ, `onTakesSpaceChange` chưa báo `true`; `Loaded`: báo `true`. Đối chứng: cùng nguồn với mặc định thì khung chờ hiện và báo `true` |
+| MC-14: lượt bị chặn không ghi số liệu | Unit test JVM với controller thật | `BottomSlotYieldWiringTest.yielded_noEligible_noLoadEvents_backCountsOnce`: ghi `funnel.events` và yêu cầu theo đơn vị; trong lúc nhường (kể cả qua nhịp làm mới) không có `Eligible`, yêu cầu hay `ad_load_*` mới của khe; thu gọn: đúng một `Eligible` mới |
+| Hai yêu cầu chồng nhau của khe | Unit test JVM với controller thật | `BottomSlotYieldWiringTest.collapseWhileOldRequestInFlight_oldDiscarded_newShown`: yêu cầu cũ của khe bay lúc lớp mở, thu gọn sinh yêu cầu mới; giao yêu cầu cũ trước: quảng cáo cũ bị hủy, khung chờ vẫn hiện; giao yêu cầu mới: quảng cáo mới hiện, một `ad_load_success` cho mỗi yêu cầu, không đè nhau |
+| Vào màn khi cả hai kho có quảng cáo (KB-33) | Unit test JVM với controller thật | `AdsControllerNativeStockTest.layer_entersAfterPreload_showsStockAd` viết lại (mục 3.5): khe hiện chớp nhoáng tối đa một khung hình, quảng cáo kho của khe bị hủy, 2 `Eligible` |
+| Log của nhường (ADR-0019) | Unit test | `BottomAdBarTest.yieldLog_lines`: hai dòng của `bottomSlotYieldLog`; `BottomSlotYieldWiringTest.yieldAndBack_logged`: `RecordingAppLogger` có mỗi dòng một lần |
+| Không đổi ảnh chuẩn | Screenshot test | `BottomAdBarScreenshotTest`, `CollapsibleNativeAdScreenshotTest`, `AdGalleryScreenScreenshotTest` qua với ảnh cũ trong `scripts/check.sh`; `git status --short -- '*/src/test/screenshots/*'` rỗng |
+| `ads-plan.py` sinh đúng mô tả | Unit test có sẵn | `scripts/check.sh` chạy test của `scripts/tests/`; chạy `python3 scripts/ads-plan.py` và mở file Excel xem ba ô đã sửa |
+| Khe nhường, thu gọn, bung lại với quảng cáo thật | Kiểm tra thủ công (máy thật: quảng cáo thật) | Bản staging, trang "Collapsible ad": lớp mở thì không thấy khe dưới lớp khi kéo danh sách lên; thu gọn: khung chờ rồi quảng cáo mới ở khe; chờ `time_expand_collap_ad`: lớp bung lại, log có `slot yields to the collapsible layer` (`adb logcat -v threadtime \| grep ' VGL\.'`); nội dung không nhảy ở cả ba bước |
+| Tài liệu đúng D-07 | Kiểm tra thủ công (người: đọc tài liệu) | Đọc diff của `docs/ops/ads-guide.md`, `scripts/ads-plan.py` |
+
+**Ngoại lệ viết test trước:** `entry_slotCollectsAtOnce_beforeLayerAd`, các câu giữ nguyên của mục 3.5 và `landscape_slotOnly_noLayer` qua ngay trên code cũ vì hành vi đã có (tiêu chí 1, T-061 qua PR #531): chúng là test chặn lùi. Hai tài liệu (`ads-guide.md`, mô tả trong `ads-plan.py`) chỉ đổi chữ.
+
+### 4.1. Chạy thử
+
+- **Đã chạy thử:** 2026-11-17, commit `4297ca6`, worktree tạm (đã xóa), một test tạm không commit chép từ `AdsControllerNativeStockTest.layer_entersAfterPreload_showsStockAd` (hai kho có quảng cáo, vào màn `BottomAdBarScaffold(SAMPLE_NATIVE_SMALL)` ở khung `w411dp-h891dp-xxhdpi`), in trạng thái thay vì khẳng định.
+- **Lệnh:** `./gradlew :core:ads:testDebugUnitTest --tests '*AdsControllerNativeStockTest.tmpT090*' -i`. Không chạy `scripts/check.sh`: E dưới 2, mục này chỉ để đo hiện trạng (điểm nối test `nativeLoaderForTest`, `funnel` của test có sẵn).
+- **Kết quả:** `slotShown=true layerShown=true` (khe và lớp cùng hiện quảng cáo, chưa có D-07), quảng cáo kho của khe `destroyCount=0`, yêu cầu `NATIVE_SMALL` 2 và `NATIVE_COLLAPSIBLE` 2 (lượt nạp kho và lượt nạp cái kế), `funnel=[Eligible(NATIVE), Eligible(NATIVE)]`; bộ nạp giả không ghi `apiCalled`, `displayed` (chúng đi qua gắn view của SDK), nên số `displayed` chớp nhoáng không đo được trên JVM. Điểm nối `nativeLoaderForTest` và `funnel` đọc được đủ dữ liệu cho các câu khẳng định của `BottomSlotYieldWiringTest`. `scripts/existing-tests.py`: xem mục 3.5 (đã đọc mọi test ở nhóm "Cần xem trước").
+
+## 5. Chấm rủi ro
+
+**Điểm chặn bị chạm:** 1 (đổi cách hiện quảng cáo của khe đáy), 4 (đổi lúc ghi `af_native_ad_eligible` và sự kiện nạp của khe đáy), 7 (`:core:ads`). Không tính điểm; người phụ trách sản phẩm biết trước khi duyệt (ít lượt hiển thị hơn ở khe đáy).
+
+| Tiêu chí | Điểm (0 đến 3) | Lý do |
+| --- | --- | --- |
+| A. Phạm vi thay đổi | 2 | Bốn file code trong `:core:ads`, đổi chữ ký nội bộ của `BottomAdBarHost`, `NativeAdSlotGate`, `CollapsibleNativeAdLayerHost`; năm file test, hai tài liệu |
+| B. Độ rõ của yêu cầu | 1 | KB-35 và D-07 rõ; còn hai điểm cần người quyết (lượt chớp nhoáng lúc vào màn, `af_native_ad_eligible` khi khe vào lại) |
+| C. Khả năng kiểm chứng tự động | 1 | Mọi luật có test JVM với nguồn giả và controller thật; lượt hiển thị thật của SDK chỉ kiểm trên máy |
+| D. Ảnh hưởng chéo | 2 | Mọi màn có thanh đáy của mọi app; `NativeAdSlotGate` dùng chung với khe native đứng riêng và ô pool (giữ mặc định); T-091, T-092 cùng sửa `BottomAdBar.kt` |
+| E. Độ mới của kỹ thuật | 1 | Biến thể của mẫu có sẵn: cổng rời cây hủy luồng (L-061), báo trạng thái từ lớp như `hasRoom` (T-109) |
+| **Tổng** | 7 | **Mức: Cao (chạm điểm chặn)** |
+
+## 6. Ảnh hưởng chéo
+
+- File hoặc thành phần dùng chung bị chạm: `NativeAdSlotGate` (khe native đứng riêng, ô pool, khe đáy): tham số mới có mặc định giữ hành vi cũ. `BottomAdBarHost`, `BottomAdBarScaffold`: mọi màn có thanh đáy (`feature:sample`, màn xem thử staging). `AdsController.kt`: chỉ thêm một hàm log.
+- Task khác có thể xung đột: T-091 (một quảng cáo neo đáy) và T-092 (quảng cáo trong nội dung thắng lớp nổi) cùng sửa `BottomAdBar.kt`, `CollapsibleNativeAd.kt`; chưa có plan. T-061: chỉ có plan draft ở PR #540, kết luận hành vi đã có trên nhánh chính (mục 8, câu hỏi 3). T-110 (medium theo thẻ JBase) sửa `NativeAdSlot.kt` phần medium, có thể chạm `NativeAdSlotContent`.
+- Đề xuất thứ tự chạy: sau T-110 nếu cùng danh sách (cùng `NativeAdSlot.kt`); trước T-091, T-092 (chúng dựa trên luật nhường của plan này).
+
+## 7. Điều kiện dừng riêng
+
+- Phải đổi luật của kho nạp sẵn (`NativeAdPools.kt`, `NativeAdSource.kt`: điều kiện nạp, ngoại lệ O-03) để khe không lấy kho lúc nhường thì dừng: plan dựa vào việc khe rời cây là không lấy kho.
+- Ảnh chuẩn nào đổi khi chạy `scripts/check.sh` thì dừng: plan không cho ghi lại ảnh.
+
+## 8. Câu hỏi cho người duyệt
+
+1. **Lượt chớp nhoáng lúc vào màn (người phụ trách sản phẩm).** Khi cả kho `native_small` và kho `native_collap` đã có quảng cáo lúc vào màn (KB-33), theo D-07 khe lấy kho và vẽ ở khung hình đầu, rồi nhường ở khung hình kế: mỗi lần vào màn như vậy có tối đa một lượt hiển thị chớp nhoáng (một `af_native_ad_eligible`, có thể một lượt hiển thị SDK tính, một quảng cáo của kho bị dùng phí). Phương án A (AI đề xuất, đúng D-07 và spec): giữ như vậy, có test. Phương án B: lúc vào màn, kho `native_collap` có quảng cáo và cửa sổ đủ chỗ thì khe chờ, không lấy kho; cần sửa D-07 và spec trước, plan bản 2.
+2. **`af_native_ad_eligible` khi khe vào lại sau khi thu gọn.** AI đề xuất ghi một lần mỗi lần khe vào lại (cơ hội hiển thị mới, cùng cách CL-05 khi cửa sổ có chỗ lại). Cách khác: chỉ ghi lượt vào màn, khe vào lại không ghi; khi đó cần thêm cờ cho cổng.
+3. **Phụ thuộc T-061.** Ticket ghi `depends_on: [T-061, T-087]`. T-087 đã `on-staging`. T-061 chưa xong: plan draft ở PR #540 (chưa duyệt) kết luận luật chừa lúc khe đang tải đã có trên nhánh chính từ PR #531 (L-184); trên `4297ca6` các test `nativeSlot_reservationEqualsSlot_*` và `BottomBarSlotWiringTest` khẳng định đúng luật đó. Plan này không cần code của T-061. Đề xuất: duyệt plan này độc lập; `run-check.py` sẽ báo phụ thuộc chưa xong, nên người duyệt cần quyết T-061 (đóng là đã có, hay duyệt PR #540) trước khi đưa T-090 vào danh sách chạy.
+4. **Kết quả yêu cầu đã gửi trước lúc nhường.** Yêu cầu của khe đang bay lúc lớp mở vẫn ghi `ad_load_success` hay `ad_load_fail` khi nó về (quảng cáo bị hủy theo O-03). AI coi đó là số của lượt đã gửi, không phải lượt bị chặn (MC-14). Người duyệt đồng ý, hay muốn không ghi kết quả của yêu cầu bị bỏ?
+5. **Số cũ trong `scripts/ads-plan.py`.** Các dòng thanh đáy còn "80 dp", "250 dp" từ trước T-109. Plan sửa luôn theo mục 5.7 khi viết câu D-07 vào cùng dòng; đồng ý?
+
+## 9. Quyết định duyệt
+
+- **Quyết định:** Duyệt / Dừng / Duyệt có điều kiện
+- **Người duyệt:** <tên>, **duyệt chéo:** <tên, nếu rủi ro cao>
+- **Ghi chú:** <điều kiện, yêu cầu sửa, trả lời câu hỏi ở mục 8>
+
+## 10. Nhật ký thực hiện
