@@ -15,7 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -249,6 +251,10 @@ private fun BoxScope.AdChoicesMarker() {
  *   [onReexpanded]. [state] stays as it is, so an open layer opens again with room, and a collapsed one keeps its mark:
  *   with room again the timer goes on from the mark (due already: open at once with an ad). Losing room while
  *   collecting stops the collection, which destroys the ad held (L-061).
+ * - [onShowingChange] gets each change of whether the layer shows its ad now ([collapsibleShowing]), so the bottom
+ *   slot below gives way to it (D-07, plan T-090): true once it opens at an ad (first time, late, again after a
+ *   collapse), false once it collapses, loses its ad, its room or its ad unit, and when it leaves the composition.
+ *   Nothing while it first loads; a refresh in place (one ad for another) changes nothing.
  */
 @Composable
 internal fun CollapsibleNativeAdLayerHost(
@@ -268,12 +274,25 @@ internal fun CollapsibleNativeAdLayerHost(
         }
     },
 ) {
+    val currentOnShowingChange by rememberUpdatedState(onShowingChange)
+    val showingReport = remember { ShowingReport() }
+    val reportShowing: (Boolean) -> Unit = { showing ->
+        if (showing != showingReport.showing) {
+            showingReport.showing = showing
+            currentOnShowingChange(showing)
+        }
+    }
+    // Before the early return below, so leaving the composition reports false whatever the branch.
+    DisposableEffect(Unit) { onDispose { reportShowing(false) } }
     if (!allowed || !hasRoom) {
+        SideEffect { reportShowing(false) }
         Box(modifier = modifier)
         return
     }
     val adState by states.collectAsState(initial = NativeAdState.Loading)
     val current = adState
+    val showing = collapsibleShowing(allowed = true, hasRoom = true, state = current, collapsed = state.collapsed)
+    SideEffect { reportShowing(showing) }
     val hasAd by rememberUpdatedState(current is NativeAdState.Loaded)
     val currentOnCollapsed by rememberUpdatedState(onCollapsed)
     val currentOnReexpanded by rememberUpdatedState(onReexpanded)
@@ -307,7 +326,7 @@ internal fun CollapsibleNativeAdLayerHost(
  * the bar checks consent and the placement first. On a window with no room for it at the current font scale (CL-05:
  * 299 dp at 411 x 891 dp at the default font scale, the layer with its margin at most half the window) it takes no
  * ad, reports no display opportunity and logs one line; its state is kept, so it opens again when the window has
- * room.
+ * room. [onShowingChange] gets each change of whether it shows its ad (D-07: the bottom slot gives way meanwhile).
  */
 @Composable
 internal fun CollapsibleNativeAdLayer(
@@ -341,12 +360,22 @@ internal fun CollapsibleNativeAdLayer(
         modifier = modifier,
         allowed = unitId != null,
         hasRoom = hasRoom,
+        onShowingChange = onShowingChange,
     )
 }
 
-/** Skeleton (T-090, step 3): whether the layer shows its ad now. */
+/** The last value [CollapsibleNativeAdLayerHost] reported to `onShowingChange`; not state, nothing drawn from it. */
+private class ShowingReport {
+    var showing = false
+}
+
+/**
+ * Whether the collapsible layer shows its ad now (D-07, plan T-090): it has an ad unit ([allowed]), the window has
+ * room for it ([hasRoom], CL-05), an ad ([state] Loaded) and is not collapsed: the conditions under which
+ * [CollapsibleNativeAdLayerHost] draws its ad.
+ */
 internal fun collapsibleShowing(allowed: Boolean, hasRoom: Boolean, state: NativeAdState, collapsed: Boolean): Boolean =
-    false
+    allowed && hasRoom && state is NativeAdState.Loaded && !collapsed
 
 /** The log line of a collapsible layer with no room on its window (ADR-0019, CL-05). */
 internal fun collapsibleNoRoomLog(placement: AdPlacement, window: DpSize): String =

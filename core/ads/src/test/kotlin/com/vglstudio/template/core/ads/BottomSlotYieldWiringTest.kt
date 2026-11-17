@@ -147,8 +147,10 @@ class BottomSlotYieldWiringTest {
         frames()
     }
 
+    /** Taps the collapse button; the layer reports it is collapsed one frame later, so the slot comes back after it. */
     private fun collapse() {
         composeRule.onNodeWithTag(CollapsibleNativeAdTestTags.COLLAPSE, useUnmergedTree = true).performClick()
+        frames()
         frames()
     }
 
