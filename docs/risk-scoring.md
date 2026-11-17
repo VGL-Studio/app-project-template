@@ -55,7 +55,7 @@ Trong lúc thực hiện plan đã duyệt, AI **phải dừng** task, không t�
 2. Cần thêm thư viện, quyền truy cập hoặc chạm điểm chặn 1 tới 6, 8, 9 ở mục 1 mà plan chưa nêu. Điểm chặn 7 (module core, cấu hình build, quy trình) không làm dừng với phần ngoài mục 3.2 theo ADR-0029, trừ file của điều kiện 1. Để ít gặp điều kiện này, quyền và thư viện được quyết lúc lập plan (`docs/CLAUDE.md`, mục Khi viết plan; mục 3.3 của mẫu plan; `scripts/plan-check.py`, quy tắc 8).
 3. Phát hiện spec, thiết kế hoặc ADR mâu thuẫn với plan hoặc với nhau.
 4. Test vẫn thất bại sau 3 lần sửa liên tiếp cho cùng một lỗi.
-5. Muốn làm cho test qua bằng cách xóa test hay câu khẳng định, nới phép so sánh, thêm `@Ignore`, đổi điều test cũ kiểm về hành vi đã có, hạ tiêu chí kiểm tra, hoặc bỏ qua quy tắc lint. Cập nhật dữ liệu của test cũ chỉ vì dữ liệu đó chưa có phần plan thêm thì không phải dừng (ADR-0029, quyết định 2); viết lại câu khẳng định cũ trái điều plan đã duyệt nói rõ, đủ sáu điều của ADR-0031, cũng không phải dừng (dưới).
+5. Muốn làm cho test qua bằng cách xóa test hay câu khẳng định, nới phép so sánh, thêm `@Ignore`, đổi điều test cũ kiểm về hành vi đã có, hạ tiêu chí kiểm tra, hoặc bỏ qua quy tắc lint. Cập nhật dữ liệu của test cũ chỉ vì dữ liệu đó chưa có phần plan thêm thì không phải dừng (ADR-0029, quyết định 2); viết lại câu khẳng định cũ trái điều plan đã duyệt nói rõ, đủ sáu điều của ADR-0031, cũng không phải dừng (dưới); bỏ test mà mục 3.5 của plan đã duyệt ghi bỏ vì hàm hay hành vi nó kiểm không còn, hay viết lại dưới tên mới theo câu mới viết sẵn ở mục 3.5, là làm theo plan, không phải dừng.
 6. Phần việc thực tế lớn hơn rõ rệt so với ước lượng trong ticket.
 7. Bất kỳ thao tác nào chạm tới cấu hình production: mã quảng cáo thật, project Firebase production, bucket R2 production, khóa ký ứng dụng.
 8. Cần thay đổi điều mà test viết trước đang kiểm tra để code qua được.
@@ -89,6 +89,6 @@ Khi dừng, AI làm ba việc:
 - Không merge, giữ nguyên nhánh của task để dev xem.
 - Chuyển sang task tiếp theo trong danh sách chạy, trừ khi task đó phụ thuộc task vừa dừng.
 - Ghi vào mục Nhật ký thực hiện của plan: dừng ở đâu, vì sao, đã thử những gì, đề xuất hướng xử lý.
-- Chuyển trạng thái plan và ticket sang `stopped`.
+- Chuyển trạng thái plan và ticket sang `stopped`, trừ khi task dừng vì lệnh bị môi trường từ chối: plan và ticket giữ `approved` (`auto-run.md`, mục Tiếp tục task đã dừng).
 
 Khi bắt đầu làm việc lại, nhóm trả lời câu hỏi "vì sao plan chưa đủ tốt" và ghi bài học vào plan sửa lại. Nếu bài học mang tính chung, ghi vào sổ bài học [lessons.md](lessons.md); retro quyết định cập nhật thang điểm này, `CLAUDE.md` hay tài liệu khác (auto-run.md, mục 6), để lần sau AI tự tránh.
