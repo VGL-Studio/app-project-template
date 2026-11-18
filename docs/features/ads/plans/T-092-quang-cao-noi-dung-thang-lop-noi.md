@@ -1,16 +1,16 @@
 ---
 ticket: T-092
 title: Quảng cáo trong nội dung thắng lớp nổi
-status: draft                # draft | approved | stopped | done
+status: approved             # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
 token_estimate: 22.2M        # cỡ M, số gợi ý 22.2M của scripts/token-usage.py estimate (2026-11-17, trung vị 38 task M); không chỉnh
 blocking_points: [ads, analytics, core]
 run_order:                   # AI điền khi lập danh sách chạy
-reviewer:                    # người duyệt
-cross_reviewer:              # bắt buộc khi risk_level là high
-approved_at:
+reviewer: Nhật               # người duyệt
+cross_reviewer: Nhật         # bắt buộc khi risk_level là high
+approved_at: 2026-11-18
 lane:                        # để trống: phiên tự chạy; quick: đường làm nhanh có người theo dõi (ADR-0048)
 ---
 
@@ -192,8 +192,8 @@ Nơi đọc file: `scripts/ads-plan.py` được `scripts/tests/run.sh` chạy v
 
 ## 9. Quyết định duyệt
 
-- **Quyết định:** 
-- **Người duyệt:** , **duyệt chéo:** 
-- **Ghi chú:** 
+- **Quyết định:** duyệt, 2026-11-18, trong phiên có người theo dõi (ADR-0048, phần C). Lời đồng ý nguyên văn của anh Nhật: "Duyệt plan T-091, plan T-092, duyệt danh sách RUN-20261118-01, bắt đầu phiên khi merge, merge PR."
+- **Người duyệt:** Nhật, **duyệt chéo:** Nhật (nhóm một dev, risk-scoring.md mục 3)
+- **Ghi chú:** câu trả lời của mục 8 ghi ở từng câu (anh Nhật trả lời trong phiên cùng ngày).
 
 ## 10. Nhật ký thực hiện
