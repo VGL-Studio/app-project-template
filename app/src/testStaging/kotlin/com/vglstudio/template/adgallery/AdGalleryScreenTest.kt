@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.width
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vglstudio.template.R
+import com.vglstudio.template.core.ads.AdPlacement
 import com.vglstudio.template.core.ads.ConsentPath
 import com.vglstudio.template.core.ads.NativeFullScreenStepDefaults
 import com.vglstudio.template.core.ads.R as AdsR
@@ -1001,6 +1002,27 @@ class AdGalleryScreenTest {
 
         composeRule.onAllNodesWithText("Consent path: pending").assertCountEquals(1)
         composeRule.onAllNodesWithText("Consent path: ERROR_ALLOWED").assertCountEquals(0)
+    }
+
+    /** MC-13 (plan T-092): the in-content placements each page declares; the pages with a floating ad declare none. */
+    @Test
+    fun galleryInContentAds_perPage() {
+        val expected = mapOf(
+            AdGalleryUiState.Default to listOf(AdPlacement.GALLERY_NATIVE_SMALL, AdPlacement.GALLERY_NATIVE_MEDIUM),
+            AdGalleryUiState.InList(20) to listOf(AdPlacement.GALLERY_INLIST_SMALL, AdPlacement.GALLERY_INLIST_MEDIUM),
+            AdGalleryUiState.Banners(20) to listOf(AdPlacement.GALLERY_BANNER_MREC),
+            AdGalleryUiState.Grid(20) to listOf(AdPlacement.GALLERY_IN_COLLECTION),
+            AdGalleryUiState.Pager(5) to listOf(AdPlacement.GALLERY_IN_COLLECTION),
+            AdGalleryUiState.FlowSteps(4) to
+                listOf(AdPlacement.GALLERY_NATIVE_STEP, AdPlacement.GALLERY_NATIVE_STEP_FULL),
+            AdGalleryUiState.Collapsible(20) to emptyList(),
+            AdGalleryUiState.CollapsibleBanner(20) to emptyList(),
+            AdGalleryUiState.Rewarded(GalleryRewarded.BLOCK, actionsRun = 0) to emptyList(),
+            AdGalleryUiState.Status to emptyList(),
+        )
+        expected.forEach { (state, placements) ->
+            assertEquals("$state", placements, galleryInContentAds(state))
+        }
     }
 
     private companion object {

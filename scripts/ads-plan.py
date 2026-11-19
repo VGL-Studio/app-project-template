@@ -123,7 +123,8 @@ FORMATS = [
      "Nạp lại tay theo time_reload_banner, mặc định 60 giây; đơn vị tắt tự làm mới trên AdMob và MAX",
      "BANNER", "Khe", "Không có", "is_show_<mã>, time_reload_banner"),
     ("banner_collapsible", "Banner thu gọn", "Đáy màn hình, bung từ đáy", "AdSlot(placement)",
-     "Bung lên rồi thu gọn được; không nằm trong thanh đáy",
+     "Bung lên rồi thu gọn được; không nằm trong thanh đáy; màn có quảng cáo trong nội dung đang bật thì không hiện "
+     "(MC-13)",
      "Nạp lại tay theo time_reload_banner_collap (mặc định 30 giây; 0 là giữ banner)", "BANNER", "Khe", "Không có",
      "is_show_<mã>, time_reload_banner_collap"),
     ("banner_mrec", "Banner MREC", "Trong nội dung của màn, không ở đáy, không trong danh sách", "AdSlot(placement)",
@@ -232,7 +233,8 @@ KNOWN_KEYS = {
     "is_show_native_collap": ("Thanh đáy", "true", "true / false",
                               "Lớp native thu gọn nổi trên khe đáy, cao theo cửa sổ; lúc lớp mở, khe đáy không có "
                               "quảng cáo.",
-                              "Chỉ có tác dụng khi is_show_native_bottom = true. Tắt lớp này không mất khe đáy.", "ta đặt"),
+                              "Chỉ có tác dụng khi is_show_native_bottom = true. Tắt lớp này không mất khe đáy. "
+                              "Màn có quảng cáo trong nội dung đang bật thì không có lớp này (MC-13).", "ta đặt"),
     "time_expand_collap_ad": ("Thanh đáy", "10", "giây; 0 = không bung lại",
                               "Thời gian từ lúc người dùng thu gọn tới lúc lớp native thu gọn tự bung lại.",
                               "Làm mới nội dung không đặt lại hẹn giờ này.", "ta đặt"),
