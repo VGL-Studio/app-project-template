@@ -298,7 +298,8 @@ class InContentAdsWiringTest {
         screen = Screen.NONE
         frames()
         screen = Screen.PLAIN
-        // The bar takes the turn one frame after it entered (T-091), the layer opens on its ad after that.
+        // The keys have their first value one frame after the bar entered; the layer takes the ad of the stock at frame
+        // 3 and draws it at frame 4, the same cadence as before the turn of the anchored ad, so wait two batches.
         frames()
         frames()
         assertTrue("the layer shows the ad of the stock", layerShows(LAYER_AD))
