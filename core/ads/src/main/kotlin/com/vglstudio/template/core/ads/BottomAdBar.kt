@@ -215,6 +215,9 @@ fun BottomAdBarLayout(
  * - One anchored ad per screen (MC-12, plan T-091): the bar is an anchored ad, as a fixed or collapsible banner of
  *   [AdSlot]. When the screen has another one, the one that entered the composition first and is allowed runs; the
  *   other builds nothing, keeps no space, reports nothing (MC-14) and logs one warning, until the first one leaves.
+ * - In-content ads win over the floating layer (MC-13, plan T-092): on a screen whose [InContentAds] has a placement
+ *   on, the bar has its slot only, as with `is_show_native_collap` off, until the screen is left; switched on while
+ *   the layer shows, the layer goes at once (its ad destroyed) and the slot comes back as after a collapse (D-07).
  */
 @Composable
 fun BottomAdBarScaffold(
@@ -256,9 +259,15 @@ private fun rememberBottomAdBarState(ads: AdsController?, placement: AdPlacement
     // Null until the first value of `is_show_<code>`: the turn of the screen is not decided before it (MC-12).
     val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = null)
     val flags by ads.globalFlags.collectAsStateWithLifecycle()
-    val choice =
-        rememberBottomAdBarLayers(canRequestAds, enabled == true, flags, placement.declaration.collapsibleLayer)
-    val allowed = if (enabled == null) null else choice.layers != null
+    // In-content ads of the screen on (MC-13, plan T-092): no layer; null until known, so the turn waits for it.
+    val block = LocalInContentAdBlock.current
+    val choice = rememberBottomAdBarLayers(
+        canRequestAds,
+        enabled == true,
+        flags,
+        placement.declaration.collapsibleLayer && block == false,
+    )
+    val allowed = if (enabled == null || block == null) null else choice.layers != null
     // Without the turn of the screen (MC-12, plan T-091) the bar builds no layer and keeps no space, as when off.
     val turn = rememberAnchoredAdTurn(ads, placement, allowed)
     return BottomAdBarState(

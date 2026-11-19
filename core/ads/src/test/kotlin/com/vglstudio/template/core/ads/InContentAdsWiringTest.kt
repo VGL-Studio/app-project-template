@@ -289,6 +289,7 @@ class InContentAdsWiringTest {
 
         screen = Screen.DECLARED
         frames()
+        frames()
         assertFalse("no layer", layerShown())
         assertEquals("the ad of the stock is kept", 0, stockAd.destroyCount)
         assertEquals("no new request of the layer", layerRequests, requestsOf(AdFormat.NATIVE_COLLAPSIBLE))
@@ -297,6 +298,8 @@ class InContentAdsWiringTest {
         screen = Screen.NONE
         frames()
         screen = Screen.PLAIN
+        // The bar takes the turn one frame after it entered (T-091), the layer opens on its ad after that.
+        frames()
         frames()
         assertTrue("the layer shows the ad of the stock", layerShows(LAYER_AD))
     }

@@ -72,6 +72,10 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  *   bar ([BottomAdBarScaffold]); the MREC is not. When the screen (a destination, or an [AnchoredAdScreen]) has
  *   another one, the one that entered the composition first and is allowed runs; the other loads nothing, takes no
  *   space, reports nothing (MC-14) and logs one warning, until the first one leaves the composition.
+ * - In-content ads win over the collapsible banner (MC-13, plan T-092): on a screen whose [InContentAds] has a
+ *   placement on, the collapsible banner builds no ad view, takes no space and does not hold the anchored turn, until
+ *   the screen is left; switched on while it shows, its ad view goes at once. The fixed banner and the MREC are not
+ *   floating ads.
  */
 @Composable
 fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
@@ -112,13 +116,21 @@ private fun BannerSlot(
     // The reload interval by hand of the format: every banner is reloaded by :core:ads (B-02, B-03, B-08, KB-34).
     val reloadMillis = remember(format) { ads.reloadIntervalMillis(format) }
     if (!inBottomBar && isAnchoredFormat(format)) {
-        // One anchored ad per screen (MC-12, plan T-091); allowed: consent, `is_show_<code>` and a unit (B-04).
-        val allowed = enabledOrNull?.let { canRequestAds && it && frameKey != null }
-        val turn = rememberAnchoredAdTurn(ads, placement, allowed) {
-            enabledOrNull?.let { canRequestAds && it && frameKey != null }
+        // A floating banner gives way to the in-content ads of its screen (MC-13, plan T-092); null until known.
+        val floating = isFloatingBanner(format, inBottomBar)
+        val block = if (floating) LocalInContentAdBlock.current else false
+        // One anchored ad per screen (MC-12, plan T-091); allowed: consent, `is_show_<code>` and a unit (B-04), and
+        // not blocked by the in-content ads of the screen.
+        val allowedNow = {
+            if (enabledOrNull == null || block == null) {
+                null
+            } else {
+                canRequestAds && enabledOrNull == true && frameKey != null && !block
+            }
         }
-        if (!turn) {
-            // Waiting: no ad view, no request, no space (MC-14).
+        val turn = rememberAnchoredAdTurn(ads, placement, allowedNow(), allowedNow)
+        if (!turn || block != false) {
+            // Waiting, or blocked: no ad view, no request, no space (MC-14).
             Box(modifier = modifier)
             return
         }

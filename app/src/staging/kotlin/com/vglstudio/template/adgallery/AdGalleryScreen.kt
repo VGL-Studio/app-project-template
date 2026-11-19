@@ -58,6 +58,7 @@ import com.vglstudio.template.core.ads.AdSlot
 import com.vglstudio.template.core.ads.AdsGlobalFlags
 import com.vglstudio.template.core.ads.AnchoredAdScreen
 import com.vglstudio.template.core.ads.BottomAdBarScaffold
+import com.vglstudio.template.core.ads.InContentAds
 import com.vglstudio.template.core.ads.InListAds
 import com.vglstudio.template.core.ads.LocalAdsController
 import com.vglstudio.template.core.ads.NativeAdCell
@@ -420,7 +421,8 @@ private class MoreFormatsActions(
 /**
  * The staging ad gallery, stateless: the default page of the design (`AdGalleryScreen_*`) or one of its sub-pages.
  * The section "More formats" and its pages (plans T-036, T-091) have no design frame. Each page is a screen of its
- * own for the rule of one anchored ad per screen ([AnchoredAdScreen], MC-12).
+ * own for the rule of one anchored ad per screen ([AnchoredAdScreen], MC-12), and declares its in-content ads
+ * ([galleryInContentAds], MC-13).
  */
 @Composable
 fun AdGalleryScreen(
@@ -452,39 +454,55 @@ fun AdGalleryScreen(
     ) {
         val pageModifier = Modifier.fillMaxSize()
         // Each page is a screen of its own for one anchored ad per screen (MC-12, plan T-091). Keyed by the name of
-        // the page, stable across a restore of saved state.
+        // the page, stable across a restore of saved state. Its in-content ads win over its floating ads (MC-13).
         key(uiState::class.java.name) {
             AnchoredAdScreen {
-                Page(
-                    uiState = uiState,
-                    slots = slots,
-                    status = status,
-                    onOpenInList = onOpenInList,
-                    onOpenCollapsible = onOpenCollapsible,
-                    onShowInterstitial = onShowInterstitial,
-                    onShowNativeFullScreen = onShowNativeFullScreen,
-                    onOpenAdInspector = onOpenAdInspector,
-                    more = MoreFormatsActions(
-                        onShowAppOpen = onShowAppOpen,
-                        onOpenBanners = onOpenBanners,
-                        onOpenGrid = onOpenGrid,
-                        onOpenPager = onOpenPager,
-                        onOpenFlowSteps = onOpenFlowSteps,
-                        onOpenRewarded = onOpenRewarded,
-                        onOpenStatus = onOpenStatus,
-                        onOpenCollapsibleBanner = onOpenCollapsibleBanner,
-                    ),
-                    onStartRewarded = onStartRewarded,
-                    onSelectRewardedPolicy = onSelectRewardedPolicy,
-                    modifier = pageModifier,
-                )
+                InContentAds(galleryInContentAds(uiState)) {
+                    Page(
+                        uiState = uiState,
+                        slots = slots,
+                        status = status,
+                        onOpenInList = onOpenInList,
+                        onOpenCollapsible = onOpenCollapsible,
+                        onShowInterstitial = onShowInterstitial,
+                        onShowNativeFullScreen = onShowNativeFullScreen,
+                        onOpenAdInspector = onOpenAdInspector,
+                        more = MoreFormatsActions(
+                            onShowAppOpen = onShowAppOpen,
+                            onOpenBanners = onOpenBanners,
+                            onOpenGrid = onOpenGrid,
+                            onOpenPager = onOpenPager,
+                            onOpenFlowSteps = onOpenFlowSteps,
+                            onOpenRewarded = onOpenRewarded,
+                            onOpenStatus = onOpenStatus,
+                            onOpenCollapsibleBanner = onOpenCollapsibleBanner,
+                        ),
+                        onStartRewarded = onStartRewarded,
+                        onSelectRewardedPolicy = onSelectRewardedPolicy,
+                        modifier = pageModifier,
+                    )
+                }
             }
         }
     }
 }
 
-// Skeleton for the tests written first (plan T-092, step 3).
-internal fun galleryInContentAds(uiState: AdGalleryUiState): List<AdPlacement> = emptyList()
+/**
+ * The in-content placements of the page of [uiState], declared with [InContentAds] (MC-13, plan T-092): the pages
+ * with a floating ad ("Collapsible", "Collapsible banner") and the pages without an in-content ad declare none.
+ */
+internal fun galleryInContentAds(uiState: AdGalleryUiState): List<AdPlacement> = when (uiState) {
+    AdGalleryUiState.Default -> listOf(AdPlacement.GALLERY_NATIVE_SMALL, AdPlacement.GALLERY_NATIVE_MEDIUM)
+    is AdGalleryUiState.InList -> listOf(AdPlacement.GALLERY_INLIST_SMALL, AdPlacement.GALLERY_INLIST_MEDIUM)
+    is AdGalleryUiState.Banners -> listOf(AdPlacement.GALLERY_BANNER_MREC)
+    is AdGalleryUiState.Grid, is AdGalleryUiState.Pager -> listOf(AdPlacement.GALLERY_IN_COLLECTION)
+    is AdGalleryUiState.FlowSteps -> listOf(AdPlacement.GALLERY_NATIVE_STEP, AdPlacement.GALLERY_NATIVE_STEP_FULL)
+    is AdGalleryUiState.Collapsible,
+    is AdGalleryUiState.CollapsibleBanner,
+    is AdGalleryUiState.Rewarded,
+    AdGalleryUiState.Status,
+    -> emptyList()
+}
 
 /** The page of [uiState]. */
 @Composable
