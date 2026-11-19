@@ -4102,14 +4102,14 @@ write_release_properties "ca-app-pub-1234567890123456~1111111111" "" "http://cdn
 release_fails_with "assets address without https" "assetsBaseUrl phải"
 release_fails_with "unknown argument" "tham số không hợp lệ" --upload
 expect "release.sh: native placements and placements with attributes need a production ad unit, gallery ones do not" \
-  "sample_bottom_banner sample_native_small home_full_screen inter_sounds list_native" \
+  "sample_bottom_banner sample_native_small home_full_screen inter_sounds list_native banner native_collap" \
   "$(scripts/release.sh --list-placements scripts/tests/fixtures/release/AdPlacement.kt | tr '\n' ' ' | sed 's/ $//')"
 # Placements without a real unit get Google's test unit of their format, and are listed (decision 2026-10-26).
 expect "release.sh: placements without a real unit get the test unit of their format" \
-  "sample_bottom_banner=ca-app-pub-1/2;sample_native_small=ca-app-pub-3940256099942544/2247696110;home_full_screen=ca-app-pub-3940256099942544/1044960115;inter_sounds=ca-app-pub-3940256099942544/1033173712;list_native=ca-app-pub-3940256099942544/2247696110" \
+  "sample_bottom_banner=ca-app-pub-1/2;sample_native_small=ca-app-pub-3940256099942544/2247696110;home_full_screen=ca-app-pub-3940256099942544/1044960115;inter_sounds=ca-app-pub-3940256099942544/1033173712;list_native=ca-app-pub-3940256099942544/2247696110;banner=ca-app-pub-3940256099942544/9214589741;native_collap=ca-app-pub-3940256099942544/1044960115" \
   "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2> /dev/null)"
 expect "release.sh: lists the placements that got a test unit" 1 \
-  "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2>&1 > /dev/null | grep -c 'không có doanh thu) cho vị trí: sample_native_small home_full_screen inter_sounds list_native.$')"
+  "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2>&1 > /dev/null | grep -c 'không có doanh thu) cho vị trí và khe: sample_native_small home_full_screen inter_sounds list_native banner native_collap.$')"
 expect "release.sh: every real placement has a test unit for its format" 0 \
   "$(code=0; scripts/release.sh --fill-test-units core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt '' > /dev/null 2>&1 || code=$?; echo $code)"
 printf '%s\n' 'enum class AdPlacement(val key: String) {' '    WRAPPED(' '        "wrapped",' '        AdFormat.BANNER,' '    ),' '}' \
@@ -4117,6 +4117,36 @@ printf '%s\n' 'enum class AdPlacement(val key: String) {' '    WRAPPED(' '      
 expect "release.sh refuses a placement wrapped over several lines" "1 1" \
   "$(code=0; out="$(scripts/release.sh --list-placements "$work/WrappedAdPlacement.kt" 2>&1)" || code=$?
      echo "$code $(grep -c 'nhiều dòng (dòng 2)' <<< "$out")")"
+
+# Slot keys of the bottom bar (M-05, T-057): the same rule as missingUnitKeys in AdUnitIds.kt. A native small
+# placement that ships is a bottom bar with a banner layer, and a collapsible layer unless it declares none.
+slot_keys_of() { # <placement lines...>: the slot keys --list-placements prints for them
+  { echo 'enum class AdPlacement(val key: String) {'; printf '%s\n' "$@"; echo '}'; } > "$work/SlotAdPlacement.kt"
+  scripts/release.sh --list-placements "$work/SlotAdPlacement.kt" | { grep -xE 'banner|native_collap' || true; } | tr '\n' ' ' | sed 's/ $//'
+}
+expect "release.sh: slot keys follow missingUnitKeys" "|banner|banner native_collap||banner native_collap" \
+  "$(slot_keys_of '    HOME_BANNER("home_banner", AdFormat.BANNER),' '    INTER("inter", AdFormat.INTERSTITIAL),')|$(
+     slot_keys_of '    BAR("bar", AdFormat.NATIVE_SMALL, collapsibleLayer = false),')|$(
+     slot_keys_of '    BAR("bar", AdFormat.NATIVE_SMALL, collapsibleLayer = false),' '    BAR2("bar2", AdFormat.NATIVE_SMALL),')|$(
+     slot_keys_of '    GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),')|$(
+     slot_keys_of '    LIST("list", AdFormat.NATIVE_SMALL, nativeEvery = 8),')"
+expect "release.sh: a configured slot key keeps its unit, a missing one gets a test unit" \
+  "banner=ca-app-pub-1/3;bar=ca-app-pub-3940256099942544/2247696110;native_collap=ca-app-pub-3940256099942544/1044960115" \
+  "$(printf '%s\n' 'enum class AdPlacement(val key: String) {' '    BAR("bar", AdFormat.NATIVE_SMALL),' '}' > "$work/SlotAdPlacement.kt"
+     scripts/release.sh --fill-test-units "$work/SlotAdPlacement.kt" 'banner=ca-app-pub-1/3' 2> /dev/null | tr -d '\n')"
+expect "release.sh: a banner_mrec placement gets the 300 x 250 test unit" "0 home_mrec=ca-app-pub-3940256099942544/6300978111" \
+  "$(printf '%s\n' 'enum class AdPlacement(val key: String) {' '    HOME_MREC("home_mrec", AdFormat.BANNER_MREC),' '}' > "$work/MrecAdPlacement.kt"
+     code=0; out="$(scripts/release.sh --fill-test-units "$work/MrecAdPlacement.kt" '' 2> /dev/null)" || code=$?; echo "$code $out")"
+# The test unit of every format matches GoogleTestAdUnitIds of :core:ads (the comment of test_unit_for says so).
+unit_mismatch=""
+while read -r unit_format unit_id; do
+  printf '%s\n' 'enum class AdPlacement(val key: String) {' "    P(\"p\", AdFormat.$unit_format)," '}' > "$work/UnitAdPlacement.kt"
+  got="$(scripts/release.sh --fill-test-units "$work/UnitAdPlacement.kt" '' 2> /dev/null | cut -d';' -f1 || true)"
+  [[ "$got" == "p=$unit_id" ]] || unit_mismatch="$unit_mismatch $unit_format=$got"
+done < <(sed -nE 's/^[[:space:]]*AdFormat\.([A-Z_]+) -> "(ca-app-pub-[0-9]+\/[0-9]+)"$/\1 \2/p' \
+  core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt)
+unit_formats="$(grep -cE '^[[:space:]]*AdFormat\.[A-Z_]+ -> "ca-app-pub-' core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt || true)"
+expect "release.sh: the test unit of every format matches GoogleTestAdUnitIds" "read" "$([ "${unit_formats:-0}" -gt 0 ] && echo read)$unit_mismatch"
 
 # Contract between release.sh and the build (L-125): every Gradle property that release.sh passes is read by
 # app/build.gradle.kts, or the bundle would be built without it.
@@ -4189,7 +4219,9 @@ rl_version="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)$/\1/p' app/build.gr
 # Read from the real AdPlacement.kt, so an app with other placements runs the same test: the first placement gets
 # a configured unit, the last one (when it is another) must get a test unit.
 rl_keys="$(scripts/release.sh --list-placements "$rl_placement")"
-rl_first="$(head -n 1 <<< "$rl_keys")" rl_last="$(tail -n 1 <<< "$rl_keys")"
+rl_first="$(head -n 1 <<< "$rl_keys")"
+# The last placement key, not a slot key of the bottom bar: the release path must give placements a test unit too.
+rl_last="$({ grep -vxE 'banner|native_collap' <<< "$rl_keys" || true; } | tail -n 1)"
 rl_google_services() { # <package name>
   printf '{"project_info":{"project_id":"prod-project"},"client":[{"client_info":{"android_client_info":{"package_name":"%s"}}}]}' \
     "$1" > "$rl/cfg/google-services.json"
@@ -4225,6 +4257,18 @@ if [[ -n "$rl_last" && "$rl_last" != "$rl_first" ]]; then
   expect "release.sh --check-only: a placement without a unit gets a test unit" 1 \
     "$(grep -cE "(^| )$rl_last( |$)" <<< "$rl_test_units" || true)"
 fi
+rl_slots="$({ grep -xE 'banner|native_collap' <<< "$rl_keys" || true; } | tr '\n' ' ' | sed 's/ $//')"
+expect "release.sh --check-only: the summary names the slot keys of the bottom bar" 1 \
+  "$(grep -cx "   Khe của thanh đáy: ${rl_slots:-không có}" <<< "$rl_out" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" \
+  "${rl_first:+$rl_first=ca-app-pub-1234567890123456/1000000001;}old_banner=ca-app-pub-1234567890123456/1000000009" \
+  "https://cdn.example.vn/"
+rl_unknown="$(release_check_only)"
+expect "release.sh --check-only: an unknown adUnits key is warned, not refused, and its unit is not printed" "1 1 0" \
+  "$(grep -cx 'CHÚ Ý: adUnits có khóa không dùng: old_banner' <<< "$rl_unknown" || true) \
+$(grep -c '^== Đã kiểm xong' <<< "$rl_unknown" || true) $(grep -c '1000000009' <<< "$rl_unknown" || true)"
+write_release_properties "ca-app-pub-1234567890123456~1111111111" \
+  "${rl_first:+$rl_first=ca-app-pub-1234567890123456/1000000001}" "https://cdn.example.vn/"
 expect "release.sh --check-only: makes no tag, no worktree and no build" "0 1 0" \
   "$(git -C "$rl/src" tag | wc -l | tr -d ' ') $(git -C "$rl/src" worktree list | wc -l | tr -d ' ') \
 $(find "$rl/src" -name '*.aab' | wc -l | tr -d ' ')"
@@ -6128,8 +6172,13 @@ status_page > /dev/null
 expect "status: page ends with the release readiness section" "1 5" \
   "$(grep -c '^## 6. Sẵn sàng phát hành$' "$page" || true) $(grep -c '^## [1-5]\. ' "$page" || true)"
 expect "status: release readiness lists every ad placement key that ships, with attributes and NATIVE_SMALL" "1 1 0" \
-  "$(grep -c '^- .*release.md.*.home_banner. (banner), .list_native. (native_small), .done_interstitial. (interstitial)\.$' "$page" || true) $(grep -c '^- Bản production cần một mã quảng cáo thật' "$page" || true) $(grep -c 'gallery_interstitial' "$page" || true)"
+  "$(grep -c '^- .*release.md.*.home_banner. (banner), .list_native. (native_small), .done_interstitial. (interstitial), .banner. (khe thanh đáy), .native_collap. (khe thanh đáy)\.$' "$page" || true) $(grep -c '^- Bản production cần một mã quảng cáo thật' "$page" || true) $(grep -c 'gallery_interstitial' "$page" || true)"
 cp "$ad_dir/AdPlacement.kt" "$work/AdPlacement.kt.bak"
+sed -i.tmp '/LIST_NATIVE/d' "$ad_dir/AdPlacement.kt" && rm -f "$ad_dir/AdPlacement.kt.tmp"
+status_page > /dev/null
+expect "status: release readiness has no slot key without a native small placement" "1 0" \
+  "$(grep -c '^- Bản production cần một mã quảng cáo thật' "$page" || true) $(grep -c 'khe thanh đáy' "$page" || true)"
+cp "$work/AdPlacement.kt.bak" "$ad_dir/AdPlacement.kt"
 printf -- '    LATE_BANNER(\n        "late_banner",\n        AdFormat.BANNER,\n    ),\n' >> "$ad_dir/AdPlacement.kt"
 status_page > /dev/null
 expect "status: a placement wrapped over several lines is named, as release.sh refuses it" 1 \

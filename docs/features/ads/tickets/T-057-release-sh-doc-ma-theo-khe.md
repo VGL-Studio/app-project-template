@@ -5,7 +5,7 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-17, KB-29]
 owner: Nhật
-status: backlog
+status: on-staging
 risk: high
 size: S
 depends_on: [T-056]
@@ -16,6 +16,17 @@ created: 2026-10-29
 ---
 
 # T-057: RELEASE.SH ĐỌC VÀ KIỂM MÃ THEO KHE
+
+## Kết quả
+
+Làm trong phiên có người theo dõi ngày 2026-11-19, PR này. Người phát hành (anh Nhật) cho phép AI sửa `scripts/release.sh` trong phiên đó: "Tôi cho phép AI sửa scripts/release.sh trong phiên này." Không có file plan: `scripts/plan-check.py` từ chối mọi plan chạm `scripts/release.sh`, và ticket `auto_run: false` là việc người làm; anh Nhật chọn ghi thiết kế ở ticket và mô tả PR.
+
+- `--list-placements` in khóa vị trí rồi khóa theo khe `banner`, `native_collap` (cùng luật `missingUnitKeys`: vị trí `native_small` phát hành có lớp `banner`, và `native_collap` trừ khi khai báo `collapsibleLayer = false`; vị trí `nativeEvery` cũng tính, theo đúng luật của code).
+- `--fill-test-units` và lần phát hành điền mã thử của Google cho khóa khe còn thiếu, như khóa vị trí; có mã thử `BANNER_MREC` (`6300978111`), mọi mã thử khớp `GoogleTestAdUnitIds`.
+- Tóm tắt có dòng "Khe của thanh đáy"; khóa lạ trong `adUnits` in `CHÚ Ý: adUnits có khóa không dùng`, không dừng.
+- `scripts/status.py` mục 6 liệt kê khóa khe; `docs/ops/release.md` mục 2.2, M-05 của `docs/ops/ads-business-rules.md`.
+- Câu trả lời của anh Nhật (2026-11-19): khóa khe thiếu thì điền mã thử; khóa lạ thì CHÚ Ý, không dừng; `nativeEvery` theo đúng luật của code.
+- Còn lại cho người phát hành: trước bản production đầu tiên có lớp thanh đáy, chạy `scripts/release.sh --check-only` và thêm `banner=`, `native_collap=` thật vào `adUnits`.
 
 ## Mô tả
 
