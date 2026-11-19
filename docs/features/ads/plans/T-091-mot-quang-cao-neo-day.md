@@ -1,7 +1,7 @@
 ---
 ticket: T-091
 title: Mỗi màn tối đa một quảng cáo neo đáy
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -225,3 +225,20 @@ Test cần thanh đáy gửi yêu cầu native (`bar_thenBannerInContent_barRuns
 - **Ghi chú:** câu trả lời của mục 8 ghi ở từng câu (anh Nhật trả lời trong phiên cùng ngày).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261118-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #556, commit merge `527e33d`, 2026-11-19 02:44 UTC).
+- **Nhánh, PR:** `claude/T-091-mot-quang-cao-neo-day`, PR #556. Commit test `c7d5d66`, commit code `1f31309`, commit test theo rà soát `579d581`.
+- **Đã làm:** `AnchoredAds.kt` (luật lượt thuần `anchoredAdHolder`, `AnchoredAdScope` có `allowedNow`, `AnchoredAdScopes` theo `LocalLifecycleOwner` bỏ ở `ON_DESTROY`, `AnchoredAdScreen`, `rememberAnchoredAdTurn` bằng `RememberObserver`, `isAnchoredFormat`); `BottomAdBarScaffold` và `AdSlot` neo đáy đi qua lượt; `AdsController.anchoredScopes`; màn xem thử mỗi trang một `AnchoredAdScreen`, trang mới "Collapsible banner" (nút một hàng riêng cuối "More formats"); `docs/ops/ads-guide.md` mục 5, 8; MC-12 của `docs/ops/ads-business-rules.md` thêm câu trả lời câu hỏi 1. Phương án dự phòng 3.4 và câu "thêm một khung" của mục 3.5 không dùng.
+- **Test viết trước:** 30 test mới (`AnchoredAdTurnTest` 9, `AnchoredAdWiringTest` 16, `AdGalleryScreenTest` 3, screenshot 2) và các câu viết lại, dữ liệu mới theo mục 3.5. Trên khung rỗng mọi test mới thất bại đúng lý do (2 `AdView` thay vì 1, banner chờ cao 64/128 dp thay vì 0, thanh chờ vẫn gửi 1 yêu cầu native, khung hình đầu sau khi mở đồng ý có 2 `AdView`, thiếu dòng "takes the turn", thiếu tag, nút, trang); hai screenshot test chỉ chụp nên qua như plan dự kiến. Test JVM của mọi module trên khung rỗng: chỉ test mới hay viết lại của mục 3.2 đỏ (core/ads 25, app 12). 5 test viết chặt bằng đối chứng (`holder_waitsForUnknownBefore`, `twoOwners_eachOwnTurn`, `firstOff_secondRuns`, `firstNoUnit_secondRuns`, `barOff_bannerRuns`). Không xóa test nào; `banners_fixedOnTop_collapsibleAtBottom` viết lại thành `banners_fixedOnTop_noCollapsible` theo mục 3.5.
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 8 ghi chú. Nên sửa: `barLeaves_bannerRuns` dựng lại banner trong if/else nên không kiểm việc trao lượt khi thanh rời; thêm test `barLeaves_waitingBannerStaysInTree_takesTurn` (`579d581`), đột biến bỏ `recompute()` trong `AnchoredAdScope.leave` thì test mới đỏ, `barLeaves_bannerRuns` vẫn qua. Vòng rà soát lại: 0 chặn, 0 nên sửa, 2 ghi chú. Ghi chú còn để người xem: thanh đáy dùng `allowedNow` mặc định, trường hợp thanh trước banner khi cổng đồng ý mở chưa có test riêng (rủi ro mục 3.4); thứ tự theo composition với `SubcomposeLayout` và danh sách lười chưa ghi trong KDoc hay `ads-guide.md`; ngắt dòng của `wouldTake`; `report` trong `SideEffect` làm thành viên dựng lại thêm một lần.
+- **Kết quả CI:** `scripts/check.sh` cục bộ QUA (2414 test JVM, 0 lỗi; 99 ảnh: 3 ghi lại, 2 mới, đúng năm ảnh của mục 3.2). `pr-check` xanh vòng đầu (lần chạy 44444681681). `main-guard` của commit merge: xem báo cáo phiên.
+- **Lệch so với plan:**
+  - Thay đổi ở file test sau commit test: `AnchoredAdWiringTest.waitingBar_noEligibleNoRequest`, phần đối chứng sau `loader.deliver(...)`: 1 → 2 yêu cầu native, vì khe lấy quảng cáo thì kho nạp sẵn quảng cáo kế (O-01, như `AdsControllerNativeStockTest`); câu "1 yêu cầu" trước khi giao và "đúng 1 `af_native_ad_eligible`" giữ (chi tiết theo bước 4; mục 4 của plan ghi "đúng 1 yêu cầu" cho cả phần sau khi giao). Trước sửa "expected:<1> but was:<2>", sau sửa qua. Rà soát độc lập: không đổi điều test kiểm.
+  - `key(uiState::class.java.name)` thay `key(uiState::class)` của mục 3.1: khóa ổn định qua process death cho `rememberSaveable` bên trong; cùng hành vi.
+  - Câu thêm vào MC-12 không ghi mã ticket (`scripts/history-refs.py` từ chối mã ticket trong tài liệu quy tắc).
+  - Dữ liệu mới của `AdGalleryScreenTest.kt` (mục 3.5) áp bằng một script thay chuỗi chính xác tại chỗ thay vì công cụ sửa tệp; không đổi gì ngoài các chuỗi mục 3.5 nêu (rà soát đối chiếu `git diff origin/main...c7d5d66` khớp từng dòng).
+  - Phần ngoài mục 3.2: không có. Câu khẳng định cũ viết lại ngoài mục 3.5 (ADR-0031): không có.
+- **Việc còn lại:** T-092 dựng trên phạm vi lượt này (cùng phiên). Spec KB-35 tiêu chí 5 chưa ghi ngoại lệ "chưa ai giữ lượt" (spec đã chốt, người sửa).
+- **Cần người xem:** ba dòng kiểm thủ công của mục 4: trang "Banners", "Collapsible banner", "Collapsible" với quảng cáo thật, `adb logcat` không có dòng "waits" (máy thật); đọc diff `docs/ops/ads-guide.md` mục 5, 8 và MC-12 (người). Xem năm ảnh chuẩn đổi/thêm. Xác nhận lệch 1 → 2 yêu cầu ở trên.
