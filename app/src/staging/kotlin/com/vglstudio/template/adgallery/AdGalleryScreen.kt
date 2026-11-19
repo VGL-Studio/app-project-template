@@ -483,6 +483,9 @@ fun AdGalleryScreen(
     }
 }
 
+// Skeleton for the tests written first (plan T-092, step 3).
+internal fun galleryInContentAds(uiState: AdGalleryUiState): List<AdPlacement> = emptyList()
+
 /** The page of [uiState]. */
 @Composable
 private fun Page(
