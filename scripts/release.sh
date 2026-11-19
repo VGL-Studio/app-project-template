@@ -99,7 +99,7 @@ fill_test_units() {
     units="${units:+$units;}$key=$(test_unit_for "$format")"
     added="$added $key"
   done
-  [ -z "$added" ] || echo "CHÚ Ý: dùng mã quảng cáo thử của Google (không có doanh thu) cho vị trí:$added." >&2
+  [ -z "$added" ] || echo "CHÚ Ý: dùng mã quảng cáo thử của Google (không có doanh thu) cho vị trí và khe:$added." >&2
   printf '%s' "$units"
 }
 if [ "${1:-}" = "--list-placements" ]; then

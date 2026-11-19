@@ -4109,7 +4109,7 @@ expect "release.sh: placements without a real unit get the test unit of their fo
   "sample_bottom_banner=ca-app-pub-1/2;sample_native_small=ca-app-pub-3940256099942544/2247696110;home_full_screen=ca-app-pub-3940256099942544/1044960115;inter_sounds=ca-app-pub-3940256099942544/1033173712;list_native=ca-app-pub-3940256099942544/2247696110;banner=ca-app-pub-3940256099942544/9214589741;native_collap=ca-app-pub-3940256099942544/1044960115" \
   "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2> /dev/null)"
 expect "release.sh: lists the placements that got a test unit" 1 \
-  "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2>&1 > /dev/null | grep -c 'không có doanh thu) cho vị trí: sample_native_small home_full_screen inter_sounds list_native banner native_collap.$')"
+  "$(scripts/release.sh --fill-test-units scripts/tests/fixtures/release/AdPlacement.kt 'sample_bottom_banner=ca-app-pub-1/2' 2>&1 > /dev/null | grep -c 'không có doanh thu) cho vị trí và khe: sample_native_small home_full_screen inter_sounds list_native banner native_collap.$')"
 expect "release.sh: every real placement has a test unit for its format" 0 \
   "$(code=0; scripts/release.sh --fill-test-units core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdPlacement.kt '' > /dev/null 2>&1 || code=$?; echo $code)"
 printf '%s\n' 'enum class AdPlacement(val key: String) {' '    WRAPPED(' '        "wrapped",' '        AdFormat.BANNER,' '    ),' '}' \
@@ -4124,11 +4124,12 @@ slot_keys_of() { # <placement lines...>: the slot keys --list-placements prints 
   { echo 'enum class AdPlacement(val key: String) {'; printf '%s\n' "$@"; echo '}'; } > "$work/SlotAdPlacement.kt"
   scripts/release.sh --list-placements "$work/SlotAdPlacement.kt" | { grep -xE 'banner|native_collap' || true; } | tr '\n' ' ' | sed 's/ $//'
 }
-expect "release.sh: slot keys follow missingUnitKeys" "|banner|banner native_collap|" \
+expect "release.sh: slot keys follow missingUnitKeys" "|banner|banner native_collap||banner native_collap" \
   "$(slot_keys_of '    HOME_BANNER("home_banner", AdFormat.BANNER),' '    INTER("inter", AdFormat.INTERSTITIAL),')|$(
      slot_keys_of '    BAR("bar", AdFormat.NATIVE_SMALL, collapsibleLayer = false),')|$(
      slot_keys_of '    BAR("bar", AdFormat.NATIVE_SMALL, collapsibleLayer = false),' '    BAR2("bar2", AdFormat.NATIVE_SMALL),')|$(
-     slot_keys_of '    GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),')"
+     slot_keys_of '    GALLERY_NATIVE_SMALL("gallery_native_small", AdFormat.NATIVE_SMALL),')|$(
+     slot_keys_of '    LIST("list", AdFormat.NATIVE_SMALL, nativeEvery = 8),')"
 expect "release.sh: a configured slot key keeps its unit, a missing one gets a test unit" \
   "banner=ca-app-pub-1/3;bar=ca-app-pub-3940256099942544/2247696110;native_collap=ca-app-pub-3940256099942544/1044960115" \
   "$(printf '%s\n' 'enum class AdPlacement(val key: String) {' '    BAR("bar", AdFormat.NATIVE_SMALL),' '}' > "$work/SlotAdPlacement.kt"
@@ -4144,7 +4145,8 @@ while read -r unit_format unit_id; do
   [[ "$got" == "p=$unit_id" ]] || unit_mismatch="$unit_mismatch $unit_format=$got"
 done < <(sed -nE 's/^[[:space:]]*AdFormat\.([A-Z_]+) -> "(ca-app-pub-[0-9]+\/[0-9]+)"$/\1 \2/p' \
   core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt)
-expect "release.sh: the test unit of every format matches GoogleTestAdUnitIds" "" "$unit_mismatch"
+unit_formats="$(grep -cE '^[[:space:]]*AdFormat\.[A-Z_]+ -> "ca-app-pub-' core/ads/src/main/kotlin/com/vglstudio/template/core/ads/AdUnitIds.kt || true)"
+expect "release.sh: the test unit of every format matches GoogleTestAdUnitIds" "read" "$([ "${unit_formats:-0}" -gt 0 ] && echo read)$unit_mismatch"
 
 # Contract between release.sh and the build (L-125): every Gradle property that release.sh passes is read by
 # app/build.gradle.kts, or the bundle would be built without it.
@@ -4217,7 +4219,9 @@ rl_version="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)$/\1/p' app/build.gr
 # Read from the real AdPlacement.kt, so an app with other placements runs the same test: the first placement gets
 # a configured unit, the last one (when it is another) must get a test unit.
 rl_keys="$(scripts/release.sh --list-placements "$rl_placement")"
-rl_first="$(head -n 1 <<< "$rl_keys")" rl_last="$(tail -n 1 <<< "$rl_keys")"
+rl_first="$(head -n 1 <<< "$rl_keys")"
+# The last placement key, not a slot key of the bottom bar: the release path must give placements a test unit too.
+rl_last="$({ grep -vxE 'banner|native_collap' <<< "$rl_keys" || true; } | tail -n 1)"
 rl_google_services() { # <package name>
   printf '{"project_info":{"project_id":"prod-project"},"client":[{"client_info":{"android_client_info":{"package_name":"%s"}}}]}' \
     "$1" > "$rl/cfg/google-services.json"
