@@ -1481,7 +1481,7 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** Phiên con T-090 làm hai việc khác chữ của mục 4 của plan mà không đổi điều test kiểm: tách test `yielded_noRequest_noRefresh_noRetry` thành hai test (đường thử lại cần lượt nạp của khe lỗi ngay trước khi lớp mở, không xếp được sau đường lượt đầu trong cùng một lần dựng), và đo `ad_load_success` bằng số yêu cầu và dòng log vì bộ nạp giả của test đi vòng `NativeAdEvents`. Phiên con ghi cả hai là L4. Rà soát độc lập chỉ ra L4 của ADR-0032 chỉ gồm test "qua ngay" lại thất bại hay ngược lại, nên hai lệch không có mã nào; theo chữ của bước 6 ("lệch ngoài danh sách của ADR-0032 và ADR-0033 là mức chặn") thì phải chặn, dù rà soát đã kiểm mọi câu khẳng định của mục 4 còn đủ. Rà soát chọn ghi chú và để người xác nhận; phiên làm theo, nhưng phải đoán.
 - **Bằng chứng:** PR #549 (mô tả, mục Lệch so với plan và Rà soát độc lập); nhật ký plan T-090 (RUN-20261117-03).
 - **Đề xuất sửa:** (1) ADR mới hợp nhất ADR-0032 thêm một mã cho "test của mục 4 tách hay gộp, hay đo cùng điều bằng nguồn khác (số yêu cầu, dòng log) khi nguồn plan nêu không đo được, mọi câu khẳng định còn đủ", kèm điều kiện rà soát kiểm; hoặc (2) bước 6 của `auto-run.md` nói rõ lệch như vậy xét theo bước 4 (chi tiết không đổi điều test kiểm), không theo danh sách lệch. (3) Mẫu plan, mục 4.1: điểm nối test (`...ForTest`) cần chạy thử câu khẳng định đọc sự kiện, như `docs/CLAUDE.md` đã ghi, vì mục 4.1 của T-090 đoán bộ nạp giả có sự kiện nạp.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted (Nhật, 2026-11-19: "sửa KB-35, xử lý L-186 và L-187")
 
 ### L-187. Phiên con quy nguyên nhân khung hình chờ thêm cho task trước mà không đo trên nhánh chưa có task đó
 
@@ -1490,4 +1490,4 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Chuyện gì:** Sau commit test, phiên con T-092 thêm hai lần `frames()` vào `InContentAdsWiringTest.declaredOn_stockOfLayerKept` (chi tiết chờ theo bước 4, câu khẳng định không đổi) và ghi chú thích "thanh lấy lượt một khung sau khi vào cây (T-091)". Phiên con không đo cùng chuỗi trên nhánh chưa có T-091. Rà soát độc lập đo trên `527e33d` (có T-091) và `ddca7aa` (chưa có): cả hai hiện lớp ở khung 4, nhịp có từ trước; T-091 không thêm khung trễ, đúng điều plan T-091 nói. Không có rà soát thì nhật ký plan và báo cáo phiên đã ghi một hồi quy không có thật của task trước.
 - **Bằng chứng:** PR #557 (commit `2ad9bbd` và `91377e1`, mục Rà soát độc lập), nhật ký plan T-092 (RUN-20261118-01).
 - **Đề xuất sửa:** `auto-run.md`, mục Giao bước 3 đến 5, lời giao chung: thay đổi chờ thêm khung hình hay thời gian ở file test sau commit test thì đo cùng chuỗi trên commit trước task (và trước task mà nó dựa vào, nếu nguyên nhân quy cho task đó), ghi số đo vào báo cáo; không ghi nguyên nhân chưa đo.
-- **Trạng thái:** proposed
+- **Trạng thái:** accepted (Nhật, 2026-11-19: "sửa KB-35, xử lý L-186 và L-187")
