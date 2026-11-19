@@ -135,6 +135,9 @@ object AdGalleryTestTags {
     const val REWARDED_ALLOW_AFTER = "ad_gallery_rewarded_allow_after"
     const val REWARDED_RUN = "ad_gallery_rewarded_run"
     const val STATUS = "ad_gallery_status"
+    const val COLLAPSIBLE_BANNER_BUTTON = "ad_gallery_collapsible_banner_button"
+    const val COLLAPSIBLE_BANNER = "ad_gallery_collapsible_banner"
+    const val COLLAPSIBLE_BANNER_LIST = "ad_gallery_collapsible_banner_list"
 
     /** The item [number] of the grid page. */
     fun gridItem(number: Int): String = "ad_gallery_grid_item_$number"
@@ -433,6 +436,7 @@ fun AdGalleryScreen(
     onOpenStatus: () -> Unit = {},
     onStartRewarded: () -> Unit = {},
     onSelectRewardedPolicy: (GalleryRewarded) -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onOpenCollapsibleBanner: () -> Unit = {},
 ) {
     Box(
         modifier = modifier
@@ -473,6 +477,8 @@ fun AdGalleryScreen(
                 modifier = pageModifier,
             )
             AdGalleryUiState.Status -> StatusPage(status, slots, pageModifier)
+            // Skeleton of plan T-091: the page comes with the code commit.
+            is AdGalleryUiState.CollapsibleBanner -> Unit
         }
     }
 }

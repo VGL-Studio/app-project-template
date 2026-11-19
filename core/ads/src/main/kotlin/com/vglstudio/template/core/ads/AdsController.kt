@@ -157,6 +157,9 @@ class AdsController @Inject internal constructor(
     /** The SDK message in the load error line of every format, at staging only (plan T-093, KB-28). */
     internal val loadErrorLog = LoadErrorLog(debugOptions.logLoadErrorMessages)
 
+    /** The anchored ad turn of each screen, one scope per lifecycle owner (MC-12, plan T-091). */
+    internal val anchoredScopes = AnchoredAdScopes(logger)
+
     // Touched on the main thread only.
     private val clock: MonotonicClock = SystemMonotonicClock
     private val guard = FullScreenAdGuard()

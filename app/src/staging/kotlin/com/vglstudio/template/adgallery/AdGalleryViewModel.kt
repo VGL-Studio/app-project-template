@@ -47,6 +47,9 @@ class AdGalleryViewModel @Inject constructor(private val logger: AppLogger, adsF
 
     fun openStatus() = open(AdGalleryUiState.Status, "status")
 
+    // Skeleton of plan T-091: the page comes with the code commit.
+    fun openCollapsibleBanner() = Unit
+
     /** Back to the default page; false when already there, so the activity closes. */
     fun back(): Boolean {
         if (_uiState.value == AdGalleryUiState.Default) return false

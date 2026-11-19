@@ -11,8 +11,14 @@ sealed interface AdGalleryUiState {
     /** A list of [itemCount] items with a collapsible native ad pinned at the bottom. */
     data class Collapsible(val itemCount: Int) : AdGalleryUiState
 
-    /** A list of [itemCount] items between a fixed banner on top and a collapsible banner at the bottom (T-029). */
+    /** A fixed banner on top, the MREC banner under it and a list of [itemCount] items (T-029, KB-29). */
     data class Banners(val itemCount: Int) : AdGalleryUiState
+
+    /**
+     * A list of [itemCount] items with the collapsible banner at the bottom (B-03): a page of its own, one anchored ad
+     * per page (MC-12, plan T-091).
+     */
+    data class CollapsibleBanner(val itemCount: Int) : AdGalleryUiState
 
     /** A grid of [itemCount] items with native cards inside it (T-028). */
     data class Grid(val itemCount: Int) : AdGalleryUiState
