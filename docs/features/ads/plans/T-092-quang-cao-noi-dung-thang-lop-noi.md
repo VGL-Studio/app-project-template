@@ -1,7 +1,7 @@
 ---
 ticket: T-092
 title: Quảng cáo trong nội dung thắng lớp nổi
-status: approved             # draft | approved | stopped | done
+status: done                 # draft | approved | stopped | done
 version: 1                   # tăng khi plan được sửa lại sau phản hồi hoặc sau khi dừng
 risk_score:                  # chạm điểm chặn, không tính điểm
 risk_level: high             # low | medium | high
@@ -197,3 +197,19 @@ Nơi đọc file: `scripts/ads-plan.py` được `scripts/tests/run.sh` chạy v
 - **Ghi chú:** câu trả lời của mục 8 ghi ở từng câu (anh Nhật trả lời trong phiên cùng ngày).
 
 ## 10. Nhật ký thực hiện
+
+### RUN-20261118-01, phiên bản plan 1
+
+- **Kết quả:** đã merge (PR #557, commit merge `c043021`, 2026-11-19 03:40 UTC).
+- **Nhánh, PR:** `claude/T-092-quang-cao-noi-dung-thang-lop-noi`, PR #557. Commit test `c4b3e6a` (gồm khung rỗng), commit code `2ad9bbd`, commit chú thích theo rà soát `91377e1`.
+- **Đã làm:** `InContentAds.kt` (khai báo vị trí trong nội dung theo màn, chặn lớp nổi chốt theo lần vào màn, log một lần); `BottomAdBar.kt` (lớp native thu gọn chỉ khi `block == false`), `AdSlot.kt` (banner thu gọn ngoài thanh đáy bị chặn thì không dựng khe, nối vào `allowedNow` của lượt neo đáy); màn xem thử `galleryInContentAds` theo trang, bọc `AnchoredAdScreen { InContentAds { ... } }`; `docs/ops/ads-guide.md` mục 5, 8; `scripts/ads-plan.py` (ghi chú `is_show_native_collap`, dòng `banner_collapsible`); `CLAUDE.md` bước 7 thêm một câu.
+- **Kiểm mục 3.4:** chữ ký `rememberAnchoredAdTurn(ads, placement, allowed, allowedNow)` và nhánh `!turn` của `BannerSlot` có trên nhánh chính sau T-091: không dùng dự phòng. `CONTROL_FRAMES` đo trên `527e33d` (có T-091): khung 1 (yêu cầu `NATIVE_COLLAPSIBLE`) và khung 2 (yêu cầu `NATIVE_SMALL`), trùng mục 4.1; không gặp điều kiện chuyển thứ hai.
+- **Test viết trước:** 20 test mới (`InContentAdsTest` 6, `InContentAdsWiringTest` 13, `AdGalleryScreenTest.galleryInContentAds_perPage` 1). Trên khung rỗng 17 test thất bại đúng lý do (hàm thuần trả `null`/`false`, `require` không ném, lớp vẫn gửi 1 yêu cầu `NATIVE_COLLAPSIBLE`, banner 2 hay 1 `AdView` thay vì 1 hay 0, `Eligible` 3 thay vì 2, bảng màn xem thử rỗng); 3 test qua ngay đúng plan: hai đối chứng `noDeclaration_layerAsUsual`, `noDeclaration_eligibleThree` và test chặn `declaredOff_layerAsUsual_sameFrames` (đột biến chặn chậm một khung thì đỏ, `(2, 3)` thay vì `(1, 2)`). Test JVM của mọi module trên khung rỗng: chỉ 17 test mới đỏ. 0 test viết chặt bằng đối chứng. Không xóa, không viết lại test cũ (mục 3.5).
+- **Rà soát độc lập:** vòng 1: 0 chặn, 1 nên sửa, 8 ghi chú. Nên sửa: chú thích của hai `frames()` thêm sau commit test nói thanh trễ một khung vì T-091 là sai (rà soát đo trên `527e33d` và `ddca7aa`: lớp hiện ở khung 4 cả hai, nhịp có từ trước); sửa chú thích (`91377e1`, ADR-0033/L12, `git diff -w` chỉ có chú thích, `check.sh` QUA). Vòng rà soát lại: 0 chặn, 0 nên sửa, 1 ghi chú. Ghi chú còn để người xem: KDoc "The list is fixed…" của `InContentAds.kt` (và câu hỏi 8) nói giá trị về `null` khi danh sách đổi, thật ra giá trị cũ được giữ tới khi luồng mới có giá trị (tốt hơn KDoc nói).
+- **Kết quả CI:** `scripts/check.sh` cục bộ QUA (2434 test JVM, 0 lỗi; 99 ảnh, không ảnh chuẩn mới hay đổi). `pr-check` xanh vòng đầu (lần chạy 44451636400). `main-guard` của commit merge: xem báo cáo phiên.
+- **Lệch so với plan:**
+  - Thay đổi ở file test sau commit test: `InContentAdsWiringTest.declaredOn_stockOfLayerKept` thêm một `frames()` sau `screen = Screen.DECLARED` và một sau `screen = Screen.PLAIN` (chi tiết chờ theo bước 4: lớp vẽ quảng cáo của kho ở khung 4, `frames()` đi 3 khung; câu khẳng định không đổi). Trước sửa đỏ ở "the layer shows the ad of the stock", sau sửa qua. Chú thích sửa theo rà soát (L12).
+  - Chi tiết cài đặt không đổi hành vi: `BannerSlot` truyền `allowed = allowedNow()`; chỉ banner thu gọn đọc `LocalInContentAdBlock`.
+  - Phần ngoài mục 3.2: không có. Câu khẳng định cũ viết lại (ADR-0031): không có.
+- **Việc còn lại:** Không có.
+- **Cần người xem:** kiểm thủ công mục 4 trên bản staging (máy thật): trang "Collapsible" và "Collapsible banner" không có dòng `Floating ads off on this screen`, trang "Banners" có đúng một dòng mỗi lần mở; đọc diff `docs/ops/ads-guide.md`, `scripts/ads-plan.py` và câu thêm vào `CLAUDE.md` (người). Xác nhận lệch thêm `frames()` ở trên.
