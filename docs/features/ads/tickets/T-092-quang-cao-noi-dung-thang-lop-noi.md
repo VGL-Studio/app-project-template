@@ -5,12 +5,12 @@ feature: ads
 spec: features/ads/spec.md
 scenarios: [KB-35]      # kịch bản trong spec mà ticket này xử lý
 owner: Nhật
-status: backlog              # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
+status: approved             # backlog | ready | planned | approved | on-staging | accepted | released | stopped | cancelled
 risk: high                   # đánh giá sơ bộ: low | medium | high
 size: M                      # S | M | L, xem giải thích ở cuối
 depends_on: [T-091]          # các ticket phải xong trước, ví dụ [T-NNN]
 sprint:                      # điền khi được chọn vào sprint
-plan:                        # đường dẫn plan khi đã có
+plan: features/ads/plans/T-092-quang-cao-noi-dung-thang-lop-noi.md # đường dẫn plan khi đã có
 auto_run:                    # để trống; ghi false khi ticket do người làm (ví dụ chạm scripts/release.sh): plan-queue.py không soạn plan, run-check.py từ chối đưa vào danh sách chạy
 created: 2026-11-06
 ---
