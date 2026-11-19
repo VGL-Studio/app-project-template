@@ -112,6 +112,7 @@ class AdGalleryScreenTest {
             onOpenFlowSteps = count("flowSteps"),
             onOpenRewarded = count("rewarded"),
             onOpenStatus = count("status"),
+            onOpenCollapsibleBanner = count("collapsibleBanner"),
             onStartRewarded = count("startRewarded"),
             onSelectRewardedPolicy = { policies += it },
         )
@@ -272,12 +273,12 @@ class AdGalleryScreenTest {
         val allTagged = composeRule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
             .fetchSemanticsNodes()
             .filter { node -> node.config.contains(SemanticsProperties.TestTag) }
-        // Control: every button of the page is found: five of plan T-014, seven of "More formats" (T-036).
+        // Control: every button of the page is found: five of plan T-014, eight of "More formats" (T-036, T-091).
         assertEquals(
             planT014Buttons + moreFormatButtons.toSet(),
             allTagged.map { it.config[SemanticsProperties.TestTag] }.toSet(),
         )
-        assertEquals(12, allTagged.size)
+        assertEquals(13, allTagged.size)
         // Every button of the tree, scrolled into view first: one below the screen measures 0 dp (plan T-044).
         allTagged.map { it.config[SemanticsProperties.TestTag] }.forEach { tag ->
             composeRule.onNodeWithTag(tag).performScrollTo()
@@ -351,6 +352,7 @@ class AdGalleryScreenTest {
         AdGalleryTestTags.FLOW_BUTTON,
         AdGalleryTestTags.REWARDED_BUTTON,
         AdGalleryTestTags.STATUS_BUTTON,
+        AdGalleryTestTags.COLLAPSIBLE_BANNER_BUTTON,
     )
 
     private fun click(tag: String) {
@@ -375,6 +377,7 @@ class AdGalleryScreenTest {
                 "flowSteps" to 1,
                 "rewarded" to 1,
                 "status" to 1,
+                "collapsibleBanner" to 1,
             ),
             calls,
         )
@@ -403,6 +406,7 @@ class AdGalleryScreenTest {
             R.string.ad_gallery_open_flow to "Flow steps",
             R.string.ad_gallery_open_rewarded to "Rewarded",
             R.string.ad_gallery_open_status to "Ad status",
+            R.string.ad_gallery_open_collapsible_banner to "Collapsible banner",
             R.string.ad_gallery_banners_title to "Banners",
             R.string.ad_gallery_pager_title to "Pager ads",
             R.string.ad_gallery_flow_title to "Flow steps",
@@ -424,28 +428,29 @@ class AdGalleryScreenTest {
             R.string.ad_gallery_open_flow,
             R.string.ad_gallery_open_rewarded,
             R.string.ad_gallery_open_status,
+            R.string.ad_gallery_open_collapsible_banner,
         ).forEach { id -> composeRule.onNodeWithText(context.getString(id)).performScrollTo() }
     }
 
     @Test
-    fun banners_fixedOnTop_collapsibleAtBottom() {
+    fun banners_fixedOnTop_noCollapsible() {
         setScreen(AdGalleryUiState.Banners(30))
 
         val title = bounds(AdGalleryTestTags.TITLE)
         val banner = bounds(PreviewAdTags.BANNER)
-        val collapsible = bounds(PreviewAdTags.COLLAPSIBLE_BANNER)
         val list = bounds(AdGalleryTestTags.BANNERS_LIST)
         // Right below the title and its bottom gap, as the lists of the other pages.
         assertDp("banner below the title", 24.dp, banner.top - title.bottom)
         assertDp("banner full width", composeRule.onRoot().getBoundsInRoot().width, banner.width)
-        assertDp("collapsible at the bottom of the screen", 891.dp, collapsible.bottom)
+        // MC-12 (plan T-091): one anchored ad per page, the collapsible banner has its own page.
+        composeRule.onAllNodesWithTag(PreviewAdTags.COLLAPSIBLE_BANNER).assertCountEquals(0)
         assertTrue("list below the banner", list.top >= banner.bottom - TOLERANCE_DP.dp)
-        assertTrue("list above the collapsible banner", list.bottom <= collapsible.top + TOLERANCE_DP.dp)
+        assertDp("list down to the bottom of the screen", 891.dp, list.bottom)
 
         composeRule.onNodeWithTag(AdGalleryTestTags.BANNERS_LIST).performScrollToNode(hasText("List item 30"))
         assertTrue(
-            "last item not covered by the collapsible banner",
-            textBounds("List item 30").bottom <= collapsible.top + TOLERANCE_DP.dp,
+            "last item inside the screen",
+            textBounds("List item 30").bottom <= 891.dp + TOLERANCE_DP.dp,
         )
     }
 
@@ -470,16 +475,72 @@ class AdGalleryScreenTest {
         setScreen(AdGalleryUiState.Banners(30))
 
         composeRule.onAllNodesWithTag(PreviewAdTags.BANNER_MREC).assertCountEquals(1)
-        val collapsible = bounds(PreviewAdTags.COLLAPSIBLE_BANNER)
         val list = bounds(AdGalleryTestTags.BANNERS_LIST)
         assertTrue("list has room: $list", list.height > 0.dp)
         assertTrue("MREC above the list", bounds(PreviewAdTags.BANNER_MREC).bottom <= list.top + TOLERANCE_DP.dp)
 
         composeRule.onNodeWithTag(AdGalleryTestTags.BANNERS_LIST).performScrollToNode(hasText("List item 30"))
         assertTrue(
+            "last item inside the low frame",
+            textBounds("List item 30").bottom <= 640.dp + TOLERANCE_DP.dp,
+        )
+    }
+
+    @Test
+    fun collapsibleBanner_atBottom_lastItemNotCovered() {
+        setScreen(AdGalleryUiState.CollapsibleBanner(30))
+
+        composeRule.onAllNodesWithTag(AdGalleryTestTags.COLLAPSIBLE_BANNER).assertCountEquals(1)
+        composeRule.onNodeWithTag(AdGalleryTestTags.TITLE).assertTextEquals("Collapsible banner")
+        val title = bounds(AdGalleryTestTags.TITLE)
+        val collapsible = bounds(PreviewAdTags.COLLAPSIBLE_BANNER)
+        val list = bounds(AdGalleryTestTags.COLLAPSIBLE_BANNER_LIST)
+        assertDp("collapsible at the bottom of the screen", 891.dp, collapsible.bottom)
+        assertDp("collapsible full width", composeRule.onRoot().getBoundsInRoot().width, collapsible.width)
+        assertTrue("list below the title", list.top >= title.bottom - TOLERANCE_DP.dp)
+        assertTrue("list above the collapsible banner", list.bottom <= collapsible.top + TOLERANCE_DP.dp)
+        // One anchored ad per page (MC-12): no fixed banner here.
+        composeRule.onAllNodesWithTag(PreviewAdTags.BANNER).assertCountEquals(0)
+
+        composeRule.onNodeWithTag(AdGalleryTestTags.COLLAPSIBLE_BANNER_LIST)
+            .performScrollToNode(hasText("List item 30"))
+        assertTrue(
             "last item not covered by the collapsible banner",
             textBounds("List item 30").bottom <= collapsible.top + TOLERANCE_DP.dp,
         )
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun collapsibleBanner_small_listStillReachable() {
+        setScreen(AdGalleryUiState.CollapsibleBanner(30))
+
+        val collapsible = bounds(PreviewAdTags.COLLAPSIBLE_BANNER)
+        val list = bounds(AdGalleryTestTags.COLLAPSIBLE_BANNER_LIST)
+        assertTrue("list has room: $list", list.height > 0.dp)
+        assertDp("collapsible at the bottom of the low frame", 640.dp, collapsible.bottom)
+
+        composeRule.onNodeWithTag(AdGalleryTestTags.COLLAPSIBLE_BANNER_LIST)
+            .performScrollToNode(hasText("List item 30"))
+        assertTrue(
+            "last item not covered by the collapsible banner",
+            textBounds("List item 30").bottom <= collapsible.top + TOLERANCE_DP.dp,
+        )
+    }
+
+    @Test
+    fun collapsibleBannerButton_ownRowAtEndOfMoreFormats_opensPage() {
+        setScreen(AdGalleryUiState.Default)
+
+        val button = composeRule.onNodeWithTag(AdGalleryTestTags.COLLAPSIBLE_BANNER_BUTTON).performScrollTo()
+        button.assert(hasText("Collapsible banner"))
+        val rect = bounds(AdGalleryTestTags.COLLAPSIBLE_BANNER_BUTTON)
+        // Question 4 of plan T-091: a row of its own, as wide as "App open", below the last pair of buttons.
+        assertDp("as wide as App open", bounds(AdGalleryTestTags.APP_OPEN_BUTTON).width, rect.width)
+        assertTrue("below Ad status", rect.top >= bounds(AdGalleryTestTags.STATUS_BUTTON).bottom)
+
+        button.performClick()
+        assertEquals(mapOf("collapsibleBanner" to 1), calls)
     }
 
     @Test

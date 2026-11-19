@@ -47,6 +47,8 @@ class AdGalleryViewModel @Inject constructor(private val logger: AppLogger, adsF
 
     fun openStatus() = open(AdGalleryUiState.Status, "status")
 
+    fun openCollapsibleBanner() = open(AdGalleryUiState.CollapsibleBanner(LIST_ITEM_COUNT), "collapsible_banner")
+
     /** Back to the default page; false when already there, so the activity closes. */
     fun back(): Boolean {
         if (_uiState.value == AdGalleryUiState.Default) return false

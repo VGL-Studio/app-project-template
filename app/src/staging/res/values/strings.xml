@@ -27,6 +27,9 @@
     <string name="ad_gallery_open_rewarded" translatable="false">Rewarded</string>
     <string name="ad_gallery_open_status" translatable="false">Ad status</string>
     <string name="ad_gallery_banners_title" translatable="false">Banners</string>
+    <!-- Plan T-091: the collapsible banner on a page of its own (MC-12). -->
+    <string name="ad_gallery_open_collapsible_banner" translatable="false">Collapsible banner</string>
+    <string name="ad_gallery_collapsible_banner_title" translatable="false">Collapsible banner</string>
     <string name="ad_gallery_grid_title" translatable="false">Grid ads (every %1$d items)</string>
     <string name="ad_gallery_grid_title_off" translatable="false">Grid ads (off)</string>
     <string name="ad_gallery_grid_item" translatable="false">Item %1$d</string>

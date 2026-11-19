@@ -68,6 +68,10 @@ val LocalAdsController = staticCompositionLocalOf<AdsController?> { null }
  * - [AdFormat.BANNER] and [AdFormat.BANNER_MREC] load from AppLovin MAX and AdMob in the order of
  *   `ads_mediation_order` (KB-31, ADR-0045, plan T-071): the first platform without an ad hands the turn to the
  *   second one in the same frame, as tall as the tallest of them; a collapsible banner is AdMob only.
+ * - One anchored ad per screen (MC-12, plan T-091): the fixed and the collapsible banner are anchored ads, as a bottom
+ *   bar ([BottomAdBarScaffold]); the MREC is not. When the screen (a destination, or an [AnchoredAdScreen]) has
+ *   another one, the one that entered the composition first and is allowed runs; the other loads nothing, takes no
+ *   space, reports nothing (MC-14) and logs one warning, until the first one leaves the composition.
  */
 @Composable
 fun AdSlot(placement: AdPlacement, modifier: Modifier = Modifier) {
@@ -95,7 +99,10 @@ private fun BannerSlot(
         return
     }
     val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
-    val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
+    // Null until the first value of `is_show_<code>`: the turn of an anchored banner waits for it (MC-12).
+    val enabledOrNull by remember(placement) { ads.isEnabled(placement) }
+        .collectAsStateWithLifecycle(initialValue = null)
+    val enabled = enabledOrNull == true
     val order by ads.mediationOrder.collectAsStateWithLifecycle()
     val admobUnit = remember(placement, format) { ads.unitId(placement, format) }
     val maxUnit = remember(format) { ads.maxUnitId(format) }
@@ -104,6 +111,18 @@ private fun BannerSlot(
     val frameKey = remember(platforms, admobUnit, maxUnit) { bannerSlotUnitKey(platforms, admobUnit, maxUnit) }
     // The reload interval by hand of the format: every banner is reloaded by :core:ads (B-02, B-03, B-08, KB-34).
     val reloadMillis = remember(format) { ads.reloadIntervalMillis(format) }
+    if (!inBottomBar && isAnchoredFormat(format)) {
+        // One anchored ad per screen (MC-12, plan T-091); allowed: consent, `is_show_<code>` and a unit (B-04).
+        val allowed = enabledOrNull?.let { canRequestAds && it && frameKey != null }
+        val turn = rememberAnchoredAdTurn(ads, placement, allowed) {
+            enabledOrNull?.let { canRequestAds && it && frameKey != null }
+        }
+        if (!turn) {
+            // Waiting: no ad view, no request, no space (MC-14).
+            Box(modifier = modifier)
+            return
+        }
+    }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val visible = remember(lifecycle) { lifecycle.resumedFlow() }
     BoxWithConstraints(modifier = modifier) {

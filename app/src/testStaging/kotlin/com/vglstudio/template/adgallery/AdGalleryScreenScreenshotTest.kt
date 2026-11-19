@@ -87,7 +87,7 @@ class AdGalleryScreenScreenshotTest {
     @Test
     fun defaultMore_light() {
         setScreen(AdGalleryUiState.Default, PreviewAdGallerySlots())
-        composeRule.onNodeWithTag(AdGalleryTestTags.STATUS_BUTTON).performScrollTo()
+        composeRule.onNodeWithTag(AdGalleryTestTags.COLLAPSIBLE_BANNER_BUTTON).performScrollTo()
         composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_default-more_light.png")
     }
 
@@ -102,6 +102,21 @@ class AdGalleryScreenScreenshotTest {
     fun banners_small() {
         setScreen(AdGalleryUiState.Banners(30), PreviewAdGallerySlots())
         composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_banners_small.png")
+    }
+
+    // Plan T-091: the collapsible banner on a page of its own (MC-12, one anchored ad per page).
+
+    @Test
+    fun collapsibleBanner_light() {
+        setScreen(AdGalleryUiState.CollapsibleBanner(30), PreviewAdGallerySlots())
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_collapsible-banner_light.png")
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun collapsibleBanner_small() {
+        setScreen(AdGalleryUiState.CollapsibleBanner(30), PreviewAdGallerySlots())
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/AdGalleryScreen_collapsible-banner_small.png")
     }
 
     @Test

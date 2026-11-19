@@ -124,6 +124,7 @@ class AdGalleryViewModelTest {
             Triple(viewModel::openFlowSteps, AdGalleryUiState.FlowSteps(3), "page=flow_steps"),
             Triple(viewModel::openRewarded, AdGalleryUiState.Rewarded(GalleryRewarded.BLOCK, 0), "page=rewarded"),
             Triple(viewModel::openStatus, AdGalleryUiState.Status, "page=status"),
+            Triple(viewModel::openCollapsibleBanner, AdGalleryUiState.CollapsibleBanner(30), "page=collapsible_banner"),
         )
         pages.forEach { (open, state, log) ->
             val before = logger.entries.size
@@ -142,6 +143,7 @@ class AdGalleryViewModelTest {
             viewModel::openFlowSteps,
             viewModel::openRewarded,
             viewModel::openStatus,
+            viewModel::openCollapsibleBanner,
         ).forEach { open ->
             open()
             // Control: the page did change.
