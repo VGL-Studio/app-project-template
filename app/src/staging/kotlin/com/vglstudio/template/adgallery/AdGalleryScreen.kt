@@ -34,6 +34,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,6 +56,7 @@ import com.vglstudio.template.core.ads.AdInspectorResult
 import com.vglstudio.template.core.ads.AdPlacement
 import com.vglstudio.template.core.ads.AdSlot
 import com.vglstudio.template.core.ads.AdsGlobalFlags
+import com.vglstudio.template.core.ads.AnchoredAdScreen
 import com.vglstudio.template.core.ads.BottomAdBarScaffold
 import com.vglstudio.template.core.ads.InListAds
 import com.vglstudio.template.core.ads.LocalAdsController
@@ -169,7 +171,7 @@ interface AdGallerySlots {
     @Composable
     fun Banner(modifier: Modifier)
 
-    /** The collapsible banner at the bottom of the banners page (B-03). */
+    /** The collapsible banner at the bottom of the collapsible banner page (B-03, plan T-091). */
     @Composable
     fun CollapsibleBanner(modifier: Modifier)
 
@@ -211,7 +213,8 @@ interface AdGallerySlots {
 /**
  * Real ads of the gallery, from the staging-only placements `gallery_*`. In the list, small and medium take turns
  * (two placements, one format each); N comes from `native_every_<placement code>`, as for any list of the app. The
- * banners page has the fixed banner, the MREC banner (`gallery_banner_mrec`) and the collapsible banner.
+ * banners page has the fixed banner and the MREC banner (`gallery_banner_mrec`); the collapsible banner has a page of
+ * its own (MC-12, plan T-091).
  */
 internal class SdkAdGallerySlots : AdGallerySlots {
     // Set by inListEvery() during the composition of the in-list page, read when its lazy list is built after it.
@@ -381,6 +384,7 @@ fun AdGalleryRoute(viewModel: AdGalleryViewModel, onExit: () -> Unit, modifier: 
             rewardedAction.start()
         },
         onSelectRewardedPolicy = viewModel::selectRewardedPolicy,
+        onOpenCollapsibleBanner = viewModel::openCollapsibleBanner,
     )
 }
 
@@ -401,7 +405,7 @@ private fun GalleryRewarded.toNoAdPolicy(): RewardedNoAdPolicy = when (this) {
     GalleryRewarded.ALLOW_AFTER -> RewardedNoAdPolicy.AllowAfter(GALLERY_ALLOW_AFTER_TRIES)
 }
 
-/** The actions of the pages added by plan T-036, passed down together. */
+/** The actions of the pages added by plans T-036 and T-091, passed down together. */
 private class MoreFormatsActions(
     val onShowAppOpen: () -> Unit,
     val onOpenBanners: () -> Unit,
@@ -410,11 +414,13 @@ private class MoreFormatsActions(
     val onOpenFlowSteps: () -> Unit,
     val onOpenRewarded: () -> Unit,
     val onOpenStatus: () -> Unit,
+    val onOpenCollapsibleBanner: () -> Unit,
 )
 
 /**
  * The staging ad gallery, stateless: the default page of the design (`AdGalleryScreen_*`) or one of its sub-pages.
- * The section "More formats" and its six pages (plan T-036) have no design frame.
+ * The section "More formats" and its pages (plans T-036, T-091) have no design frame. Each page is a screen of its
+ * own for the rule of one anchored ad per screen ([AnchoredAdScreen], MC-12).
  */
 @Composable
 fun AdGalleryScreen(
@@ -436,7 +442,7 @@ fun AdGalleryScreen(
     onOpenStatus: () -> Unit = {},
     onStartRewarded: () -> Unit = {},
     onSelectRewardedPolicy: (GalleryRewarded) -> Unit = {},
-    @Suppress("UNUSED_PARAMETER") onOpenCollapsibleBanner: () -> Unit = {},
+    onOpenCollapsibleBanner: () -> Unit = {},
 ) {
     Box(
         modifier = modifier
@@ -445,41 +451,79 @@ fun AdGalleryScreen(
             .testTag(AdGalleryTestTags.SCREEN),
     ) {
         val pageModifier = Modifier.fillMaxSize()
-        when (uiState) {
-            AdGalleryUiState.Default -> DefaultPage(
-                slots = slots,
-                onOpenInList = onOpenInList,
-                onOpenCollapsible = onOpenCollapsible,
-                onShowInterstitial = onShowInterstitial,
-                onShowNativeFullScreen = onShowNativeFullScreen,
-                onOpenAdInspector = onOpenAdInspector,
-                more = MoreFormatsActions(
-                    onShowAppOpen = onShowAppOpen,
-                    onOpenBanners = onOpenBanners,
-                    onOpenGrid = onOpenGrid,
-                    onOpenPager = onOpenPager,
-                    onOpenFlowSteps = onOpenFlowSteps,
-                    onOpenRewarded = onOpenRewarded,
-                    onOpenStatus = onOpenStatus,
-                ),
-                modifier = pageModifier,
-            )
-            is AdGalleryUiState.InList -> InListPage(uiState.itemCount, slots, pageModifier)
-            is AdGalleryUiState.Collapsible -> CollapsiblePage(uiState.itemCount, slots, pageModifier)
-            is AdGalleryUiState.Banners -> BannersPage(uiState.itemCount, slots, pageModifier)
-            is AdGalleryUiState.Grid -> GridPage(uiState.itemCount, slots, pageModifier)
-            is AdGalleryUiState.Pager -> PagerPage(uiState.pageCount, slots, pageModifier)
-            is AdGalleryUiState.FlowSteps -> FlowStepsPage(uiState.stepCount, slots, pageModifier)
-            is AdGalleryUiState.Rewarded -> RewardedPage(
-                uiState = uiState,
-                onSelectPolicy = onSelectRewardedPolicy,
-                onRun = onStartRewarded,
-                modifier = pageModifier,
-            )
-            AdGalleryUiState.Status -> StatusPage(status, slots, pageModifier)
-            // Skeleton of plan T-091: the page comes with the code commit.
-            is AdGalleryUiState.CollapsibleBanner -> Unit
+        // Each page is a screen of its own for one anchored ad per screen (MC-12, plan T-091). Keyed by the name of
+        // the page, stable across a restore of saved state.
+        key(uiState::class.java.name) {
+            AnchoredAdScreen {
+                Page(
+                    uiState = uiState,
+                    slots = slots,
+                    status = status,
+                    onOpenInList = onOpenInList,
+                    onOpenCollapsible = onOpenCollapsible,
+                    onShowInterstitial = onShowInterstitial,
+                    onShowNativeFullScreen = onShowNativeFullScreen,
+                    onOpenAdInspector = onOpenAdInspector,
+                    more = MoreFormatsActions(
+                        onShowAppOpen = onShowAppOpen,
+                        onOpenBanners = onOpenBanners,
+                        onOpenGrid = onOpenGrid,
+                        onOpenPager = onOpenPager,
+                        onOpenFlowSteps = onOpenFlowSteps,
+                        onOpenRewarded = onOpenRewarded,
+                        onOpenStatus = onOpenStatus,
+                        onOpenCollapsibleBanner = onOpenCollapsibleBanner,
+                    ),
+                    onStartRewarded = onStartRewarded,
+                    onSelectRewardedPolicy = onSelectRewardedPolicy,
+                    modifier = pageModifier,
+                )
+            }
         }
+    }
+}
+
+/** The page of [uiState]. */
+@Composable
+private fun Page(
+    uiState: AdGalleryUiState,
+    slots: AdGallerySlots,
+    status: GalleryAdStatus,
+    onOpenInList: () -> Unit,
+    onOpenCollapsible: () -> Unit,
+    onShowInterstitial: () -> Unit,
+    onShowNativeFullScreen: () -> Unit,
+    onOpenAdInspector: () -> Unit,
+    more: MoreFormatsActions,
+    onStartRewarded: () -> Unit,
+    onSelectRewardedPolicy: (GalleryRewarded) -> Unit,
+    modifier: Modifier,
+) {
+    when (uiState) {
+        AdGalleryUiState.Default -> DefaultPage(
+            slots = slots,
+            onOpenInList = onOpenInList,
+            onOpenCollapsible = onOpenCollapsible,
+            onShowInterstitial = onShowInterstitial,
+            onShowNativeFullScreen = onShowNativeFullScreen,
+            onOpenAdInspector = onOpenAdInspector,
+            more = more,
+            modifier = modifier,
+        )
+        is AdGalleryUiState.InList -> InListPage(uiState.itemCount, slots, modifier)
+        is AdGalleryUiState.Collapsible -> CollapsiblePage(uiState.itemCount, slots, modifier)
+        is AdGalleryUiState.Banners -> BannersPage(uiState.itemCount, slots, modifier)
+        is AdGalleryUiState.CollapsibleBanner -> CollapsibleBannerPage(uiState.itemCount, slots, modifier)
+        is AdGalleryUiState.Grid -> GridPage(uiState.itemCount, slots, modifier)
+        is AdGalleryUiState.Pager -> PagerPage(uiState.pageCount, slots, modifier)
+        is AdGalleryUiState.FlowSteps -> FlowStepsPage(uiState.stepCount, slots, modifier)
+        is AdGalleryUiState.Rewarded -> RewardedPage(
+            uiState = uiState,
+            onSelectPolicy = onSelectRewardedPolicy,
+            onRun = onStartRewarded,
+            modifier = modifier,
+        )
+        AdGalleryUiState.Status -> StatusPage(status, slots, modifier)
     }
 }
 
@@ -579,6 +623,12 @@ private fun MoreFormats(more: MoreFormatsActions) {
         R.string.ad_gallery_open_status to more.onOpenStatus,
         AdGalleryTestTags.STATUS_BUTTON,
     )
+    // Plan T-091, question 4: a row of its own at the end of the section, as wide as "App open".
+    PrimaryButton(
+        text = stringResource(R.string.ad_gallery_open_collapsible_banner),
+        onClick = more.onOpenCollapsibleBanner,
+        modifier = Modifier.fillMaxWidth().testTag(AdGalleryTestTags.COLLAPSIBLE_BANNER_BUTTON),
+    )
 }
 
 @Composable
@@ -659,7 +709,8 @@ private fun CollapsiblePage(itemCount: Int, slots: AdGallerySlots, modifier: Mod
 
 /**
  * The banners page (T-029): a fixed banner under the title, the MREC banner under it (KB-29, outside the list so its
- * ad view is not built again on each scroll), the list, the collapsible banner at the bottom (B-03).
+ * ad view is not built again on each scroll), the list. The collapsible banner has its own page: one anchored ad per
+ * page (MC-12, plan T-091).
  */
 @Composable
 private fun BannersPage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier) {
@@ -673,6 +724,23 @@ private fun BannersPage(itemCount: Int, slots: AdGallerySlots, modifier: Modifie
                 .weight(1f)
                 .padding(horizontal = Spacing.md)
                 .testTag(AdGalleryTestTags.BANNERS_LIST),
+        ) {
+            items(itemCount, key = { it + 1 }) { ListItem(it + 1) }
+        }
+    }
+}
+
+/** The collapsible banner page (plan T-091): the list, the collapsible banner at the bottom (B-03). */
+@Composable
+private fun CollapsibleBannerPage(itemCount: Int, slots: AdGallerySlots, modifier: Modifier) {
+    Column(modifier = modifier.testTag(AdGalleryTestTags.COLLAPSIBLE_BANNER)) {
+        PageTitle(stringResource(R.string.ad_gallery_collapsible_banner_title))
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = Spacing.md)
+                .testTag(AdGalleryTestTags.COLLAPSIBLE_BANNER_LIST),
         ) {
             items(itemCount, key = { it + 1 }) { ListItem(it + 1) }
         }

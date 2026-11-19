@@ -212,6 +212,9 @@ fun BottomAdBarLayout(
  *   `is_show_native_collap` on; its slot is as above.
  * - Nothing is drawn, and nothing kept, without consent or with `is_show_<code>` off; tests and previews (no ads
  *   controller) draw only the content. Turning the bar on or off never rebuilds [content].
+ * - One anchored ad per screen (MC-12, plan T-091): the bar is an anchored ad, as a fixed or collapsible banner of
+ *   [AdSlot]. When the screen has another one, the one that entered the composition first and is allowed runs; the
+ *   other builds nothing, keeps no space, reports nothing (MC-14) and logs one warning, until the first one leaves.
  */
 @Composable
 fun BottomAdBarScaffold(
@@ -250,10 +253,16 @@ private class BottomAdBarState(val choice: BottomAdBarChoice, val expandAfterSec
 private fun rememberBottomAdBarState(ads: AdsController?, placement: AdPlacement): BottomAdBarState {
     if (ads == null) return BottomAdBarState(BottomAdBarChoice(layers = null, onSlotHasAdChange = {}), 0)
     val canRequestAds by ads.canRequestAds.collectAsStateWithLifecycle()
-    val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = false)
+    // Null until the first value of `is_show_<code>`: the turn of the screen is not decided before it (MC-12).
+    val enabled by remember(placement) { ads.isEnabled(placement) }.collectAsStateWithLifecycle(initialValue = null)
     val flags by ads.globalFlags.collectAsStateWithLifecycle()
+    val choice =
+        rememberBottomAdBarLayers(canRequestAds, enabled == true, flags, placement.declaration.collapsibleLayer)
+    val allowed = if (enabled == null) null else choice.layers != null
+    // Without the turn of the screen (MC-12, plan T-091) the bar builds no layer and keeps no space, as when off.
+    val turn = rememberAnchoredAdTurn(ads, placement, allowed)
     return BottomAdBarState(
-        rememberBottomAdBarLayers(canRequestAds, enabled, flags, placement.declaration.collapsibleLayer),
+        if (turn) choice else BottomAdBarChoice(layers = null, onSlotHasAdChange = choice.onSlotHasAdChange),
         flags.expandCollapAfterSeconds,
     )
 }

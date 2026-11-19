@@ -462,7 +462,8 @@ class AnchoredAdWiringTest {
         assertEquals(1, loader.requests.size)
         composeRule.runOnIdle { loader.deliver(FakeLoadedNativeAd()) }
         settle()
-        assertEquals(1, loader.requests.size)
+        // The slot took the ad, and its stock loads the next one (O-01).
+        assertEquals(2, loader.requests.size)
         assertEquals(1, eligible())
     }
 
