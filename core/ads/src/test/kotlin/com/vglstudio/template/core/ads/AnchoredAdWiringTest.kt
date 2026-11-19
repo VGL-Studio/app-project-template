@@ -251,6 +251,28 @@ class AnchoredAdWiringTest {
     }
 
     @Test
+    fun barLeaves_waitingBannerStaysInTree_takesTurn() {
+        val controller = barController()
+        var showBar by mutableStateOf(true)
+        show(controller) {
+            Column {
+                if (showBar) BottomAdBarScaffold(bar) {}
+                Collapsible()
+            }
+        }
+        assertEquals(0, adViews().size)
+        assertHeight("banner waits", 0.dp, height(COLLAPSIBLE))
+        assertEquals(0, turns(collapsible))
+
+        showBar = false
+        settle()
+
+        assertEquals(1, adViews().size)
+        assertHeight("waiting banner runs", collapsibleHeight(), height(COLLAPSIBLE))
+        assertEquals(1, turns(collapsible))
+    }
+
+    @Test
     fun firstOff_secondRuns() {
         settings.set(AdsSettings.placementEnabled(banner), false)
         val controller = bannerController()
