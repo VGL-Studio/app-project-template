@@ -332,7 +332,7 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - L12 sửa điểm nên sửa không cần test viết trước chỉ khi `git diff -w` của phần sửa chỉ có chú thích hay khoảng trắng và chỗ xuống dòng, trong file của mục 3.2 hay phần ngoài mục 3.2 được phép theo ADR-0029, và `scripts/check.sh` vẫn qua
 - L12 không đổi chữ hiển thị, nội dung log, tên trong code hay dòng code chạy
 - L13 sửa điểm nên sửa không cần test viết trước chỉ khi điểm chỉ về nội dung một file Markdown trong `docs/` của mục 3.2 hay phần ngoài mục 3.2 được phép theo ADR-0029, phần sửa chỉ chạm file đó, không đổi điều plan đã duyệt nói (chỉ làm rõ, sửa thứ tự, sửa chỗ sai so với code hay plan) và `scripts/check.sh` vẫn qua
-- L13 không áp cho spec `confirmed`, plan `approved`, ADR `accepted`, trang sinh ra, hay file Markdown thuộc loại "Của dự án mẫu, app không sửa" hay "Cả hai cùng sửa" của `docs/ops/to-app.md` mục 2
+- L13 không áp cho spec `confirmed`, plan `approved`, ADR `accepted`, trang sinh ra, hay file Markdown thuộc loại "Của dự án mẫu, app không sửa" hay "Cả hai cùng sửa" của `docs/ops/to-app.md` mục 2, hay file `README.md` hướng dẫn mà ADR-0044, mục 1 tính là tài liệu quy tắc (`docs/README.md`, `README.md` của `docs/runs/` và `docs/test-sessions/`)
 - L12 và L13 theo cùng giới hạn lần sửa và vòng rà soát lại như mọi điểm nên sửa
 - mỗi lệch L11, L12, L13 ghi vào mục "Quyết định AI đã tự làm" của báo cáo kèm cách hoàn tác
 - rà soát độc lập xét L11 kèm lệnh tái hiện như L1 tới L7 và L10, xét L12 ở vòng rà soát lại của điểm nên sửa kèm `git diff -w`, xét L13 ở vòng đó kèm `git diff` của phần sửa và câu của plan mà phần sửa dựa vào, lệch không đủ điều kiện là mức chặn
