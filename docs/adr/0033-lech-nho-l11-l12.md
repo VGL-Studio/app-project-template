@@ -1,12 +1,12 @@
 ---
 id: ADR-0033
 title: Thêm hai lệch nhỏ phiên tự làm rồi báo, L11 sửa phần dựng của test chỉ đỏ vì máy thiếu cấu hình chung và L12 sửa điểm nên sửa chỉ về chú thích hay định dạng
-status: accepted             # proposed | accepted | superseded
+status: superseded           # proposed | accepted | superseded
 origin: template             # template: quy tắc từ dự án mẫu, app không sửa | app: quyết định riêng của app
 date: 2026-10-28
 deciders: [Nhật]
 supersedes:                  # bổ sung danh sách lệch nhỏ của ADR-0032, quyết định 1; không thay quy tắc nào của nó
-superseded_by:
+superseded_by: ADR-0050
 ---
 
 # ADR-0033: THÊM HAI LỆCH NHỎ PHIÊN TỰ LÀM RỒI BÁO, L11 SỬA PHẦN DỰNG CỦA TEST CHỈ ĐỎ VÌ MÁY THIẾU CẤU HÌNH CHUNG VÀ L12 SỬA ĐIỂM NÊN SỬA CHỈ VỀ CHÚ THÍCH HAY ĐỊNH DẠNG
