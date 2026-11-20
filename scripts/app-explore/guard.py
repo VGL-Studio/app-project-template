@@ -185,6 +185,19 @@ def ad_close(path, point=None):
     return found
 
 
+def ad_tree_nodes(path):
+    """Every node inside an ad's tree, the ad view included, with its bounds."""
+    def walk(n, in_ad):
+        here = in_ad or is_ad(n)
+        if here:
+            yield n, [int(v) for v in re.findall(r"\d+", n.get("bounds", "[0,0][0,0]"))]
+        for c in n.findall("node"):
+            yield from walk(c, here)
+
+    for top in ET.parse(path).getroot().findall("node"):
+        yield from walk(top, False)
+
+
 def close_at(path, x, y):
     """A small close button of an ad under the point, if any (see ad_close)."""
     found = ad_close(path, (x, y))
@@ -254,7 +267,8 @@ def main():
         return
     if cmd == "close":
         best = None
-        if covering_ad(sys.argv[2], ""):
+        covered = covering_ad(sys.argv[2], "")
+        if covered:
             # Under a full-screen ad only its own close button: an app button that looks like one may lie under it.
             best = ad_close(sys.argv[2])
         else:
@@ -268,7 +282,11 @@ def main():
                         break
         if not best and fullscreen_ad(sys.argv[2], ""):
             width = int(os.environ.get("AX_WIDTH", "1080")); height = int(os.environ.get("AX_HEIGHT", "2400"))
-            for n, (x1, y1, x2, y2) in nodes(sys.argv[2]):
+            # Under a full-screen ad the corner X must be the ad's own: the app's Back or Close icon may lie under it.
+            for n, b in ad_tree_nodes(sys.argv[2]) if covered else nodes(sys.argv[2]):
+                if len(b) != 4:
+                    continue
+                x1, y1, x2, y2 = b
                 label = (n.get("text", "") or n.get("content-desc", "")).strip()
                 corner = y2 < height * 0.15 and (x2 < width * 0.2 or x1 > width * 0.8)
                 if n.get("clickable") == "true" and not label and corner and 0 < x2 - x1 < width * 0.12:
