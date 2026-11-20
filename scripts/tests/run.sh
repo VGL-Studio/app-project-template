@@ -1683,18 +1683,27 @@ expect "playbook: an NPE in the test itself is not PB-22" khong-co "$(pb_head "$
 expect "playbook: PB-23 script tests on a Mac with bash 3.2 -> moi-truong, not PB-02" "PB-23 moi-truong" \
   "$(pb_head $pb_dir/PB-23.log)"
 # The other messages of bash 3.2 and BSD sed, each alone in a log (the commands are built so this file stays clean
-# for the bash 4 guard). GNU sed words its errors otherwise, so a Linux log never matches.
+# for the bash 4 guard). GNU sed words its errors otherwise, so a Linux log never matches. BSD sed quotes a script
+# given on the command line with its newline, so its message ends on the next line ('": invalid command code f');
+# a script read from a file stays on one line. PB-23-bsd-sed.log holds real output of /usr/bin/sed on macOS. The 0,/
+# address of GNU sed prints nothing on BSD sed: only the lines around it can match.
+expect "playbook: PB-23 matches real two-line BSD sed messages and the local option error of bash 3.2" "PB-23 moi-truong" \
+  "$(pb_head $pb_dir/PB-23-bsd-sed.log)"
 pb23_ra="$(printf '%s' 'read')array"
 printf '%s\n' "./scripts/x.sh: line 9: $pb23_ra: command not found" > "$work/pb23-1.log"
 printf '%s\n' './scripts/x.sh: line 9: declare: -A: invalid option' > "$work/pb23-2.log"
 printf '%s\n' './scripts/x.sh: line 9: $''{name,,}: bad substitution' > "$work/pb23-3.log"
-printf '%s\n' 'sed: 1: "f.txt": invalid command code f' > "$work/pb23-4.log"
+printf '%s\n' 'sed: 1: "f.txt' '": invalid command code f' > "$work/pb23-4.log"
 printf '%s\n' 'sed: -I or -i may not be used with stdin' > "$work/pb23-5.log"
+printf '%s\n' 'sed: 2: "b b' "\": undefined label 'b'" > "$work/pb23-6.log"
+printf '%s\n' 'sed: 1: k.sed: invalid command code k' > "$work/pb23-7.log"
+printf '%s\n' './scripts/x.sh: line 9: local: -A: invalid option' > "$work/pb23-8.log"
+printf '%s\n' './scripts/x.sh: line 9: typeset: -A: invalid option' > "$work/pb23-9.log"
 printf '%s\n' 'sed: -e expression #1, char 3: unknown command: `f'"'" > "$work/pb23-gnu.log"
 printf '%s\n' './scripts/x.sh: line 9: $''{name/: bad substitution' > "$work/pb23-other.log"
 expect "playbook: PB-23 matches every bash 3.2 and BSD sed message, not GNU sed nor another bad substitution" \
-  "PB-23 PB-23 PB-23 PB-23 PB-23 khong-co khong-co" \
-  "$(for n in 1 2 3 4 5 gnu other; do pb_head "$work/pb23-$n.log" | cut -d' ' -f1; done | tr '\n' ' ' | sed 's/ $//')"
+  "PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 khong-co khong-co" \
+  "$(for n in 1 2 3 4 5 6 7 8 9 gnu other; do pb_head "$work/pb23-$n.log" | cut -d' ' -f1; done | tr '\n' ' ' | sed 's/ $//')"
 # Result lines of scripts/tests/run.sh are dropped before matching: a passed script test whose name quotes the PB-02
 # prefix does not hide the real 429 of the library download.
 expect "playbook: a passed script test quoting HẠ TẦNG: does not make a 429 download PB-02" "PB-09 lich-thu-lai" \
@@ -4696,14 +4705,18 @@ ls_repo() { # <sha1 for the mac zip> <sha1 for the linux zip>
 ls_calls() { if [ -f "$ls_dir/curl.log" ]; then wc -l < "$ls_dir/curl.log" | tr -d ' '; else echo 0; fi; }
 ls_mac_sha1="$(shasum -a 1 "$ls_dir/tools-mac.zip" | cut -d' ' -f1)"
 ls_linux_sha1="$(shasum -a 1 "$ls_dir/tools-linux.zip" | cut -d' ' -f1)"
-# ls_shell_bin <dir> <bash version> <gnu|bsd>: a fake bash and a fake sed that answer --version like that bash and
-# that sed, and run the real ones for anything else (local-setup.sh itself runs with the first bash on PATH).
+# ls_shell_bin <dir> <bash major.minor, or "none"> <gnu|bsd>: a fake bash and a fake sed. The bash answers a -c
+# command that reads BASH_VERSINFO with that version ("none": fails), and --version with a translated banner, as with
+# LANG=vi_VN; the sed answers --version like GNU or BSD sed. Anything else runs the real tool (local-setup.sh itself
+# runs with the first bash on PATH).
 ls_real_bash="$BASH"
 ls_real_sed="$(command -v sed)"
 ls_shell_bin() {
   mkdir -p "$1"
-  printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "GNU bash, version %s(1)-release (fake)"; exit 0; fi\nexec "%s" "$@"\n' \
-    "$2" "$ls_real_bash" > "$1/bash"
+  local answer="echo $2"
+  [ "$2" = none ] && answer="exit 1"
+  printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "GNU bash, phiên bản 9.9.9(1)-release (fake)"; exit 0; fi\nif [ "$1" = -c ]; then case "$2" in *BASH_VERSINFO*) %s; exit 0 ;; esac; fi\nexec "%s" "$@"\n' \
+    "$answer" "$ls_real_bash" > "$1/bash"
   if [ "$3" = gnu ]; then
     printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "sed (GNU sed) 4.9"; exit 0; fi\nexec "%s" "$@"\n' "$ls_real_sed" > "$1/sed"
   else
@@ -4712,9 +4725,10 @@ ls_shell_bin() {
   fi
   chmod +x "$1/bash" "$1/sed"
 }
-ls_shell_bin "$ls_dir/shell-ok" 5.2.37 gnu
-ls_shell_bin "$ls_dir/shell-bash3" 3.2.57 gnu
-ls_shell_bin "$ls_dir/shell-bsdsed" 5.2.37 bsd
+ls_shell_bin "$ls_dir/shell-ok" 5.2 gnu
+ls_shell_bin "$ls_dir/shell-bash3" 3.2 gnu
+ls_shell_bin "$ls_dir/shell-bsdsed" 5.2 bsd
+ls_shell_bin "$ls_dir/shell-noversion" none gnu
 # ls_run <home> [args...]: runs local-setup.sh with the fakes as a Mac on arm64 unless LS_OS, LS_ARCH say otherwise,
 # with bash 5 and GNU sed first on PATH unless LS_SHELL_BIN names another ls_shell_bin dir; prints the exit code;
 # output in $ls_dir/out.
@@ -4822,6 +4836,10 @@ expect "local-setup.sh --check names BSD sed and gives the install and PATH line
   "$(grep -c "^THIẾU: GNU sed đầu PATH (đang là: $ls_dir/shell-bsdsed/sed" "$ls_dir/out" || true) $(grep -c 'brew install gnu-sed' "$ls_dir/out" || true) $(grep -cF 'export PATH="$(brew --prefix)/opt/gnu-sed/libexec/gnubin:$PATH"' "$ls_dir/out" || true) $(grep -c '^QUA: bash 5.2 ' "$ls_dir/out" || true)"
 expect "local-setup.sh --check does not send a missing bash or sed to the installer" "0 1" \
   "$(grep -c 'để cài JDK' "$ls_dir/out" || true) $(grep -c 'không do script này cài' "$ls_dir/out" || true)"
+# The version comes from BASH_VERSINFO, not from the --version banner, which is translated (the fakes print
+# "phiên bản 9.9.9"): bash 5.2 above passed with that banner. A bash whose version cannot be read is missing.
+expect "local-setup.sh --check fails when the version of bash cannot be read" "1 1" \
+  "$(LS_SHELL_BIN="$ls_dir/shell-noversion" ls_run "$ls_dir/home-mac" --check) $(grep -c "^THIẾU: bash từ 4 trở lên đầu PATH.*(đang là: $ls_dir/shell-noversion/bash, không đọc được phiên bản)" "$ls_dir/out" || true)"
 expect "local-setup.sh install ends with exit 1 and no 'Sẵn sàng' under bash 3.2" "1 0 1" \
   "$(LS_SHELL_BIN="$ls_dir/shell-bash3" ls_run "$ls_dir/home-mac") $(grep -c '^Sẵn sàng' "$ls_dir/out" || true) $(grep -c '^THIẾU: bash từ 4' "$ls_dir/out" || true)"
 expect "local-setup.sh install under bash 3.2 downloads nothing more" 0 "$(ls_calls)"
