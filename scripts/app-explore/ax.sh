@@ -59,7 +59,18 @@ run_input() {
     exit 3
   fi
 }
-dump() { adb shell uiautomator dump /sdcard/ax.xml > /dev/null 2>&1 || true; adb exec-out cat /sdcard/ax.xml 2>/dev/null || true; }
+# uiautomator fails with "could not get idle state" on a screen that never rests (a video ad) and leaves the last
+# dump in place: delete it first and print nothing on failure, so the guard refuses instead of judging an old screen.
+dump() {
+  local out i
+  for i in 1 2 3; do
+    adb shell rm -f /sdcard/ax.xml > /dev/null 2>&1 || true
+    out="$(adb shell uiautomator dump /sdcard/ax.xml 2>&1 || true)"
+    if ! grep -qiE "error|exception" <<<"$out"; then adb exec-out cat /sdcard/ax.xml 2>/dev/null || true; return 0; fi
+    sleep 1
+  done
+  echo "LỖI: không lấy được cây giao diện (${out//$'\n'/ }); không chạm theo cây cũ. Chờ màn hình đứng yên rồi thử lại." >&2
+}
 device_files() { { adb shell find /sdcard/Pictures /sdcard/DCIM -type f 2>/dev/null || true; } | tr -d '\r' | sort; }
 top_line() { { adb shell dumpsys activity activities 2>/dev/null || true; } | grep -m1 -E "topResumedActivity|mResumedActivity" | sed 's/^ *//' || true; }
 # After a tap, undo a jump to the store, a browser or a mail app, and record it. Checks a few times within
@@ -70,7 +81,8 @@ after_tap() {
   for ((i = 0; i < steps; i++)); do
     sleep 0.4
     t="$(top_line)"
-    if grep -qE "com.android.vending|chrome|browser|com.mi.globalbrowser|webview|com.google.android.gm|ProxyBilling" <<<"$t"; then
+    # com.xiaomi.mipicks (GetApps) starts downloading an app as soon as an ad opens it.
+    if grep -qE "com.android.vending|chrome|browser|com.mi.globalbrowser|webview|com.google.android.gm|ProxyBilling|com.xiaomi.mipicks|com.xiaomi.market" <<<"$t"; then
       run_input keyevent 4
       echo "$(date '+%F %T') rời app sau khi chạm $1: $t (đã back)" >> "$LOG"
       echo "CẢNH BÁO: chạm $1 đã mở app khác ($t); đã back. Ghi vào báo cáo." >&2
