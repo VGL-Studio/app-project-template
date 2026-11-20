@@ -7472,6 +7472,10 @@ expect "app-explore: the trial button of an app's own paywall activity is refuse
 expect "app-explore: a plan of an app's own paywall activity is refused" 4 "$(guard app-paywall.xml "$app_paywall" 540 1500)"
 expect "app-explore: a close button on the Play billing screen is still refused" 4 \
   "$(guard app-paywall.xml 'topResumedActivity=com.android.vending/.billing.Acquire' 95 175)"
+expect "app-explore: close skips an app's Skip button listed before a full-screen ad, finds the ad's own" \
+  "1005 110 Quảng cáo đã đóng" "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/skip-before-ad.xml")"
+expect "app-explore: the unlabeled-corner fallback under a full-screen ad keeps to the ad, not the app's Back icon" \
+  "1000 120 unlabeled-corner" "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/corner-under-ad.xml")"
 expect "app-explore: the close button of an ad is found" "944 136 ad_close" \
   "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/ads.xml")"
 expect "app-explore: taptext prefers the exact label (Agree, not Disagree)" "788 2066" \
