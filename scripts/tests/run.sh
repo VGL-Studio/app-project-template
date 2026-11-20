@@ -459,8 +459,8 @@ pr_step_has() { # <step line> <key: value regex>; true when a key line of the st
   grep -qE "(^      - |$tab        )$2($tab|$)" <<<"$1"
 }
 pr_filter_order() { # <workflow>; "(a) (b) (c) (d) <steps reading the filter>", or "missing" without a filter step
-  local steps=() i fi=-1 a=no b=no c=yes d=yes n=0
-  mapfile -t steps < <(pr_steps "$1")
+  local steps=() step i fi=-1 a=no b=no c=yes d=yes n=0
+  while IFS= read -r step; do steps+=("$step"); done < <(pr_steps "$1")
   for i in "${!steps[@]}"; do
     if pr_step_has "${steps[$i]}" 'id: filter'; then fi=$i; break; fi
   done
@@ -497,7 +497,7 @@ pr_filter_check() { # <workflow> <code> <release>; runs the filter check step li
     s && /^        run: \|$/ { r = 1; next } r && s && /^ *$/ { print ""; next }
     r && s && /^          / { sub(/^          /, ""); print; next } r { r = 0 }' "$1")"
   (cd "$dir" && CODE="$2" RELEASE="$3" bash -eo pipefail -c "$script") > /dev/null 2>&1 || code=$?
-  if [[ "$code" == 0 ]]; then echo 0; else echo "$code $(wc -l < "$dir/build.log" 2>/dev/null | tr -d ' ' || echo 0)"; fi
+  if [[ "$code" == 0 ]]; then echo 0; else echo "$code $(wc -l 2> /dev/null < "$dir/build.log" | tr -d ' ' || echo 0)"; fi
 }
 pr_sim() { # <workflow> <path>...; the filter outputs for a sample PR and the steps of build-and-test that run
   # PR_SIM_RUNNER (github-hosted by default, or self-hosted) stands for runner.environment (ADR-0042).
@@ -629,7 +629,7 @@ expect "pr-check: the order check fails on a copy whose filter check has an if" 
 # P4
 expect "pr-check: every filter output read is defined, and every filter is read" \
   "reads=code release defined=code release other=0" "$(pr_filter_outputs "$pr_wf")"
-sed '0,/steps\.filter\.outputs\.code/s//steps.filter.outputs.cod/' "$pr_wf" > "$work/prwf/cod.yml"
+awk '!d && sub(/steps\.filter\.outputs\.code/, "steps.filter.outputs.cod") { d = 1 } { print }' "$pr_wf" > "$work/prwf/cod.yml"
 expect "pr-check: the filter output check fails on a copy reading an undefined output" no \
   "$([[ "$(pr_filter_outputs "$work/prwf/cod.yml")" == "reads=code release defined=code release other=0" ]] && echo yes || echo no)"
 sed 's/^        id: filter$/        id: paths/' "$pr_wf" > "$work/prwf/paths-id.yml"
@@ -1680,6 +1680,21 @@ printf '%s\n' 'FooTest > bar FAILED' '    java.lang.NullPointerException at Shad
 expect "playbook: PB-22 also matches the short Gradle line of the NPE" "PB-22 chay-lai" "$(pb_head "$work/pb22-short.log")"
 printf '%s\n' 'FooTest > bar FAILED' '    java.lang.NullPointerException at FooTest.kt:12' > "$work/pb22-other-npe.log"
 expect "playbook: an NPE in the test itself is not PB-22" khong-co "$(pb_head "$work/pb22-other-npe.log")"
+expect "playbook: PB-23 script tests on a Mac with bash 3.2 -> moi-truong, not PB-02" "PB-23 moi-truong" \
+  "$(pb_head $pb_dir/PB-23.log)"
+# The other messages of bash 3.2 and BSD sed, each alone in a log (the commands are built so this file stays clean
+# for the bash 4 guard). GNU sed words its errors otherwise, so a Linux log never matches.
+pb23_ra="$(printf '%s' 'read')array"
+printf '%s\n' "./scripts/x.sh: line 9: $pb23_ra: command not found" > "$work/pb23-1.log"
+printf '%s\n' './scripts/x.sh: line 9: declare: -A: invalid option' > "$work/pb23-2.log"
+printf '%s\n' './scripts/x.sh: line 9: $''{name,,}: bad substitution' > "$work/pb23-3.log"
+printf '%s\n' 'sed: 1: "f.txt": invalid command code f' > "$work/pb23-4.log"
+printf '%s\n' 'sed: -I or -i may not be used with stdin' > "$work/pb23-5.log"
+printf '%s\n' 'sed: -e expression #1, char 3: unknown command: `f'"'" > "$work/pb23-gnu.log"
+printf '%s\n' './scripts/x.sh: line 9: $''{name/: bad substitution' > "$work/pb23-other.log"
+expect "playbook: PB-23 matches every bash 3.2 and BSD sed message, not GNU sed nor another bad substitution" \
+  "PB-23 PB-23 PB-23 PB-23 PB-23 khong-co khong-co" \
+  "$(for n in 1 2 3 4 5 gnu other; do pb_head "$work/pb23-$n.log" | cut -d' ' -f1; done | tr '\n' ' ' | sed 's/ $//')"
 # Result lines of scripts/tests/run.sh are dropped before matching: a passed script test whose name quotes the PB-02
 # prefix does not hide the real 429 of the library download.
 expect "playbook: a passed script test quoting HẠ TẦNG: does not make a 429 download PB-02" "PB-09 lich-thu-lai" \
@@ -2874,8 +2889,11 @@ draft_pr() { printf '{"head": {"sha": "abc1234"}, "draft": %s}' "$1"; } # <true 
 draft_routes() { # <pulls/7 answer> <runs answer>
   printf '{"routes": {"pulls/7": %s, "actions/workflows/pr-check.yml/runs?head_sha=abc1234&per_page=10": %s, "actions/runs/91/jobs?per_page=50": {"jobs": []}}}' "$1" "$2"
 }
+# The sequence is built first: in an argument "{\"...\": [$(...), $(...)]}" nested in another $(...), bash 3.2 applies
+# brace expansion and splits it at the commas.
+draft_later='{"__sequence__": ['"$(draft_pr false), $(draft_pr false), $(draft_pr true)"']}'
 expect "wait-run: a draft PR stops at once with code 6" "6 NHÁP 6 NHÁP 2 CHƯA" \
-  "$(wait_code "$(draft_routes "$(draft_pr true)" "$no_runs")" 0 --pr 7) $(wait_code "$(draft_routes "{\"__sequence__\": [$(draft_pr false), $(draft_pr false), $(draft_pr true)]}" "$pending")" 5 --pr 7) $(wait_code "$(draft_routes "$(draft_pr false)" "$no_runs")" 0 --pr 7)"
+  "$(wait_code "$(draft_routes "$(draft_pr true)" "$no_runs")" 0 --pr 7) $(wait_code "$(draft_routes "$draft_later" "$pending")" 5 --pr 7) $(wait_code "$(draft_routes "$(draft_pr false)" "$no_runs")" 0 --pr 7)"
 skipped_run='{"id": 90, "status": "completed", "conclusion": "skipped", "html_url": "u"}'
 ready_runs='{"__sequence__": [{"workflow_runs": ['"$skipped_run"']}, {"workflow_runs": [{"id": 91, "status": "completed", "conclusion": "success", "html_url": "u"}, '"$skipped_run"']}]}'
 line="$(wait_line "$(draft_routes "$(draft_pr false)" "$ready_runs")" 10 --pr 7)"
@@ -4678,12 +4696,33 @@ ls_repo() { # <sha1 for the mac zip> <sha1 for the linux zip>
 ls_calls() { if [ -f "$ls_dir/curl.log" ]; then wc -l < "$ls_dir/curl.log" | tr -d ' '; else echo 0; fi; }
 ls_mac_sha1="$(shasum -a 1 "$ls_dir/tools-mac.zip" | cut -d' ' -f1)"
 ls_linux_sha1="$(shasum -a 1 "$ls_dir/tools-linux.zip" | cut -d' ' -f1)"
-# ls_run <home> [args...]: runs local-setup.sh with the fakes as a Mac on arm64 unless LS_OS, LS_ARCH say otherwise;
-# prints the exit code; output in $ls_dir/out.
+# ls_shell_bin <dir> <bash version> <gnu|bsd>: a fake bash and a fake sed that answer --version like that bash and
+# that sed, and run the real ones for anything else (local-setup.sh itself runs with the first bash on PATH).
+ls_real_bash="$BASH"
+ls_real_sed="$(command -v sed)"
+ls_shell_bin() {
+  mkdir -p "$1"
+  printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "GNU bash, version %s(1)-release (fake)"; exit 0; fi\nexec "%s" "$@"\n' \
+    "$2" "$ls_real_bash" > "$1/bash"
+  if [ "$3" = gnu ]; then
+    printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "sed (GNU sed) 4.9"; exit 0; fi\nexec "%s" "$@"\n' "$ls_real_sed" > "$1/sed"
+  else
+    printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "sed: illegal option -- -" >&2; exit 1; fi\nexec "%s" "$@"\n' \
+      "$ls_real_sed" > "$1/sed"
+  fi
+  chmod +x "$1/bash" "$1/sed"
+}
+ls_shell_bin "$ls_dir/shell-ok" 5.2.37 gnu
+ls_shell_bin "$ls_dir/shell-bash3" 3.2.57 gnu
+ls_shell_bin "$ls_dir/shell-bsdsed" 5.2.37 bsd
+# ls_run <home> [args...]: runs local-setup.sh with the fakes as a Mac on arm64 unless LS_OS, LS_ARCH say otherwise,
+# with bash 5 and GNU sed first on PATH unless LS_SHELL_BIN names another ls_shell_bin dir; prints the exit code;
+# output in $ls_dir/out.
 ls_run() {
   local home="$1"; shift
   set +e
-  HOME="$home" XDG_DATA_HOME="" LS_DIR="$ls_dir" CURL="$ls_dir/bin/curl" \
+  PATH="${LS_SHELL_BIN:-$ls_dir/shell-ok}:$PATH" \
+    HOME="$home" XDG_DATA_HOME="" LS_DIR="$ls_dir" CURL="$ls_dir/bin/curl" \
     LOCAL_SETUP_OS="${LS_OS:-Darwin}" LOCAL_SETUP_ARCH="${LS_ARCH:-arm64}" \
     LOCAL_SETUP_ADOPTIUM_API=https://api.example.test/v3 LOCAL_SETUP_GOOGLE_REPO=https://dl.example.test/repository \
     scripts/local-setup.sh "$@" > "$ls_dir/out" 2>&1
@@ -4768,8 +4807,24 @@ expect "local-setup.sh downloads nothing the second time" 0 "$(ls_calls)"
 expect "local-setup.sh says both steps were skipped" 2 "$(grep -c '^Bỏ qua:' "$ls_dir/out" || true)"
 expect "local-setup.sh leaves env.sh as it was" same "$(cmp -s "$ls_dir/env-first.sh" "$ls_env" && echo same || echo changed)"
 expect "local-setup.sh --check after the install passes" 0 "$(ls_run "$ls_dir/home-mac" --check)"
+expect "local-setup.sh --check passes bash 5 and GNU sed first on PATH" "1 1" \
+  "$(grep -c "^QUA: bash 5.2 đầu PATH ($ls_dir/shell-ok/bash)$" "$ls_dir/out" || true) $(grep -c "^QUA: GNU sed đầu PATH ($ls_dir/shell-ok/sed)$" "$ls_dir/out" || true)"
 expect "local-setup.sh --check lists every package" 4 "$(grep -c '^QUA: \(platform-tools\|platforms;\|build-tools;\)' "$ls_dir/out" || true)"
 expect "local-setup.sh --check finds platforms;android-37.0" 1 "$(grep -cxF 'QUA: platforms;android-37.0' "$ls_dir/out" || true)"
+# macOS ships bash 3.2 and BSD sed: --check says so even when the JDK and the SDK are in place.
+expect "local-setup.sh --check fails with bash 3.2 first on PATH" 1 \
+  "$(LS_SHELL_BIN="$ls_dir/shell-bash3" ls_run "$ls_dir/home-mac" --check)"
+expect "local-setup.sh --check names bash 3.2, says how to install bash, and passes GNU sed" "1 1 1" \
+  "$(grep -c "^THIẾU: bash từ 4 trở lên đầu PATH.*$ls_dir/shell-bash3/bash, bash 3.2)" "$ls_dir/out" || true) $(grep -c 'brew install bash' "$ls_dir/out" || true) $(grep -c '^QUA: GNU sed' "$ls_dir/out" || true)"
+expect "local-setup.sh --check fails with BSD sed first on PATH" 1 \
+  "$(LS_SHELL_BIN="$ls_dir/shell-bsdsed" ls_run "$ls_dir/home-mac" --check)"
+expect "local-setup.sh --check names BSD sed and gives the install and PATH lines" "1 1 1 1" \
+  "$(grep -c "^THIẾU: GNU sed đầu PATH (đang là: $ls_dir/shell-bsdsed/sed" "$ls_dir/out" || true) $(grep -c 'brew install gnu-sed' "$ls_dir/out" || true) $(grep -cF 'export PATH="$(brew --prefix)/opt/gnu-sed/libexec/gnubin:$PATH"' "$ls_dir/out" || true) $(grep -c '^QUA: bash 5.2 ' "$ls_dir/out" || true)"
+expect "local-setup.sh --check does not send a missing bash or sed to the installer" "0 1" \
+  "$(grep -c 'để cài JDK' "$ls_dir/out" || true) $(grep -c 'không do script này cài' "$ls_dir/out" || true)"
+expect "local-setup.sh install ends with exit 1 and no 'Sẵn sàng' under bash 3.2" "1 0 1" \
+  "$(LS_SHELL_BIN="$ls_dir/shell-bash3" ls_run "$ls_dir/home-mac") $(grep -c '^Sẵn sàng' "$ls_dir/out" || true) $(grep -c '^THIẾU: bash từ 4' "$ls_dir/out" || true)"
+expect "local-setup.sh install under bash 3.2 downloads nothing more" 0 "$(ls_calls)"
 
 ls_pkg="$(scripts/local-setup.sh --print-versions | sed -n 's/^gói SDK: //p' | awk '{print $NF}' || true)"
 mv "$ls_dir/home-mac/android-sdk/${ls_pkg//;//}" "$ls_dir/pkg-aside" 2> /dev/null || true
@@ -7938,6 +7993,45 @@ mkdir -p "$work/sed-guard"
 printf '#!/bin/bash\n%s -i "s/a/b/" f\nsed -i.bak "s/a/b/" f && rm -f f.bak\nsed -n 1p f\n' "se""d" > "$work/sed-guard/bad.sh"
 expect "sed guard: finds in-place sed without a suffix in a sample" 1 "$(gnu_sed_in_place "$work/sed-guard" | grep -c .)"
 expect "sed guard: no script edits in place with sed and no suffix" "" "$(gnu_sed_in_place scripts)"
+
+# Scripts run with the first bash and sed on PATH: bash 3.2 and BSD sed on a Mac, bash 5 and GNU sed on Linux and in
+# CI. A construct that needs bash 4 or GNU sed passes CI and fails only later on a developer's Mac, so none is
+# allowed in a shell script under scripts/: mapfile and readarray (use a while-read loop), associative arrays
+# (declare -A, local -A), case conversion (${v,,}, ${v^^}: use tr), and the 0,/re/ address of sed (use awk). In-place
+# sed has its own guard above. Comment lines are skipped. The patterns are built from parts so this file does not
+# match itself.
+bash4_gnu_only() { # <file...>: prints file:line:text for each line with one of the constructs
+  local re
+  re="(^|[^A-Za-z0-9_-])($(printf '%s' 'map')file|$(printf '%s' 'read')array)([^A-Za-z0-9_-]|$)"
+  re="$re|(declare|local|typeset)( +-[A-Za-z]+)* +-[A-Za-z]*A"
+  re="$re|[$][{][A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?(,|\^)"
+  re="$re|$(printf '%s' 'se')d[^|;]*[[:space:]'\"]0,/"
+  grep -nHE -- "$re" "$@" 2> /dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true
+}
+shell_scripts() { # tracked files under scripts/ that are shell scripts: *.sh, or a sh or bash shebang
+  local f
+  git ls-files -- scripts | while IFS= read -r f; do
+    case "$f" in
+      *.sh) echo "$f" ;;
+      *) if [ -f "$f" ] && head -n 1 "$f" | grep -qE '^#!.*[/ ](ba)?sh( |$)'; then echo "$f"; fi ;;
+    esac
+  done
+}
+mkdir -p "$work/bash4-guard"
+b4_mf="$(printf '%s' 'map')file" b4_ra="$(printf '%s' 'read')array" b4_d="$(printf '%s' 'decl')are" b4_l="$(printf '%s' 'lo')cal"
+printf '%s\n' "$b4_mf -t a < f" "$b4_ra a < f" "$b4_d -A m" "$b4_l -rA m" 'echo "$''{v,,}"' 'echo "$''{a[0]^^}"' \
+  "se""d '0,/x/s//y/' f" > "$work/bash4-guard/bad.sh"
+printf '%s\n' "# $b4_mf in a comment" "  # $b4_d -A in a comment" "$b4_d -a list" "my_$b4_mf=1" \
+  'echo "$''{#v} $''{v:-a,b} $''{!v} $''{v//,/ }"' "se""d -n '1,/x/p' f" > "$work/bash4-guard/good.sh"
+expect "bash 4 guard: finds every construct in a sample" 7 "$(bash4_gnu_only "$work/bash4-guard/bad.sh" | grep -c .)"
+expect "bash 4 guard: skips comments and the bash 3 forms next to them" "" "$(bash4_gnu_only "$work/bash4-guard/good.sh")"
+b4_files=()
+while IFS= read -r b4_file; do b4_files+=("$b4_file"); done < <(shell_scripts)
+expect "bash 4 guard: lists the shell scripts, this file and the extensionless ones included" "yes yes yes no" \
+  "$(for f in scripts/tests/run.sh scripts/local-setup.sh scripts/tests/fake-adb scripts/tests/fake-gh; do
+    if printf '%s\n' "${b4_files[@]}" | grep -qxF "$f"; then printf 'yes '; else printf 'no '; fi
+  done | sed 's/ $//')"
+expect "bash 4 guard: no shell script under scripts/ needs bash 4 or GNU sed" "" "$(bash4_gnu_only "${b4_files[@]}")"
 
 # ads-plan.py writes the ads, Remote Config and events workbook of an app from its code (docs/ops/ads-plan.md).
 # --dump needs no openpyxl, so these run everywhere; the workbook block runs only where openpyxl is installed.
