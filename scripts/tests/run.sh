@@ -1699,11 +1699,12 @@ printf '%s\n' 'sed: 2: "b b' "\": undefined label 'b'" > "$work/pb23-6.log"
 printf '%s\n' 'sed: 1: k.sed: invalid command code k' > "$work/pb23-7.log"
 printf '%s\n' './scripts/x.sh: line 9: local: -A: invalid option' > "$work/pb23-8.log"
 printf '%s\n' './scripts/x.sh: line 9: typeset: -A: invalid option' > "$work/pb23-9.log"
+printf '%s\n' 'sed: 1: "1a foo' '": command a expects \ followed by text' > "$work/pb23-10.log"
 printf '%s\n' 'sed: -e expression #1, char 3: unknown command: `f'"'" > "$work/pb23-gnu.log"
 printf '%s\n' './scripts/x.sh: line 9: $''{name/: bad substitution' > "$work/pb23-other.log"
 expect "playbook: PB-23 matches every bash 3.2 and BSD sed message, not GNU sed nor another bad substitution" \
-  "PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 khong-co khong-co" \
-  "$(for n in 1 2 3 4 5 6 7 8 9 gnu other; do pb_head "$work/pb23-$n.log" | cut -d' ' -f1; done | tr '\n' ' ' | sed 's/ $//')"
+  "PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 PB-23 khong-co khong-co" \
+  "$(for n in 1 2 3 4 5 6 7 8 9 10 gnu other; do pb_head "$work/pb23-$n.log" | cut -d' ' -f1; done | tr '\n' ' ' | sed 's/ $//')"
 # Result lines of scripts/tests/run.sh are dropped before matching: a passed script test whose name quotes the PB-02
 # prefix does not hide the real 429 of the library download.
 expect "playbook: a passed script test quoting HẠ TẦNG: does not make a 429 download PB-02" "PB-09 lich-thu-lai" \
