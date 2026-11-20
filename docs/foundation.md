@@ -321,8 +321,6 @@ ADR có `origin: template` đến từ dự án mẫu: trong app, không sửa; 
 - không dùng Run now hay lịch hẹn của routine cho danh sách `start: auto`
 - không "Re-run" một lần chạy `start-run.yml` đã gọi API kích hoạt
 
-## Đang đề xuất, chưa duyệt chính thức (vẫn làm theo khi tài liệu quy trình dẫn tới)
-
 ### [ADR-0050](adr/0050-lech-nho-l11-l12-l13.md): Phiên tự chạy tự làm rồi báo ba lệch nhỏ ngoài danh sách của ADR-0032, L11 sửa phần dựng của test chỉ đỏ vì máy thiếu cấu hình chung, L12 sửa điểm nên sửa chỉ về chú thích hay định dạng và L13 sửa điểm nên sửa chỉ về nội dung tài liệu
 
 - danh sách lệch nhỏ của ADR-0032 có thêm L11, L12 và L13, theo mọi quy tắc khác của ADR-0032
