@@ -153,26 +153,42 @@ def find(path, needle):
     return None
 
 
-def close_at(path, x, y):
-    """A small close button (by id or label) of an ad under the point, if any. The app's own Skip or Close under a
-    full-screen ad does not count: the ad may be drawn on top of it."""
+def ad_close(path, point=None):
+    """The first small close button (by id or label) inside an ad's tree, under the point when one is given, as
+    (x, y, name). The app's own Skip or Close under a full-screen ad does not count: the ad may be drawn on top of it."""
     found = None
 
     def walk(n, in_ad):
         nonlocal found
+        if found:
+            return
         here = in_ad or is_ad(n)
         b = [int(v) for v in re.findall(r"\d+", n.get("bounds", "[0,0][0,0]"))]
-        if here and len(b) == 4 and b[0] <= x < b[2] and b[1] <= y < b[3] and (b[2] - b[0]) * (b[3] - b[1]) < 400 * 400:
+        if (
+            here
+            and len(b) == 4
+            and b[2] > b[0]
+            and b[3] > b[1]
+            and (point is None or (b[0] <= point[0] < b[2] and b[1] <= point[1] < b[3]))
+            and (b[2] - b[0]) * (b[3] - b[1]) < 400 * 400
+        ):
             rid = n.get("resource-id", "").split("/")[-1]
             label = (n.get("text", "") or n.get("content-desc", "")).strip()
             if CLOSE_ID.search(rid) or CLOSE_TEXT.match(label):
-                found = rid or label
+                found = ((b[0] + b[2]) // 2, (b[1] + b[3]) // 2, rid or label)
+                return
         for c in n.findall("node"):
             walk(c, here)
 
     for top in ET.parse(path).getroot().findall("node"):
         walk(top, False)
     return found
+
+
+def close_at(path, x, y):
+    """A small close button of an ad under the point, if any (see ad_close)."""
+    found = ad_close(path, (x, y))
+    return found[2] if found else None
 
 
 def covering_ad(path, top):
@@ -238,14 +254,18 @@ def main():
         return
     if cmd == "close":
         best = None
-        for n, (x1, y1, x2, y2) in nodes(sys.argv[2]):
-            rid = n.get("resource-id", "").split("/")[-1]
-            label = (n.get("text", "") or n.get("content-desc", "")).strip()
-            if (CLOSE_ID.search(rid) or CLOSE_TEXT.match(label)) and x2 > x1 and y2 > y1:
-                # Close buttons are small; skip big containers named like "close_layout".
-                if (x2 - x1) * (y2 - y1) < 400 * 400:
-                    best = ((x1 + x2) // 2, (y1 + y2) // 2, rid or label)
-                    break
+        if covering_ad(sys.argv[2], ""):
+            # Under a full-screen ad only its own close button: an app button that looks like one may lie under it.
+            best = ad_close(sys.argv[2])
+        else:
+            for n, (x1, y1, x2, y2) in nodes(sys.argv[2]):
+                rid = n.get("resource-id", "").split("/")[-1]
+                label = (n.get("text", "") or n.get("content-desc", "")).strip()
+                if (CLOSE_ID.search(rid) or CLOSE_TEXT.match(label)) and x2 > x1 and y2 > y1:
+                    # Close buttons are small; skip big containers named like "close_layout".
+                    if (x2 - x1) * (y2 - y1) < 400 * 400:
+                        best = ((x1 + x2) // 2, (y1 + y2) // 2, rid or label)
+                        break
         if not best and fullscreen_ad(sys.argv[2], ""):
             width = int(os.environ.get("AX_WIDTH", "1080")); height = int(os.environ.get("AX_HEIGHT", "2400"))
             for n, (x1, y1, x2, y2) in nodes(sys.argv[2]):
