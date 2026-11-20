@@ -7451,6 +7451,11 @@ expect "app-explore: Continue on a paywall is refused" 4 "$(guard paywall.xml ap
 expect "app-explore: the close button of a paywall is tappable" 0 "$(guard paywall.xml app 95 155)"
 expect "app-explore: Continue on an onboarding page is tappable" 0 "$(guard onboarding.xml app 540 2290)"
 expect "app-explore: a slider over an ExoPlayer video (exo_ad_overlay) is tappable" 0 "$(guard exoplayer.xml app 500 1250)"
+expect "app-explore: an IMA ad inside exo_ad_overlay is refused (Learn more)" 4 "$(guard exoplayer-ima.xml app 930 660)"
+expect "app-explore: an IMA ad inside exo_ad_overlay is refused (ad WebView)" 4 "$(guard exoplayer-ima.xml app 300 900)"
+expect "app-explore: an app's Skip button under a full-screen ad is refused (only the ad's close button)" 4 \
+  "$(guard skip-under-ad.xml app 970 450)"
+expect "app-explore: the app's own WATCH AD button (chooses a rewarded ad) is tappable" 0 "$(guard watch-ad.xml app 540 1875)"
 expect "app-explore: an app button listed after a full-screen ad is refused (the ad may be on top)" 4 \
   "$(guard ad-over-button.xml app 540 2220)"
 expect "app-explore: the labelled close button of a full-screen ad is tappable" 0 "$(guard ad-over-button.xml app 1005 110)"
@@ -7496,6 +7501,13 @@ rm -f "$work/ax-calls.txt"; mkdir -p "$work/ax-idle"
 expect "app-explore: a failed UI dump refuses the tap instead of judging an old dump" "4 0 1" \
   "$(FAKE_ADB_UI_SEQ="$work/screen.idle-error" FAKE_ADB_STATE_DIR="$work/ax-idle" ax settings.xml tap 540 1810) \
 $(grep -c '^shell input tap' "$work/ax-calls.txt") $(grep -c 'không lấy được cây giao diện' "$work/ax.out")"
+# The device keeps the last good dump file when a later dump fails: a tap the old screen allowed must still be refused.
+rm -rf "$work/ax-keep" "$work/ax-calls.txt"; mkdir -p "$work/ax-keep"
+keep_seq="$ax_fixtures/settings.xml $work/screen.idle-error"
+FAKE_ADB_UI_SEQ="$keep_seq" FAKE_ADB_STATE_DIR="$work/ax-keep" FAKE_ADB_KEEP_DUMP=1 ax settings.xml tree > /dev/null
+expect "app-explore: a tap after a failed dump is refused although the old dump file is still on the device" "4 0" \
+  "$(FAKE_ADB_UI_SEQ="$keep_seq" FAKE_ADB_STATE_DIR="$work/ax-keep" FAKE_ADB_KEEP_DUMP=1 ax settings.xml tap 540 1810) \
+$(grep -c '^shell input tap' "$work/ax-calls.txt")"
 printf '/sdcard/DCIM/Camera/a.jpg\n' > "$work/files.txt"
 FAKE_ADB_NETWORK=100 FAKE_ADB_FILES="$work/files.txt" AX_FILES="$work/before.txt" ax settings.xml check > /dev/null
 printf '/sdcard/DCIM/Camera/a.jpg\n/sdcard/Pictures/App/new.jpg\n' > "$work/files.txt"

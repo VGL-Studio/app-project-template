@@ -22,8 +22,9 @@ AD_ACTIVITY = re.compile(r"AdActivity|applovin|mbridge|bytedance|pangle|unity3d\
 AD_ID = re.compile(r"(^|[_.])(ad|ads|adview|ad_view|native_ad|nativead|banner_ad|ad_container|ad_frame|"
                    r"admob|adchoices|ad_choices|ad_media|ad_headline|ad_call_to_action|ad_body|ad_icon|ad_badge)"
                    r"([_.]|$)|nativeAd|adView|AdView|adContainer|bannerAd|appinstall|call_to_action", re.I)
-# Containers named in camel case, e.g. lnAds, rlAds, flAd: case-sensitive, so "loads" or "uploads" do not match.
-AD_ID_CAMEL = re.compile(r"[a-z]Ads?([A-Z_]|$)")
+# Containers named in camel case with a short layout prefix, e.g. lnAds, rlAds, flAd, llAdsView: case-sensitive and
+# anchored, so "loads", "uploadAds" or the app's own "watchRewardedAdButton" (it chooses a rewarded ad) do not match.
+AD_ID_CAMEL = re.compile(r"^[a-z]{1,4}Ads?([A-Z_]|$)")
 AD_TEXT = {"ad", "ads", "quảng cáo", "sponsored", "adchoices", "được tài trợ"}
 # Purchase: Play billing screens, and buttons that start a purchase or a trial.
 BILLING_ACTIVITY = re.compile(r"com\.android\.vending|ProxyBillingActivity|billing", re.I)
@@ -51,8 +52,9 @@ def nodes(path):
 
 def is_ad(n):
     rid = n.get("resource-id", "").split("/")[-1]
-    if rid.startswith("exo_"):
-        # ExoPlayer's own views are not ads: exo_ad_overlay is an empty frame that every player has, even with no ad.
+    if rid.startswith("exo_") and len(n) == 0:
+        # An empty ExoPlayer view is not an ad: every player has exo_ad_overlay, even with no ad. With children it is
+        # the ad UI of IMA (a WebView, Learn more, Skip), so it falls through to the id rules below.
         return False
     cls = n.get("class", "")
     label = (n.get("text", "") or n.get("content-desc", "")).strip().lower()
@@ -152,14 +154,25 @@ def find(path, needle):
 
 
 def close_at(path, x, y):
-    """A small close button (by id or label) under the point, if any."""
-    for n, b in nodes(path):
-        if len(b) == 4 and b[0] <= x < b[2] and b[1] <= y < b[3] and (b[2] - b[0]) * (b[3] - b[1]) < 400 * 400:
+    """A small close button (by id or label) of an ad under the point, if any. The app's own Skip or Close under a
+    full-screen ad does not count: the ad may be drawn on top of it."""
+    found = None
+
+    def walk(n, in_ad):
+        nonlocal found
+        here = in_ad or is_ad(n)
+        b = [int(v) for v in re.findall(r"\d+", n.get("bounds", "[0,0][0,0]"))]
+        if here and len(b) == 4 and b[0] <= x < b[2] and b[1] <= y < b[3] and (b[2] - b[0]) * (b[3] - b[1]) < 400 * 400:
             rid = n.get("resource-id", "").split("/")[-1]
             label = (n.get("text", "") or n.get("content-desc", "")).strip()
             if CLOSE_ID.search(rid) or CLOSE_TEXT.match(label):
-                return rid or label
-    return None
+                found = rid or label
+        for c in n.findall("node"):
+            walk(c, here)
+
+    for top in ET.parse(path).getroot().findall("node"):
+        walk(top, False)
+    return found
 
 
 def covering_ad(path, top):

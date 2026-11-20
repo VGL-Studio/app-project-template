@@ -61,9 +61,10 @@ run_input() {
 }
 # uiautomator fails with "could not get idle state" on a screen that never rests (a video ad) and leaves the last
 # dump in place: delete it first and print nothing on failure, so the guard refuses instead of judging an old screen.
+# Each failure costs uiautomator about 10 s of waiting for idle; callers that already loop (adwait) pass 1 attempt.
 dump() {
-  local out i
-  for i in 1 2 3; do
+  local out i attempts="${1:-3}"
+  for ((i = 0; i < attempts; i++)); do
     adb shell rm -f /sdcard/ax.xml > /dev/null 2>&1 || true
     out="$(adb shell uiautomator dump /sdcard/ax.xml 2>&1 || true)"
     if ! grep -qiE "error|exception" <<<"$out"; then adb exec-out cat /sdcard/ax.xml 2>/dev/null || true; return 0; fi
@@ -183,8 +184,8 @@ if im.convert("L").getextrema()[1] < 8:
       local max="${1:-30}" start found x y label
       start="$(date +%s)"
       while true; do
-        dump > "$CUR"
-        if found="$(python3 -I "$TOOLS/guard.py" close "$CUR")"; then
+        dump 1 > "$CUR" 2> /dev/null
+        if found="$(python3 -I "$TOOLS/guard.py" close "$CUR" 2> /dev/null)"; then
           read -r x y label <<<"$found"
           echo "nút đóng hiện sau khoảng $(( $(date +%s) - start )) giây ($label)"
           run_input tap "$x" "$y"; after_tap "adwait"; break
