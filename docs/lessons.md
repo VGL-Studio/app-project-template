@@ -1493,3 +1493,12 @@ Bài học L-001 tới L-031, ghi trong lúc xây dựng dự án mẫu, đã ch
 - **Đề xuất sửa:** `auto-run.md`, mục Giao bước 3 đến 5, lời giao chung: thay đổi chờ thêm khung hình hay thời gian ở file test sau commit test thì đo cùng chuỗi trên commit trước task (và trước task mà nó dựa vào, nếu nguyên nhân quy cho task đó), ghi số đo vào báo cáo; không ghi nguyên nhân chưa đo.
 - **Trạng thái:** applied (accepted, Nhật, 2026-11-19: "sửa KB-35, xử lý L-186 và L-187")
 - **Áp dụng:** PR #559: thay đổi chờ thêm khung hình hay thời gian ở file test sau commit test thì đo cùng test, cùng số khung trên commit trước task (và trước task mà nó dựa vào) và ghi số đo, không ghi nguyên nhân chưa đo (auto-run.md, lời giao ở mục Giao bước 3 đến 5 và bước 4).
+
+### L-190. Điểm nên sửa chỉ về câu chữ của tài liệu trong file được phép không có đường sửa trong phiên tự chạy
+
+- **Ngày, nguồn:** 2026-11-17, camera-pose (issue #530; PR VGL-Studio/camera-pose#357, commit `69a8e8e`; báo cáo phiên VGL-Studio/camera-pose#358)
+- **Loại, phạm vi:** quy trình, chung
+- **Chuyện gì:** Rà soát độc lập (bước 6) của một task quảng cáo ở app nêu một điểm nên sửa ở `docs/ops/manual-test.md`, file có trong mục 3.2 của plan: dòng kiểm tay mới dựa vào một khóa Remote Config mà bước sau mới bật, nên người thử có thể làm khi khóa còn tắt và thấy sai. Bảng mức của `docs/auto-run.md` bước 6 chỉ cho sửa điểm nên sửa khi có test viết trước thất bại đúng lý do, hay khi phần sửa chỉ là chú thích hay định dạng (ADR-0033/L12). Câu chữ của tài liệu không thuộc cả hai: không viết được test, và `git diff -w` không chỉ là chú thích. Phiên có người theo dõi nên dev bảo sửa (rà soát lại: 0 chặn, 0 nên sửa); phiên không người theo dõi sẽ merge tài liệu biết là chưa rõ rồi để người sửa bằng PR khác.
+- **Bằng chứng:** issue #530; PR VGL-Studio/camera-pose#357 (commit `69a8e8e`), báo cáo phiên VGL-Studio/camera-pose#358, bài học L-107 của app.
+- **Đề xuất sửa:** thêm một lệch nhỏ như L12 cho điểm nên sửa chỉ về nội dung tài liệu trong `docs/` thuộc file được phép: sửa không cần test viết trước khi phần sửa không đổi điều plan đã duyệt nói; không áp cho spec `confirmed`, plan `approved`, ADR `accepted` hay tài liệu quy tắc chung; vòng rà soát lại nhận `git diff` của phần sửa cùng câu của plan mà nó dựa vào; `scripts/check.sh` vẫn qua; ghi vào mục Quyết định AI đã tự làm kèm cách hoàn tác; cùng giới hạn lần sửa và vòng rà soát lại như điểm nên sửa khác.
+- **Trạng thái:** accepted (Nhật nhận issue #530 và bảo làm ngay, 2026-11-20)
