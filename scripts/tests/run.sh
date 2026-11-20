@@ -7523,6 +7523,32 @@ expect "app-explore: the buy button of a paywall is refused" 4 "$(guard paywall.
 expect "app-explore: Continue on a paywall is refused" 4 "$(guard paywall.xml app 540 1950)"
 expect "app-explore: the close button of a paywall is tappable" 0 "$(guard paywall.xml app 95 155)"
 expect "app-explore: Continue on an onboarding page is tappable" 0 "$(guard onboarding.xml app 540 2290)"
+expect "app-explore: a slider over an ExoPlayer video (exo_ad_overlay) is tappable" 0 "$(guard exoplayer.xml app 500 1250)"
+expect "app-explore: an IMA ad inside exo_ad_overlay is refused (Learn more)" 4 "$(guard exoplayer-ima.xml app 930 660)"
+expect "app-explore: an IMA ad inside exo_ad_overlay is refused (ad WebView)" 4 "$(guard exoplayer-ima.xml app 300 900)"
+expect "app-explore: an app's Skip button under a full-screen ad is refused (only the ad's close button)" 4 \
+  "$(guard skip-under-ad.xml app 970 450)"
+expect "app-explore: the app's own WATCH AD button (chooses a rewarded ad) is tappable" 0 "$(guard watch-ad.xml app 540 1875)"
+expect "app-explore: an app button listed after a full-screen ad is refused (the ad may be on top)" 4 \
+  "$(guard ad-over-button.xml app 540 2220)"
+expect "app-explore: the labelled close button of a full-screen ad is tappable" 0 "$(guard ad-over-button.xml app 1005 110)"
+expect "app-explore: the close button labelled like Pangle's is found" "1005 110 Quảng cáo đã đóng" \
+  "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/ad-over-button.xml")"
+expect "app-explore: the install button of a native ad in an lnAds container is refused" 4 \
+  "$(guard native-trap.xml app 540 2221)"
+expect "app-explore: the app's moved Next button above that ad is tappable" 0 "$(guard native-trap.xml app 540 1112)"
+app_paywall='topResumedActivity=com.example/com.example.billing_subscription.PaywallActivity'
+expect "app-explore: the close button of an app's own paywall activity is tappable" 0 \
+  "$(guard app-paywall.xml "$app_paywall" 95 175)"
+expect "app-explore: the trial button of an app's own paywall activity is refused" 4 \
+  "$(guard app-paywall.xml "$app_paywall" 540 2175)"
+expect "app-explore: a plan of an app's own paywall activity is refused" 4 "$(guard app-paywall.xml "$app_paywall" 540 1500)"
+expect "app-explore: a close button on the Play billing screen is still refused" 4 \
+  "$(guard app-paywall.xml 'topResumedActivity=com.android.vending/.billing.Acquire' 95 175)"
+expect "app-explore: close skips an app's Skip button listed before a full-screen ad, finds the ad's own" \
+  "1005 110 Quảng cáo đã đóng" "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/skip-before-ad.xml")"
+expect "app-explore: the unlabeled-corner fallback under a full-screen ad keeps to the ad, not the app's Back icon" \
+  "1000 120 unlabeled-corner" "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/corner-under-ad.xml")"
 expect "app-explore: the close button of an ad is found" "944 136 ad_close" \
   "$(python3 -I scripts/app-explore/guard.py close "$ax_fixtures/ads.xml")"
 expect "app-explore: taptext prefers the exact label (Agree, not Disagree)" "788 2066" \
@@ -7547,6 +7573,18 @@ expect "app-explore: seq sends the tap and the back key" 2 \
 expect "app-explore: seq stops at a refused step" 4 "$(ax paywall.xml seq "tapid pay_purchase_btn; back")"
 expect "app-explore: seq names the step it stopped at" 1 "$(grep -c 'DỪNG ở bước 1' "$work/ax.out")"
 expect "app-explore: a drag from the screen edge is refused" 4 "$(ax settings.xml drag 20 1200 600 1200)"
+# A screen that never rests (a video ad) makes uiautomator fail; the old dump must not be used to judge the tap.
+rm -f "$work/ax-calls.txt"; mkdir -p "$work/ax-idle"
+expect "app-explore: a failed UI dump refuses the tap instead of judging an old dump" "4 0 1" \
+  "$(FAKE_ADB_UI_SEQ="$work/screen.idle-error" FAKE_ADB_STATE_DIR="$work/ax-idle" ax settings.xml tap 540 1810) \
+$(grep -c '^shell input tap' "$work/ax-calls.txt") $(grep -c 'không lấy được cây giao diện' "$work/ax.out")"
+# The device keeps the last good dump file when a later dump fails: a tap the old screen allowed must still be refused.
+rm -rf "$work/ax-keep" "$work/ax-calls.txt"; mkdir -p "$work/ax-keep"
+keep_seq="$ax_fixtures/settings.xml $work/screen.idle-error"
+FAKE_ADB_UI_SEQ="$keep_seq" FAKE_ADB_STATE_DIR="$work/ax-keep" FAKE_ADB_KEEP_DUMP=1 ax settings.xml tree > /dev/null
+expect "app-explore: a tap after a failed dump is refused although the old dump file is still on the device" "4 0" \
+  "$(FAKE_ADB_UI_SEQ="$keep_seq" FAKE_ADB_STATE_DIR="$work/ax-keep" FAKE_ADB_KEEP_DUMP=1 ax settings.xml tap 540 1810) \
+$(grep -c '^shell input tap' "$work/ax-calls.txt")"
 printf '/sdcard/DCIM/Camera/a.jpg\n' > "$work/files.txt"
 FAKE_ADB_NETWORK=100 FAKE_ADB_FILES="$work/files.txt" AX_FILES="$work/before.txt" ax settings.xml check > /dev/null
 printf '/sdcard/DCIM/Camera/a.jpg\n/sdcard/Pictures/App/new.jpg\n' > "$work/files.txt"
