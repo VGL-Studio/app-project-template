@@ -4436,8 +4436,10 @@ expect "agent-context-guard reads the last model call only" "" "$(guard_run shru
   > "$gdir/s1/subagents/agent-long.jsonl"
 expect "agent-context-guard finds the last usage before a line longer than its read chunk" 1 \
   "$(guard_run long | grep -c 'Bàn giao')"
-# The read chunk is 256 KiB: a padding line of 256 KiB less 100 bytes puts the chunk boundary inside the usage line.
-{ guard_usage 2 150000 60000; python3 -I -c 'print("x" * (256 * 1024 - 101))'; } > "$gdir/s1/subagents/agent-cut.jsonl"
+# A padding line 100 bytes shorter than the read chunk puts the chunk boundary inside the usage line.
+guard_chunk="$(python3 -I -c 'import runpy,sys; print(runpy.run_path(sys.argv[1])["TAIL_CHUNK"])' scripts/agent-context-guard.py)"
+{ guard_usage 2 150000 60000; python3 -I -c 'import sys; print("x" * (int(sys.argv[1]) - 101))' "$guard_chunk"; } \
+  > "$gdir/s1/subagents/agent-cut.jsonl"
 expect "agent-context-guard joins a usage line cut by the chunk boundary" 1 "$(guard_run cut | grep -c 'Bàn giao')"
 code=0; out="$(guard_run missing)" || code=$?
 expect "agent-context-guard says nothing without a transcript" "0 " "$code $out"
@@ -4446,6 +4448,11 @@ code=0; out="$(printf '{"session_id":"s1","transcript_path":"%s","hook_event_nam
 expect "agent-context-guard leaves the main session alone" "0 " "$code $out"
 code=0; out="$(echo 'not json' | scripts/agent-context-guard.py)" || code=$?
 expect "agent-context-guard ignores input it cannot read" "0 " "$code $out"
+code=0; out="$( (echo '[1]' | scripts/agent-context-guard.py; echo '{"agent_id":["x"],"session_id":"s1","transcript_path":1}' |
+  scripts/agent-context-guard.py) 2>&1)" || code=$?
+expect "agent-context-guard ignores input of the wrong shape" "0 " "$code $out"
+{ guard_usage 2 150000 60000; guard_usage 0 0 0; } > "$gdir/s1/subagents/agent-synthetic.jsonl"
+expect "agent-context-guard skips a usage of all zeros (synthetic message)" 1 "$(guard_run synthetic | grep -c 'Bàn giao')"
 
 # Workflow commands (.claude/skills/) only point at documents and scripts, so they must name real ones. In the
 # template /whatnow lists every command; an app adds its own commands without changing /whatnow, which shows them

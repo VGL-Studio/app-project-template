@@ -52,16 +52,18 @@ def usage_tokens(raw):
         return None
     try:
         entry = json.loads(raw)
-    except ValueError:
+        message = entry.get("message") if isinstance(entry, dict) else None
+        if entry.get("type") != "assistant" or not isinstance(message, dict):
+            return None
+        usage = message.get("usage")
+        if not isinstance(usage, dict):
+            return None
+        tokens = sum(int(usage.get(key) or 0)
+                     for key in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    except (AttributeError, TypeError, ValueError):
         return None
-    message = entry.get("message")
-    if entry.get("type") != "assistant" or not isinstance(message, dict):
-        return None
-    usage = message.get("usage")
-    if not isinstance(usage, dict):
-        return None
-    return sum(int(usage.get(key) or 0)
-               for key in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    # A synthetic message (an API error written into the transcript) has all counts at zero: look further back.
+    return tokens or None
 
 
 def main():
@@ -69,10 +71,12 @@ def main():
         hook = json.load(sys.stdin)
     except ValueError:
         return 0
+    if not isinstance(hook, dict):
+        return 0
     agent_id = hook.get("agent_id")
     transcript = hook.get("transcript_path")
     session = hook.get("session_id")
-    if not agent_id or not transcript or not session:
+    if not all(isinstance(value, str) and value for value in (agent_id, transcript, session)):
         return 0
     try:
         limit = int(os.environ.get("AGENT_CONTEXT_LIMIT", DEFAULT_LIMIT))

@@ -34,7 +34,7 @@ AI kiểm điều kiện ở mục 1. Thiếu điều nào thì AI nói rõ và 
 | --- | --- | --- |
 | 1. Tài liệu | Ghi lời dev thành file yêu cầu, sửa spec nếu cần, viết ticket và plan đủ mục (`lane: quick`, mục 3.5 từ `scripts/existing-tests.py`), chạy `plan-check.py` | Trả lời câu hỏi nếu có; xác nhận phần spec đổi, khi dev là người xác nhận spec của feature |
 | 2. Duyệt plan | Đưa tóm tắt: phạm vi, file sẽ sửa, test, điểm rủi ro, câu hỏi | Đồng ý, hoặc yêu cầu sửa. Lời đồng ý được ghi vào plan |
-| 3. Làm | Viết test trước, viết code, chạy `scripts/check.sh`, nhờ một agent `reviewer` mới rà soát độc lập, sửa theo rà soát | Trả lời khi AI hỏi về chỗ lệch so với plan |
+| 3. Làm | Viết test trước, viết code, chạy `scripts/check.sh`, nhờ một agent `reviewer` mới rà soát độc lập, giao một agent `implementer` mới sửa theo rà soát | Trả lời khi AI hỏi về chỗ lệch so với plan |
 | 4. PR và CI | Ghi nhật ký vào plan, mở một PR chứa mọi thứ, chờ CI; trước khi merge, gộp nhánh chính vào nhánh làm nhanh trên máy (không đẩy) rồi kiểm các danh sách chạy chưa chạy có bị ảnh hưởng không | Xem PR nếu muốn; quyết khi AI báo ảnh hưởng tới danh sách chạy |
 | 5. Merge | Merge bằng `scripts/merge-if-green.sh`, chờ `main-guard` | Không kích hoạt phiên tự chạy khi PR còn mở |
 | 6. Kiểm tra | Chạy tay `device-session.yml` hay `staging.yml` khi cần | Thử trên máy nếu plan có dòng kiểm tra thủ công; báo kết quả để AI ghi vào nhật ký |
