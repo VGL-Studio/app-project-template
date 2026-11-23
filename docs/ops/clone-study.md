@@ -75,7 +75,7 @@ AI liệt kê app đã cài (`adb shell pm list packages -3`), xác nhận danh 
 
 ## 4. Hướng dẫn cho agent khảo sát trên máy
 
-AI chính giao mỗi app mẫu cho một agent con, lần lượt, và chép mục này vào lời giao việc.
+AI chính giao mỗi app mẫu cho một agent `clone-researcher`, lần lượt, và chép mục này vào lời giao việc.
 
 **Công cụ:** chỉ điều khiển máy qua `scripts/app-explore/ax.sh` (đường dẫn tuyệt đối tới repo dự án mẫu hoặc repo app). Chạy trong thư mục làm việc để `incidents.log` nằm ở đó.
 
@@ -120,9 +120,9 @@ Mọi lệnh chạm đi qua bộ chặn (`guard.py`): chạm vào phần tử qu
 
 ## 5. Đọc APK và tìm trên web
 
-**APK** (agent con, không cần máy): công nghệ (View, Compose, Flutter), SDK quảng cáo và mediation, Firebase, nhận dạng dáng hay ML, nội dung đóng gói hay tải từ mạng (cấu trúc dữ liệu, số lượng), khóa Remote Config điều khiển quảng cáo, màu và phông chữ, danh sách màn hình, chuỗi chữ cho thấy tính năng. Nhận ra các app cùng một mã nguồn. Không chạy code trong APK, không tải nội dung từ máy chủ của app mẫu. Mã đơn vị quảng cáo chỉ ghi có hay không.
+**APK** (agent `clone-researcher`, không cần máy): công nghệ (View, Compose, Flutter), SDK quảng cáo và mediation, Firebase, nhận dạng dáng hay ML, nội dung đóng gói hay tải từ mạng (cấu trúc dữ liệu, số lượng), khóa Remote Config điều khiển quảng cáo, màu và phông chữ, danh sách màn hình, chuỗi chữ cho thấy tính năng. Nhận ra các app cùng một mã nguồn. Không chạy code trong APK, không tải nội dung từ máy chủ của app mẫu. Mã đơn vị quảng cáo chỉ ghi có hay không.
 
-**Web và Play** (agent con): trang Play của từng app (lượt cài, điểm, ngày cập nhật, mô tả, ảnh store), chủ đề đánh giá xấu và tốt kèm trích dẫn, đối thủ lớn ngoài danh sách, từ khóa, xu hướng, khoảng trống. Mọi số liệu có nguồn.
+**Web và Play** (agent `clone-researcher`): trang Play của từng app (lượt cài, điểm, ngày cập nhật, mô tả, ảnh store), chủ đề đánh giá xấu và tốt kèm trích dẫn, đối thủ lớn ngoài danh sách, từ khóa, xu hướng, khoảng trống. Mọi số liệu có nguồn.
 
 ## 6. Bản đề xuất
 

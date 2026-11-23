@@ -58,6 +58,13 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 - `app/src/staging/google-services.json` là file cấu hình Firebase giả, chỉ để build qua được; bản build từ file này không gửi số liệu nào (ADR-0012). Không sửa, không thay bằng file thật.
 - Môi trường cloud không có emulator. Test trên emulator (`app/src/androidTest`) chỉ chạy trong CI, sau merge, ở job `ui-test` của `main-guard.yml` (ADR-0043); PR không chạy chúng.
 
+## Giao việc cho agent con
+
+Mỗi lần gọi công cụ, agent đọc lại toàn bộ ngữ cảnh của nó, nên token tốn bằng cỡ ngữ cảnh nhân số lần gọi. Hai điều dưới đây giữ ngữ cảnh của agent nhỏ.
+
+- Luôn chọn agent của dự án trong `.claude/agents/` (`subagent_type`): `implementer` làm bước 3 đến 5 của một task hay một bước chạy thử của plan; `reviewer` rà soát độc lập, chỉ đọc (PR, nhánh, plan, danh sách chạy); `clone-researcher` khảo sát app mẫu (máy, APK, web). Không dùng agent mặc định (`general-purpose`) hay agent không giới hạn công cụ: chúng nạp thêm danh mục skill và công cụ MCP, nên bắt đầu ở khoảng 70k token thay vì khoảng 16k. Việc cần công cụ MCP (Figma) thì phiên chính tự làm, hoặc dùng agent mặc định cho riêng việc đó.
+- Mỗi agent một việc: một task, một lần rà soát, một app mẫu hay một phần việc khảo sát. Không gộp nhiều task, plan hay lượt sửa vào một agent, không gửi việc mới cho agent đã xong việc của nó; việc sau giao cho agent mới, lời giao hẹp, ghi rõ file và mục cần đọc. Ngoại lệ: tiếp tục phiên con bị ngắt giữa chừng (`docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con).
+
 ## Viết một feature mới
 
 Làm theo đúng mẫu `:feature:sample`:

@@ -4384,6 +4384,25 @@ if [[ -f scripts/new-app.sh ]]; then
     "$([ -e "$new_app/scripts/template-sync.sh" ] && echo present || echo absent)"
 fi
 
+# Agents (.claude/agents/) list their tools, without Skill, Agent or MCP tools: an agent with every tool loads the skill
+# catalogue and MCP tools into each model call (CLAUDE.md, Giao việc cho agent con). Commands and rule documents only
+# name agents that exist.
+agent_problems=""
+for agent in .claude/agents/*.md; do
+  [[ -e "$agent" ]] || continue
+  name="$(basename "$agent" .md)"
+  [[ "$(sed -n '2s/^name: //p' "$agent")" == "$name" ]] || agent_problems+=" $name:name"
+  grep -q '^description: .' "$agent" || agent_problems+=" $name:description"
+  tools="$(sed -n 's/^tools: //p' "$agent")"
+  [[ -n "$tools" ]] || agent_problems+=" $name:tools"
+  grep -qE '(^|[ ,])(Skill|Agent|Task|mcp__[^ ,]*)($|[ ,(])' <<< "$tools" && agent_problems+=" $name:tools"
+done
+for ref in $(grep -ohE 'agent `[a-z-]+`' CLAUDE.md docs/CLAUDE.md docs/auto-run.md docs/ops/*.md .claude/skills/*/SKILL.md \
+  | sed -E 's/agent `([a-z-]+)`/\1/' | sort -u); do
+  [[ -f ".claude/agents/$ref.md" ]] || agent_problems+=" missing:$ref"
+done
+expect "agents list limited tools, and documents name existing agents" "" "$agent_problems"
+
 # Workflow commands (.claude/skills/) only point at documents and scripts, so they must name real ones. In the
 # template /whatnow lists every command; an app adds its own commands without changing /whatnow, which shows them
 # from the folder. Files that exist only in the template, or only in an app, are left out.
@@ -4482,9 +4501,11 @@ else
 
     sed -i.bak '2s/.*/# app change/' "$app/scripts/wait-run.sh" && rm "$app/scripts/wait-run.sh.bak"
     sed -i.bak '2s/.*/name: app change/' "$app/.claude/skills/whatnow/SKILL.md" && rm "$app/.claude/skills/whatnow/SKILL.md.bak"
+    sed -i.bak '2s/.*/name: app change/' "$app/.claude/agents/reviewer.md" && rm "$app/.claude/agents/reviewer.md.bak"
     git -C "$app" commit --quiet -am "app change"
     sed -i.bak '2s/.*/# template v3/' "$tpl/scripts/wait-run.sh" && rm "$tpl/scripts/wait-run.sh.bak"
     sed -i.bak '2s/.*/name: template v3/' "$tpl/.claude/skills/whatnow/SKILL.md" && rm "$tpl/.claude/skills/whatnow/SKILL.md.bak"
+    sed -i.bak '2s/.*/name: template v3/' "$tpl/.claude/agents/reviewer.md" && rm "$tpl/.claude/agents/reviewer.md.bak"
     # new-app.sh put the app's name on the first line of README.md, so a template change there conflicts too.
     sed -i.bak '1s/.*/# TEMPLATE V3/' "$tpl/README.md" && rm "$tpl/README.md.bak"
     git -C "$tpl" commit --quiet -am "template v3"
@@ -4495,6 +4516,8 @@ else
     # Workflow commands are the template's (docs/ops/to-app.md, section 2).
     expect "template-sync.sh sorts a Claude Code skill with the template's files" 1 \
       "$(sed -n '/Phần của dự án mẫu/,/Phần app cũng sửa/p' <<< "$out" | grep -cx '   .claude/skills/whatnow/SKILL.md')"
+    expect "template-sync.sh sorts a Claude Code agent with the template's files" 1 \
+      "$(sed -n '/Phần của dự án mẫu/,/Phần app cũng sửa/p' <<< "$out" | grep -cx '   .claude/agents/reviewer.md')"
 
     code=0; out="$("$tpl/scripts/template-sync.sh" --app "$app" --to HEAD 2>&1)" || code=$?
     expect "template-sync.sh refuses an app with uncommitted changes" "1 1" "$code $(grep -c 'chưa commit' <<< "$out")"

@@ -50,7 +50,7 @@ Phiên có người theo dõi (viết spec, plan, retro) cũng dùng được l�
 - **Lập danh sách chạy:** cộng `token_estimate` của các plan để xem danh sách có vừa một phiên không, so với tổng thật của các phiên trước.
 - **Hiệu chỉnh:** mỗi vài phiên, chạy `scripts/token-usage.py estimate`; số trung vị theo cỡ thay cho số khởi đầu.
 - **Credit:** khi có phiên ghi `credit_usd`, `estimate` in thêm số USD trung bình cho mỗi 1M token của các phiên đó. Nhân với tổng `token_estimate` của danh sách để biết phiên tốn khoảng bao nhiêu credit (camera-pose: khoảng 10 USD cho 24M token).
-- **Tối ưu:** dòng Chung lớn nghĩa là chi phí cố định của phiên (đọc tài liệu đầu phiên, chờ CI, emulator) cao. Đọc cache lớn nghĩa là ngữ cảnh dài: tài liệu luôn được nạp (`CLAUDE.md`, `docs/CLAUDE.md`, `docs/auto-run.md`) và kết quả lệnh dài. Cách giảm được đề xuất như bài học (`docs/auto-run.md`, mục 6), không tự sửa trong phiên.
+- **Tối ưu:** dòng Chung lớn nghĩa là chi phí cố định của phiên (đọc tài liệu đầu phiên, chờ CI, emulator) cao. Đọc cache lớn nghĩa là ngữ cảnh dài: tài liệu luôn được nạp (`CLAUDE.md`, `docs/CLAUDE.md`, `docs/auto-run.md`) và kết quả lệnh dài. Phiên con có tổng lớn thường là agent mặc định (bắt đầu ở khoảng 70k token thay vì khoảng 16k) hay một agent làm nhiều việc nối nhau, trái mục Giao việc cho agent con của `CLAUDE.md`. Cách giảm được đề xuất như bài học (`docs/auto-run.md`, mục 6), không tự sửa trong phiên.
 
 ## 5. Giới hạn
 
