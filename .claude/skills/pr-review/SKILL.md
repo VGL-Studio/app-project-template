@@ -12,6 +12,7 @@ Tham số: `$ARGUMENTS` (số PR hay nhánh; mặc định nhánh hiện tại s
 2. Gom đầu vào: `git diff origin/main...HEAD` (hay diff của PR), plan và spec liên quan, ADR mà thay đổi chạm vào, và với task có plan: thay đổi ở file test sau commit test, danh sách test bị xóa, phần ngoài mục 3.2 kèm lý do.
 3. Giao một agent `reviewer` mới (ngữ cảnh mới, chỉ đọc); vòng rà soát lại cũng dùng agent mới. Lời giao gồm: đường dẫn các file trên, nội dung rà soát của bước 6, yêu cầu trả từng điểm kèm mức và file, dòng. Không đưa quá trình làm việc hay kết luận của mình. Task có ticket thì lời giao có dòng `Task: T-NNN`.
 4. Xử lý kết quả:
+   - Lượt sửa giao cho một agent `implementer` mới (lời giao: các điểm cần sửa nguyên văn kèm mức, file và dòng); phiên chính không tự sửa (`CLAUDE.md`, mục Giao việc cho agent con).
    - **Chặn:** sửa rồi rà soát lại phần vừa sửa.
    - **Nên sửa:** sửa khi trong phạm vi được phép, có test thất bại trước nếu là code; không thì ghi lại.
    - **Ghi chú:** ghi vào mô tả PR.

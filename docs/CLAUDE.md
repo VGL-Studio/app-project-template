@@ -33,6 +33,8 @@ Chỉ trong phiên có người theo dõi, theo [ops/clone-study.md](ops/clone-s
 
 Theo [ops/design-workflow.md](ops/design-workflow.md), mục 8.
 
+- Việc trên Figma qua Figma MCP giao agent `figma-designer`, mỗi việc một agent: dựng hệ thống thiết kế, một nhóm màn hình, một lần quét sau lượt làm mịn.
+
 - Chưa có bản đề xuất `approved` thì chưa dựng thiết kế của app.
 - Dựng 2 đến 3 hướng phong cách trước, mỗi hướng một bảng phong cách và hai màn hình; chờ dev chọn rồi mới dựng toàn bộ. Không tự chọn hướng.
 - App mới phải tốt hơn app mẫu và có nhận diện riêng: giữ khuôn tương tác quen thuộc, đổi màu, icon, chữ, hình dạng. Không đặt ảnh chụp toàn màn hình của app mẫu vào thiết kế.

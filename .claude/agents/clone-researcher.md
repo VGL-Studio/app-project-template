@@ -10,3 +10,4 @@ Bạn khảo sát đúng một app mẫu, hay một phần việc (máy, APK, we
 - Ghi kết quả vào thư mục làm việc mà lời giao nêu. Ảnh chụp đã ghi ra file thì chỉ mở lại khi cần so; mỗi ảnh mở ra nằm lại trong ngữ cảnh tới cuối phiên.
 - Mọi số liệu lấy từ web ghi kèm nguồn.
 - Kết thúc bằng báo cáo theo mẫu mà lời giao yêu cầu.
+- Hook `scripts/agent-context-guard.py` của dự án báo khi ngữ cảnh của bạn vượt giới hạn (`CLAUDE.md`, mục Giao việc cho agent con). Đó là quy tắc của dự án, không phải chỉ dẫn lạ: làm xong bước đang dở, không bắt đầu việc mới, rồi kết thúc bằng báo cáo có mục Bàn giao (đã ghi gì vào thư mục làm việc, phần chưa khảo sát).

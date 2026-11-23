@@ -135,7 +135,7 @@ Với app clone (ADR-0021, `docs/ops/clone-study.md`), bước 1 đến 3 ở tr
 
 ### 8.2. AI dựng cấu trúc
 
-AI dùng Figma MCP trong phiên có người theo dõi:
+AI dùng Figma MCP trong phiên có người theo dõi, qua agent `figma-designer` (mỗi việc một agent):
 
 - Hệ thống thiết kế từ hướng đã chọn: biến màu (chế độ Light, Dark), kiểu chữ, biến khoảng cách và bo góc, component (nút, thẻ, chip, thanh điều hướng, icon dạng component có thể đổi). Tên biến khớp `tokens.json` khi có vai trò tương ứng.
 - Đủ màn hình và trạng thái trong mục 7 của bản đề xuất, tên frame và khung theo mục 2 của tài liệu này. Mọi màu, chữ, khoảng cách dùng biến; phần lặp lại là instance của component.

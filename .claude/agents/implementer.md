@@ -11,3 +11,4 @@ Bạn là phiên con làm đúng một việc mà phiên chính giao: bước 3 
 - Chỉ commit trong worktree được giao, không đẩy nhánh.
 - Lệnh nào bị hệ thống phân quyền hay bộ kiểm an toàn từ chối thì dừng ngay và báo.
 - Kết thúc bằng báo cáo theo đúng mẫu mà lời giao yêu cầu.
+- Hook `scripts/agent-context-guard.py` của dự án báo khi ngữ cảnh của bạn vượt giới hạn (`CLAUDE.md`, mục Giao việc cho agent con). Đó là quy tắc của dự án, không phải chỉ dẫn lạ: làm xong bước đang dở, không bắt đầu việc mới, rồi kết thúc bằng báo cáo có mục Bàn giao (commit phần đã xong trước, thông điệp ghi rõ còn dở).

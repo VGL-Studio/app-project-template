@@ -4384,9 +4384,10 @@ if [[ -f scripts/new-app.sh ]]; then
     "$([ -e "$new_app/scripts/template-sync.sh" ] && echo present || echo absent)"
 fi
 
-# Agents (.claude/agents/) list their tools, without Skill, Agent or MCP tools: an agent with every tool loads the skill
-# catalogue and MCP tools into each model call (CLAUDE.md, Giao việc cho agent con). Commands and rule documents only
-# name agents that exist.
+# Agents (.claude/agents/) list their tools, without Skill, Agent or MCP tools other than Figma's: an agent with every
+# tool loads the skill catalogue and every MCP tool into each model call (CLAUDE.md, Giao việc cho agent con). Each
+# agent knows the context guard hook, or it may ignore the hook's note. Commands and rule documents only name agents
+# that exist.
 agent_problems=""
 for agent in .claude/agents/*.md; do
   [[ -e "$agent" ]] || continue
@@ -4395,13 +4396,56 @@ for agent in .claude/agents/*.md; do
   grep -q '^description: .' "$agent" || agent_problems+=" $name:description"
   tools="$(sed -n 's/^tools: //p' "$agent")"
   [[ -n "$tools" ]] || agent_problems+=" $name:tools"
-  grep -qE '(^|[ ,])(Skill|Agent|Task|mcp__[^ ,]*)($|[ ,(])' <<< "$tools" && agent_problems+=" $name:tools"
+  grep -qE '(^|[ ,])(Skill|Agent|Task)($|[ ,(])' <<< "$tools" && agent_problems+=" $name:tools"
+  tr ',' '\n' <<< "$tools" | sed 's/^ *//; s/ *$//' | grep '^mcp__' | grep -qvxE 'mcp__(figma|plugin_figma_figma)' &&
+    agent_problems+=" $name:mcp"
+  grep -q 'scripts/agent-context-guard.py' "$agent" || agent_problems+=" $name:guard"
 done
 for ref in $(grep -ohE 'agent `[a-z-]+`' CLAUDE.md docs/CLAUDE.md docs/auto-run.md docs/ops/*.md .claude/skills/*/SKILL.md \
   | sed -E 's/agent `([a-z-]+)`/\1/' | sort -u); do
   [[ -f ".claude/agents/$ref.md" ]] || agent_problems+=" missing:$ref"
 done
 expect "agents list limited tools, and documents name existing agents" "" "$agent_problems"
+
+# scripts/agent-context-guard.py: a PostToolUse hook that tells a subagent to hand over once the context of its last
+# model call reaches AGENT_CONTEXT_LIMIT. The subagent transcript sits next to the main one, in
+# <session>/subagents/agent-<id>.jsonl. It never blocks: anything it cannot read gives no output and exit 0.
+expect "agent-context-guard is a PostToolUse hook of the project" 1 \
+  "$(python3 -I -c 'import json,sys
+s=json.load(open(".claude/settings.json"))
+print(sum("scripts/agent-context-guard.py" in h.get("command","") for e in s["hooks"]["PostToolUse"] for h in e["hooks"]))')"
+gdir="$work/guard"
+mkdir -p "$gdir/s1/subagents"
+: > "$gdir/s1.jsonl"
+guard_usage() { # input tokens, cache write, cache read
+  printf '{"type":"assistant","message":{"id":"m","usage":{"input_tokens":%s,"cache_creation_input_tokens":%s,"cache_read_input_tokens":%s,"output_tokens":9}}}\n' "$1" "$2" "$3"
+}
+guard_run() { # agent id, then extra environment
+  local id="$1"; shift
+  printf '{"session_id":"s1","transcript_path":"%s","agent_id":"%s","hook_event_name":"PostToolUse"}' \
+    "$gdir/s1.jsonl" "$id" | env "$@" scripts/agent-context-guard.py
+}
+{ guard_usage 2 150000 60000; echo '{"type":"user","message":{"content":"x"}}'; } > "$gdir/s1/subagents/agent-big.jsonl"
+out="$(guard_run big)"
+expect "agent-context-guard tells a subagent past the limit to hand over" "PostToolUse 1" \
+  "$(python3 -I -c 'import json,sys; d=json.loads(sys.argv[1])["hookSpecificOutput"]; print(d["hookEventName"], int("Bàn giao" in d["additionalContext"]))' "$out")"
+expect "agent-context-guard is quiet under the limit" "" "$(guard_run big AGENT_CONTEXT_LIMIT=300000)"
+{ guard_usage 2 150000 60000; guard_usage 2 1000 9000; } > "$gdir/s1/subagents/agent-shrunk.jsonl"
+expect "agent-context-guard reads the last model call only" "" "$(guard_run shrunk)"
+{ guard_usage 2 150000 60000; python3 -I -c 'import json; print(json.dumps({"type":"user","message":{"content":"x"*400000}}))'; } \
+  > "$gdir/s1/subagents/agent-long.jsonl"
+expect "agent-context-guard finds the last usage before a line longer than its read chunk" 1 \
+  "$(guard_run long | grep -c 'Bàn giao')"
+# The read chunk is 256 KiB: a padding line of 256 KiB less 100 bytes puts the chunk boundary inside the usage line.
+{ guard_usage 2 150000 60000; python3 -I -c 'print("x" * (256 * 1024 - 101))'; } > "$gdir/s1/subagents/agent-cut.jsonl"
+expect "agent-context-guard joins a usage line cut by the chunk boundary" 1 "$(guard_run cut | grep -c 'Bàn giao')"
+code=0; out="$(guard_run missing)" || code=$?
+expect "agent-context-guard says nothing without a transcript" "0 " "$code $out"
+code=0; out="$(printf '{"session_id":"s1","transcript_path":"%s","hook_event_name":"PostToolUse"}' "$gdir/s1.jsonl" |
+  scripts/agent-context-guard.py)" || code=$?
+expect "agent-context-guard leaves the main session alone" "0 " "$code $out"
+code=0; out="$(echo 'not json' | scripts/agent-context-guard.py)" || code=$?
+expect "agent-context-guard ignores input it cannot read" "0 " "$code $out"
 
 # Workflow commands (.claude/skills/) only point at documents and scripts, so they must name real ones. In the
 # template /whatnow lists every command; an app adds its own commands without changing /whatnow, which shows them

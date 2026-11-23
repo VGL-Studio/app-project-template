@@ -60,10 +60,12 @@ Quy tắc phụ thuộc (ADR-0001, kiểm tra tự động bằng `checkModuleDe
 
 ## Giao việc cho agent con
 
-Mỗi lần gọi công cụ, agent đọc lại toàn bộ ngữ cảnh của nó, nên token tốn bằng cỡ ngữ cảnh nhân số lần gọi. Hai điều dưới đây giữ ngữ cảnh của agent nhỏ.
+Mỗi lần gọi công cụ, agent đọc lại toàn bộ ngữ cảnh của nó, nên token tốn bằng cỡ ngữ cảnh nhân số lần gọi. Các điều dưới đây giữ ngữ cảnh của agent nhỏ.
 
-- Luôn chọn agent của dự án trong `.claude/agents/` (`subagent_type`): `implementer` làm bước 3 đến 5 của một task hay một bước chạy thử của plan; `reviewer` rà soát độc lập, chỉ đọc (PR, nhánh, plan, danh sách chạy); `clone-researcher` khảo sát app mẫu (máy, APK, web). Không dùng agent mặc định (`general-purpose`) hay agent không giới hạn công cụ: chúng nạp thêm danh mục skill và công cụ MCP, nên bắt đầu ở khoảng 70k token thay vì khoảng 16k. Ngoại lệ duy nhất: việc cần công cụ MCP (Figma) không có agent của dự án, nên phiên chính tự làm hoặc dùng agent mặc định cho riêng việc đó.
-- Mỗi agent một việc: một task, một lần rà soát, một app mẫu hay một phần việc khảo sát. Không gộp nhiều task, plan hay lượt sửa vào một agent, không gửi việc mới cho agent đã xong việc của nó; việc sau (kể cả lượt sửa sau rà soát) do phiên chính tự làm hoặc giao cho agent mới, lời giao hẹp, ghi rõ file và mục cần đọc. Ngoại lệ: phiên con bị ngắt giữa chừng mà công cụ cho tiếp tục thì gửi tin tiếp tục cho chính nó (`docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con, ý phiên con kết thúc mà không có báo cáo).
+- Luôn chọn agent của dự án trong `.claude/agents/` (`subagent_type`): `implementer` làm bước 3 đến 5 của một task, một lượt sửa sau rà soát hay một bước chạy thử của plan; `reviewer` rà soát độc lập, chỉ đọc (PR, nhánh, plan, danh sách chạy); `clone-researcher` khảo sát app mẫu (máy, APK, web); `figma-designer` làm việc trên Figma qua Figma MCP. Không dùng agent mặc định (`general-purpose`) hay agent không giới hạn công cụ: chúng nạp thêm danh mục skill và mọi công cụ MCP, nên bắt đầu ở khoảng 70k token thay vì khoảng 16k.
+- Mỗi agent một việc: một task, một lượt sửa, một lần rà soát, một app mẫu hay một phần việc khảo sát. Không gộp nhiều task, plan hay lượt sửa vào một agent, không gửi việc mới cho agent đã xong việc của nó; việc sau giao cho agent mới, lời giao hẹp, ghi rõ file và mục cần đọc. Ngoại lệ: phiên con bị ngắt giữa chừng mà công cụ cho tiếp tục thì gửi tin tiếp tục cho chính nó (`docs/auto-run.md`, mục Giao bước 3 đến 5 cho phiên con, ý phiên con kết thúc mà không có báo cáo).
+- Lượt sửa sau rà soát độc lập (điểm chặn, điểm nên sửa phải sửa) giao cho một agent `implementer` mới; phiên chính không tự sửa, để ngữ cảnh của nó không phình theo từng vòng.
+- Hook `scripts/agent-context-guard.py` (`.claude/settings.json`) theo dõi ngữ cảnh của mọi agent con: từ `AGENT_CONTEXT_LIMIT` token (mặc định 200000) trở lên, nó nhắc agent làm xong bước đang dở rồi kết thúc bằng báo cáo có mục Bàn giao. Phiên chính giao phần còn lại cho một agent mới cùng loại, lời giao kèm mục Bàn giao đó; không tính là task dừng. Phiên chính không bị hook theo dõi.
 
 ## Viết một feature mới
 
