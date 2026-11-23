@@ -107,7 +107,7 @@ Trong phiên tự chạy (`docs/auto-run.md`, bước 5 và 6):
 
 1. Screenshot test và test giao diện qua (cổng chặn).
 2. `scripts/design-compare.sh <feature>` sinh ảnh ghép thiết kế, thật, khác biệt và `review/summary.md` với tỷ lệ điểm ảnh khác. Không chặn merge.
-3. Phiên rà soát độc lập xem từng ảnh ghép theo mục 7 của mẫu thiết kế và xếp sai lệch theo mức chặn, nên sửa, ghi chú.
+3. Phiên rà soát độc lập (agent `reviewer`) xem từng ảnh ghép theo mục 7 của mẫu thiết kế và xếp sai lệch theo mức chặn, nên sửa, ghi chú.
 4. `review/` được commit cùng PR của task, `summary.md` được dán vào mô tả PR.
 
 Tỷ lệ khác biệt chỉ để tham khảo: phông chữ và cách vẽ chữ luôn làm lệch vài phần trăm. Mắt người và phiên rà soát quyết định.
