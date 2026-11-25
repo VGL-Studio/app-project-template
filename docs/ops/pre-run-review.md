@@ -29,7 +29,7 @@ Muốn giữ thứ tự ngược với một đề xuất của plan (ví dụ h
 
 ## 2. Rà soát độc lập
 
-Một phiên AI riêng làm việc này, ví dụ một agent con, với ngữ cảnh mới. Phiên này chỉ nhận: danh sách chạy, kết quả `run-check.py`, các plan, ticket, spec, thiết kế và ADR liên quan, cùng nội dung hiện tại của các file trong mục 3.2 của mỗi plan. Phiên không nhận quá trình viết plan, để không mang theo giả định của người viết, giống bước 6 của `docs/auto-run.md`.
+Một phiên AI riêng làm việc này, là một agent `reviewer` mới, ngữ cảnh mới. Phiên này chỉ nhận: danh sách chạy, kết quả `run-check.py`, các plan, ticket, spec, thiết kế và ADR liên quan, cùng nội dung hiện tại của các file trong mục 3.2 của mỗi plan. Phiên không nhận quá trình viết plan, để không mang theo giả định của người viết, giống bước 6 của `docs/auto-run.md`.
 
 Nội dung giao việc tối thiểu: "Rà soát danh sách chạy `<đường dẫn>` theo `docs/ops/pre-run-review.md`, mục 2. Chỉ đọc, không sửa file. Trả về bảng kết quả theo mục 3. Trả lời câu hỏi về cách mở phiên ở mục 2.3 cho từng plan."
 

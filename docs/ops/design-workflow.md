@@ -107,7 +107,7 @@ Trong phiên tự chạy (`docs/auto-run.md`, bước 5 và 6):
 
 1. Screenshot test và test giao diện qua (cổng chặn).
 2. `scripts/design-compare.sh <feature>` sinh ảnh ghép thiết kế, thật, khác biệt và `review/summary.md` với tỷ lệ điểm ảnh khác. Không chặn merge.
-3. Phiên rà soát độc lập xem từng ảnh ghép theo mục 7 của mẫu thiết kế và xếp sai lệch theo mức chặn, nên sửa, ghi chú.
+3. Phiên rà soát độc lập (agent `reviewer`) xem từng ảnh ghép theo mục 7 của mẫu thiết kế và xếp sai lệch theo mức chặn, nên sửa, ghi chú.
 4. `review/` được commit cùng PR của task, `summary.md` được dán vào mô tả PR.
 
 Tỷ lệ khác biệt chỉ để tham khảo: phông chữ và cách vẽ chữ luôn làm lệch vài phần trăm. Mắt người và phiên rà soát quyết định.
@@ -135,7 +135,7 @@ Với app clone (ADR-0021, `docs/ops/clone-study.md`), bước 1 đến 3 ở tr
 
 ### 8.2. AI dựng cấu trúc
 
-AI dùng Figma MCP trong phiên có người theo dõi:
+AI dùng Figma MCP trong phiên có người theo dõi, qua agent `figma-designer` (mỗi việc một agent):
 
 - Hệ thống thiết kế từ hướng đã chọn: biến màu (chế độ Light, Dark), kiểu chữ, biến khoảng cách và bo góc, component (nút, thẻ, chip, thanh điều hướng, icon dạng component có thể đổi). Tên biến khớp `tokens.json` khi có vai trò tương ứng.
 - Đủ màn hình và trạng thái trong mục 7 của bản đề xuất, tên frame và khung theo mục 2 của tài liệu này. Mọi màu, chữ, khoảng cách dùng biến; phần lặp lại là instance của component.
